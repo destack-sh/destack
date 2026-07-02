@@ -22,7 +22,7 @@ use crate::host::{
 use crate::runtime::machine::{
     Continuation, Entry, Execution, Outcome, ProgramActivation, ProgramStorage,
 };
-use crate::runtime::scheduler::{Readiness, ScheduledTimer, Task, TaskId, TimerDeadline};
+use crate::runtime::scheduler::{Readiness, Runnable, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::runtime::{
     BindingCall, RuntimeHeap, TickResult, Worker, WorkerId, WorkerOptions, World, WorldState,
@@ -259,28 +259,22 @@ impl TestRuntime {
     }
 
     /// Enqueue one task with explicit identifiers.
-    pub(crate) fn enqueue_task(&mut self, task_id: u64, continuation_id: u64, priority: u8) {
+    pub(crate) fn enqueue_task(&mut self, task_id: u64, continuation_id: u64) {
         let continuation = self.yielding_continuation(continuation_id);
 
-        self.worker.event_loop.enqueue_task(Task {
-            id: TaskId::new(task_id),
-            runnable: continuation,
+        self.worker.event_loop.enqueue_task(Runnable {
+            id: RunnableId::new(task_id),
+            continuation,
             resume_value: program::Value::Void,
-            priority,
         });
     }
 
     /// Register one timer waiter.
-    pub(crate) fn add_timer_waiter(&mut self, handle: u64, continuation_id: u64, priority: u8) {
+    pub(crate) fn add_timer_waiter(&mut self, handle: u64, continuation_id: u64) {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
-            .add_timer_waiter(
-                test_resource_id(handle),
-                continuation,
-                program::Value::Void,
-                priority,
-            )
+            .add_timer_waiter(test_resource_id(handle), continuation, program::Value::Void)
             .expect("timer waiter should register");
     }
 
@@ -323,12 +317,7 @@ impl TestRuntime {
     }
 
     /// Register one readable-resource waiter.
-    pub(crate) fn add_resource_waiter(
-        &mut self,
-        resource_id: u64,
-        continuation_id: u64,
-        priority: u8,
-    ) {
+    pub(crate) fn add_resource_waiter(&mut self, resource_id: u64, continuation_id: u64) {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
@@ -337,22 +326,16 @@ impl TestRuntime {
                 Readiness::Readable,
                 continuation,
                 program::Value::Void,
-                priority,
             )
             .expect("resource waiter should register");
     }
 
     /// Register one host waiter.
-    pub(crate) fn add_host_waiter(
-        &mut self,
-        kind: HostEventKind,
-        continuation_id: u64,
-        priority: u8,
-    ) {
+    pub(crate) fn add_host_waiter(&mut self, kind: HostEventKind, continuation_id: u64) {
         let continuation = self.yielding_continuation(continuation_id);
 
         self.worker
-            .add_host_waiter(kind, continuation, program::Value::Void, priority)
+            .add_host_waiter(kind, continuation, program::Value::Void)
             .expect("host waiter should register");
     }
 
@@ -427,7 +410,7 @@ impl TestRuntime {
             &self.constant_space,
             self.world.host.as_ref(),
             &self.world.host_queue,
-            Some(TaskId::new(task_id)),
+            Some(RunnableId::new(task_id)),
             timeout_nanos,
             &mut poller,
         );

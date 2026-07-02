@@ -73,19 +73,6 @@ fn bench_footprint(criterion: &mut Criterion) {
         )
     });
 
-    group.bench_function("vm.continuation.image", |bencher| {
-        bencher.iter_batched(
-            || {
-                let mut machine = vm.machine();
-                let continuation = machine.yield_once();
-
-                (machine, continuation)
-            },
-            |(machine, continuation)| black_box(machine.continuation_image(&continuation)),
-            BatchSize::SmallInput,
-        )
-    });
-
     group.bench_function("vm.continuation.clone", |bencher| {
         bencher.iter_batched(
             || {

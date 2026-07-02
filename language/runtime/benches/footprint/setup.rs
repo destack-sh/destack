@@ -1,18 +1,19 @@
 use std::sync::Arc;
 
+use destack_compiler::ProgramLinker;
 use destack_heap::{
     AllocationCache, Allocator, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
     SharedHeapOptions, SharedMarkWorker,
 };
 use destack_mir::parse::{ParseOptions, Parser};
-use destack_program::StaticSpace;
+use destack_program::{Program, StaticSpace};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use destack_runtime::launch::Launch;
 use destack_runtime::runtime::WorkerOptions;
 use destack_runtime::runtime::machine::{Entry, Execution};
 use destack_runtime::world::{RuntimeId, World};
-use destack_source::FileId;
-use destack_vm::{Continuation, ContinuationImage, MachineOptions, Outcome};
+use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
+use destack_vm::{Continuation, Machine, MachineOptions, Outcome};
 
 /// MIR program used by footprint setups.
 const VM_PROGRAM: &str = r#"
@@ -23,11 +24,11 @@ b0:
 
 function bench.yieldFrame(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     store v0, v1
     yield v1, b1(v0)
-b1(v2: ref<int32, raw, readonly, space(frame)>, v3: int32):
+b1(v2: ref<int32, raw, mutable, space(frame)>, v3: int32):
     v4: int32 = load v2
     return v4
 }
@@ -65,7 +66,7 @@ impl RuntimeSetup {
     pub(crate) fn spawn_runtime(
         &self,
         world: &mut World,
-        program: Arc<destack_program::Program>,
+        program: Arc<Program>,
         execution: Execution,
     ) -> RuntimeId {
         world
@@ -104,7 +105,7 @@ impl RuntimeSetup {
     }
 
     /// Build one durable runtime program.
-    pub(crate) fn program(&self) -> Arc<destack_program::Program> {
+    pub(crate) fn program(&self) -> Arc<Program> {
         build_machine().program_handle()
     }
 
@@ -125,7 +126,7 @@ impl VmSetup {
     }
 
     /// Build one VM machine before runtime memory initialization.
-    pub(crate) fn build_machine(self) -> destack_vm::Machine {
+    pub(crate) fn build_machine(self) -> Machine {
         build_machine()
     }
 
@@ -148,7 +149,7 @@ impl VmSetup {
 /// Initialized VM machine.
 pub(crate) struct VmMachine {
     /// The machine under measurement.
-    machine: destack_vm::Machine,
+    machine: Machine,
     /// Worker static byte space.
     statics: StaticSpace,
     /// Runtime shared static byte space.
@@ -214,23 +215,38 @@ impl VmMachine {
             Outcome::Completed { value } => panic!("expected yield, got {value:?}"),
         }
     }
-
-    /// Capture one continuation image.
-    pub(crate) fn continuation_image(&self, continuation: &Continuation) -> ContinuationImage {
-        self.machine
-            .continuation_image(continuation)
-            .expect("footprint continuation image should capture")
-    }
 }
 
 /// Build one VM machine from the footprint MIR.
-fn build_machine() -> destack_vm::Machine {
-    let (tree, strings) = Parser::parse(FileId::new(0), VM_PROGRAM, ParseOptions::default())
-        .finish()
-        .expect("footprint MIR should parse");
+fn build_machine() -> Machine {
+    let options = MachineOptions::unbounded();
+    let parsed = Parser::parse(FileId::new(0), VM_PROGRAM, ParseOptions::default());
+    let (tree, target_layout, types, layouts, dispatch, _, _, _, _, strings, diagnostics) =
+        parsed.into_parts();
 
-    destack_vm::Machine::build_with_options(tree, strings, MachineOptions::unbounded())
-        .expect("footprint machine should build")
+    if diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error) {
+        let Some(diagnostic) = diagnostics.iter().next() else {
+            panic!("parser reported errors without diagnostics");
+        };
+
+        panic!("failed to parse footprint MIR: {diagnostic:?}");
+    }
+
+    let program = ProgramLinker::new(
+        PackageId::from_uri(&Uri::logical("bench/footprint")),
+        tree,
+        target_layout,
+        types,
+        layouts,
+        dispatch,
+        strings,
+        options.heap.clone(),
+        options.shared_heap.clone(),
+    )
+    .build()
+    .expect("footprint program should link");
+
+    Machine::new(Arc::new(program), options).expect("footprint machine should build")
 }
 
 /// Create one worker heap.

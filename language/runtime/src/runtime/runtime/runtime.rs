@@ -598,12 +598,7 @@ impl Runtime {
         // worker images
         let mut worker_images = BTreeMap::new();
         for worker in self.workers.values_mut() {
-            let mut image = worker.capture_image(
-                mode,
-                &self.heap,
-                &mut self.shared_static,
-                &self.constant_space,
-            )?;
+            let mut image = worker.capture_image(mode)?;
 
             // collapse one shared options payload across matching workers
             if let Some(options) = image.options.explicit_options() {
@@ -636,12 +631,7 @@ impl Runtime {
             .get_mut(&worker_id)
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
-        worker.capture_image(
-            mode,
-            &self.heap,
-            &mut self.shared_static,
-            &self.constant_space,
-        )
+        worker.capture_image(mode)
     }
 
     /// Fork one live runtime when all owned workers are quiescent.
@@ -651,20 +641,13 @@ impl Runtime {
         collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Option<Self>> {
         let shared = self.heap.fork(collector)?;
-        let mut shared_static = self.shared_static.clone();
+        let shared_static = self.shared_static.clone();
 
         // fork each owned worker first
         let mut workers = BTreeMap::new();
         for (worker_id, worker) in &mut self.workers {
             let shared_mark_worker = shared.register_mark_worker();
-            let Some(worker) = worker.try_fork(
-                execution_mode,
-                &shared,
-                &mut shared_static,
-                &self.constant_space,
-                shared_mark_worker,
-            )?
-            else {
+            let Some(worker) = worker.try_fork(execution_mode, &shared, shared_mark_worker)? else {
                 return Ok(None);
             };
             workers.insert(*worker_id, Box::new(worker));
@@ -948,7 +931,6 @@ mod tests {
                 HostEventKind::Lifecycle,
                 continuation,
                 program::Value::SharedHeapReference(shared_root),
-                0,
             )
             .expect("host waiter should register");
 
@@ -1107,7 +1089,6 @@ mod tests {
                 HostEventKind::Lifecycle,
                 continuation,
                 program::Value::SharedHeapReference(shared_root),
-                0,
             )
             .expect("host waiter should register");
 

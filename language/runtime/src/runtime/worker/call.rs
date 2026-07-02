@@ -9,7 +9,7 @@ use crate::host::binding::{
 use crate::host::core::{Host, HostQueue, advance_host_events};
 use crate::host::{HostError, core as host_core};
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::{MicrotaskId, TaskId};
+use crate::runtime::scheduler::RunnableId;
 use crate::runtime::time::ClockSource;
 use crate::world::trace::{EntropySubject, Trace};
 use crate::world::{RuntimeId, WorldState};
@@ -189,12 +189,12 @@ impl BindingCall<'_> {
     }
 
     /// Return the current task identifier.
-    pub const fn task_id(&self) -> Option<TaskId> {
+    pub const fn task_id(&self) -> Option<RunnableId> {
         self.scope.task_id()
     }
 
     /// Return the current microtask identifier.
-    pub const fn microtask_id(&self) -> Option<MicrotaskId> {
+    pub const fn microtask_id(&self) -> Option<RunnableId> {
         self.scope.microtask_id()
     }
 
