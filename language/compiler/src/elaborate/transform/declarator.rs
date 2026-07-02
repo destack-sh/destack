@@ -57,18 +57,18 @@ impl Compiler {
                 }
             };
 
-            let (export, is_ambient, is_shared, binding_kind, declarators) =
+            let (export, is_ambient, place, binding_kind, declarators) =
                 match state.tree.get(binding_expression_id).clone() {
                     Expression::Let {
                         export,
                         is_ambient,
-                        is_shared,
+                        place,
                         mutability,
                         declarators,
                     } => (
                         export,
                         is_ambient,
-                        is_shared,
+                        place,
                         BindingKind::Let { mutability },
                         declarators,
                     ),
@@ -80,7 +80,7 @@ impl Compiler {
                     } => (
                         export,
                         is_ambient,
-                        false,
+                        None,
                         BindingKind::Using { asynchrony },
                         declarators,
                     ),
@@ -115,7 +115,7 @@ impl Compiler {
                     BindingKind::Let { mutability } => Expression::Let {
                         export,
                         is_ambient,
-                        is_shared,
+                        place,
                         mutability,
                         declarators: vec![declarator_id],
                     },

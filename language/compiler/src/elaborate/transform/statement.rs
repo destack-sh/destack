@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    BinaryOperator, Block, BlockContext, BlockForm, Declarator, ExportKind, Expression,
-    Condition, IfForm, LocalNodeId, Mutability, NodeType,
+    BinaryOperator, Block, BlockContext, BlockForm, Condition, Declarator, ExportKind, Expression,
+    IfForm, LocalNodeId, Mutability, NodeType,
 };
 
 use crate::elaborate::ElaborateState;
@@ -56,7 +56,7 @@ impl Compiler {
                 Expression::Let {
                     export,
                     is_ambient,
-                    is_shared,
+                    place,
                     mutability,
                     declarators,
                 } => {
@@ -108,7 +108,7 @@ impl Compiler {
                                 &declarator,
                                 *export,
                                 *is_ambient,
-                                *is_shared,
+                                *place,
                                 *mutability,
                                 &expressions,
                             )?;
@@ -128,7 +128,7 @@ impl Compiler {
                                 &declarator,
                                 *export,
                                 *is_ambient,
-                                *is_shared,
+                                *place,
                                 *mutability,
                                 inner_block,
                             )?;
@@ -239,7 +239,7 @@ impl Compiler {
                 Expression::Let {
                     export,
                     is_ambient,
-                    is_shared,
+                    place,
                     mutability,
                     declarators,
                 } => {
@@ -281,7 +281,7 @@ impl Compiler {
                                         &declarator,
                                         *export,
                                         *is_ambient,
-                                        *is_shared,
+                                        *place,
                                         *mutability,
                                         &expressions,
                                     )?;
@@ -300,7 +300,7 @@ impl Compiler {
                                         &declarator,
                                         *export,
                                         *is_ambient,
-                                        *is_shared,
+                                        *place,
                                         *mutability,
                                         inner_block,
                                     )?;
@@ -497,7 +497,7 @@ impl Compiler {
         declarator: &Declarator,
         export: Option<ExportKind>,
         is_ambient: bool,
-        is_shared: bool,
+        place: Option<dir::PlaceModifier>,
         mutability: Mutability,
         seq_expressions: &[LocalNodeId<Expression>],
     ) -> ElaborateResult<bool> {
@@ -541,7 +541,7 @@ impl Compiler {
             Expression::Let {
                 export,
                 is_ambient,
-                is_shared,
+                place,
                 mutability,
                 declarators: vec![new_declarator],
             },
@@ -564,7 +564,7 @@ impl Compiler {
         declarator: &Declarator,
         export: Option<ExportKind>,
         is_ambient: bool,
-        is_shared: bool,
+        place: Option<dir::PlaceModifier>,
         mutability: Mutability,
         inner_block_id: LocalNodeId<Block>,
     ) -> ElaborateResult<bool> {
@@ -602,7 +602,7 @@ impl Compiler {
             Expression::Let {
                 export,
                 is_ambient,
-                is_shared,
+                place,
                 mutability,
                 declarators: vec![uninit_declarator],
             },
