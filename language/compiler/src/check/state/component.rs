@@ -69,6 +69,8 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) variances: IndexMap<dir::GlobalGenericParameterId, VarianceEntry>,
 
     // tracing
+    /// The active deep-reduction nesting depth.
+    pub(in crate::check) reduce_depth: usize,
     /// Trace events recorded while checking.
     pub(in crate::check) events: Vec<CheckEvent>,
     /// Whether check events should print as they are recorded in debug builds.
@@ -104,6 +106,7 @@ impl<'a> CheckState<'a> {
             generics: GenericIndex::new(),
             layouts: IndexMap::new(),
             variances: IndexMap::new(),
+            reduce_depth: 0,
             events: Vec::new(),
             emit_events,
         }
