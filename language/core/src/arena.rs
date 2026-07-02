@@ -73,6 +73,12 @@ impl<T> Arena<T> {
         &mut self.items[local_id as usize]
     }
 
+    /// Return every element as one slice.
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        &self.items
+    }
+
     /// Reserve capacity for at least `n` additional elements.
     #[inline]
     pub fn reserve(&mut self, n: usize) {
