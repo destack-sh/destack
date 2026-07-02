@@ -27,8 +27,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
     FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration, Keyword, LetKind,
-    LocalNodeId, Member, ModuleDeclaration, Mutability, NodeType, TokenSpan, TokenType,
-    TypeDeclaration, TypeExpression, WhereClause,
+    LocalNodeId, Member, ModuleDeclaration, Mutability, NodeType, PlaceModifier, TokenSpan,
+    TokenType, TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
     FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
@@ -190,6 +190,18 @@ fn write_ambient_prefix<'ast>(
     Ok(())
 }
 
+/// Write one explicit placement prefix.
+pub(crate) fn write_place_prefix<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    place: Option<PlaceModifier>,
+) -> FormatResult<()> {
+    if let Some(place) = place {
+        write!(f, [place.keyword(), space()])?;
+    }
+
+    Ok(())
+}
+
 /// Write one declaration generic parameter list.
 fn write_declaration_generic_parameters<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -232,6 +244,7 @@ fn buffer_type_declaration_left<'ast>(
     // prefixes
     format_declaration_export_modifier(formatter, node_id, declaration.export)?;
     write_ambient_prefix(formatter, declaration.is_ambient)?;
+    write_place_prefix(formatter, declaration.place)?;
 
     // modifiers
     if declaration.is_nominal {
@@ -614,7 +627,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
     kind: LetKind,
     export: Option<ExportKind>,
     is_ambient: bool,
-    is_shared: bool,
+    place: Option<PlaceModifier>,
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -661,10 +674,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
             }
 
             write_ambient_prefix(f, is_ambient)?;
-
-            if is_shared {
-                write!(f, [token("shared"), space()])?;
-            }
+            write_place_prefix(f, place)?;
 
             // binding keyword
             match kind {

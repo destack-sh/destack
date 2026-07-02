@@ -36,6 +36,17 @@ fn test_format_block_insert_semicolon() {
     );
 }
 
+#[test]
+fn test_format_placed_binding_declaration() {
+    assert_format_program!(
+        r#"shared const registry: Registry = new Registry()
+"#,
+        r#"shared const registry: Registry = new Registry();
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Tagged struct literal statements should not need object-literal disambiguation.
 #[test]
 fn test_format_block_tagged_struct_literal_statement() {

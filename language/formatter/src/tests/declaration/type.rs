@@ -15,6 +15,35 @@ fn test_format_enum_empty() {
 }
 
 #[test]
+fn test_format_placed_nominal_declarations() {
+    assert_format_program!(
+        r#"local class Promise<T>{}
+export default local class Deferred<T>{}
+shared struct Channel<T>{}
+local newtype interface Awaitable<T> {}
+shared enum Result { Ok; Error }
+local const enum Mode { Read; Write }
+local newtype TaskId = uint64
+"#,
+        r#"local class Promise<T> {}
+export default local class Deferred<T> {}
+shared struct Channel<T> {}
+local newtype interface Awaitable<T> {}
+shared enum Result {
+    Ok,
+    Error,
+}
+local const enum Mode {
+    Read,
+    Write,
+}
+local newtype TaskId = uint64;
+"#,
+        FileType::Destack,
+    );
+}
+
+#[test]
 fn test_format_enum_with_simple_fields() {
     assert_format!(
         "enum { A, B }",

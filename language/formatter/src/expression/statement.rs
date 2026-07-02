@@ -158,18 +158,11 @@ pub(crate) fn format_statement_expression<'ast>(
             kind,
             export,
             is_ambient,
-            is_shared,
+            place,
             declarators,
             ..
         } => {
-            format_let_statement_expression(
-                f,
-                *kind,
-                *export,
-                *is_ambient,
-                *is_shared,
-                declarators,
-            )?;
+            format_let_statement_expression(f, *kind, *export, *is_ambient, *place, declarators)?;
         }
 
         // let else
