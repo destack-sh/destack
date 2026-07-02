@@ -8,6 +8,7 @@ use crate::collection::member::format_block_of_members;
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::declaration::declaration::{
     declaration_export_token, format_declaration_export_modifier, format_super_type_clause,
+    write_place_prefix,
 };
 use crate::declaration::empty_block_with_infix_annotations;
 use crate::declaration::signature::{
@@ -444,6 +445,7 @@ pub(crate) fn format_struct_declaration<'ast>(
     if declaration.is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
+    write_place_prefix(f, declaration.place)?;
 
     // head
     write!(f, [Keyword::Struct, space(), declaration.name])?;
@@ -515,6 +517,7 @@ pub(crate) fn format_class_declaration<'ast>(
         if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
+        write_place_prefix(f, declaration.place)?;
 
         if declaration.is_abstract {
             write!(f, [Keyword::Abstract, space()])?;
@@ -873,6 +876,7 @@ pub(crate) fn format_enum_declaration<'ast>(
     if declaration.is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
+    write_place_prefix(f, declaration.place)?;
 
     if declaration.kind == EnumKind::Const {
         write!(f, [Keyword::Const, space()])?;
@@ -908,6 +912,8 @@ pub(crate) fn format_interface_declaration<'ast>(
         if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
+
+        write_place_prefix(f, declaration.place)?;
 
         if declaration.is_nominal {
             write!(f, [Keyword::Newtype, space()])?;
