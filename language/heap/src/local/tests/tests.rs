@@ -1,7 +1,8 @@
 use std::sync::OnceLock;
 
-use crate::TraceView;
-use destack_mir::TraceTable;
+use destack_core::{SectionDirectory, SectionImage, SectionPacker, SectionStorage};
+
+use crate::{TraceTable, TraceView};
 
 use crate::local::storage::HeapStorage;
 use crate::local::{Heap, HeapLimits, HeapOptions};
@@ -10,24 +11,34 @@ use crate::{
     allocation_class, test_allocator,
 };
 
-static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
+static TRACE_TABLE: OnceLock<TestTraceTable> = OnceLock::new();
+
+/// Section-backed trace table used by heap tests.
+pub(crate) struct TestTraceTable {
+    /// Packed section directory.
+    sections: SectionDirectory,
+    /// Packed section storage.
+    storage: SectionStorage,
+    /// Packed heap trace table.
+    traces: TraceTable,
+}
 
 /// A local heap layer that can build plans and allocate blocks for tests.
 pub(crate) trait TestHeapPlan {
     /// Build one allocation plan for this test heap layer.
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a>;
+    fn test_allocation_plan<'a>(&self, shape: &'a AllocationShape) -> Allocation<'a>;
 
     /// Allocate one block for this test heap layer.
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference;
+    fn test_allocate(&mut self, shape: AllocationShape, payload: Payload<'_>) -> HeapReference;
 }
 
 impl TestHeapPlan for Heap {
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a> {
+    fn test_allocation_plan<'a>(&self, shape: &'a AllocationShape) -> Allocation<'a> {
         allocation_plan(self.options(), shape)
     }
 
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
-        let plan = self.test_allocation_plan(shape);
+    fn test_allocate(&mut self, shape: AllocationShape, payload: Payload<'_>) -> HeapReference {
+        let plan = self.test_allocation_plan(&shape);
 
         self.allocate_payload(&plan, payload)
             .expect("test block should allocate")
@@ -38,17 +49,17 @@ impl<T> TestHeapPlan for &mut T
 where
     T: TestHeapPlan + ?Sized,
 {
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a> {
+    fn test_allocation_plan<'a>(&self, shape: &'a AllocationShape) -> Allocation<'a> {
         (**self).test_allocation_plan(shape)
     }
 
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+    fn test_allocate(&mut self, shape: AllocationShape, payload: Payload<'_>) -> HeapReference {
         (**self).test_allocate(shape, payload)
     }
 }
 
 impl TestHeapPlan for HeapStorage {
-    fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> Allocation<'a> {
+    fn test_allocation_plan<'a>(&self, shape: &'a AllocationShape) -> Allocation<'a> {
         let class = if shape.trace_map.has_tagged_reference() {
             AllocationClass::large()
         } else {
@@ -62,13 +73,13 @@ impl TestHeapPlan for HeapStorage {
                 self.small.span_size_bytes,
             )
         };
-        let plan = AllocationPlan::new(shape, class);
+        let plan = AllocationPlan::new(&shape, class);
 
-        plan.allocation(shape.trace_map)
+        plan.allocation(&shape.trace_map)
     }
 
-    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
-        let plan = self.test_allocation_plan(shape);
+    fn test_allocate(&mut self, shape: AllocationShape, payload: Payload<'_>) -> HeapReference {
+        let plan = self.test_allocation_plan(&shape);
 
         self.allocate(&plan, payload)
             .expect("test block should allocate")
@@ -97,13 +108,13 @@ pub(crate) fn test_storage(options: &HeapOptions) -> HeapStorage {
 
 /// Return the shared empty trace table for heap tests.
 pub(crate) fn trace_view() -> TraceView<'static> {
-    TraceView::new(TRACE_TABLE.get_or_init(TraceTable::new).traces())
+    TRACE_TABLE.get_or_init(TestTraceTable::new).view()
 }
 
 /// Build one explicit local heap allocation plan.
 pub(crate) fn owned_allocation_plan(
     options: &HeapOptions,
-    shape: AllocationShape<'_>,
+    shape: &AllocationShape,
 ) -> AllocationPlan {
     options.allocation_plan(shape)
 }
@@ -111,19 +122,47 @@ pub(crate) fn owned_allocation_plan(
 /// Build one local heap allocation plan.
 pub(crate) fn allocation_plan<'a>(
     options: &HeapOptions,
-    shape: AllocationShape<'a>,
+    shape: &'a AllocationShape,
 ) -> Allocation<'a> {
     let plan = owned_allocation_plan(options, shape);
 
-    plan.allocation(shape.trace_map)
+    plan.allocation(&shape.trace_map)
 }
 
 /// Build one allocation plan for a live test heap.
 pub(crate) fn heap_allocation_plan<'a>(
     heap: &impl TestHeapPlan,
-    shape: AllocationShape<'a>,
+    shape: &'a AllocationShape,
 ) -> Allocation<'a> {
     heap.test_allocation_plan(shape)
+}
+
+impl TestTraceTable {
+    /// Build one empty section-backed trace table.
+    pub(crate) fn new() -> Self {
+        Self::from_mir(&destack_mir::TraceTable::new())
+    }
+
+    /// Build one section-backed trace table from MIR traces.
+    pub(crate) fn from_mir(source: &destack_mir::TraceTable) -> Self {
+        let mut sections = SectionPacker::new();
+        let traces = TraceTable::pack(&mut sections, source);
+        let (sections, storage) = sections.finish();
+
+        Self {
+            sections,
+            storage,
+            traces,
+        }
+    }
+
+    /// Return the packed trace view.
+    pub(crate) fn view(&self) -> TraceView<'_> {
+        let sections = SectionImage::load(&self.sections, &self.storage)
+            .expect("test trace sections should load");
+
+        self.traces.view(sections)
+    }
 }
 
 /// Read bytes from one mapped heap address.

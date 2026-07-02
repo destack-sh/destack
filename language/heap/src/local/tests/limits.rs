@@ -94,6 +94,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     };
     let expected_used_bytes = heap_retained_bytes_after_allocate(options.clone(), &[1]);
     let layout = test_layout(1, TraceMap::empty());
+    let shape = layout.block();
     let heap = &mut test_heap_with_limits(crate::HeapLimits::default(), options);
     let baseline = heap.usage().retained_bytes;
     heap.set_limits(HeapLimits {
@@ -104,10 +105,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 
     // reject the block before mutating heap accounting
     let error = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1]),
-        )
+        .allocate_payload(&heap_allocation_plan(&heap, &shape), Payload::Bytes(&[1]))
         .expect_err("heap block should be rejected");
 
     assert_eq!(

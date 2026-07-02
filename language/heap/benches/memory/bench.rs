@@ -4,6 +4,7 @@ mod config;
 mod graph;
 mod heap;
 mod space;
+mod trace;
 mod workload;
 
 use criterion::{criterion_group, criterion_main};

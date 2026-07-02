@@ -15,8 +15,8 @@ pub(crate) struct TestLayout {
 
 impl TestLayout {
     /// Return this test layout as one heap allocation shape.
-    pub(crate) fn block(&self) -> AllocationShape<'_> {
-        AllocationShape::new(self.byte_len, self.alignment, None, &self.trace_map)
+    pub(crate) fn block(&self) -> AllocationShape {
+        AllocationShape::new(self.byte_len, self.alignment, None, self.trace_map.clone())
     }
 }
 

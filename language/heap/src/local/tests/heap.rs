@@ -13,14 +13,12 @@ fn test_allocate_heap_rejects_zero_size_layout() {
     // build a valid heap with an invalid block layout
     let options = HeapOptions::local();
     let layout = test_layout(0, TraceMap::empty());
+    let shape = layout.block();
     let mut heap = test_storage(&options);
 
     // reject zero-size heap objects loudly
     let error = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[]),
-        )
+        .allocate(&heap_allocation_plan(&heap, &shape), Payload::Bytes(&[]))
         .expect_err("heap block should reject zero-size layouts");
 
     assert_eq!(
