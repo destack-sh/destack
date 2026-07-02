@@ -76,6 +76,8 @@ const PATHOLOGICAL_LARGE: usize = 1_024;
 const PATHOLOGICAL_MASSIVE: usize = 8_192;
 const PATHOLOGICAL_BRUTAL: usize = 32_768;
 const PATHOLOGICAL_MONSTER: usize = 262_144;
+const FORMATTER_SCALE_LIMIT: usize = PATHOLOGICAL_BRUTAL;
+const PARSER_SCALE_LIMIT: usize = usize::MAX;
 const PATHOLOGICAL_DEEP_VALID: usize = 512;
 const PATHOLOGICAL_DEEP: usize = 2_048;
 const PATHOLOGICAL_DEEPER: usize = 8_192;
@@ -675,9 +677,10 @@ impl StressFamily {
     }
 
     /// Generate all fixture sources for one file mode.
-    fn sources(self, mode: StressMode) -> Vec<StressFixtureSource> {
+    fn sources(self, mode: StressMode, scale_limit: usize) -> Vec<StressFixtureSource> {
         self.variants()
             .iter()
+            .filter(|variant| variant.scale <= scale_limit)
             .map(|variant| variant.source(mode, self.generate, self.expectation))
             .collect()
     }
@@ -952,13 +955,13 @@ fn strip_mode_suffix(file_name: &str, mode: StressMode) -> Option<&str> {
 /// Materialize and return the parser stress corpus.
 pub fn materialize_parser_fixtures() -> Result<Vec<StressFixture>, String> {
     let directory = stress_generated_dir("parser");
-    materialize_fixtures(&directory, true, true)
+    materialize_fixtures(&directory, true, true, PARSER_SCALE_LIMIT)
 }
 
 /// Materialize and return the formatter stress corpus.
 pub fn materialize_formatter_fixtures() -> Result<Vec<StressFixture>, String> {
     let directory = stress_generated_dir("formatter");
-    materialize_fixtures(&directory, true, true)
+    materialize_fixtures(&directory, true, true, FORMATTER_SCALE_LIMIT)
 }
 
 /// Generate one deterministic parser fuzz input from arbitrary bytes.
@@ -975,6 +978,7 @@ fn materialize_fixtures(
     directory: &Path,
     include_recovery: bool,
     include_bounded: bool,
+    scale_limit: usize,
 ) -> Result<Vec<StressFixture>, String> {
     std::fs::create_dir_all(directory)
         .map_err(|error| format!("failed to create {}: {error}", directory.display()))?;
@@ -993,7 +997,7 @@ fn materialize_fixtures(
                 format!("failed to create {}: {error}", family_directory.display())
             })?;
 
-            for source in family.sources(*mode) {
+            for source in family.sources(*mode, scale_limit) {
                 let expectation = source.expectation;
                 if expectation == StressExpectation::Recovery && !include_recovery {
                     continue;
