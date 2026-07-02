@@ -1,0 +1,14 @@
+import { Abi } from "./abi.ds";
+
+/// Options for one externally linked declaration.
+export type ExternOptions = {
+    /// ABI used to call the declaration.
+    abi: Abi;
+    /// Symbol name.
+    symbol?: string;
+    /// Library name.
+    library?: string;
+};
+
+/// Extern decorator payload.
+export type Extern = Abi | ExternOptions;

@@ -1,0 +1,7 @@
+/// ABI accepted by externally linked declarations.
+export type Abi =
+    | "C"
+    | "system"
+    | "wasm"
+    | "wasm-component";
+
