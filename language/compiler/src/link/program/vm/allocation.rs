@@ -391,7 +391,7 @@ impl BlockLowerer<'_> {
         layout: &StorageLayout,
     ) -> LinkResult<(AllocationPlan, AllocationClass)> {
         // resolve the allocation class from the destination space
-        let is_noscan = !layout.trace_map.has_reference();
+        let is_noscan = !layout.trace_map.has_heap_reference();
         let trace_map = pool.trace_map(&layout.trace_map)?;
         let trace_id = if is_noscan { None } else { Some(trace_map) };
         let shape = AllocationShape::new(
