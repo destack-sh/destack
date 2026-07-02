@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::host::binding::{BindingId, CodecId};
 use crate::runtime::machine::Entry;
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::{MicrotaskId, TaskId};
+use crate::runtime::scheduler::RunnableId;
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeId, RuntimeImage, WorkerId, WorkerImage};
 use crate::world::{Entity, Mutation};
@@ -105,9 +105,9 @@ pub struct EntropySubject {
     /// Binding identifier for this entropy sample.
     pub binding_id: BindingId,
     /// Optional task identifier for this entropy sample.
-    pub task_id: Option<TaskId>,
+    pub task_id: Option<RunnableId>,
     /// Optional microtask identifier for this entropy sample.
-    pub microtask_id: Option<MicrotaskId>,
+    pub microtask_id: Option<RunnableId>,
 }
 
 /// Entropy sample captured for trace.

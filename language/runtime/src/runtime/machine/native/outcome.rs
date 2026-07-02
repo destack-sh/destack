@@ -1,6 +1,4 @@
-use destack_program::{ContinuationImage, Value};
-
-use super::Continuation;
+use destack_program::{Continuation, Value};
 
 /// Native execution outcome.
 #[derive(Debug)]
@@ -10,16 +8,16 @@ pub enum Outcome {
         /// The returned value.
         value: Value,
     },
-    /// Native execution yielded a native continuation.
+    /// Native execution yielded a continuation.
     Yielded {
         /// The continuation to resume.
         continuation: Continuation,
         /// The yielded value.
         value: Value,
     },
-    /// Native execution deoptimized into a VM continuation image.
+    /// Native execution deoptimized into a continuation.
     Deoptimized {
-        /// The VM continuation image.
-        continuation: ContinuationImage,
+        /// The continuation for VM fallback.
+        continuation: Continuation,
     },
 }

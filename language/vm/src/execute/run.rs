@@ -132,8 +132,10 @@ impl Machine {
             return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
-        self.stack = continuation.stack;
-        self.frames = continuation.frames;
+        let (stack, frames, resume_frame_index, frame_state) =
+            Self::restore_continuation(&continuation, program, &self.options)?;
+        self.stack = stack;
+        self.frames = frames;
 
         self.resume_continuation(
             program,
@@ -144,14 +146,14 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
-            continuation.resume_frame_index,
-            continuation.frame_state,
+            resume_frame_index,
+            frame_state,
             received_value,
         )
     }
 
-    /// Continue from one restored continuation image.
-    pub(crate) fn execute_continuation_image(
+    /// Continue a restored continuation without a received value.
+    pub(crate) fn execute_continue(
         &mut self,
         program: &Program,
         limits: LimitOptions,
@@ -167,10 +169,12 @@ impl Machine {
             return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
-        self.stack = continuation.stack;
-        self.frames = continuation.frames;
+        let (stack, frames, resume_frame_index, frame_state) =
+            Self::restore_continuation(&continuation, program, &self.options)?;
+        self.stack = stack;
+        self.frames = frames;
 
-        self.continue_continuation(
+        self.continue_restored_continuation(
             program,
             limits,
             statics,
@@ -179,8 +183,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
-            continuation.resume_frame_index,
-            continuation.frame_state,
+            resume_frame_index,
+            frame_state,
         )
     }
 
@@ -244,8 +248,13 @@ impl Machine {
         activation.run_loop(program, limits)
     }
 
+    /// Assemble a completed execution outcome.
+    pub(crate) fn complete_execution(&mut self, value: program::Value) -> Outcome {
+        Outcome::Completed { value }
+    }
+
     /// Continue execution from one materialized frame state.
-    fn continue_continuation(
+    fn continue_restored_continuation(
         &mut self,
         program: &Program,
         limits: LimitOptions,
@@ -277,11 +286,6 @@ impl Machine {
         );
 
         activation.run_loop(program, limits)
-    }
-
-    /// Assemble a completed execution outcome.
-    pub(crate) fn complete_execution(&mut self, value: program::Value) -> Outcome {
-        Outcome::Completed { value }
     }
 
     /// Run one lowered function from its entry block.

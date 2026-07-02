@@ -17,20 +17,6 @@ impl Frame {
             visit_frame_slot_root_slots(program, slot, self.slot_bytes_mut(slot), visit)
         })
     }
-
-    /// Visit mutable heap root slots materialized at one safepoint.
-    pub(crate) fn visit_materialized_root_slots(
-        &mut self,
-        program: &Program,
-        materialization: &FrameMaterialization,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        let layout = materialized_layout(program, materialization)?;
-
-        visit_materialized_slots(program, layout, materialization, |slot| {
-            visit_frame_slot_root_slots(program, slot, self.slot_bytes_mut(slot), visit)
-        })
-    }
 }
 
 /// Visit each full-frame root slot.
@@ -110,19 +96,4 @@ fn frame_layout<'a>(program: &'a Program, frame: &Frame) -> Result<&'a FrameLayo
             "missing frame layout for root scan: {frame_layout:?}"
         ))
     })
-}
-
-/// Return the physical frame layout for one materialization.
-fn materialized_layout<'a>(
-    program: &'a Program,
-    materialization: &FrameMaterialization,
-) -> Result<&'a FrameLayout, Error> {
-    program
-        .frame_layout_by_id(materialization.frame_layout)
-        .ok_or_else(|| {
-            Error::internal(format!(
-                "missing materialized frame layout for root scan: {:?}",
-                materialization.frame_layout
-            ))
-        })
 }

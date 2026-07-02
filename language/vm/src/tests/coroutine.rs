@@ -231,19 +231,22 @@ fn test_yield_preserves_frame_alloc_in_current_frame() {
     let mir = r#"
 function yieldStackLocal(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
+    v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
-    yield v1 => b1
-b1(v2: int32):
-    return v2
+    store v0, v1
+    v2: int32 = 2int32
+    yield v2 => b1
+b1(v3: int32):
+    v4: int32 = load v0
+    return v4
 }"#;
     let mut machine = create_machine(mir);
     let (continuation, value) =
         assert_execution_yielded(machine.run_function_by_name_yielding("yieldStackLocal", &[]));
-    assert_eq!(value, Value::int32(1));
+    assert_eq!(value, Value::int32(2));
 
     let output = assert_execution_completed(machine.resume(continuation, Value::int32(7)));
-    assert_eq!(output, Value::int32(7));
+    assert_eq!(output, Value::int32(1));
 }
 
 /// Yield accepts frame-local stack memory that is not live across suspension.
@@ -353,7 +356,7 @@ b1(v1: int32):
     let (continuation, value) =
         assert_execution_yielded(machine.run_function_by_name_yielding("yieldOnce", &[]));
     assert_eq!(value, Value::int32(1));
-    let forked = continuation.fork().expect("continuation should fork");
+    let forked = continuation.fork();
     let output = assert_execution_completed(machine.resume(continuation, Value::int32(5)));
     assert_eq!(output, Value::int32(5));
     let output = assert_execution_completed(machine.resume(forked, Value::int32(9)));
@@ -389,51 +392,4 @@ b1(v3: int32, v4: Pair):
     assert_eq!(output, Value::int32(1));
     let stats = machine.collect_garbage();
     assert_eq!(stats.live_allocations, 0);
-}
-
-/// Continuation images keep heap allocations alive across yields.
-#[test]
-fn test_continuation_image_roots_keep_allocations() {
-    let mir = r#"
-type Pair {
-    ref<int32, managed, readonly>;
-}
-
-function yieldAlloc(): int32 {
-b0:
-    v0: ref<int32, managed, readonly> = new.zeroed int32
-    v1: int32 = 1int32
-    store v0, v1
-    v2: Pair = struct Pair (v0)
-    yield v1 => b1(v2)
-b1(v3: int32, v4: Pair):
-    v5: ref<int32, managed, readonly> = field.get v4, 0
-    v6: int32 = load v5
-    return v6
-}"#;
-
-    let mut machine = create_machine(mir);
-    let (continuation, _value) =
-        assert_execution_yielded(machine.run_function_by_name_yielding("yieldAlloc", &[]));
-
-    let mut image = machine
-        .machine
-        .continuation_image(&continuation)
-        .expect("continuation image should capture");
-    let program = machine.machine.program_handle();
-    let mut heap_roots =
-        |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
-            machine
-                .machine
-                .visit_image_root_slots(&mut image, visit)
-                .expect("continuation image roots should collect");
-
-            Ok::<(), destack_heap::HeapError>(())
-        };
-    let stats = machine
-        .heap
-        .collect_full(&mut heap_roots, program.trace_view())
-        .expect("heap should collect");
-
-    assert_eq!(stats.live_allocations, 1);
 }

@@ -1,8 +1,6 @@
-use std::mem;
-
 use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::machine::{Activation, Continuation, Outcome, Stack};
+use crate::machine::{Activation, Continuation, Outcome};
 use crate::options::LimitOptions;
 use destack_program::vm::{ArgumentRange, CallTarget, FunctionCode, MoveRange};
 use destack_program::{FrameStateId, FunctionId, Program, TypeId};
@@ -81,20 +79,12 @@ impl Activation<'_> {
     /// Capture execution machine into a continuation.
     pub(crate) fn capture_continuation(
         &mut self,
+        program: &Program,
         resume_frame_index: usize,
         frame_state: FrameStateId,
-        limits: LimitOptions,
     ) -> RuntimeResult<Continuation> {
-        // move execution stack into the continuation
-        let stack = mem::replace(&mut self.machine.stack, Stack::new(limits.stack_bytes)?);
-        let frames = mem::take(&mut self.machine.frames);
-
-        Ok(Continuation {
-            stack,
-            frames,
-            resume_frame_index,
-            frame_state,
-        })
+        self.machine
+            .capture_continuation(program, resume_frame_index, frame_state)
     }
 
     /// Complete one jump transfer within the current frame.
@@ -128,7 +118,6 @@ impl Activation<'_> {
     fn complete_yield(
         &mut self,
         program: &Program,
-        limits: LimitOptions,
         value: Cell,
         source_type: TypeId,
         frame_state: FrameStateId,
@@ -156,7 +145,7 @@ impl Activation<'_> {
         .map_err(RuntimeError::new)?;
 
         // capture the continuation after packaging the yielded result
-        let continuation = self.capture_continuation(resume_frame_index, frame_state, limits)?;
+        let continuation = self.capture_continuation(program, resume_frame_index, frame_state)?;
 
         Ok(Outcome::Yielded {
             continuation,
@@ -239,7 +228,7 @@ impl Activation<'_> {
                 source_type,
                 frame_state,
             } => self
-                .complete_yield(program, limits, value, source_type, frame_state)
+                .complete_yield(program, value, source_type, frame_state)
                 .map(Some),
             Transfer::Return(value) => self.complete_return(program, value),
             Transfer::Error(error) => Err(self.machine.runtime_error(error)),

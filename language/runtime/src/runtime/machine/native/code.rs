@@ -1,15 +1,14 @@
 use std::fmt;
 
-use destack_heap::{HeapResult, RootSlot};
 use destack_program::native::{
-    NativeContext, NativeContinuation, NativeEntry, NativeExit, NativeExitKind, NativeResumeEntry,
-    NativeTrap, NativeValue,
+    NativeContext, NativeContinuation, NativeEntry, NativeExit, NativeExitKind, NativeFrame,
+    NativeResumeEntry, NativeTrap, NativeValue,
 };
 use destack_program::{
-    EntryPoint, FrameStateId, FunctionId, Program, ProgramActivation, Value, native,
+    Continuation, EntryPoint, FrameStateId, FunctionId, Program, ProgramActivation, Value, native,
 };
 
-use super::{Continuation, Entry, Error, LibraryHandle, MemoryMapping, Outcome, ResumeEntry};
+use super::{Entry, Error, LibraryHandle, MemoryMapping, Outcome, ResumeEntry};
 
 /// Process-local native code table.
 #[derive(Debug, Clone)]
@@ -120,6 +119,13 @@ impl Code {
             .and_then(Option::as_ref)
     }
 
+    /// Return whether this code can resume one continuation.
+    pub fn can_resume(&self, continuation: &Continuation) -> Result<bool, Error> {
+        let frame = continuation.frames.last().ok_or(Error::EmptyContinuation)?;
+
+        Ok(self.resume_entry(frame.frame_state).is_some())
+    }
+
     /// Insert one native function pointer.
     pub fn set_entry(&mut self, function: FunctionId, entry: NativeEntry) {
         let index = function.index();
@@ -169,7 +175,7 @@ impl Code {
         entry: EntryPoint,
         args: &[Value],
     ) -> Result<Outcome, Error> {
-        let Some(entry) = self.entry_point(entry) else {
+        let Some(entry) = self.entry(entry.function()) else {
             return Err(Error::EntryNotFound {
                 name: format!("entry {}", entry.index()),
             });
@@ -195,11 +201,7 @@ impl Code {
         continuation: Continuation,
         value: Value,
     ) -> Result<Outcome, Error> {
-        let frame = continuation
-            .image
-            .frames
-            .last()
-            .ok_or(Error::EmptyContinuation)?;
+        let frame = continuation.frames.last().ok_or(Error::EmptyContinuation)?;
         let Some(entry) = self.resume_entry(frame.frame_state) else {
             return Err(Error::ResumeEntryNotFound {
                 frame_state: frame.frame_state,
@@ -207,7 +209,7 @@ impl Code {
         };
 
         // build native continuation input
-        let frames = continuation.abi_frames()?;
+        let frames = Self::abi_frames(&continuation)?;
         let continuation = NativeContinuation {
             frames: frames.as_ptr(),
             frame_count: frames.len(),
@@ -223,19 +225,32 @@ impl Code {
         self.outcome_from_exit(code, out, exit)
     }
 
-    /// Visit mutable heap root slots from one native continuation.
-    pub fn visit_continuation_root_slots(
-        &self,
-        program: &Program,
-        continuation: &mut Continuation,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> Result<(), Error> {
-        continuation.visit_root_slots(program, visit)
-    }
+    /// Project one continuation into native ABI frame records.
+    fn abi_frames(continuation: &Continuation) -> Result<Vec<NativeFrame>, Error> {
+        continuation
+            .frames
+            .iter()
+            .map(|frame| {
+                let (return_state_is_present, return_state) = match frame.return_state {
+                    Some(state) => (1, state.0),
+                    None => (0, 0),
+                };
+                let bytes =
+                    continuation
+                        .frame_bytes(frame)
+                        .ok_or(Error::InvalidContinuationFrame {
+                            frame_state: frame.frame_state,
+                        })?;
 
-    /// Return one native entry for one program entrypoint.
-    fn entry_point(&self, entry: EntryPoint) -> Option<&Entry> {
-        self.entry(entry.function())
+                Ok(NativeFrame {
+                    frame_state: frame.frame_state.0,
+                    return_state_is_present,
+                    return_state,
+                    bytes: bytes.as_ptr(),
+                    byte_len: bytes.len(),
+                })
+            })
+            .collect()
     }
 
     /// Build one native ABI context.
@@ -266,10 +281,9 @@ impl Code {
 
         let value = out.to_value().map_err(Error::Value)?;
 
-        // SAFETY: generated native code owns the ABI contract for the exit continuation
-        let image = unsafe { exit.continuation.to_continuation_image() }
-            .map_err(Error::InvalidContinuation)?;
-        let continuation = Continuation::new(image);
+        // SAFETY: generated native code supplies valid exit continuation frame pointers
+        let continuation =
+            unsafe { exit.continuation.to_continuation() }.map_err(Error::InvalidContinuation)?;
 
         Ok(Outcome::Yielded {
             continuation,
@@ -277,17 +291,17 @@ impl Code {
         })
     }
 
-    /// Return one deoptimized outcome from native materialization.
+    /// Return one deoptimized outcome from native continuation state.
     fn deoptimized_outcome(&self, exit: NativeExit) -> Result<Outcome, Error> {
-        if exit.materialization.is_empty() {
-            return Err(Error::DeoptimizedWithoutMaterialization {
+        if exit.continuation.is_empty() {
+            return Err(Error::DeoptimizedWithoutContinuation {
                 safepoint: exit.safepoint,
             });
         }
 
-        // SAFETY: generated native code owns the ABI contract for the exit materialization
-        let continuation = unsafe { exit.materialization.to_continuation_image() }
-            .map_err(Error::InvalidMaterialization)?;
+        // SAFETY: generated native code supplies valid exit continuation frame pointers
+        let continuation =
+            unsafe { exit.continuation.to_continuation() }.map_err(Error::InvalidContinuation)?;
 
         Ok(Outcome::Deoptimized { continuation })
     }

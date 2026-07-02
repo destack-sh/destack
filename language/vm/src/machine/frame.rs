@@ -7,7 +7,8 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::{Cell, FramePointer};
 use destack_program::vm::{ArgumentRange, FunctionCode, MoveSlot, ProgramPoint};
 use destack_program::{
-    FrameImage, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FunctionId, Program,
+    ContinuationFrame, FrameImage, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FunctionId,
+    Program,
 };
 
 /// Call frame in the VM machine.
@@ -309,6 +310,42 @@ impl Frame {
             return_state: image.return_state,
             stack_offset,
             byte_len: image.byte_len(),
+            base,
+        })
+    }
+
+    /// Create one frame from a continuation frame.
+    pub(crate) fn from_continuation_frame(
+        frame: &ContinuationFrame,
+        program: &Program,
+        stack_offset: usize,
+        base: usize,
+    ) -> RuntimeResult<Self> {
+        let point = program
+            .point_for_frame_state(frame.frame_state)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+
+        // resolve the lowered function for this frame
+        let function_ref = program
+            .vm_function_by_id(point.function)
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(point.function)))?;
+
+        let layout_id = function_ref.function.frame_layout;
+        let layout = program
+            .frame_layout_by_id(layout_id)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+        if frame.byte_len() < layout.byte_len() as usize {
+            return Err(RuntimeError::new(Error::invalid_instruction()));
+        }
+
+        Ok(Self {
+            function: function_ref.function.function,
+            frame_layout: function_ref.function.frame_layout,
+            block: point.block,
+            pc: point.pc as usize,
+            return_state: frame.return_state,
+            stack_offset,
+            byte_len: frame.byte_len(),
             base,
         })
     }
