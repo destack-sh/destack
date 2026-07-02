@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
+use crate::check::{Answer, AutoInterface, CheckState, Dependency, Origin, Relation, answer};
 
 /// One applied heritage edge in a nominal declaration closure.
 #[derive(Debug, Clone)]
@@ -121,6 +121,38 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
+        // intersection targets require every element under the same relation
+        if let dir::Type::Intersection(intersection) = self.ty(target)? {
+            let elements = self
+                .type_ids(target.module_id, intersection.elements)?
+                .to_vec();
+            let mut decision = Answer::Ready(true);
+            for element in elements {
+                decision = decision.and(self.decide_relation(origin, relation, source, element)?);
+                if decision.is_ready_false() {
+                    break;
+                }
+            }
+
+            return Ok(decision);
+        }
+
+        // intersection sources satisfy through any element
+        if let dir::Type::Intersection(intersection) = self.ty(source)? {
+            let elements = self
+                .type_ids(source.module_id, intersection.elements)?
+                .to_vec();
+            let mut decision = Answer::Ready(false);
+            for element in elements {
+                decision = decision.or(self.decide_relation(origin, relation, element, target)?);
+                if decision.is_ready_true() {
+                    break;
+                }
+            }
+
+            return Ok(decision);
+        }
+
         // nominal sources meet nominal constraints through their declarations
         let instances = match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Instance(source), dir::Type::Instance(target)) => Some((source, target)),
@@ -139,6 +171,16 @@ impl CheckState<'_> {
                 target,
                 &target_instance,
             ),
+
+            // auto interfaces decide by their derivation rules
+            (None, _)
+                if let Some(interface) = target_instance
+                    .as_ref()
+                    .and_then(|instance| self.language_item(instance.symbol).ok().flatten())
+                    .and_then(AutoInterface::from_language_item) =>
+            {
+                self.satisfies_auto_interface(origin, source, interface)
+            }
 
             // check extension implementations over any receiver form
             (None, _) if self.is_interface_instance(target_instance.as_ref()) => {
@@ -388,6 +430,43 @@ impl CheckState<'_> {
         }
 
         Ok(decision)
+    }
+
+    /// Bound open construction arguments from written literal fields.
+    ///
+    /// The writable relation reports the construction afterwards, so
+    /// this only pushes bounds.
+    pub(in crate::check) fn constrain_struct_construction(
+        &mut self,
+        origin: Origin,
+        source_fields: &[dir::TypeField],
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<()>> {
+        let target = answer!(self.reduce_type_head(origin, target)?);
+        let dir::Type::Instance(instance) = self.ty(target)? else {
+            return Ok(Answer::Ready(()));
+        };
+
+        let module = origin.module();
+        for key in self.nominal_field_keys(instance.symbol) {
+            let lookup = answer!(self.lookup_member(
+                origin,
+                module,
+                target,
+                dir::MemberSpace::Instance,
+                key
+            )?);
+            let Some(declared) = lookup.field_type() else {
+                continue;
+            };
+            let Some(field) = source_fields.iter().find(|field| field.key == key) else {
+                continue;
+            };
+
+            answer!(self.constrain(origin, Relation::Assignable, field.ty, declared)?);
+        }
+
+        Ok(Answer::Ready(()))
     }
 
     /// Collect one definition's instance field keys through heritage.

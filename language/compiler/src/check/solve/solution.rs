@@ -93,7 +93,7 @@ impl CheckState<'_> {
             }
         }
 
-        let blockers = self.bound_blockers(representative, &lower_types, &upper_types, default)?;
+        let blockers = self.bound_blockers(&lower_types, default)?;
         if !blockers.is_empty() {
             self.record_event(CheckEvent::VariableBlocked {
                 variable: representative,
@@ -204,16 +204,19 @@ impl CheckState<'_> {
         Ok(Answer::ready_unless_blocked(widened, blockers))
     }
 
-    /// Return open variables that block one variable.
+    /// Return open variables that block one variable's solution.
+    ///
+    /// Lower bounds and defaults are inference inputs, so their open
+    /// variables block.
+    /// Upper bounds check after solutions and never block, which lets
+    /// F-bounded parameters solve.
     pub(in crate::check) fn bound_blockers(
         &self,
-        variable: dir::TypeVariableId,
         lower: &[dir::GlobalTypeId],
-        upper: &[dir::GlobalTypeId],
         default: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[Dependency; 2]>> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        let bounds = lower.iter().chain(upper.iter()).chain(default.iter());
+        let bounds = lower.iter().chain(default.iter());
         for bound in bounds {
             for open in self.type_variables(*bound)? {
                 if self.solver.variable(open).is_ok()
