@@ -79,6 +79,11 @@ impl FunctionSignature {
             return true;
         }
 
+        // where-clause predicates need a declaring template
+        if !self.where_clauses.is_empty() {
+            return true;
+        }
+
         // comptime parameters
         self.parameters
             .iter()

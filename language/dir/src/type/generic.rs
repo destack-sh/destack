@@ -164,6 +164,8 @@ pub struct GenericTemplate {
     pub parent: Option<LocalGenericTemplateId>,
     /// The generic parameters in declaration order.
     pub parameters: Vec<LocalGenericParameterId>,
+    /// The where-clause predicates declared on this template.
+    pub predicates: Vec<WherePredicate>,
 }
 
 impl GenericTemplate {
@@ -178,7 +180,34 @@ impl GenericTemplate {
             symbol,
             parent,
             parameters: Vec::new(),
+            predicates: Vec::new(),
         }
+    }
+}
+
+/// One where-clause predicate declared on a generic template.
+/// Predicates are proved at instantiation sites and assumed as
+/// hypotheses inside the declaring template's own scope.
+///
+/// Example:
+/// ```ds
+/// get<Q: Hash>(key: &readonly Q): V | undefined where K: Borrow<Q>
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct WherePredicate {
+    /// The source where clause node.
+    pub source: GlobalNodeIdAny,
+    /// The constrained type.
+    pub left: GlobalTypeId,
+    /// The required constraint type.
+    pub right: GlobalTypeId,
+}
+
+impl WherePredicate {
+    /// Apply one mapping to every type id stored in this predicate.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.left = map(self.left);
+        self.right = map(self.right);
     }
 }
 
