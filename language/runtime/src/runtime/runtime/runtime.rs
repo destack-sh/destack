@@ -785,7 +785,7 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{Arc, OnceLock};
 
     use super::Runtime;
     use crate::host::core::HostQueue;
@@ -796,11 +796,23 @@ mod tests {
     use crate::runtime::tests::{TestMachine, TestWorldRuntime, start_worker_continuation};
     use crate::runtime::{RuntimeHeap, TickResult, Worker, WorkerOptions};
     use crate::world::World;
-    use destack_core::CaptureMode;
-    use destack_heap::{AllocationShape, SharedHeap, TraceView};
+    use destack_core::{
+        CaptureMode, SectionDirectory, SectionImage, SectionPacker, SectionStorage,
+    };
+    use destack_heap::{AllocationShape, SharedHeap, TraceTable, TraceView};
     use destack_mir::TraceMap;
     use destack_program as program;
     use destack_repository::{Environment, RuntimeOptions};
+
+    /// Section-backed trace table used by runtime tests.
+    struct TestTraceTable {
+        /// Packed section directory.
+        sections: SectionDirectory,
+        /// Packed section storage.
+        storage: SectionStorage,
+        /// Packed heap trace table.
+        traces: TraceTable,
+    }
 
     /// Allocate one shared byte payload for runtime tests.
     fn allocate_shared_bytes(
@@ -808,8 +820,8 @@ mod tests {
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
-        let shape = AllocationShape::new(bytes.len(), 1, None, &trace_map);
-        let site = heap.options().allocation_plan(shape);
+        let shape = AllocationShape::new(bytes.len(), 1, None, trace_map);
+        let site = heap.options().allocation_plan(&shape);
         let mut allocator = heap.allocation_cache();
         let worker = heap.register_mark_worker();
 
@@ -817,10 +829,40 @@ mod tests {
             &worker,
             &mut allocator,
             site,
-            &trace_map,
+            &shape.trace_map,
             bytes,
-            TraceView::new(&[]),
+            trace_view(),
         )
+    }
+
+    /// Return the shared empty trace table for runtime tests.
+    fn trace_view() -> TraceView<'static> {
+        static TRACE_FIXTURE: OnceLock<TestTraceTable> = OnceLock::new();
+
+        TRACE_FIXTURE.get_or_init(TestTraceTable::new).view()
+    }
+
+    impl TestTraceTable {
+        /// Build one empty section-backed trace table.
+        fn new() -> Self {
+            let mut sections = SectionPacker::new();
+            let traces = TraceTable::pack(&mut sections, &destack_mir::TraceTable::new());
+            let (sections, storage) = sections.finish();
+
+            Self {
+                sections,
+                storage,
+                traces,
+            }
+        }
+
+        /// Return the packed trace view.
+        fn view(&self) -> TraceView<'_> {
+            let sections = SectionImage::load(&self.sections, &self.storage)
+                .expect("test trace sections should load");
+
+            self.traces.view(sections)
+        }
     }
 
     /// Build runtime-owned shared heap state for one test world.
@@ -978,8 +1020,8 @@ mod tests {
         )
         .expect("worker should construct");
         let trace_map = TraceMap::Empty;
-        let shape = AllocationShape::new(16, 1, None, &trace_map);
-        let site = shared.shared.options().allocation_plan(shape);
+        let shape = AllocationShape::new(16, 1, None, trace_map);
+        let site = shared.shared.options().allocation_plan(&shape);
 
         // allocate through the worker cache without reaching a normal flush point
         let _reference = shared
@@ -988,8 +1030,8 @@ mod tests {
                 &worker.shared_mark_worker,
                 &mut worker.shared_cache,
                 site,
-                &trace_map,
-                program.trace_maps(),
+                &shape.trace_map,
+                program.trace_view(),
             )
             .expect("shared allocation should succeed");
 

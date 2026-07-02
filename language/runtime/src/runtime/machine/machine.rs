@@ -185,11 +185,11 @@ impl Machine {
         }
     }
 
-    /// Return decoded program trace maps.
-    pub fn trace_maps(&self) -> TraceView<'_> {
+    /// Return compact program trace rows.
+    pub fn trace_view(&self) -> TraceView<'_> {
         match &self.engine {
-            Engine::Vm(machine) => machine.trace_maps(),
-            Engine::Native { vm, .. } => vm.trace_maps(),
+            Engine::Vm(machine) => machine.trace_view(),
+            Engine::Native { vm, .. } => vm.trace_view(),
         }
     }
 

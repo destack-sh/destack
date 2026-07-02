@@ -355,7 +355,7 @@ impl Worker {
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,
-                runtime_shared.program().trace_maps(),
+                runtime_shared.program().trace_view(),
             )
             .map_err(Box::<RuntimeError>::from)?;
 
