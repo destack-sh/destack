@@ -325,12 +325,11 @@ struct Score {
 
 extension of Score implements Add {
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
+/// @definition.implements symbol=<module>#2 source=Add target=ops.plus.Add arguments=(Score)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add slot=add type=(this: Score, Score) => Score
 /// @resolution.name source=Score target=Score
 /// @resolution.name source=Add target=ops.plus.Add
-/// @resolution.name source=Score target=Score
 
     type Output = Score;
     /// @type.symbol symbol=Output source="type Output = Score" type=Score
