@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::check::{
     Answer, CheckState, Constraint, Decision, FlowSite, Obligation, OperatorExpressionResult,
@@ -47,13 +46,18 @@ impl CheckState<'_> {
         let origin = Origin::Node(node);
 
         // identity and logic produce builtin results directly
-        let nullish_operand = matches!(self.ty(left)?, dir::Type::Null | dir::Type::Undefined)
-            || matches!(self.ty(right)?, dir::Type::Null | dir::Type::Undefined);
+        let nullish_or_never = matches!(
+            self.ty(left)?,
+            dir::Type::Null | dir::Type::Undefined | dir::Type::Never
+        ) || matches!(
+            self.ty(right)?,
+            dir::Type::Null | dir::Type::Undefined | dir::Type::Never
+        );
         let comparable = match (
-            self.comparable_operand_kind(left)?,
-            self.comparable_operand_kind(right)?,
+            answer!(self.scalar_families(origin, left)?),
+            answer!(self.scalar_families(origin, right)?),
         ) {
-            (Some(left), Some(right)) => left == right,
+            (Some(left), Some(right)) => left.len() == 1 && left == right,
             _ => false,
         };
         let builtin = match operator {
@@ -67,7 +71,7 @@ impl CheckState<'_> {
             }
             // nullish and same-kind scalar equality produce booleans
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
-                if nullish_operand || comparable =>
+                if nullish_or_never || comparable =>
             {
                 Some(self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?)
             }
@@ -124,16 +128,7 @@ impl CheckState<'_> {
             return self.commit_protocol_operator(origin, node, call.resolution, result, writeback);
         }
 
-        self.reject_operator(
-            node,
-            origin,
-            format!("{operator:?}"),
-            format!(
-                "'{}' and '{}'",
-                self.format_type(left),
-                self.format_type(right)
-            ),
-        )
+        self.reject_operator(node, origin, operator.text().to_string(), &[left, right])
     }
 
     /// Select one unary operator application.
@@ -161,11 +156,19 @@ impl CheckState<'_> {
             let Some(place) =
                 answer!(self.select_assign_place(operand_site, operand_node, PlaceUse::Update)?)
             else {
-                return self.reject_operator(node, origin, format!("{operator:?}"), "place".into());
+                self.report_no_matching_operator(
+                    origin,
+                    operator.text().to_string(),
+                    "place".into(),
+                )?;
+                self.commit_decision(node, Decision::Rejected)?;
+                self.commit_error_node(node)?;
+
+                return Ok(Answer::Ready(()));
             };
             let operand = place.ty;
 
-            if answer!(self.is_builtin_numeric(origin, operand)?) {
+            if answer!(self.operand_is_numeric(origin, operand)?) {
                 let resolution = place.clone().resolution();
                 self.commit_node_type(place.source, operand)?;
                 self.commit_decision(place.source, Decision::Place(resolution))?;
@@ -178,12 +181,7 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(()));
             }
 
-            return self.reject_operator(
-                node,
-                origin,
-                format!("{operator:?}"),
-                format!("'{}'", self.format_type(operand)),
-            );
+            return self.reject_operator(node, origin, operator.text().to_string(), &[operand]);
         }
 
         let operand = answer!(self.operand_type(origin, operand_site)?);
@@ -200,7 +198,16 @@ impl CheckState<'_> {
         if matches!(
             operator,
             dir::UnaryOperator::Negate | dir::UnaryOperator::Plus
-        ) && answer!(self.is_builtin_numeric(origin, operand)?)
+        ) && answer!(self.operand_is_numeric(origin, operand)?)
+        {
+            let result = answer!(self.builtin_unary_result(origin, operator, operand)?);
+
+            return self.commit_builtin_unary_operator(node, operator, result);
+        }
+
+        // builtin bitwise not moves bits through integers
+        if matches!(operator, dir::UnaryOperator::ElementwiseNot)
+            && answer!(self.operand_is_integral(origin, operand)?)
         {
             let result = answer!(self.builtin_unary_result(origin, operator, operand)?);
 
@@ -238,53 +245,33 @@ impl CheckState<'_> {
             return self.commit_protocol_operator(origin, node, call.resolution, result, None);
         }
 
-        self.reject_operator(
-            node,
-            origin,
-            format!("{operator:?}"),
-            format!("'{}'", self.format_type(operand)),
-        )
+        self.reject_operator(node, origin, operator.text().to_string(), &[operand])
     }
 
-    /// Return the builtin-comparable scalar family of one operand.
-    /// Unions compare when every element shares one family.
-    fn comparable_operand_kind(
+    /// Return whether one operand holds only builtin numerics.
+    fn operand_is_numeric(
         &mut self,
+        origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<ComparableKind>> {
-        let root = self.settled_root(ty)?;
-        let kind = match self.ty(root)? {
-            dir::Type::Literal(literal) => comparable_literal_kind(&literal),
-            dir::Type::Primitive(primitive) => comparable_primitive_kind(&primitive),
-            dir::Type::Range(_) => Some(ComparableKind::Integer),
-            dir::Type::EnumMember(member) => Some(ComparableKind::Enum(member.owner)),
-            dir::Type::Instance(instance)
-                if matches!(
-                    self.definition(instance.symbol),
-                    Some(dir::Definition::Enum(_))
-                ) =>
-            {
-                Some(ComparableKind::Enum(root))
-            }
-            dir::Type::Union(union) => {
-                let elements: SmallVec<[_; 4]> =
-                    SmallVec::from_slice(self.type_ids(root.module_id, union.elements)?);
-                let mut shared: Option<ComparableKind> = None;
-                for element in elements {
-                    let Some(kind) = self.comparable_operand_kind(element)? else {
-                        return Ok(None);
-                    };
-                    if *shared.get_or_insert(kind) != kind {
-                        return Ok(None);
-                    }
-                }
+    ) -> CompilerResult<Answer<bool>> {
+        let families = answer!(self.scalar_families(origin, ty)?);
 
-                shared
-            }
-            _ => None,
-        };
+        Ok(Answer::Ready(families.is_some_and(|families| {
+            !families.is_empty() && families.iter().all(|family| family.is_numeric())
+        })))
+    }
 
-        Ok(kind)
+    /// Return whether one operand holds only builtin integers.
+    fn operand_is_integral(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let families = answer!(self.scalar_families(origin, ty)?);
+
+        Ok(Answer::Ready(families.is_some_and(|families| {
+            !families.is_empty() && families.iter().all(|family| family.is_integral())
+        })))
     }
 
     /// Return the builtin numeric result and joined operand type.
@@ -295,59 +282,96 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, dir::GlobalTypeId)>>> {
-        // builtin arithmetic and comparison need numeric operands
-        let is_arithmetic = matches!(
-            operator,
+        // classify both operands once
+        let numeric = answer!(self.operand_is_numeric(origin, left)?)
+            && answer!(self.operand_is_numeric(origin, right)?);
+        let integral = numeric
+            && answer!(self.operand_is_integral(origin, left)?)
+            && answer!(self.operand_is_integral(origin, right)?);
+        let module = origin.module();
+
+        match operator {
+            // shifts move bits through integers, keeping the left type
+            dir::BinaryOperator::ShiftLeft
+            | dir::BinaryOperator::ShiftRight
+            | dir::BinaryOperator::UnsignedShiftRight
+                if integral =>
+            {
+                let result = match self.ty(left)? {
+                    // literal shifts stay integral, so they widen to int
+                    dir::Type::Literal(dir::ScalarLiteral::Bigint(_)) => {
+                        self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Bigint))?
+                    }
+                    dir::Type::Literal(_) => self.intern_type(
+                        module,
+                        dir::Type::Primitive(dir::PrimitiveType::Integer(
+                            dir::IntegerType::Integer { is_signed: true },
+                        )),
+                    )?,
+                    _ => left,
+                };
+
+                Ok(Answer::Ready(Some((result, result))))
+            }
+            // elementwise bit operations join equal integer operands
+            dir::BinaryOperator::ElementwiseAnd
+            | dir::BinaryOperator::ElementwiseOr
+            | dir::BinaryOperator::ElementwiseXor
+                if integral =>
+            {
+                let joined = answer!(self.builtin_numeric_join(origin, left, right)?);
+
+                Ok(Answer::Ready(joined.map(|joined| (joined, joined))))
+            }
+            // arithmetic joins equal numeric operands
             dir::BinaryOperator::Add
-                | dir::BinaryOperator::Subtract
-                | dir::BinaryOperator::Multiply
-                | dir::BinaryOperator::Divide
-                | dir::BinaryOperator::Remainder
-                | dir::BinaryOperator::Exponent
-        );
-        let is_comparison = matches!(
-            operator,
+            | dir::BinaryOperator::Subtract
+            | dir::BinaryOperator::Multiply
+            | dir::BinaryOperator::Divide
+            | dir::BinaryOperator::Remainder
+            | dir::BinaryOperator::Exponent
+                if numeric =>
+            {
+                let joined = answer!(self.builtin_numeric_join(origin, left, right)?);
+
+                Ok(Answer::Ready(joined.map(|joined| (joined, joined))))
+            }
+            // comparisons produce booleans over the joined operand type
             dir::BinaryOperator::Equal
-                | dir::BinaryOperator::NotEqual
-                | dir::BinaryOperator::LessThan
-                | dir::BinaryOperator::LessThanOrEqual
-                | dir::BinaryOperator::GreaterThan
-                | dir::BinaryOperator::GreaterThanOrEqual
-        );
-        if !is_arithmetic && !is_comparison {
-            return Ok(Answer::Ready(None));
+            | dir::BinaryOperator::NotEqual
+            | dir::BinaryOperator::LessThan
+            | dir::BinaryOperator::LessThanOrEqual
+            | dir::BinaryOperator::GreaterThan
+            | dir::BinaryOperator::GreaterThanOrEqual
+                if numeric =>
+            {
+                let Some(joined) = answer!(self.builtin_numeric_join(origin, left, right)?) else {
+                    return Ok(Answer::Ready(None));
+                };
+                let boolean =
+                    self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+
+                Ok(Answer::Ready(Some((boolean, joined))))
+            }
+            _ => Ok(Answer::Ready(None)),
         }
-        if !answer!(self.is_builtin_numeric(origin, left)?)
-            || !answer!(self.is_builtin_numeric(origin, right)?)
-        {
-            return Ok(Answer::Ready(None));
-        }
-
-        // mixed-type arithmetic requires explicit conversion first
-        let joined = answer!(self.builtin_numeric_join(origin, left, right)?);
-        let Some(joined) = joined else {
-            return Ok(Answer::Ready(None));
-        };
-
-        // comparisons produce booleans over the joined operand type
-        if is_comparison {
-            let module = origin.module();
-            let boolean =
-                self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-
-            return Ok(Answer::Ready(Some((boolean, joined))));
-        }
-
-        Ok(Answer::Ready(Some((joined, joined))))
     }
 
     /// Return one builtin unary result.
+    ///
+    /// Scalar families are closed under unary operators, so only
+    /// singleton operands fold through the static operation.
     fn builtin_unary_result(
         &mut self,
         origin: Origin,
         operator: dir::UnaryOperator,
         operand: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        // fold only literal operands
+        let reduced = answer!(self.reduce_type_head(origin, operand)?);
+        if !matches!(self.ty(reduced)?, dir::Type::Literal(_)) {
+            return Ok(Answer::Ready(operand));
+        }
         let Ok(operator) = dir::StaticUnaryOperator::try_from(operator) else {
             return Ok(Answer::Ready(operand));
         };
@@ -383,14 +407,14 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(Some(self.intern_type(module, widened)?)))
             }
             (true, false) => {
-                let fits = self.decide_relation(origin, Relation::Assignable, left, right)?;
+                let adapts = self.literal_adapts_to_operand(origin, left, right)?;
 
-                Ok(fits.then_some(right))
+                Ok(adapts.then_some(right))
             }
             (false, true) => {
-                let fits = self.decide_relation(origin, Relation::Assignable, right, left)?;
+                let adapts = self.literal_adapts_to_operand(origin, right, left)?;
 
-                Ok(fits.then_some(left))
+                Ok(adapts.then_some(left))
             }
             // typed operands must agree exactly
             (false, false) => {
@@ -401,29 +425,37 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return whether one type is a builtin numeric operand.
-    fn is_builtin_numeric(
+    /// Decide whether one literal adapts into one numeric operand.
+    ///
+    /// Parameters accept literals that fit every element of their
+    /// scalar bound, so the fit holds for every instantiation.
+    fn literal_adapts_to_operand(
         &mut self,
         origin: Origin,
-        ty: dir::GlobalTypeId,
+        literal: dir::GlobalTypeId,
+        operand: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let reduced = answer!(self.reduce_type_head(origin, ty)?);
+        let reduced = answer!(self.reduce_type_head(origin, operand)?);
+        let dir::Type::Parameter(parameter) = self.ty(reduced)? else {
+            return self.decide_relation(origin, Relation::Assignable, literal, operand);
+        };
 
-        Ok(Answer::Ready(match self.ty(reduced)? {
-            dir::Type::Primitive(primitive) => matches!(
-                primitive,
-                dir::PrimitiveType::Integer(_)
-                    | dir::PrimitiveType::Float(_)
-                    | dir::PrimitiveType::Bigint
-            ),
-            dir::Type::Literal(literal) => matches!(
-                literal,
-                dir::ScalarLiteral::Integer(_)
-                    | dir::ScalarLiteral::Float(_)
-                    | dir::ScalarLiteral::Bigint(_)
-            ),
-            _ => false,
-        }))
+        // check the literal against every element of the scalar bound
+        let Some(bound) = answer!(self.scalar_parameter_bound(origin, parameter)?) else {
+            return Ok(Answer::Ready(false));
+        };
+        let bound = answer!(self.reduce_type_head(origin, bound)?);
+        let elements = match self.ty(bound)? {
+            dir::Type::Union(union) => self.type_ids(bound.module_id, union.elements)?.to_vec(),
+            _ => vec![bound],
+        };
+        for element in elements {
+            if !answer!(self.decide_relation(origin, Relation::Assignable, literal, element)?) {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
+        Ok(Answer::Ready(true))
     }
 
     /// Return the expression result for one selected operator method.
@@ -553,57 +585,24 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         operator: String,
-        operands: String,
+        operands: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<()>> {
-        self.report_no_matching_operator(origin, operator, operands)?;
+        // errored operands already reported, so the rejection stays silent
+        let tainted = operands.iter().any(|operand| {
+            self.type_flags(*operand)
+                .is_ok_and(|flags| flags.has_error())
+        });
+        if !tainted {
+            let operands = operands
+                .iter()
+                .map(|operand| format!("'{}'", self.format_type(*operand)))
+                .collect::<Vec<_>>()
+                .join(" and ");
+            self.report_no_matching_operator(origin, operator, operands)?;
+        }
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 
         Ok(Answer::Ready(()))
-    }
-}
-
-/// One builtin-comparable scalar family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ComparableKind {
-    /// String values of any literal width.
-    String,
-    /// Character scalars.
-    Character,
-    /// Boolean scalars.
-    Boolean,
-    /// Machine integers and intervals.
-    Integer,
-    /// Machine floats.
-    Float,
-    /// Arbitrary-precision integers.
-    Bigint,
-    /// Nominal enum values.
-    Enum(dir::GlobalTypeId),
-}
-
-/// Return the comparable family of one scalar literal.
-fn comparable_literal_kind(literal: &dir::ScalarLiteral) -> Option<ComparableKind> {
-    match literal {
-        dir::ScalarLiteral::String(_) => Some(ComparableKind::String),
-        dir::ScalarLiteral::Character(_) => Some(ComparableKind::Character),
-        dir::ScalarLiteral::Boolean(_) => Some(ComparableKind::Boolean),
-        dir::ScalarLiteral::Integer(_) => Some(ComparableKind::Integer),
-        dir::ScalarLiteral::Float(_) => Some(ComparableKind::Float),
-        dir::ScalarLiteral::Bigint(_) => Some(ComparableKind::Bigint),
-        _ => None,
-    }
-}
-
-/// Return the comparable family of one primitive type.
-fn comparable_primitive_kind(primitive: &dir::PrimitiveType) -> Option<ComparableKind> {
-    match primitive {
-        dir::PrimitiveType::String => Some(ComparableKind::String),
-        dir::PrimitiveType::Character => Some(ComparableKind::Character),
-        dir::PrimitiveType::Boolean => Some(ComparableKind::Boolean),
-        dir::PrimitiveType::Integer(_) => Some(ComparableKind::Integer),
-        dir::PrimitiveType::Float(_) => Some(ComparableKind::Float),
-        dir::PrimitiveType::Bigint => Some(ComparableKind::Bigint),
-        _ => None,
     }
 }
