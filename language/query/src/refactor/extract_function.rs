@@ -415,7 +415,7 @@ impl ModuleQueryContext<'_> {
         let return_type = ctx.dir().expression_type_id(expr_id.into()).map(|type_id| {
             let types = ctx.dir().types();
             let ty = types.get_type(type_id.local_id);
-            format_inlay_type(ty, ctx)
+            format_inlay_type(&ty, ctx)
         });
         let return_type = filter_inferred_type(return_type);
         let return_type = async_return_type(return_type, requires_async)
@@ -737,7 +737,7 @@ impl ModuleQueryContext<'_> {
                 .map(|type_id| {
                     let types = ctx.dir().types();
                     let ty = types.get_type(type_id.local_id);
-                    format_inlay_type(ty, ctx)
+                    format_inlay_type(&ty, ctx)
                 })
                 .filter(|ty| !ty.is_empty())
                 .or_else(|| ctx.declaration_form_text(canonical));
@@ -802,7 +802,7 @@ impl ModuleQueryContext<'_> {
                 .map(|type_id| {
                     let types = ctx.dir().types();
                     let ty = types.get_type(type_id.local_id);
-                    format_inlay_type(ty, ctx)
+                    format_inlay_type(&ty, ctx)
                 })
                 .filter(|ty| !ty.is_empty())
                 .or_else(|| ctx.declaration_form_text(canonical));
