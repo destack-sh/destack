@@ -692,7 +692,7 @@ impl HeapStorage {
         trace_map: &TraceMap,
         source_offset: usize,
     ) -> HeapResult<HeapPlace> {
-        let storage = if !trace_map.has_reference()
+        let storage = if !trace_map.has_heap_reference()
             && let Some(class_index) = self.small.size_classes.class_index_for(byte_len)
         {
             let size_class = self.small.size_classes.classes[class_index];

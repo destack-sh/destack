@@ -593,15 +593,14 @@ pub struct ReferenceLayout {
 impl ReferenceLayout {
     /// Return the address space implied by this reference.
     pub fn address_space(&self) -> Option<AddressSpace> {
-        if matches!(self.flags.kind(), Some(ReferenceKind::Raw)) {
-            return Some(AddressSpace::Raw);
-        }
-
-        Some(match self.flags.storage()? {
-            ReferenceStorage::Local => AddressSpace::Local,
-            ReferenceStorage::Shared => AddressSpace::Shared,
-            ReferenceStorage::Frame => AddressSpace::Frame,
-            ReferenceStorage::Static => AddressSpace::Static,
+        Some(match (self.flags.kind()?, self.flags.storage()?) {
+            (_, ReferenceStorage::Frame) => AddressSpace::Frame,
+            (_, ReferenceStorage::Static) => AddressSpace::Static,
+            (ReferenceKind::Raw, ReferenceStorage::Local | ReferenceStorage::Shared) => {
+                AddressSpace::Raw
+            }
+            (_, ReferenceStorage::Local) => AddressSpace::Local,
+            (_, ReferenceStorage::Shared) => AddressSpace::Shared,
         })
     }
 

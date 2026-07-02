@@ -57,6 +57,7 @@ pub(crate) fn local_trace_map(offsets: &[u32]) -> TraceMap {
     TraceMap::Fixed {
         local_offsets: offsets.to_vec().into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
+        frame_offsets: Vec::new().into_boxed_slice(),
     }
 }
 
@@ -65,5 +66,6 @@ pub(crate) fn shared_trace_map(offsets: &[u32]) -> TraceMap {
     TraceMap::Fixed {
         local_offsets: Vec::new().into_boxed_slice(),
         shared_offsets: offsets.to_vec().into_boxed_slice(),
+        frame_offsets: Vec::new().into_boxed_slice(),
     }
 }

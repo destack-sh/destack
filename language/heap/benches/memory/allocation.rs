@@ -703,6 +703,7 @@ fn local_reference_trace_map() -> TraceMap {
     TraceMap::Fixed {
         local_offsets: Box::new([0]),
         shared_offsets: Box::new([]),
+        frame_offsets: Box::new([]),
     }
 }
 
@@ -711,5 +712,6 @@ fn shared_reference_trace_map() -> TraceMap {
     TraceMap::Fixed {
         local_offsets: Box::new([]),
         shared_offsets: Box::new([0]),
+        frame_offsets: Box::new([]),
     }
 }

@@ -137,6 +137,7 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
             map: TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Box::default(),
+                frame_offsets: Box::default(),
             },
         }]
         .into_boxed_slice(),

@@ -24,7 +24,7 @@ impl HeapStorage {
                 }
 
                 let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_view)?;
-                if !trace_map.has_reference() {
+                if !trace_map.has_heap_reference() {
                     continue;
                 }
 
@@ -38,7 +38,7 @@ impl HeapStorage {
             let Some(block) = self.large_block(block_id) else {
                 continue;
             };
-            if !block.trace_map.has_reference() {
+            if !block.trace_map.has_heap_reference() {
                 continue;
             }
 

@@ -130,10 +130,12 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
     let first_map = TraceMap::Fixed {
         local_offsets: Box::new([0]),
         shared_offsets: Box::new([]),
+        frame_offsets: Box::new([]),
     };
     let second_map = TraceMap::Fixed {
         local_offsets: Box::new([]),
         shared_offsets: Box::new([0]),
+        frame_offsets: Box::new([]),
     };
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
