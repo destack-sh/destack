@@ -8,9 +8,9 @@ use crate::host::poller::{
 };
 use crate::host::time::TimerClock;
 use crate::host::{HostEventKind, LifecycleState, ResourceId};
-use crate::runtime::machine::{Continuation, Machine, MachineId};
+use crate::runtime::machine::Continuation;
 use crate::runtime::scheduler::{
-    EventLoop, Microtask, MicrotaskId, Readiness, ScheduledTimer, Task, TaskId, TimerDeadline, Wake,
+    EventLoop, Readiness, Runnable, RunnableId, ScheduledTimer, TimerDeadline, Wake,
 };
 use crate::runtime::tests::{
     TestMachine, TestRuntime, TestWorldRuntime, start_worker_continuation, test_resource_id,
@@ -32,7 +32,7 @@ fn runtime_options_with_execution(mode: ExecutionMode) -> RuntimeOptions {
 fn test_tick_executes_one_task() {
     // create runtime state with one queued task
     let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    runtime.enqueue_task(7, 1, 0);
+    runtime.enqueue_task(7, 1);
 
     // execute one tick and verify one resume
     let progressed = runtime.tick();
@@ -48,7 +48,7 @@ fn test_tick_executes_one_task() {
 fn test_tick_until_idle_drains_yielded_tasks() {
     // create runtime state with one queued task
     let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    runtime.enqueue_task(11, 9, 0);
+    runtime.enqueue_task(11, 9);
 
     // run ticks until the queue is drained
     runtime.tick_until_idle();
@@ -64,7 +64,7 @@ fn test_tick_until_idle_drains_yielded_tasks() {
 fn test_tick_dispatches_timer_waiter_task() {
     // create runtime state with one timer waiter registration
     let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    runtime.add_timer_waiter(77, 31, 0);
+    runtime.add_timer_waiter(77, 31);
     runtime.schedule_timer(77, 0, None);
 
     // execute one tick and verify one waiter resume
@@ -87,7 +87,7 @@ fn test_tick_dispatches_timer_waiter_task() {
 fn test_tick_dispatches_event_waiter_task() {
     // create runtime state with one resource waiter registration
     let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    runtime.add_resource_waiter(5, 41, 0);
+    runtime.add_resource_waiter(5, 41);
     runtime.enqueue_io_event(5, 91, 9);
 
     // execute one tick and verify one waiter resume
@@ -104,7 +104,7 @@ fn test_tick_dispatches_event_waiter_task() {
 fn test_tick_dispatches_host_event_waiter_task() {
     // create runtime state with one lifecycle host waiter registration
     let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    runtime.add_host_waiter(HostEventKind::Lifecycle, 42, 0);
+    runtime.add_host_waiter(HostEventKind::Lifecycle, 42);
     runtime.enqueue_lifecycle_host_event(LifecycleState::Running);
 
     // execute one tick and verify one waiter resume
@@ -116,45 +116,19 @@ fn test_tick_dispatches_host_event_waiter_task() {
     );
 }
 
-/// Dispatches resource waiters through task priority ordering.
-#[test]
-fn test_tick_dispatches_event_waiter_by_task_priority() {
-    // create runtime state with one queued high-priority task
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    runtime.enqueue_task(301, 91, 200);
-
-    // register one low-priority resource waiter and enqueue one wake
-    runtime.add_resource_waiter(7, 92, 0);
-    runtime.enqueue_io_event(7, 44, 1);
-
-    // run high-priority task before waiter wake work
-    let _ = runtime.tick();
-    assert!(
-        runtime.has_pending_work(),
-        "waiter wake should remain after the high-priority task"
-    );
-
-    let _ = runtime.tick();
-    assert!(
-        runtime.has_pending_work(),
-        "yielded waiter wake task should stay queued"
-    );
-}
-
 /// Dequeues microtasks before macrotasks.
 #[test]
 fn test_event_loop_drains_microtasks_before_tasks() {
     // set up an event loop with one task and one microtask
     let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
     let mut event_loop = EventLoop::default();
-    event_loop.enqueue_task(Task {
-        id: TaskId::new(501),
-        runnable: runtime.yielding_continuation(601),
+    event_loop.enqueue_task(Runnable {
+        id: RunnableId::new(501),
+        continuation: runtime.yielding_continuation(601),
         resume_value: program::Value::Void,
-        priority: 0,
     });
-    event_loop.enqueue_microtask(Microtask {
-        id: MicrotaskId::new(502),
+    event_loop.enqueue_microtask(Runnable {
+        id: RunnableId::new(502),
         continuation: runtime.yielding_continuation(602),
         resume_value: program::Value::Void,
     });
@@ -165,30 +139,6 @@ fn test_event_loop_drains_microtasks_before_tasks() {
 
     let second = event_loop.pop_task();
     assert!(second.is_some(), "task should dequeue after microtasks");
-}
-
-/// Orders queued tasks by descending priority.
-#[test]
-fn test_event_loop_pop_task_prioritizes_higher_task_priority() {
-    // set up an event loop with low and high priority tasks
-    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::default());
-    let mut event_loop = EventLoop::default();
-    event_loop.enqueue_task(Task {
-        id: TaskId::new(503),
-        runnable: runtime.yielding_continuation(603),
-        resume_value: program::Value::Void,
-        priority: 1,
-    });
-    event_loop.enqueue_task(Task {
-        id: TaskId::new(504),
-        runnable: runtime.yielding_continuation(604),
-        resume_value: program::Value::Void,
-        priority: 200,
-    });
-
-    // verify higher priority task dequeues first
-    let task = event_loop.pop_task().expect("task should dequeue");
-    assert_eq!(task.id.get(), 504);
 }
 
 /// Roundtrips queued scheduler state through one suspend image.
@@ -216,13 +166,12 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
         .expect("schedule timer");
 
     // capture and restore one suspend image
-    let mut machine = test_engine();
     let image = event_loop
-        .capture_image(CaptureMode::Suspend, &mut machine)
+        .capture_image(CaptureMode::Suspend, ())
         .expect("capture suspend image");
     let mut restored = EventLoop::default();
     restored
-        .restore_image(&image, &mut machine)
+        .restore_image(&image, ())
         .expect("restore suspend image");
 
     // ready timer stays ahead of queued resource wakes
@@ -296,7 +245,7 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
     let continuation = runtime.completing_continuation(default_worker_id, 111);
     runtime.with_worker_mut(default_worker_id, |worker| {
-        register_timer_waiter(worker, 950, continuation, 0);
+        register_timer_waiter(worker, 950, continuation);
         schedule_timer(worker, TimerClock::Wall, 950, fire_at_nanos, None);
     });
 
@@ -359,11 +308,10 @@ fn test_world_tick_drives_runtime() {
                     "test.complete",
                     211,
                 );
-                worker.event_loop.enqueue_task(Task {
-                    id: TaskId::new(1),
-                    runnable: continuation,
+                worker.event_loop.enqueue_task(Runnable {
+                    id: RunnableId::new(1),
+                    continuation,
                     resume_value: program::Value::Void,
-                    priority: 0,
                 });
             },
         )
@@ -387,11 +335,11 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
 
     // register one waiter timer on each worker
     runtime.with_worker_mut(default_worker_id, |worker| {
-        register_timer_waiter(worker, 960, default_continuation, 0);
+        register_timer_waiter(worker, 960, default_continuation);
         schedule_timer(worker, TimerClock::Wall, 960, fire_at_nanos, None);
     });
     runtime.with_worker_mut(secondary_worker_id, |worker| {
-        register_timer_waiter(worker, 961, secondary_continuation, 0);
+        register_timer_waiter(worker, 961, secondary_continuation);
         schedule_timer(worker, TimerClock::Wall, 961, fire_at_nanos, None);
     });
 
@@ -403,18 +351,12 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
 }
 
 /// Register one timer waiter on one explicit worker.
-fn register_timer_waiter(
-    worker: &mut Worker,
-    handle: u64,
-    continuation: Continuation,
-    priority: u8,
-) {
+fn register_timer_waiter(worker: &mut Worker, handle: u64, continuation: Continuation) {
     worker
         .add_timer_waiter(
             ResourceId::new(worker.worker_id(), handle),
             continuation,
             program::Value::Void,
-            priority,
         )
         .expect("timer waiter should register");
 }
@@ -438,13 +380,4 @@ fn schedule_timer(
             interval: interval_nanos.map(Nanos::new),
         })
         .expect("timer should schedule");
-}
-
-/// Build one test machine for scheduler image tests.
-fn test_engine() -> Machine {
-    let machine = TestMachine::default();
-    let program = machine.program();
-    let execution = machine.execution();
-
-    Machine::new(MachineId::new(1), program, &execution).expect("test machine should build")
 }

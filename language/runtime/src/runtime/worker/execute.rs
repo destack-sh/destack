@@ -7,7 +7,7 @@ use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::HostPoller;
 use crate::runtime::RuntimeHeap;
 use crate::runtime::machine::{Continuation, Entry, Outcome};
-use crate::runtime::scheduler::{Microtask, Task, TaskId};
+use crate::runtime::scheduler::{Runnable, RunnableId};
 use crate::runtime::time::{ClockSource, Nanos};
 use crate::world::WorldState;
 use destack_heap as heap;
@@ -84,7 +84,7 @@ impl Worker {
                 continuation,
                 value,
             } => {
-                let task_id = self.event_loop.next_task_id()?;
+                let task_id = self.event_loop.next_runnable_id()?;
                 self.enqueue_task(task_id, continuation, value)?;
 
                 let output = self.run_event_loop(
@@ -118,7 +118,7 @@ impl Worker {
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
-        target_task: Option<TaskId>,
+        target_task: Option<RunnableId>,
         timeout_nanos: Option<u64>,
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<Option<program::Value>> {
@@ -372,7 +372,7 @@ impl Worker {
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
-        target_task: Option<TaskId>,
+        target_task: Option<RunnableId>,
     ) -> RuntimeResult<(bool, Option<program::Value>)> {
         // track whether this tick processed any event loop work
         let mut progressed = false;
@@ -414,8 +414,8 @@ impl Worker {
         let mono_now = Nanos::new(world.mono_nanos());
         if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
             progressed = true;
-            if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.machine)? {
-                self.enqueue_prepared_task(task)?;
+            if let Some(runnable) = self.event_loop.runnable_for_wake(wake)? {
+                self.enqueue_task_runnable(runnable)?;
             }
         }
 
@@ -443,19 +443,18 @@ impl Worker {
     /// Enqueue one yielded continuation as a task.
     fn enqueue_task(
         &mut self,
-        task_id: TaskId,
+        task_id: RunnableId,
         runnable: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<()> {
-        // build the task metadata
-        let task = Task {
+        // build the runnable payload
+        let runnable = Runnable {
             id: task_id,
-            runnable,
+            continuation: runnable,
             resume_value,
-            priority: 0,
         };
 
-        self.enqueue_prepared_task(task)
+        self.enqueue_task_runnable(runnable)
     }
 
     /// Execute one dequeued task and return output when it completes the target task.
@@ -467,10 +466,11 @@ impl Worker {
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
-        task: Task,
-        target_task: Option<TaskId>,
+        runnable: Runnable,
+        target_task: Option<RunnableId>,
     ) -> RuntimeResult<Option<program::Value>> {
-        let _guard = enter_runnable_scope(RunnableScope::for_task(task.id));
+        let id = runnable.id;
+        let _guard = enter_runnable_scope(RunnableScope::for_task(id));
         let outcome = self.execute_runnable(
             world,
             shared,
@@ -478,14 +478,14 @@ impl Worker {
             constant_space,
             host,
             host_queue,
-            task.runnable,
-            task.resume_value,
+            runnable.continuation,
+            runnable.resume_value,
         )?;
 
         // handle the task outcome
         match outcome {
             Outcome::Completed { value } => {
-                if target_task == Some(task.id) {
+                if target_task == Some(id) {
                     return Ok(Some(value));
                 }
             }
@@ -493,7 +493,7 @@ impl Worker {
                 continuation,
                 value,
             } => {
-                self.enqueue_task(task.id, continuation, value)?;
+                self.enqueue_task(id, continuation, value)?;
             }
         }
 
@@ -509,10 +509,10 @@ impl Worker {
         Ok(None)
     }
 
-    /// Enqueue one prepared task.
-    fn enqueue_prepared_task(&mut self, task: Task) -> RuntimeResult<()> {
+    /// Enqueue one runnable as a macrotask.
+    fn enqueue_task_runnable(&mut self, runnable: Runnable) -> RuntimeResult<()> {
         // enqueue the task into the event loop
-        self.event_loop.enqueue_task(task);
+        self.event_loop.enqueue_task(runnable);
 
         Ok(())
     }
@@ -526,7 +526,7 @@ impl Worker {
         constant_space: &program::StaticImage,
         host: &dyn Host,
         host_queue: &HostQueue,
-        microtask: Microtask,
+        runnable: Runnable,
         max_microtask_depth: usize,
     ) -> RuntimeResult<()> {
         // enforce true microtask nesting depth
@@ -548,7 +548,7 @@ impl Worker {
         }
 
         // run the microtask runnable
-        let _guard = enter_runnable_scope(RunnableScope::for_microtask(microtask.id, next_depth));
+        let _guard = enter_runnable_scope(RunnableScope::for_microtask(runnable.id, next_depth));
         let outcome = self.execute_runnable(
             world,
             shared,
@@ -556,8 +556,8 @@ impl Worker {
             constant_space,
             host,
             host_queue,
-            microtask.continuation,
-            microtask.resume_value,
+            runnable.continuation,
+            runnable.resume_value,
         )?;
 
         // ensure microtasks run to completion
@@ -582,10 +582,7 @@ impl Worker {
     ) -> RuntimeResult<usize> {
         // drain microtasks until the queue is exhausted
         let mut num_drained_microtasks = 0usize;
-        loop {
-            let Some(microtask) = self.event_loop.pop_microtask() else {
-                break;
-            };
+        while let Some(microtask) = self.event_loop.pop_microtask() {
             self.execute_microtask(
                 world,
                 shared,

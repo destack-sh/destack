@@ -13,20 +13,20 @@ impl EventLoop {
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         // queued tasks
-        for task in &mut self.tasks {
-            machine.visit_continuation_root_slots(&mut task.runnable, visit)?;
-            visit_resume_value_root_slot(&mut task.resume_value, visit)?;
+        for runnable in &mut self.tasks {
+            machine.visit_continuation_root_slots(&mut runnable.continuation, visit)?;
+            visit_resume_value_root_slot(&mut runnable.resume_value, visit)?;
         }
 
         // queued microtasks
-        for microtask in &mut self.microtasks {
-            machine.visit_continuation_root_slots(&mut microtask.continuation, visit)?;
-            visit_resume_value_root_slot(&mut microtask.resume_value, visit)?;
+        for runnable in &mut self.microtasks {
+            machine.visit_continuation_root_slots(&mut runnable.continuation, visit)?;
+            visit_resume_value_root_slot(&mut runnable.resume_value, visit)?;
         }
 
         // suspended continuations
         for waiter in self.waiters.values_mut() {
-            machine.visit_continuation_image_root_slots(&mut waiter.runnable, visit)?;
+            machine.visit_continuation_root_slots(&mut waiter.continuation, visit)?;
             visit_resume_value_root_slot(&mut waiter.resume_value, visit)?;
         }
 

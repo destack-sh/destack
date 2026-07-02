@@ -2,19 +2,15 @@ use destack_core::{Capture, CaptureMode};
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    EventLoop, Microtask, MicrotaskId, ScheduledTimer, Task, TaskId, Waiter, Wake, WakeKey,
-};
+use super::{EventLoop, Runnable, RunnableId, ScheduledTimer, Waiter, Wake, WakeKey};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::machine::{Continuation, ContinuationImage, Machine};
+use crate::runtime::machine::Continuation;
 
 /// Scalar event-loop state needed for restore.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventLoopState {
-    /// The next task identifier to issue.
-    pub next_task_id: u64,
-    /// The next microtask identifier to issue.
-    pub next_microtask_id: u64,
+    /// The next runnable identifier to issue.
+    pub next_runnable_id: u64,
 }
 
 /// Durable event-loop state captured at one checkpoint.
@@ -32,9 +28,9 @@ pub struct EventLoopActiveSnapshot {
     /// Scalar scheduler state.
     pub state: EventLoopState,
     /// Captured pending macrotasks.
-    pub tasks: Vec<TaskImage>,
+    pub tasks: Vec<RunnableImage>,
     /// Captured pending microtasks.
-    pub microtasks: Vec<MicrotaskImage>,
+    pub microtasks: Vec<RunnableImage>,
     /// Captured pending wakes.
     pub wakes: Vec<Wake>,
     /// Captured scheduled timers.
@@ -43,26 +39,13 @@ pub struct EventLoopActiveSnapshot {
     pub waiters: Vec<WaiterImage>,
 }
 
-/// Captured macrotask state for one suspendable event-loop image.
+/// Captured runnable state for one suspendable event-loop image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TaskImage {
-    /// Task identifier used for ordering and logging.
-    pub id: TaskId,
-    /// Runnable continuation image.
-    pub runnable: ContinuationImage,
-    /// Resume payload passed back into the machine.
-    pub resume_value: program::Value,
-    /// Priority value for event-loop ordering.
-    pub priority: u8,
-}
-
-/// Captured microtask state for one suspendable event-loop image.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MicrotaskImage {
-    /// Microtask identifier used for ordering and logging.
-    pub id: MicrotaskId,
-    /// Runnable continuation image.
-    pub continuation: ContinuationImage,
+pub struct RunnableImage {
+    /// Runnable identifier used for ordering and logging.
+    pub id: RunnableId,
+    /// Runnable continuation.
+    pub continuation: Continuation,
     /// Resume payload passed back into the machine.
     pub resume_value: program::Value,
 }
@@ -78,26 +61,18 @@ pub struct WaiterImage {
 
 impl EventLoop {
     /// Fork one event loop for one child worker.
-    pub(crate) fn fork(
-        &self,
-        parent_machine: &mut Machine,
-        child_machine: &mut Machine,
-    ) -> RuntimeResult<Self> {
-        let snapshot = self.snapshot(CaptureMode::Suspend, parent_machine)?;
+    pub(crate) fn fork(&self) -> RuntimeResult<Self> {
+        let snapshot = self.snapshot(CaptureMode::Suspend)?;
         let mut forked = Self::default();
 
         // queued state
-        forked.restore_snapshot(&snapshot, child_machine)?;
+        forked.restore_snapshot(&snapshot)?;
 
         Ok(forked)
     }
 
     /// Capture one durable event-loop snapshot.
-    pub(crate) fn snapshot(
-        &self,
-        mode: CaptureMode,
-        machine: &mut Machine,
-    ) -> RuntimeResult<EventLoopSnapshot> {
+    pub(crate) fn snapshot(&self, mode: CaptureMode) -> RuntimeResult<EventLoopSnapshot> {
         // TODO #Architecture: fork capture requires a quiescent scheduler state
         if mode == CaptureMode::Fork && !self.is_quiescent() {
             return Err(RuntimeError::Internal {
@@ -108,31 +83,30 @@ impl EventLoop {
             .boxed());
         }
 
-        // queued continuations
+        // capture queued continuations
         let tasks = self
             .tasks
             .iter()
-            .map(|task| self.task_image(task, machine))
-            .collect::<RuntimeResult<Vec<_>>>()?;
+            .map(RunnableImage::capture)
+            .collect::<Vec<_>>();
         let microtasks = self
             .microtasks
             .iter()
-            .map(|microtask| self.microtask_image(microtask, machine))
-            .collect::<RuntimeResult<Vec<_>>>()?;
+            .map(RunnableImage::capture)
+            .collect::<Vec<_>>();
 
-        // suspended continuations
+        // capture suspended continuations
         let waiters = self
             .waiters
             .iter()
-            .map(|(key, waiter)| self.waiter_image(*key, waiter))
-            .collect::<RuntimeResult<Vec<_>>>()?;
+            .map(|(key, waiter)| WaiterImage::capture(*key, waiter))
+            .collect::<Vec<_>>();
 
-        // queue state
+        // capture scalar queue state
         let timers = self.timers.image();
 
         let state = EventLoopState {
-            next_task_id: self.next_task_id,
-            next_microtask_id: self.next_microtask_id,
+            next_runnable_id: self.next_runnable_id,
         };
 
         if tasks.is_empty()
@@ -157,146 +131,97 @@ impl EventLoop {
     }
 
     /// Restore one durable event-loop snapshot.
-    pub(crate) fn restore_snapshot(
-        &mut self,
-        snapshot: &EventLoopSnapshot,
-        machine: &mut Machine,
-    ) -> RuntimeResult<()> {
-        // clear dynamic state before rebuilding the image
+    pub(crate) fn restore_snapshot(&mut self, snapshot: &EventLoopSnapshot) -> RuntimeResult<()> {
+        // clear dynamic state before rebuilding the snapshot
         self.tasks.clear();
         self.microtasks.clear();
         self.wakes.clear();
         self.timers.restore_image(&[])?;
         self.waiters.clear();
 
-        // scalar state
+        // restore scalar queue state
         let state = snapshot.state();
-        self.next_task_id = state.next_task_id;
-        self.next_microtask_id = state.next_microtask_id;
+        self.next_runnable_id = state.next_runnable_id;
 
         let Some(snapshot) = snapshot.active() else {
             return Ok(());
         };
 
         // rebuild queued continuations
-        let tasks = snapshot
-            .tasks
-            .iter()
-            .map(|task| self.task_from_image(task, machine))
-            .collect::<RuntimeResult<Vec<_>>>()?;
-        let microtasks = snapshot
-            .microtasks
-            .iter()
-            .map(|microtask| self.microtask_from_image(microtask, machine))
-            .collect::<RuntimeResult<Vec<_>>>()?;
-        let waiters = snapshot
-            .waiters
-            .iter()
-            .map(|waiter| self.waiter_from_image(waiter))
-            .collect::<RuntimeResult<Vec<_>>>()?;
+        let tasks = snapshot.tasks.iter().map(RunnableImage::restore);
+        let microtasks = snapshot.microtasks.iter().map(RunnableImage::restore);
+        let waiters = snapshot.waiters.iter().map(WaiterImage::restore);
 
-        // queue payloads
+        // restore queue payloads
         self.tasks.extend(tasks);
         self.microtasks.extend(microtasks);
         self.wakes.extend(snapshot.wakes.iter().cloned());
         self.timers.restore_image(&snapshot.timers)?;
 
-        // suspended continuations
+        // restore suspended continuations
         self.waiters.extend(waiters);
 
         Ok(())
     }
+}
 
-    /// Capture one immutable task image.
-    fn task_image(&self, task: &Task, machine: &mut Machine) -> RuntimeResult<TaskImage> {
-        let runnable = self.capture_continuation_image(&task.runnable, machine)?;
-
-        Ok(TaskImage {
-            id: task.id,
-            runnable,
-            resume_value: task.resume_value.clone(),
-            priority: task.priority,
-        })
+impl RunnableImage {
+    /// Capture one immutable runnable image.
+    fn capture(runnable: &Runnable) -> Self {
+        Self {
+            id: runnable.id,
+            continuation: runnable.continuation.clone(),
+            resume_value: runnable.resume_value.clone(),
+        }
     }
 
-    /// Restore one task from one immutable task image.
-    fn task_from_image(&self, image: &TaskImage, machine: &mut Machine) -> RuntimeResult<Task> {
-        let runnable = machine.restore_continuation_image(&image.runnable)?;
-
-        Ok(Task {
-            id: image.id,
-            runnable,
-            resume_value: image.resume_value.clone(),
-            priority: image.priority,
-        })
+    /// Restore one runnable from one immutable image.
+    fn restore(&self) -> Runnable {
+        Runnable {
+            id: self.id,
+            continuation: self.continuation.clone(),
+            resume_value: self.resume_value.clone(),
+        }
     }
+}
 
-    /// Capture one immutable microtask image.
-    fn microtask_image(
-        &self,
-        microtask: &Microtask,
-        machine: &mut Machine,
-    ) -> RuntimeResult<MicrotaskImage> {
-        let continuation = self.capture_continuation_image(&microtask.continuation, machine)?;
-
-        Ok(MicrotaskImage {
-            id: microtask.id,
-            continuation,
-            resume_value: microtask.resume_value.clone(),
-        })
-    }
-
-    /// Restore one microtask from one immutable microtask image.
-    fn microtask_from_image(
-        &self,
-        image: &MicrotaskImage,
-        machine: &mut Machine,
-    ) -> RuntimeResult<Microtask> {
-        let continuation = machine.restore_continuation_image(&image.continuation)?;
-
-        Ok(Microtask {
-            id: image.id,
-            continuation,
-            resume_value: image.resume_value.clone(),
-        })
-    }
-
+impl WaiterImage {
     /// Capture one immutable waiter image.
-    fn waiter_image(&self, key: WakeKey, waiter: &Waiter) -> RuntimeResult<WaiterImage> {
-        Ok(WaiterImage {
+    fn capture(key: WakeKey, waiter: &Waiter) -> Self {
+        Self {
             key,
             waiter: waiter.clone(),
-        })
+        }
     }
 
     /// Restore one waiter from one immutable image.
-    fn waiter_from_image(&self, image: &WaiterImage) -> RuntimeResult<(WakeKey, Waiter)> {
-        Ok((image.key, image.waiter.clone()))
+    fn restore(&self) -> (WakeKey, Waiter) {
+        (self.key, self.waiter.clone())
     }
 }
 
 impl Capture for EventLoop {
     type Image = EventLoopSnapshot;
     type Error = Box<RuntimeError>;
-    type CaptureContext<'a> = &'a mut Machine;
-    type RestoreContext<'a> = &'a mut Machine;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
 
     /// Capture one event-loop image.
     fn capture_image(
         &mut self,
         mode: CaptureMode,
-        context: Self::CaptureContext<'_>,
+        _context: Self::CaptureContext<'_>,
     ) -> Result<Self::Image, Self::Error> {
-        self.snapshot(mode, context)
+        self.snapshot(mode)
     }
 
     /// Restore one event-loop image.
     fn restore_image(
         &mut self,
         image: &Self::Image,
-        context: Self::RestoreContext<'_>,
+        _context: Self::RestoreContext<'_>,
     ) -> Result<(), Self::Error> {
-        self.restore_snapshot(image, context)
+        self.restore_snapshot(image)
     }
 }
 
@@ -354,16 +279,5 @@ impl EventLoopSnapshot {
         };
 
         self.has_ready_work() || !snapshot.timers.is_empty() || !snapshot.waiters.is_empty()
-    }
-}
-
-impl EventLoop {
-    /// Capture one continuation image or return one explicit capture barrier.
-    fn capture_continuation_image(
-        &self,
-        continuation: &Continuation,
-        machine: &mut Machine,
-    ) -> RuntimeResult<ContinuationImage> {
-        machine.continuation_image(continuation)
     }
 }

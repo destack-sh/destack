@@ -16,7 +16,7 @@ use destack_runtime::runtime::scheduler::EventLoop;
 use destack_runtime::runtime::{Runtime, Worker};
 use destack_runtime::world::trace::{Observations, Trace, TraceLog};
 use destack_runtime::world::{Entity, Policy, World};
-use destack_vm::{Continuation, ContinuationImage, StackImage};
+use destack_vm::{Continuation, StackImage};
 
 use crate::ALLOCATOR;
 use crate::measure::AllocationSample;
@@ -63,7 +63,6 @@ fn print_type_sizes() {
         ("machine", "StaticSpace", size_of::<StaticSpace>()),
         ("vm", "Machine", size_of::<destack_vm::Machine>()),
         ("vm", "Continuation", size_of::<Continuation>()),
-        ("vm", "ContinuationImage", size_of::<ContinuationImage>()),
         ("vm", "StackImage", size_of::<StackImage>()),
         ("heap", "Heap", size_of::<Heap>()),
         ("heap", "SharedHeap", size_of::<SharedHeap>()),
@@ -117,15 +116,7 @@ fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
 
     let mut machine = vm.machine();
     let continuation = machine.yield_once();
-    let continuation_image = ALLOCATOR.measure(|| machine.continuation_image(&continuation));
-
-    let mut machine = vm.machine();
-    let continuation = machine.yield_once();
-    let continuation_clone = ALLOCATOR.measure(|| {
-        continuation
-            .fork()
-            .expect("footprint continuation should clone")
-    });
+    let continuation_clone = ALLOCATOR.measure(|| continuation.fork());
     let rows = [
         ("world.new", ALLOCATOR.measure(|| runtime.world())),
         ("runtime.spawn.empty.vm", runtime_spawn),
@@ -134,7 +125,6 @@ fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
         ("vm.machine.build", ALLOCATOR.measure(|| vm.build_machine())),
         ("vm.machine.new", machine_new),
         ("vm.continuation.yield", continuation_yield),
-        ("vm.continuation.image", continuation_image),
         ("vm.continuation.clone", continuation_clone),
     ];
 

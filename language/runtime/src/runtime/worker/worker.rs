@@ -1,6 +1,7 @@
 use destack_core::{Capture, CaptureMode};
 use destack_heap as heap;
 use destack_program as program;
+use destack_serde::{Error as SerdeError, to_vec};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -394,15 +395,11 @@ impl Worker {
         handle: ResourceId,
         runnable: Continuation,
         resume_value: program::Value,
-        priority: u8,
     ) -> RuntimeResult<()> {
-        self.event_loop.add_timer_waiter(
-            handle,
-            runnable,
-            resume_value,
-            priority,
-            &mut self.machine,
-        )
+        self.event_loop
+            .add_timer_waiter(handle, runnable, resume_value);
+
+        Ok(())
     }
 
     /// Remove the waiter registered for one timer resource.
@@ -417,16 +414,11 @@ impl Worker {
         readiness: Readiness,
         runnable: Continuation,
         resume_value: program::Value,
-        priority: u8,
     ) -> RuntimeResult<()> {
-        self.event_loop.add_resource_waiter(
-            resource_id,
-            readiness,
-            runnable,
-            resume_value,
-            priority,
-            &mut self.machine,
-        )
+        self.event_loop
+            .add_resource_waiter(resource_id, readiness, runnable, resume_value);
+
+        Ok(())
     }
 
     /// Add one waiter for a host event kind.
@@ -435,10 +427,11 @@ impl Worker {
         kind: HostEventKind,
         runnable: Continuation,
         resume_value: program::Value,
-        priority: u8,
     ) -> RuntimeResult<()> {
         self.event_loop
-            .add_host_waiter(kind, runnable, resume_value, priority, &mut self.machine)
+            .add_host_waiter(kind, runnable, resume_value);
+
+        Ok(())
     }
 
     /// Visit roots from machine, scheduler, and registered providers.
@@ -564,15 +557,9 @@ impl Worker {
     }
 
     /// Capture one materialized worker image.
-    pub(crate) fn capture_image(
-        &mut self,
-        mode: CaptureMode,
-        runtime_heap: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
-    ) -> RuntimeResult<WorkerImage> {
+    pub(crate) fn capture_image(&mut self, mode: CaptureMode) -> RuntimeResult<WorkerImage> {
         // local scheduler and external state
-        let event_loop = self.event_loop.capture_image(mode, &mut self.machine)?;
+        let event_loop = self.event_loop.capture_image(mode, ())?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
 
@@ -595,15 +582,7 @@ impl Worker {
                     .boxed()
                 })?,
             local_static: self.local_static.clone(),
-            machine_image: self.machine.image(program::ProgramStorage {
-                heap: &mut self.heap,
-                shared_heap: runtime_heap.shared.as_ref(),
-                shared_cache: &mut self.shared_cache,
-                shared_mark_worker: &self.shared_mark_worker,
-                local_static: &mut self.local_static,
-                shared_static,
-                constant_space,
-            })?,
+            machine_image: self.machine.image()?,
         })
     }
 
@@ -612,8 +591,6 @@ impl Worker {
         &mut self,
         execution_mode: ExecutionMode,
         runtime_heap: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
         shared_mark_worker: heap::SharedMarkWorker,
     ) -> RuntimeResult<Option<Self>> {
         // diagnostics state
@@ -634,19 +611,11 @@ impl Worker {
         bindings.apply_runtime_defaults(&self.options);
 
         let trace_view = self.machine.trace_view();
-        let mut heap = self.heap.fork(trace_view)?;
-        let mut local_static = self.local_static.clone();
-        let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let mut machine = self.machine.fork(program::ProgramStorage {
-            heap: &mut heap,
-            shared_heap: runtime_heap.shared.as_ref(),
-            shared_cache: &mut shared_cache,
-            shared_mark_worker: &shared_mark_worker,
-            local_static: &mut local_static,
-            shared_static,
-            constant_space,
-        })?;
-        let event_loop = Box::new(self.event_loop.fork(&mut self.machine, &mut machine)?);
+        let heap = self.heap.fork(trace_view)?;
+        let local_static = self.local_static.clone();
+        let shared_cache = runtime_heap.shared.allocation_cache();
+        let machine = self.machine.fork()?;
+        let event_loop = Box::new(self.event_loop.fork()?);
 
         Ok(Some(Self {
             id: self.id,
@@ -727,21 +696,10 @@ impl Worker {
             constant_space,
         };
         machine.initialize(context)?;
-        machine.restore(
-            program::ProgramStorage {
-                heap: &mut heap,
-                shared_heap: runtime_heap.shared.as_ref(),
-                shared_cache: &mut shared_cache,
-                shared_mark_worker: &shared_mark_worker,
-                local_static: &mut local_static,
-                shared_static,
-                constant_space,
-            },
-            &image.machine_image,
-        )?;
+        machine.restore(&image.machine_image)?;
 
         // restore local state on fresh containers
-        event_loop.restore_snapshot(&image.event_loop, &mut machine)?;
+        event_loop.restore_snapshot(&image.event_loop)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
         resources.restore_snapshot(&image.resources, restore.resource_rebinders())?;
 
@@ -765,6 +723,6 @@ impl Worker {
 }
 
 /// Serialize one captured worker heap snapshot for exact equality checks.
-fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> destack_serde::Result<Vec<u8>> {
-    destack_serde::to_vec(snapshot)
+fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Result<Vec<u8>, SerdeError> {
+    to_vec(snapshot)
 }

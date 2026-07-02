@@ -1,7 +1,7 @@
 use std::cell::Cell;
 
 use crate::host::binding::BindingAffinity;
-use crate::runtime::scheduler::{MicrotaskId, TaskId};
+use crate::runtime::scheduler::RunnableId;
 
 thread_local! {
     /// TLS slot for the currently running task or microtask.
@@ -13,9 +13,9 @@ thread_local! {
 #[derive(Debug, Clone, Copy)]
 pub struct RunnableScope {
     /// Current task identifier, if any.
-    task_id: Option<TaskId>,
+    task_id: Option<RunnableId>,
     /// Current microtask identifier, if any.
-    microtask_id: Option<MicrotaskId>,
+    microtask_id: Option<RunnableId>,
     /// Current nested microtask execution depth.
     microtask_depth: usize,
 }
@@ -31,7 +31,7 @@ impl RunnableScope {
     }
 
     /// Create a task runnable scope.
-    pub const fn for_task(task_id: TaskId) -> Self {
+    pub const fn for_task(task_id: RunnableId) -> Self {
         Self {
             task_id: Some(task_id),
             microtask_id: None,
@@ -40,7 +40,7 @@ impl RunnableScope {
     }
 
     /// Create a microtask runnable scope.
-    pub const fn for_microtask(microtask_id: MicrotaskId, depth: usize) -> Self {
+    pub const fn for_microtask(microtask_id: RunnableId, depth: usize) -> Self {
         Self {
             task_id: None,
             microtask_id: Some(microtask_id),
@@ -49,12 +49,12 @@ impl RunnableScope {
     }
 
     /// Return the current task identifier.
-    pub const fn task_id(self) -> Option<TaskId> {
+    pub const fn task_id(self) -> Option<RunnableId> {
         self.task_id
     }
 
     /// Return the current microtask identifier.
-    pub const fn microtask_id(self) -> Option<MicrotaskId> {
+    pub const fn microtask_id(self) -> Option<RunnableId> {
         self.microtask_id
     }
 
