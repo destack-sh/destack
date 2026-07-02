@@ -63,6 +63,54 @@ let point: shared Point = Point { x: 1, y: 2 };
 point satisfies shared Point;
 ```
 
+### placed declarations give nominal types an intrinsic place
+
+`local` and `shared` on nominal declarations define the place of that nominal type.
+
+```ds
+local class Promise<T> {}
+local struct Continuation<T> {}
+shared class Channel<T> {}
+shared enum Delivery {
+    Pending;
+    Complete;
+}
+local newtype interface Awaitable<T> {}
+local newtype TaskId = uint64;
+
+PlaceOf<Promise<void>> satisfies "local";
+PlaceOf<Continuation<void>> satisfies "local";
+PlaceOf<Channel<string>> satisfies "shared";
+PlaceOf<Delivery> satisfies "shared";
+PlaceOf<TaskId> satisfies "local";
+```
+
+### placed newtype interfaces constrain implementors
+
+`local` and `shared` on a newtype interface constrain explicit implementors to that place.
+
+```ds
+local newtype interface Awaitable<T> {
+    await(): T;
+}
+
+local class Promise<T> implements Awaitable<T> {
+    await(): T {
+        todo("...")
+    }
+}
+```
+
+### structural interfaces reject explicit placement
+
+Structural interfaces describe constraints without explicit implementor edges.
+
+```ds
+local interface Waitable {}
+```
+
+- contains: interface
+
 ### local values can hold shared values
 
 Local storage can hold handles to shared values.
