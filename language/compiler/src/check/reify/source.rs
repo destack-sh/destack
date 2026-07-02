@@ -480,7 +480,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 _ => return Ok(None),
             }
         }
-        let dir::Type::FunctionSignature(function) = self.check.ty(signature)?.clone() else {
+        let dir::Type::FunctionSignature(function) = self.check.ty(signature)? else {
             unreachable!("the signature loop stops on function signatures");
         };
 

@@ -128,7 +128,7 @@ counter = counter;
 /// @type.node source=counter type=<error>
 /// @type.node source=counter type=<error>
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC204 message="assignment target is not a storage location"

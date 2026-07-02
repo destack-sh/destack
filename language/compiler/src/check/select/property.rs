@@ -104,15 +104,16 @@ impl CheckState<'_> {
         }
 
         // merge the shape at the literal node
-        let shape = self.push_type(
+        let fields: Vec<dir::TypeField> = fields.into_values().collect();
+        let fields = self.intern_fields(module, &fields)?;
+        let shape = self.intern_type(
             module,
             dir::Type::Shape(dir::ShapeType {
-                fields: fields.into_values().collect(),
-                call_signatures: Vec::new(),
-                construct_signatures: Vec::new(),
-                index_signatures: Vec::new(),
+                fields,
+                call_signatures: dir::TypeListId::EMPTY,
+                construct_signatures: dir::TypeListId::EMPTY,
+                index_signatures: dir::TypeListId::EMPTY,
             }),
-            node.local_id.into_any(),
         )?;
 
         match target {
@@ -125,13 +126,12 @@ impl CheckState<'_> {
             }
             // object literals bind their managed merged shape
             None => {
-                let managed = self.push_type(
+                let managed = self.intern_type(
                     module,
                     dir::Type::Form(dir::FormType {
                         form: dir::Form::Managed,
                         value: shape,
                     }),
-                    node.local_id.into_any(),
                 )?;
                 self.commit_node_type(node.into_any(), managed)?;
 
@@ -183,9 +183,11 @@ impl CheckState<'_> {
             current = self.settled_root(form.value)?;
         }
 
-        match self.ty(current)?.clone() {
+        match self.ty(current)? {
             // structural shapes spread their fields directly
-            dir::Type::Shape(shape) => Ok(Answer::Ready(Some(shape.fields))),
+            dir::Type::Shape(shape) => Ok(Answer::Ready(Some(
+                self.shape_fields(current.module_id, shape.fields)?.to_vec(),
+            ))),
             // instances spread their visible fields
             dir::Type::Instance(instance) => {
                 let keys = self.nominal_member_keys(instance.symbol);

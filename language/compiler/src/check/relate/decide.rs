@@ -63,7 +63,6 @@ impl CheckState<'_> {
         if let (dir::Type::Shape(_), dir::Type::Instance(instance)) =
             (self.ty(source)?, self.ty(target)?)
         {
-            let instance = instance.clone();
             let is_struct = matches!(
                 self.definition(instance.symbol),
                 Some(dir::Definition::Struct(_))
@@ -86,14 +85,14 @@ impl CheckState<'_> {
         // lossless numeric widening requires explicit cast
         if let (dir::Type::Primitive(source), dir::Type::Primitive(target)) =
             (self.ty(source)?, self.ty(target)?)
-            && source.widens_to(*target)
+            && source.widens_to(target)
         {
             return Ok(Answer::Ready(true));
         }
 
         // concrete newtypes project explicitly to their backing type
-        if let dir::Type::Instance(instance) = self.ty(source)?.clone()
-            && let Some(backing) = self.newtype_backing_type(origin, &instance)?
+        if let dir::Type::Instance(instance) = self.ty(source)?
+            && let Some(backing) = self.newtype_backing_type(origin, source.module_id, &instance)?
         {
             let projected = self.decide_relation(origin, Relation::Castable, backing, target)?;
             if !matches!(projected, Answer::Ready(false)) {
@@ -155,7 +154,7 @@ impl CheckState<'_> {
             // memory singleton values compare against their authored string spelling
             (dir::Type::Memory(memory), dir::Type::Literal(dir::ScalarLiteral::String(text)))
             | (dir::Type::Literal(dir::ScalarLiteral::String(text)), dir::Type::Memory(memory)) => {
-                Answer::Ready(*text == dir::StringId::for_text(memory.text()))
+                Answer::Ready(text == dir::StringId::for_text(memory.text()))
             }
             // defer lifetime outlives checks to Verify
             (
@@ -175,22 +174,31 @@ impl CheckState<'_> {
                 }
             }
             (dir::Type::Range(left), dir::Type::Range(right)) => Answer::Ready(left == right),
-            (dir::Type::Operation(left), dir::Type::Operation(right)) => {
-                let (left, right) = (left.clone(), right.clone());
-
-                self.decide_operation_equal(origin, &left, &right)?
-            }
+            (dir::Type::Operation(left_operation), dir::Type::Operation(right_operation)) => self
+                .decide_operation_equal(
+                origin,
+                left.module_id,
+                &left_operation,
+                right.module_id,
+                &right_operation,
+            )?,
 
             // same-symbol references compare argument-wise
-            (dir::Type::Instance(left), dir::Type::Instance(right)) => {
-                if left.symbol != right.symbol || left.arguments.len() != right.arguments.len() {
+            (dir::Type::Instance(left_instance), dir::Type::Instance(right_instance)) => {
+                if left_instance.symbol != right_instance.symbol
+                    || left_instance.arguments.len() != right_instance.arguments.len()
+                {
                     Answer::Ready(false)
                 } else {
-                    let pairs = left
-                        .arguments
+                    let pairs = self
+                        .type_ids(left.module_id, left_instance.arguments)?
                         .iter()
                         .copied()
-                        .zip(right.arguments.iter().copied())
+                        .zip(
+                            self.type_ids(right.module_id, right_instance.arguments)?
+                                .iter()
+                                .copied(),
+                        )
                         .collect::<SmallVec<[_; 4]>>();
 
                     self.decide_each(origin, Relation::Equal, &pairs)?
@@ -260,29 +268,40 @@ impl CheckState<'_> {
             }
 
             // algebraic composites compare element-wise in order
-            (dir::Type::Union(left), dir::Type::Union(right)) => {
-                if left.elements.len() != right.elements.len() {
+            (dir::Type::Union(left_union), dir::Type::Union(right_union)) => {
+                if left_union.elements.len() != right_union.elements.len() {
                     Answer::Ready(false)
                 } else {
-                    let pairs = left
-                        .elements
+                    let pairs = self
+                        .type_ids(left.module_id, left_union.elements)?
                         .iter()
                         .copied()
-                        .zip(right.elements.iter().copied())
+                        .zip(
+                            self.type_ids(right.module_id, right_union.elements)?
+                                .iter()
+                                .copied(),
+                        )
                         .collect::<SmallVec<[_; 4]>>();
 
                     self.decide_each(origin, Relation::Equal, &pairs)?
                 }
             }
-            (dir::Type::Intersection(left), dir::Type::Intersection(right)) => {
-                if left.elements.len() != right.elements.len() {
+            (
+                dir::Type::Intersection(left_intersection),
+                dir::Type::Intersection(right_intersection),
+            ) => {
+                if left_intersection.elements.len() != right_intersection.elements.len() {
                     Answer::Ready(false)
                 } else {
-                    let pairs = left
-                        .elements
+                    let pairs = self
+                        .type_ids(left.module_id, left_intersection.elements)?
                         .iter()
                         .copied()
-                        .zip(right.elements.iter().copied())
+                        .zip(
+                            self.type_ids(right.module_id, right_intersection.elements)?
+                                .iter()
+                                .copied(),
+                        )
                         .collect::<SmallVec<[_; 4]>>();
 
                     self.decide_each(origin, Relation::Equal, &pairs)?
@@ -334,7 +353,7 @@ impl CheckState<'_> {
             (_, dir::Type::Primitive(primitive))
                 if self
                     .static_key_from_type(source)?
-                    .is_some_and(|key| primitive_accepts_key(*primitive, key)) =>
+                    .is_some_and(|key| primitive_accepts_key(primitive, key)) =>
             {
                 Answer::Ready(true)
             }
@@ -385,19 +404,17 @@ impl CheckState<'_> {
 
             // union sources need every element assignable
             (dir::Type::Union(union), _) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
 
                 self.decide_all_assignable(origin, &elements, target)?
             }
             // parameters assign through their constraints before target decomposition
             (dir::Type::Parameter(parameter), _) => {
-                let parameter = *parameter;
-
                 self.decide_parameter_assignable(origin, parameter, target)?
             }
             // union targets need one viable element
             (_, dir::Type::Union(union)) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
 
                 self.decide_any_assignable(origin, source, &elements)?
             }
@@ -409,8 +426,8 @@ impl CheckState<'_> {
             }
 
             // literals and intervals widen by value
-            (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(target)),
-            (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(target)),
+            (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
+            (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
             (dir::Type::EnumMember(member), _) => {
                 self.decide_relation(origin, Relation::Assignable, member.owner, target)?
             }
@@ -463,30 +480,22 @@ impl CheckState<'_> {
                 self.decide_reference_shape_assignable(origin, source, target)?
             }
             (dir::Type::Shape(_), dir::Type::Instance(reference)) => {
-                let reference = reference.clone();
-
-                self.decide_source_against_reference(origin, source, &reference)?
+                self.decide_source_against_reference(origin, source, target.module_id, &reference)?
             }
             (dir::Type::Instance(reference), dir::Type::Shape(_)) => {
-                let reference = reference.clone();
-
-                self.decide_reference_against_target(origin, &reference, target)?
+                self.decide_reference_against_target(origin, source.module_id, &reference, target)?
             }
             (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
                 // relate argument pairs by their parameter variances
                 let symbol = source_instance.symbol;
-                let source_arguments = source_instance
-                    .arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
-                let target_arguments = target_instance
-                    .arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
+                let source_arguments = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(source.module_id, source_instance.arguments)?,
+                );
+                let target_arguments = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(target.module_id, target_instance.arguments)?,
+                );
 
                 self.decide_type_arguments(origin, symbol, &source_arguments, &target_arguments)?
             }
@@ -581,10 +590,13 @@ impl CheckState<'_> {
     }
 
     /// Decide equality of two type-level operations.
+    /// `left_module`/`right_module` are the owners of each operation's list payloads.
     fn decide_operation_equal(
         &mut self,
         origin: Origin,
+        left_module: destack_source::ModuleId,
         left: &dir::TypeOperation,
+        right_module: destack_source::ModuleId,
         right: &dir::TypeOperation,
     ) -> CompilerResult<Answer<bool>> {
         let decision = match (left, right) {
@@ -666,12 +678,15 @@ impl CheckState<'_> {
             (
                 dir::TypeOperation::TemplateLiteral(left),
                 dir::TypeOperation::TemplateLiteral(right),
-            ) if left.strings == right.strings && left.spans.len() == right.spans.len() => {
-                let fields = left
-                    .spans
+            ) if self.template_strings(left_module, left.strings)?
+                == self.template_strings(right_module, right.strings)?
+                && left.spans.len() == right.spans.len() =>
+            {
+                let fields = self
+                    .type_ids(left_module, left.spans)?
                     .iter()
                     .copied()
-                    .zip(right.spans.iter().copied())
+                    .zip(self.type_ids(right_module, right.spans)?.iter().copied())
                     .collect::<SmallVec<[_; 4]>>();
 
                 self.decide_each(origin, Relation::Equal, &fields)?

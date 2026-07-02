@@ -133,9 +133,10 @@ impl CheckState<'_> {
 
         // check each implemented interface independently
         for heritage in implements {
+            let arguments = self.intern_type_ids(source.module_id, &heritage.arguments)?;
             let interface = dir::GenericInstance {
                 symbol: heritage.symbol,
-                arguments: heritage.arguments.clone(),
+                arguments,
             };
             let result = self.check_extension_interface(
                 source,
@@ -173,7 +174,12 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        let required = answer!(self.interface_members(Origin::Node(source), interface, target)?);
+        let required = answer!(self.interface_members(
+            Origin::Node(source),
+            source.module_id,
+            interface,
+            target
+        )?);
 
         // compare each required member with the extension's declared member
         for interface_member in required {

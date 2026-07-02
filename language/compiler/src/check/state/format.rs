@@ -60,16 +60,16 @@ impl CheckState<'_> {
             dir::Type::This => "this".to_string(),
             dir::Type::Variable(_) => "_".to_string(),
 
-            dir::Type::Primitive(primitive) => format_primitive(primitive),
-            dir::Type::Literal(literal) => self.format_scalar_literal(literal),
-            dir::Type::Key(key) => self.format_key_type(key),
+            dir::Type::Primitive(primitive) => format_primitive(&primitive),
+            dir::Type::Literal(literal) => self.format_scalar_literal(&literal),
+            dir::Type::Key(key) => self.format_key_type(&key),
             dir::Type::Memory(literal) => {
                 format!("\"{}\"", literal.text())
             }
-            dir::Type::Static(value) => self.format_static(*value),
-            dir::Type::Range(range) => self.format_range(range),
+            dir::Type::Static(value) => self.format_static(value),
+            dir::Type::Range(range) => self.format_range(&range),
 
-            dir::Type::Parameter(parameter) => self.format_parameter(*parameter),
+            dir::Type::Parameter(parameter) => self.format_parameter(parameter),
             dir::Type::Reference(reference) => {
                 self.format_symbol_path_maybe_at(module, reference.symbol)
             }
@@ -78,7 +78,8 @@ impl CheckState<'_> {
                 if instance.arguments.is_empty() {
                     name
                 } else {
-                    let arguments = self.format_list_at(module, &instance.arguments, next)?;
+                    let arguments = self.type_ids(id.module_id, instance.arguments)?;
+                    let arguments = self.format_list_at(module, arguments, next)?;
 
                     format!("{name}<{arguments}>")
                 }
@@ -113,8 +114,8 @@ impl CheckState<'_> {
                 format!("FixedArray<{element}, {count}>")
             }
             dir::Type::Tuple(tuple) => {
-                let elements = tuple
-                    .elements
+                let elements = self
+                    .tuple_elements(id.module_id, tuple.elements)?
                     .iter()
                     .map(|element| element.ty)
                     .collect::<Vec<_>>();
@@ -123,8 +124,12 @@ impl CheckState<'_> {
             }
 
             dir::Type::Shape(shape) => {
+                let shape_fields = self.shape_fields(id.module_id, shape.fields)?;
+                let index_signatures =
+                    self.shape_index_signatures(id.module_id, shape.index_signatures)?;
+
                 let mut fields = Vec::new();
-                for field in shape.fields.iter().take(FORMAT_WIDTH) {
+                for field in shape_fields.iter().take(FORMAT_WIDTH) {
                     let key = self.format_type_field_key(&field.key);
                     let optional = if field.is_optional { "?" } else { "" };
                     let ty = self.format_depth_at(module, field.ty, next)?;
@@ -132,11 +137,7 @@ impl CheckState<'_> {
                     fields.push(format!("{key}{optional}: {ty}"));
                 }
 
-                for signature in shape
-                    .index_signatures
-                    .iter()
-                    .take(FORMAT_WIDTH - fields.len())
-                {
+                for signature in index_signatures.iter().take(FORMAT_WIDTH - fields.len()) {
                     let readonly = if signature.is_readonly {
                         "readonly "
                     } else {
@@ -150,7 +151,7 @@ impl CheckState<'_> {
                     fields.push(format!("{readonly}[{name}: {key}]{optional}: {value}"));
                 }
 
-                let field_count = shape.fields.len() + shape.index_signatures.len();
+                let field_count = shape_fields.len() + index_signatures.len();
                 if field_count > FORMAT_WIDTH {
                     fields.push("…".to_string());
                 }
@@ -162,11 +163,14 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::FunctionSignature(function) => {
+                let signature_parameters =
+                    self.signature_parameters(id.module_id, function.parameters)?;
+
                 let mut parameters = Vec::new();
-                for parameter in function.parameters.iter().take(FORMAT_WIDTH) {
+                for parameter in signature_parameters.iter().take(FORMAT_WIDTH) {
                     parameters.push(self.format_function_parameter_at(module, parameter, next)?);
                 }
-                if function.parameters.len() > FORMAT_WIDTH {
+                if signature_parameters.len() > FORMAT_WIDTH {
                     parameters.push("…".to_string());
                 }
                 let result = match function.return_type {
@@ -180,33 +184,37 @@ impl CheckState<'_> {
                 self.format_depth_at(module, function.signature, next)?
             }
             dir::Type::FunctionPointer(function) => {
-                self.format_function_pointer_at(module, function, next)?
+                self.format_function_pointer_at(module, &function, next)?
             }
 
             dir::Type::Union(union) => {
+                let union_elements = self.type_ids(id.module_id, union.elements)?;
+
                 let mut elements = Vec::new();
-                for element in union.elements.iter().take(FORMAT_WIDTH) {
-                    elements.push(self.format_depth_at(module, *element, next)?);
+                for element in union_elements.iter().copied().take(FORMAT_WIDTH) {
+                    elements.push(self.format_depth_at(module, element, next)?);
                 }
-                if union.elements.len() > FORMAT_WIDTH {
+                if union_elements.len() > FORMAT_WIDTH {
                     elements.push("…".to_string());
                 }
 
                 elements.join(" | ")
             }
             dir::Type::Intersection(intersection) => {
+                let intersection_elements = self.type_ids(id.module_id, intersection.elements)?;
+
                 let mut elements = Vec::new();
-                for element in intersection.elements.iter().take(FORMAT_WIDTH) {
-                    elements.push(self.format_depth_at(module, *element, next)?);
+                for element in intersection_elements.iter().copied().take(FORMAT_WIDTH) {
+                    elements.push(self.format_depth_at(module, element, next)?);
                 }
-                if intersection.elements.len() > FORMAT_WIDTH {
+                if intersection_elements.len() > FORMAT_WIDTH {
                     elements.push("…".to_string());
                 }
 
                 elements.join(" & ")
             }
 
-            dir::Type::Form(form) => self.format_form_at(module, form, next)?,
+            dir::Type::Form(form) => self.format_form_at(module, &form, next)?,
             dir::Type::Dynamic(dynamic) => {
                 format!(
                     "Dynamic<{}>",
@@ -214,7 +222,9 @@ impl CheckState<'_> {
                 )
             }
 
-            dir::Type::Operation(operation) => self.format_operation_at(module, operation, next)?,
+            dir::Type::Operation(operation) => {
+                self.format_operation_at(module, &operation, next)?
+            }
         };
 
         Ok(rendered)
@@ -245,20 +255,22 @@ impl CheckState<'_> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<String> {
-        let signature = self.settled_root(function.signature)?;
-        let dir::Type::FunctionSignature(signature) = self.ty(signature)? else {
+        let signature_id = self.settled_root(function.signature)?;
+        let dir::Type::FunctionSignature(signature) = self.ty(signature_id)? else {
             let signature = self.format_depth_at(module, function.signature, depth)?;
 
             return Ok(format!("FunctionPointer<{signature}>"));
         };
+        let signature_parameters =
+            self.signature_parameters(signature_id.module_id, signature.parameters)?;
 
         let mut parameters = Vec::new();
-        for parameter in signature.parameters.iter().take(FORMAT_WIDTH) {
+        for parameter in signature_parameters.iter().take(FORMAT_WIDTH) {
             let parameter = self.format_function_parameter_at(module, parameter, depth)?;
 
             parameters.push(parameter);
         }
-        if signature.parameters.len() > FORMAT_WIDTH {
+        if signature_parameters.len() > FORMAT_WIDTH {
             parameters.push("…".to_string());
         }
 

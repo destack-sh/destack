@@ -32,8 +32,8 @@ impl CheckState<'_> {
 
             return Ok(Answer::Ready(()));
         };
-        let elements = tuple
-            .elements
+        let elements = self
+            .tuple_elements(scrutinee.module_id, tuple.elements)?
             .iter()
             .map(|element| element.ty)
             .collect::<SmallVec<[_; 4]>>();
@@ -127,8 +127,8 @@ impl CheckState<'_> {
 
             return Ok(Answer::Ready(false));
         };
-        let elements = tuple
-            .elements
+        let elements = self
+            .tuple_elements(scrutinee.module_id, tuple.elements)?
             .iter()
             .map(|element| element.ty)
             .collect::<SmallVec<[_; 4]>>();

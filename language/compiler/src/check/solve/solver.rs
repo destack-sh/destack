@@ -13,8 +13,8 @@ use crate::check::{
 /// Solver state for one checked component.
 #[derive(Debug)]
 pub(in crate::check) struct Solver {
-    /// The next variable index to allocate per module.
-    next_variable: IndexMap<ModuleId, u32>,
+    /// The next component-global variable index to allocate.
+    next_variable: u32,
     /// The next component-global constraint id.
     next_constraint: u32,
     /// The next component-global obligation id.
@@ -91,7 +91,7 @@ impl Solver {
     /// Create an empty solver.
     pub(in crate::check) fn new() -> Self {
         Self {
-            next_variable: IndexMap::new(),
+            next_variable: 0,
             next_constraint: 0,
             next_obligation: 0,
             variables: VariableTable::new(),
@@ -154,13 +154,12 @@ impl Solver {
     /// Allocate one variable.
     pub(in crate::check) fn allocate_variable(
         &mut self,
-        module: ModuleId,
+        _module: ModuleId,
         origin: Origin,
         widening: Widening,
     ) -> dir::TypeVariableId {
-        let next = self.next_variable.entry(module).or_insert(0);
-        let variable = dir::TypeVariableId::new(module, *next);
-        *next += 1;
+        let variable = dir::TypeVariableId(self.next_variable);
+        self.next_variable += 1;
         self.record_undo(Undo::Variable {
             id: variable,
             previous: None,
@@ -360,8 +359,8 @@ impl Solver {
             Undo::Variable { id, previous } => match previous {
                 Some(previous) => self.variables.insert(id, previous),
                 None => {
+                    // the allocation counter stays monotonic; undone ids simply go unused
                     self.variables.remove(id);
-                    self.next_variable.insert(id.module_id, id.index);
                 }
             },
             Undo::Constraint { id, previous } => self.constraints.set_state(id, previous),

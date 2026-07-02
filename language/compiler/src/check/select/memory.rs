@@ -16,21 +16,18 @@ impl CheckState<'_> {
         mutability: Option<dir::Mutability>,
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let source = node.local_id.into_any();
         let access = mutability
             .map(dir::Mutability::access)
             .unwrap_or(dir::Access::Mutable);
-        let access_type = self.push_type(
+        let access_type = self.intern_type(
             module,
             dir::Type::Memory(dir::MemoryLiteral::Access(access)),
-            source,
         )?;
-        let lifetime = self.push_type(
+        let lifetime = self.intern_type(
             module,
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
-            source,
         )?;
-        let projected = self.push_type(
+        let projected = self.intern_type(
             module,
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Borrowed {
@@ -39,7 +36,6 @@ impl CheckState<'_> {
                 },
                 value: input,
             }),
-            source,
         )?;
 
         self.project_pattern_input(flow, projected, pattern.into_global_any(module))?;

@@ -17,16 +17,15 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let source = node.local_id.into_any();
         let then_site = self.node_site(then_expression.into_global_any(module))?;
         let then_type = answer!(self.infer_node_type(then_site, PlaceUse::Read)?);
         let result = if let Some(else_expression) = else_expression {
             let else_site = self.node_site(else_expression.into_global_any(module))?;
             let else_type = answer!(self.infer_node_type(else_site, PlaceUse::Read)?);
-            self.normalized_union_type(module, [then_type, else_type], source)?
+            self.normalized_union_type(module, [then_type, else_type])?
         } else {
-            let void = self.push_type(module, dir::Type::Void, source)?;
-            self.normalized_union_type(module, [then_type, void], source)?
+            let void = self.intern_type(module, dir::Type::Void)?;
+            self.normalized_union_type(module, [then_type, void])?
         };
         self.commit_node_type(node.into_any(), result)?;
 
@@ -45,7 +44,6 @@ impl CheckState<'_> {
         use_: ValueUse,
     ) -> CompilerResult<Answer<bool>> {
         let module = site.node.module_id;
-        let source = site.node.local_id;
 
         // check the then branch against the incoming expectation
         let then_site = self.node_site(then_expression.into_global_any(module))?;
@@ -59,12 +57,12 @@ impl CheckState<'_> {
             let () = answer!(self.check_node(else_site, target, relation, origin, use_)?);
             let else_type = answer!(self.node_type_at(else_site)?);
 
-            self.normalized_union_type(module, [then_type, else_type], source)?
+            self.normalized_union_type(module, [then_type, else_type])?
         } else {
-            let void = self.push_type(module, dir::Type::Void, source)?;
+            let void = self.intern_type(module, dir::Type::Void)?;
             should_relate_result = true;
 
-            self.normalized_union_type(module, [then_type, void], source)?
+            self.normalized_union_type(module, [then_type, void])?
         };
         self.commit_node_type(site.node, result)?;
 
@@ -92,7 +90,7 @@ impl CheckState<'_> {
             let catch_site = self.node_site(catch_body.into_global_any(module))?;
             let catch_type = answer!(self.infer_node_type(catch_site, PlaceUse::Read)?);
 
-            self.normalized_union_type(module, [body_type, catch_type], node.local_id.into_any())?
+            self.normalized_union_type(module, [body_type, catch_type])?
         } else {
             body_type
         };
@@ -121,9 +119,9 @@ impl CheckState<'_> {
         }
 
         let result = if values.is_empty() {
-            self.push_type(module, dir::Type::Never, node.local_id.into_any())?
+            self.intern_type(module, dir::Type::Never)?
         } else {
-            self.normalized_union_type(module, values, node.local_id.into_any())?
+            self.normalized_union_type(module, values)?
         };
         self.commit_node_type(node.into_any(), result)?;
 
@@ -159,7 +157,7 @@ impl CheckState<'_> {
         )?);
 
         // for-in and for-of evaluate to void
-        let void = self.push_type(module, dir::Type::Void, node.local_id.into_any())?;
+        let void = self.intern_type(module, dir::Type::Void)?;
         self.commit_node_type(site.node, void)?;
 
         Ok(Answer::Ready(()))
@@ -188,10 +186,9 @@ impl CheckState<'_> {
             source,
             ty: iterator_type,
         }));
-        let string = self.push_type(
+        let string = self.intern_type(
             source.module_id,
             dir::Type::Primitive(dir::PrimitiveType::String),
-            source.local_id,
         )?;
 
         Ok(Answer::Ready(string))
@@ -212,7 +209,7 @@ impl CheckState<'_> {
         )?);
         let Some(implementation) = implementation else {
             self.report_for_of_source_not_iterable(source);
-            let error = self.push_type(source.module_id, dir::Type::Error, source.local_id)?;
+            let error = self.intern_type(source.module_id, dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };

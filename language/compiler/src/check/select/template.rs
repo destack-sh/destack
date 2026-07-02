@@ -12,7 +12,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let source = node.local_id.into_any();
         let node = node.into_any();
         let origin = Origin::Node(node);
 
@@ -44,7 +43,7 @@ impl CheckState<'_> {
         // the application produces the tag's return value
         let result = match return_type {
             Some(return_type) => return_type,
-            None => self.push_type(module, dir::Type::Void, source)?,
+            None => self.intern_type(module, dir::Type::Void)?,
         };
         let resolution = dir::CallResolution::new(
             dir::CallTarget::Expression {

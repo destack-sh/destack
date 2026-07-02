@@ -222,7 +222,7 @@ impl WalkState<'_, '_> {
         if let Some(term) = evaluated
             && let Some(literal) = self.static_term_literal(term)
         {
-            let ty = self.push_type(dir::Type::Literal(literal), source)?;
+            let ty = self.intern_type(dir::Type::Literal(literal))?;
 
             return self.bind_static_term(expression, ty);
         }
@@ -251,13 +251,13 @@ impl WalkState<'_, '_> {
             }
             // 1
             dir::Expression::ScalarLiteral(value) => {
-                let ty = self.push_type(dir::Type::Literal(*value), source)?;
+                let ty = self.intern_type(dir::Type::Literal(*value))?;
 
                 self.bind_static_term(expression, ty)
             }
             // this
             dir::Expression::This => {
-                let ty = self.push_type(dir::Type::This, source)?;
+                let ty = self.intern_type(dir::Type::This)?;
 
                 self.bind_static_term(expression, ty)
             }
@@ -286,10 +286,8 @@ impl WalkState<'_, '_> {
                 let Some(symbol) = symbol else {
                     self.check.report_invalid_static_guard(self.module, source);
 
-                    return self.push_type(
-                        dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
-                        source,
-                    );
+                    return self
+                        .intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)));
                 };
 
                 // record the name edge for checked output
@@ -303,7 +301,7 @@ impl WalkState<'_, '_> {
                 // comptime parameters write their parameter type so
                 // instantiation substitution reaches the predicate
                 if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
-                    let ty = self.push_type(dir::Type::Parameter(parameter), source)?;
+                    let ty = self.intern_type(dir::Type::Parameter(parameter))?;
 
                     return self.bind_static_term(expression, ty);
                 }
@@ -314,9 +312,9 @@ impl WalkState<'_, '_> {
 
                 let reference = dir::Type::Instance(dir::GenericInstance {
                     symbol,
-                    arguments: Vec::new(),
+                    arguments: dir::TypeListId::EMPTY,
                 });
-                let ty = self.push_type(reference, source)?;
+                let ty = self.intern_type(reference)?;
 
                 self.bind_static_term(expression, ty)
             }
@@ -328,10 +326,8 @@ impl WalkState<'_, '_> {
             } => {
                 let Ok(operator) = dir::StaticBinaryOperator::try_from(*operator) else {
                     self.check.report_invalid_static_guard(self.module, source);
-                    let ty = self.push_type(
-                        dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
-                        source,
-                    )?;
+                    let ty =
+                        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
 
                     return self.bind_static_term(expression, ty);
                 };
@@ -342,7 +338,7 @@ impl WalkState<'_, '_> {
                     left,
                     right,
                 });
-                let ty = self.push_type(dir::Type::Operation(operation), source)?;
+                let ty = self.intern_type(dir::Type::Operation(operation))?;
 
                 self.bind_static_term(expression, ty)
             }
@@ -350,17 +346,15 @@ impl WalkState<'_, '_> {
             dir::Expression::Unary { operator, right } => {
                 let Ok(operator) = dir::StaticUnaryOperator::try_from(*operator) else {
                     self.check.report_invalid_static_guard(self.module, source);
-                    let ty = self.push_type(
-                        dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
-                        source,
-                    )?;
+                    let ty =
+                        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
 
                     return self.bind_static_term(expression, ty);
                 };
                 let target = self.walk_static_term(*right)?;
                 let operation =
                     dir::TypeOperation::StaticUnary(dir::StaticUnaryType { operator, target });
-                let ty = self.push_type(dir::Type::Operation(operation), source)?;
+                let ty = self.intern_type(dir::Type::Operation(operation))?;
 
                 self.bind_static_term(expression, ty)
             }
@@ -373,18 +367,16 @@ impl WalkState<'_, '_> {
                 let member = dir::Type::Member(dir::MemberType {
                     owner,
                     key: dir::StaticKey::Name(*name),
-                    arguments: Vec::new(),
+                    arguments: dir::TypeListId::EMPTY,
                 });
-                let ty = self.push_type(member, source)?;
+                let ty = self.intern_type(member)?;
 
                 self.bind_static_term(expression, ty)
             }
             _ => {
                 self.check.report_invalid_static_guard(self.module, source);
-                let ty = self.push_type(
-                    dir::Type::Literal(dir::ScalarLiteral::Boolean(false)),
-                    source,
-                )?;
+                let ty =
+                    self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
 
                 self.bind_static_term(expression, ty)
             }

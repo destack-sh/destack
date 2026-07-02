@@ -87,7 +87,7 @@ impl CheckState<'_> {
         let element = match bounds.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.normalized_union_type(module, bounds, node.local_id.into_any())?),
+            _ => Some(self.normalized_union_type(module, bounds)?),
         };
         let item = match (start, end, end_kind) {
             (Some(_), Some(_), dir::RangeEnd::Open) => dir::LanguageItem::Range,
@@ -97,8 +97,8 @@ impl CheckState<'_> {
             (None, Some(_), dir::RangeEnd::Inclusive) => dir::LanguageItem::RangeToInclusive,
             (None, None, _) => dir::LanguageItem::RangeFull,
         };
-        let arguments = element.into_iter().collect();
-        let range = self.push_language_type(module, node.local_id.into_any(), item, arguments)?;
+        let arguments = element.into_iter().collect::<Vec<_>>();
+        let range = self.language_type(module, item, &arguments)?;
         self.commit_node_type(node.into_any(), range)?;
 
         Ok(Answer::Ready(()))

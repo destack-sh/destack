@@ -226,8 +226,8 @@ impl Compiler {
 fn validate_component_edges(edges: &IndexMap<ModuleId, Arc<[ModuleId]>>) -> CompilerResult<()> {
     for (module, targets) in edges {
         // reject edges outside the declared module universe
-        for target in targets.iter().copied() {
-            if edges.contains_key(&target) {
+        for target in targets.iter() {
+            if edges.contains_key(target) {
                 continue;
             }
 

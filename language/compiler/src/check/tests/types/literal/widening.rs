@@ -32,7 +32,7 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64>
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=0 types=27 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=16 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -69,7 +69,7 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=1 | 2 kind=symbol target=collections.array.index#4 receiver=Array<1 | 2>
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=0 types=27 constraints=3 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=14 constraints=3 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -150,7 +150,7 @@ let value = true ? 1 : 2;
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

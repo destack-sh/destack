@@ -89,7 +89,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let origin = Origin::Node(source);
         let instance = self.declaration_instance(source, symbol)?;
-        let closure = answer!(self.heritage_closure(origin, &instance)?);
+        let closure = answer!(self.heritage_closure(origin, source.module_id, &instance)?);
 
         // report graph errors before class member rules
         let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
@@ -298,7 +298,6 @@ impl CheckState<'_> {
         extends: Option<dir::NominalHeritage>,
     ) -> CompilerResult<Answer<ClassHeritage>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let mut members = Vec::<ClassMember>::new();
         let mut final_base = None;
         let mut substitution = TypeSubstitution::default();
@@ -311,8 +310,9 @@ impl CheckState<'_> {
             // apply the previous base's parameters to this next extends clause
             let mut arguments = heritage.arguments.clone();
             for argument in &mut arguments {
-                *argument = self.substitute_type(module, source, *argument, &substitution)?;
+                *argument = self.substitute_type(origin.module(), *argument, &substitution)?;
             }
+            let arguments = self.intern_type_ids(module, &arguments)?;
             let instance = dir::GenericInstance {
                 symbol: heritage.symbol,
                 arguments,
@@ -330,12 +330,12 @@ impl CheckState<'_> {
             }
 
             // apply this base's parameters to its inherited member types
-            substitution = self.instance_substitution(&instance)?;
+            substitution = self.instance_substitution(module, &instance)?;
             for member in &base_members {
                 let Some(mut member) = answer!(self.class_member(member)?) else {
                     continue;
                 };
-                member.ty = self.substitute_type(module, source, member.ty, &substitution)?;
+                member.ty = self.substitute_type(origin.module(), member.ty, &substitution)?;
                 members.push(member);
             }
         }
@@ -359,9 +359,10 @@ impl CheckState<'_> {
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             let ty = dir::Type::Parameter(parameter);
-            let argument = self.push_type(source.module_id, ty, source.local_id)?;
+            let argument = self.intern_type(source.module_id, ty)?;
             arguments.push(argument);
         }
+        let arguments = self.intern_type_ids(source.module_id, &arguments)?;
 
         Ok(dir::GenericInstance { symbol, arguments })
     }

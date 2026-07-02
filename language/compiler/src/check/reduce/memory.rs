@@ -63,13 +63,15 @@ impl CheckState<'_> {
     }
 
     /// Reduce one unary form constructor application.
+    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_form_constructor(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
         form: dir::Form,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(value) = instance.arguments.first().copied() else {
+        let Some(value) = self.type_ids(module, instance.arguments)?.first().copied() else {
             return Ok(Answer::Ready(None));
         };
         let formed = dir::Type::Form(dir::FormType { form, value });
@@ -79,20 +81,23 @@ impl CheckState<'_> {
     }
 
     /// Reduce one borrowed form constructor application.
+    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_borrowed_constructor(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(value) = instance.arguments.first().copied() else {
+        let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+        let Some(value) = arguments.first().copied() else {
             return Ok(Answer::Ready(None));
         };
-        let Some(lifetime) = instance.arguments.get(1).copied() else {
+        let Some(lifetime) = arguments.get(1).copied() else {
             return Ok(Answer::Ready(None));
         };
 
         // missing access arguments default to mutable
-        let access = match instance.arguments.get(2).copied() {
+        let access = match arguments.get(2).copied() {
             Some(access) => self.normalize_access(origin, access)?,
             None => {
                 self.push_memory_literal(origin, dir::MemoryLiteral::Access(dir::Access::Mutable))?
@@ -109,15 +114,18 @@ impl CheckState<'_> {
     }
 
     /// Reduce one placed form constructor application.
+    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_placed_constructor(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(value) = instance.arguments.first().copied() else {
+        let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+        let Some(value) = arguments.first().copied() else {
             return Ok(Answer::Ready(None));
         };
-        let Some(place) = instance.arguments.get(1).copied() else {
+        let Some(place) = arguments.get(1).copied() else {
             return Ok(Answer::Ready(None));
         };
 
@@ -132,13 +140,15 @@ impl CheckState<'_> {
     }
 
     /// Evaluate one memory accessor, distributing over union targets.
+    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_memory_accessor(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(target) = instance.arguments.first().copied() else {
+        let Some(target) = self.type_ids(module, instance.arguments)?.first().copied() else {
             return Ok(Answer::Ready(None));
         };
 
@@ -147,7 +157,9 @@ impl CheckState<'_> {
 
         // distribute the accessor over union targets
         let elements = match self.ty(target)? {
-            dir::Type::Union(union) => union.elements.iter().copied().collect::<SmallVec<[_; 4]>>(),
+            dir::Type::Union(union) => {
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(target.module_id, union.elements)?)
+            }
             _ => {
                 let mut single = SmallVec::new();
                 single.push(target);
@@ -167,7 +179,7 @@ impl CheckState<'_> {
                 }
             };
 
-            match self.reduce_element_accessor(origin, item, instance, element)? {
+            match self.reduce_element_accessor(origin, module, item, instance, element)? {
                 // one symbolic element keeps the whole accessor symbolic
                 Answer::Ready(None) => return Ok(Answer::Ready(None)),
                 Answer::Ready(Some(answer)) => answers.push(answer),
@@ -196,10 +208,9 @@ impl CheckState<'_> {
             [] => self.push_memory_type(origin, dir::Type::Never)?,
             [single] => *single,
             _ => {
-                let module = origin.module();
-                let source = self.origin_source_node(origin)?;
+                let union_module = origin.module();
 
-                self.normalized_union_type(module, kept, source)?
+                self.normalized_union_type(union_module, kept)?
             }
         };
 
@@ -211,19 +222,21 @@ impl CheckState<'_> {
     fn reduce_element_accessor(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericInstance,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // close the element's form chain first
         let chain = answer!(self.form_chain(origin, element)?);
-        self.reduce_stack_accessor(origin, item, instance, element, &chain)
+        self.reduce_stack_accessor(origin, module, item, instance, element, &chain)
     }
 
     /// Evaluate one memory accessor over one closed form chain.
     fn reduce_stack_accessor(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         item: dir::LanguageItem,
         instance: &dir::GenericInstance,
         element: dir::GlobalTypeId,
@@ -250,7 +263,7 @@ impl CheckState<'_> {
             dir::LanguageItem::OwnershipOr => {
                 let ownership = answer!(self.ownership(origin, chain)?);
 
-                self.component_or_default(origin, instance, ownership)
+                self.component_or_default(origin, module, instance, ownership)
                     .map(Answer::Ready)
             }
             dir::LanguageItem::IsManaged => {
@@ -275,7 +288,7 @@ impl CheckState<'_> {
             dir::LanguageItem::AccessOr => {
                 let access = self.access(origin, chain)?;
 
-                self.component_or_default(origin, instance, access)
+                self.component_or_default(origin, module, instance, access)
                     .map(Answer::Ready)
             }
 
@@ -284,7 +297,7 @@ impl CheckState<'_> {
             dir::LanguageItem::PlaceOr => {
                 let place = self.place(origin, chain)?;
 
-                self.component_or_default(origin, instance, place)
+                self.component_or_default(origin, module, instance, place)
                     .map(Answer::Ready)
             }
             dir::LanguageItem::PlaceIn => {
@@ -295,7 +308,8 @@ impl CheckState<'_> {
 
                 // ambient placement resolves to the given concrete space
                 if self.is_memory_component(place, "ambient")? {
-                    let Some(space) = instance.arguments.get(1).copied() else {
+                    let Some(space) = self.type_ids(module, instance.arguments)?.get(1).copied()
+                    else {
                         return Ok(Answer::Ready(None));
                     };
 
@@ -310,7 +324,7 @@ impl CheckState<'_> {
             dir::LanguageItem::SpaceOr => {
                 let space = self.space(origin, chain)?;
 
-                self.component_or_default(origin, instance, space)
+                self.component_or_default(origin, module, instance, space)
                     .map(Answer::Ready)
             }
             dir::LanguageItem::IsShared => {
@@ -331,7 +345,8 @@ impl CheckState<'_> {
 
                 // ambient resolves to the given concrete space first
                 let resolved = if self.is_memory_component(place, "ambient")? {
-                    let Some(space) = instance.arguments.get(1).copied() else {
+                    let Some(space) = self.type_ids(module, instance.arguments)?.get(1).copied()
+                    else {
                         return Ok(Answer::Ready(None));
                     };
 
@@ -350,7 +365,7 @@ impl CheckState<'_> {
             dir::LanguageItem::LifetimeOr => {
                 let lifetime = self.lifetime(origin, chain)?;
 
-                self.component_or_default(origin, instance, lifetime)
+                self.component_or_default(origin, module, instance, lifetime)
                     .map(Answer::Ready)
             }
 
@@ -359,7 +374,7 @@ impl CheckState<'_> {
                 if chain.is_open {
                     return Ok(Answer::Ready(None));
                 }
-                let Some(base) = instance.arguments.get(1).copied() else {
+                let Some(base) = self.type_ids(module, instance.arguments)?.get(1).copied() else {
                     return Ok(Answer::Ready(None));
                 };
 
@@ -370,13 +385,14 @@ impl CheckState<'_> {
                 )?)))
             }
             dir::LanguageItem::WithOwnership => self
-                .with_ownership(origin, instance, element)
+                .with_ownership(origin, module, instance, element)
                 .map(Answer::Ready),
             dir::LanguageItem::WithPlace | dir::LanguageItem::WithSpace => self
-                .with_place(origin, instance, chain, element)
+                .with_place(origin, module, instance, chain, element)
                 .map(Answer::Ready),
             dir::LanguageItem::WithLifetime => {
-                let Some(lifetime) = instance.arguments.get(1).copied() else {
+                let Some(lifetime) = self.type_ids(module, instance.arguments)?.get(1).copied()
+                else {
                     return Ok(Answer::Ready(None));
                 };
                 let lifetime = self.normalize_lifetime(origin, lifetime)?;
@@ -385,7 +401,7 @@ impl CheckState<'_> {
                     .map(Answer::Ready)
             }
             dir::LanguageItem::WithAccess => self
-                .with_access(origin, instance, chain, element)
+                .with_access(origin, module, instance, chain, element)
                 .map(Answer::Ready),
 
             _ => Ok(Answer::Ready(None)),
@@ -676,6 +692,7 @@ impl CheckState<'_> {
     fn component_or_default(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
         component: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -684,7 +701,7 @@ impl CheckState<'_> {
         };
 
         if matches!(self.ty(component)?, dir::Type::Never) {
-            let Some(default) = instance.arguments.get(1).copied() else {
+            let Some(default) = self.type_ids(module, instance.arguments)?.get(1).copied() else {
                 return Ok(None);
             };
 
@@ -698,10 +715,12 @@ impl CheckState<'_> {
     fn with_ownership(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(ownership) = instance.arguments.get(1).copied() else {
+        let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+        let Some(ownership) = arguments.get(1).copied() else {
             return Ok(None);
         };
         let Some(text) = self.memory_component_text(origin, ownership)? else {
@@ -714,7 +733,7 @@ impl CheckState<'_> {
             "raw" => dir::Form::Raw,
             "borrowed" => {
                 // borrowing needs the explicit lifetime argument
-                let Some(lifetime) = instance.arguments.get(2).copied() else {
+                let Some(lifetime) = arguments.get(2).copied() else {
                     return Ok(None);
                 };
                 let lifetime = self.normalize_lifetime(origin, lifetime)?;
@@ -739,11 +758,12 @@ impl CheckState<'_> {
     fn with_place(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
         chain: &FormChain,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(place) = instance.arguments.get(1).copied() else {
+        let Some(place) = self.type_ids(module, instance.arguments)?.get(1).copied() else {
             return Ok(None);
         };
         let place = self.normalize_place(origin, place)?;
@@ -784,11 +804,12 @@ impl CheckState<'_> {
     fn with_access(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         instance: &dir::GenericInstance,
         chain: &FormChain,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(access) = instance.arguments.get(1).copied() else {
+        let Some(access) = self.type_ids(module, instance.arguments)?.get(1).copied() else {
             return Ok(None);
         };
         let access = self.normalize_access(origin, access)?;
@@ -996,7 +1017,7 @@ impl CheckState<'_> {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
                 let module = origin.module();
 
-                Some(self.module(module).strings.get(*value).to_string())
+                Some(self.module(module).strings.get(value).to_string())
             }
             dir::Type::Memory(literal) => Some(literal.text().to_string()),
             _ => None,
@@ -1009,7 +1030,7 @@ impl CheckState<'_> {
     fn is_memory_component(&self, ty: dir::GlobalTypeId, text: &str) -> CompilerResult<bool> {
         let is_match = match self.ty(ty)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
-                *value == dir::StringId::for_text(text)
+                value == dir::StringId::for_text(text)
             }
             dir::Type::Memory(literal) => literal.text() == text,
             _ => false,
@@ -1063,9 +1084,8 @@ impl CheckState<'_> {
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
 
-        self.push_type(module, ty, source)
+        self.intern_type(module, ty)
     }
 }
 
@@ -1075,11 +1095,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        _source: dir::LocalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<ImplicitBorrow>>> {
         let reduced = answer!(self.reduce_type(origin, ty)?);
-        if let dir::Type::Form(form) = self.ty(reduced)?.clone()
+        if let dir::Type::Form(form) = self.ty(reduced)?
             && let dir::Form::Borrowed { lifetime, access } = form.form
         {
             return Ok(Answer::Ready(Some(ImplicitBorrow {
@@ -1089,7 +1109,7 @@ impl CheckState<'_> {
             })));
         }
 
-        let dir::Type::Instance(instance) = self.ty(ty)?.clone() else {
+        let dir::Type::Instance(instance) = self.ty(ty)? else {
             return Ok(Answer::Ready(None));
         };
         if self.language_item(instance.symbol)? != Some(dir::LanguageItem::WithAccess)
@@ -1098,21 +1118,21 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        let value = answer!(self.reduce_type(origin, instance.arguments[0])?);
-        let access = instance.arguments[1];
-        let dir::Type::Form(form) = self.ty(value)?.clone() else {
+        let arguments = self.type_ids(ty.module_id, instance.arguments)?.to_vec();
+        let value = answer!(self.reduce_type(origin, arguments[0])?);
+        let access = arguments[1];
+        let dir::Type::Form(form) = self.ty(value)? else {
             return Ok(Answer::Ready(None));
         };
         let dir::Form::Borrowed { lifetime, .. } = form.form else {
             return Ok(Answer::Ready(None));
         };
-        let target = self.push_type(
+        let target = self.intern_type(
             module,
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Borrowed { lifetime, access },
                 value: form.value,
             }),
-            source,
         )?;
 
         Ok(Answer::Ready(Some(ImplicitBorrow {

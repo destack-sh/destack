@@ -179,7 +179,7 @@ impl CheckState<'_> {
             return Ok(Variance::Bivariant);
         }
 
-        let measured = match self.ty(ty)?.clone() {
+        let measured = match self.ty(ty)? {
             // the measured parameter occurs at this position
             dir::Type::Parameter(occurrence) if occurrence == parameter => position,
 
@@ -193,7 +193,10 @@ impl CheckState<'_> {
                         parameter,
                     )?);
                 }
-                for input in &function.parameters {
+                let inputs = self
+                    .signature_parameters(ty.module_id, function.parameters)?
+                    .to_vec();
+                for input in inputs {
                     measured =
                         measured.join(self.measure_type(input.ty, position.flip(), parameter)?);
                 }
@@ -207,7 +210,9 @@ impl CheckState<'_> {
 
             // applications compose with the base parameter variances
             dir::Type::Instance(instance) => {
-                self.measure_application(instance.symbol, &instance.arguments, position, parameter)?
+                let arguments = self.type_ids(ty.module_id, instance.arguments)?.to_vec();
+
+                self.measure_application(instance.symbol, &arguments, position, parameter)?
             }
 
             // aliased mutable containers force both positions
@@ -223,8 +228,9 @@ impl CheckState<'_> {
                 self.measure_type(array.element, position, parameter)?
             }
             dir::Type::Tuple(tuple) => {
+                let elements = self.tuple_elements(ty.module_id, tuple.elements)?.to_vec();
                 let mut measured = Variance::Bivariant;
-                for element in &tuple.elements {
+                for element in elements {
                     measured = measured.join(self.measure_type(element.ty, position, parameter)?);
                 }
 
@@ -233,8 +239,9 @@ impl CheckState<'_> {
 
             // structural shapes measure mutable fields both ways
             dir::Type::Shape(shape) => {
+                let fields = self.shape_fields(ty.module_id, shape.fields)?.to_vec();
                 let mut measured = Variance::Bivariant;
-                for field in &shape.fields {
+                for field in fields {
                     let field_position = if field.is_readonly {
                         position
                     } else {
@@ -243,14 +250,19 @@ impl CheckState<'_> {
                     measured =
                         measured.join(self.measure_type(field.ty, field_position, parameter)?);
                 }
-                for signature in shape
-                    .call_signatures
+                let signatures = self
+                    .type_ids(ty.module_id, shape.call_signatures)?
                     .iter()
-                    .chain(&shape.construct_signatures)
-                {
-                    measured = measured.join(self.measure_type(*signature, position, parameter)?);
+                    .chain(self.type_ids(ty.module_id, shape.construct_signatures)?)
+                    .copied()
+                    .collect::<SmallVec<[_; 4]>>();
+                for signature in signatures {
+                    measured = measured.join(self.measure_type(signature, position, parameter)?);
                 }
-                for signature in &shape.index_signatures {
+                let index_signatures = self
+                    .shape_index_signatures(ty.module_id, shape.index_signatures)?
+                    .to_vec();
+                for signature in index_signatures {
                     measured = measured.join(self.measure_type(
                         signature.value_type,
                         Variance::Invariant,
@@ -277,17 +289,19 @@ impl CheckState<'_> {
 
             // algebraic composites keep their position
             dir::Type::Union(union) => {
+                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
                 let mut measured = Variance::Bivariant;
-                for element in &union.elements {
-                    measured = measured.join(self.measure_type(*element, position, parameter)?);
+                for element in elements {
+                    measured = measured.join(self.measure_type(element, position, parameter)?);
                 }
 
                 measured
             }
             dir::Type::Intersection(intersection) => {
+                let elements = self.type_ids(ty.module_id, intersection.elements)?.to_vec();
                 let mut measured = Variance::Bivariant;
-                for element in &intersection.elements {
-                    measured = measured.join(self.measure_type(*element, position, parameter)?);
+                for element in elements {
+                    measured = measured.join(self.measure_type(element, position, parameter)?);
                 }
 
                 measured
@@ -297,9 +311,10 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let mut measured =
                     self.measure_type(member.owner, Variance::Invariant, parameter)?;
-                for argument in &member.arguments {
+                let arguments = self.type_ids(ty.module_id, member.arguments)?.to_vec();
+                for argument in arguments {
                     measured = measured.join(self.measure_type(
-                        *argument,
+                        argument,
                         Variance::Invariant,
                         parameter,
                     )?);
@@ -309,7 +324,8 @@ impl CheckState<'_> {
             }
             dir::Type::Operation(_) | dir::Type::Dynamic(_) => {
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-                self.ty(ty)?.for_each_child(|child| children.push(child));
+                let child_ty = self.ty(ty)?;
+                self.for_each_type_child(ty.module_id, &child_ty, |child| children.push(child))?;
                 let mut measured = Variance::Bivariant;
                 for child in children {
                     measured =

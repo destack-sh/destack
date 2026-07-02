@@ -119,16 +119,15 @@ impl CheckState<'_> {
                 }
 
                 match self.ty(declared)? {
-                    dir::Type::Reference(reference) if reference.symbol == symbol => self
-                        .push_type(
+                    dir::Type::Reference(reference) if reference.symbol == symbol => {
+                        let arguments = self.intern_type_ids(module, &substitution.arguments)?;
+
+                        self.intern_type(
                             module,
-                            dir::Type::Instance(dir::GenericInstance {
-                                symbol,
-                                arguments: substitution.arguments.to_vec(),
-                            }),
-                            source,
-                        )?,
-                    _ => self.substitute_type(module, source, declared, &substitution)?,
+                            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+                        )?
+                    }
+                    _ => self.substitute_type(module, declared, &substitution)?,
                 }
             }
             None => declared,

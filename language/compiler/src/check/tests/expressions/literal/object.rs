@@ -63,7 +63,7 @@ const person = { name, age };
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
 
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -174,7 +174,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 /// @type.node source={ reactions: [] } type={ reactions: Array<int32> }
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -262,7 +262,7 @@ const value = { ...base, c: true };
 /// @resolution.name source=base target=base
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=12 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=11 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -298,7 +298,7 @@ const value = { ...base, b: "two" };
 /// @resolution.name source=base target=base
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=12 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=10 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

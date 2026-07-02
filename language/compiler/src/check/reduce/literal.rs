@@ -19,22 +19,21 @@ impl CheckState<'_> {
         match self.ty(target)? {
             // map one closed string literal
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
-                let value = *value;
-                let mapped = self.reduce_string_mapping(origin, id.module_id, mapping, value)?;
+                let mapped = self.reduce_string_mapping(id.module_id, mapping, value)?;
 
                 Ok(Answer::Ready(Some(mapped)))
             }
 
             // distribute string mappings across union elements
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
                 let module = id.module_id;
-                let source = self.origin_source_node(origin)?;
                 let Some(mapped) = answer!(self.reduce_distributed_operation(
                     origin,
                     elements,
                     |state, element| {
-                        state.reduce_string_mapping_arm(origin, module, source, mapping, element)
+                        state.reduce_string_mapping_arm(origin, module, mapping, element)
                     }
                 )?) else {
                     return Ok(Answer::Ready(None));
@@ -55,8 +54,8 @@ impl CheckState<'_> {
         template: &dir::TemplateLiteralType,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let module = origin.module();
-        let strings = template.strings.clone();
-        let spans = template.spans.clone();
+        let strings = self.template_strings(module, template.strings)?.to_vec();
+        let spans = self.type_ids(module, template.spans)?.to_vec();
 
         // close every interpolated span to printable text
         let mut printed = Vec::with_capacity(spans.len());
@@ -96,11 +95,8 @@ impl CheckState<'_> {
         }
         let joined = self.module_mut(module).strings.intern(&joined);
         let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
-        let source = self.origin_source_node(origin)?;
 
-        Ok(Answer::Ready(Some(
-            self.push_type(module, literal, source)?,
-        )))
+        Ok(Answer::Ready(Some(self.intern_type(module, literal)?)))
     }
 
     /// Evaluate one static binary operation over literal operands.
@@ -111,7 +107,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let left = answer!(self.reduce_type_head(origin, binary.left)?);
         let left_literal = match self.ty(left)? {
-            dir::Type::Literal(literal) => Some(*literal),
+            dir::Type::Literal(literal) => Some(literal),
             _ => None,
         };
 
@@ -138,7 +134,7 @@ impl CheckState<'_> {
         // close the right operand after short-circuiting
         let right = answer!(self.reduce_type_head(origin, binary.right)?);
         let right_literal = match self.ty(right)? {
-            dir::Type::Literal(literal) => Some(*literal),
+            dir::Type::Literal(literal) => Some(literal),
             _ => None,
         };
         let (Some(left_literal), Some(right_literal)) = (left_literal, right_literal) else {
@@ -160,18 +156,14 @@ impl CheckState<'_> {
             };
             let joined = self.module_mut(module).strings.intern(&joined);
             let literal = dir::Type::Literal(dir::ScalarLiteral::String(joined));
-            let source = self.origin_source_node(origin)?;
 
-            return Ok(Answer::Ready(Some(
-                self.push_type(module, literal, source)?,
-            )));
+            return Ok(Answer::Ready(Some(self.intern_type(module, literal)?)));
         }
 
         // evaluate scalar operators directly
         match binary.operator.apply(left_literal, right_literal) {
             Ok(literal) => {
-                let source = self.origin_source_node(origin)?;
-                let id = self.push_type(origin.module(), dir::Type::Literal(literal), source)?;
+                let id = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
 
                 Ok(Answer::Ready(Some(id)))
             }
@@ -191,7 +183,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let target = answer!(self.reduce_type_head(origin, unary.target)?);
         let literal = match self.ty(target)? {
-            dir::Type::Literal(literal) => *literal,
+            dir::Type::Literal(literal) => literal,
             _ => return Ok(Answer::Ready(None)),
         };
 
@@ -221,8 +213,7 @@ impl CheckState<'_> {
 
         match evaluated {
             Some(literal) => {
-                let source = self.origin_source_node(origin)?;
-                let id = self.push_type(origin.module(), dir::Type::Literal(literal), source)?;
+                let id = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
 
                 Ok(Answer::Ready(Some(id)))
             }
@@ -233,7 +224,6 @@ impl CheckState<'_> {
     /// Apply one compiler string mapping to a string literal.
     fn reduce_string_mapping(
         &mut self,
-        origin: Origin,
         module: ModuleId,
         mapping: dir::StringMapping,
         value: dir::StringId,
@@ -242,9 +232,8 @@ impl CheckState<'_> {
         let mapped = mapping.apply(&text);
         let mapped = self.module_mut(module).strings.intern(&mapped);
         let literal = dir::Type::Literal(dir::ScalarLiteral::String(mapped));
-        let source = self.origin_source_node(origin)?;
 
-        self.push_type(module, literal, source)
+        self.intern_type(module, literal)
     }
 
     /// Reduce one compiler string mapping arm.
@@ -252,19 +241,17 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         mapping: dir::StringMapping,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let target = answer!(self.reduce_type_head(origin, target)?);
         let reduced = match self.ty(target)? {
             dir::Type::Literal(dir::ScalarLiteral::String(value)) => {
-                self.reduce_string_mapping(origin, module, mapping, *value)?
+                self.reduce_string_mapping(module, mapping, value)?
             }
-            _ => self.push_type(
+            _ => self.intern_type(
                 module,
                 dir::Type::Operation(dir::TypeOperation::StringMapping { mapping, target }),
-                source,
             )?,
         };
 

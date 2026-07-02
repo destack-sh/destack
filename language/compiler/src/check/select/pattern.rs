@@ -182,8 +182,7 @@ impl CheckState<'_> {
                     .module(module)
                     .declaration_symbol(node.local_id.into_any());
                 if let Some(symbol) = symbol {
-                    let input =
-                        self.pattern_binding_type(symbol, node.local_id.into_any(), input)?;
+                    let input = self.pattern_binding_type(symbol, input)?;
 
                     self.bind_symbol_type(symbol, input)?;
                 }
@@ -408,7 +407,6 @@ impl CheckState<'_> {
     pub(in crate::check) fn pattern_binding_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        source: dir::LocalNodeIdAny,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let binding = self
@@ -418,7 +416,7 @@ impl CheckState<'_> {
         if binding.binding_mutability == Some(dir::Mutability::Immutable) {
             Ok(input)
         } else {
-            self.widen_type(symbol.module_id, source, input)
+            self.widen_type(input)
         }
     }
 
@@ -475,14 +473,14 @@ impl CheckState<'_> {
         default: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let input = answer!(self.reduce_type_head(origin, input)?);
-        let source = self.origin_source_node(origin)?;
         let mut kept = Vec::new();
         let mut has_undefined = false;
 
         // split the undefined arm that triggers the default
         match self.ty(input)? {
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.type_ids(input.module_id, union.elements)?);
                 for element in elements {
                     if self.ty(element)?.is_undefined() {
                         has_undefined = true;
@@ -504,7 +502,7 @@ impl CheckState<'_> {
             kept.push(default);
         }
 
-        let ty = self.normalized_union_type(origin.module(), kept, source)?;
+        let ty = self.normalized_union_type(origin.module(), kept)?;
 
         Ok(Answer::Ready(ty))
     }
@@ -515,15 +513,14 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let module = node.module_id;
-        let source = node.local_id.into_any();
         let target = match self.module(module).view().get(node.local_id).clone() {
             dir::Pattern::Tuple { fields } => {
-                let target = self.tuple_pattern_target_type(module, source, &fields)?;
+                let target = self.tuple_pattern_target_type(module, &fields)?;
 
                 Some(target)
             }
             dir::Pattern::Object { fields } => {
-                let target = answer!(self.object_pattern_target_type(module, source, &fields)?);
+                let target = answer!(self.object_pattern_target_type(module, &fields)?);
 
                 Some(target)
             }
@@ -537,10 +534,9 @@ impl CheckState<'_> {
     fn tuple_pattern_target_type(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let unknown = self.push_type(module, dir::Type::Unknown, source)?;
+        let unknown = self.intern_type(module, dir::Type::Unknown)?;
         let mut elements = Vec::with_capacity(fields.len());
         for field in fields {
             let field = self.module(module).view().get(*field);
@@ -564,22 +560,22 @@ impl CheckState<'_> {
                 _ => {}
             }
         }
+        let elements = self.intern_elements(module, &elements)?;
         let tuple = dir::TupleType {
             form: dir::TupleForm::Tuple,
             elements,
         };
 
-        self.push_type(module, dir::Type::Tuple(tuple), source)
+        self.intern_type(module, dir::Type::Tuple(tuple))
     }
 
     /// Return an object shape broad enough for one object pattern.
     fn object_pattern_target_type(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let unknown = self.push_type(module, dir::Type::Unknown, source)?;
+        let unknown = self.intern_type(module, dir::Type::Unknown)?;
         let mut fields_target = Vec::new();
         for field in fields {
             let Some((key, pattern)) = self.pattern_field_target_key(module, *field)? else {
@@ -595,13 +591,14 @@ impl CheckState<'_> {
                 is_readonly: false,
             });
         }
+        let fields_target = self.intern_fields(module, &fields_target)?;
         let shape = dir::ShapeType {
             fields: fields_target,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
         };
-        let target = self.push_type(module, dir::Type::Shape(shape), source)?;
+        let target = self.intern_type(module, dir::Type::Shape(shape))?;
 
         Ok(Answer::Ready(target))
     }

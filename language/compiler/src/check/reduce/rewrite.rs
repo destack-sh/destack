@@ -155,7 +155,7 @@ impl CheckState<'_> {
 
             // record open variables through their representative
             if let dir::Type::Variable(variable) = ty {
-                let representative = self.solver.representative(*variable)?;
+                let representative = self.solver.representative(variable)?;
                 let state = self.solver.variable(representative)?;
 
                 if state.solution.is_none() && !variables.contains(&representative) {
@@ -167,7 +167,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            ty.for_each_child(|child| pending.push(child));
+            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
         }
 
         Ok(variables)
@@ -175,11 +175,11 @@ impl CheckState<'_> {
 
     /// Rewrite one type by replacing its leaves.
     /// Returns the same id when nothing changed.
-    /// Allocates rebuilt types in one module's working segment under one source node.
+    /// Source payload lists resolve in each rewritten type's own module;
+    /// rebuilt composites intern into the writable target module.
     fn rewrite_type(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
         rewrite: TypeRewrite<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -188,14 +188,13 @@ impl CheckState<'_> {
         self.mark_rewrites(id, rewrite, &mut rewrites)?;
         let mut rewriting = IndexSet::new();
 
-        self.rewrite_type_guarded(module, source, id, rewrite, &rewrites, &mut rewriting)
+        self.rewrite_type_guarded(target, id, rewrite, &rewrites, &mut rewriting)
     }
 
     /// Substitute generic parameters and `this` in one type.
     pub(in crate::check) fn substitute_type(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -204,8 +203,7 @@ impl CheckState<'_> {
         }
 
         self.rewrite_type(
-            module,
-            source,
+            target,
             id,
             TypeRewrite::Substitute {
                 parameters: &substitution.parameters,
@@ -218,21 +216,19 @@ impl CheckState<'_> {
     /// Replace solved variables in one type.
     pub(in crate::check) fn resolve_type_variables(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.rewrite_type(module, source, id, TypeRewrite::ResolveVariables)
+        self.rewrite_type(target, id, TypeRewrite::ResolveVariables)
     }
 
     /// Remove inference barriers after candidate inference has closed.
     pub(in crate::check) fn erase_inference_barriers(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.rewrite_type(module, source, id, TypeRewrite::EraseNoInfer)
+        self.rewrite_type(target, id, TypeRewrite::EraseNoInfer)
     }
 
     /// Return whether one type graph contains an inference barrier.
@@ -266,7 +262,7 @@ impl CheckState<'_> {
                 return Ok(true);
             }
 
-            ty.for_each_child(|child| pending.push(child));
+            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
         }
 
         Ok(false)
@@ -275,22 +271,20 @@ impl CheckState<'_> {
     /// Replace one type id inside another type graph.
     pub(in crate::check) fn replace_type(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
         from: dir::GlobalTypeId,
         to: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let rewrite = TypeRewrite::Replace { from, to };
 
-        self.rewrite_type(module, source, id, rewrite)
+        self.rewrite_type(target, id, rewrite)
     }
 
     /// Substitute conditional-infer captures inside one branch type.
     pub(in crate::check) fn substitute_infer_captures(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
         captures: &[InferSubstitution],
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -298,12 +292,7 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        self.rewrite_type(
-            module,
-            source,
-            id,
-            TypeRewrite::SubstituteInfer { captures },
-        )
+        self.rewrite_type(target, id, TypeRewrite::SubstituteInfer { captures })
     }
 
     /// Mark whether each reachable id contains one rewritten leaf.
@@ -336,15 +325,15 @@ impl CheckState<'_> {
                     ..
                 })),
                 _,
-            ) if rewrite.infer_capture(*symbol).is_some() => true,
+            ) if rewrite.infer_capture(symbol).is_some() => true,
             (dir::Type::Parameter(parameter), TypeRewrite::Substitute { .. }) => {
-                rewrite.substituted(*parameter).is_some()
+                rewrite.substituted(parameter).is_some()
             }
             (dir::Type::This, TypeRewrite::Substitute { .. }) => rewrite.receiver().is_some(),
             (dir::Type::Variable(variable), TypeRewrite::ResolveVariables) => {
-                self.solver.solution(*variable)?.is_some()
+                self.solver.solution(variable)?.is_some()
             }
-            (dir::Type::Variable(variable), _) => match self.solver.solution(*variable)? {
+            (dir::Type::Variable(variable), _) => match self.solver.solution(variable)? {
                 Some(solution) => self.mark_rewrites(solution, rewrite, rewrites)?,
                 None => false,
             },
@@ -362,7 +351,7 @@ impl CheckState<'_> {
             }
             _ => {
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-                ty.for_each_child(|child| children.push(child));
+                self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
                 let mut hit = false;
                 for child in children {
                     hit |= self.mark_rewrites(child, rewrite, rewrites)?;
@@ -379,8 +368,7 @@ impl CheckState<'_> {
     /// Rewrite one type with the active rewrite path tracked.
     fn rewrite_type_guarded(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
         rewrite: TypeRewrite<'_>,
         rewrites: &IndexMap<dir::GlobalTypeId, bool>,
@@ -390,7 +378,7 @@ impl CheckState<'_> {
         if !rewriting.insert(id) {
             return Ok(id);
         }
-        let rewritten = self.rewrite_type_id(module, source, id, rewrite, rewrites, rewriting);
+        let rewritten = self.rewrite_type_id(target, id, rewrite, rewrites, rewriting);
         rewriting.swap_remove(&id);
 
         rewritten
@@ -399,8 +387,7 @@ impl CheckState<'_> {
     /// Rewrite one type id after the cycle guard accepts it.
     fn rewrite_type_id(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        target: ModuleId,
         id: dir::GlobalTypeId,
         rewrite: TypeRewrite<'_>,
         rewrites: &IndexMap<dir::GlobalTypeId, bool>,
@@ -426,14 +413,14 @@ impl CheckState<'_> {
             symbol: Some(symbol),
             ..
         })) = self.ty(id)?
-            && let Some(replacement) = rewrite.infer_capture(*symbol)
+            && let Some(replacement) = rewrite.infer_capture(symbol)
         {
             return Ok(replacement);
         }
 
         // substitute one generic parameter reference
         if let dir::Type::Parameter(parameter) = self.ty(id)? {
-            if let Some(replacement) = rewrite.substituted(*parameter) {
+            if let Some(replacement) = rewrite.substituted(parameter) {
                 return Ok(replacement);
             }
             if matches!(rewrite, TypeRewrite::Substitute { .. }) {
@@ -450,7 +437,7 @@ impl CheckState<'_> {
 
         // erase one inference barrier after the owning signature closes inference
         if matches!(rewrite, TypeRewrite::EraseNoInfer) {
-            let target = match self.ty(id)? {
+            let unwrapped = match self.ty(id)? {
                 dir::Type::Operation(dir::TypeOperation::NoInfer(unary)) => Some(unary.target),
                 dir::Type::Instance(instance)
                     if self
@@ -459,22 +446,21 @@ impl CheckState<'_> {
                         .item(instance.symbol)
                         .is_some_and(|item| item == dir::LanguageItem::NoInfer) =>
                 {
-                    match instance.arguments.as_slice() {
-                        [target] => Some(*target),
+                    match self.type_ids(id.module_id, instance.arguments)? {
+                        [unwrapped] => Some(*unwrapped),
                         _ => None,
                     }
                 }
                 _ => None,
             };
-            if let Some(target) = target {
-                return self
-                    .rewrite_type_guarded(module, source, target, rewrite, rewrites, rewriting);
+            if let Some(unwrapped) = unwrapped {
+                return self.rewrite_type_guarded(target, unwrapped, rewrite, rewrites, rewriting);
             }
         }
 
         // resolve one solved variable through its representative
         let variable = match self.ty(id)? {
-            dir::Type::Variable(variable) => Some(*variable),
+            dir::Type::Variable(variable) => Some(variable),
             _ => None,
         };
         if let Some(variable) = variable {
@@ -486,9 +472,7 @@ impl CheckState<'_> {
                     let mut rewrites = IndexMap::new();
                     self.mark_rewrites(solution, rewrite, &mut rewrites)?;
 
-                    self.rewrite_type_guarded(
-                        module, source, solution, rewrite, &rewrites, rewriting,
-                    )
+                    self.rewrite_type_guarded(target, solution, rewrite, &rewrites, rewriting)
                 }
                 (None, _) => Ok(id),
             };
@@ -499,39 +483,28 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // rebuild the type with rewritten children
-        let ty = self.ty(id)?.clone();
-        let rewritten = self.rewrite_children(module, source, ty, rewrite, rewrites, rewriting)?;
+        // read payloads where the type lives, intern the rebuild where we work
+        let ty = self.ty(id)?;
+        let rewritten =
+            self.rewrite_children(id.module_id, target, ty, rewrite, rewrites, rewriting)?;
 
-        self.push_type(module, rewritten, source)
+        self.intern_type(target, rewritten)
     }
 
     /// Rebuild one type with rewritten children.
+    /// The source module owns the value's payload lists; the target module
+    /// owns the rebuilt type and its reinterned lists.
     fn rewrite_children(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        source: ModuleId,
+        target: ModuleId,
         ty: dir::Type,
         rewrite: TypeRewrite<'_>,
         rewrites: &IndexMap<dir::GlobalTypeId, bool>,
         rewriting: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
-        let mut ty = ty;
-
-        // rewrite every child id in place
-        let mut result = Ok(());
-        ty.map_children(&mut |child| match self
-            .rewrite_type_guarded(module, source, child, rewrite, rewrites, rewriting)
-        {
-            Ok(rewritten) => rewritten,
-            Err(error) => {
-                result = Err(error);
-
-                child
-            }
-        });
-        result?;
-
-        Ok(ty)
+        self.map_type_children(source, target, ty, &mut |state, child| {
+            state.rewrite_type_guarded(target, child, rewrite, rewrites, rewriting)
+        })
     }
 }

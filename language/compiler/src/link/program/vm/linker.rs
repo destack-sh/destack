@@ -303,7 +303,7 @@ impl<'a> VmLinker<'a> {
         } = lowered;
 
         // append the frame layout before assigning resume states
-        self.frames.push_layout(frame_layout.clone());
+        self.frames.push_layout(frame_layout);
 
         // append states for every lowered instruction point
         self.resume.append_source_points(

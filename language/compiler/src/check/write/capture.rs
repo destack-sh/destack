@@ -111,21 +111,20 @@ impl CheckState<'_> {
         }
 
         // build the managed frame object type
-        let source = self.origin_source_node(Origin::Symbol(fields[0].symbol))?;
+        let shape_fields = self.intern_fields(module, &shape_fields)?;
         let shape = dir::ShapeType {
             fields: shape_fields,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
         };
-        let shape = self.push_type(module, dir::Type::Shape(shape), source)?;
-        let ty = self.push_type(
+        let shape = self.intern_type(module, dir::Type::Shape(shape))?;
+        let ty = self.intern_type(
             module,
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Managed,
                 value: shape,
             }),
-            source,
         )?;
 
         // store the frame in the checked capture segment

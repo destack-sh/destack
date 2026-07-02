@@ -128,24 +128,26 @@ impl InferCapture {
         self,
         state: &mut CheckState<'_>,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        _source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match self.covariant.as_slice() {
             [single] => return Ok(*single),
-            [_, ..] => return state.normalized_union_type(module, self.covariant, source),
+            [_, ..] => return state.normalized_union_type(module, self.covariant),
             [] => {}
         }
 
         match self.contravariant.as_slice() {
             [single] => Ok(*single),
-            [_, ..] => state.push_type(
-                module,
-                dir::Type::Intersection(dir::IntersectionType {
-                    elements: self.contravariant.into_iter().collect(),
-                }),
-                source,
-            ),
-            [] => state.push_type(module, dir::Type::Never, source),
+            [_, ..] => {
+                let elements = self.contravariant.into_iter().collect::<Vec<_>>();
+                let elements = state.intern_type_ids(module, &elements)?;
+
+                state.intern_type(
+                    module,
+                    dir::Type::Intersection(dir::IntersectionType { elements }),
+                )
+            }
+            [] => state.intern_type(module, dir::Type::Never),
         }
     }
 }
@@ -164,7 +166,7 @@ impl CheckState<'_> {
         // distribute over union-valued checked types
         let elements = match self.ty(left)? {
             dir::Type::Union(union) if conditional.is_distributive => {
-                union.elements.iter().copied().collect::<SmallVec<[_; 4]>>()
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?)
             }
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
             _ => {
@@ -180,7 +182,6 @@ impl CheckState<'_> {
 
         // choose each element's branch with the element substituted in
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let mut branches = Vec::with_capacity(elements.len());
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for element in elements {
@@ -208,7 +209,7 @@ impl CheckState<'_> {
             let Some(branch) = branch else {
                 continue;
             };
-            let branch = self.replace_type(module, source, branch, conditional.left, element)?;
+            let branch = self.replace_type(module, branch, conditional.left, element)?;
             branches.push(branch);
         }
         if !blockers.is_empty() {
@@ -227,9 +228,9 @@ impl CheckState<'_> {
             }
         }
         let joined = match kept.as_slice() {
-            [] => self.push_type(module, dir::Type::Never, source)?,
+            [] => self.intern_type(module, dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, kept, source)?,
+            _ => self.normalized_union_type(module, kept)?,
         };
 
         Ok(Answer::Ready(Some(joined)))
@@ -331,7 +332,7 @@ impl CheckState<'_> {
                     }),
                 },
                 dir::Type::Operation(dir::TypeOperation::Conditional(_)) if id != pattern => {}
-                ty => ty.for_each_child(|child| pending.push(child)),
+                ty => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
             }
         }
 
@@ -364,7 +365,7 @@ impl CheckState<'_> {
 
         // substitute captured binders into the chosen branch
         let substitutions = captures.substitutions(self, module, source)?;
-        let branch = self.substitute_infer_captures(module, source, then_type, &substitutions)?;
+        let branch = self.substitute_infer_captures(origin.module(), then_type, &substitutions)?;
 
         Ok(Answer::Ready(Some(branch)))
     }
@@ -401,19 +402,24 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        let pattern_type = self.ty(pattern)?.clone();
-        let actual_type = self.ty(actual)?.clone();
+        let pattern_module = pattern.module_id;
+        let actual_module = actual.module_id;
+        let pattern_type = self.ty(pattern)?;
+        let actual_type = self.ty(actual)?;
         match (pattern_type, actual_type) {
             (dir::Type::Instance(pattern), dir::Type::Instance(actual))
                 if pattern.symbol == actual.symbol =>
             {
+                let pattern_arguments = self.type_ids(pattern_module, pattern.arguments)?.to_vec();
+                let actual_arguments = self.type_ids(actual_module, actual.arguments)?.to_vec();
+
                 self.match_infer_instance_arguments(
                     origin,
                     captures,
                     variance,
                     pattern.symbol,
-                    &pattern.arguments,
-                    &actual.arguments,
+                    &pattern_arguments,
+                    &actual_arguments,
                 )
             }
             (dir::Type::Array(pattern), dir::Type::Array(actual)) => {
@@ -432,17 +438,31 @@ impl CheckState<'_> {
                 if pattern.form == actual.form
                     && pattern.elements.len() == actual.elements.len() =>
             {
+                let pattern_elements = self
+                    .tuple_elements(pattern_module, pattern.elements)?
+                    .to_vec();
+                let actual_elements = self
+                    .tuple_elements(actual_module, actual.elements)?
+                    .to_vec();
+
                 self.match_infer_tuple(
                     origin,
                     captures,
                     variance,
-                    &pattern.elements,
-                    &actual.elements,
+                    &pattern_elements,
+                    &actual_elements,
                 )
             }
-            (dir::Type::FunctionSignature(pattern), dir::Type::FunctionSignature(actual)) => {
-                self.match_infer_function(origin, captures, variance, &pattern, &actual)
-            }
+            (dir::Type::FunctionSignature(pattern), dir::Type::FunctionSignature(actual)) => self
+                .match_infer_function(
+                    origin,
+                    captures,
+                    variance,
+                    pattern_module,
+                    &pattern,
+                    actual_module,
+                    &actual,
+                ),
             (dir::Type::Function(pattern), dir::Type::Function(actual)) => self.match_infer_type(
                 origin,
                 captures,
@@ -570,7 +590,9 @@ impl CheckState<'_> {
         origin: Origin,
         captures: &mut InferMatch,
         variance: Variance,
+        pattern_module: ModuleId,
         pattern: &dir::FunctionSignatureType,
+        actual_module: ModuleId,
         actual: &dir::FunctionSignatureType,
     ) -> CompilerResult<Answer<bool>> {
         if pattern.asynchrony != actual.asynchrony || pattern.is_generator != actual.is_generator {
@@ -590,12 +612,18 @@ impl CheckState<'_> {
         }
 
         // match runtime parameters, including tuple capture from rest patterns
+        let pattern_parameters = self
+            .signature_parameters(pattern_module, pattern.parameters)?
+            .to_vec();
+        let actual_parameters = self
+            .signature_parameters(actual_module, actual.parameters)?
+            .to_vec();
         let parameters = self.match_infer_function_parameters(
             origin,
             captures,
             variance.flip(),
-            &pattern.parameters,
-            &actual.parameters,
+            &pattern_parameters,
+            &actual_parameters,
         )?;
         if !parameters.is_ready_true() {
             return Ok(parameters);
@@ -695,8 +723,6 @@ impl CheckState<'_> {
         origin: Origin,
         parameters: &[dir::FunctionParameterType],
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let source = self.origin_source_node(origin)?;
-
         let mut elements = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             elements.push(dir::TypeElement {
@@ -708,13 +734,14 @@ impl CheckState<'_> {
             });
         }
 
-        let tuple = self.push_type(
-            origin.module(),
+        let module = origin.module();
+        let elements = self.intern_elements(module, &elements)?;
+        let tuple = self.intern_type(
+            module,
             dir::Type::Tuple(dir::TupleType {
                 form: dir::TupleForm::Tuple,
                 elements,
             }),
-            source,
         )?;
 
         Ok(Answer::Ready(tuple))

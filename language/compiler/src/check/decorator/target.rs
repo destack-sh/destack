@@ -23,9 +23,7 @@ impl CheckState<'_> {
         argument: dir::LocalNodeId<dir::Argument>,
     ) -> Option<dir::LanguageItem> {
         let view = self.module(module).view();
-        let Some(value) = view.get(argument).value() else {
-            return None;
-        };
+        let value = view.get(argument).value()?;
         let target = match view.get(value) {
             dir::Expression::Call { left, .. } => *left,
             _ => value,

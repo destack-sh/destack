@@ -79,7 +79,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<(dir::GlobalTypeId, dir::FunctionSignatureType)>>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
-        let signature = match self.ty(ty)?.clone() {
+        let signature = match self.ty(ty)? {
             dir::Type::FunctionSignature(signature) => Some((ty, signature)),
             dir::Type::Function(function) => {
                 return self.callable_signature_type(origin, function.signature);
@@ -94,31 +94,33 @@ impl CheckState<'_> {
     }
 
     /// Create one substituted function signature type.
+    /// The source module owns the signature's payload lists; the target
+    /// module owns the rebuilt type and must be writable.
     fn instantiate_signature_type(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
+        source: ModuleId,
+        target: ModuleId,
         signature: &dir::FunctionSignatureType,
         substitution: &TypeSubstitution,
         return_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let this_parameter = match signature.this_parameter {
             Some(this_parameter) => {
-                let this_parameter =
-                    self.substitute_type(module, source, this_parameter, substitution)?;
-                let this_parameter = self.resolve_type_variables(module, source, this_parameter)?;
+                let this_parameter = self.substitute_type(target, this_parameter, substitution)?;
+                let this_parameter = self.resolve_type_variables(target, this_parameter)?;
 
                 Some(this_parameter)
             }
             None => None,
         };
-        let parameters = signature
-            .parameters
+        let parameters = self
+            .signature_parameters(source, signature.parameters)?
+            .to_vec()
             .iter()
             .map(|parameter| {
-                let ty = self.substitute_type(module, source, parameter.ty, substitution)?;
-                let ty = self.resolve_type_variables(module, source, ty)?;
-                let ty = self.erase_inference_barriers(module, source, ty)?;
+                let ty = self.substitute_type(target, parameter.ty, substitution)?;
+                let ty = self.resolve_type_variables(target, ty)?;
+                let ty = self.erase_inference_barriers(target, ty)?;
 
                 Ok(dir::FunctionParameterType {
                     ty,
@@ -128,9 +130,10 @@ impl CheckState<'_> {
                 })
             })
             .collect::<CompilerResult<Vec<_>>>()?;
+        let parameters = self.intern_parameters(target, &parameters)?;
 
-        self.push_type(
-            module,
+        self.intern_type(
+            target,
             dir::Type::FunctionSignature(dir::FunctionSignatureType {
                 asynchrony: signature.asynchrony,
                 template: None,
@@ -139,7 +142,6 @@ impl CheckState<'_> {
                 return_type: Some(return_type),
                 is_generator: signature.is_generator,
             }),
-            source,
         )
     }
 
@@ -159,7 +161,7 @@ impl CheckState<'_> {
         // reduce the callable shape before selecting a signature
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let function = match self.ty(function_type)? {
-            dir::Type::FunctionSignature(function) => function.clone(),
+            dir::Type::FunctionSignature(function) => function,
             dir::Type::Function(function) => {
                 let function = function.signature;
 
@@ -194,6 +196,7 @@ impl CheckState<'_> {
         self.attempt_signature(
             origin,
             module,
+            function_type.module_id,
             source,
             &generic_parameters,
             type_arguments,
@@ -210,6 +213,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        signature_module: ModuleId,
         source: dir::LocalNodeIdAny,
         generic_parameters: &[dir::GlobalGenericParameterId],
         type_arguments: &[dir::GlobalTypeId],
@@ -223,6 +227,7 @@ impl CheckState<'_> {
         let attempt = self.match_signature(
             origin,
             module,
+            signature_module,
             source,
             generic_parameters,
             type_arguments,
@@ -258,10 +263,13 @@ impl CheckState<'_> {
     }
 
     /// Match one function signature inside an active candidate attempt.
+    /// The signature module owns the signature payload's interned lists;
+    /// the origin module owns the call's source nodes.
     fn match_signature(
         &mut self,
         origin: Origin,
         module: ModuleId,
+        signature_module: ModuleId,
         source: dir::LocalNodeIdAny,
         generic_parameters: &[dir::GlobalGenericParameterId],
         type_arguments: &[dir::GlobalTypeId],
@@ -272,20 +280,20 @@ impl CheckState<'_> {
         argument_sources: &[dir::GlobalNodeIdAny],
     ) -> CompilerResult<Answer<Result<SignatureSelection, SignatureRejection>>> {
         // reject arities the signature cannot accept
-        let required = function
-            .parameters
+        let signature_parameters =
+            self.signature_parameters(signature_module, function.parameters)?;
+        let required = signature_parameters
             .iter()
             .filter(|parameter| !parameter.is_optional && !parameter.is_rest)
             .count();
-        let has_rest = function
-            .parameters
+        let has_rest = signature_parameters
             .iter()
             .any(|parameter| parameter.is_rest);
-        if arguments.len() < required || (!has_rest && arguments.len() > function.parameters.len())
-        {
+        let parameter_count = signature_parameters.len();
+        if arguments.len() < required || (!has_rest && arguments.len() > parameter_count) {
             let rejection = SignatureRejection::Arity {
                 required,
-                total: function.parameters.len(),
+                total: parameter_count,
                 has_rest,
                 supplied: arguments.len(),
             };
@@ -328,7 +336,7 @@ impl CheckState<'_> {
                 let Some(bound) = bound else {
                     continue;
                 };
-                let bound = self.substitute_type(module, source, bound, &substitution)?;
+                let bound = self.substitute_type(origin.module(), bound, &substitution)?;
 
                 let source_node = source.into_global(module);
                 if !answer!(self.constrain_generic_bound(origin, source_node, argument, bound,)?) {
@@ -344,7 +352,7 @@ impl CheckState<'_> {
         // relate the implicit receiver before explicit arguments
         if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
             let this_parameter =
-                self.substitute_type(module, source, this_parameter, &substitution)?;
+                self.substitute_type(origin.module(), this_parameter, &substitution)?;
             if !answer!(self.constrain_receiver_argument(
                 origin,
                 module,
@@ -365,11 +373,13 @@ impl CheckState<'_> {
                 dir::GlobalTypeId,
             ); 4],
         >::new();
+        let signature_parameters = self
+            .signature_parameters(signature_module, function.parameters)?
+            .to_vec();
         for (index, argument) in arguments.iter().enumerate() {
-            let parameter = function
-                .parameters
+            let parameter = signature_parameters
                 .get(index)
-                .or_else(|| function.parameters.last());
+                .or_else(|| signature_parameters.last());
             let Some(parameter) = parameter else {
                 return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
             };
@@ -378,7 +388,7 @@ impl CheckState<'_> {
                 .copied()
                 .unwrap_or_else(|| source.into_global(module));
             let parameter_type =
-                self.substitute_type(module, source, parameter.ty, &substitution)?;
+                self.substitute_type(origin.module(), parameter.ty, &substitution)?;
             if self.contains_inference_barrier(parameter_type)? {
                 deferred_arguments.push((index, argument_source, *argument, parameter_type));
 
@@ -423,8 +433,8 @@ impl CheckState<'_> {
 
         // check NoInfer arguments after generic inference
         for (index, argument_source, argument, parameter_type) in deferred_arguments {
-            let parameter_type = self.resolve_type_variables(module, source, parameter_type)?;
-            let parameter_type = self.erase_inference_barriers(module, source, parameter_type)?;
+            let parameter_type = self.resolve_type_variables(origin.module(), parameter_type)?;
+            let parameter_type = self.erase_inference_barriers(origin.module(), parameter_type)?;
             let parameter_type = answer!(self.reduce_type(origin, parameter_type)?);
 
             let argument_origin = Origin::Node(argument_source);
@@ -448,19 +458,20 @@ impl CheckState<'_> {
         let return_type = match function_return {
             Some(return_type) => {
                 let return_type =
-                    self.substitute_type(module, source, return_type, &substitution)?;
+                    self.substitute_type(origin.module(), return_type, &substitution)?;
 
-                self.resolve_type_variables(module, source, return_type)?
+                self.resolve_type_variables(origin.module(), return_type)?
             }
-            None => self.push_type(module, dir::Type::Void, source)?,
+            None => self.intern_type(module, dir::Type::Void)?,
         };
-        let parameters = function
-            .parameters
+        let parameters = self
+            .signature_parameters(signature_module, function.parameters)?
+            .to_vec()
             .iter()
             .map(|parameter| {
-                let ty = self.substitute_type(module, source, parameter.ty, &substitution)?;
-                let ty = self.resolve_type_variables(module, source, ty)?;
-                let ty = self.erase_inference_barriers(module, source, ty)?;
+                let ty = self.substitute_type(origin.module(), parameter.ty, &substitution)?;
+                let ty = self.resolve_type_variables(origin.module(), ty)?;
+                let ty = self.erase_inference_barriers(origin.module(), ty)?;
 
                 Ok(dir::FunctionParameterType {
                     ty,
@@ -474,11 +485,16 @@ impl CheckState<'_> {
             .arguments
             .iter()
             .copied()
-            .map(|argument| self.resolve_type_variables(module, source, argument))
+            .map(|argument| self.resolve_type_variables(origin.module(), argument))
             .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
         let arguments = self.generic_argument_bindings(generic_parameters, &raw_arguments)?;
-        let function_type =
-            self.instantiate_signature_type(module, source, function, &substitution, return_type)?;
+        let function_type = self.instantiate_signature_type(
+            signature_module,
+            module,
+            function,
+            &substitution,
+            return_type,
+        )?;
 
         Ok(Answer::Ready(Ok(SignatureSelection {
             callable: function_type,
@@ -510,9 +526,9 @@ impl CheckState<'_> {
             else {
                 continue;
             };
-            let argument = self.resolve_type_variables(module, source, argument)?;
-            let bound = self.substitute_type(module, source, bound, substitution)?;
-            let bound = self.resolve_type_variables(module, source, bound)?;
+            let argument = self.resolve_type_variables(origin.module(), argument)?;
+            let bound = self.substitute_type(origin.module(), bound, substitution)?;
+            let bound = self.resolve_type_variables(origin.module(), bound)?;
 
             // replay the bound relation with solved arguments
             if !answer!(self.constrain_generic_bound(origin, source_node, argument, bound,)?) {

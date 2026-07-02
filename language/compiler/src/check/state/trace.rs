@@ -132,7 +132,7 @@ impl CheckState<'_> {
         self.events.push(event);
     }
 
-    /// Return rendered event rows for this component.
+    /// Return rendered event lines for this component.
     pub(in crate::check) fn events(&self) -> ArtifactEventLog {
         let context = DumpContext::new(self);
         let mut log = ArtifactEventLog::new();
@@ -160,10 +160,11 @@ impl CheckState<'_> {
             bounds += state.lower.len() + state.upper.len();
             solutions += usize::from(state.solution.is_some());
         }
+        // count the types checking interned beyond the committed tables
         let types = self
             .modules
             .values()
-            .map(|module| module.types.iter_type_ids().count())
+            .map(|module| module.types_tail.type_count() as usize)
             .sum();
 
         CheckStats {

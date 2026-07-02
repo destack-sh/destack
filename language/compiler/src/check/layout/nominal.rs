@@ -28,7 +28,7 @@ impl LayoutQuery<'_, '_> {
             // newtypes are transparent over their substituted backing
             Some(dir::Definition::Newtype(definition)) => {
                 let backing = definition.value;
-                let substitution = self.check.instance_substitution(instance)?;
+                let substitution = self.check.instance_substitution(owner, instance)?;
                 let backing = self.substituted_type(backing, &substitution)?;
                 let source = self
                     .check
@@ -134,7 +134,7 @@ impl LayoutQuery<'_, '_> {
             is_signed: false,
         }));
 
-        self.check.push_type(self.origin.module(), ty, source)
+        self.check.intern_type(self.origin.module(), ty)
     }
 
     /// Lay one definition's stored fields out in declaration order.
@@ -149,7 +149,7 @@ impl LayoutQuery<'_, '_> {
         // the laid out application binds its own `this`
         let substitution = self
             .check
-            .instance_substitution(instance)?
+            .instance_substitution(owner, instance)?
             .with_receiver(qualified);
         let mut fields = SmallVec::<[_; 4]>::new();
 
@@ -178,7 +178,7 @@ impl LayoutQuery<'_, '_> {
         let answer = match item {
             dir::LanguageItem::Vector => self.vector_layout(owner, instance)?,
             dir::LanguageItem::Tensor => {
-                let tensor = match self.tensor_layout_input(instance)? {
+                let tensor = match self.tensor_layout_input(owner, instance)? {
                     Answer::Ready(Some(tensor)) => tensor,
                     Answer::Ready(None) => return Ok(Some(Answer::Ready(None))),
                     Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
@@ -187,7 +187,7 @@ impl LayoutQuery<'_, '_> {
                 Answer::Ready(Some(tensor.layout(pointer_bytes)))
             }
             dir::LanguageItem::TensorView => {
-                let tensor = match self.tensor_view_layout_input(instance)? {
+                let tensor = match self.tensor_view_layout_input(owner, instance)? {
                     Answer::Ready(Some(tensor)) => tensor,
                     Answer::Ready(None) => return Ok(Some(Answer::Ready(None))),
                     Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
@@ -220,10 +220,8 @@ impl LayoutQuery<'_, '_> {
         ty: dir::GlobalTypeId,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = self.origin;
-        let source = self.check.origin_source_node(origin)?;
+        let target = self.origin.module();
 
-        self.check
-            .substitute_type(origin.module(), source, ty, &substitution)
+        self.check.substitute_type(target, ty, substitution)
     }
 }

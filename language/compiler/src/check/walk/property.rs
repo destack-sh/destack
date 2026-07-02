@@ -124,14 +124,8 @@ impl WalkState<'_, '_> {
                 let result = self.walk_function_result_type(id.into_any(), signature, body)?;
 
                 // write the method's function type
-                let method = self.walk_function_signature_type(
-                    id.into_any(),
-                    signature,
-                    header,
-                    None,
-                    None,
-                    result,
-                )?;
+                let method =
+                    self.walk_function_signature_type(signature, header, None, None, result)?;
                 if let Some(symbol) = symbol {
                     self.bind_symbol_type(symbol, method)?;
                 }
@@ -359,7 +353,7 @@ impl WalkState<'_, '_> {
                             GenericInductionPosition::Storage,
                         )?;
                         let written = if is_optional {
-                            self.optional_value_type(written, id.into_any())?
+                            self.optional_value_type(written)?
                         } else {
                             written
                         };
@@ -497,7 +491,6 @@ impl WalkState<'_, '_> {
                     .filter(|_| Self::is_receiver_visible_in_method_type(signature))
                     .map(|receiver| receiver.receiver.ty);
                 let method = self.walk_function_signature_type(
-                    id.into_any(),
                     signature,
                     header,
                     Some(GenericInductionDeclaration::new(
@@ -678,7 +671,7 @@ impl WalkState<'_, '_> {
                 };
                 let declared_ty = self.walk_type_expression(declared_type)?;
                 let written = if is_optional {
-                    self.optional_value_type(declared_ty, id.into_any())?
+                    self.optional_value_type(declared_ty)?
                 } else {
                     declared_ty
                 };
@@ -748,7 +741,6 @@ impl WalkState<'_, '_> {
                     .filter(|_| !is_static)
                     .map(|receiver| receiver.ty);
                 let method = self.walk_function_signature_type(
-                    id.into_any(),
                     signature,
                     header,
                     None,
@@ -1027,9 +1019,7 @@ impl WalkState<'_, '_> {
 
         // apply the implicit receiver to `this` in result position
         let result = match receiver {
-            Some(receiver) => {
-                self.apply_receiver_scope(id.into_any(), Some(receiver.receiver), result)?
-            }
+            Some(receiver) => self.apply_receiver_scope(Some(receiver.receiver), result)?,
             None => result,
         };
 

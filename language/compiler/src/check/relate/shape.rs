@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -13,7 +14,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
-        let result = match self.ty(ty)?.clone() {
+        let result = match self.ty(ty)? {
             dir::Type::Any | dir::Type::Parameter(_) => true,
             dir::Type::Primitive(primitive) => matches!(
                 primitive,
@@ -31,8 +32,11 @@ impl CheckState<'_> {
             dir::Type::Key(_) => true,
             dir::Type::Instance(_) => self.static_key_from_type(ty)?.is_some(),
             dir::Type::Union(union) => {
+                let elements = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(
+                    self.type_ids(ty.module_id, union.elements)?,
+                );
                 let mut is_key = true;
-                for element in union.elements {
+                for element in elements {
                     if !answer!(self.is_property_key_type(origin, element)?) {
                         is_key = false;
                         break;
@@ -55,7 +59,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
-        let result = match self.ty(ty)?.clone() {
+        let result = match self.ty(ty)? {
             dir::Type::Any | dir::Type::Object | dir::Type::Parameter(_) => true,
             dir::Type::Shape(_) => true,
             dir::Type::Dynamic(dynamic) => answer!(self.is_keyed_type(origin, dynamic.constraint)?),
@@ -65,8 +69,11 @@ impl CheckState<'_> {
             ),
             dir::Type::Form(form) => answer!(self.is_keyed_type(origin, form.value)?),
             dir::Type::Union(union) => {
+                let elements = SmallVec::<[dir::GlobalTypeId; 8]>::from_slice(
+                    self.type_ids(ty.module_id, union.elements)?,
+                );
                 let mut is_keyed = true;
-                for element in union.elements {
+                for element in elements {
                     if !answer!(self.is_keyed_type(origin, element)?) {
                         is_keyed = false;
                         break;
@@ -90,17 +97,21 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare element shapes and collect type pairs in one pure pass
         let pairs = {
-            let (dir::Type::Tuple(left), dir::Type::Tuple(right)) =
+            let (dir::Type::Tuple(left_tuple), dir::Type::Tuple(right_tuple)) =
                 (self.ty(left)?, self.ty(right)?)
             else {
                 return Ok(Answer::Ready(false));
             };
-            if left.form != right.form || left.elements.len() != right.elements.len() {
+            if left_tuple.form != right_tuple.form
+                || left_tuple.elements.len() != right_tuple.elements.len()
+            {
                 return Ok(Answer::Ready(false));
             }
 
+            let left_elements = self.tuple_elements(left.module_id, left_tuple.elements)?;
+            let right_elements = self.tuple_elements(right.module_id, right_tuple.elements)?;
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
-            for (left, right) in left.elements.iter().zip(&right.elements) {
+            for (left, right) in left_elements.iter().zip(right_elements) {
                 if left.label != right.label
                     || left.is_optional != right.is_optional
                     || left.is_readonly != right.is_readonly
@@ -126,22 +137,24 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare element shapes and collect type pairs in one pure pass
         let pairs = {
-            let (dir::Type::Tuple(source), dir::Type::Tuple(target)) =
+            let (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple)) =
                 (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(Answer::Ready(false));
             };
-            if source.form != target.form {
+            if source_tuple.form != target_tuple.form {
                 return Ok(Answer::Ready(false));
             }
 
+            let source_elements = self.tuple_elements(source.module_id, source_tuple.elements)?;
+            let target_elements = self.tuple_elements(target.module_id, target_tuple.elements)?;
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
             let mut source_index = 0usize;
-            for target in &target.elements {
+            for target in target_elements {
                 // rest targets consume every remaining source element
                 if target.is_rest {
                     let target_element = self.spread_element_type(target.ty)?;
-                    while let Some(source) = source.elements.get(source_index) {
+                    while let Some(source) = source_elements.get(source_index) {
                         if source.is_readonly && !target.is_readonly {
                             return Ok(Answer::Ready(false));
                         }
@@ -159,7 +172,7 @@ impl CheckState<'_> {
                 }
 
                 // omitted source elements satisfy optional target elements
-                let Some(source) = source.elements.get(source_index) else {
+                let Some(source) = source_elements.get(source_index) else {
                     if target.is_optional {
                         continue;
                     }
@@ -179,7 +192,7 @@ impl CheckState<'_> {
                 source_index += 1;
             }
 
-            if source_index != source.elements.len() {
+            if source_index != source_elements.len() {
                 return Ok(Answer::Ready(false));
             }
 
@@ -212,23 +225,25 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare member shapes and collect type pairs in one pure pass
         let pairs = {
-            let (dir::Type::Shape(left), dir::Type::Shape(right)) =
+            let (dir::Type::Shape(left_shape), dir::Type::Shape(right_shape)) =
                 (self.ty(left)?, self.ty(right)?)
             else {
                 return Ok(Answer::Ready(false));
             };
 
             // equal shapes need identical member counts
-            if left.fields.len() != right.fields.len()
-                || left.call_signatures.len() != right.call_signatures.len()
-                || left.construct_signatures.len() != right.construct_signatures.len()
-                || left.index_signatures.len() != right.index_signatures.len()
+            if left_shape.fields.len() != right_shape.fields.len()
+                || left_shape.call_signatures.len() != right_shape.call_signatures.len()
+                || left_shape.construct_signatures.len() != right_shape.construct_signatures.len()
+                || left_shape.index_signatures.len() != right_shape.index_signatures.len()
             {
                 return Ok(Answer::Ready(false));
             }
 
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-            for (left, right) in left.fields.iter().zip(&right.fields) {
+            let left_fields = self.shape_fields(left.module_id, left_shape.fields)?;
+            let right_fields = self.shape_fields(right.module_id, right_shape.fields)?;
+            for (left, right) in left_fields.iter().zip(right_fields) {
                 if left.key != right.key
                     || left.is_optional != right.is_optional
                     || left.is_readonly != right.is_readonly
@@ -237,17 +252,25 @@ impl CheckState<'_> {
                 }
                 pairs.push((left.ty, right.ty));
             }
-            for (left, right) in left.call_signatures.iter().zip(&right.call_signatures) {
+
+            let left_calls = self.type_ids(left.module_id, left_shape.call_signatures)?;
+            let right_calls = self.type_ids(right.module_id, right_shape.call_signatures)?;
+            for (left, right) in left_calls.iter().zip(right_calls) {
                 pairs.push((*left, *right));
             }
-            for (left, right) in left
-                .construct_signatures
-                .iter()
-                .zip(&right.construct_signatures)
-            {
+
+            let left_constructs = self.type_ids(left.module_id, left_shape.construct_signatures)?;
+            let right_constructs =
+                self.type_ids(right.module_id, right_shape.construct_signatures)?;
+            for (left, right) in left_constructs.iter().zip(right_constructs) {
                 pairs.push((*left, *right));
             }
-            for (left, right) in left.index_signatures.iter().zip(&right.index_signatures) {
+
+            let left_indexes =
+                self.shape_index_signatures(left.module_id, left_shape.index_signatures)?;
+            let right_indexes =
+                self.shape_index_signatures(right.module_id, right_shape.index_signatures)?;
+            for (left, right) in left_indexes.iter().zip(right_indexes) {
                 if left.is_optional != right.is_optional || left.is_readonly != right.is_readonly {
                     return Ok(Answer::Ready(false));
                 }
@@ -270,17 +293,18 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // match members and collect signature requirements
         let (pairs, signature_requirements, index_signatures) = {
-            let (dir::Type::Shape(source), dir::Type::Shape(target)) =
+            let (dir::Type::Shape(source_shape), dir::Type::Shape(target_shape)) =
                 (self.ty(source)?, self.ty(target)?)
             else {
                 return Ok(Answer::Ready(false));
             };
 
             // require each target field from the source shape
+            let source_fields = self.shape_fields(source.module_id, source_shape.fields)?;
+            let target_fields = self.shape_fields(target.module_id, target_shape.fields)?;
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-            for target_field in &target.fields {
-                let source_field = source
-                    .fields
+            for target_field in target_fields {
+                let source_field = source_fields
                     .iter()
                     .find(|source| source.key == target_field.key);
 
@@ -303,17 +327,25 @@ impl CheckState<'_> {
             }
 
             // require each target signature from any source signature
+            let source_calls = self.type_ids(source.module_id, source_shape.call_signatures)?;
+            let target_calls = self.type_ids(target.module_id, target_shape.call_signatures)?;
+            let source_constructs =
+                self.type_ids(source.module_id, source_shape.construct_signatures)?;
+            let target_constructs =
+                self.type_ids(target.module_id, target_shape.construct_signatures)?;
             let mut signature_requirements =
                 SmallVec::<[(SmallVec<[dir::GlobalTypeId; 2]>, dir::GlobalTypeId); 2]>::new();
-            for target_signature in target.call_signatures.iter().copied() {
-                let candidates = source.call_signatures.iter().copied().collect();
+            for target_signature in target_calls.iter().copied() {
+                let candidates = source_calls.iter().copied().collect();
                 signature_requirements.push((candidates, target_signature));
             }
-            for target_signature in target.construct_signatures.iter().copied() {
-                let candidates = source.construct_signatures.iter().copied().collect();
+            for target_signature in target_constructs.iter().copied() {
+                let candidates = source_constructs.iter().copied().collect();
                 signature_requirements.push((candidates, target_signature));
             }
-            let index_signatures = target.index_signatures.clone();
+            let index_signatures = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
+                self.shape_index_signatures(target.module_id, target_shape.index_signatures)?,
+            );
 
             (pairs, signature_requirements, index_signatures)
         };
@@ -365,18 +397,24 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let reference = match self.ty(source)? {
-            dir::Type::Reference(reference) => *reference,
+            dir::Type::Reference(reference) => reference,
             _ => return Ok(Answer::Ready(false)),
         };
-        let target = match self.ty(target)? {
-            dir::Type::Shape(target) => target.clone(),
+        let target_shape = match self.ty(target)? {
+            dir::Type::Shape(target_shape) => target_shape,
             _ => return Ok(Answer::Ready(false)),
         };
+        let target_fields = SmallVec::<[dir::TypeField; 8]>::from_slice(
+            self.shape_fields(target.module_id, target_shape.fields)?,
+        );
+        let target_constructs = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(
+            self.type_ids(target.module_id, target_shape.construct_signatures)?,
+        );
         let module = origin.module();
         let mut decision = Answer::Ready(true);
 
         // require each target field from the static declaration
-        for field in target.fields {
+        for field in target_fields {
             let lookup = answer!(self.lookup_member(
                 origin,
                 module,
@@ -405,7 +443,7 @@ impl CheckState<'_> {
         }
 
         // require each target constructor from the class constructor set
-        for target_signature in target.construct_signatures {
+        for target_signature in target_constructs {
             let mut satisfied = Answer::Ready(false);
             for candidate in self.reference_construct_signatures(reference) {
                 satisfied = satisfied.or(self.decide_relation(
@@ -426,7 +464,7 @@ impl CheckState<'_> {
         }
 
         // call and index signatures are not part of nominal declaration values
-        if !target.call_signatures.is_empty() || !target.index_signatures.is_empty() {
+        if !target_shape.call_signatures.is_empty() || !target_shape.index_signatures.is_empty() {
             return Ok(Answer::Ready(false));
         }
 
@@ -457,9 +495,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let source = answer!(self.reduce_type_head(origin, source)?);
 
-        match self.ty(source)?.clone() {
-            dir::Type::Shape(source) => {
-                self.decide_shape_index_signature_satisfied(origin, &source, target)
+        match self.ty(source)? {
+            dir::Type::Shape(shape) => {
+                self.decide_shape_index_signature_satisfied(origin, source.module_id, shape, target)
             }
             _ => self.decide_subscript_index_signature_satisfied(origin, source, target),
         }
@@ -469,12 +507,16 @@ impl CheckState<'_> {
     fn decide_shape_index_signature_satisfied(
         &mut self,
         origin: Origin,
-        source: &dir::ShapeType,
+        module: ModuleId,
+        source: dir::ShapeType,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Answer<bool>> {
         // prefer declared index signatures when the source has one
+        let source_indexes = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
+            self.shape_index_signatures(module, source.index_signatures)?,
+        );
         let mut decision = Answer::Ready(false);
-        for source in &source.index_signatures {
+        for source in source_indexes {
             if source.is_optional && !target.is_optional {
                 continue;
             }
@@ -506,11 +548,12 @@ impl CheckState<'_> {
         }
 
         // prove each finite field covered by the readonly key domain
-        let module = origin.module();
-        let source_node = self.origin_source_node(origin)?;
+        let key_module = origin.module();
+        let source_fields =
+            SmallVec::<[dir::TypeField; 8]>::from_slice(self.shape_fields(module, source.fields)?);
         let mut decision = Answer::Ready(true);
-        for field in &source.fields {
-            let key = self.push_static_key_type(module, source_node, field.key)?;
+        for field in source_fields {
+            let key = self.static_key_type(key_module, field.key)?;
             if !answer!(self.decide_relation(origin, Relation::Assignable, key, target.key_type,)?)
             {
                 continue;
@@ -539,19 +582,21 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare signature shapes and collect type pairs in one pure pass
         let pairs = {
-            let (dir::Type::FunctionSignature(left), dir::Type::FunctionSignature(right)) =
-                (self.ty(left)?, self.ty(right)?)
+            let (
+                dir::Type::FunctionSignature(left_signature),
+                dir::Type::FunctionSignature(right_signature),
+            ) = (self.ty(left)?, self.ty(right)?)
             else {
                 return Ok(Answer::Ready(false));
             };
 
             // equal functions share asynchrony, generator shape, and arity
-            let left_generics = self.signature_generic_parameters(left)?;
-            let right_generics = self.signature_generic_parameters(right)?;
-            if left.asynchrony != right.asynchrony
-                || left.is_generator != right.is_generator
+            let left_generics = self.signature_generic_parameters(&left_signature)?;
+            let right_generics = self.signature_generic_parameters(&right_signature)?;
+            if left_signature.asynchrony != right_signature.asynchrony
+                || left_signature.is_generator != right_signature.is_generator
                 || left_generics.len() != right_generics.len()
-                || left.parameters.len() != right.parameters.len()
+                || left_signature.parameters.len() != right_signature.parameters.len()
             {
                 return Ok(Answer::Ready(false));
             }
@@ -559,14 +604,21 @@ impl CheckState<'_> {
             let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
 
             // compare receivers exactly
-            match (left.this_parameter, right.this_parameter) {
+            match (
+                left_signature.this_parameter,
+                right_signature.this_parameter,
+            ) {
                 (Some(left), Some(right)) => pairs.push((left, right)),
                 (None, None) => {}
                 _ => return Ok(Answer::Ready(false)),
             }
 
             // compare parameters exactly
-            for (left, right) in left.parameters.iter().zip(&right.parameters) {
+            let left_parameters =
+                self.signature_parameters(left.module_id, left_signature.parameters)?;
+            let right_parameters =
+                self.signature_parameters(right.module_id, right_signature.parameters)?;
+            for (left, right) in left_parameters.iter().zip(right_parameters) {
                 if left.is_optional != right.is_optional || left.is_rest != right.is_rest {
                     return Ok(Answer::Ready(false));
                 }
@@ -574,7 +626,7 @@ impl CheckState<'_> {
             }
 
             // compare returns exactly
-            match (left.return_type, right.return_type) {
+            match (left_signature.return_type, right_signature.return_type) {
                 (Some(left), Some(right)) => pairs.push((left, right)),
                 (None, None) => {}
                 _ => return Ok(Answer::Ready(false)),
@@ -595,14 +647,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // collect directed comparison pairs
         let pairs = {
-            let (dir::Type::FunctionSignature(source), dir::Type::FunctionSignature(target)) =
-                (self.ty(source)?, self.ty(target)?)
-            else {
-                return Ok(Answer::Ready(false));
-            };
-
-            let Some(pairs) =
-                function_assignability_pairs(source, target, ThisParameterComparison::Compare)
+            let Some(pairs) = self.function_assignability_pairs(
+                source,
+                target,
+                ThisParameterComparison::Compare,
+            )?
             else {
                 return Ok(Answer::Ready(false));
             };
@@ -621,14 +670,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // collect directed comparison pairs
         let pairs = {
-            let (dir::Type::FunctionSignature(source), dir::Type::FunctionSignature(target)) =
-                (self.ty(source)?, self.ty(target)?)
-            else {
-                return Ok(Answer::Ready(false));
-            };
-
             let Some(pairs) =
-                function_assignability_pairs(source, target, ThisParameterComparison::Skip)
+                self.function_assignability_pairs(source, target, ThisParameterComparison::Skip)?
             else {
                 return Ok(Answer::Ready(false));
             };
@@ -636,6 +679,72 @@ impl CheckState<'_> {
         };
 
         self.decide_each(origin, Relation::Assignable, &pairs)
+    }
+
+    /// Return directed function assignment pairs, or none when the shapes cannot relate.
+    fn function_assignability_pairs(
+        &self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        this_parameter: ThisParameterComparison,
+    ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>>> {
+        // require two function signatures with matching execution shape
+        let (
+            dir::Type::FunctionSignature(source_signature),
+            dir::Type::FunctionSignature(target_signature),
+        ) = (self.ty(source)?, self.ty(target)?)
+        else {
+            return Ok(None);
+        };
+        if source_signature.asynchrony != target_signature.asynchrony
+            || source_signature.is_generator != target_signature.is_generator
+        {
+            return Ok(None);
+        }
+
+        let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
+
+        // compare receiver input contravariantly for function values
+        if this_parameter.includes_this() {
+            match (
+                source_signature.this_parameter,
+                target_signature.this_parameter,
+            ) {
+                (Some(source), Some(target)) => pairs.push((target, source)),
+                (None, _) => {}
+                (Some(_), None) => return Ok(None),
+            }
+        }
+
+        // require source parameters to accept every target call arity
+        let source_parameters =
+            self.signature_parameters(source.module_id, source_signature.parameters)?;
+        let target_parameters =
+            self.signature_parameters(target.module_id, target_signature.parameters)?;
+        if !accepts_target_call_arities(source_parameters, target_parameters) {
+            return Ok(None);
+        }
+
+        // compare runtime inputs contravariantly
+        let shared = source_parameters.len().min(target_parameters.len());
+        for (source, target) in source_parameters[..shared]
+            .iter()
+            .zip(&target_parameters[..shared])
+        {
+            if source.is_rest != target.is_rest {
+                return Ok(None);
+            }
+            pairs.push((target.ty, source.ty));
+        }
+
+        // compare outputs covariantly
+        match (source_signature.return_type, target_signature.return_type) {
+            (Some(source), Some(target)) => pairs.push((source, target)),
+            (_, None) => {}
+            (None, Some(_)) => return Ok(None),
+        }
+
+        Ok(Some(pairs))
     }
 }
 
@@ -652,54 +761,6 @@ impl ThisParameterComparison {
     fn includes_this(self) -> bool {
         matches!(self, Self::Compare)
     }
-}
-
-/// Return directed function assignment pairs.
-fn function_assignability_pairs(
-    source: &dir::FunctionSignatureType,
-    target: &dir::FunctionSignatureType,
-    this_parameter: ThisParameterComparison,
-) -> Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>> {
-    if source.asynchrony != target.asynchrony || source.is_generator != target.is_generator {
-        return None;
-    }
-
-    let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-
-    // compare receiver input contravariantly for function values
-    if this_parameter.includes_this() {
-        match (source.this_parameter, target.this_parameter) {
-            (Some(source), Some(target)) => pairs.push((target, source)),
-            (None, _) => {}
-            (Some(_), None) => return None,
-        }
-    }
-
-    // require source parameters to accept every target call arity
-    if !accepts_target_call_arities(&source.parameters, &target.parameters) {
-        return None;
-    }
-
-    // compare runtime inputs contravariantly
-    let shared = source.parameters.len().min(target.parameters.len());
-    for (source, target) in source.parameters[..shared]
-        .iter()
-        .zip(&target.parameters[..shared])
-    {
-        if source.is_rest != target.is_rest {
-            return None;
-        }
-        pairs.push((target.ty, source.ty));
-    }
-
-    // compare outputs covariantly
-    match (source.return_type, target.return_type) {
-        (Some(source), Some(target)) => pairs.push((source, target)),
-        (_, None) => {}
-        (None, Some(_)) => return None,
-    }
-
-    Some(pairs)
 }
 
 /// Return whether source parameters accept every target call arity.

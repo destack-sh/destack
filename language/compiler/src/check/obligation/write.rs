@@ -146,7 +146,7 @@ impl CheckState<'_> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
-                let representative = self.solver.representative(*variable)?;
+                let representative = self.solver.representative(variable)?;
 
                 return Ok(Answer::pending([Dependency::Variable(representative)]));
             }
@@ -270,7 +270,11 @@ impl CheckState<'_> {
         if let dir::ProjectionField::Key(key) = field
             && let dir::Type::Shape(shape) = self.ty(owner)?
         {
-            let field = shape.fields.iter().find(|field| field.key == key);
+            let field = self
+                .shape_fields(owner.module_id, shape.fields)?
+                .iter()
+                .find(|field| field.key == key)
+                .copied();
 
             if let Some(field) = field {
                 if field.is_readonly {

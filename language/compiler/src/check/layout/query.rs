@@ -148,7 +148,7 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
             .or_insert_with(|| dir::LayoutSegment::new(module))
     }
 
-    /// Return one computed layout row.
+    /// Return one computed layout entry.
     pub(super) fn layout(&self, module: ModuleId, id: dir::LocalLayoutId) -> &dir::Layout {
         self.check
             .layouts
@@ -224,8 +224,9 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
                 }),
             }))),
             dir::Type::Tuple(tuple) => {
-                let fields = tuple
-                    .elements
+                let fields = self
+                    .check
+                    .tuple_elements(owner, tuple.elements)?
                     .iter()
                     .map(|element| AggregateSlot {
                         key: None,
@@ -237,8 +238,9 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
                 self.aggregate_layout(owner, &fields, AggregateLayout::Tuple)
             }
             dir::Type::Shape(shape) => {
-                let fields = shape
-                    .fields
+                let fields = self
+                    .check
+                    .shape_fields(owner, shape.fields)?
                     .iter()
                     .map(|field| AggregateSlot {
                         key: Some(field.key),
@@ -251,15 +253,12 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
             }
             dir::Type::EnumMember(member) => self.compute_layout(member.owner, qualified),
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.check.type_ids(owner, union.elements)?);
 
                 self.union_layout(owner, &elements)
             }
-            dir::Type::Instance(instance) => {
-                let instance = instance.clone();
-
-                self.reference_layout(owner, ty, qualified, &instance)
-            }
+            dir::Type::Instance(instance) => self.reference_layout(owner, ty, qualified, &instance),
             // open or symbolic types have no representation yet
             _ => Ok(Answer::Ready(None)),
         }
@@ -277,14 +276,11 @@ impl<'state, 'check> LayoutQuery<'state, 'check> {
         // primitive aliases defer storage to their language item
         if let Some(item) = primitive.representation_item() {
             let symbol = self.check.language_symbol(item);
-            let reference = dir::Type::Instance(dir::GenericInstance {
-                symbol,
-                arguments: Vec::new(),
-            });
             let origin = self.origin;
-            let source = self.check.origin_source_node(origin)?;
+            let arguments = self.check.intern_type_ids(origin.module(), &[])?;
+            let reference = dir::Type::Instance(dir::GenericInstance { symbol, arguments });
 
-            return self.check.push_type(origin.module(), reference, source);
+            return self.check.intern_type(origin.module(), reference);
         }
 
         Ok(ty)

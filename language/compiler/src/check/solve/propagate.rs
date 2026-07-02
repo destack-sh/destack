@@ -64,13 +64,10 @@ impl CheckState<'_> {
 
         // require the return type to accept the residual
         let symbol = self.language_symbol(dir::LanguageItem::FromResidual);
-        let target = self.push_type(
+        let arguments = self.intern_type_ids(source.module_id, &[residual])?;
+        let target = self.intern_type(
             source.module_id,
-            dir::Type::Instance(dir::GenericInstance {
-                symbol,
-                arguments: vec![residual],
-            }),
-            source.local_id,
+            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
         )?;
 
         self.decide_relation(origin, Relation::Implements, return_type, target)

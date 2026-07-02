@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::CheckState;
@@ -8,32 +9,28 @@ impl CheckState<'_> {
     pub(in crate::check) fn apparent_type(
         &mut self,
         receiver: dir::GlobalTypeId,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(instance) = self.apparent_instance(receiver)? else {
+        let Some((module, instance)) = self.apparent_instance(receiver)? else {
             return Ok(receiver);
         };
 
-        self.push_type(receiver.module_id, dir::Type::Instance(instance), source)
+        self.intern_type(module, dir::Type::Instance(instance))
     }
 
-    /// Return the declaration instance that owns one receiver's apparent members.
+    /// Return the declaration instance that owns one receiver's apparent members,
+    /// together with the module owning the instance's argument list.
     pub(in crate::check) fn apparent_instance(
         &mut self,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GenericInstance>> {
+    ) -> CompilerResult<Option<(ModuleId, dir::GenericInstance)>> {
+        let module = receiver.module_id;
         let instance = match self.ty(receiver)? {
             dir::Type::Form(form) => return self.apparent_instance(form.value),
             dir::Type::EnumMember(member) => return self.apparent_instance(member.owner),
-            dir::Type::Instance(instance) => {
-                let symbol = instance.symbol;
-                let arguments = instance.arguments.clone();
-
-                dir::GenericInstance {
-                    symbol: self.resolve_symbol_alias(symbol)?,
-                    arguments,
-                }
-            }
+            dir::Type::Instance(instance) => dir::GenericInstance {
+                symbol: self.resolve_symbol_alias(instance.symbol)?,
+                arguments: instance.arguments,
+            },
             dir::Type::Literal(literal) => {
                 let Some(item) = literal.owner_item() else {
                     return Ok(None);
@@ -41,7 +38,7 @@ impl CheckState<'_> {
 
                 dir::GenericInstance {
                     symbol: self.language_symbol(item),
-                    arguments: Vec::new(),
+                    arguments: dir::TypeListId::EMPTY,
                 }
             }
             dir::Type::Primitive(primitive) => {
@@ -51,24 +48,24 @@ impl CheckState<'_> {
 
                 dir::GenericInstance {
                     symbol: self.language_symbol(item),
-                    arguments: Vec::new(),
+                    arguments: dir::TypeListId::EMPTY,
                 }
             }
             dir::Type::Array(array) => dir::GenericInstance {
                 symbol: self.language_symbol(dir::LanguageItem::Array),
-                arguments: vec![array.element],
+                arguments: self.intern_type_ids(module, &[array.element])?,
             },
             dir::Type::Slice(slice) => dir::GenericInstance {
                 symbol: self.language_symbol(dir::LanguageItem::Slice),
-                arguments: vec![slice.element],
+                arguments: self.intern_type_ids(module, &[slice.element])?,
             },
             dir::Type::FixedArray(array) => dir::GenericInstance {
                 symbol: self.language_symbol(dir::LanguageItem::FixedArray),
-                arguments: vec![array.element, array.count],
+                arguments: self.intern_type_ids(module, &[array.element, array.count])?,
             },
             _ => return Ok(None),
         };
 
-        Ok(Some(instance))
+        Ok(Some((module, instance)))
     }
 }

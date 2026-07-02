@@ -126,9 +126,7 @@ impl CheckState<'_> {
                         return Ok(Answer::Ready(Some(written)));
                     }
                     if let Some(value) = candidate.value {
-                        let source = self.origin_source_node(origin)?;
-                        let ty =
-                            self.push_type(origin.module(), dir::Type::Static(value), source)?;
+                        let ty = self.intern_type(origin.module(), dir::Type::Static(value))?;
 
                         return Ok(Answer::Ready(Some(ty)));
                     }
@@ -154,7 +152,8 @@ impl CheckState<'_> {
 
         // union keys distribute their projections
         if let dir::Type::Union(union) = self.ty(key)? {
-            let keys = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+            let keys =
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(key.module_id, union.elements)?);
             let Some(union) =
                 answer!(
                     self.reduce_distributed_operation(origin, keys, |state, key| {
@@ -178,7 +177,7 @@ impl CheckState<'_> {
         if matches!(self.ty(left)?, dir::Type::Reference(_))
             && let dir::Type::Literal(dir::ScalarLiteral::String(name)) = self.ty(key)?
         {
-            let key = dir::StaticKey::Name(*name);
+            let key = dir::StaticKey::Name(name);
 
             return self.reduce_static_member_projection(origin, left, key);
         }
@@ -186,18 +185,19 @@ impl CheckState<'_> {
         // project closed structural keys
         let projected = match (self.ty(left)?, self.ty(key)?) {
             (dir::Type::Shape(shape), dir::Type::Literal(dir::ScalarLiteral::String(name))) => {
-                let key = dir::StaticKey::Name(*name);
+                let key = dir::StaticKey::Name(name);
 
-                shape
-                    .fields
+                self.shape_fields(left.module_id, shape.fields)?
                     .iter()
                     .find(|field| field.key == key)
                     .map(|field| field.ty)
             }
             (dir::Type::Tuple(tuple), dir::Type::Literal(dir::ScalarLiteral::Integer(value))) => {
-                usize::try_from(*value)
+                let elements = self.tuple_elements(left.module_id, tuple.elements)?;
+
+                usize::try_from(value)
                     .ok()
-                    .and_then(|index| tuple.elements.get(index))
+                    .and_then(|index| elements.get(index))
                     .map(|element| element.ty)
             }
             (dir::Type::Array(array), dir::Type::Literal(dir::ScalarLiteral::Integer(_))) => {
@@ -225,12 +225,11 @@ impl CheckState<'_> {
 
         // create the key type union
         let module = id.module_id;
-        let source = self.origin_source_node(origin)?;
-        let elements = self.keyof_types(module, source, keys)?;
+        let elements = self.keyof_types(module, keys)?;
         let union = match elements.as_slice() {
-            [] => self.push_type(module, dir::Type::Never, source)?,
+            [] => self.intern_type(module, dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, elements, source)?,
+            _ => self.normalized_union_type(module, elements)?,
         };
 
         Ok(Answer::Ready(Some(union)))
@@ -242,14 +241,18 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<KeySet>>> {
-        let set = match self.ty(target)?.clone() {
+        let set = match self.ty(target)? {
             // structural object keys come from fields and index signatures
             dir::Type::Shape(shape) => {
                 let mut set = KeySet::default();
-                for field in shape.fields {
+                let fields = self.shape_fields(target.module_id, shape.fields)?.to_vec();
+                for field in fields {
                     set.insert_key(field.key);
                 }
-                for signature in shape.index_signatures {
+                let index_signatures = self
+                    .shape_index_signatures(target.module_id, shape.index_signatures)?
+                    .to_vec();
+                for signature in index_signatures {
                     answer!(self.insert_index_key_type(origin, &mut set, signature.key_type)?);
                 }
 
@@ -279,7 +282,10 @@ impl CheckState<'_> {
 
             // union keys are the keys present in every arm
             dir::Type::Union(union) => {
-                let mut elements = union.elements.into_iter();
+                let mut elements = self
+                    .type_ids(target.module_id, union.elements)?
+                    .to_vec()
+                    .into_iter();
                 let Some(first) = elements.next() else {
                     return Ok(Answer::Ready(Some(KeySet::default())));
                 };
@@ -301,7 +307,10 @@ impl CheckState<'_> {
             // intersection keys are keys from any constituent
             dir::Type::Intersection(intersection) => {
                 let mut keys = KeySet::default();
-                for element in intersection.elements {
+                let elements = self
+                    .type_ids(target.module_id, intersection.elements)?
+                    .to_vec();
+                for element in elements {
                     let element = answer!(self.reduce_type_head(origin, element)?);
                     let Some(other) = answer!(self.keyof_set(origin, element)?) else {
                         return Ok(Answer::Ready(None));
@@ -394,15 +403,19 @@ impl CheckState<'_> {
         keys: &mut KeySet,
         signature: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let signature = answer!(self.reduce_type_head(origin, signature)?);
-        let dir::Type::FunctionSignature(signature) = self.ty(signature)?.clone() else {
+        let signature_id = answer!(self.reduce_type_head(origin, signature)?);
+        let dir::Type::FunctionSignature(signature) = self.ty(signature_id)? else {
             return Ok(Answer::Ready(()));
         };
-        let Some(parameter) = signature.parameters.first() else {
+        let Some(parameter) = self
+            .signature_parameters(signature_id.module_id, signature.parameters)?
+            .first()
+        else {
             return Ok(Answer::Ready(()));
         };
+        let parameter_ty = parameter.ty;
 
-        self.insert_index_key_type(origin, keys, parameter.ty)
+        self.insert_index_key_type(origin, keys, parameter_ty)
     }
 
     /// Insert the key domain represented by one closed key type.
@@ -414,10 +427,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let key_type = answer!(self.reduce_type_head(origin, key_type)?);
 
-        match self.ty(key_type)?.clone() {
+        match self.ty(key_type)? {
             // union key domains contribute every alternative
             dir::Type::Union(union) => {
-                for element in union.elements {
+                let elements = self.type_ids(key_type.module_id, union.elements)?.to_vec();
+                for element in elements {
                     answer!(self.insert_index_key_type(origin, keys, element)?);
                 }
             }
@@ -453,15 +467,14 @@ impl CheckState<'_> {
     fn keyof_types(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         keys: KeySet,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
         let mut elements = Vec::with_capacity(keys.keys.len() + keys.domains.len());
         for key in keys.keys {
-            elements.push(self.push_static_key_type(module, source, key)?);
+            elements.push(self.static_key_type(module, key)?);
         }
         for domain in keys.domains {
-            elements.push(self.key_domain_type(module, source, domain)?);
+            elements.push(self.key_domain_type(module, domain)?);
         }
 
         Ok(elements)
@@ -471,14 +484,9 @@ impl CheckState<'_> {
     fn key_domain_type(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         domain: KeyDomain,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.push_type(
-            module,
-            dir::Type::Primitive(domain.primitive_type()),
-            source,
-        )
+        self.intern_type(module, dir::Type::Primitive(domain.primitive_type()))
     }
 
     /// Return the exact static key represented by one singleton key type.
@@ -487,10 +495,10 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let key = match self.ty(ty)? {
-            dir::Type::Key(key) => *key,
-            dir::Type::Literal(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(*name),
+            dir::Type::Key(key) => key,
+            dir::Type::Literal(dir::ScalarLiteral::String(name)) => dir::StaticKey::Name(name),
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
-                let Ok(index) = usize::try_from(*value) else {
+                let Ok(index) = usize::try_from(value) else {
                     return Ok(None);
                 };
 
@@ -542,9 +550,11 @@ impl CheckState<'_> {
 
         // close the key source first
         let closed = answer!(self.reduce_type_head(origin, mapped.parameter.constraint)?);
-        let closed_type = self.ty(closed)?.clone();
+        let closed_type = self.ty(closed)?;
         let keys = match closed_type {
-            dir::Type::Union(union) => union.elements.iter().copied().collect::<SmallVec<[_; 8]>>(),
+            dir::Type::Union(union) => {
+                SmallVec::<[_; 8]>::from_slice(self.type_ids(closed.module_id, union.elements)?)
+            }
             dir::Type::Never => SmallVec::new(),
             dir::Type::Literal(_) | dir::Type::Primitive(_) => {
                 let mut single = SmallVec::new();
@@ -567,7 +577,7 @@ impl CheckState<'_> {
                 let target = answer!(self.reduce_type_head(origin, target)?);
 
                 match self.ty(target)? {
-                    dir::Type::Shape(shape) => Some(shape.clone()),
+                    dir::Type::Shape(shape) => Some((target.module_id, shape)),
                     _ => None,
                 }
             }
@@ -576,7 +586,6 @@ impl CheckState<'_> {
 
         // project each key into one field
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let mut fields = Vec::with_capacity(keys.len());
         let mut index_signatures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
@@ -585,7 +594,7 @@ impl CheckState<'_> {
             substitution.parameters.push(mapped.parameter.parameter);
             substitution.arguments.push(key);
 
-            let value = self.substitute_type(module, source, mapped.value, &substitution)?;
+            let value = self.substitute_type(module, mapped.value, &substitution)?;
             let value = match self.reduce_type_head(origin, value)? {
                 Answer::Ready(value) => value,
                 Answer::Pending(dependencies) => {
@@ -597,7 +606,7 @@ impl CheckState<'_> {
 
             let remapped = match mapped.parameter.key_remap {
                 Some(remap) => {
-                    let remap = self.substitute_type(module, source, remap, &substitution)?;
+                    let remap = self.substitute_type(module, remap, &substitution)?;
 
                     match self.reduce_type_head(origin, remap)? {
                         Answer::Ready(remap) => remap,
@@ -612,11 +621,14 @@ impl CheckState<'_> {
             };
 
             let key_field = self.static_key_from_type(key)?;
-            let carried = source_shape.as_ref().and_then(|shape| {
-                let key = key_field?;
-
-                shape.fields.iter().find(|field| field.key == key)
-            });
+            let carried = match (&source_shape, key_field) {
+                (Some((shape_module, shape)), Some(key)) => self
+                    .shape_fields(*shape_module, shape.fields)?
+                    .iter()
+                    .find(|field| field.key == key)
+                    .copied(),
+                _ => None,
+            };
             let is_optional = match mapped.modifiers.optional {
                 dir::MappedTypeModifier::Present | dir::MappedTypeModifier::Add => true,
                 dir::MappedTypeModifier::Remove => false,
@@ -659,13 +671,15 @@ impl CheckState<'_> {
             return Ok(Answer::pending(blockers));
         }
 
+        let fields = self.intern_fields(module, &fields)?;
+        let index_signatures = self.intern_index_signatures(module, &index_signatures)?;
         let shape = dir::Type::Shape(dir::ShapeType {
             fields,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
             index_signatures,
         });
-        let projected = self.push_type(module, shape, source)?;
+        let projected = self.intern_type(module, shape)?;
 
         Ok(Answer::Ready(Some(projected)))
     }

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
@@ -209,23 +210,39 @@ impl DirSnapshotBuilder<'_> {
             return;
         }
 
-        let ty = self.global_type(type_id).cloned();
-        let Some(ty) = ty else {
+        let types = if type_id.module_id == self.tree.module_id {
+            self.types.as_ref()
+        } else {
+            self.foreign_types.get(&type_id.module_id)
+        };
+        let Some(types) = types else {
+            return;
+        };
+        let Some(ty) = types.get_type_maybe(type_id.local_id) else {
             return;
         };
 
-        if let dir::Type::Instance(instance) = &ty {
-            self.add_generic_instance(
-                anchor,
-                source.map(str::to_string),
-                instance.symbol,
-                &instance.arguments,
-            );
+        // collect the instance arguments and child type ids before recursing,
+        // since the recursion needs a mutable borrow of self
+        let instance = match ty {
+            dir::Type::Instance(instance) => {
+                let arguments: SmallVec<[dir::GlobalTypeId; 8]> =
+                    SmallVec::from_slice(types.type_ids(instance.arguments));
+
+                Some((instance.symbol, arguments))
+            }
+            _ => None,
+        };
+        let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        types.for_each_child(&ty, |child| children.push(child));
+
+        if let Some((symbol, arguments)) = instance {
+            self.add_generic_instance(anchor, source.map(str::to_string), symbol, &arguments);
         }
 
-        ty.for_each_child(|child| {
+        for child in children {
             self.add_generic_instances_in_type_depth(anchor, source, child, visited);
-        });
+        }
     }
 
     /// Add one generic instance source and index row.

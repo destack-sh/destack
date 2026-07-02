@@ -454,25 +454,31 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Return the source anchor for one type.
-    pub(crate) fn anchor_type(&self, type_id: dir::LocalTypeId) -> SnapshotAnchor {
-        let Some(types) = &self.types else {
-            return SnapshotAnchor::End;
-        };
-
-        let node_id = types.get_type_source(type_id).into_global(types.module_id);
-
-        self.anchor_node(node_id)
-    }
-
-    /// Return the source anchor for one global type in this module.
+    /// Return the source anchor for one global type, derived from the type's
+    /// own identity rather than per-type provenance (which no longer exists).
+    /// Nominal references anchor at their declaration symbol; single-value
+    /// memory forms recurse into the wrapped value; everything else (tuples,
+    /// unions, scalars, foreign-module types) anchors at the end.
     pub(crate) fn anchor_global_type(&self, type_id: dir::GlobalTypeId) -> SnapshotAnchor {
         if type_id.module_id != self.tree.module_id {
             return SnapshotAnchor::End;
         }
-        let type_id = self.local_type_id(type_id);
+        let Some(types) = &self.types else {
+            return SnapshotAnchor::End;
+        };
 
-        self.anchor_type(type_id)
+        match types.get_type(type_id.local_id) {
+            dir::Type::Instance(instance) if instance.symbol.module_id == self.tree.module_id => {
+                self.anchor_symbol(instance.symbol)
+            }
+            dir::Type::Reference(reference)
+                if reference.symbol.module_id == self.tree.module_id =>
+            {
+                self.anchor_symbol(reference.symbol)
+            }
+            dir::Type::Form(form) => self.anchor_global_type(form.value),
+            _ => SnapshotAnchor::End,
+        }
     }
 
     /// Return the source anchor for one scope.
@@ -541,16 +547,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         self.node_source(declaration)
-    }
-
-    /// Return the local type id for a global type in this snapshot.
-    fn local_type_id(&self, type_id: dir::GlobalTypeId) -> dir::LocalTypeId {
-        assert_eq!(
-            type_id.module_id, self.tree.module_id,
-            "dir snapshot cannot render foreign type {type_id:?}"
-        );
-
-        type_id.local_id
     }
 
     /// Render one global type id using semantic type text when possible.
@@ -1226,21 +1222,5 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         result
-    }
-
-    /// Return one visible DIR type.
-    pub(super) fn global_type(&self, type_id: dir::GlobalTypeId) -> Option<&dir::Type> {
-        if type_id.module_id == self.tree.module_id {
-            let types = self
-                .types
-                .as_ref()
-                .unwrap_or_else(|| panic!("dir snapshot missing type table for {type_id:?}"));
-
-            return types.get_type_maybe(type_id.local_id);
-        }
-
-        self.foreign_types
-            .get(&type_id.module_id)
-            .and_then(|types| types.get_type_maybe(type_id.local_id))
     }
 }

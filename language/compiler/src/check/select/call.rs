@@ -310,7 +310,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(Some(CallCandidates::Any(candidates))))
             }
             dir::Type::Variable(variable) => {
-                let representative = self.solver.representative(*variable)?;
+                let representative = self.solver.representative(variable)?;
 
                 Ok(Answer::pending([Dependency::Variable(representative)]))
             }
@@ -429,11 +429,7 @@ impl CheckState<'_> {
         // join the variant returns into the call result
         let return_type = match returns.as_slice() {
             [single] => *single,
-            _ => self.normalized_union_type(
-                origin.module(),
-                returns,
-                self.origin_source_node(origin)?,
-            )?,
+            _ => self.normalized_union_type(origin.module(), returns)?,
         };
 
         let resolution = dir::CallResolution::new(

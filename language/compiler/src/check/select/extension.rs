@@ -171,7 +171,6 @@ impl CheckState<'_> {
             let probe = self.begin_probe();
             let result = self.match_extension_target(
                 origin,
-                module,
                 receiver,
                 template,
                 target_type,
@@ -217,7 +216,7 @@ impl CheckState<'_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::GlobalSymbolId; 4]>> {
-        let Some(instance) = self.apparent_instance(receiver)? else {
+        let Some((_, instance)) = self.apparent_instance(receiver)? else {
             return Ok(self.visible_blanket_extensions(module));
         };
         let scope = instance.symbol;
@@ -295,7 +294,6 @@ impl CheckState<'_> {
         let probe = self.begin_probe();
         let result = self.match_extension(
             origin,
-            module,
             receiver,
             extension_symbol,
             template,
@@ -374,7 +372,6 @@ impl CheckState<'_> {
 
         self.lookup_parameterized_static_extension(
             origin,
-            module,
             extension_symbol,
             &where_clauses,
             &members,
@@ -385,12 +382,10 @@ impl CheckState<'_> {
     fn lookup_parameterized_static_extension(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         extension_symbol: dir::GlobalSymbolId,
         where_clauses: &[dir::ExtensionWhereClause],
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let source = self.origin_source_node(origin)?;
         let arguments = self.extension_parameter_arguments(origin, extension_symbol)?;
 
         // require clauses that do not depend on call inference now
@@ -420,7 +415,7 @@ impl CheckState<'_> {
 
             let generic_arguments =
                 self.symbol_generic_argument_bindings(extension_symbol, &arguments)?;
-            let ty = self.resolve_type_variables(module, source, ty)?;
+            let ty = self.resolve_type_variables(origin.module(), ty)?;
             let ty = answer!(self.projected_member_type(origin, None, member.role, ty)?);
 
             candidates.push(MemberCandidate {
@@ -447,11 +442,10 @@ impl CheckState<'_> {
             return Ok(Vec::new());
         };
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
 
         let mut arguments = Vec::new();
         for parameter in self.generic_template_parameters(template) {
-            arguments.push(self.push_type(module, dir::Type::Parameter(parameter), source)?);
+            arguments.push(self.intern_type(module, dir::Type::Parameter(parameter))?);
         }
 
         Ok(arguments)
@@ -461,14 +455,11 @@ impl CheckState<'_> {
     pub(in crate::check) fn match_extension_target(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
         where_clauses: &[dir::ExtensionWhereClause],
     ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
-        let source = self.origin_source_node(origin)?;
-
         // bind extension generics from the receiver target pattern
         let substitution = match template {
             Some(template) => {
@@ -489,15 +480,15 @@ impl CheckState<'_> {
         let substitution = substitution.with_receiver(receiver);
 
         // prove the receiver satisfies the completed target
-        let target_type = self.substitute_type(module, source, target_type, &substitution)?;
+        let target_type = self.substitute_type(origin.module(), target_type, &substitution)?;
         if !answer!(self.decide_relation(origin, Relation::Assignable, receiver, target_type,)?) {
             return Ok(Answer::Ready(None));
         }
 
         // require every where clause to hold
         for clause in where_clauses {
-            let left = self.substitute_type(module, source, clause.left, &substitution)?;
-            let right = self.substitute_type(module, source, clause.right, &substitution)?;
+            let left = self.substitute_type(origin.module(), clause.left, &substitution)?;
+            let right = self.substitute_type(origin.module(), clause.right, &substitution)?;
 
             if !answer!(self.decide_relation(origin, Relation::Satisfies, left, right)?) {
                 return Ok(Answer::Ready(None));
@@ -511,12 +502,10 @@ impl CheckState<'_> {
     pub(in crate::check) fn extension_member_candidates(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         extension_symbol: dir::GlobalSymbolId,
         substitution: &TypeSubstitution,
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<Vec<MemberCandidate>>> {
-        let source = self.origin_source_node(origin)?;
         let mut candidates = Vec::new();
 
         // substitute extension parameters in each matching member
@@ -525,8 +514,8 @@ impl CheckState<'_> {
                 continue;
             };
 
-            let ty = self.substitute_type(module, source, ty, substitution)?;
-            let ty = self.resolve_type_variables(module, source, ty)?;
+            let ty = self.substitute_type(origin.module(), ty, substitution)?;
+            let ty = self.resolve_type_variables(origin.module(), ty)?;
             let ty = member.value_type(self, ty)?;
             let ty =
                 match self.projected_member_type(origin, substitution.receiver, member.role, ty)? {
@@ -537,9 +526,9 @@ impl CheckState<'_> {
             // substitute static projections through the same extension instance
             let written = match member.symbol.and_then(|symbol| self.static_value(symbol)) {
                 Some(written) => {
-                    let written = self.substitute_type(module, source, written, substitution)?;
+                    let written = self.substitute_type(origin.module(), written, substitution)?;
 
-                    Some(self.resolve_type_variables(module, source, written)?)
+                    Some(self.resolve_type_variables(origin.module(), written)?)
                 }
                 written => written,
             };
@@ -565,7 +554,6 @@ impl CheckState<'_> {
     pub(in crate::check) fn match_extension(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         template: Option<GenericTemplateId>,
@@ -575,7 +563,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
         let Some(substitution) = answer!(self.match_extension_target(
             origin,
-            module,
             receiver,
             template,
             target_type,
@@ -586,7 +573,6 @@ impl CheckState<'_> {
 
         let candidates = answer!(self.extension_member_candidates(
             origin,
-            module,
             extension_symbol,
             &substitution,
             members,

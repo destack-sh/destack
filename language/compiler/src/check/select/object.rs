@@ -195,8 +195,7 @@ impl CheckState<'_> {
                     if let Some(pattern) =
                         pattern.filter(|pattern| self.is_defaulted_pattern(module, *pattern))
                     {
-                        let undefined =
-                            self.push_type(module, dir::Type::Undefined, field.into_any())?;
+                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
                         self.project_pattern_input(
                             flow,
@@ -237,11 +236,7 @@ impl CheckState<'_> {
                     if let Some(symbol) =
                         self.module(module).declaration_symbol((*field).into_any())
                     {
-                        let input = self.pattern_binding_type(
-                            symbol,
-                            (*field).into_any(),
-                            projected_value,
-                        )?;
+                        let input = self.pattern_binding_type(symbol, projected_value)?;
 
                         self.bind_symbol_type(symbol, input)?;
                     }
@@ -363,8 +358,7 @@ impl CheckState<'_> {
                     };
 
                     if self.is_defaulted_assign_pattern(module, pattern) {
-                        let undefined =
-                            self.push_type(module, dir::Type::Undefined, field.into_any())?;
+                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
                         self.project_pattern_input(
                             flow,
@@ -509,14 +503,14 @@ impl CheckState<'_> {
                 },
             })
             .collect();
-        let source = self.origin_source_node(origin)?;
+        let fields = self.intern_fields(module, &fields)?;
         let shape = dir::Type::Shape(dir::ShapeType {
             fields,
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
         });
-        let ty = self.push_type(module, shape, source)?;
+        let ty = self.intern_type(module, shape)?;
 
         Ok(Answer::Ready(Some(dir::Projection::ObjectRest {
             fields: copied,

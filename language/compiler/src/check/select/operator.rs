@@ -45,7 +45,6 @@ impl CheckState<'_> {
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
-        let source = self.origin_source_node(origin)?;
 
         // identity and logic produce builtin results directly
         let nullish_operand = matches!(self.ty(left)?, dir::Type::Null | dir::Type::Undefined)
@@ -64,25 +63,17 @@ impl CheckState<'_> {
                     self.report_invalid_strict_equality(origin, left, right)?;
                 }
 
-                Some(self.push_type(
-                    module,
-                    dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                    source,
-                )?)
+                Some(self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?)
             }
             // nullish and same-kind scalar equality produce booleans
             dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
                 if nullish_operand || comparable =>
             {
-                Some(self.push_type(
-                    module,
-                    dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                    source,
-                )?)
+                Some(self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?)
             }
             // logical joins produce the union of their operands
             dir::BinaryOperator::And | dir::BinaryOperator::Or => {
-                Some(self.normalized_union_type(module, [left, right], source)?)
+                Some(self.normalized_union_type(module, [left, right])?)
             }
             // try-coalesce opens the carrier and joins the alternate
             dir::BinaryOperator::Coalesce => {
@@ -91,7 +82,7 @@ impl CheckState<'_> {
                     dir::TypeOperation::TryOutput { value: left },
                 )?);
 
-                Some(self.normalized_union_type(module, [output, right], source)?)
+                Some(self.normalized_union_type(module, [output, right])?)
             }
             _ => None,
         };
@@ -157,7 +148,6 @@ impl CheckState<'_> {
         let module = node.module_id;
         let node = node.into_any();
         let origin = Origin::Node(node);
-        let source = self.origin_source_node(origin)?;
         let operand_site = self.node_site(operand_node.into_global_any(module))?;
 
         // increments rewrite builtin numeric places by one
@@ -200,11 +190,8 @@ impl CheckState<'_> {
 
         // builtin logical not produces a boolean
         if matches!(operator, dir::UnaryOperator::Not) {
-            let result = self.push_type(
-                module,
-                dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                source,
-            )?;
+            let result =
+                self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
             return self.commit_builtin_unary_operator(node, operator, result);
         }
@@ -267,8 +254,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<ComparableKind>> {
         let root = self.settled_root(ty)?;
         let kind = match self.ty(root)? {
-            dir::Type::Literal(literal) => comparable_literal_kind(literal),
-            dir::Type::Primitive(primitive) => comparable_primitive_kind(primitive),
+            dir::Type::Literal(literal) => comparable_literal_kind(&literal),
+            dir::Type::Primitive(primitive) => comparable_primitive_kind(&primitive),
             dir::Type::Range(_) => Some(ComparableKind::Integer),
             dir::Type::EnumMember(member) => Some(ComparableKind::Enum(member.owner)),
             dir::Type::Instance(instance)
@@ -280,7 +267,8 @@ impl CheckState<'_> {
                 Some(ComparableKind::Enum(root))
             }
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.type_ids(root.module_id, union.elements)?);
                 let mut shared: Option<ComparableKind> = None;
                 for element in elements {
                     let Some(kind) = self.comparable_operand_kind(element)? else {
@@ -344,12 +332,8 @@ impl CheckState<'_> {
         // comparisons produce booleans over the joined operand type
         if is_comparison {
             let module = origin.module();
-            let source = self.origin_source_node(origin)?;
-            let boolean = self.push_type(
-                module,
-                dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                source,
-            )?;
+            let boolean =
+                self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
             return Ok(Answer::Ready(Some((boolean, joined))));
         }
@@ -395,11 +379,8 @@ impl CheckState<'_> {
                     _ => return Ok(Answer::Ready(Some(left))),
                 };
                 let module = origin.module();
-                let source = self.origin_source_node(origin)?;
 
-                Ok(Answer::Ready(Some(
-                    self.push_type(module, widened, source)?,
-                )))
+                Ok(Answer::Ready(Some(self.intern_type(module, widened)?)))
             }
             (true, false) => {
                 let fits = self.decide_relation(origin, Relation::Assignable, left, right)?;
@@ -477,13 +458,8 @@ impl CheckState<'_> {
             }
             OperatorExpressionResult::Boolean => {
                 let module = origin.module();
-                let source = self.origin_source_node(origin)?;
 
-                self.push_type(
-                    module,
-                    dir::Type::Primitive(dir::PrimitiveType::Boolean),
-                    source,
-                )?
+                self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?
             }
         };
 

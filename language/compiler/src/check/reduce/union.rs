@@ -42,19 +42,16 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let elements = self.union_elements(elements)?;
 
         match elements.as_slice() {
             [single] => Ok(*single),
-            _ => self.push_type(
-                module,
-                dir::Type::Union(dir::UnionType {
-                    elements: elements.into_iter().collect(),
-                }),
-                source,
-            ),
+            _ => {
+                let elements = self.intern_type_ids(module, &elements)?;
+
+                self.intern_type(module, dir::Type::Union(dir::UnionType { elements }))
+            }
         }
     }
 
@@ -69,9 +66,9 @@ impl CheckState<'_> {
 
             // flatten nested unions into one element list
             let elements = match self.ty(element)? {
-                dir::Type::Union(union) => {
-                    union.elements.iter().copied().collect::<SmallVec<[_; 4]>>()
-                }
+                dir::Type::Union(union) => SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(element.module_id, union.elements)?,
+                ),
                 _ => SmallVec::from_slice(&[element]),
             };
 
@@ -131,8 +128,8 @@ impl CheckState<'_> {
         let decision = match (self.ty(left)?, self.ty(right)?) {
             (left, right) if left == right => true,
             (_, dir::Type::Never) => true,
-            (target, dir::Type::Literal(literal)) => literal.widens_to(target),
-            (target, dir::Type::Range(range)) => range.widens_to(target),
+            (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
+            (target, dir::Type::Range(range)) => range.widens_to(&target),
             _ => false,
         };
 
@@ -144,7 +141,6 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<Answer<Option<NullishSplit>>> {
         let reduced = answer!(self.reduce_type_head(origin, ty)?);
         let dir::Type::Union(union) = self.ty(reduced)? else {
@@ -152,7 +148,8 @@ impl CheckState<'_> {
         };
 
         // partition the union into accepted and rejected elements
-        let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+        let elements =
+            SmallVec::<[_; 4]>::from_slice(self.type_ids(reduced.module_id, union.elements)?);
         let mut has_null = false;
         let mut has_undefined = false;
         let mut non_nullish = Vec::with_capacity(elements.len());
@@ -169,9 +166,9 @@ impl CheckState<'_> {
 
         // collapse the accepted elements back into one type
         let value = match non_nullish.as_slice() {
-            [] => self.push_type(ty.module_id, dir::Type::Never, source)?,
+            [] => self.intern_type(ty.module_id, dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(ty.module_id, non_nullish, source)?,
+            _ => self.normalized_union_type(ty.module_id, non_nullish)?,
         };
         let rejected = match (has_null, has_undefined) {
             (true, true) => NullishPart::NullOrUndefined,
@@ -194,7 +191,6 @@ impl CheckState<'_> {
         F: FnMut(&mut Self, dir::GlobalTypeId) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>>,
     {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let mut reduced = Vec::with_capacity(elements.len());
 
         // reduce each arm independently
@@ -205,7 +201,7 @@ impl CheckState<'_> {
             reduced.push(element);
         }
 
-        let union = self.normalized_union_type(module, reduced, source)?;
+        let union = self.normalized_union_type(module, reduced)?;
 
         Ok(Answer::Ready(Some(union)))
     }

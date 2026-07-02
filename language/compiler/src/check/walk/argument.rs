@@ -32,7 +32,7 @@ impl WalkState<'_, '_> {
         }
 
         let Some(value) = argument.value() else {
-            let error = self.push_type(dir::Type::Error, id.into_any())?;
+            let error = self.intern_type(dir::Type::Error)?;
             self.commit_node_type(id, error)?;
 
             return Ok(());
@@ -104,7 +104,7 @@ impl WalkState<'_, '_> {
             // keep the argument arity visible to solve
             dir::GenericArgument::Error => (
                 None,
-                self.push_type(dir::Type::Error, id.into_any())?,
+                self.intern_type(dir::Type::Error)?,
                 id.into_global_any(self.module),
             ),
         };

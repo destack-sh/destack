@@ -10,8 +10,7 @@ impl CheckState<'_> {
         origin: Origin,
         operation: dir::TypeOperation,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let source = self.origin_source_node(origin)?;
-        let ty = self.push_type(origin.module(), dir::Type::Operation(operation), source)?;
+        let ty = self.intern_type(origin.module(), dir::Type::Operation(operation))?;
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         Ok(Answer::Ready(ty))

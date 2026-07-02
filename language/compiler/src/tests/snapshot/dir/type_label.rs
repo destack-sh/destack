@@ -12,7 +12,7 @@ impl DirSnapshotBuilder<'_> {
         // resolve the canonical type slot
         let ty = types.get_type(type_id);
 
-        self.type_label_from_value(types, ty)
+        self.type_label_from_value(types, &ty)
     }
 
     /// Return one type text label.
@@ -54,12 +54,14 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::FunctionPointer(function) => {
                 self.function_pointer_type_label(types, function)
             }
-            dir::Type::Union(union) => self.type_id_list_label(types, &union.elements, " | "),
-            dir::Type::Variable(variable) => format!("?{}", variable.index),
+            dir::Type::Union(union) => {
+                self.type_id_list_label(types, types.type_ids(union.elements), " | ")
+            }
+            dir::Type::Variable(variable) => format!("?{}", variable.0),
             dir::Type::Memory(literal) => self.memory_literal_type_label(literal),
             dir::Type::Static(static_id) => self.global_static_label(*static_id),
             dir::Type::Intersection(intersection) => {
-                self.type_id_list_label(types, &intersection.elements, " & ")
+                self.type_id_list_label(types, types.type_ids(intersection.elements), " & ")
             }
         }
     }
@@ -80,8 +82,8 @@ impl DirSnapshotBuilder<'_> {
         function: &dir::FunctionType,
     ) -> String {
         let signature = self.function_signature_type(types, function.signature);
-        let parameters = self.function_parameter_tuple_label(types, signature);
-        let return_type = self.function_return_type_label(types, signature);
+        let parameters = self.function_parameter_tuple_label(types, &signature);
+        let return_type = self.function_return_type_label(types, &signature);
 
         format!("Function<{parameters}, {return_type}>")
     }
@@ -93,18 +95,18 @@ impl DirSnapshotBuilder<'_> {
         function: &dir::FunctionPointerType,
     ) -> String {
         let signature = self.function_signature_type(types, function.signature);
-        let parameters = self.function_parameter_tuple_label(types, signature);
-        let return_type = self.function_return_type_label(types, signature);
+        let parameters = self.function_parameter_tuple_label(types, &signature);
+        let return_type = self.function_return_type_label(types, &signature);
 
         format!("FunctionPointer<{parameters}, {return_type}>")
     }
 
     /// Return the function signature type referenced by one callable representation.
-    fn function_signature_type<'types>(
+    fn function_signature_type(
         &self,
-        types: &'types dir::TypeTable<'_>,
+        types: &dir::TypeTable<'_>,
         signature_id: dir::GlobalTypeId,
-    ) -> &'types dir::FunctionSignatureType {
+    ) -> dir::FunctionSignatureType {
         assert_eq!(
             signature_id.module_id, types.module_id,
             "callable signature must belong to the snapshot module"
@@ -123,7 +125,8 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         signature: &dir::FunctionSignatureType,
     ) -> String {
-        let mut parameters = self.function_parameter_list_label(types, &signature.parameters, ", ");
+        let mut parameters =
+            self.function_parameter_list_label(types, types.parameters(signature.parameters), ", ");
         if signature.parameters.len() == 1 {
             parameters.push(',');
         }
@@ -176,12 +179,12 @@ impl DirSnapshotBuilder<'_> {
             return self.reference_symbol_label(instance.symbol);
         }
 
-        if let Some(label) = self.collection_type_label(types, instance.symbol, &instance.arguments)
-        {
+        let arguments = types.type_ids(instance.arguments);
+        if let Some(label) = self.collection_type_label(types, instance.symbol, arguments) {
             return label;
         }
 
-        let arguments = self.type_id_list_label(types, &instance.arguments, ", ");
+        let arguments = self.type_id_list_label(types, arguments, ", ");
         let symbol = self.reference_symbol_label(instance.symbol);
 
         format!("{symbol}<{arguments}>")
@@ -216,7 +219,7 @@ impl DirSnapshotBuilder<'_> {
             return format!("{owner}.{key}");
         }
 
-        let arguments = self.type_id_list_label(types, &member.arguments, ", ");
+        let arguments = self.type_id_list_label(types, types.type_ids(member.arguments), ", ");
 
         format!("{owner}.{key}<{arguments}>")
     }
@@ -454,9 +457,11 @@ impl DirSnapshotBuilder<'_> {
         let mut result = String::from("`");
 
         // interleave literal parts with type spans
-        for (index, string) in template.strings.iter().enumerate() {
+        let strings = types.strings(template.strings);
+        let spans = types.type_ids(template.spans);
+        for (index, string) in strings.iter().enumerate() {
             result.push_str(self.strings.get(*string));
-            if let Some(span) = template.spans.get(index) {
+            if let Some(span) = spans.get(index) {
                 let span = self.type_id_label(types, *span);
                 result.push_str(&format!("${{{span}}}"));
             }
@@ -535,7 +540,7 @@ impl DirSnapshotBuilder<'_> {
     /// Return one tuple type label.
     fn tuple_type_label(&self, types: &dir::TypeTable<'_>, tuple: &dir::TupleType) -> String {
         // render tuple elements with labels and modifiers
-        let mut elements = self.tuple_element_list_label(types, &tuple.elements);
+        let mut elements = self.tuple_element_list_label(types, types.elements(tuple.elements));
 
         match tuple.form {
             dir::TupleForm::Tuple => {
@@ -591,23 +596,23 @@ impl DirSnapshotBuilder<'_> {
     /// Return one shape type label.
     fn shape_type_label(&self, types: &dir::TypeTable<'_>, shape: &dir::ShapeType) -> String {
         // render fields first, then signatures
-        let mut fields = shape
-            .fields
+        let mut fields = types
+            .fields(shape.fields)
             .iter()
             .map(|field| self.type_field_label(types, field))
             .collect::<Vec<_>>();
 
-        for signature in &shape.call_signatures {
+        for signature in types.type_ids(shape.call_signatures) {
             let signature = self.type_id_label(types, *signature);
             fields.push(format!("<call>: {signature}"));
         }
 
-        for signature in &shape.construct_signatures {
+        for signature in types.type_ids(shape.construct_signatures) {
             let signature = self.type_id_label(types, *signature);
             fields.push(format!("<new>: {signature}"));
         }
 
-        for signature in &shape.index_signatures {
+        for signature in types.index_signatures(shape.index_signatures) {
             fields.push(self.index_signature_label(types, signature));
         }
 
@@ -630,7 +635,7 @@ impl DirSnapshotBuilder<'_> {
         if field.ty.module_id == types.module_id
             && let dir::Type::FunctionSignature(function) = types.get_type(field.ty.local_id)
         {
-            let signature = self.method_signature_label(types, function);
+            let signature = self.method_signature_label(types, &function);
 
             format!("{readonly}{key}{optional}{signature}")
         }
@@ -678,7 +683,8 @@ impl DirSnapshotBuilder<'_> {
     ) -> String {
         // render method generics and parameters
         let generics = self.function_generic_label(types, function);
-        let parameters = self.function_parameter_list_label(types, &function.parameters, ", ");
+        let parameters =
+            self.function_parameter_list_label(types, types.parameters(function.parameters), ", ");
 
         // render the result type
         let return_type = function
@@ -702,8 +708,11 @@ impl DirSnapshotBuilder<'_> {
             .map(|ty| format!("this: {}", self.type_id_label(types, ty)));
 
         // merge this with ordinary parameters
-        let parameters =
-            self.function_parameters_label(types, this_parameter, &function.parameters);
+        let parameters = self.function_parameters_label(
+            types,
+            this_parameter,
+            types.parameters(function.parameters),
+        );
 
         // render the result and function modifiers
         let return_type = function

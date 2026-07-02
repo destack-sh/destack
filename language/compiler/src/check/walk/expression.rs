@@ -48,7 +48,7 @@ impl WalkState<'_, '_> {
                         self.commit_node_type(id, ty)?;
                     }
                 } else {
-                    let void = self.push_type(dir::Type::Void, id.into_any())?;
+                    let void = self.intern_type(dir::Type::Void)?;
                     self.commit_node_type(id, void)?;
                 }
             }
@@ -68,7 +68,7 @@ impl WalkState<'_, '_> {
                         self.walk_dependency_item(*item, self.tree.get(*item))?;
                     }
                 }
-                let void = self.push_type(dir::Type::Void, id.into_any())?;
+                let void = self.intern_type(dir::Type::Void)?;
                 self.commit_node_type(id, void)?;
             }
             // export { item } from "module"
@@ -76,7 +76,7 @@ impl WalkState<'_, '_> {
                 for item in items {
                     self.walk_dependency_item(*item, self.tree.get(*item))?;
                 }
-                let void = self.push_type(dir::Type::Void, id.into_any())?;
+                let void = self.intern_type(dir::Type::Void)?;
                 self.commit_node_type(id, void)?;
             }
             // let x = value
@@ -95,7 +95,7 @@ impl WalkState<'_, '_> {
                     )?;
                     self.mark_declarator_assigned(self.tree.get(*declarator), *is_ambient);
                 }
-                let void = self.push_type(dir::Type::Void, id.into_any())?;
+                let void = self.intern_type(dir::Type::Void)?;
                 self.commit_node_type(id, void)?;
             }
             // using x = value
@@ -109,7 +109,7 @@ impl WalkState<'_, '_> {
                     )?;
                     self.mark_declarator_assigned(self.tree.get(*declarator), false);
                 }
-                let void = self.push_type(dir::Type::Void, id.into_any())?;
+                let void = self.intern_type(dir::Type::Void)?;
                 self.commit_node_type(id, void)?;
             }
             // let pattern = value else { return }
@@ -183,13 +183,13 @@ impl WalkState<'_, '_> {
                 } else {
                     None
                 };
-                let never = self.push_type(dir::Type::Never, id.into_any())?;
+                let never = self.intern_type(dir::Type::Never)?;
                 self.commit_node_type(id, never)?;
                 self.break_to_control_target(id.into_any(), label, value)?;
             }
             // continue
             dir::Expression::Continue { label } => {
-                let never = self.push_type(dir::Type::Never, id.into_any())?;
+                let never = self.intern_type(dir::Type::Never)?;
                 self.commit_node_type(id, never)?;
                 self.continue_to_control_target(id.into_any(), *label);
             }
@@ -204,13 +204,13 @@ impl WalkState<'_, '_> {
             // throw value
             dir::Expression::Throw { value } => {
                 self.walk_expression(*value, self.tree.get(*value))?;
-                let never = self.push_type(dir::Type::Never, id.into_any())?;
+                let never = self.intern_type(dir::Type::Never)?;
                 self.commit_node_type(id, never)?;
             }
             // return value
             dir::Expression::Return { value } => {
                 let value = *value;
-                let never = self.push_type(dir::Type::Never, id.into_any())?;
+                let never = self.intern_type(dir::Type::Never)?;
                 self.commit_node_type(id, never)?;
 
                 if let Some(value) = value {
@@ -265,7 +265,7 @@ impl WalkState<'_, '_> {
                         self.commit_node_type(id, resumed)?;
                     }
                     None => {
-                        let void = self.push_type(dir::Type::Void, id.into_any())?;
+                        let void = self.intern_type(dir::Type::Void)?;
                         self.commit_node_type(id, void)?;
                     }
                 }
@@ -285,7 +285,7 @@ impl WalkState<'_, '_> {
                     None => {
                         self.check
                             .report_this_outside_receiver(self.module, id.into_any());
-                        let error = self.push_type(dir::Type::Error, id.into_any())?;
+                        let error = self.intern_type(dir::Type::Error)?;
                         self.commit_node_type(id, error)?;
                     }
                 }
@@ -303,23 +303,19 @@ impl WalkState<'_, '_> {
                     None => {
                         self.check
                             .report_super_outside_class(self.module, id.into_any());
-                        let error = self.push_type(dir::Type::Error, id.into_any())?;
+                        let error = self.intern_type(dir::Type::Error)?;
                         self.commit_node_type(id, error)?;
                     }
                 }
             }
             // import.meta
             dir::Expression::ImportMeta => {
-                let meta = self.language_type_reference(
-                    id.into_any(),
-                    dir::LanguageItem::ImportMeta,
-                    Vec::new(),
-                )?;
+                let meta = self.language_type_reference(dir::LanguageItem::ImportMeta, &[])?;
                 self.commit_node_type(id, meta)?;
             }
             // import.source resolves to its module source descriptor at lowering
             dir::Expression::ImportSource => {
-                let source = self.push_type(dir::Type::Error, id.into_any())?;
+                let source = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, source)?;
             }
             // #name, debugger, missing, stub, damaged nodes
@@ -732,7 +728,7 @@ impl WalkState<'_, '_> {
         self.mark_declarator_assigned(self.tree.get(declarator), false);
         self.narrow_declarator_match(declarator)?;
 
-        let void = self.push_type(dir::Type::Void, id.into_any())?;
+        let void = self.intern_type(dir::Type::Void)?;
         self.commit_node_type(id, void)?;
 
         Ok(())
@@ -870,7 +866,7 @@ impl WalkState<'_, '_> {
         // collect normal exit through false condition
         self.narrow_expression(condition, ConditionBranch::False)?;
         let normal_flow = self.collect_flow_branch(before_body);
-        let fallthrough = self.push_type(dir::Type::Void, id.into_any())?;
+        let fallthrough = self.intern_type(dir::Type::Void)?;
         let (result, mut branches) = self.leave_control_target(Some(fallthrough))?;
         self.commit_node_type(id, result)?;
 
@@ -915,7 +911,7 @@ impl WalkState<'_, '_> {
 
         // collect normal loop exit
         let normal_flow = self.collect_flow_branch(before_body);
-        let fallthrough = self.push_type(dir::Type::Void, id.into_any())?;
+        let fallthrough = self.intern_type(dir::Type::Void)?;
         let (_, mut branches) = self.leave_control_target(Some(fallthrough))?;
 
         // merge break branches with normal exit
@@ -979,7 +975,7 @@ impl WalkState<'_, '_> {
             None
         };
         let fallthrough = match condition {
-            Some(_) => Some(self.push_type(dir::Type::Void, id.into_any())?),
+            Some(_) => Some(self.intern_type(dir::Type::Void)?),
             None => None,
         };
         let (result, mut branches) = self.leave_control_target(fallthrough)?;
@@ -1444,10 +1440,7 @@ impl WalkState<'_, '_> {
         condition: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Expectation> {
         let origin = Origin::Node(condition.into_global_any(self.module));
-        let boolean = self.push_type(
-            dir::Type::Primitive(dir::PrimitiveType::Boolean),
-            condition.into_any(),
-        )?;
+        let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
         Ok(Expectation::assignable(
             boolean,

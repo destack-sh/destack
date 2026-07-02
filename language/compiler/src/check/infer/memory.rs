@@ -17,26 +17,24 @@ impl CheckState<'_> {
 
         // preserve immutable move syntax as a readonly owned value
         let value = if mutability == Some(dir::Mutability::Immutable) {
-            self.push_type(
+            self.intern_type(
                 module,
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
                     value,
                 }),
-                node.local_id.into_any(),
             )?
         } else {
             value
         };
 
         // wrap the moved value in owned form
-        let owned = self.push_type(
+        let owned = self.intern_type(
             module,
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Owned,
                 value,
             }),
-            node.local_id.into_any(),
         )?;
         self.commit_node_type(node.into_any(), owned)?;
 
@@ -60,20 +58,18 @@ impl CheckState<'_> {
             Some(mutability) => mutability.access(),
             None => dir::Access::Mutable,
         };
-        let access = self.push_type(
+        let access = self.intern_type(
             node.module_id,
             dir::Type::Memory(dir::MemoryLiteral::Access(access)),
-            node.local_id.into_any(),
         )?;
 
         // wrap the borrowed value and reduce redundant memory forms
-        let borrowed = self.push_type(
+        let borrowed = self.intern_type(
             node.module_id,
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Borrowed { lifetime, access },
                 value,
             }),
-            node.local_id.into_any(),
         )?;
         let borrowed = answer!(self.reduce_type_head(Origin::Node(node.into_any()), borrowed)?);
         self.commit_node_type(node.into_any(), borrowed)?;

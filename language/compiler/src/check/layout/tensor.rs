@@ -14,15 +14,17 @@ impl LayoutQuery<'_, '_> {
         owner: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::Layout>>> {
-        let [element, count] = instance.arguments.as_slice() else {
+        let arguments = self.check.type_ids(owner, instance.arguments)?;
+        let [element, count] = arguments else {
             return Ok(Answer::Ready(None));
         };
+        let (element, count) = (*element, *count);
 
         let source = self
             .check
             .origin_source_node(self.origin)?
             .into_global(self.origin.module());
-        let Some(layout_id) = answer!(self.slot_layout(owner, *element, source)?) else {
+        let Some(layout_id) = answer!(self.slot_layout(owner, element, source)?) else {
             return Ok(Answer::Ready(None));
         };
         let (element_size, element_alignment, element_niche) = {
@@ -30,9 +32,9 @@ impl LayoutQuery<'_, '_> {
             (layout.size, layout.alignment, layout.niche)
         };
         let origin = self.origin;
-        let count = answer!(self.check.reduce_type_head(origin, *count)?);
+        let count = answer!(self.check.reduce_type_head(origin, count)?);
         let lanes = match self.check.ty(count)? {
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => u32::try_from(*value).ok(),
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => u32::try_from(value).ok(),
             _ => None,
         };
         let Some(lanes) = lanes else {
@@ -43,7 +45,7 @@ impl LayoutQuery<'_, '_> {
 
         Ok(Answer::Ready(Some(dir::Layout {
             shape: dir::LayoutShape::Vector(dir::ElementLayout {
-                element: *element,
+                element,
                 stride,
                 count: lanes,
             }),
@@ -56,23 +58,25 @@ impl LayoutQuery<'_, '_> {
     /// Return normalized layout input for one `Tensor<T, Rank, F, P>` instance.
     pub(super) fn tensor_layout_input(
         &mut self,
+        owner: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<TensorLayoutInput>>> {
-        let [element, rank, format, placement] = instance.arguments.as_slice() else {
+        let &[element, rank, format, placement] = self.check.type_ids(owner, instance.arguments)?
+        else {
             return Ok(Answer::Ready(None));
         };
-        let Some(rank) = answer!(self.static_u32(*rank)?) else {
+        let Some(rank) = answer!(self.static_u32(rank)?) else {
             return Ok(Answer::Ready(None));
         };
-        let Some(format) = answer!(self.tensor_format(*format)?) else {
+        let Some(format) = answer!(self.tensor_format(format)?) else {
             return Ok(Answer::Ready(None));
         };
-        let Some(placement) = answer!(self.tensor_placement(*placement)?) else {
+        let Some(placement) = answer!(self.tensor_placement(placement)?) else {
             return Ok(Answer::Ready(None));
         };
 
         Ok(Answer::Ready(Some(TensorLayoutInput {
-            element: *element,
+            element,
             rank,
             format,
             placement,
@@ -82,23 +86,26 @@ impl LayoutQuery<'_, '_> {
     /// Return normalized layout input for one `TensorView<T, Rank, F, P, A>` instance.
     pub(super) fn tensor_view_layout_input(
         &mut self,
+        owner: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<TensorViewLayoutInput>>> {
-        let [element, rank, format, placement, ..] = instance.arguments.as_slice() else {
+        let &[element, rank, format, placement, ..] =
+            self.check.type_ids(owner, instance.arguments)?
+        else {
             return Ok(Answer::Ready(None));
         };
-        let Some(rank) = answer!(self.static_u32(*rank)?) else {
+        let Some(rank) = answer!(self.static_u32(rank)?) else {
             return Ok(Answer::Ready(None));
         };
-        let Some(format) = answer!(self.tensor_view_format(*format)?) else {
+        let Some(format) = answer!(self.tensor_view_format(format)?) else {
             return Ok(Answer::Ready(None));
         };
-        let Some(placement) = answer!(self.tensor_placement(*placement)?) else {
+        let Some(placement) = answer!(self.tensor_placement(placement)?) else {
             return Ok(Answer::Ready(None));
         };
 
         Ok(Answer::Ready(Some(TensorViewLayoutInput {
-            element: *element,
+            element,
             rank,
             format,
             placement,
@@ -128,7 +135,8 @@ impl LayoutQuery<'_, '_> {
         &mut self,
         format: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::TensorViewFormat>>> {
-        let Some(instance) = answer!(self.language_item_instance(format)?) else {
+        let Some((instance_module, instance)) = answer!(self.language_item_instance(format)?)
+        else {
             return Ok(Answer::Ready(None));
         };
         let Some(item) = self.check.language_item(instance.symbol)? else {
@@ -136,7 +144,8 @@ impl LayoutQuery<'_, '_> {
         };
         let format = match item {
             dir::LanguageItem::TensorDense => {
-                let Some(order) = answer!(self.tensor_dimension_order(&instance)?) else {
+                let Some(order) = answer!(self.tensor_dimension_order(instance_module, &instance)?)
+                else {
                     return Ok(Answer::Ready(None));
                 };
 
@@ -154,7 +163,8 @@ impl LayoutQuery<'_, '_> {
         &mut self,
         placement: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::TensorSharding>>> {
-        let Some(instance) = answer!(self.language_item_instance(placement)?) else {
+        let Some((instance_module, instance)) = answer!(self.language_item_instance(placement)?)
+        else {
             return Ok(Answer::Ready(None));
         };
         let Some(item) = self.check.language_item(instance.symbol)? else {
@@ -163,7 +173,8 @@ impl LayoutQuery<'_, '_> {
         let placement = match item {
             dir::LanguageItem::TensorUnsharded => dir::TensorSharding::Unsharded,
             dir::LanguageItem::TensorShardingAxes => {
-                let Some(axes) = answer!(self.tensor_placement_axes(&instance)?) else {
+                let Some(axes) = answer!(self.tensor_placement_axes(instance_module, &instance)?)
+                else {
                     return Ok(Answer::Ready(None));
                 };
 
@@ -178,11 +189,13 @@ impl LayoutQuery<'_, '_> {
     /// Return normalized sharding axes from one `Sharding<...Axes>` instance.
     pub(super) fn tensor_placement_axes(
         &mut self,
+        module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<Vec<dir::TensorShardingAxis>>>> {
-        let mut axes = Vec::with_capacity(instance.arguments.len());
+        let arguments = self.check.type_ids(module, instance.arguments)?.to_vec();
+        let mut axes = Vec::with_capacity(arguments.len());
 
-        for axis in instance.arguments.iter().copied() {
+        for axis in arguments {
             let Some(axis) = answer!(self.tensor_placement_axis(axis)?) else {
                 return Ok(Answer::Ready(None));
             };
@@ -198,7 +211,7 @@ impl LayoutQuery<'_, '_> {
         &mut self,
         axis: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::TensorShardingAxis>>> {
-        let Some(instance) = answer!(self.language_item_instance(axis)?) else {
+        let Some((instance_module, instance)) = answer!(self.language_item_instance(axis)?) else {
             return Ok(Answer::Ready(None));
         };
         let Some(item) = self.check.language_item(instance.symbol)? else {
@@ -206,7 +219,12 @@ impl LayoutQuery<'_, '_> {
         };
         let axis = match item {
             dir::LanguageItem::TensorShard => {
-                let Some(axis) = instance.arguments.first().copied() else {
+                let Some(axis) = self
+                    .check
+                    .type_ids(instance_module, instance.arguments)?
+                    .first()
+                    .copied()
+                else {
                     return Ok(Answer::Ready(None));
                 };
                 let Some(axis) = answer!(self.static_i32(axis)?) else {
@@ -217,7 +235,8 @@ impl LayoutQuery<'_, '_> {
             }
             dir::LanguageItem::TensorReplicate => dir::TensorShardingAxis::Replicate,
             dir::LanguageItem::TensorPartial => {
-                let Some(reduction) = answer!(self.tensor_reduction(&instance)?) else {
+                let Some(reduction) = answer!(self.tensor_reduction(instance_module, &instance)?)
+                else {
                     return Ok(Answer::Ready(None));
                 };
 
@@ -232,9 +251,15 @@ impl LayoutQuery<'_, '_> {
     /// Return the normalized reduction carried by one `Partial<R>` instance.
     pub(super) fn tensor_reduction(
         &mut self,
+        module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::TensorReduction>>> {
-        let Some(reduction) = instance.arguments.first().copied() else {
+        let Some(reduction) = self
+            .check
+            .type_ids(module, instance.arguments)?
+            .first()
+            .copied()
+        else {
             return Ok(Answer::Ready(None));
         };
         let origin = self.origin;
@@ -242,9 +267,9 @@ impl LayoutQuery<'_, '_> {
         let reduction = self.layout_type(reduction)?;
         let reduction = match self.check.ty(reduction)? {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
-                dir::TensorReduction::from_discriminant(*value)
+                dir::TensorReduction::from_discriminant(value)
             }
-            dir::Type::Static(value) => self.tensor_reduction_from_static(*value),
+            dir::Type::Static(value) => self.tensor_reduction_from_static(value),
             _ => None,
         };
 
@@ -254,9 +279,15 @@ impl LayoutQuery<'_, '_> {
     /// Return the normalized dimension order for one `Dense<Order>` instance.
     pub(super) fn tensor_dimension_order(
         &mut self,
+        module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::TensorDimensionOrder>>> {
-        let Some(order) = instance.arguments.first().copied() else {
+        let Some(order) = self
+            .check
+            .type_ids(module, instance.arguments)?
+            .first()
+            .copied()
+        else {
             return Ok(Answer::Ready(None));
         };
         let origin = self.origin;
@@ -264,9 +295,9 @@ impl LayoutQuery<'_, '_> {
         let order = self.layout_type(order)?;
         let order = match self.check.ty(order)? {
             dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => {
-                dir::TensorDimensionOrder::from_discriminant(*value)
+                dir::TensorDimensionOrder::from_discriminant(value)
             }
-            dir::Type::Static(value) => self.tensor_dimension_order_from_static(*value),
+            dir::Type::Static(value) => self.tensor_dimension_order_from_static(value),
             _ => None,
         };
 
@@ -303,11 +334,11 @@ impl LayoutQuery<'_, '_> {
         dir::TensorReduction::from_discriminant(*value)
     }
 
-    /// Return one normalized language item instance.
+    /// Return one normalized language item instance and its owning module.
     pub(super) fn language_item_instance(
         &mut self,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
+    ) -> CompilerResult<Answer<Option<(ModuleId, dir::GenericInstance)>>> {
         let origin = self.origin;
         let ty = answer!(self.check.reduce_type_head(origin, ty)?);
         let ty = self.layout_type(ty)?;
@@ -315,7 +346,7 @@ impl LayoutQuery<'_, '_> {
             return Ok(Answer::Ready(None));
         };
 
-        Ok(Answer::Ready(Some(instance.clone())))
+        Ok(Answer::Ready(Some((ty.module_id, instance))))
     }
 }
 

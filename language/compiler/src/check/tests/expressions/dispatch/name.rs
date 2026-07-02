@@ -27,7 +27,7 @@ const copy = value;
 /// @type.node source=value type=1
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -77,7 +78,7 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
-        let kind = self.ty(ty)?.clone();
+        let kind = self.ty(ty)?;
 
         match kind {
             dir::Type::Variable(variable) => {
@@ -131,28 +132,41 @@ impl CheckState<'_> {
                 self.satisfies_dynamic_safe(origin, array.element, active)
             }
             dir::Type::Slice(slice) => self.satisfies_dynamic_safe(origin, slice.element, active),
-            dir::Type::Tuple(tuple) => self.all_dynamic_safe(
-                origin,
-                tuple.elements.iter().map(|element| element.ty),
-                active,
-            ),
-            dir::Type::Shape(shape) => {
-                let fields = shape.fields.iter().map(|field| field.ty);
-                let calls = shape.call_signatures.iter().copied();
-                let constructors = shape.construct_signatures.iter().copied();
-                let indexes = shape
-                    .index_signatures
+            dir::Type::Tuple(tuple) => {
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
+                    .tuple_elements(ty.module_id, tuple.elements)?
                     .iter()
-                    .flat_map(|signature| [signature.key_type, signature.value_type]);
+                    .map(|element| element.ty)
+                    .collect();
 
-                self.all_dynamic_safe(
-                    origin,
-                    fields.chain(calls).chain(constructors).chain(indexes),
-                    active,
-                )
+                self.all_dynamic_safe(origin, ids, active)
+            }
+            dir::Type::Shape(shape) => {
+                let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = self
+                    .shape_fields(ty.module_id, shape.fields)?
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect();
+                ids.extend(
+                    self.type_ids(ty.module_id, shape.call_signatures)?
+                        .iter()
+                        .copied(),
+                );
+                ids.extend(
+                    self.type_ids(ty.module_id, shape.construct_signatures)?
+                        .iter()
+                        .copied(),
+                );
+                ids.extend(
+                    self.shape_index_signatures(ty.module_id, shape.index_signatures)?
+                        .iter()
+                        .flat_map(|signature| [signature.key_type, signature.value_type]),
+                );
+
+                self.all_dynamic_safe(origin, ids, active)
             }
             dir::Type::FunctionSignature(function) => {
-                self.satisfies_dynamic_safe_function(origin, &function, active)
+                self.satisfies_dynamic_safe_function(origin, ty.module_id, &function, active)
             }
             dir::Type::Function(function) => {
                 self.satisfies_dynamic_safe(origin, function.signature, active)
@@ -160,9 +174,17 @@ impl CheckState<'_> {
             dir::Type::FunctionPointer(function) => {
                 self.satisfies_dynamic_safe(origin, function.signature, active)
             }
-            dir::Type::Union(union) => self.all_dynamic_safe(origin, union.elements, active),
+            dir::Type::Union(union) => {
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> =
+                    SmallVec::from_slice(self.type_ids(ty.module_id, union.elements)?);
+
+                self.all_dynamic_safe(origin, ids, active)
+            }
             dir::Type::Intersection(intersection) => {
-                self.all_dynamic_safe(origin, intersection.elements, active)
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> =
+                    SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
+
+                self.all_dynamic_safe(origin, ids, active)
             }
         }
     }
@@ -212,7 +234,7 @@ impl CheckState<'_> {
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
-        let kind = self.ty(ty)?.clone();
+        let kind = self.ty(ty)?;
 
         match kind {
             dir::Type::Variable(variable) => {
@@ -264,26 +286,37 @@ impl CheckState<'_> {
                 }
             },
             dir::Type::Instance(instance) => {
-                self.satisfies_overwrite_stable_instance(origin, instance, active)
+                self.satisfies_overwrite_stable_instance(origin, ty.module_id, instance, active)
             }
             dir::Type::Array(_) => Ok(Answer::Ready(true)),
             dir::Type::FixedArray(array) => {
                 self.satisfies_overwrite_stable(origin, array.element, active)
             }
             dir::Type::Slice(_) => Ok(Answer::Ready(true)),
-            dir::Type::Tuple(tuple) => self.all_overwrite_stable(
-                origin,
-                tuple.elements.iter().map(|element| element.ty),
-                active,
-            ),
-            dir::Type::Shape(shape) => {
-                let fields = shape.fields.iter().map(|field| field.ty);
+            dir::Type::Tuple(tuple) => {
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
+                    .tuple_elements(ty.module_id, tuple.elements)?
+                    .iter()
+                    .map(|element| element.ty)
+                    .collect();
 
-                self.all_overwrite_stable(origin, fields, active)
+                self.all_overwrite_stable(origin, ids, active)
+            }
+            dir::Type::Shape(shape) => {
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> = self
+                    .shape_fields(ty.module_id, shape.fields)?
+                    .iter()
+                    .map(|field| field.ty)
+                    .collect();
+
+                self.all_overwrite_stable(origin, ids, active)
             }
             dir::Type::FunctionPointer(_) => Ok(Answer::Ready(true)),
             dir::Type::Intersection(intersection) => {
-                self.all_overwrite_stable(origin, intersection.elements, active)
+                let ids: SmallVec<[dir::GlobalTypeId; 8]> =
+                    SmallVec::from_slice(self.type_ids(ty.module_id, intersection.elements)?);
+
+                self.all_overwrite_stable(origin, ids, active)
             }
         }
     }
@@ -292,6 +325,7 @@ impl CheckState<'_> {
     fn satisfies_overwrite_stable_instance(
         &mut self,
         origin: Origin,
+        instance_module: ModuleId,
         instance: dir::GenericInstance,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
@@ -306,20 +340,30 @@ impl CheckState<'_> {
             dir::Definition::Struct(definition) => {
                 let mut fields = SmallVec::<[_; 8]>::new();
                 for member in &definition.members {
-                    if let dir::DefinitionMember::Field(_) = member {
-                        if let Some(ty) = answer!(self.definition_member_type(member)?) {
-                            fields.push(ty);
-                        }
+                    if let dir::DefinitionMember::Field(_) = member
+                        && let Some(ty) = answer!(self.definition_member_type(member)?)
+                    {
+                        fields.push(ty);
                     }
                 }
 
-                self.all_applied_overwrite_stable(origin, &instance, fields, active)
+                self.all_applied_overwrite_stable(
+                    origin,
+                    instance_module,
+                    &instance,
+                    fields,
+                    active,
+                )
             }
             dir::Definition::Class(_) | dir::Definition::Interface(_) => Ok(Answer::Ready(true)),
             dir::Definition::Enum(_) => Ok(Answer::Ready(false)),
-            dir::Definition::Newtype(definition) => {
-                self.all_applied_overwrite_stable(origin, &instance, [definition.value], active)
-            }
+            dir::Definition::Newtype(definition) => self.all_applied_overwrite_stable(
+                origin,
+                instance_module,
+                &instance,
+                [definition.value],
+                active,
+            ),
             dir::Definition::Extension(_) => Ok(Answer::Ready(false)),
         }
     }
@@ -328,16 +372,15 @@ impl CheckState<'_> {
     fn all_applied_overwrite_stable(
         &mut self,
         origin: Origin,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
         ids: impl IntoIterator<Item = dir::GlobalTypeId>,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
-        let substitution = self.instance_substitution(instance)?;
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
+        let substitution = self.instance_substitution(instance_module, instance)?;
         let mut decision = Answer::Ready(true);
         for id in ids {
-            let id = self.substitute_type(module, source, id, &substitution)?;
+            let id = self.substitute_type(origin.module(), id, &substitution)?;
             decision = decision.and(self.satisfies_overwrite_stable(origin, id, active)?);
             if decision.is_ready_false() {
                 return Ok(decision);
@@ -369,6 +412,7 @@ impl CheckState<'_> {
     fn satisfies_dynamic_safe_function(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         function: &dir::FunctionSignatureType,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
@@ -377,7 +421,11 @@ impl CheckState<'_> {
         }
 
         let receiver = function.this_parameter;
-        let parameters = function.parameters.iter().map(|parameter| parameter.ty);
+        let parameters: SmallVec<[dir::GlobalTypeId; 8]> = self
+            .signature_parameters(module, function.parameters)?
+            .iter()
+            .map(|parameter| parameter.ty)
+            .collect();
         let result = function.return_type;
 
         self.all_dynamic_safe(

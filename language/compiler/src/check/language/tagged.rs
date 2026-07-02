@@ -129,16 +129,18 @@ impl CheckState<'_> {
         };
 
         // substitute owner arguments through the backing type
-        let source = self.origin_source_node(origin)?;
-        let substitution = self.instance_substitution(&instance)?;
-        let backing =
-            self.substitute_type(origin.module(), source, definition.value, &substitution)?;
+        let substitution = self.instance_substitution(value.module_id, &instance)?;
+        let backing = self.substitute_type(origin.module(), definition.value, &substitution)?;
         let backing = answer!(self.reduce_type_head(origin, backing)?);
 
         // collect every arm discriminant
         let mut arms = Vec::new();
         match self.ty(backing)? {
-            dir::Type::Union(union) => arms.extend(union.elements.iter().copied()),
+            dir::Type::Union(union) => arms.extend(
+                self.type_ids(backing.module_id, union.elements)?
+                    .iter()
+                    .copied(),
+            ),
             _ => arms.push(backing),
         }
         let mut domain = Vec::with_capacity(arms.len());
@@ -160,7 +162,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GenericInstance>> {
         let instance = match self.ty(value)? {
-            dir::Type::Instance(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance,
             dir::Type::Reference(reference) => {
                 if let Some(template) = self.symbol_template(reference.symbol)
                     && !self.generic_template_parameters(template).is_empty()
@@ -170,7 +172,7 @@ impl CheckState<'_> {
 
                 dir::GenericInstance {
                     symbol: reference.symbol,
-                    arguments: Vec::new(),
+                    arguments: dir::TypeListId::EMPTY,
                 }
             }
             _ => return Ok(None),
@@ -188,7 +190,12 @@ impl CheckState<'_> {
         let tag_key = self.tagged_discriminant_key(origin.module());
         match self.ty(arm)? {
             dir::Type::Shape(shape) => {
-                let Some(tag) = shape.fields.iter().find(|field| field.key == tag_key) else {
+                let Some(tag) = self
+                    .shape_fields(arm.module_id, shape.fields)?
+                    .iter()
+                    .find(|field| field.key == tag_key)
+                    .copied()
+                else {
                     return Ok(Answer::Ready(None));
                 };
                 let tag = answer!(self.reduce_type_head(origin, tag.ty)?);
@@ -196,7 +203,7 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(None));
                 };
 
-                Ok(Answer::Ready(Some(*discriminant)))
+                Ok(Answer::Ready(Some(discriminant)))
             }
             dir::Type::Instance(_) => self.tagged_instance_discriminant(origin, arm, tag_key),
             _ => Ok(Answer::Ready(None)),
@@ -239,7 +246,7 @@ impl CheckState<'_> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         match self.ty(ty)? {
-            dir::Type::Literal(literal) => Ok(Answer::Ready(Some(*literal))),
+            dir::Type::Literal(literal) => Ok(Answer::Ready(Some(literal))),
             _ => Ok(Answer::Ready(None)),
         }
     }
