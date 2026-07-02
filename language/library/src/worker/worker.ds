@@ -2,11 +2,12 @@ import { Promise } from "destack:async";
 import { todo } from "destack:error";
 import { AsyncResult, Panic } from "destack:error";
 import { Send } from "destack:memory";
+import { WorkerHandle, WorkerId } from "destack:runtime/world";
 
 /// Isolated worker.
-export local class Worker<T, R> {
-    /// The worker id.
-    id: uint64;
+export class Worker<T, R> {
+    /// Opaque runtime worker handle.
+    private handle: WorkerHandle;
 
     /// Send one message and wait for a reply.
     request(message: T): AsyncResult<R, WorkerError> {
@@ -81,6 +82,6 @@ export function spawn<T: Send, R: Send>(
 }
 
 /// Return the current worker id.
-export function current(): uint64 {
+export function current(): WorkerId {
     todo("worker.current")
 }
