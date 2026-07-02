@@ -10,7 +10,6 @@ mod load;
 mod outcome;
 mod program;
 mod string;
-mod trace;
 mod r#type;
 mod value;
 
@@ -26,6 +25,5 @@ pub use load::*;
 pub use outcome::*;
 pub use program::*;
 pub use string::*;
-pub use trace::*;
 pub use r#type::*;
 pub use value::*;

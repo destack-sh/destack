@@ -1,7 +1,7 @@
 use destack_core::{SectionDirectory, SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationShape, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange, RootSlot,
-    SharedHeapOptions, SharedHeapReference, TraceView, visit_heap_root_slots,
+    SharedHeapOptions, SharedHeapReference, TraceTable, TraceView, visit_heap_root_slots,
 };
 use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap};
 use destack_source::ContentId;
@@ -11,7 +11,7 @@ use crate::{
     FrameSlot, FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature,
     FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout,
     LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ScalarFormat, Signature,
-    StaticImage, StaticSpace, StringTable, TraceTable, TypeId, TypeTable, native, vm,
+    StaticImage, StaticSpace, StringTable, TypeId, TypeTable, native, vm,
 };
 use vm::error::{Error, Result};
 
@@ -43,8 +43,6 @@ pub struct Program {
     pub(crate) dispatch: DispatchTable,
     /// Canonical trace table used by heap tables.
     pub(crate) traces: TraceTable,
-    /// Decoded trace maps indexed by TraceId for heap and GC paths.
-    pub(crate) trace_maps: Vec<TraceMap>,
     /// Program globals keyed by dense global id.
     pub(crate) globals: GlobalTable,
     /// Optional source reflection table.
@@ -89,8 +87,7 @@ impl Program {
         native: Option<native::Code>,
         storage: SectionStorage,
     ) -> std::result::Result<Self, ProgramLoadError> {
-        let image = SectionImage::load(&sections, &storage)?;
-        let trace_maps = traces.decode(image)?;
+        SectionImage::load(&sections, &storage)?;
 
         Ok(Self {
             sections,
@@ -104,7 +101,6 @@ impl Program {
             functions,
             dispatch,
             traces,
-            trace_maps,
             globals,
             info,
             constant_space,
@@ -289,7 +285,7 @@ impl Program {
     }
 
     /// Return the heap allocation shape for one layout id.
-    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<AllocationShape<'_>> {
+    pub fn allocation_shape(&self, layout_id: LayoutId) -> Result<AllocationShape> {
         let sections = self.sections();
         let Some(layout) = self.layouts().get(sections, layout_id) else {
             return Err(Error::internal(format!(
@@ -308,16 +304,16 @@ impl Program {
         ))
     }
 
-    /// Borrow one program trace map.
-    pub fn trace_map(&self, id: TraceId) -> Result<&TraceMap> {
-        self.trace_maps
-            .get(id.index())
-            .ok_or_else(|| Error::internal(format!("missing program trace map {id:?}")))
+    /// Decode one program trace map.
+    pub fn trace_map(&self, id: TraceId) -> Result<TraceMap> {
+        self.trace_view()
+            .trace_map(id)
+            .map_err(|error| Error::internal(error.to_string()))
     }
 
-    /// Return decoded program trace maps.
-    pub fn trace_maps(&self) -> TraceView<'_> {
-        TraceView::new(&self.trace_maps)
+    /// Return compact program trace rows.
+    pub fn trace_view(&self) -> TraceView<'_> {
+        self.traces.view(self.sections())
     }
 
     /// Return the program trace table.
@@ -569,7 +565,7 @@ impl Program {
 
         let trace_map = self.trace_map(layout.trace)?;
 
-        visit_heap_root_slots(trace_map, 0, bytes, ReferenceRange::All, visit)
+        visit_heap_root_slots(&trace_map, 0, bytes, ReferenceRange::All, visit)
             .map_err(|error| Error::internal(error.to_string()))
     }
 

@@ -5,12 +5,12 @@ use ::serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 use destack_core::{SectionDirectory, SectionImageError, SectionStorage};
 use destack_serde::{self as serde, Reflect, SchemaRef, SchemaRegistry};
 
-use super::{Program, TraceTableError};
+use super::Program;
 use crate::{
     DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, ProgramInfo, StaticImage,
-    StringTable, TraceTable, TypeTable, native, vm,
+    StringTable, TypeTable, native, vm,
 };
-use destack_heap::{HeapOptions, SharedHeapOptions};
+use destack_heap::{HeapOptions, SharedHeapOptions, TraceTable};
 use destack_mir::TargetLayout;
 
 const PROGRAM_MAGIC: [u8; 4] = *b"DSPG";
@@ -25,8 +25,6 @@ pub enum ProgramLoadError {
     Codec(serde::Error),
     /// Program sections are malformed.
     Section(SectionImageError),
-    /// Program trace table is malformed.
-    Trace(TraceTableError),
 }
 
 impl fmt::Display for ProgramLoadError {
@@ -36,7 +34,6 @@ impl fmt::Display for ProgramLoadError {
             Self::InvalidBytes(reason) => write!(formatter, "invalid program bytes: {reason}"),
             Self::Codec(error) => write!(formatter, "failed to decode program: {error}"),
             Self::Section(error) => write!(formatter, "invalid program sections: {error}"),
-            Self::Trace(error) => write!(formatter, "invalid program traces: {error}"),
         }
     }
 }
@@ -54,13 +51,6 @@ impl From<SectionImageError> for ProgramLoadError {
     /// Convert one section error.
     fn from(error: SectionImageError) -> Self {
         Self::Section(error)
-    }
-}
-
-impl From<TraceTableError> for ProgramLoadError {
-    /// Convert one trace table error.
-    fn from(error: TraceTableError) -> Self {
-        Self::Trace(error)
     }
 }
 
@@ -333,12 +323,12 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use destack_core::{SectionPacker, StringId, StringPool};
-    use destack_heap::{HeapOptions, SharedHeapOptions};
+    use destack_heap::{HeapOptions, SharedHeapOptions, TraceTable};
     use destack_mir::TargetLayout;
 
     use crate::{
         DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program, ProgramInfo,
-        ProgramLoadError, StaticImage, StringTable, TraceTable, TypeTable, vm,
+        ProgramLoadError, StaticImage, StringTable, TypeTable, vm,
     };
 
     /// Store and load a program without nesting section bytes in the artifact blob codec.
