@@ -16,7 +16,13 @@ impl CheckState<'_> {
         let mut memo = indexmap::IndexMap::new();
         let mut active = IndexSet::new();
 
-        self.reduce_type_graph(origin, id, &mut memo, &mut active)
+        // fold the root, then normalize children with aliases kept symbolic
+        let id = answer!(self.reduce_type_head(origin, id)?);
+        self.reduce_depth += 1;
+        let reduced = self.reduce_type_graph(origin, id, &mut memo, &mut active);
+        self.reduce_depth -= 1;
+
+        reduced
     }
 
     /// Reduce the head of one type to its simplest available form.
@@ -70,7 +76,19 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-        expanding: &mut indexmap::IndexSet<dir::GlobalTypeId>,
+        expanding: &mut IndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        destack_core::ensure_sufficient_stack(|| {
+            self.reduce_type_chain_inner(origin, id, expanding)
+        })
+    }
+
+    /// Reduce one type chain on the grown stack.
+    fn reduce_type_chain_inner(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        expanding: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // report circular expansions once and poison the chain
         if !expanding.insert(id) {
@@ -96,6 +114,11 @@ impl CheckState<'_> {
                     answer!(self.reduce_intrinsic_reference(origin, id.module_id, &instance)?)
                 {
                     return self.reduce_type_head(origin, reduced);
+                }
+
+                // keep nested aliases symbolic in deep normal forms
+                if self.reduce_depth > 0 {
+                    return Ok(Answer::Ready(id));
                 }
 
                 match answer!(self.type_alias_body(origin, id.module_id, &instance)?) {
@@ -138,8 +161,7 @@ impl CheckState<'_> {
                     unreachable!("the borrowed arm only matches borrowed forms");
                 };
 
-                // close the lifetime and access components; open
-                // components keep their written spelling
+                // close the lifetime and access components
                 let closed_lifetime = match self.reduce_type_head(origin, lifetime)? {
                     Answer::Ready(closed) => closed,
                     Answer::Pending(_) => lifetime,
@@ -174,8 +196,7 @@ impl CheckState<'_> {
                 self.reduce_type_head(origin, rebuilt)
             }
 
-            // non-borrow forms close their payload head so aliases can
-            // contribute nested memory forms
+            // non-borrow forms close their payload head
             dir::Type::Form(form) => {
                 let value = match self.reduce_type_head(origin, form.value)? {
                     Answer::Ready(value) => value,
