@@ -354,10 +354,6 @@ impl Definition {
                     }
                 }
                 map_heritages(&mut definition.implements, map);
-                for clause in &mut definition.where_clauses {
-                    clause.left = map(clause.left);
-                    clause.right = map(clause.right);
-                }
             }
         }
 
@@ -596,8 +592,6 @@ pub struct ExtensionDefinition {
     pub target: ExtensionTarget,
     /// The implemented interfaces.
     pub implements: Vec<NominalHeritage>,
-    /// The checked where clauses that gate this extension.
-    pub where_clauses: Vec<ExtensionWhereClause>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
 }
@@ -610,7 +604,6 @@ impl ExtensionDefinition {
         template: Option<LocalGenericTemplateId>,
         target: ExtensionTarget,
         implements: Vec<NominalHeritage>,
-        where_clauses: Vec<ExtensionWhereClause>,
         members: Vec<DefinitionMember>,
     ) -> Self {
         Self {
@@ -619,7 +612,6 @@ impl ExtensionDefinition {
             template,
             target,
             implements,
-            where_clauses,
             members,
         }
     }
@@ -694,22 +686,6 @@ impl ExtensionTarget {
     pub fn is_blanket(&self) -> bool {
         matches!(self, Self::Blanket { .. })
     }
-}
-
-/// A checked where clause attached to one extension.
-///
-/// Examples:
-/// ```ds
-/// extension<T> of Array<T> where T: Comparable { sort(): void { ... } }
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ExtensionWhereClause {
-    /// The source where clause node.
-    pub source: GlobalNodeIdAny,
-    /// The constrained type.
-    pub left: GlobalTypeId,
-    /// The required constraint type.
-    pub right: GlobalTypeId,
 }
 
 /// One nominal heritage.
