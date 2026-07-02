@@ -85,6 +85,7 @@ impl TraceView<'_> {
             TraceEntryKind::FIXED => Ok(TraceMap::Fixed {
                 local_offsets: entry.local_offsets.slice(self.offsets).into(),
                 shared_offsets: entry.shared_offsets.slice(self.offsets).into(),
+                frame_offsets: entry.frame_offsets.slice(self.offsets).into(),
             }),
             TraceEntryKind::NESTED => Ok(TraceMap::Nested {
                 byte_offset: entry.byte_offset,
@@ -166,6 +167,7 @@ impl TraceView<'_> {
                 walker.fixed(
                     entry.local_offsets.slice(self.offsets),
                     entry.shared_offsets.slice(self.offsets),
+                    entry.frame_offsets.slice(self.offsets),
                     base_offset,
                     range,
                 )?;
@@ -232,6 +234,7 @@ pub(crate) trait TraceVisitor {
         &mut self,
         local_offsets: &[u32],
         shared_offsets: &[u32],
+        frame_offsets: &[u32],
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()>;
@@ -293,6 +296,8 @@ struct TraceEntry {
     local_offsets: EntryRange<u32>,
     /// Fixed shared reference byte offsets.
     shared_offsets: EntryRange<u32>,
+    /// Fixed frame reference byte offsets.
+    frame_offsets: EntryRange<u32>,
     /// Composite child entry ids.
     children: EntryRange<u32>,
     /// Tagged variant entries.
@@ -311,6 +316,7 @@ impl TraceEntry {
             tag_bytes: 0,
             local_offsets: EntryRange::empty(),
             shared_offsets: EntryRange::empty(),
+            frame_offsets: EntryRange::empty(),
             children: EntryRange::empty(),
             variants: EntryRange::empty(),
         }
@@ -396,10 +402,12 @@ impl TraceTableBuilder {
             TraceMap::Fixed {
                 local_offsets,
                 shared_offsets,
+                frame_offsets,
             } => {
                 let mut entry = TraceEntry::new(TraceEntryKind::FIXED);
                 entry.local_offsets = self.offsets.append(local_offsets.iter().copied());
                 entry.shared_offsets = self.offsets.append(shared_offsets.iter().copied());
+                entry.frame_offsets = self.offsets.append(frame_offsets.iter().copied());
 
                 entry
             }

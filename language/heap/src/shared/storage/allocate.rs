@@ -609,7 +609,7 @@ impl HeapStorage {
                     }
                 }
                 // no-scan slots keep zeroed reuse semantics even when uninitialized
-                Payload::Uninit if !trace_map.has_reference() => {
+                Payload::Uninit if !trace_map.has_heap_reference() => {
                     if needs_zero {
                         self.mapping
                             .zero_mapped_bytes(mapping_offset, class.size_class());

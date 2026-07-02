@@ -143,7 +143,7 @@ impl AllocationShape {
         trace_map: TraceMap,
     ) -> Self {
         debug_assert!(alignment == 0 || alignment.is_power_of_two());
-        let is_noscan = !trace_map.has_reference();
+        let is_noscan = !trace_map.has_heap_reference();
         let has_shared_reference = trace_map.has_shared_reference();
 
         Self {
@@ -519,7 +519,7 @@ fn repeated_trace_map(
 
     match element_map {
         TraceMap::Empty => Ok(TraceMap::Empty),
-        _ if !element_map.has_reference() => Ok(TraceMap::Empty),
+        _ if !element_map.has_heap_reference() => Ok(TraceMap::Empty),
         _ => Ok(TraceMap::Repeated {
             count: u32::try_from(count).map_err(|_| {
                 HeapError::representation(HeapRepresentationError::LimitExceeded {

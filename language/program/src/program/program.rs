@@ -294,7 +294,7 @@ impl Program {
         };
 
         let trace_map = self.trace_map(layout.trace)?;
-        let trace_id = trace_map.has_reference().then_some(layout.trace);
+        let trace_id = trace_map.has_heap_reference().then_some(layout.trace);
 
         Ok(AllocationShape::new(
             layout.size as usize,

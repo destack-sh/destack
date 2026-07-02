@@ -275,7 +275,7 @@ impl SmallSpan {
             return;
         }
 
-        if !trace_map.has_reference() {
+        if !trace_map.has_heap_reference() {
             return;
         }
 
