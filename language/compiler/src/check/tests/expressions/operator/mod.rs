@@ -1,9 +1,13 @@
 mod r#as;
 mod bitwise;
+mod dereference;
 mod equality;
 mod r#in;
 mod instanceof;
 mod r#is;
+mod multiply;
+mod negate;
 mod parameter;
 mod plus;
 mod update;
+mod visibility;
