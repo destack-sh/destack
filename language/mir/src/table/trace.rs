@@ -15,6 +15,8 @@ pub enum TraceMap {
         local_offsets: Box<[u32]>,
         /// Byte offsets of encoded shared heap references.
         shared_offsets: Box<[u32]>,
+        /// Byte offsets of encoded frame references.
+        frame_offsets: Box<[u32]>,
     },
     /// The payload stores one nested map at a byte offset.
     Nested {
@@ -52,8 +54,13 @@ impl TraceMap {
         Self::Empty
     }
 
-    /// Return whether this map can reach any heap reference.
+    /// Return whether this map can reach any reference.
     pub fn has_reference(&self) -> bool {
+        self.has_heap_reference() || self.has_frame_reference()
+    }
+
+    /// Return whether this map can reach any heap reference.
+    pub fn has_heap_reference(&self) -> bool {
         self.has_local_reference() || self.has_shared_reference()
     }
 
@@ -82,6 +89,20 @@ impl TraceMap {
             Self::Tagged { variants, .. } => variants
                 .iter()
                 .any(|variant| variant.map.has_shared_reference()),
+        }
+    }
+
+    /// Return whether this map can reach frame references.
+    pub fn has_frame_reference(&self) -> bool {
+        match self {
+            Self::Empty => false,
+            Self::Fixed { frame_offsets, .. } => !frame_offsets.is_empty(),
+            Self::Nested { map, .. } => map.has_frame_reference(),
+            Self::Composite { maps } => maps.iter().any(Self::has_frame_reference),
+            Self::Repeated { count, element, .. } => *count > 0 && element.has_frame_reference(),
+            Self::Tagged { variants, .. } => variants
+                .iter()
+                .any(|variant| variant.map.has_frame_reference()),
         }
     }
 
