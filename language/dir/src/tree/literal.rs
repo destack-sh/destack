@@ -13,8 +13,10 @@ use crate::{
 /// One scalar type family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ScalarDomain {
-    /// Numeric scalar values.
-    Numeric,
+    /// Machine integer scalar values.
+    Integer,
+    /// Machine float scalar values.
+    Float,
     /// Bigint scalar values.
     Bigint,
     /// Character scalar values.
@@ -29,6 +31,18 @@ pub enum ScalarDomain {
     Null,
     /// Undefined singleton values.
     Undefined,
+}
+
+impl ScalarDomain {
+    /// Return whether this domain holds builtin numerics.
+    pub fn is_numeric(self) -> bool {
+        matches!(self, Self::Integer | Self::Float | Self::Bigint)
+    }
+
+    /// Return whether this domain holds only integers.
+    pub fn is_integral(self) -> bool {
+        matches!(self, Self::Integer | Self::Bigint)
+    }
 }
 
 /// A ScalarLiteral is literal scalar value.
@@ -77,7 +91,8 @@ impl ScalarLiteral {
     /// Return this literal's scalar domain.
     pub fn scalar_domain(&self) -> Option<ScalarDomain> {
         let domain = match self {
-            Self::Integer(_) | Self::Float(_) => ScalarDomain::Numeric,
+            Self::Integer(_) => ScalarDomain::Integer,
+            Self::Float(_) => ScalarDomain::Float,
             Self::Bigint(_) => ScalarDomain::Bigint,
             Self::Character(_) => ScalarDomain::Character,
             Self::String(_) => ScalarDomain::String,
@@ -93,7 +108,7 @@ impl ScalarLiteral {
     /// Return this literal's scalar domain when it can bound an interval.
     pub fn interval_domain(&self) -> Option<ScalarDomain> {
         let domain = match self {
-            Self::Integer(_) => ScalarDomain::Numeric,
+            Self::Integer(_) => ScalarDomain::Integer,
             Self::Bigint(_) => ScalarDomain::Bigint,
             Self::Character(_) => ScalarDomain::Character,
             _ => return None,

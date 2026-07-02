@@ -161,12 +161,11 @@ impl Type {
                 ScalarDomain::Symbol
             }
             Self::Primitive(PrimitiveType::Bigint) => ScalarDomain::Bigint,
-            Self::Primitive(PrimitiveType::Integer(_) | PrimitiveType::Float(_)) => {
-                ScalarDomain::Numeric
-            }
+            Self::Primitive(PrimitiveType::Integer(_)) => ScalarDomain::Integer,
+            Self::Primitive(PrimitiveType::Float(_)) => ScalarDomain::Float,
             Self::Literal(literal) => return literal.scalar_domain(),
             Self::Key(key) if key.is_string_like() => ScalarDomain::String,
-            Self::Key(key) if key.is_number_like() => ScalarDomain::Numeric,
+            Self::Key(key) if key.is_number_like() => ScalarDomain::Integer,
             Self::Key(key) if key.is_symbol_like() => ScalarDomain::Symbol,
             Self::Range(range) => return range.scalar_domain(),
             _ => return None,
