@@ -69,6 +69,26 @@ impl From<FrameSlotId> for u32 {
     }
 }
 
+/// Durable frame image captured at one managed safepoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct FrameImage {
+    /// The captured frame state.
+    pub frame_state: FrameStateId,
+    /// The caller return frame state.
+    pub return_state: Option<FrameStateId>,
+    /// The byte offset inside the captured stack image.
+    pub stack_offset: usize,
+    /// The captured frame byte width.
+    pub byte_len: usize,
+}
+
+impl FrameImage {
+    /// Return the captured frame byte width.
+    pub const fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+}
+
 /// Physical execution frame layout and materialization tables.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FrameTable {
