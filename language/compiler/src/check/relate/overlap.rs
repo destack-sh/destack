@@ -140,6 +140,10 @@ impl CheckState<'_> {
             (dir::Type::Literal(left), dir::Type::Range(right)) => right.contains_literal(*left),
             (dir::Type::Range(left), dir::Type::Literal(right)) => left.contains_literal(*right),
             (dir::Type::Range(left), dir::Type::Range(right)) => left.overlaps_range(right),
+            (dir::Type::Literal(literal), primitive @ dir::Type::Primitive(_))
+            | (primitive @ dir::Type::Primitive(_), dir::Type::Literal(literal)) => {
+                literal.widens_to(primitive)
+            }
             _ => return None,
         };
 
