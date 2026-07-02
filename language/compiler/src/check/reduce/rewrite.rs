@@ -378,7 +378,9 @@ impl CheckState<'_> {
         if !rewriting.insert(id) {
             return Ok(id);
         }
-        let rewritten = self.rewrite_type_id(target, id, rewrite, rewrites, rewriting);
+        let rewritten = destack_core::ensure_sufficient_stack(|| {
+            self.rewrite_type_id(target, id, rewrite, rewrites, rewriting)
+        });
         rewriting.swap_remove(&id);
 
         rewritten

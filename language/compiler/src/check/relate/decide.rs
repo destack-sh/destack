@@ -5,8 +5,21 @@ use crate::CompilerResult;
 use crate::check::{Answer, AutoInterface, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
-    /// Decide one relation between two closed type roots.
+    /// Decide one relation between two closed type roots, growing the stack.
     pub(in crate::check) fn decide_relation(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        destack_core::ensure_sufficient_stack(|| {
+            self.decide_relation_inner(origin, relation, left, right)
+        })
+    }
+
+    /// Decide one relation on the grown stack.
+    fn decide_relation_inner(
         &mut self,
         origin: Origin,
         relation: Relation,
