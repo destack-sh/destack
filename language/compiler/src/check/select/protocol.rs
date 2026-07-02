@@ -846,7 +846,14 @@ impl CheckState<'_> {
 
         let interface = protocol.instance(self, module)?;
 
-        self.extension_implements_interface(origin, module, module, substitution, implements, &interface)
+        self.extension_implements_interface(
+            origin,
+            module,
+            module,
+            substitution,
+            implements,
+            &interface,
+        )
     }
 
     /// Return the durable call resolution for one matched protocol method.

@@ -11,6 +11,8 @@ use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolverSnaps
 pub(in crate::check) struct Probe {
     /// The solver state before the probe.
     solver: SolverSnapshot,
+    /// The decision count before the probe, asserted stable on rejection.
+    decisions: usize,
     /// Working type segment marks for each loaded module before the probe.
     types: IndexMap<ModuleId, dir::TypeMark>,
     /// Layout segment marks before the probe.
@@ -39,6 +41,7 @@ impl CheckState<'_> {
 
         Probe {
             solver,
+            decisions: self.decisions.count(),
             types,
             layouts,
         }
@@ -46,6 +49,11 @@ impl CheckState<'_> {
 
     /// Roll back one rejected probe.
     pub(in crate::check) fn reject_probe(&mut self, snapshot: Probe) {
+        debug_assert_eq!(
+            snapshot.decisions,
+            self.decisions.count(),
+            "a rejected probe may not commit node decisions"
+        );
         self.solver.rollback(snapshot.solver);
         self.drop_probe_layouts(snapshot.layouts);
         self.drop_probe_types(snapshot.types);
@@ -102,8 +110,19 @@ impl CheckState<'_> {
         let mut all_bounds_hold = true;
         let mut pending = SmallVec::<[Dependency; 2]>::new();
         let mut queue = variables.into_iter().collect::<Vec<_>>();
+        let mut attempted = indexmap::IndexSet::new();
 
         while let Some(variable) = queue.pop() {
+            // attempt each variable once: revisits are inference cycles
+            if !attempted.insert(variable) {
+                let blocker = Dependency::Variable(variable);
+                if !pending.contains(&blocker) {
+                    pending.push(blocker);
+                }
+
+                continue;
+            }
+
             match self.solve_variable(variable)? {
                 Answer::Ready(holds) => all_bounds_hold &= holds,
                 Answer::Pending(blockers) => {

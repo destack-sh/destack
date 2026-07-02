@@ -3,7 +3,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckError, CheckState, Decision, Origin, Relation, answer};
+use crate::check::{
+    Answer, CheckError, CheckState, Decision, Dependency, Origin, Relation, answer,
+};
 use crate::{CompilerResult, DiagnosticAnchor};
 
 /// Scalar interval coverage represented by one pattern.
@@ -255,37 +257,66 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one pattern covers one tagged discriminant.
+    /// Undecided patterns park on their decision instead of denying coverage.
     fn decide_pattern_covers_tagged_case(
         &self,
-        _origin: Origin,
+        origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
-        let decision = match self.decision(pattern.into_any()) {
-            Some(Decision::Pattern(dir::PatternResolution::Ignore))
-            | Some(Decision::Pattern(dir::PatternResolution::Bind(
-                dir::PatternBindingResolution { pattern: None, .. },
-            ))) => true,
-            Some(Decision::Pattern(dir::PatternResolution::Destructure(
+        let Some(decision) = self.decision(pattern.into_any()) else {
+            return Ok(Answer::pending([Dependency::Decision(pattern.into_any())]));
+        };
+
+        let covers = match decision {
+            // wildcard shapes cover every discriminant
+            Decision::Pattern(dir::PatternResolution::Ignore)
+            | Decision::Pattern(dir::PatternResolution::Bind(dir::PatternBindingResolution {
+                pattern: None,
+                ..
+            })) => true,
+
+            // variant destructures cover their selected discriminant
+            Decision::Pattern(dir::PatternResolution::Destructure(
                 dir::PatternDestructureResolution::Variant(resolution),
-            ))) => match &resolution.projection {
+            )) => match &resolution.projection {
                 dir::Projection::VariantPayload {
                     discriminant: selected,
                     ..
                 } => *selected == discriminant,
                 _ => false,
             },
-            Some(Decision::Pattern(dir::PatternResolution::Default(resolution))) => self
-                .decide_pattern_covers_tagged_case(
-                    _origin,
-                    resolution.pattern.into_typed(),
-                    discriminant,
-                )?
-                .is_ready_true(),
+
+            // defaulted patterns cover through their inner pattern
+            Decision::Pattern(dir::PatternResolution::Default(resolution)) => {
+                let inner = resolution.pattern.into_typed();
+
+                answer!(self.decide_pattern_covers_tagged_case(origin, inner, discriminant)?)
+            }
+
+            // or patterns cover when any branch covers
+            Decision::Pattern(dir::PatternResolution::Or(or)) => {
+                let mut covered = false;
+                for branch in &or.patterns {
+                    let branch = branch.into_typed();
+                    if answer!(self.decide_pattern_covers_tagged_case(
+                        origin,
+                        branch,
+                        discriminant
+                    )?) {
+                        covered = true;
+
+                        break;
+                    }
+                }
+
+                covered
+            }
+
             _ => false,
         };
 
-        Ok(Answer::Ready(decision))
+        Ok(Answer::Ready(covers))
     }
 
     /// Decide whether one pattern node covers one non-union value type.

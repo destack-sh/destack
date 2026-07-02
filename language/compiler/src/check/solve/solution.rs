@@ -145,9 +145,9 @@ impl CheckState<'_> {
         };
         let solution = answer!(self.reduce_type_head(origin, solution)?);
         let mut bounds_hold = true;
-        let mut pending = SmallVec::<[Dependency; 2]>::new();
 
-        // check inferred solutions against their contextual upper bounds
+        // check inferred solutions against their contextual upper bounds,
+        // queueing unfinished checks as ordinary check constraints
         if check_upper {
             for bound in upper {
                 match self.constrain_generic_bound(origin, bound.source, solution, bound.ty)? {
@@ -161,8 +161,7 @@ impl CheckState<'_> {
                             origin,
                         ));
                     }
-                    Answer::Pending(blockers) => {
-                        pending.extend(blockers);
+                    Answer::Pending(_) => {
                         self.push_constraint(Constraint::check(
                             Relation::Assignable,
                             solution,
@@ -173,21 +172,8 @@ impl CheckState<'_> {
                 }
             }
         }
-        if !pending.is_empty() {
-            self.commit_solution(representative, solution)?;
-            self.record_event(CheckEvent::VariableBlocked {
-                variable: representative,
-                bounds: VariableBounds {
-                    lower,
-                    upper: self.solver.variable(representative)?.upper.clone(),
-                    default,
-                },
-                blockers: pending.clone(),
-            });
-
-            return Ok(Answer::Pending(pending));
-        }
-
+        // commit from the settled lower bounds: unfinished upper-bound
+        // checks are already queued as check constraints and report there
         self.commit_solution(representative, solution)?;
 
         Ok(Answer::Ready(bounds_hold))
@@ -230,8 +216,7 @@ impl CheckState<'_> {
         let bounds = lower.iter().chain(upper.iter()).chain(default.iter());
         for bound in bounds {
             for open in self.type_variables(*bound)? {
-                if open != variable
-                    && self.solver.variable(open).is_ok()
+                if self.solver.variable(open).is_ok()
                     && !blockers.contains(&Dependency::Variable(open))
                 {
                     blockers.push(Dependency::Variable(open));

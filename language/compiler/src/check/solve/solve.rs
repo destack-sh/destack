@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::check::{
     Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintId, Dependency, ExpectedType,
-    PlaceUse, Task, Widening, answer,
+    Origin, PlaceUse, Task, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -35,10 +35,95 @@ impl CheckState<'_> {
             steps += 1;
         }
 
+        // sweep tasks still parked after the queue drains: stuck work is
+        // an inference cycle and every origin reports a missing annotation
+        self.sweep_parked_tasks()?;
+
         self.record_event(CheckEvent::SolveFinished {
             iterations: steps,
             variables: self.solver.variable_count(),
         });
+
+        Ok(())
+    }
+
+    /// Report every dependency still parked on after the queue drained.
+    /// The undetermined dependency anchors each report, and modules that
+    /// already reported errors stay quiet: their stuck work died of those
+    /// errors rather than of an inference cycle.
+    fn sweep_parked_tasks(&mut self) -> CompilerResult<()> {
+        // drain parked dependencies once
+        let parked = self.solver.drain_waiters();
+        if parked.is_empty() {
+            return Ok(());
+        }
+
+        // resolve each stuck dependency to the origin it anchors at
+        let mut origins = Vec::new();
+        for (dependency, _) in parked {
+            let origin = match dependency {
+                Dependency::Variable(variable) => {
+                    let state = self.solver.variable(variable)?;
+                    if state.solution.is_some() {
+                        continue;
+                    }
+
+                    state.origin
+                }
+                Dependency::SymbolType(symbol) => Origin::Symbol(symbol),
+                Dependency::NodeType(node) | Dependency::Decision(node) => Origin::Node(node),
+            };
+            if !origins.contains(&origin) {
+                origins.push(origin);
+            }
+        }
+
+        // suppress casualties of errors reported before the sweep
+        let mut tainted = indexmap::IndexSet::new();
+        for origin in &origins {
+            let module = origin.module();
+            if self.is_component_module(module) && !self.module(module).diagnostics.is_empty() {
+                tainted.insert(module);
+            }
+        }
+        origins.retain(|origin| !tainted.contains(&origin.module()));
+
+        // report in source order for deterministic diagnostics
+        let mut keyed = Vec::new();
+        for origin in origins {
+            let source = self.origin_source_node(origin)?;
+            keyed.push((origin.module(), source.id, origin));
+        }
+        keyed.sort_by_key(|(module, id, _)| (*module, *id));
+        let origins = keyed
+            .into_iter()
+            .map(|(_, _, origin)| origin)
+            .collect::<Vec<_>>();
+
+        // prefer declaration anchors over expression anchors per module
+        let mut declared = indexmap::IndexSet::new();
+        for origin in &origins {
+            match origin {
+                Origin::Symbol(_) => {
+                    declared.insert(origin.module());
+                }
+                Origin::Node(node) if node.local_id.ty != dir::NodeType::Expression => {
+                    declared.insert(origin.module());
+                }
+                Origin::Node(_) => {}
+            }
+        }
+        for origin in origins {
+            let expression = matches!(
+                origin,
+                Origin::Node(node) if node.local_id.ty == dir::NodeType::Expression
+            );
+            if expression && declared.contains(&origin.module()) {
+                continue;
+            }
+            let source = self.origin_source_node(origin)?;
+            self.report_missing_type_annotation(origin.module(), source);
+        }
 
         Ok(())
     }

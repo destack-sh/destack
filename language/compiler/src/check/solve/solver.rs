@@ -306,6 +306,11 @@ impl Solver {
         self.completed_keys.insert(key);
     }
 
+    /// Drain every parked dependency, leaving the waiter table empty.
+    pub(in crate::check) fn drain_waiters(&mut self) -> Vec<(Dependency, SmallVec<[Task; 2]>)> {
+        self.waiters.drain(..).collect()
+    }
+
     /// Pop one solver task.
     pub(in crate::check) fn pop_task(&mut self) -> Option<Task> {
         self.queue.pop()
