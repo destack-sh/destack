@@ -200,7 +200,7 @@ impl SharedGc {
             return;
         }
 
-        let should_continue = self.collect_with_failure(program.trace_maps());
+        let should_continue = self.collect_with_failure(program.trace_view());
         self.finish_run();
 
         if should_continue {
@@ -260,8 +260,8 @@ impl SharedGc {
     }
 
     /// Run one bounded shared GC increment and retain one failure.
-    fn collect_with_failure(&self, trace_maps: TraceView<'_>) -> bool {
-        match self.collect(trace_maps) {
+    fn collect_with_failure(&self, trace_view: TraceView<'_>) -> bool {
+        match self.collect(trace_view) {
             Ok(should_continue) => should_continue,
             Err(error) => {
                 *self.failure.lock() = Some(error);
@@ -272,7 +272,7 @@ impl SharedGc {
     }
 
     /// Run one bounded shared GC increment.
-    fn collect(&self, trace_maps: TraceView<'_>) -> RuntimeResult<bool> {
+    fn collect(&self, trace_view: TraceView<'_>) -> RuntimeResult<bool> {
         if self.heap.gc_phase() == GcPhase::Idle {
             return Ok(false);
         }
@@ -282,7 +282,7 @@ impl SharedGc {
         let budget_bytes = self.heap.take_collection_budget_bytes(1);
         let progress = self
             .heap
-            .step_collection(roots.as_ref(), roots_complete, budget_bytes, trace_maps)
+            .step_collection(roots.as_ref(), roots_complete, budget_bytes, trace_view)
             .map_err(Box::<RuntimeError>::from)?;
 
         if self.heap.gc_phase() != GcPhase::Mark || roots_complete {

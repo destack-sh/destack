@@ -107,7 +107,7 @@ impl Runtime {
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,
-                self.program.trace_maps(),
+                self.program.trace_view(),
             )
             .map_err(Box::<RuntimeError>::from)?;
         let is_active = self.heap.shared.gc_phase() != GcPhase::Idle;

@@ -513,7 +513,7 @@ impl Worker {
         };
 
         self.heap
-            .step_collection(&mut roots, budget_bytes, self.program.trace_maps())
+            .step_collection(&mut roots, budget_bytes, self.program.trace_view())
     }
 
     /// Collect shared heap roots from machine, scheduler, and registered providers.
@@ -551,10 +551,10 @@ impl Worker {
         roots: &mut Vec<heap::SharedHeapReference>,
         budget_bytes: usize,
     ) -> RuntimeResult<usize> {
-        let trace_maps = self.machine.trace_maps();
+        let trace_view = self.machine.trace_view();
 
         self.heap
-            .trace_shared_roots(roots, budget_bytes, trace_maps)
+            .trace_shared_roots(roots, budget_bytes, trace_view)
             .map_err(Box::<RuntimeError>::from)
     }
 
@@ -633,8 +633,8 @@ impl Worker {
         bindings.set_access(BindingAccess::new(execution_mode));
         bindings.apply_runtime_defaults(&self.options);
 
-        let trace_maps = self.machine.trace_maps();
-        let mut heap = self.heap.fork(trace_maps)?;
+        let trace_view = self.machine.trace_view();
+        let mut heap = self.heap.fork(trace_view)?;
         let mut local_static = self.local_static.clone();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
         let mut machine = self.machine.fork(program::ProgramStorage {
@@ -709,7 +709,7 @@ impl Worker {
             &image.heap,
             runtime_heap.allocator.clone(),
             heap_options.limits,
-            program.trace_maps(),
+            program.trace_view(),
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut local_static = image.local_static.clone();
