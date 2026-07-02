@@ -135,8 +135,29 @@ impl CheckState<'_> {
 
             // member projections resolve through their owners
             dir::Type::Member(member) => {
-                let projection = self.project_member(origin, &member)?;
+                // members live beneath memory forms, so owners shed them
+                let mut owner = answer!(self.reduce_type_head(origin, member.owner)?);
+                while let dir::Type::Form(form) = self.ty(owner)? {
+                    owner = answer!(self.reduce_type_head(origin, form.value)?);
+                }
+                if owner != member.owner {
+                    let arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
+                        self.type_ids(id.module_id, member.arguments)?,
+                    );
+                    let arguments = self.intern_type_ids(origin.module(), &arguments)?;
+                    let rebuilt = self.intern_type(
+                        origin.module(),
+                        dir::Type::Member(dir::MemberType {
+                            owner,
+                            key: member.key,
+                            arguments,
+                        }),
+                    )?;
 
+                    return self.reduce_type_chain(origin, rebuilt, expanding);
+                }
+
+                let projection = self.project_member(origin, &member)?;
                 let Some(projected) = answer!(projection) else {
                     return Ok(Answer::Ready(id));
                 };

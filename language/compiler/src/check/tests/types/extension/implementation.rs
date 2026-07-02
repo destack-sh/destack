@@ -442,3 +442,149 @@ extension of User implements Show | Debug {
 "#,
     );
 }
+
+#[test]
+fn test_primitive_extension_projects_its_associated_type() {
+    let session = TestSession::single(
+        r#"
+interface Doubling {
+    type Output;
+
+    double(): this.Output;
+}
+
+extension of int32 implements Doubling {
+    type Output = int32;
+
+    double(): this.Output {
+        todo("double")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Doubling {
+    type Output;
+
+    double(): this.Output;
+}
+
+extension of int32 implements Doubling {
+    type Output = int32;
+
+    double(): int32.Output {
+        todo("double")
+    }
+}
+
+=== checked ===
+interface Doubling {
+/// @type.symbol symbol=Doubling type=Doubling
+/// @definition.interface symbol=Doubling
+/// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
+/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: Doubling) => this.Output
+
+    type Output;
+
+    double(): this.Output;
+    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: Doubling) => this.Output
+
+}
+
+extension of int32 implements Doubling {
+/// @definition.extension symbol=<module>#2 form=local target=int32
+/// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
+/// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
+/// @definition.method symbol=double slot=double type=(this: int32) => int32.Output
+/// @resolution.name source=Doubling target=Doubling
+
+    type Output = int32;
+    /// @type.symbol symbol=Output source="type Output = int32" type=int32
+
+    double(): this.Output {
+    /// @type.symbol symbol=double type=(this: int32) => int32.Output reduced=(this: int32) => int32
+
+        todo("double")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"double\")" parameters=(string) arguments=(provided("double") as string) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+"#);
+}
+
+#[test]
+fn test_borrowed_receiver_satisfies_interface_method() {
+    let session = TestSession::single(
+        r#"
+interface Halving {
+    type Output;
+
+    halve(): this.Output;
+}
+
+extension of int32 implements Halving {
+    type Output = int32;
+
+    halve(&readonly this): this.Output {
+        todo("halve")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Halving {
+    type Output;
+
+    halve(): this.Output;
+}
+
+extension of int32 implements Halving {
+    type Output = int32;
+
+    halve(&readonly this): Borrowed<int32, L0, "readonly">.Output {
+        todo("halve")
+    }
+}
+
+=== checked ===
+interface Halving {
+/// @type.symbol symbol=Halving type=Halving
+/// @definition.interface symbol=Halving
+/// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
+/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: Halving) => this.Output
+
+    type Output;
+
+    halve(): this.Output;
+    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: Halving) => this.Output
+
+}
+
+extension of int32 implements Halving {
+/// @definition.extension symbol=<module>#2 form=local target=int32
+/// @definition.implements symbol=<module>#2 source=Halving target=Halving
+/// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
+/// @definition.method symbol=halve slot=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => Borrowed<int32, halve.L0, "readonly">.Output
+/// @resolution.name source=Halving target=Halving
+
+    type Output = int32;
+    /// @type.symbol symbol=Output source="type Output = int32" type=int32
+
+    halve(&readonly this): this.Output {
+    /// @generic.template symbol=halve parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => Borrowed<int32, halve.L0, "readonly">.Output reduced=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => int32
+    /// @type.symbol symbol=halve.this source="&readonly this" type=Borrowed<this, halve.L0, "readonly">
+
+        todo("halve")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"halve\")" parameters=(string) arguments=(provided("halve") as string) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+"#);
+}
