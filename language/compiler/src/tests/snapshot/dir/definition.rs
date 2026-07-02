@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use super::generic::generic_template_parameter_label;
 use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
@@ -93,7 +94,9 @@ fn add_type_alias_row(
         .optional_field("source", builder.node_source(source))
         .optional_field(
             "template",
-            definition.template.map(|template| format!("{template:?}")),
+            definition
+                .template
+                .map(|template| template_label(builder, symbol, template)),
         )
         .type_field("value", builder.global_type_label(definition.value))
         .optional_type_field("reduced", builder.reduced_type_label(definition.value));
@@ -113,7 +116,9 @@ fn add_newtype_row(
         .optional_field("source", builder.node_source(source))
         .optional_field(
             "template",
-            definition.template.map(|template| format!("{template:?}")),
+            definition
+                .template
+                .map(|template| template_label(builder, symbol, template)),
         )
         .type_field("value", builder.global_type_label(definition.value));
 
@@ -131,7 +136,10 @@ fn declaration_row(
     SnapshotRow::new(builder.anchor_symbol(symbol), "definition", kind)
         .field("symbol", builder.symbol_path_label(symbol))
         .optional_field("source", builder.node_source(source))
-        .optional_field("template", template.map(|template| format!("{template:?}")))
+        .optional_field(
+            "template",
+            template.map(|template| template_label(builder, symbol, template)),
+        )
 }
 
 /// Add one definition declaration row.
@@ -214,6 +222,28 @@ fn add_extension_row(
         );
 
     builder.push(row);
+}
+
+/// Render one declaration template's parameter list.
+fn template_label(
+    builder: &DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    template: dir::LocalGenericTemplateId,
+) -> String {
+    let Some(generics) = builder.generic_table(owner.module_id) else {
+        return format!("{template:?}");
+    };
+    let parameters = generics
+        .get_template(template)
+        .parameters
+        .iter()
+        .map(|parameter| {
+            generic_template_parameter_label(generics.get_parameter(*parameter), builder)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    format!("({parameters})")
 }
 
 /// Add where predicate rows from one declaration's template.

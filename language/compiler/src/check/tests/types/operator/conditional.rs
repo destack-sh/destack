@@ -29,7 +29,7 @@ declare const number: Number;
 type Select<T> = T extends string ? "yes" : "no";
 /// @generic.template symbol=Select parameters=(T)
 /// @type.symbol symbol=Select source="type Select<T> = T extends string ? \"yes\" : \"no\"" type=T extends string ? "yes" : "no"
-/// @definition.type symbol=Select source="type Select<T> = T extends string ? \"yes\" : \"no\"" template=LocalGenericTemplateId(0) value=T extends string ? "yes" : "no"
+/// @definition.type symbol=Select source="type Select<T> = T extends string ? \"yes\" : \"no\"" template=(T) value=T extends string ? "yes" : "no"
 /// @type.symbol symbol=Select.T source=T type=T
 /// @resolution.name source=T target=Select.T
 
@@ -79,7 +79,7 @@ declare const value: Result;
 type OnlyStrings<T> = T extends string ? T : never;
 /// @generic.template symbol=OnlyStrings parameters=(T)
 /// @type.symbol symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" type=T extends string ? T : never
-/// @definition.type symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" template=LocalGenericTemplateId(0) value=T extends string ? T : never
+/// @definition.type symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" template=(T) value=T extends string ? T : never
 /// @type.symbol symbol=OnlyStrings.T source=T type=T
 /// @resolution.name source=T target=OnlyStrings.T
 /// @resolution.name source=T target=OnlyStrings.T
@@ -162,7 +162,7 @@ let value: Result = "no";
 type OnlyStrings<T> = T extends string ? T : never;
 /// @generic.template symbol=OnlyStrings parameters=(T)
 /// @type.symbol symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" type=T extends string ? T : never
-/// @definition.type symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" template=LocalGenericTemplateId(0) value=T extends string ? T : never
+/// @definition.type symbol=OnlyStrings source="type OnlyStrings<T> = T extends string ? T : never" template=(T) value=T extends string ? T : never
 /// @type.symbol symbol=OnlyStrings.T source=T type=T
 /// @resolution.name source=T target=OnlyStrings.T
 /// @resolution.name source=T target=OnlyStrings.T

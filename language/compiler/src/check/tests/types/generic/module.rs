@@ -59,7 +59,7 @@ import { Box } from "./lib.ds";
 type Wrapped<T> = Box<T>;
 /// @generic.template source=declaration parameters=(T)
 /// @type.symbol symbol=Wrapped source="type Wrapped<T> = Box<T>" type=lib.Box<T>
-/// @definition.type symbol=Wrapped source="type Wrapped<T> = Box<T>" template=LocalGenericTemplateId(0) value=lib.Box<T>
+/// @definition.type symbol=Wrapped source="type Wrapped<T> = Box<T>" template=(T) value=lib.Box<T>
 /// @type.symbol symbol=Wrapped.T source=T type=T
 /// @generic.instance source=Box<T> id=lib.Box<T>
 /// @resolution.name source=Box target=lib.Box
@@ -331,7 +331,7 @@ const value: boolean = probe<never>(todo("iter"));
 interface Iter<T, R = unknown> {
 /// @generic.template symbol=Iter parameters=(T, R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Iter template=(T, R = unknown)
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="R = unknown" type=R
@@ -401,7 +401,7 @@ export newtype interface Iter<T, R = unknown> {
 export newtype interface Iter<T, R = unknown> {
 /// @generic.template symbol=Iter parameters=(T, R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=LocalGenericTemplateId(0) nominal=true
+/// @definition.interface symbol=Iter template=(T, R = unknown) nominal=true
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="R = unknown" type=R
@@ -538,7 +538,7 @@ import { Marker } from "./a.ds";
 export interface Iter<T, R = unknown> {
 /// @generic.template symbol=Iter parameters=(T, R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Iter template=(T, R = unknown)
 /// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: Iter<T, R>) => a.Marker
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
@@ -596,7 +596,7 @@ const out: float64 = unwrap(built);
 struct Wrap<T> {
 /// @generic.template symbol=Wrap parameters=(T)
 /// @type.symbol symbol=Wrap type=Wrap
-/// @definition.struct symbol=Wrap template=LocalGenericTemplateId(0)
+/// @definition.struct symbol=Wrap template=(T)
 /// @definition.field symbol=Wrap.value source="value: T" key=value type=T
 /// @type.symbol symbol=Wrap.T source=T type=T
 

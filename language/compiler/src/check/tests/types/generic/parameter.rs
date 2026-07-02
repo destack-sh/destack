@@ -322,7 +322,7 @@ class Bucket<K: Equal<K>> {
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Equal template=(T)
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T>, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
 
@@ -336,7 +336,7 @@ interface Equal<T> {
 class Bucket<K: Equal<K>> {
 /// @generic.template symbol=Bucket parameters=(K: Equal<K>)
 /// @type.symbol symbol=Bucket type=Bucket
-/// @definition.class symbol=Bucket template=LocalGenericTemplateId(1)
+/// @definition.class symbol=Bucket template=(K: Equal<K>)
 /// @definition.field symbol=Bucket.key source="key: K" key=key type=K
 /// @definition.method symbol=Bucket.constructor slot=constructor role=constructor type=(K) => Bucket<K>
 /// @definition.method symbol=Bucket.pair slot=pair type=(this: Bucket<K>) => Bucket<K>
@@ -433,7 +433,7 @@ extension<K> of Box<K> where K: Equal<K> {
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T#1)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Equal template=(T#1)
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -456,7 +456,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<K> {
 /// @generic.template symbol=Box parameters=(K#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=LocalGenericTemplateId(2)
+/// @definition.class symbol=Box template=(K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
 /// @type.symbol symbol=Box.K source=K type=K#1
@@ -558,7 +558,7 @@ class Box<K> {
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T#1)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Equal template=(T#1)
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -581,7 +581,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<K> {
 /// @generic.template symbol=Box parameters=(K)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=LocalGenericTemplateId(2)
+/// @definition.class symbol=Box template=(K)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K
 /// @definition.method symbol=Box.check slot=check type=(this: Box<K>) => boolean
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K) => Box<K>
@@ -677,7 +677,7 @@ declare function probe<T>(value: T): boolean;
 class Box<K> {
 /// @generic.template symbol=Box parameters=(K#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=LocalGenericTemplateId(1)
+/// @definition.class symbol=Box template=(K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
 /// @type.symbol symbol=Box.K source=K type=K#1
@@ -796,7 +796,7 @@ interface Hash {
 interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T#1)
 /// @type.symbol symbol=Equal type=Equal
-/// @definition.interface symbol=Equal template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Equal template=(T#1)
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -819,7 +819,7 @@ declare function probe<T: Equal<T>>(value: T): boolean;
 class Box<K> {
 /// @generic.template symbol=Box parameters=(K#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=LocalGenericTemplateId(2)
+/// @definition.class symbol=Box template=(K#1)
 /// @definition.field symbol=Box.key source="key: K" key=key type=K#1
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(K#1) => Box<K#1>
 /// @type.symbol symbol=Box.K source=K type=K#1

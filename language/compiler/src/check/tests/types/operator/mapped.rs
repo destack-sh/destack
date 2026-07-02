@@ -25,7 +25,7 @@ declare const value: Actual;
 type Flags<T> = { [K in keyof T]: boolean };
 /// @generic.template symbol=Flags parameters=(T)
 /// @type.symbol symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" type={ [K in keyof T]: boolean }
-/// @definition.type symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: boolean }
+/// @definition.type symbol=Flags source="type Flags<T> = { [K in keyof T]: boolean }" template=(T) value={ [K in keyof T]: boolean }
 /// @type.symbol symbol=Flags.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
@@ -64,7 +64,7 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
 type Clone<T> = { [K in keyof T]: T[K] };
 /// @generic.template symbol=Clone parameters=(T)
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
-/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: T[K] }
+/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
@@ -101,7 +101,7 @@ type Actual = Loose<{ name: string; age: int32 }>;
 type Loose<T> = { [K in keyof T]?: T[K] };
 /// @generic.template symbol=Loose parameters=(T)
 /// @type.symbol symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
-/// @definition.type symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]?: T[K] }
+/// @definition.type symbol=Loose source="type Loose<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Loose.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
@@ -142,7 +142,7 @@ const missing: Value = undefined;
 type Optional<T> = { [K in keyof T]?: T[K] };
 /// @generic.template symbol=Optional parameters=(T)
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
-/// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]?: T[K] }
+/// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Optional.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
@@ -187,7 +187,7 @@ const bad: Value = 1;
 type Optional<T> = { [K in keyof T]?: T[K] };
 /// @generic.template symbol=Optional parameters=(T)
 /// @type.symbol symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" type={ [K in keyof T]?: T[K] }
-/// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]?: T[K] }
+/// @definition.type symbol=Optional source="type Optional<T> = { [K in keyof T]?: T[K] }" template=(T) value={ [K in keyof T]?: T[K] }
 /// @type.symbol symbol=Optional.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
@@ -232,7 +232,7 @@ type Actual = Strict<{ readonly name?: string }>;
 type Strict<T> = { -readonly [K in keyof T]-?: T[K] };
 /// @generic.template symbol=Strict parameters=(T)
 /// @type.symbol symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" type={ -readonly[K in keyof T]-?: T[K] }
-/// @definition.type symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" template=LocalGenericTemplateId(0) value={ -readonly[K in keyof T]-?: T[K] }
+/// @definition.type symbol=Strict source="type Strict<T> = { -readonly [K in keyof T]-?: T[K] }" template=(T) value={ -readonly[K in keyof T]-?: T[K] }
 /// @type.symbol symbol=Strict.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K
@@ -349,7 +349,7 @@ type Actual = WithoutSecret<{ name: string; secret: string }>;
 type WithoutSecret<T> = { [K in keyof T as K extends "secret" ? never : K]: T[K] };
 /// @generic.template symbol=WithoutSecret parameters=(T)
 /// @type.symbol symbol=WithoutSecret type={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
-/// @definition.type symbol=WithoutSecret template=LocalGenericTemplateId(0) value={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
+/// @definition.type symbol=WithoutSecret template=(T) value={ [K in keyof T as K extends "secret" ? never : K]: T[K] }
 /// @type.symbol symbol=WithoutSecret.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T as K extends "secret" ? never : K] type=K
@@ -395,7 +395,7 @@ declare const token: unique symbol;
 type Clone<T> = { [K in keyof T]: T[K] };
 /// @generic.template symbol=Clone parameters=(T)
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
-/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: T[K] }
+/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K

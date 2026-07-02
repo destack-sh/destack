@@ -503,7 +503,7 @@ declare const name: Name;
 type ValueAt<T, K: keyof T> = T[K];
 /// @generic.template symbol=ValueAt parameters=(T, K: keyof T)
 /// @type.symbol symbol=ValueAt source="type ValueAt<T, K: keyof T> = T[K]" type=T[K]
-/// @definition.type symbol=ValueAt source="type ValueAt<T, K: keyof T> = T[K]" template=LocalGenericTemplateId(0) value=T[K]
+/// @definition.type symbol=ValueAt source="type ValueAt<T, K: keyof T> = T[K]" template=(T, K: keyof T) value=T[K]
 /// @type.symbol symbol=ValueAt.T source=T type=T
 /// @type.symbol symbol=ValueAt.K source=K type=K
 /// @resolution.name source=T target=ValueAt.T
@@ -546,7 +546,7 @@ type ValueAt<T, K> = T[K];
 type ValueAt<T, K> = T[K];
 /// @generic.template symbol=ValueAt parameters=(T, K)
 /// @type.symbol symbol=ValueAt source="type ValueAt<T, K> = T[K]" type=T[K]
-/// @definition.type symbol=ValueAt source="type ValueAt<T, K> = T[K]" template=LocalGenericTemplateId(0) value=T[K]
+/// @definition.type symbol=ValueAt source="type ValueAt<T, K> = T[K]" template=(T, K) value=T[K]
 /// @type.symbol symbol=ValueAt.T source=T type=T
 /// @type.symbol symbol=ValueAt.K source=K type=K
 /// @resolution.name source=T target=ValueAt.T

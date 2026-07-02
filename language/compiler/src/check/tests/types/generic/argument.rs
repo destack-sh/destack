@@ -21,7 +21,7 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
 type Clone<T> = { [K in keyof T]: T[K] };
 /// @generic.template symbol=Clone parameters=(T)
 /// @type.symbol symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" type={ [K in keyof T]: T[K] }
-/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=LocalGenericTemplateId(0) value={ [K in keyof T]: T[K] }
+/// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
 /// @type.symbol symbol=K source=[K in keyof T] type=K

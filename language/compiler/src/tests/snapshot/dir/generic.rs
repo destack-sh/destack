@@ -64,7 +64,7 @@ impl SnapshotTable for dir::GenericSegment {
 }
 
 /// Return one generic template parameter label.
-fn generic_template_parameter_label(
+pub(super) fn generic_template_parameter_label(
     parameter: &dir::GenericParameterBinding,
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
