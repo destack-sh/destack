@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use destack_memory::MemoryError;
 
 use crate::allocator::PageId;
-use crate::{AccountingRegion, HeapReference, SharedHeapReference};
+use crate::{AccountingRegion, HeapReference, SharedHeapReference, TraceTableError};
 
 /// One heap result.
 pub type HeapResult<T> = Result<T, HeapError>;
@@ -70,6 +70,11 @@ pub enum HeapError {
         source: HeapOperationSource,
         /// Underlying heap failure.
         error: Box<HeapError>,
+    },
+    /// One heap trace table operation failed.
+    Trace {
+        /// The trace table failure.
+        error: TraceTableError,
     },
     /// One lower memory operation failed.
     Memory {
@@ -445,9 +450,17 @@ impl Display for HeapError {
             } => {
                 write!(formatter, "heap {operation} failed for {source}: {error}")
             }
+            Self::Trace { error } => write!(formatter, "invalid heap trace table: {error}"),
             Self::Memory { error } => write!(formatter, "memory operation failed: {error}"),
             Self::Internal { context } => write!(formatter, "internal heap error: {context}"),
         }
+    }
+}
+
+impl From<TraceTableError> for HeapError {
+    /// Convert one trace table error.
+    fn from(error: TraceTableError) -> Self {
+        Self::Trace { error }
     }
 }
 

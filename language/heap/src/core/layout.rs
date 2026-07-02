@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use crate::TraceView;
@@ -15,8 +14,8 @@ const ALLOCATION_CLASS_LARGE: u32 = 0;
 const ALLOCATION_CLASS_SMALL: u32 = 1;
 
 /// The shape used to plan one heap allocation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AllocationShape<'a> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AllocationShape {
     /// The exact payload byte length.
     pub byte_len: usize,
     /// The required block base alignment in bytes.
@@ -24,7 +23,7 @@ pub struct AllocationShape<'a> {
     /// The canonical trace id when this allocation has table-backed metadata.
     pub trace_id: Option<TraceId>,
     /// The exact heap trace map.
-    pub trace_map: &'a TraceMap,
+    pub trace_map: TraceMap,
     /// Whether the allocation contains no heap references.
     pub is_noscan: bool,
     /// Whether the allocation may contain shared heap references.
@@ -52,7 +51,7 @@ pub struct AllocationPlan {
 impl AllocationPlan {
     /// Create one allocation plan from one shape and class.
     #[inline(always)]
-    pub const fn new(shape: AllocationShape<'_>, class: AllocationClass) -> Self {
+    pub const fn new(shape: &AllocationShape, class: AllocationClass) -> Self {
         Self {
             byte_len: shape.byte_len as u64,
             alignment: shape.alignment as u32,
@@ -114,10 +113,10 @@ impl AllocationPlan {
     }
 
     /// Resolve the trace map required by this allocation plan.
-    pub fn trace_map<'a>(&self, traces: TraceView<'a>) -> Option<Cow<'a, TraceMap>> {
+    pub fn trace_map(self, traces: TraceView<'_>) -> HeapResult<TraceMap> {
         match self.trace_id() {
-            Some(trace_id) => traces.trace(trace_id).map(Cow::Borrowed),
-            None => Some(Cow::Owned(TraceMap::Empty)),
+            Some(trace_id) => Ok(traces.trace_map(trace_id)?),
+            None => Ok(TraceMap::Empty),
         }
     }
 
@@ -134,24 +133,26 @@ impl AllocationPlan {
     }
 }
 
-impl<'a> AllocationShape<'a> {
+impl AllocationShape {
     /// Create one allocation shape.
     #[inline(always)]
     pub fn new(
         byte_len: usize,
         alignment: usize,
         trace_id: Option<TraceId>,
-        trace_map: &'a TraceMap,
+        trace_map: TraceMap,
     ) -> Self {
         debug_assert!(alignment == 0 || alignment.is_power_of_two());
+        let is_noscan = !trace_map.has_reference();
+        let has_shared_reference = trace_map.has_shared_reference();
 
         Self {
             byte_len,
             alignment: alignment.max(1),
             trace_id,
             trace_map,
-            is_noscan: !trace_map.has_reference(),
-            has_shared_reference: trace_map.has_shared_reference(),
+            is_noscan,
+            has_shared_reference,
         }
     }
 
@@ -199,7 +200,7 @@ impl AllocationClass {
     }
 }
 
-/// One concrete heap allocation with a borrowed trace map.
+/// One concrete heap allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Allocation<'a> {
     /// The exact payload byte length.
@@ -218,7 +219,7 @@ pub(crate) struct Allocation<'a> {
     pub class: AllocationClass,
 }
 
-impl<'a> Allocation<'a> {
+impl Allocation<'_> {
     /// Return whether this allocation describes a valid non-empty heap block.
     #[inline(always)]
     pub(crate) fn is_empty(&self) -> bool {

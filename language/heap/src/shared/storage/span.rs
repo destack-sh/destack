@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Bitmap, PageSpan};
 use crate::{
-    HeapError, HeapReference, HeapResult, ReferenceRange, SharedHeapReference, SmallSpanClass,
+    HeapReference, HeapResult, ReferenceRange, SharedHeapReference, SmallSpanClass,
     slot_trace_map_with, visit_untagged_reference_offsets,
 };
 
@@ -305,13 +305,11 @@ impl SmallSpan {
             return Ok(Cow::Owned(TraceMap::Empty));
         }
 
-        // table-backed classes share one canonical map
+        // decode the table-backed class trace map
         if let Some(trace_id) = self.class.trace_id() {
-            let trace_map = trace_view
-                .trace(trace_id)
-                .ok_or(HeapError::internal("missing trace map"))?;
+            let trace_map = trace_view.trace_map(trace_id)?;
 
-            return Ok(Cow::Borrowed(trace_map));
+            return Ok(Cow::Owned(trace_map));
         }
 
         // read only the slot's bit range from both edge classes
