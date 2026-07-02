@@ -219,10 +219,86 @@ impl<'a> LintModuleContext<'a> {
     /// Read one checked DIR type through its owning module.
     pub fn checked_type(&self, type_id: dir::GlobalTypeId) -> Option<dir::Type> {
         if type_id.module_id == self.module.id {
-            return self.types.get_type_maybe(type_id.local_id).cloned();
+            return self.types.get_type_maybe(type_id.local_id);
         }
 
-        self.session.with_type(type_id, |ty, _| ty.clone())
+        self.session.with_type(type_id, |ty, _| *ty)
+    }
+
+    /// Read one type id row list through its owning module.
+    pub fn checked_type_ids(
+        &self,
+        module: ModuleId,
+        range: dir::TypeListId,
+    ) -> Vec<dir::GlobalTypeId> {
+        if module == self.module.id {
+            return self.types.type_ids(range).to_vec();
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| checked.types.type_ids(range).to_vec())
+            .unwrap_or_default()
+    }
+
+    /// Read one tuple element row list through its owning module.
+    pub fn checked_elements(
+        &self,
+        module: ModuleId,
+        range: dir::TypeListId,
+    ) -> Vec<dir::TypeElement> {
+        if module == self.module.id {
+            return self.types.elements(range).to_vec();
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| checked.types.elements(range).to_vec())
+            .unwrap_or_default()
+    }
+
+    /// Read one shape field row list through its owning module.
+    pub fn checked_fields(&self, module: ModuleId, range: dir::TypeListId) -> Vec<dir::TypeField> {
+        if module == self.module.id {
+            return self.types.fields(range).to_vec();
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| checked.types.fields(range).to_vec())
+            .unwrap_or_default()
+    }
+
+    /// Read one function parameter row list through its owning module.
+    pub fn checked_parameters(
+        &self,
+        module: ModuleId,
+        range: dir::TypeListId,
+    ) -> Vec<dir::FunctionParameterType> {
+        if module == self.module.id {
+            return self.types.parameters(range).to_vec();
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| checked.types.parameters(range).to_vec())
+            .unwrap_or_default()
+    }
+
+    /// Read one index signature row list through its owning module.
+    pub fn checked_index_signatures(
+        &self,
+        module: ModuleId,
+        range: dir::TypeListId,
+    ) -> Vec<dir::TypeIndexSignature> {
+        if module == self.module.id {
+            return self.types.index_signatures(range).to_vec();
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| checked.types.index_signatures(range).to_vec())
+            .unwrap_or_default()
     }
 
     /// Read one checked DIR static through its owning module.
