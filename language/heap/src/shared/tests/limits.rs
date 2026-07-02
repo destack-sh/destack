@@ -232,13 +232,14 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_mark_worker();
+    let shape = layout.block();
 
     // reject before mutating shared heap accounting
     let error = shared
         .allocate_payload(
             &worker,
             &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
+            &heap_allocation_plan(&shared, &shape),
             Payload::Bytes(&[1]),
             trace_view(),
         )

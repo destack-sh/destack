@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::TraceView;
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::{
@@ -11,8 +10,8 @@ use crate::{
 };
 
 use super::{
-    heap_allocation_plan, owned_allocation_plan, read_mapped_bytes, test_allocate, trace_view,
-    write_mapped_bytes,
+    TestTraceTable, heap_allocation_plan, owned_allocation_plan, read_mapped_bytes, test_allocate,
+    trace_view, write_mapped_bytes,
 };
 
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
@@ -64,13 +63,14 @@ fn test_allocate_shared_rejects_zero_size_layout() {
     // build one shared heap with an invalid zero-size layout
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(0, TraceMap::empty())]);
     let layout = &layout_ids[0];
+    let shape = layout.block();
 
     // reject zero-size shared heap objects loudly
     let error = shared
         .allocate_payload(
             &worker,
             &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
+            &heap_allocation_plan(&shared, &shape),
             Payload::Bytes(&[]),
             trace_view(),
         )
@@ -87,7 +87,8 @@ fn test_allocate_shared_rejects_zero_size_layout() {
 fn test_allocate_shared_zeroed_worker_cache_defers_accounting() {
     // allocate two zeroed slots from a worker-local cursor
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(8, TraceMap::empty())]);
-    let layout = heap_allocation_plan(&shared, layout_ids[0].block());
+    let shape = layout_ids[0].block();
+    let layout = heap_allocation_plan(&shared, &shape);
 
     let first = shared
         .allocate_payload(
@@ -137,12 +138,13 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
-    let trace_view = TraceView::new(trace_table.traces());
+    let trace_table = TestTraceTable::from_mir(&trace_table);
+    let trace_view = trace_table.view();
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
-    let first_shape = AllocationShape::new(8, 1, Some(first_trace_id), &first_map);
-    let second_shape = AllocationShape::new(8, 1, Some(second_trace_id), &second_map);
-    let first_site = owned_allocation_plan(shared.options(), first_shape);
-    let second_site = owned_allocation_plan(shared.options(), second_shape);
+    let first_shape = AllocationShape::new(8, 1, Some(first_trace_id), first_map);
+    let second_shape = AllocationShape::new(8, 1, Some(second_trace_id), second_map);
+    let first_site = owned_allocation_plan(shared.options(), &first_shape);
+    let second_site = owned_allocation_plan(shared.options(), &second_shape);
     let second_small = second_site
         .class
         .as_small()
@@ -150,7 +152,13 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
 
     // prime one worker cache with the first trace class
     let _first = shared
-        .allocate_zeroed(&worker, &mut allocator, first_site, &first_map, trace_view)
+        .allocate_zeroed(
+            &worker,
+            &mut allocator,
+            first_site,
+            &first_shape.trace_map,
+            trace_view,
+        )
         .expect("first shared block should succeed");
 
     // reject cached cursor reuse across trace classes
@@ -164,7 +172,8 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
 fn test_allocate_shared_bytes_worker_cache_defers_accounting() {
     // allocate two byte-initialized slots from a worker-local cursor
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(8, TraceMap::empty())]);
-    let layout = heap_allocation_plan(&shared, layout_ids[0].block());
+    let shape = layout_ids[0].block();
+    let layout = heap_allocation_plan(&shared, &shape);
 
     let first = shared
         .allocate_payload(
@@ -365,16 +374,18 @@ fn test_collect_shared_keeps_table_traced_small_children() {
     let parent_map = shared_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let trace_view = TraceView::new(trace_table.traces());
-    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let trace_table = TestTraceTable::from_mir(&trace_table);
+    let trace_view = trace_table.view();
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), parent_map);
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
+    let child_shape = child_layout.block();
 
     // root the parent and make the child reachable through table-backed metadata
     let child = shared
         .allocate_payload(
             &worker,
             &mut allocator,
-            &heap_allocation_plan(&shared, child_layout.block()),
+            &heap_allocation_plan(&shared, &child_shape),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_view,
         )
@@ -383,7 +394,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &heap_allocation_plan(&shared, parent_layout),
+            &heap_allocation_plan(&shared, &parent_layout),
             Payload::Bytes(&child.bits().to_le_bytes()),
             trace_view,
         )

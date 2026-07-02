@@ -30,11 +30,13 @@ fn test_roundtrip_shared_heap_storage_image() {
     // capture two blocks in one shared small span
     let first_bytes = vec![1; 6];
     let second_bytes = vec![2; 6];
+    let first_shape = first_layout.block();
+    let second_shape = second_layout.block();
     let mut shared_cache = heap.allocation_cache();
     let first = heap
         .allocate(
             &mut shared_cache,
-            &heap_allocation_plan(&heap, first_layout.block()),
+            &heap_allocation_plan(&heap, &first_shape),
             Payload::Bytes(&first_bytes),
             true,
         )
@@ -42,7 +44,7 @@ fn test_roundtrip_shared_heap_storage_image() {
     let _second = heap
         .allocate(
             &mut shared_cache,
-            &heap_allocation_plan(&heap, second_layout.block()),
+            &heap_allocation_plan(&heap, &second_shape),
             Payload::Bytes(&second_bytes),
             true,
         )

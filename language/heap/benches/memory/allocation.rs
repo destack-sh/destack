@@ -6,8 +6,9 @@ use std::time::{Duration, Instant};
 use criterion::{BenchmarkId, Criterion, Throughput};
 use destack_heap::{
     AllocationPlan, AllocationShape, Heap, SharedHeap, SmallAllocationClass, SmallAllocationPlan,
+    TraceView,
 };
-use destack_mir::{TraceMap, TraceTable};
+use destack_mir::TraceMap;
 
 use crate::config::{
     ALLOCATION_MATRIX_BYTES, LARGE_ALLOCATIONS, LARGE_BYTES, MATRIX_MAX_ALLOCATIONS,
@@ -15,6 +16,7 @@ use crate::config::{
     SMALL_ALLOCATIONS, SMALL_BYTES,
 };
 use crate::heap::{WorkerHeap, local_heap, shared_heap, shared_worker_heap};
+use crate::trace::BenchTraceTable;
 
 /// Benchmark managed heap allocation paths.
 pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
@@ -22,34 +24,36 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
     // build trace maps used by the specialized small paths
     let trace_map = TraceMap::Empty;
-    let mut trace_table = TraceTable::new();
+    let mut source_traces = destack_mir::TraceTable::new();
     let local_trace_map = local_reference_trace_map();
     let shared_trace_map = shared_reference_trace_map();
-    let local_trace_id = trace_table.insert(local_trace_map.clone());
-    let shared_trace_id = trace_table.insert(shared_trace_map.clone());
+    let local_trace_id = source_traces.insert(local_trace_map.clone());
+    let shared_trace_id = source_traces.insert(shared_trace_map.clone());
+    let trace_table = BenchTraceTable::from_mir(&source_traces);
+    let trace_view = trace_table.view();
 
     // derive allocation plans from one representative heap
     let heap = local_heap();
     let shared_heap = shared_heap();
-    let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
-    let allocation = local_allocation_plan(&heap, shape);
+    let shape = AllocationShape::new(SMALL_BYTES, 1, None, trace_map.clone());
+    let allocation = local_allocation_plan(&heap, &shape);
     let small_site = small_allocation_plan(allocation);
-    let shared_allocation = shared_allocation_plan(&shared_heap, shape);
+    let shared_allocation = shared_allocation_plan(&shared_heap, &shape);
     let shared_small = small_allocation(shared_allocation);
-    let local_shape = AllocationShape::new(SMALL_BYTES, 1, Some(local_trace_id), &local_trace_map);
-    let local_allocation = local_allocation_plan(&heap, local_shape);
+    let local_shape = AllocationShape::new(SMALL_BYTES, 1, Some(local_trace_id), local_trace_map);
+    let local_allocation = local_allocation_plan(&heap, &local_shape);
     let local_small_site = small_allocation_plan(local_allocation);
     let shared_edge_shape =
-        AllocationShape::new(SMALL_BYTES, 1, Some(shared_trace_id), &shared_trace_map);
-    let shared_edge_allocation = local_allocation_plan(&heap, shared_edge_shape);
+        AllocationShape::new(SMALL_BYTES, 1, Some(shared_trace_id), shared_trace_map);
+    let shared_edge_allocation = local_allocation_plan(&heap, &shared_edge_shape);
     let shared_edge_small_site = small_allocation_plan(shared_edge_allocation);
 
     // build initialized payloads for byte-copy paths
     let payload = [0xAB; SMALL_BYTES];
     let large_payload = vec![0xAB; LARGE_BYTES];
-    let large_shape = AllocationShape::new(LARGE_BYTES, 1, None, &trace_map);
-    let large_allocation = local_allocation_plan(&heap, large_shape);
-    let shared_large_allocation = shared_allocation_plan(&shared_heap, large_shape);
+    let large_shape = AllocationShape::new(LARGE_BYTES, 1, None, trace_map.clone());
+    let large_allocation = local_allocation_plan(&heap, &large_shape);
+    let shared_large_allocation = shared_allocation_plan(&shared_heap, &large_shape);
 
     // measure small cached allocator paths
     group.throughput(Throughput::Elements(SMALL_ALLOCATIONS as u64));
@@ -82,7 +86,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 SMALL_ALLOCATIONS,
                 |heap| {
                     let reference = heap
-                        .allocate_zeroed(local_allocation, &local_trace_map)
+                        .allocate_zeroed(local_allocation, &local_shape.trace_map)
                         .expect("local scan allocation should prime");
                     black_box(reference);
                 },
@@ -103,7 +107,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 SMALL_ALLOCATIONS,
                 |heap| {
                     let reference = heap
-                        .allocate_zeroed(shared_edge_allocation, &shared_trace_map)
+                        .allocate_zeroed(shared_edge_allocation, &shared_edge_shape.trace_map)
                         .expect("local shared-edge allocation should prime");
                     black_box(reference);
                 },
@@ -172,7 +176,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &mut shared_worker.allocator,
                             shared_allocation,
                             &trace_map,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared heap allocation should prime");
                     black_box(reference);
@@ -185,7 +189,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &mut shared_worker.allocator,
                             shared_allocation,
                             &trace_map,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
@@ -207,7 +211,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &mut shared_worker.allocator,
                             shared_allocation,
                             &trace_map,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared noscan allocation should prime");
                     black_box(reference);
@@ -237,7 +241,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             shared_allocation,
                             &trace_map,
                             &payload,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared heap allocation should prime");
                     black_box(reference);
@@ -251,7 +255,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             shared_allocation,
                             &trace_map,
                             &payload,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared heap allocation should succeed");
                     black_box(reference);
@@ -309,7 +313,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             &mut shared_worker.allocator,
                             shared_large_allocation,
                             &trace_map,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared large allocation should succeed");
                     black_box(reference);
@@ -333,7 +337,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                             shared_large_allocation,
                             &trace_map,
                             &large_payload,
-                            &trace_table,
+                            trace_view,
                         )
                         .expect("shared large allocation should succeed");
                     black_box(reference);
@@ -348,8 +352,8 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 /// Benchmark managed allocation across size classes.
 pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_allocation_matrix");
-    let trace_map = TraceMap::Empty;
-    let trace_table = TraceTable::new();
+    let trace_table = BenchTraceTable::new();
+    let trace_view = trace_table.view();
 
     // sweep representative size classes through dynamic allocator paths
     for byte_len in ALLOCATION_MATRIX_BYTES {
@@ -360,9 +364,9 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, TraceMap::Empty);
                 let heap = local_heap();
-                let allocation = local_allocation_plan(&heap, shape);
+                let allocation = local_allocation_plan(&heap, &shape);
 
                 bencher.iter_custom(|iterations| {
                     measure_local_heap(
@@ -370,13 +374,13 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         allocation_count,
                         |heap| {
                             let reference = heap
-                                .allocate_zeroed(allocation, &trace_map)
+                                .allocate_zeroed(allocation, &shape.trace_map)
                                 .expect("local zeroed allocation should prime");
                             black_box(reference);
                         },
                         |heap| {
                             let reference = heap
-                                .allocate_zeroed(allocation, &trace_map)
+                                .allocate_zeroed(allocation, &shape.trace_map)
                                 .expect("local zeroed allocation should succeed");
                             black_box(reference);
                         },
@@ -389,9 +393,9 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("local_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, TraceMap::Empty);
                 let heap = local_heap();
-                let allocation = local_allocation_plan(&heap, shape);
+                let allocation = local_allocation_plan(&heap, &shape);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -400,13 +404,13 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                         allocation_count,
                         |heap| {
                             let reference = heap
-                                .allocate_bytes(allocation, &trace_map, &payload)
+                                .allocate_bytes(allocation, &shape.trace_map, &payload)
                                 .expect("local byte allocation should prime");
                             black_box(reference);
                         },
                         |heap| {
                             let reference = heap
-                                .allocate_bytes(allocation, &trace_map, &payload)
+                                .allocate_bytes(allocation, &shape.trace_map, &payload)
                                 .expect("local byte allocation should succeed");
                             black_box(reference);
                         },
@@ -419,9 +423,9 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_zeroed", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, TraceMap::Empty);
                 let shared = shared_heap();
-                let allocation = shared_allocation_plan(&shared, shape);
+                let allocation = shared_allocation_plan(&shared, &shape);
 
                 bencher.iter_custom(|iterations| {
                     measure_shared_worker_heap(
@@ -434,8 +438,8 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                     &shared_worker.worker,
                                     &mut shared_worker.allocator,
                                     allocation,
-                                    &trace_map,
-                                    &trace_table,
+                                    &shape.trace_map,
+                                    trace_view,
                                 )
                                 .expect("shared zeroed allocation should prime");
                             black_box(reference);
@@ -447,8 +451,8 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                     &shared_worker.worker,
                                     &mut shared_worker.allocator,
                                     allocation,
-                                    &trace_map,
-                                    &trace_table,
+                                    &shape.trace_map,
+                                    trace_view,
                                 )
                                 .expect("shared zeroed allocation should succeed");
                             black_box(reference);
@@ -462,9 +466,9 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
             BenchmarkId::new("shared_bytes", byte_len),
             byte_len,
             |bencher, byte_len| {
-                let shape = AllocationShape::new(*byte_len, 1, None, &trace_map);
+                let shape = AllocationShape::new(*byte_len, 1, None, TraceMap::Empty);
                 let shared = shared_heap();
-                let allocation = shared_allocation_plan(&shared, shape);
+                let allocation = shared_allocation_plan(&shared, &shape);
                 let payload = vec![0xAB; *byte_len];
 
                 bencher.iter_custom(|iterations| {
@@ -478,9 +482,9 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                     &shared_worker.worker,
                                     &mut shared_worker.allocator,
                                     allocation,
-                                    &trace_map,
+                                    &shape.trace_map,
                                     &payload,
-                                    &trace_table,
+                                    trace_view,
                                 )
                                 .expect("shared byte allocation should prime");
                             black_box(reference);
@@ -492,9 +496,9 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
                                     &shared_worker.worker,
                                     &mut shared_worker.allocator,
                                     allocation,
-                                    &trace_map,
+                                    &shape.trace_map,
                                     &payload,
-                                    &trace_table,
+                                    trace_view,
                                 )
                                 .expect("shared byte allocation should succeed");
                             black_box(reference);
@@ -512,10 +516,11 @@ pub(crate) fn bench_heap_allocation_matrix(criterion: &mut Criterion) {
 pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_shared_parallel_allocation");
     let trace_map = TraceMap::Empty;
-    let trace_table = TraceTable::new();
-    let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
+    let trace_table = BenchTraceTable::new();
+    let trace_view = trace_table.view();
+    let shape = AllocationShape::new(SMALL_BYTES, 1, None, trace_map.clone());
     let shared = shared_heap();
-    let allocation = shared_allocation_plan(&shared, shape);
+    let allocation = shared_allocation_plan(&shared, &shape);
 
     // scale shared allocation across worker-local allocator caches
     for worker_count in PARALLEL_WORKERS {
@@ -532,7 +537,7 @@ pub(crate) fn bench_shared_parallel_allocation(criterion: &mut Criterion) {
                         *worker_count,
                         allocation,
                         &trace_map,
-                        &trace_table,
+                        trace_view,
                     )
                 });
             },
@@ -604,7 +609,7 @@ fn measure_parallel_shared_heap(
     worker_count: usize,
     allocation: AllocationPlan,
     trace_map: &TraceMap,
-    trace_table: &TraceTable,
+    trace_view: TraceView<'_>,
 ) -> Duration {
     let mut elapsed = Duration::ZERO;
 
@@ -635,7 +640,7 @@ fn measure_parallel_shared_heap(
                                 &mut allocator,
                                 allocation,
                                 trace_map,
-                                trace_table,
+                                trace_view,
                             )
                             .expect("shared parallel allocation should succeed");
                         black_box(reference);
@@ -683,13 +688,13 @@ fn small_allocation_plan(allocation: AllocationPlan) -> SmallAllocationPlan {
 
 /// Build one explicit local allocation plan for benchmarks.
 #[inline(always)]
-fn local_allocation_plan(heap: &Heap, shape: AllocationShape<'_>) -> AllocationPlan {
+fn local_allocation_plan(heap: &Heap, shape: &AllocationShape) -> AllocationPlan {
     heap.options().allocation_plan(shape)
 }
 
 /// Build one explicit shared allocation plan for benchmarks.
 #[inline(always)]
-fn shared_allocation_plan(heap: &SharedHeap, shape: AllocationShape<'_>) -> AllocationPlan {
+fn shared_allocation_plan(heap: &SharedHeap, shape: &AllocationShape) -> AllocationPlan {
     heap.options().allocation_plan(shape)
 }
 

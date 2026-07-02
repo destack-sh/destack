@@ -2,14 +2,14 @@ use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
     AllocationShape, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
-    HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout, TraceView,
+    HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
     local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
 
 use super::{
-    TestHeapPlan, owned_allocation_plan, read_mapped_bytes, test_heap, test_storage, trace_view,
-    write_mapped_bytes,
+    TestHeapPlan, TestTraceTable, owned_allocation_plan, read_mapped_bytes, test_heap,
+    test_storage, trace_view, write_mapped_bytes,
 };
 
 /// Build one heap whose pacer triggers immediately in step-driven tests.
@@ -158,20 +158,20 @@ fn test_reserve_local_young_span_uses_exact_trace_cache() {
     let second_trace_id = trace_table.insert(second_map.clone());
     let options = HeapOptions::local();
     let mut heap = test_heap(options);
-    let first_shape = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
-    let second_shape = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
-    let first_site = owned_allocation_plan(heap.options(), first_shape);
-    let second_site = owned_allocation_plan(heap.options(), second_shape);
+    let first_shape = AllocationShape::new(16, 1, Some(first_trace_id), first_map);
+    let second_shape = AllocationShape::new(16, 1, Some(second_trace_id), second_map);
+    let first_site = owned_allocation_plan(heap.options(), &first_shape);
+    let second_site = owned_allocation_plan(heap.options(), &second_shape);
 
     // allocate from two same-size traced classes
     let first = heap
-        .allocate_zeroed(first_site, &first_map)
+        .allocate_zeroed(first_site, &first_shape.trace_map)
         .expect("first local block should succeed");
     let _second = heap
-        .allocate_zeroed(second_site, &second_map)
+        .allocate_zeroed(second_site, &second_shape.trace_map)
         .expect("second local block should succeed");
     let first_again = heap
-        .allocate_zeroed(first_site, &first_map)
+        .allocate_zeroed(first_site, &first_shape.trace_map)
         .expect("first trace class should still have a cached span");
 
     // reuse the first trace class span instead of allocating a third span
@@ -262,8 +262,9 @@ fn test_collect_minor_promotes_table_traced_young_span_slots() {
     let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let trace_view = TraceView::new(trace_table.traces());
-    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let trace_table = TestTraceTable::from_mir(&trace_table);
+    let trace_view = trace_table.view();
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), parent_map);
     let mut heap = test_storage(&options);
 
     // root the parent and make the child reachable only through table-backed metadata
@@ -1046,13 +1047,13 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
     // young range layouts carry one local reference and no table id
     let options = HeapOptions::local();
     let range_map = local_trace_map(&[0]);
-    let layout = AllocationShape::new(8, 1, None, &range_map);
+    let layout = AllocationShape::new(8, 1, None, range_map);
     let mut heap = test_storage(&options);
 
     // root one survivor and leave several ranges unreachable for sweep work
-    let survivor = heap.test_allocate(layout, Payload::Zeroed);
+    let survivor = heap.test_allocate(layout.clone(), Payload::Zeroed);
     for _ in 0..12 {
-        heap.test_allocate(layout, Payload::Zeroed);
+        heap.test_allocate(layout.clone(), Payload::Zeroed);
     }
     let mut roots = vec![survivor];
 
@@ -1095,7 +1096,7 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
     let options = HeapOptions::local();
     let mut heap = test_heap(options);
     let layout = test_layout(16, TraceMap::empty());
-    let plan = owned_allocation_plan(heap.options(), layout.block());
+    let plan = owned_allocation_plan(heap.options(), &layout.block());
     let small_plan = plan.small_allocation().expect("plan should be small");
     let mut roots: Vec<HeapReference> = Vec::new();
 
@@ -1146,8 +1147,9 @@ fn test_collect_minor_rewrites_pinned_young_slot_payload() {
     let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
-    let trace_view = TraceView::new(trace_table.traces());
-    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let trace_table = TestTraceTable::from_mir(&trace_table);
+    let trace_view = trace_table.view();
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), parent_map);
     let mut heap = test_storage(&options);
 
     // pin the parent so it survives in place while the child promotes
@@ -1227,14 +1229,14 @@ fn test_reserve_young_spans_reuse_across_noscan_trace_ids() {
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
-    let first_layout = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
-    let second_layout = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
+    let first_layout = AllocationShape::new(16, 1, Some(first_trace_id), first_map);
+    let second_layout = AllocationShape::new(16, 1, Some(second_trace_id), second_map);
     let mut heap = test_storage(&options);
 
     // allocate alternately between the two classes
     for _ in 0..2 {
-        heap.test_allocate(first_layout, Payload::Zeroed);
-        heap.test_allocate(second_layout, Payload::Zeroed);
+        heap.test_allocate(first_layout.clone(), Payload::Zeroed);
+        heap.test_allocate(second_layout.clone(), Payload::Zeroed);
     }
 
     // share one young span across both no-scan classes
@@ -1254,10 +1256,11 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
     let mature_map = local_trace_map(&[0, 256]);
     let mut trace_table = TraceTable::new();
     let mature_trace_id = trace_table.insert(mature_map.clone());
-    let trace_view = TraceView::new(trace_table.traces());
-    let mature_layout = AllocationShape::new(512, 1, Some(mature_trace_id), &mature_map);
+    let trace_table = TestTraceTable::from_mir(&trace_table);
+    let trace_view = trace_table.view();
+    let mature_layout = AllocationShape::new(512, 1, Some(mature_trace_id), mature_map);
     let chain_map = local_trace_map(&[0]);
-    let chain_layout = AllocationShape::new(8, 1, None, &chain_map);
+    let chain_layout = AllocationShape::new(8, 1, None, chain_map);
     let young_layout = test_layout(8, TraceMap::empty());
     let mut heap = test_storage(&options);
 
@@ -1271,10 +1274,10 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
         .expect("first card barrier should succeed");
 
     // root a young chain so marking stays busy after the dirty cards drain
-    let mut chain_head = heap.test_allocate(chain_layout, Payload::Zeroed);
+    let mut chain_head = heap.test_allocate(chain_layout.clone(), Payload::Zeroed);
     for _ in 0..8 {
         chain_head = heap.test_allocate(
-            chain_layout,
+            chain_layout.clone(),
             Payload::Bytes(&chain_head.bits().to_le_bytes()),
         );
     }
