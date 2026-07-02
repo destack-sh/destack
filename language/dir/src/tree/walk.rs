@@ -775,7 +775,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             mutability: _,
             export: _,
             is_ambient: _,
-            is_shared: _,
+            place: _,
             declarators,
         } => {
             for declarator_id in declarators {
