@@ -18,6 +18,23 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let constraint = answer!(self.reduce_type_head(origin, constraint)?);
 
+        // check conjunction bounds element-wise, each on its own path
+        if let dir::Type::Intersection(intersection) = self.ty(constraint)? {
+            let elements = self
+                .type_ids(constraint.module_id, intersection.elements)?
+                .to_vec();
+            let mut decision = Answer::Ready(true);
+            for element in elements {
+                decision =
+                    decision.and(self.constrain_generic_bound(origin, source, argument, element)?);
+                if decision.is_ready_false() {
+                    break;
+                }
+            }
+
+            return Ok(decision);
+        }
+
         // normalize compiler-known static domains before checking bounds
         let item = self
             .type_symbol(constraint)?

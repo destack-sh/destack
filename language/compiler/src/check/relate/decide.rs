@@ -39,11 +39,19 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(left_key == right_key));
         }
 
+        // key parameter queries by their assuming scope
+        let scope =
+            if self.type_flags(left)?.has_parameter() || self.type_flags(right)?.has_parameter() {
+                self.origin_scope(origin)
+            } else {
+                None
+            };
+
         // reuse memoized answers, treating in-flight pairs as recursive cycles
-        if let Some(holds) = self.relations().lookup(relation, left, right) {
+        if let Some(holds) = self.relations().lookup(relation, left, right, scope) {
             return Ok(Answer::Ready(holds));
         }
-        let frame = self.relations().enter(relation, left, right);
+        let frame = self.relations().enter(relation, left, right, scope);
 
         let decision = match relation {
             Relation::Equal => self.decide_equal(origin, left, right),
@@ -425,11 +433,51 @@ impl CheckState<'_> {
             (dir::Type::Parameter(parameter), _) => {
                 self.decide_parameter_assignable(origin, parameter, target)?
             }
+            // intersection sources assign through any element
+            (dir::Type::Intersection(intersection), _) => {
+                let elements = self
+                    .type_ids(source.module_id, intersection.elements)?
+                    .to_vec();
+                let mut decision = Answer::Ready(false);
+                for element in elements {
+                    decision = decision.or(self.decide_relation(
+                        origin,
+                        Relation::Assignable,
+                        element,
+                        target,
+                    )?);
+                    if decision.is_ready_true() {
+                        break;
+                    }
+                }
+
+                decision
+            }
             // union targets need one viable element
             (_, dir::Type::Union(union)) => {
                 let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
 
                 self.decide_any_assignable(origin, source, &elements)?
+            }
+            // intersection targets need every element
+            (_, dir::Type::Intersection(intersection)) => {
+                let elements = self
+                    .type_ids(target.module_id, intersection.elements)?
+                    .to_vec();
+                let mut decision = Answer::Ready(true);
+                for element in elements {
+                    decision = decision.and(self.decide_relation(
+                        origin,
+                        Relation::Assignable,
+                        source,
+                        element,
+                    )?);
+                    if decision.is_ready_false() {
+                        break;
+                    }
+                }
+
+                decision
             }
             // erase compatible values into dynamic targets
             (_, dir::Type::Dynamic(dynamic)) => {
@@ -595,11 +643,27 @@ impl CheckState<'_> {
         let Some(binding) = self.generic_parameter(parameter) else {
             return Ok(Answer::Ready(false));
         };
-        let Some(constraint) = binding.constraint else {
-            return Ok(Answer::Ready(false));
-        };
+        let constraint = binding.constraint;
 
-        self.decide_relation(origin, Relation::Assignable, constraint, target)
+        // prove through the declared constraint first
+        let mut decision = Answer::Ready(false);
+        if let Some(constraint) = constraint {
+            decision = self.decide_relation(origin, Relation::Assignable, constraint, target)?;
+            if decision.is_ready_true() {
+                return Ok(decision);
+            }
+        }
+
+        // prove through where-clause bounds in scope
+        for bound in self.assumed_parameter_bounds(origin, parameter)? {
+            decision =
+                decision.or(self.decide_relation(origin, Relation::Assignable, bound, target)?);
+            if decision.is_ready_true() {
+                break;
+            }
+        }
+
+        Ok(decision)
     }
 
     /// Decide equality of two type-level operations.
