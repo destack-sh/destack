@@ -51,7 +51,7 @@ impl Default for SharedHeapOptions {
 impl SharedHeapOptions {
     /// Resolve one shared heap allocation plan for this allocation shape.
     #[inline(always)]
-    pub fn allocation_plan(&self, shape: AllocationShape<'_>) -> AllocationPlan {
+    pub fn allocation_plan(&self, shape: &AllocationShape) -> AllocationPlan {
         let class = self.classify_allocation(shape);
 
         AllocationPlan::new(shape, class)
@@ -59,7 +59,7 @@ impl SharedHeapOptions {
 
     /// Resolve one shared heap allocation class for this allocation shape.
     #[inline(always)]
-    fn classify_allocation(&self, shape: AllocationShape<'_>) -> AllocationClass {
+    fn classify_allocation(&self, shape: &AllocationShape) -> AllocationClass {
         if shape.trace_map.has_tagged_reference() {
             return AllocationClass::large();
         }

@@ -7,6 +7,7 @@ use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
 use crate::{
     GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
     ReferenceRange, SharedHeapReference, SizeClassTableError, visit_references,
+    visit_trace_references,
 };
 
 impl HeapStorage {
@@ -302,16 +303,35 @@ impl HeapStorage {
                 return Ok(scanned_bytes);
             };
             let slot_offset = small_slot_offset(span.class.size_class(), slot_index);
-            let trace_map = span.trace_map(slot_index, trace_view)?;
             scanned_bytes += slot_bytes;
 
             // noscan slots cost one claimed unit only
-            if !trace_map.has_shared_reference() {
+            if span.class.is_noscan() {
                 continue;
             }
 
-            // payload scan
+            // scan table-backed class metadata directly
             let base_address = self.mapping.base_address() + span.first_offset + slot_offset;
+            if let Some(trace_id) = span.class.trace_id() {
+                visit_trace_references::<SharedHeapReference>(
+                    trace_view,
+                    trace_id,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::All,
+                    &mut |reference| {
+                        if !reference.is_null() {
+                            self.mark_reference(worker, reference)?;
+                        }
+
+                        Ok(())
+                    },
+                )?;
+
+                continue;
+            }
+
+            // scan side-bit metadata for dynamically traced slots
+            let trace_map = span.trace_map(slot_index, trace_view)?;
             visit_references::<SharedHeapReference>(
                 &trace_map,
                 ReferenceInput::mapped(base_address),

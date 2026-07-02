@@ -485,13 +485,11 @@ impl HeapStorage {
             return Err(HeapError::internal("missing small slot"));
         }
 
-        // table-backed classes share one canonical map
+        // decode the table-backed class trace map
         if let Some(trace_id) = span.class.trace_id() {
-            let trace_map = trace_view
-                .trace(trace_id)
-                .ok_or(HeapError::internal("missing trace map"))?;
+            let trace_map = trace_view.trace_map(trace_id)?;
 
-            return Ok(Cow::Borrowed(trace_map));
+            return Ok(Cow::Owned(trace_map));
         }
 
         Ok(Cow::Owned(slot_trace_map(
@@ -518,11 +516,9 @@ impl HeapStorage {
             return Ok(Cow::Owned(TraceMap::Empty));
         };
 
-        let trace_map = trace_view
-            .trace(trace_id)
-            .ok_or(HeapError::internal("missing trace map"))?;
+        let trace_map = trace_view.trace_map(trace_id)?;
 
-        Ok(Cow::Borrowed(trace_map))
+        Ok(Cow::Owned(trace_map))
     }
 
     /// Return the exact trace map stored for one young range.

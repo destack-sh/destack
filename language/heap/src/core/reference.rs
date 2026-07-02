@@ -1,8 +1,9 @@
-use destack_mir::TraceMap;
+use destack_mir::{TraceId, TraceMap};
 
 use crate::allocator::Bitmap;
 use crate::{
     HeapError, HeapReference, HeapRepresentationError, HeapResult, RootSlot, SharedHeapReference,
+    TraceView, TraceVisitor,
 };
 
 /// Native reference field width.
@@ -40,7 +41,12 @@ impl ReferenceRange {
     }
 
     /// Return the repeated element indexes whose strides overlap this range.
-    fn element_window(self, base_offset: usize, stride: usize, count: u32) -> std::ops::Range<u32> {
+    pub(crate) fn element_window(
+        self,
+        base_offset: usize,
+        stride: usize,
+        count: u32,
+    ) -> std::ops::Range<u32> {
         match self {
             Self::All => 0..count,
             Self::Bytes { start, end } => {
@@ -556,8 +562,37 @@ pub(crate) fn visit_references<R: ReferenceClass>(
     }
 }
 
+/// Visit read-only references from one compact trace row.
+pub(crate) fn visit_trace_references<R: ReferenceClass>(
+    trace_view: TraceView<'_>,
+    trace_id: TraceId,
+    input: ReferenceInput<'_>,
+    range: ReferenceRange,
+    visit: &mut dyn FnMut(R) -> HeapResult<()>,
+) -> HeapResult<()> {
+    match input {
+        ReferenceInput::Mapped { base_address } => {
+            let mut walker = MemoryReferenceVisitWalker::<R> {
+                base_address,
+                visit,
+            };
+
+            trace_view.walk(trace_id, 0, range, &mut walker)
+        }
+        ReferenceInput::Bytes { start, bytes } => {
+            let mut walker = ByteReferenceVisitWalker::<R> {
+                start,
+                bytes,
+                visit,
+            };
+
+            trace_view.walk(trace_id, 0, range, &mut walker)
+        }
+    }
+}
+
 /// Walk references selected by one trace map.
-fn walk_trace_map<W: ReferenceWalker>(
+fn walk_trace_map<W: TraceVisitor>(
     trace_map: &TraceMap,
     base_offset: usize,
     range: ReferenceRange,
@@ -639,21 +674,6 @@ fn walk_direct_offsets(
     Ok(())
 }
 
-/// Reference walker selected by scan source and output shape.
-trait ReferenceWalker {
-    /// Walk one fixed trace map at the given byte offset.
-    fn fixed(
-        &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        base_offset: usize,
-        range: ReferenceRange,
-    ) -> HeapResult<()>;
-
-    /// Return the active variant tag at the given offset.
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>>;
-}
-
 /// Read-only reference visitor over mapped block memory.
 struct MemoryReferenceVisitWalker<'a, R: ReferenceClass> {
     /// The mapped block base address.
@@ -662,7 +682,7 @@ struct MemoryReferenceVisitWalker<'a, R: ReferenceClass> {
     visit: &'a mut dyn FnMut(R) -> HeapResult<()>,
 }
 
-impl<R: ReferenceClass> ReferenceWalker for MemoryReferenceVisitWalker<'_, R> {
+impl<R: ReferenceClass> TraceVisitor for MemoryReferenceVisitWalker<'_, R> {
     fn fixed(
         &mut self,
         local_offsets: &[u32],
@@ -702,7 +722,7 @@ struct ByteReferenceVisitWalker<'a, R: ReferenceClass> {
     visit: &'a mut dyn FnMut(R) -> HeapResult<()>,
 }
 
-impl<R: ReferenceClass> ReferenceWalker for ByteReferenceVisitWalker<'_, R> {
+impl<R: ReferenceClass> TraceVisitor for ByteReferenceVisitWalker<'_, R> {
     fn fixed(
         &mut self,
         local_offsets: &[u32],
@@ -740,7 +760,7 @@ struct ByteEdgeWalker<'a> {
     visit: &'a mut dyn FnMut(HeapEdge) -> HeapResult<()>,
 }
 
-impl ReferenceWalker for ByteEdgeWalker<'_> {
+impl TraceVisitor for ByteEdgeWalker<'_> {
     fn fixed(
         &mut self,
         local_offsets: &[u32],
@@ -790,7 +810,7 @@ struct ByteSlotWalker<'a> {
     visit: &'a mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 }
 
-impl ReferenceWalker for ByteSlotWalker<'_> {
+impl TraceVisitor for ByteSlotWalker<'_> {
     fn fixed(
         &mut self,
         local_offsets: &[u32],

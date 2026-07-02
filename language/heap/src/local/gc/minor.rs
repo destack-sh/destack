@@ -5,7 +5,9 @@ use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockI
 use crate::{
     AllocationUsage, GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference,
     HeapResult, ReferenceInput, ReferenceRange, RootSlot, TraceQueue, scan_references,
+    visit_trace_references,
 };
+use destack_mir::TraceId;
 
 impl HeapStorage {
     /// Perform one young-generation collection over mutable heap roots.
@@ -567,6 +569,7 @@ impl HeapStorage {
         Ok(Some(DirtySpanCard {
             card,
             size_class: span.class.size_class(),
+            trace_id: span.class.trace_id(),
             slot_count: span.slot_count,
             first_offset: span.first_offset,
         }))
@@ -605,18 +608,35 @@ impl HeapStorage {
             // scan young references in the dirty slice into the reusable scratch
             let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
             let base_address = self.mapping.base_address() + card.first_offset + overlap.slot_start;
-            self.small_slot_trace_map_ref(span_index, overlap.slot_index, trace_view)
-                .and_then(|trace_map| {
-                    scan_references::<HeapReference>(
-                        &trace_map,
-                        ReferenceInput::mapped(base_address),
-                        ReferenceRange::bytes(overlap.byte_start, overlap.byte_len),
-                        &mut scratch,
-                    )
-                })
+            if let Some(trace_id) = card.trace_id {
+                visit_trace_references::<HeapReference>(
+                    trace_view,
+                    trace_id,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::bytes(overlap.byte_start, overlap.byte_len),
+                    &mut |reference| {
+                        scratch.push(reference);
+
+                        Ok(())
+                    },
+                )
                 .map_err(|error| {
                     HeapError::scan_failed(HeapOperationSource::Span(span_index), error)
                 })?;
+            } else {
+                self.small_slot_trace_map_ref(span_index, overlap.slot_index, trace_view)
+                    .and_then(|trace_map| {
+                        scan_references::<HeapReference>(
+                            &trace_map,
+                            ReferenceInput::mapped(base_address),
+                            ReferenceRange::bytes(overlap.byte_start, overlap.byte_len),
+                            &mut scratch,
+                        )
+                    })
+                    .map_err(|error| {
+                        HeapError::scan_failed(HeapOperationSource::Span(span_index), error)
+                    })?;
+            }
 
             // enqueue the discovered references
             for reference in scratch.drain(..) {
@@ -835,6 +855,8 @@ struct DirtySpanCard {
     card: DirtyCard,
     /// The span size class in bytes.
     size_class: usize,
+    /// The table-backed trace id shared by every slot in the span.
+    trace_id: Option<TraceId>,
     /// The number of slots in the span.
     slot_count: usize,
     /// The span byte offset within heap storage.
