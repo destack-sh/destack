@@ -68,6 +68,17 @@ impl Predicate {
             })
         )
     }
+
+    /// Apply one mapping to every type id stored in this predicate.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.test.map_type_ids(map);
+        if let Some(narrowed) = &mut self.narrowed {
+            *narrowed = map(*narrowed);
+        }
+        if let Some(projection) = &mut self.projection {
+            projection.map_type_ids(map);
+        }
+    }
 }
 
 /// Value tested by one executable predicate.
@@ -99,6 +110,14 @@ impl PredicateOperand {
         Self {
             ty: projection.ty(),
             projection: Some(projection),
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this operand.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.ty = map(self.ty);
+        if let Some(projection) = &mut self.projection {
+            projection.map_type_ids(map);
         }
     }
 }
@@ -145,6 +164,22 @@ pub enum PredicateTest {
     Any(Vec<Predicate>),
 }
 
+impl PredicateTest {
+    /// Apply one mapping to every type id stored in this predicate test.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Unary(test) => test.map_type_ids(map),
+            Self::Has(test) => test.map_type_ids(map),
+            Self::Call(call) => call.map_type_ids(map),
+            Self::Any(predicates) => {
+                for predicate in predicates {
+                    predicate.map_type_ids(map);
+                }
+            }
+        }
+    }
+}
+
 /// Unary predicate over one input value.
 ///
 /// Examples:
@@ -158,6 +193,14 @@ pub struct PredicateUnaryTest {
     pub input: PredicateOperand,
     /// The condition applied to the projected input.
     pub condition: PredicateCondition,
+}
+
+impl PredicateUnaryTest {
+    /// Apply one mapping to every type id stored in this unary test.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.input.map_type_ids(map);
+        self.condition.map_type_ids(map);
+    }
 }
 
 /// Condition applied to one predicate input.
@@ -225,6 +268,17 @@ pub enum PredicateCondition {
     Subtype(GlobalTypeId),
 }
 
+impl PredicateCondition {
+    /// Apply one mapping to every type id stored in this condition.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Always | Self::Never | Self::Literal(_) | Self::Primitive(_) => {}
+            Self::Range(range) => range.map_type_ids(map),
+            Self::Type(ty) | Self::Subtype(ty) => *ty = map(*ty),
+        }
+    }
+}
+
 /// Structural membership predicate.
 ///
 /// Examples:
@@ -238,6 +292,14 @@ pub struct PredicateHasTest {
     pub receiver: PredicateOperand,
     /// The tested key.
     pub key: PredicateKey,
+}
+
+impl PredicateHasTest {
+    /// Apply one mapping to every type id stored in this membership test.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.receiver.map_type_ids(map);
+        self.key.map_type_ids(map);
+    }
 }
 
 /// Key tested by one structural membership predicate.
@@ -265,6 +327,16 @@ pub enum PredicateKey {
     Dynamic(PredicateOperand),
 }
 
+impl PredicateKey {
+    /// Apply one mapping to every type id stored in this key.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Static(_) => {}
+            Self::Dynamic(operand) => operand.map_type_ids(map),
+        }
+    }
+}
+
 /// Scalar interval condition.
 ///
 /// Examples:
@@ -290,5 +362,10 @@ impl PredicateRange {
         let range = RangeType::new(self.start, self.end, self.end_bound);
 
         range.contains_literal(literal)
+    }
+
+    /// Apply one mapping to every type id stored in this range.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.domain = map(self.domain);
     }
 }
