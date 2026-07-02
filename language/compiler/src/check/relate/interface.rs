@@ -138,10 +138,12 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one member owner satisfies one interface.
+    /// `interface_module` owns the interface instance's argument list.
     pub(in crate::check) fn member_owner_implements_interface(
         &mut self,
         origin: Origin,
         module: ModuleId,
+        interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
         owner: dir::GlobalSymbolId,
         owner_arguments: &[dir::GenericArgumentBinding],
@@ -157,6 +159,7 @@ impl CheckState<'_> {
             return self.extension_instance_implements_interface(
                 origin,
                 module,
+                interface_module,
                 owner,
                 &owner_arguments,
                 interface,
@@ -221,10 +224,12 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one applied extension implements one interface.
+    /// `interface_module` owns the interface instance's argument list.
     fn extension_instance_implements_interface(
         &mut self,
         origin: Origin,
         module: ModuleId,
+        interface_module: ModuleId,
         extension_symbol: dir::GlobalSymbolId,
         extension_arguments: &[dir::GlobalTypeId],
         interface: &dir::GenericInstance,
@@ -245,7 +250,14 @@ impl CheckState<'_> {
         };
         let substitution = self.instance_substitution(module, &extension)?;
 
-        self.extension_implements_interface(origin, module, &substitution, &implements, interface)
+        self.extension_implements_interface(
+            origin,
+            module,
+            interface_module,
+            &substitution,
+            &implements,
+            interface,
+        )
     }
 
     /// Decide whether one applied extension names or inherits one protocol.
@@ -277,16 +289,20 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one extension implementation covers one requested interface.
+    ///
+    /// `interface_module` owns the interface arguments; heritage lists intern
+    /// into `module` and inherited applications into the origin module.
     pub(in crate::check) fn extension_implements_interface(
         &mut self,
         origin: Origin,
         module: ModuleId,
+        interface_module: ModuleId,
         substitution: &TypeSubstitution,
         implements: &[dir::NominalHeritage],
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         // compare each declared implemented interface
-        let interface_arguments = self.type_ids(module, interface.arguments)?.to_vec();
+        let interface_arguments = self.type_ids(interface_module, interface.arguments)?.to_vec();
         for heritage in implements {
             let implemented = self.substituted_heritage(module, substitution, heritage)?;
             let matches = if implemented.symbol == interface.symbol {
@@ -301,7 +317,8 @@ impl CheckState<'_> {
             } else if let Some(inherited) =
                 answer!(self.heritage_instance(origin, module, &implemented, interface.symbol)?)
             {
-                let inherited_arguments = self.type_ids(module, inherited.arguments)?.to_vec();
+                let inherited_arguments =
+                    self.type_ids(origin.module(), inherited.arguments)?.to_vec();
 
                 self.relate_type_arguments(
                     origin,

@@ -137,6 +137,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        interface_module: ModuleId,
         receiver: dir::GlobalTypeId,
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
@@ -181,6 +182,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(Some(substitution))) => self.extension_implements_interface(
                     origin,
                     module,
+                    interface_module,
                     &substitution,
                     &implements,
                     interface,
