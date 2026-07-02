@@ -1,6 +1,7 @@
 use destack_dir::{
     CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, EnumKind,
-    Expression, GenericParameter, NodeType, ScalarLiteral, TypeExpression, WhereClause,
+    Expression, GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TypeExpression,
+    WhereClause,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -30,6 +31,43 @@ enum Foo extends Day {}
         assert_eq!(implements_types.len(), 1);
         assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Day");
+        });
+    });
+}
+
+#[test]
+fn test_parse_shared_enum_declaration() {
+    let mut test = TestParser::new("shared enum Result { Ok; Error }");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { name, place, fields, .. }) => {
+            assert_string!(parser, name.expect("expected name").string(), "Result");
+            assert_eq!(*place, Some(PlaceModifier::Shared));
+            assert_eq!(fields.len(), 2);
+        });
+    });
+}
+
+#[test]
+fn test_parse_local_const_enum_declaration() {
+    let mut test = TestParser::new("local const enum Result { Ok; Error }");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { kind, name, place, fields, .. }) => {
+            assert_eq!(*kind, EnumKind::Const);
+            assert_string!(parser, name.expect("expected name").string(), "Result");
+            assert_eq!(*place, Some(PlaceModifier::Local));
+            assert_eq!(fields.len(), 2);
         });
     });
 }

@@ -1,4 +1,4 @@
-use destack_dir::{ExportKind, Keyword, TokenType};
+use destack_dir::{ExportKind, Keyword, PlaceModifier, TokenType};
 use destack_source::Span;
 
 /// Tokens that can start a declaration binding pattern.
@@ -34,8 +34,8 @@ pub(crate) struct DeclarationHeader {
     pub is_abstract: bool,
     /// Whether the declaration is final.
     pub is_final: bool,
-    /// Whether the declaration has shared placement.
-    pub is_shared: bool,
+    /// The explicit placement modifier.
+    pub place: Option<PlaceModifier>,
 }
 
 impl DeclarationHeader {
@@ -45,7 +45,7 @@ impl DeclarationHeader {
             || self.declare_span.is_some()
             || self.is_abstract
             || self.is_final
-            || self.is_shared
+            || self.place.is_some()
     }
 }
 

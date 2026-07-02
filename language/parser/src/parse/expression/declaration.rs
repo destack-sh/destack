@@ -2,7 +2,7 @@ use crate::parse::{DeclarationHeader, PendingDecorators, is_declaration_keyword}
 use crate::{Parser, ParserCheckpoint, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, EnumKind,
-    ExportKind, Expression, Keyword, LocalNodeId, TokenType, TypeKind,
+    ExportKind, Expression, Keyword, LocalNodeId, PlaceModifier, TokenType, TypeKind,
 };
 
 /// The outcome of parsing an `export` declaration prefix.
@@ -44,7 +44,8 @@ impl Parser {
         let is_declaration_prefix = matches!(
             keyword,
             Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Final
-        ) || self.language.is_destack() && keyword == Keyword::Shared;
+        ) || self.language.is_destack()
+            && matches!(keyword, Keyword::Local | Keyword::Shared);
         if !is_declaration_prefix {
             return Ok(None);
         }
@@ -244,6 +245,11 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek()?));
         }
 
+        // placement only applies to bindings and nominal declarations
+        if header.place.is_some() && !self.current_declaration_allows_place_modifier(keyword) {
+            return Err(ParserError::unexpected(self.peek()?));
+        }
+
         // ambient enum split by newline
         if keyword == Keyword::Enum
             && header.declare_span.is_some()
@@ -381,6 +387,17 @@ impl Parser {
                 return false;
             }
 
+            if declaration
+                .keyword()
+                .is_some_and(Self::is_place_modifier_keyword)
+                && self.language.is_destack()
+            {
+                return self
+                    .token_at_offset(3)
+                    .keyword()
+                    .is_some_and(Self::is_direct_export_declaration_keyword);
+            }
+
             return declaration
                 .keyword()
                 .is_some_and(Self::is_direct_export_declaration_keyword);
@@ -390,7 +407,19 @@ impl Parser {
             return self.token_at_offset(2).keyword() == Some(Keyword::Function);
         }
 
+        if next_keyword.is_some_and(Self::is_place_modifier_keyword) && self.language.is_destack() {
+            return self
+                .token_at_offset(2)
+                .keyword()
+                .is_some_and(Self::is_direct_export_declaration_keyword);
+        }
+
         next_keyword.is_some_and(Self::is_direct_export_declaration_keyword)
+    }
+
+    /// Return whether one keyword is a declaration placement modifier.
+    fn is_place_modifier_keyword(keyword: Keyword) -> bool {
+        matches!(keyword, Keyword::Local | Keyword::Shared)
     }
 
     /// Return whether one keyword directly starts an exported declaration.
@@ -408,6 +437,14 @@ impl Parser {
                 | Keyword::Let
                 | Keyword::Using
         )
+    }
+
+    /// Return whether the current declaration accepts an explicit placement modifier.
+    fn current_declaration_allows_place_modifier(&mut self, keyword: Keyword) -> bool {
+        matches!(
+            keyword,
+            Keyword::Struct | Keyword::Class | Keyword::Enum | Keyword::Newtype | Keyword::Let
+        ) || keyword == Keyword::Const
     }
 
     /// Return whether `export type` starts an export clause.
@@ -428,10 +465,17 @@ impl Parser {
         let starts_comptime_function = self.language.is_destack()
             && keyword == Some(Keyword::Comptime)
             && self.next_keyword() == Some(Keyword::Function);
+        let starts_placed_declaration = self.language.is_destack()
+            && keyword.is_some_and(Self::is_place_modifier_keyword)
+            && self
+                .token_at_offset(1)
+                .keyword()
+                .is_some_and(Self::is_direct_export_declaration_keyword);
 
         keyword.is_some_and(is_declaration_keyword)
             || starts_async_function
             || starts_comptime_function
+            || starts_placed_declaration
             || self.peek_is(TokenType::At)
     }
 
@@ -489,9 +533,23 @@ impl Parser {
 
                 Ok(true)
             }
-            Keyword::Shared if self.language.is_destack() => {
+            Keyword::Local if self.language.is_destack() => {
+                if header.place.is_some() {
+                    return Err(ParserError::unexpected(self.peek()?));
+                }
+
                 self.bump();
-                header.is_shared = true;
+                header.place = Some(PlaceModifier::Local);
+
+                Ok(true)
+            }
+            Keyword::Shared if self.language.is_destack() => {
+                if header.place.is_some() {
+                    return Err(ParserError::unexpected(self.peek()?));
+                }
+
+                self.bump();
+                header.place = Some(PlaceModifier::Shared);
 
                 Ok(true)
             }
@@ -514,6 +572,11 @@ impl Parser {
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if !self.is_global_identifier() || self.next_token_type() != TokenType::OpenBrace {
             return Ok(None);
+        }
+
+        // global declarations do not introduce local or shared storage
+        if header.place.is_some() {
+            return Err(ParserError::unexpected(self.peek()?));
         }
 
         let declaration = self.eat_global(start, header)?;

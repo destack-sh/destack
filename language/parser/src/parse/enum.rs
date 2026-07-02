@@ -98,6 +98,7 @@ impl Parser {
             Declaration::Enum(EnumDeclaration {
                 name,
                 export: header.export,
+                place: header.place,
                 is_ambient: header.is_ambient,
                 kind,
                 generic_parameters: generic_parameters.unwrap_or_default(),
