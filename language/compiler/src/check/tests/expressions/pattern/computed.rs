@@ -185,7 +185,7 @@ type User = {
 
 function get<K: keyof User>(user: User, key: K): User[K] {
 /// @generic.template symbol=get parameters=(K: keyof User, T1: User)
-/// @type.symbol symbol=get type=<K: keyof User, get.T1: User>(get.T1, K) => User[K] reduced=<K: keyof User, get.T1: User>(get.T1, K) => { readonly name: string; readonly age: int32 }[K]
+/// @type.symbol symbol=get type=<K: keyof User, get.T1: User>(get.T1, K) => User[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.user source="user: User" type=get.T1
