@@ -599,12 +599,12 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
                 }
             }
             dir::Type::Union(union) => {
-                for &element_id in &union.elements {
+                for &element_id in type_ctx.dir_types().type_ids(union.elements) {
                     self.collect_type_symbols(element_id, seen_types, seen_symbols, symbols);
                 }
             }
             dir::Type::Intersection(intersection) => {
-                for &element_id in &intersection.elements {
+                for &element_id in type_ctx.dir_types().type_ids(intersection.elements) {
                     self.collect_type_symbols(element_id, seen_types, seen_symbols, symbols);
                 }
             }

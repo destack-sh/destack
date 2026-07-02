@@ -47,9 +47,10 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::This => "this".to_string(),
         dir::Type::Reference(reference) => format_type_reference(reference.symbol, &[], ctx),
         dir::Type::Instance(instance) => {
-            format_type_reference(instance.symbol, &instance.arguments, ctx)
+            let arguments = ctx.dir_types().type_ids(instance.arguments);
+            format_type_reference(instance.symbol, arguments, ctx)
         }
-        dir::Type::Variable(variable) => format!("?{}", variable.index),
+        dir::Type::Variable(variable) => format!("?{}", variable.0),
         dir::Type::Memory(memory) => format_memory_literal(memory, ctx),
         dir::Type::Static(static_id) => format_global_static(*static_id, ctx),
         dir::Type::Member(member) => {
@@ -58,8 +59,9 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
             if member.arguments.is_empty() {
                 format!("{owner}.{key}")
             } else {
-                let arguments = member
-                    .arguments
+                let arguments = ctx
+                    .dir_types()
+                    .type_ids(member.arguments)
                     .iter()
                     .map(|argument| format_global_type(*argument, ctx))
                     .collect::<Vec<_>>();
@@ -106,8 +108,9 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
             }
         }
         dir::Type::Tuple(tuple) => {
-            let elements: Vec<_> = tuple
-                .elements
+            let elements: Vec<_> = ctx
+                .dir_types()
+                .elements(tuple.elements)
                 .iter()
                 .map(|element| format_type_tuple_element(element, ctx))
                 .collect();
@@ -116,7 +119,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Shape(object) => {
             let mut items: Vec<String> = Vec::new();
 
-            for field in &object.fields {
+            for field in ctx.dir_types().fields(object.fields) {
                 let key = format_static_key(&field.key, strings);
                 let ty = format_global_type(field.ty, ctx);
                 let opt = if field.is_optional { "?" } else { "" };
@@ -124,17 +127,17 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
                 items.push(format!("{readonly}{key}{opt}: {ty}"));
             }
 
-            for signature in &object.call_signatures {
+            for signature in ctx.dir_types().type_ids(object.call_signatures) {
                 let signature = format_global_type(*signature, ctx);
                 items.push(signature);
             }
 
-            for signature in &object.construct_signatures {
+            for signature in ctx.dir_types().type_ids(object.construct_signatures) {
                 let signature = format_global_type(*signature, ctx);
                 items.push(format!("new {signature}"));
             }
 
-            for signature in &object.index_signatures {
+            for signature in ctx.dir_types().index_signatures(object.index_signatures) {
                 let name = strings.get(signature.name).to_string();
                 let key_type = format_global_type(signature.key_type, ctx);
                 let value_type = format_global_type(signature.value_type, ctx);
@@ -160,7 +163,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Union(union) => {
             let mut seen = HashSet::new();
             let mut formatted = Vec::new();
-            for element_id in &union.elements {
+            for element_id in ctx.dir_types().type_ids(union.elements) {
                 if !seen.insert(*element_id) {
                     continue;
                 }
@@ -171,7 +174,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Intersection(intersection) => {
             let mut seen = HashSet::new();
             let mut formatted = Vec::new();
-            for element_id in &intersection.elements {
+            for element_id in ctx.dir_types().type_ids(intersection.elements) {
                 if !seen.insert(*element_id) {
                     continue;
                 }
@@ -282,8 +285,8 @@ fn format_function_signature_parameters(
     }
 
     parameters.extend(
-        function
-            .parameters
+        ctx.dir_types()
+            .parameters(function.parameters)
             .iter()
             .map(|parameter| format_function_parameter(parameter, ctx)),
     );
@@ -296,8 +299,9 @@ fn format_callable_parameter_tuple(
     function: &dir::FunctionSignatureType,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
-    let mut parameters = function
-        .parameters
+    let mut parameters = ctx
+        .dir_types()
+        .parameters(function.parameters)
         .iter()
         .map(|parameter| format_function_parameter(parameter, ctx))
         .collect::<Vec<_>>()
@@ -373,9 +377,11 @@ pub fn format_type_operation(
         }
         dir::TypeOperation::TemplateLiteral(template) => {
             let mut result = String::from("`");
-            for (index, string_id) in template.strings.iter().enumerate() {
+            let template_strings = ctx.dir_types().strings(template.strings);
+            let template_spans = ctx.dir_types().type_ids(template.spans);
+            for (index, string_id) in template_strings.iter().enumerate() {
                 result.push_str(strings.get(*string_id));
-                if let Some(span_id) = template.spans.get(index) {
+                if let Some(span_id) = template_spans.get(index) {
                     let span = format_global_type(*span_id, ctx);
                     result.push_str("${");
                     result.push_str(&span);

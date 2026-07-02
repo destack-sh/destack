@@ -308,7 +308,7 @@ impl ModuleQueryContext<'_> {
         type_id: dir::GlobalTypeId,
     ) -> Option<dir::GlobalSymbolId> {
         let ctx = self;
-        ctx.with_global_type(type_id, |ty, _| match ty {
+        ctx.with_global_type(type_id, |ty, type_ctx| match ty {
             dir::Type::Instance(reference) => Some(reference.symbol),
             dir::Type::Form(value) => ctx.resolve_nominal_type_symbol(value.value),
             dir::Type::Dynamic(dynamic) => ctx.resolve_nominal_type_symbol(dynamic.constraint),
@@ -316,7 +316,7 @@ impl ModuleQueryContext<'_> {
                 ctx.resolve_nominal_type_symbol_from_operation(operation)
             }
             dir::Type::Union(union) => {
-                for element in &union.elements {
+                for element in type_ctx.dir_types().type_ids(union.elements) {
                     if let Some(symbol_id) = ctx.resolve_nominal_type_symbol(*element) {
                         return Some(symbol_id);
                     }
@@ -325,7 +325,7 @@ impl ModuleQueryContext<'_> {
                 None
             }
             dir::Type::Intersection(intersection) => {
-                for element in &intersection.elements {
+                for element in type_ctx.dir_types().type_ids(intersection.elements) {
                     if let Some(symbol_id) = ctx.resolve_nominal_type_symbol(*element) {
                         return Some(symbol_id);
                     }

@@ -332,7 +332,7 @@ impl ModuleQueryContext<'_> {
             // nominal combinations
             match ty {
                 dir::Type::Union(union) => {
-                    for &element_id in &union.elements {
+                    for &element_id in type_ctx.dir_types().type_ids(union.elements) {
                         ctx.collect_expected_type_symbols_inner(
                             element_id,
                             seen_types,
@@ -342,7 +342,7 @@ impl ModuleQueryContext<'_> {
                     }
                 }
                 dir::Type::Intersection(intersection) => {
-                    for &element_id in &intersection.elements {
+                    for &element_id in type_ctx.dir_types().type_ids(intersection.elements) {
                         ctx.collect_expected_type_symbols_inner(
                             element_id,
                             seen_types,

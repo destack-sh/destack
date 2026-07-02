@@ -325,6 +325,11 @@ impl<'a> ModuleQueryContext<'a> {
         read_module_query_context(self.repository, self.revision, module_id, self.profile_id)
     }
 
+    /// Return the checked DIR type table owned by this module.
+    pub(crate) fn dir_types(&self) -> &dir::TypeTable<'static> {
+        &self.dir_types
+    }
+
     /// Read one checked global type through its owning module context.
     pub(crate) fn with_global_type<R>(
         &self,
@@ -334,13 +339,13 @@ impl<'a> ModuleQueryContext<'a> {
         if type_id.module_id == self.module_id {
             let ty = self.dir_types.get_type_maybe(type_id.local_id)?;
 
-            return Some(read(ty, self));
+            return Some(read(&ty, self));
         }
 
         let context = self.module_context(type_id.module_id)?;
         let ty = context.dir_types.get_type_maybe(type_id.local_id)?;
 
-        Some(read(ty, &context))
+        Some(read(&ty, &context))
     }
 
     /// Read one checked global static value through its owning module context.

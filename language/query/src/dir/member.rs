@@ -533,7 +533,7 @@ impl ModuleQueryContext<'_> {
             dir::Type::Shape(object) => {
                 let mut members = Vec::new();
 
-                for field in &object.fields {
+                for field in ctx.dir_types().fields(object.fields) {
                     let kind = if ctx.is_function_type(field.ty) {
                         MemberKind::Method
                     } else {
@@ -549,7 +549,7 @@ impl ModuleQueryContext<'_> {
                     });
                 }
 
-                for sig_type_id in &object.call_signatures {
+                for sig_type_id in ctx.dir_types().type_ids(object.call_signatures) {
                     members.push(MemberCandidate {
                         name: MemberName::Computed,
                         type_id: Some(*sig_type_id),
@@ -559,7 +559,7 @@ impl ModuleQueryContext<'_> {
                     });
                 }
 
-                for sig_type_id in &object.construct_signatures {
+                for sig_type_id in ctx.dir_types().type_ids(object.construct_signatures) {
                     members.push(MemberCandidate {
                         name: MemberName::Computed,
                         type_id: Some(*sig_type_id),
@@ -574,21 +574,18 @@ impl ModuleQueryContext<'_> {
 
             // keep members common to every union element
             dir::Type::Union(union) => {
-                if union.elements.is_empty() {
+                let elements = ctx.dir_types().type_ids(union.elements);
+                if elements.is_empty() {
                     Vec::new()
                 } else {
+                    let first_id = elements[0];
                     let mut common_members = ctx
-                        .with_global_type(union.elements[0], |ty, type_ctx| {
-                            type_ctx.resolve_type_members_inner(
-                                workspace,
-                                union.elements[0],
-                                ty,
-                                state,
-                            )
+                        .with_global_type(first_id, |ty, type_ctx| {
+                            type_ctx.resolve_type_members_inner(workspace, first_id, ty, state)
                         })
                         .unwrap_or_default();
 
-                    for element_id in &union.elements[1..] {
+                    for element_id in &elements[1..] {
                         let Some(element_members) =
                             ctx.with_global_type(*element_id, |ty, type_ctx| {
                                 type_ctx.resolve_type_members_inner(
@@ -615,7 +612,8 @@ impl ModuleQueryContext<'_> {
 
             // combine members from every intersection element
             dir::Type::Intersection(intersection) => {
-                let is_enum_static = intersection.elements.iter().any(|element_id| {
+                let elements = ctx.dir_types().type_ids(intersection.elements);
+                let is_enum_static = elements.iter().any(|element_id| {
                     ctx.with_global_type(*element_id, |element, _| {
                         let dir::Type::Form(value) = element else {
                             return false;
@@ -641,7 +639,7 @@ impl ModuleQueryContext<'_> {
                 let mut all_members = Vec::new();
                 let mut seen_names = Vec::new();
 
-                for element_id in &intersection.elements {
+                for element_id in elements {
                     let Some(element_members) =
                         ctx.with_global_type(*element_id, |ty, type_ctx| {
                             type_ctx.resolve_type_members_inner(workspace, *element_id, ty, state)
@@ -668,8 +666,9 @@ impl ModuleQueryContext<'_> {
             }
 
             // expose tuple element indexes
-            dir::Type::Tuple(tuple) => tuple
-                .elements
+            dir::Type::Tuple(tuple) => ctx
+                .dir_types()
+                .elements(tuple.elements)
                 .iter()
                 .enumerate()
                 .map(|(i, element)| MemberCandidate {
