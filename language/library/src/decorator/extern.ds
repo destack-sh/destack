@@ -1,3 +1,5 @@
+import { Extern } from "destack:ffi";
+
 /// Marks a declaration as externally linked.
 ///
 /// ```ds
@@ -5,4 +7,4 @@
 /// function open(path: *uint8): int32;
 /// ```
 @languageItem("decorator.extern")
-export newtype extern = (string,) | ();
+export newtype extern = (Extern,) | ();

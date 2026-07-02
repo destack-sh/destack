@@ -36,6 +36,7 @@ export * as debug from "./debug";
 export * as device from "./device";
 export * as display from "./display";
 export * as dns from "./dns";
+export * as ffi from "./ffi";
 export * as fs from "./fs";
 export * as fuzz from "./fuzz";
 export * as gpu from "./gpu";
