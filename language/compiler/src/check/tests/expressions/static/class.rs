@@ -222,7 +222,7 @@ struct TextMeta {}
 class Packet<T> {
 /// @generic.template symbol=Packet parameters=(T)
 /// @type.symbol symbol=Packet type=Packet
-/// @definition.class symbol=Packet template=LocalGenericTemplateId(0)
+/// @definition.class symbol=Packet template=(T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
 /// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=<T>(T) => Packet<T>
 /// @type.symbol symbol=Packet.T source=T type=T

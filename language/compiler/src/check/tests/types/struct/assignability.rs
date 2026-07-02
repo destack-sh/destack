@@ -268,7 +268,7 @@ struct Point implements Left, Right {}
 interface Base<T> {}
 /// @generic.template symbol=Base parameters=(T)
 /// @type.symbol symbol=Base source="interface Base<T> {}" type=Base
-/// @definition.interface symbol=Base source="interface Base<T> {}" template=LocalGenericTemplateId(0)
+/// @definition.interface symbol=Base source="interface Base<T> {}" template=(T)
 /// @type.symbol symbol=Base.T source=T type=T
 
 interface Left extends Base<string> {}
