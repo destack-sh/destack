@@ -4,8 +4,18 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution, Widening,
+    CheckState, GenericInductionParameter, GenericParameterId, GenericTemplateId, Origin,
+    TypeSubstitution, Widening,
 };
+
+/// Position of one written generic application.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum GenericPosition {
+    /// A written annotation: omitted parameters fill from defaults.
+    Annotation,
+    /// An inference site: omitted parameters open as variables.
+    Inference,
+}
 
 impl CheckState<'_> {
     /// Return the inference widening policy for one generic parameter.
@@ -50,7 +60,7 @@ impl CheckState<'_> {
         Ok(Some(default))
     }
 
-    /// Apply written and defaulted arguments to one template.
+    /// Apply written and inferred arguments to one template.
     pub(in crate::check) fn apply_template_arguments(
         &mut self,
         origin: Origin,
@@ -59,107 +69,140 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<TypeSubstitution>> {
         let parameters = self.generic_template_parameters(template);
 
-        self.apply_generic_parameters(origin, &parameters, written)
+        self.instantiate_generic_parameters(
+            origin,
+            &parameters,
+            written,
+            GenericPosition::Inference,
+        )
     }
 
-    /// Apply written and defaulted arguments to one parameter list.
-    pub(in crate::check) fn apply_generic_parameters(
+    /// Instantiate one parameter list from written arguments.
+    ///
+    /// Written arguments bind explicit parameters positionally.
+    /// Annotations fill omitted parameters from their defaults, while
+    /// inference sites open them as variables.
+    pub(in crate::check) fn instantiate_generic_parameters(
         &mut self,
         origin: Origin,
         parameters: &[GenericParameterId],
         written: &[dir::GlobalTypeId],
+        position: GenericPosition,
     ) -> CompilerResult<Option<TypeSubstitution>> {
-        if written.len() > parameters.len() {
-            return Ok(None);
-        }
-        let mut arguments = SmallVec::new();
-
-        // apply written arguments before filling defaults
-        for (index, parameter) in parameters.iter().copied().enumerate() {
-            let ty = match written.get(index).copied() {
-                Some(written) => written,
-                None => {
-                    let Some(default) = self.generic_parameter_default(
-                        origin.module(),
-                        parameter,
-                        &parameters[..index],
-                        &arguments,
-                    )?
-                    else {
-                        return Ok(None);
-                    };
-
-                    default
-                }
-            };
-
-            arguments.push(ty);
-        }
-
-        Ok(Some(TypeSubstitution {
-            parameters: parameters.iter().copied().collect(),
-            arguments,
-            receiver: None,
-        }))
-    }
-
-    /// Open omitted generic arguments as inference variables.
-    pub(in crate::check) fn open_generic_parameters(
-        &mut self,
-        origin: Origin,
-        parameters: &[GenericParameterId],
-        written: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Option<TypeSubstitution>> {
-        if written.len() > parameters.len() {
+        if written.len() > self.written_parameter_count(parameters) {
             return Ok(None);
         }
         let source = self.origin_source_node(origin)?;
         let source_node = source.into_global(origin.module());
-        let mut arguments = SmallVec::new();
 
-        // apply written arguments before opening inference variables
+        // open every slot first so bounds may reference any parameter
+        let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        let mut opened = SmallVec::<[Option<dir::TypeVariableId>; 4]>::new();
+        let mut cursor = 0;
         for (index, parameter) in parameters.iter().copied().enumerate() {
-            let ty = match written.get(index).copied() {
-                Some(written) => written,
-                None => {
-                    let widening = self.generic_parameter_widening(parameter);
-                    let variable = self.allocate_variable(origin.module(), origin, widening);
-                    let ty = self.variable_type(variable)?;
+            let is_explicit = self.generic_parameter(parameter).is_some_and(|binding| {
+                matches!(binding.origin, dir::GenericParameterOrigin::Explicit)
+            });
+            if is_explicit && cursor < written.len() {
+                arguments.push(written[cursor]);
+                cursor += 1;
+                opened.push(None);
+                continue;
+            }
 
-                    // add declared bounds as upper bounds
-                    let constraint = self
-                        .generic_parameter(parameter)
-                        .and_then(|binding| binding.constraint);
-                    if let Some(constraint) = constraint {
-                        let substitution = TypeSubstitution {
-                            parameters: parameters[..index].iter().copied().collect(),
-                            arguments: arguments.iter().copied().collect(),
-                            receiver: None,
-                        };
-                        let constraint =
-                            self.substitute_type(origin.module(), constraint, &substitution)?;
-                        self.push_upper_bound(variable, source_node, constraint)?;
-                    }
-                    if let Some(default) = self.generic_parameter_default(
-                        origin.module(),
-                        parameter,
-                        &parameters[..index],
-                        &arguments,
-                    )? {
-                        self.set_variable_default(variable, default)?;
-                    }
-
-                    ty
+            // fill omitted annotation arguments from declared defaults
+            if position == GenericPosition::Annotation {
+                let default = self.generic_parameter_default(
+                    origin.module(),
+                    parameter,
+                    &parameters[..index],
+                    &arguments,
+                )?;
+                if let Some(default) = default {
+                    arguments.push(default);
+                    opened.push(None);
+                    continue;
                 }
-            };
 
-            arguments.push(ty);
+                // reject omitted explicit arguments without a default
+                if is_explicit {
+                    return Ok(None);
+                }
+            }
+            let widening = self.generic_parameter_widening(parameter);
+            let variable = self.allocate_variable(origin.module(), origin, widening);
+            arguments.push(self.variable_type(variable)?);
+            opened.push(Some(variable));
+        }
+        let substitution = TypeSubstitution {
+            parameters: parameters.iter().copied().collect(),
+            arguments: arguments.clone(),
+            receiver: None,
+        };
+
+        // bound each opened variable under the full substitution
+        for (index, parameter) in parameters.iter().copied().enumerate() {
+            let Some(variable) = opened[index] else {
+                continue;
+            };
+            let Some(binding) = self.generic_parameter(parameter) else {
+                continue;
+            };
+            let (constraint, origin_kind, is_comptime) =
+                (binding.constraint, binding.origin, binding.is_comptime);
+            let constraint = constraint
+                .map(|constraint| self.substitute_type(origin.module(), constraint, &substitution))
+                .transpose()?;
+            if let Some(constraint) = constraint {
+                self.push_upper_bound(variable, source_node, constraint)?;
+            }
+
+            // bind inference defaults as solver fallbacks
+            if let Some(default) = self.generic_parameter_default(
+                origin.module(),
+                parameter,
+                &substitution.parameters[..index],
+                &substitution.arguments[..index],
+            )? {
+                self.set_variable_default(variable, default)?;
+            }
+
+            // re-generalize induced parameters through the induction scan
+            if position == GenericPosition::Annotation
+                && let dir::GenericParameterOrigin::Induced(induction) = origin_kind
+            {
+                let name_prefix = match induction {
+                    dir::GenericParameterInduction::Form => "L",
+                    dir::GenericParameterInduction::Comptime => "C",
+                    _ => "T",
+                };
+                self.generics.insert_induction(
+                    variable,
+                    GenericInductionParameter {
+                        name_prefix,
+                        constraint,
+                        is_comptime,
+                        induction,
+                    },
+                )?;
+            }
         }
 
-        Ok(Some(TypeSubstitution {
-            parameters: parameters.iter().copied().collect(),
-            arguments,
-            receiver: None,
-        }))
+        Ok(Some(substitution))
+    }
+
+    /// Return how many parameters accept written arguments.
+    pub(in crate::check) fn written_parameter_count(
+        &self,
+        parameters: &[GenericParameterId],
+    ) -> usize {
+        parameters
+            .iter()
+            .filter(|parameter| {
+                self.generic_parameter(**parameter).is_some_and(|binding| {
+                    matches!(binding.origin, dir::GenericParameterOrigin::Explicit)
+                })
+            })
+            .count()
     }
 }

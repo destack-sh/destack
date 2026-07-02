@@ -376,7 +376,7 @@ impl WalkState<'_, '_> {
             // Type { key: value }
             dir::Expression::StructExpression { ty, properties } => {
                 let properties = properties.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_type_expression(*ty)?;
+                self.walk_construct_type_expression(*ty)?;
                 self.walk_literal_properties(&properties)?;
             }
             // jsx like tree expression
@@ -552,7 +552,7 @@ impl WalkState<'_, '_> {
             // new Type<T>(argument)
             dir::Expression::New { ty, arguments } => {
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_type_expression(*ty)?;
+                self.walk_construct_type_expression(*ty)?;
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
@@ -562,7 +562,7 @@ impl WalkState<'_, '_> {
             // new? Type<T>(argument)
             dir::Expression::NewMaybe { ty, arguments } => {
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                self.walk_type_expression(*ty)?;
+                self.walk_construct_type_expression(*ty)?;
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
