@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AssignPatternResolution, CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId,
-    GuardResolution, InstantiationResolution, LabelResolution, MemberResolution, NameResolution,
-    PatternResolution, PlaceResolution, ReceiverResolution, SegmentView,
+    GlobalTypeId, GuardResolution, InstantiationResolution, LabelResolution, MemberResolution,
+    NameResolution, PatternResolution, PlaceResolution, ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -585,5 +585,38 @@ impl ResolutionSegment {
             && self.constructs.is_empty()
             && self.patterns.is_empty()
             && self.assign_patterns.is_empty()
+    }
+
+    /// Apply one mapping to every type id stored in this segment.
+    ///
+    /// Names and labels resolve to symbols only, so they need no mapping.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        for resolution in self.instantiations.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.receivers.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.members.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.calls.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.places.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.guards.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.constructs.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.patterns.values_mut() {
+            resolution.map_type_ids(map);
+        }
+        for resolution in self.assign_patterns.values_mut() {
+            resolution.map_type_ids(map);
+        }
     }
 }

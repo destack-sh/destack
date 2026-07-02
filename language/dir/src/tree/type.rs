@@ -200,7 +200,7 @@ impl Node for TypeMappedParameter {
 }
 
 /// A mapped-type modifier sign.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum MappedTypeModifier {
     /// The plain modifier without an explicit sign.
     Present,

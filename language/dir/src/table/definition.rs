@@ -246,6 +246,13 @@ impl DefinitionSegment {
     pub fn is_empty(&self) -> bool {
         self.definitions.is_empty()
     }
+
+    /// Apply one mapping to every type id stored in this segment.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        for definition in self.definitions.values_mut() {
+            definition.map_type_ids(map);
+        }
+    }
 }
 
 /// Checked declaration data for one symbol.
@@ -322,6 +329,69 @@ impl Definition {
             Self::Enum(definition) => definition.template,
             Self::Newtype(definition) => definition.template,
             Self::Extension(_) => None,
+        }
+    }
+
+    /// Apply one mapping to every type id stored in this definition.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        // map the definition's own type values
+        match self {
+            Self::TypeAlias(definition) => definition.value = map(definition.value),
+            Self::Struct(definition) => map_heritages(&mut definition.implements, map),
+            Self::Class(definition) => {
+                map_heritages(&mut definition.implements, map);
+                for constructor in &mut definition.constructors {
+                    constructor.ty = map(constructor.ty);
+                }
+            }
+            Self::Interface(definition) => map_heritages(&mut definition.extends, map),
+            Self::Enum(definition) => map_heritages(&mut definition.implements, map),
+            Self::Newtype(definition) => definition.value = map(definition.value),
+            Self::Extension(definition) => {
+                match &mut definition.target {
+                    ExtensionTarget::Rooted { ty, .. } | ExtensionTarget::Blanket { ty } => {
+                        *ty = map(*ty);
+                    }
+                }
+                map_heritages(&mut definition.implements, map);
+                for clause in &mut definition.where_clauses {
+                    clause.left = map(clause.left);
+                    clause.right = map(clause.right);
+                }
+            }
+        }
+
+        // map every member's type values
+        for member in self.members_mut() {
+            match member {
+                DefinitionMember::AssociatedType(member) => {
+                    if let Some(constraint) = &mut member.constraint {
+                        *constraint = map(*constraint);
+                    }
+                    if let Some(value) = &mut member.value {
+                        *value = map(*value);
+                    }
+                }
+                DefinitionMember::CallSignature(member)
+                | DefinitionMember::ConstructSignature(member)
+                | DefinitionMember::IndexSignature(member) => member.ty = map(member.ty),
+                DefinitionMember::Field(_)
+                | DefinitionMember::Method(_)
+                | DefinitionMember::AssociatedConst(_)
+                | DefinitionMember::Variant(_) => {}
+            }
+        }
+    }
+}
+
+/// Apply one type id mapping to a heritage list.
+fn map_heritages(
+    heritages: &mut [NominalHeritage],
+    map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId,
+) {
+    for heritage in heritages {
+        for argument in &mut heritage.arguments {
+            *argument = map(*argument);
         }
     }
 }
@@ -868,6 +938,19 @@ impl Definition {
             Self::Newtype(definition) => &definition.members,
             Self::Extension(extension) => &extension.members,
             Self::TypeAlias(_) => &[],
+        }
+    }
+
+    /// Return the members in declaration order for in-place mutation.
+    pub fn members_mut(&mut self) -> &mut [DefinitionMember] {
+        match self {
+            Self::Struct(definition) => &mut definition.members,
+            Self::Class(definition) => &mut definition.members,
+            Self::Interface(definition) => &mut definition.members,
+            Self::Enum(definition) => &mut definition.members,
+            Self::Newtype(definition) => &mut definition.members,
+            Self::Extension(extension) => &mut extension.members,
+            Self::TypeAlias(_) => &mut [],
         }
     }
 

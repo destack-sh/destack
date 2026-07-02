@@ -224,6 +224,60 @@ impl Projection {
             | Self::Dereference { ty, .. } => *ty,
         }
     }
+
+    /// Apply one mapping to every type id stored in this projection.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::FieldGet { ty, .. } => *ty = map(*ty),
+            Self::PropertyGet { read, ty } => {
+                read.map_type_ids(map);
+                *ty = map(*ty);
+            }
+            Self::SubscriptGet { read, ty, .. } => {
+                read.map_type_ids(map);
+                *ty = map(*ty);
+            }
+            Self::Call { call, ty } => {
+                call.map_type_ids(map);
+                *ty = map(*ty);
+            }
+            Self::ObjectRest { fields, ty } => {
+                for field in fields {
+                    field.projection.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+            Self::SliceLength { ty }
+            | Self::DynamicPayload { ty }
+            | Self::DynamicType { ty }
+            | Self::VariantTag { ty } => *ty = map(*ty),
+            Self::VariantPayload {
+                generic_arguments,
+                ty,
+                ..
+            } => {
+                for argument in generic_arguments {
+                    argument.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+            Self::NewtypePayload {
+                generic_arguments,
+                ty,
+                ..
+            } => {
+                for argument in generic_arguments {
+                    argument.map_type_ids(map);
+                }
+                *ty = map(*ty);
+            }
+            Self::Borrow { ty, .. } | Self::Move { ty, .. } => *ty = map(*ty),
+            Self::Dereference { read, ty } => {
+                read.map_type_ids(map);
+                *ty = map(*ty);
+            }
+        }
+    }
 }
 
 /// One source field used to materialize an object rest value.
@@ -244,6 +298,16 @@ pub enum SubscriptOperation {
     Call(CallResolution),
 }
 
+impl SubscriptOperation {
+    /// Apply one mapping to every type id stored in this subscript operation.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Member(member) => member.map_type_ids(map),
+            Self::Call(call) => call.map_type_ids(map),
+        }
+    }
+}
+
 /// Dereference operation selected by one projection or place.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum DereferenceOperation {
@@ -251,6 +315,16 @@ pub enum DereferenceOperation {
     Direct,
     /// Protocol-backed dereference call.
     Call(CallResolution),
+}
+
+impl DereferenceOperation {
+    /// Apply one mapping to every type id stored in this dereference operation.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Direct => {}
+            Self::Call(call) => call.map_type_ids(map),
+        }
+    }
 }
 
 /// Static field selected by one projection.

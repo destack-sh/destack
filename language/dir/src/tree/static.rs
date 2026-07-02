@@ -43,6 +43,33 @@ impl From<ScalarLiteral> for StaticTerm {
     }
 }
 
+impl StaticTerm {
+    /// Apply one mapping to every type id stored in this static value.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::ScalarLiteral { .. } => {}
+            Self::Type { ty } => *ty = map(*ty),
+            Self::Array { elements } | Self::Tuple { elements } => {
+                for element in elements {
+                    element.map_type_ids(map);
+                }
+            }
+            Self::FixedArray { value, .. } => value.map_type_ids(map),
+            Self::Object { properties } => {
+                for property in properties {
+                    property.map_type_ids(map);
+                }
+            }
+            Self::Struct { ty, properties } => {
+                *ty = map(*ty);
+                for property in properties {
+                    property.map_type_ids(map);
+                }
+            }
+        }
+    }
+}
+
 /// Static object property in a checked static context.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum StaticProperty {
@@ -67,6 +94,17 @@ pub enum StaticProperty {
         /// The spread value.
         value: StaticTerm,
     },
+}
+
+impl StaticProperty {
+    /// Apply one mapping to every type id stored in this property.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Field { value, .. } | Self::Spread { value } => value.map_type_ids(map),
+            // method signatures reference source nodes, not checked type ids
+            Self::Method { body, .. } => body.map_type_ids(map),
+        }
+    }
 }
 
 /// Unique identifier for a local static value.

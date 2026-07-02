@@ -247,6 +247,11 @@ impl GenericArgumentBinding {
     pub fn values(bindings: &[Self]) -> impl Iterator<Item = GlobalTypeId> + '_ {
         bindings.iter().map(|binding| binding.argument)
     }
+
+    /// Apply one mapping to every type id stored in this binding.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.argument = map(self.argument);
+    }
 }
 
 /// One runtime argument bound to its selected parameter slot.
@@ -260,6 +265,14 @@ pub struct ArgumentBinding {
     pub argument: ArgumentSource,
 }
 
+impl ArgumentBinding {
+    /// Apply one mapping to every type id stored in this binding.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        self.ty = map(self.ty);
+        self.argument.map_type_ids(map);
+    }
+}
+
 /// Source argument bound to one selected parameter slot.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum ArgumentSource {
@@ -271,4 +284,14 @@ pub enum ArgumentSource {
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.
     Rest(Vec<GlobalNodeIdAny>),
+}
+
+impl ArgumentSource {
+    /// Apply one mapping to every type id stored in this argument source.
+    pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
+        match self {
+            Self::Static(ty) => *ty = map(*ty),
+            Self::Provided(_) | Self::Omitted | Self::Rest(_) => {}
+        }
+    }
 }

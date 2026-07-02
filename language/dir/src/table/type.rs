@@ -1,13 +1,19 @@
-use destack_serde::Reflect;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use destack_source::ModuleId;
+use destack_serde::Reflect;
 use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
+
+use destack_core::{Arena, StringId};
+use destack_source::ModuleId;
 
 use crate::{
-    Arena, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    Node, SegmentView, Type,
+    Form, FunctionParameterType, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalTypeId,
+    SegmentView, Type, TypeElement, TypeField, TypeFlags, TypeIndexSignature, TypeListId,
+    TypeOperation,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -127,7 +133,7 @@ impl<'a> TypeTable<'a> {
     /// Get the reduced type id for a checked type.
     pub fn get_reduced_type_id(&self, type_id: GlobalTypeId) -> GlobalTypeId {
         let mut current = type_id;
-        // follow reduction rows until they reach a fixed point
+        // follow reductions until they reach a fixed point
         let mut seen = Vec::new();
         while !seen.contains(&current) {
             seen.push(current);
@@ -164,13 +170,13 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Get a type by its id.
-    pub fn get_type(&self, type_id: LocalTypeId) -> &Type {
+    pub fn get_type(&self, type_id: LocalTypeId) -> Type {
         self.get_type_maybe(type_id)
             .unwrap_or_else(|| panic!("DIR type {type_id:?} is not visible"))
     }
 
     /// Get a type by its id when present.
-    pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<&Type> {
+    pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<Type> {
         for segment in self.segments.iter().rev() {
             if let Some(ty) = segment.get_type_maybe(type_id) {
                 return Some(ty);
@@ -178,6 +184,209 @@ impl<'a> TypeTable<'a> {
         }
 
         None
+    }
+
+    /// Get the structural flags for a type.
+    pub fn get_type_flags(&self, type_id: LocalTypeId) -> TypeFlags {
+        for segment in self.segments.iter().rev() {
+            if let Some(flags) = segment.get_type_flags_maybe(type_id) {
+                return flags;
+            }
+        }
+
+        panic!("DIR type {type_id:?} is not visible")
+    }
+
+    /// Get one type id list.
+    pub fn type_ids(&self, list: TypeListId) -> &[GlobalTypeId] {
+        self.slice(list, |segment| &segment.type_ids)
+    }
+
+    /// Get one tuple element list.
+    pub fn elements(&self, list: TypeListId) -> &[TypeElement] {
+        self.slice(list, |segment| &segment.elements)
+    }
+
+    /// Get one shape field list.
+    pub fn fields(&self, list: TypeListId) -> &[TypeField] {
+        self.slice(list, |segment| &segment.fields)
+    }
+
+    /// Get one function parameter list.
+    pub fn parameters(&self, list: TypeListId) -> &[FunctionParameterType] {
+        self.slice(list, |segment| &segment.parameters)
+    }
+
+    /// Get one index signature list.
+    pub fn index_signatures(&self, list: TypeListId) -> &[TypeIndexSignature] {
+        self.slice(list, |segment| &segment.index_signatures)
+    }
+
+    /// Get one string list.
+    pub fn strings(&self, list: TypeListId) -> &[StringId] {
+        self.slice(list, |segment| &segment.strings)
+    }
+
+    /// Visit each direct child type id of one type owned by this module.
+    pub fn for_each_child(&self, ty: &Type, mut visit: impl FnMut(GlobalTypeId)) {
+        match ty {
+            // leaves without child types
+            Type::Variable(_)
+            | Type::Error
+            | Type::Never
+            | Type::Any
+            | Type::Unknown
+            | Type::Void
+            | Type::Null
+            | Type::Undefined
+            | Type::Object
+            | Type::Primitive(_)
+            | Type::Literal(_)
+            | Type::Key(_)
+            | Type::Memory(_)
+            | Type::Static(_)
+            | Type::Intrinsic
+            | Type::Parameter(_)
+            | Type::This
+            | Type::Range(_)
+            | Type::Reference(_) => {}
+
+            // declaration applications
+            Type::Instance(instance) => {
+                for child in self.type_ids(instance.arguments) {
+                    visit(*child);
+                }
+            }
+            Type::Member(member) => {
+                visit(member.owner);
+                for child in self.type_ids(member.arguments) {
+                    visit(*child);
+                }
+            }
+            Type::EnumMember(member) => visit(member.owner),
+
+            // memory forms
+            Type::Form(form) => {
+                visit(form.value);
+                match &form.form {
+                    Form::Borrowed { lifetime, access } => {
+                        visit(*lifetime);
+                        visit(*access);
+                    }
+                    Form::Placed { place } => visit(*place),
+                    Form::Managed | Form::Owned | Form::Raw | Form::Readonly => {}
+                }
+            }
+            Type::Dynamic(dynamic) => visit(dynamic.constraint),
+
+            // type operations
+            Type::Operation(operation) => match operation {
+                TypeOperation::StringMapping { mapping: _, target } => visit(*target),
+                TypeOperation::Conditional(conditional) => {
+                    visit(conditional.left);
+                    visit(conditional.right);
+                    visit(conditional.then_type);
+                    visit(conditional.else_type);
+                }
+                TypeOperation::Narrow(narrow) => {
+                    visit(narrow.source);
+                    visit(narrow.target);
+                }
+                TypeOperation::Mapped(mapped) => {
+                    visit(mapped.parameter.constraint);
+                    if let Some(key_remap) = mapped.parameter.key_remap {
+                        visit(key_remap);
+                    }
+                    visit(mapped.value);
+                }
+                TypeOperation::Index(index) => {
+                    visit(index.left);
+                    visit(index.index);
+                }
+                TypeOperation::TemplateLiteral(template) => {
+                    for child in self.type_ids(template.spans) {
+                        visit(*child);
+                    }
+                }
+                TypeOperation::Infer(infer) => {
+                    if let Some(constraint) = infer.constraint {
+                        visit(constraint);
+                    }
+                }
+                TypeOperation::TypeOf(_) => {}
+                TypeOperation::KeyOf(unary) => visit(unary.target),
+                TypeOperation::NoInfer(unary) => visit(unary.target),
+                TypeOperation::Awaited(unary) => visit(unary.target),
+                TypeOperation::TryOutput { value } | TypeOperation::TryResidual { value } => {
+                    visit(*value)
+                }
+                TypeOperation::StaticBinary(binary) => {
+                    visit(binary.left);
+                    visit(binary.right);
+                }
+                TypeOperation::StaticUnary(unary) => visit(unary.target),
+            },
+
+            // collections
+            Type::Array(array) => visit(array.element),
+            Type::FixedArray(array) => {
+                visit(array.element);
+                visit(array.count);
+            }
+            Type::Slice(slice) => visit(slice.element),
+            Type::Tuple(tuple) => {
+                for element in self.elements(tuple.elements) {
+                    visit(element.ty);
+                }
+            }
+
+            // structural shapes
+            Type::Shape(shape) => {
+                for field in self.fields(shape.fields) {
+                    visit(field.ty);
+                }
+                for child in self.type_ids(shape.call_signatures) {
+                    visit(*child);
+                }
+                for child in self.type_ids(shape.construct_signatures) {
+                    visit(*child);
+                }
+                for signature in self.index_signatures(shape.index_signatures) {
+                    visit(signature.key_type);
+                    visit(signature.value_type);
+                }
+            }
+            Type::FunctionSignature(function) => {
+                if let Some(this_parameter) = function.this_parameter {
+                    visit(this_parameter);
+                }
+                for parameter in self.parameters(function.parameters) {
+                    visit(parameter.ty);
+                }
+                if let Some(return_type) = function.return_type {
+                    visit(return_type);
+                }
+            }
+            Type::Function(function) => {
+                visit(function.signature);
+                visit(function.environment);
+            }
+            Type::FunctionPointer(function) => {
+                visit(function.signature);
+            }
+
+            // algebraic composites
+            Type::Union(union) => {
+                for child in self.type_ids(union.elements) {
+                    visit(*child);
+                }
+            }
+            Type::Intersection(intersection) => {
+                for child in self.type_ids(intersection.elements) {
+                    visit(*child);
+                }
+            }
+        }
     }
 
     /// Strip outer form types to reach the payload type id.
@@ -201,11 +410,6 @@ impl<'a> TypeTable<'a> {
             .flat_map(|segment| segment.iter_type_ids())
     }
 
-    /// Get the source id for a type.
-    pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        self.type_source(type_id)
-    }
-
     /// Get the number of types in the table.
     pub fn type_count(&self) -> u32 {
         self.segments
@@ -224,15 +428,19 @@ impl<'a> TypeTable<'a> {
         self.segments.iter().all(|segment| segment.is_empty())
     }
 
-    /// Return the source for a type id.
-    fn type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        for segment in self.segments.iter() {
-            if segment.contains_type_id(type_id) {
-                return segment.type_source(type_id);
+    /// Resolve one list inside its owning segment.
+    fn slice<T>(&self, list: TypeListId, pool: impl Fn(&TypeSegment) -> &ListPool<T>) -> &[T] {
+        if list.is_empty() {
+            return &[];
+        }
+
+        for segment in self.segments.iter().rev() {
+            if let Some(slice) = pool(segment).get_maybe(list) {
+                return slice;
             }
         }
 
-        panic!("missing type source for type id {type_id:?}");
+        panic!("DIR type list {list:?} is not visible")
     }
 }
 
@@ -243,17 +451,56 @@ pub struct TypeSegment {
     pub module_id: ModuleId,
     /// The first type id owned by this table segment.
     pub(crate) first_type_id: u32,
-    /// Canonical type entries.
+    /// The interned type entries.
     pub(crate) types: Arena<Type>,
+    /// The structural flags per type, computed at intern time.
+    pub(crate) flags: Arena<TypeFlags>,
 
-    /// The source for each type id.
-    pub(crate) sources: Arena<LocalNodeIdAny>,
+    /// The type id lists referenced by type payloads.
+    pub(crate) type_ids: ListPool<GlobalTypeId>,
+    /// The tuple element lists referenced by type payloads.
+    pub(crate) elements: ListPool<TypeElement>,
+    /// The shape field lists referenced by type payloads.
+    pub(crate) fields: ListPool<TypeField>,
+    /// The function parameter lists referenced by type payloads.
+    pub(crate) parameters: ListPool<FunctionParameterType>,
+    /// The index signature lists referenced by type payloads.
+    pub(crate) index_signatures: ListPool<TypeIndexSignature>,
+    /// The string lists referenced by type payloads.
+    pub(crate) strings: ListPool<StringId>,
+
+    /// The intern index from value hash to owned type slots.
+    #[serde(skip)]
+    index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
+    /// The value hash per owned type, parallel to `types`.
+    #[serde(skip)]
+    hashes: Vec<u64>,
+
     /// Effective checked type keyed by DIR node occurrence.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type keyed by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
     /// Reduced checked type keyed by surface type.
     pub(crate) reduced_types: IndexMap<GlobalTypeId, GlobalTypeId>,
+}
+
+/// Mark of one type segment for speculative rollback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeMark {
+    /// The owned type count at the mark.
+    types: u32,
+    /// The type id list count at the mark.
+    type_ids: u32,
+    /// The tuple element element count at the mark.
+    elements: u32,
+    /// The shape field element count at the mark.
+    fields: u32,
+    /// The function parameter element count at the mark.
+    parameters: u32,
+    /// The index signature element count at the mark.
+    index_signatures: u32,
+    /// The string element count at the mark.
+    strings: u32,
 }
 
 impl TypeSegment {
@@ -263,7 +510,15 @@ impl TypeSegment {
             module_id,
             first_type_id: 0,
             types: Arena::new(),
-            sources: Arena::new(),
+            flags: Arena::new(),
+            type_ids: ListPool::new(0),
+            elements: ListPool::new(0),
+            fields: ListPool::new(0),
+            parameters: ListPool::new(0),
+            index_signatures: ListPool::new(0),
+            strings: ListPool::new(0),
+            index: FxHashMap::default(),
+            hashes: Vec::new(),
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
             reduced_types: IndexMap::new(),
@@ -276,41 +531,73 @@ impl TypeSegment {
             module_id: base.module_id,
             first_type_id: base.type_count(),
             types: Arena::new(),
-            sources: Arena::new(),
+            flags: Arena::new(),
+            type_ids: ListPool::new(base.type_ids.element_count()),
+            elements: ListPool::new(base.elements.element_count()),
+            fields: ListPool::new(base.fields.element_count()),
+            parameters: ListPool::new(base.parameters.element_count()),
+            index_signatures: ListPool::new(base.index_signatures.element_count()),
+            strings: ListPool::new(base.strings.element_count()),
+            index: FxHashMap::default(),
+            hashes: Vec::new(),
             node_types: IndexMap::new(),
             symbol_types: IndexMap::new(),
             reduced_types: IndexMap::new(),
         }
     }
 
-    /// Allocate one type slot with canonical metadata.
-    fn allocate_type(&mut self, ty: Type, source_id: LocalNodeIdAny) -> LocalTypeId {
-        self.assert_type_table_invariants_debug("allocate_type:start");
+    /// Intern one type whose payload lists are already interned.
+    /// The caller supplies the joined structural flags of every child type.
+    pub fn intern_type(&mut self, ty: Type, child_flags: TypeFlags) -> LocalTypeId {
+        // probe the index for an existing structural hit
+        let hash = fx_hash(&ty);
+        if let Some(slots) = self.index.get(&hash) {
+            for slot in slots {
+                if self.owned_type(*slot) == &ty {
+                    return *slot;
+                }
+            }
+        }
 
+        // allocate and index the new slot
         let type_id = LocalTypeId::new(self.type_count());
-
+        let flags = ty.own_flags() | child_flags;
         self.types.allocate(ty);
-        self.sources.allocate(source_id);
-        self.assert_type_table_invariants_debug("allocate_type:end");
+        self.flags.allocate(flags);
+        self.hashes.push(hash);
+        self.index.entry(hash).or_default().push(type_id);
 
         type_id
     }
 
-    /// Insert a type derived from some source node.
-    pub fn insert_type_from<T: Node>(&mut self, ty: Type, node_id: LocalNodeId<T>) -> LocalTypeId {
-        self.allocate_type(ty, node_id.into_any())
+    /// Intern one type id list.
+    pub fn intern_type_ids(&mut self, values: &[GlobalTypeId]) -> TypeListId {
+        self.type_ids.intern(values)
     }
 
-    /// Insert a type derived from some source node (any node type).
-    pub fn insert_type_from_any(&mut self, ty: Type, node_id: LocalNodeIdAny) -> LocalTypeId {
-        self.allocate_type(ty, node_id)
+    /// Intern one tuple element list.
+    pub fn intern_elements(&mut self, values: &[TypeElement]) -> TypeListId {
+        self.elements.intern(values)
     }
 
-    /// Insert a type derived from another type id.
-    pub fn insert_type_from_type(&mut self, ty: Type, source_type_id: LocalTypeId) -> LocalTypeId {
-        let source_id = self.get_type_source(source_type_id);
+    /// Intern one shape field list.
+    pub fn intern_fields(&mut self, values: &[TypeField]) -> TypeListId {
+        self.fields.intern(values)
+    }
 
-        self.allocate_type(ty, source_id)
+    /// Intern one function parameter list.
+    pub fn intern_parameters(&mut self, values: &[FunctionParameterType]) -> TypeListId {
+        self.parameters.intern(values)
+    }
+
+    /// Intern one index signature list.
+    pub fn intern_index_signatures(&mut self, values: &[TypeIndexSignature]) -> TypeListId {
+        self.index_signatures.intern(values)
+    }
+
+    /// Intern one string list.
+    pub fn intern_strings(&mut self, values: &[StringId]) -> TypeListId {
+        self.strings.intern(values)
     }
 
     /// Iterate effective checked types keyed by DIR node.
@@ -369,15 +656,51 @@ impl TypeSegment {
     }
 
     /// Get a type by its id.
-    pub fn get_type(&self, type_id: LocalTypeId) -> &Type {
+    pub fn get_type(&self, type_id: LocalTypeId) -> Type {
         self.get_type_maybe(type_id)
             .unwrap_or_else(|| panic!("DIR type {type_id:?} is not allocated in this segment"))
     }
 
     /// Get a type by its id when present.
-    pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<&Type> {
+    pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<Type> {
         self.contains_type_id(type_id)
-            .then(|| self.types.get(type_id.0 - self.first_type_id))
+            .then(|| *self.types.get(type_id.0 - self.first_type_id))
+    }
+
+    /// Get the structural flags for a type when present.
+    pub fn get_type_flags_maybe(&self, type_id: LocalTypeId) -> Option<TypeFlags> {
+        self.contains_type_id(type_id)
+            .then(|| *self.flags.get(type_id.0 - self.first_type_id))
+    }
+
+    /// Get one type id list when this segment owns it.
+    pub fn type_ids_maybe(&self, list: TypeListId) -> Option<&[GlobalTypeId]> {
+        self.type_ids.get_maybe(list)
+    }
+
+    /// Get one tuple element list when this segment owns it.
+    pub fn elements_maybe(&self, list: TypeListId) -> Option<&[TypeElement]> {
+        self.elements.get_maybe(list)
+    }
+
+    /// Get one shape field list when this segment owns it.
+    pub fn fields_maybe(&self, list: TypeListId) -> Option<&[TypeField]> {
+        self.fields.get_maybe(list)
+    }
+
+    /// Get one function parameter list when this segment owns it.
+    pub fn parameters_maybe(&self, list: TypeListId) -> Option<&[FunctionParameterType]> {
+        self.parameters.get_maybe(list)
+    }
+
+    /// Get one index signature list when this segment owns it.
+    pub fn index_signatures_maybe(&self, list: TypeListId) -> Option<&[TypeIndexSignature]> {
+        self.index_signatures.get_maybe(list)
+    }
+
+    /// Get one string list when this segment owns it.
+    pub fn strings_maybe(&self, list: TypeListId) -> Option<&[StringId]> {
+        self.strings.get_maybe(list)
     }
 
     /// Strip outer form types to reach the payload type id.
@@ -401,48 +724,46 @@ impl TypeSegment {
         (self.first_type_id..end).map(LocalTypeId::new)
     }
 
-    /// Get a mutable type by its id.
-    pub fn get_type_mut(&mut self, type_id: LocalTypeId) -> &mut Type {
-        assert!(
-            self.contains_type_id(type_id),
-            "DIR type {type_id:?} is not mutable in this segment"
-        );
-
-        self.types.get_mut(type_id.0 - self.first_type_id)
-    }
-
-    /// Return the source for a type id.
-    fn type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        if self.contains_type_id(type_id) {
-            let slot = type_id.0 - self.first_type_id;
-            return *self.sources.get(slot);
-        }
-
-        panic!("missing type source for type id {type_id:?}");
-    }
-
-    /// Update a type in place.
-    pub fn update_type(&mut self, type_id: LocalTypeId, ty: Type) {
-        self.assert_type_table_invariants_debug("update_type:start");
-        *self.get_type_mut(type_id) = ty;
-        self.assert_type_table_invariants_debug("update_type:end");
-    }
-
-    /// Get the source id for a type.
-    pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        self.type_source(type_id)
-    }
-
     /// Get the number of types in the table.
     pub fn type_count(&self) -> u32 {
         self.first_type_id + self.types.len() as u32
     }
 
-    /// Drop the youngest types down to one count.
-    pub fn truncate_types(&mut self, count: u32) {
-        let keep = count.saturating_sub(self.first_type_id) as usize;
+    /// Mark this segment for speculative rollback.
+    pub fn mark(&self) -> TypeMark {
+        TypeMark {
+            types: self.type_count(),
+            type_ids: self.type_ids.element_count(),
+            elements: self.elements.element_count(),
+            fields: self.fields.element_count(),
+            parameters: self.parameters.element_count(),
+            index_signatures: self.index_signatures.element_count(),
+            strings: self.strings.element_count(),
+        }
+    }
+
+    /// Drop every type and list interned after one mark.
+    pub fn truncate_to(&mut self, mark: TypeMark) {
+        // unindex the dropped type slots
+        let keep = mark.types.saturating_sub(self.first_type_id) as usize;
+        for slot in keep..self.types.len() {
+            let hash = self.hashes[slot];
+            let type_id = LocalTypeId::new(self.first_type_id + slot as u32);
+            if let Some(slots) = self.index.get_mut(&hash) {
+                slots.retain(|entry| *entry != type_id);
+            }
+        }
+
+        // drop the type slots and their lists
         self.types.truncate(keep);
-        self.sources.truncate(keep);
+        self.flags.truncate(keep);
+        self.hashes.truncate(keep);
+        self.type_ids.truncate_to(mark.type_ids);
+        self.elements.truncate_to(mark.elements);
+        self.fields.truncate_to(mark.fields);
+        self.parameters.truncate_to(mark.parameters);
+        self.index_signatures.truncate_to(mark.index_signatures);
+        self.strings.truncate_to(mark.strings);
     }
 
     /// Return the number of entries in this table.
@@ -463,21 +784,114 @@ impl TypeSegment {
         type_id.0 >= self.first_type_id && type_id.0 < self.type_count()
     }
 
-    /// Assert internal table invariants only in debug builds.
-    fn assert_type_table_invariants_debug(&self, _context: &str) {
-        #[cfg(debug_assertions)]
-        self.assert_type_table_invariants(_context);
+    /// Return one owned type slot.
+    fn owned_type(&self, type_id: LocalTypeId) -> &Type {
+        self.types.get(type_id.0 - self.first_type_id)
+    }
+}
+
+/// Interned lists of one type payload kind.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub(crate) struct ListPool<T> {
+    /// The first element owned by this segment.
+    first: u32,
+    /// The stored list elements.
+    elements: Arena<T>,
+    /// The intern index from list hash to owned list ids.
+    #[serde(skip)]
+    index: FxHashMap<u64, SmallVec<[TypeListId; 1]>>,
+    /// The intern log of owned list ids, in allocation order.
+    #[serde(skip)]
+    log: Vec<(u64, TypeListId)>,
+}
+
+impl<T> ListPool<T> {
+    /// Create empty list storage starting at one cumulative offset.
+    fn new(first: u32) -> Self {
+        Self {
+            first,
+            elements: Arena::new(),
+            index: FxHashMap::default(),
+            log: Vec::new(),
+        }
     }
 
-    /// Assert internal store invariants.
-    #[cfg(debug_assertions)]
-    fn assert_type_table_invariants(&self, context: &str) {
-        let type_slot_count = self.types.len();
-        let source_slot_count = self.sources.len();
-
-        assert_eq!(
-            source_slot_count, type_slot_count,
-            "type source slot mismatch in {context}: source={source_slot_count}, types={type_slot_count}",
-        );
+    /// Get one owned list.
+    fn get(&self, list: TypeListId) -> &[T] {
+        self.get_maybe(list)
+            .unwrap_or_else(|| panic!("DIR type list {list:?} is not allocated in this segment"))
     }
+
+    /// Get one owned list when present.
+    fn get_maybe(&self, list: TypeListId) -> Option<&[T]> {
+        if list.is_empty() {
+            return Some(&[]);
+        }
+
+        let start = list.start.checked_sub(self.first)? as usize;
+        let end = start + list.count as usize;
+
+        self.elements.as_slice().get(start..end)
+    }
+
+    /// Return the cumulative element count.
+    fn element_count(&self) -> u32 {
+        self.first + self.elements.len() as u32
+    }
+
+    /// Drop every list interned after one cumulative count.
+    fn truncate_to(&mut self, count: u32) {
+        // unindex the dropped lists
+        while let Some((hash, list)) = self.log.last().copied() {
+            if list.start < count {
+                break;
+            }
+            if let Some(lists) = self.index.get_mut(&hash) {
+                lists.retain(|entry| *entry != list);
+            }
+            self.log.pop();
+        }
+
+        // drop the elements
+        let keep = count.saturating_sub(self.first) as usize;
+        self.elements.truncate(keep);
+    }
+}
+
+impl<T: Copy + Eq + Hash> ListPool<T> {
+    /// Intern one list.
+    fn intern(&mut self, values: &[T]) -> TypeListId {
+        // canonicalize the empty list without touching storage
+        if values.is_empty() {
+            return TypeListId::EMPTY;
+        }
+
+        // probe the index for an existing content hit
+        let hash = fx_hash(&values);
+        if let Some(lists) = self.index.get(&hash) {
+            for list in lists {
+                if self.get(*list) == values {
+                    return *list;
+                }
+            }
+        }
+
+        // append and index the new list
+        let list = TypeListId::new(self.element_count(), values.len() as u32);
+        for value in values {
+            self.elements.allocate(*value);
+        }
+        self.index.entry(hash).or_default().push(list);
+        self.log.push((hash, list));
+
+        list
+    }
+}
+
+/// Return the FxHasher hash of one value.
+fn fx_hash(value: &impl Hash) -> u64 {
+    let mut hasher = FxHasher::default();
+    value.hash(&mut hasher);
+
+    hasher.finish()
 }

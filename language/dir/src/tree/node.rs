@@ -573,7 +573,7 @@ pub enum Visibility {
 }
 
 /// The asynchrony of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Asynchrony {
     /// Synchronous function.
     Sync,
