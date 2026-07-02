@@ -1,8 +1,8 @@
 use destack_serde::SchemaRegistry;
 
-use crate::ProgramHeader;
+use crate::Program;
 
 /// Include public program schema roots.
 pub fn schema(registry: &mut SchemaRegistry) {
-    registry.register::<ProgramHeader>();
+    registry.register::<Program>();
 }
