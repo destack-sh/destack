@@ -398,11 +398,11 @@ impl BlockLowerer<'_> {
             layout.byte_len(),
             layout.alignment(),
             trace_id,
-            &layout.trace_map,
+            layout.trace_map.clone(),
         );
         let allocation = match address_space {
-            AddressSpace::Local => self.function.heap_options.allocation_plan(shape),
-            AddressSpace::Shared => self.function.shared_heap_options.allocation_plan(shape),
+            AddressSpace::Local => self.function.heap_options.allocation_plan(&shape),
+            AddressSpace::Shared => self.function.shared_heap_options.allocation_plan(&shape),
             _ => {
                 return Err(self.invalid_pointer_type(format!("{address_space:?}")));
             }
