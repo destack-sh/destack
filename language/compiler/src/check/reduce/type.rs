@@ -41,10 +41,12 @@ impl CheckState<'_> {
         let mut expanding = IndexSet::new();
         let answer = self.reduce_type_chain(origin, id, &mut expanding)?;
 
-        // memoize changed closed reductions outside probes
+        // memoize changed closed reductions outside probes, except alias
+        // expansions, which deep reduction must keep symbolic
         if let Answer::Ready(reduced) = answer
             && reduced != id
             && !self.solver.is_probing()
+            && !self.is_alias_instance(id)?
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
         {
@@ -336,6 +338,18 @@ impl CheckState<'_> {
         memo.insert(original, rebuilt);
 
         Ok(Answer::Ready(rebuilt))
+    }
+
+    /// Return whether one type is a transparent alias application.
+    fn is_alias_instance(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let dir::Type::Instance(instance) = self.ty(id)? else {
+            return Ok(false);
+        };
+
+        Ok(matches!(
+            self.definition(instance.symbol),
+            Some(dir::Definition::TypeAlias(_))
+        ))
     }
 
     /// Return the substituted body of one transparent type alias application.

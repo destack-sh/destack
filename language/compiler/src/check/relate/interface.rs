@@ -302,7 +302,9 @@ impl CheckState<'_> {
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         // compare each declared implemented interface
-        let interface_arguments = self.type_ids(interface_module, interface.arguments)?.to_vec();
+        let interface_arguments = self
+            .type_ids(interface_module, interface.arguments)?
+            .to_vec();
         for heritage in implements {
             let implemented = self.substituted_heritage(module, substitution, heritage)?;
             let matches = if implemented.symbol == interface.symbol {
@@ -317,8 +319,9 @@ impl CheckState<'_> {
             } else if let Some(inherited) =
                 answer!(self.heritage_instance(origin, module, &implemented, interface.symbol)?)
             {
-                let inherited_arguments =
-                    self.type_ids(origin.module(), inherited.arguments)?.to_vec();
+                let inherited_arguments = self
+                    .type_ids(origin.module(), inherited.arguments)?
+                    .to_vec();
 
                 self.relate_type_arguments(
                     origin,
