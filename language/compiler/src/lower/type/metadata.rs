@@ -153,6 +153,7 @@ impl ModuleLowerer<'_> {
                     TraceMap::Fixed {
                         local_offsets: vec![pointer_bytes].into_boxed_slice(),
                         shared_offsets: Vec::new().into_boxed_slice(),
+                        frame_offsets: Vec::new().into_boxed_slice(),
                     },
                 );
 

@@ -57,6 +57,17 @@ pub(crate) struct ElementLayout {
     pub(crate) byte_len: usize,
 }
 
+/// Reference offsets grouped by traceable reference storage.
+#[derive(Default)]
+struct ReferenceOffsets {
+    /// Byte offsets of local heap references.
+    local_offsets: Vec<u32>,
+    /// Byte offsets of shared heap references.
+    shared_offsets: Vec<u32>,
+    /// Byte offsets of frame references.
+    frame_offsets: Vec<u32>,
+}
+
 impl StorageLayout {
     /// Return the byte width of the value representation.
     pub(crate) const fn byte_len(&self) -> usize {
@@ -182,6 +193,40 @@ impl StorageLayout {
     /// Return the aligned stride.
     pub(crate) fn stride(&self) -> usize {
         align_offset(self.byte_len(), self.alignment)
+    }
+}
+
+impl ReferenceOffsets {
+    /// Return whether no offsets are present.
+    fn is_empty(&self) -> bool {
+        self.local_offsets.is_empty()
+            && self.shared_offsets.is_empty()
+            && self.frame_offsets.is_empty()
+    }
+
+    /// Push one reference offset into the selected storage column.
+    fn push(&mut self, address_space: AddressSpace, offset: u32) {
+        match address_space {
+            AddressSpace::Local => self.local_offsets.push(offset),
+            AddressSpace::Shared => self.shared_offsets.push(offset),
+            AddressSpace::Frame => self.frame_offsets.push(offset),
+            AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Static => {
+                unreachable!("non-traceable address space cannot appear in trace maps")
+            }
+        }
+    }
+
+    /// Build one trace map from the collected columns.
+    fn into_trace_map(self) -> TraceMap {
+        if self.is_empty() {
+            TraceMap::Empty
+        } else {
+            TraceMap::Fixed {
+                local_offsets: self.local_offsets.into_boxed_slice(),
+                shared_offsets: self.shared_offsets.into_boxed_slice(),
+                frame_offsets: self.frame_offsets.into_boxed_slice(),
+            }
+        }
     }
 }
 
@@ -763,22 +808,12 @@ impl StorageLayoutBuilder<'_> {
             return self.build_variant_trace_map(ty, layout);
         }
 
-        let mut local_offsets = Vec::new();
-        let mut shared_offsets = Vec::new();
+        let mut offsets = ReferenceOffsets::default();
 
         // walk the storage layout tree and collect traceable reference offsets
-        self.append_reference_offsets(ty, 0, &mut local_offsets, &mut shared_offsets)?;
+        self.append_reference_offsets(ty, 0, &mut offsets)?;
 
-        let trace_map = if local_offsets.is_empty() && shared_offsets.is_empty() {
-            TraceMap::empty()
-        } else {
-            TraceMap::Fixed {
-                local_offsets: local_offsets.into_boxed_slice(),
-                shared_offsets: shared_offsets.into_boxed_slice(),
-            }
-        };
-
-        Ok(trace_map)
+        Ok(offsets.into_trace_map())
     }
 
     /// Build one trace map for a function value environment word.
@@ -797,17 +832,14 @@ impl StorageLayoutBuilder<'_> {
             return Err(self.program.invalid_input("function environment layout"));
         }
 
-        Ok(match self.trace_reference_space(environment_type) {
-            Some(mir::Space::Local) => TraceMap::Fixed {
-                local_offsets: vec![offset].into_boxed_slice(),
-                shared_offsets: Vec::new().into_boxed_slice(),
-            },
-            Some(mir::Space::Shared) => TraceMap::Fixed {
-                local_offsets: Vec::new().into_boxed_slice(),
-                shared_offsets: vec![offset].into_boxed_slice(),
-            },
-            _ => TraceMap::empty(),
-        })
+        let Some(reference) = self.trace_address_space(environment_type) else {
+            return Ok(TraceMap::Empty);
+        };
+
+        let mut offsets = ReferenceOffsets::default();
+        offsets.push(reference, offset);
+
+        Ok(offsets.into_trace_map())
     }
 
     /// Build a tag-selected trace map for one lowered variant.
@@ -927,8 +959,7 @@ impl StorageLayoutBuilder<'_> {
         &self,
         ty: mir::LocalNodeId<mir::Type>,
         base_offset: u32,
-        local_offsets: &mut Vec<u32>,
-        shared_offsets: &mut Vec<u32>,
+        offsets: &mut ReferenceOffsets,
     ) -> LinkResult<()> {
         let layout = self.layouts.get(&ty).ok_or_else(|| {
             self.program
@@ -937,10 +968,8 @@ impl StorageLayoutBuilder<'_> {
 
         // scalar traceable references contribute one direct offset
         if layout.is_scalar() {
-            match self.trace_reference_space(ty) {
-                Some(mir::Space::Local) => local_offsets.push(base_offset),
-                Some(mir::Space::Shared) => shared_offsets.push(base_offset),
-                _ => {}
+            if let Some(reference) = self.trace_address_space(ty) {
+                offsets.push(reference, base_offset);
             }
 
             return Ok(());
@@ -958,7 +987,7 @@ impl StorageLayoutBuilder<'_> {
                         "trace map field base: base={base_offset}, offset={field_offset}",
                     ))
                 })?;
-                self.append_reference_offsets(field.ty, field_base, local_offsets, shared_offsets)?;
+                self.append_reference_offsets(field.ty, field_base, offsets)?;
             }
 
             return Ok(());
@@ -967,17 +996,8 @@ impl StorageLayoutBuilder<'_> {
         // slice descriptors trace the backing storage pointer
         let repr_ty = self.tree.repr_type(ty);
         if let mir::Type::Slice { kind, space, .. } = self.tree.get(repr_ty) {
-            if matches!(
-                kind,
-                mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed
-            ) {
-                match space {
-                    mir::Space::Local => local_offsets.push(base_offset),
-                    mir::Space::Shared => shared_offsets.push(base_offset),
-                    _ => {}
-                }
+            if let Some(reference) = Self::trace_address_space_from_parts(*kind, space) {
+                offsets.push(reference, base_offset);
             }
 
             return Ok(());
@@ -985,17 +1005,8 @@ impl StorageLayoutBuilder<'_> {
 
         // tensor view descriptors trace the backing storage pointer
         if let mir::Type::TensorView { kind, space, .. } = self.tree.get(repr_ty) {
-            if matches!(
-                kind,
-                mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed
-            ) {
-                match space {
-                    mir::Space::Local => local_offsets.push(base_offset),
-                    mir::Space::Shared => shared_offsets.push(base_offset),
-                    _ => {}
-                }
+            if let Some(reference) = Self::trace_address_space_from_parts(*kind, space) {
+                offsets.push(reference, base_offset);
             }
 
             return Ok(());
@@ -1024,26 +1035,44 @@ impl StorageLayoutBuilder<'_> {
                     "trace map element base: base={base_offset}, offset={element_offset}",
                 ))
             })?;
-            self.append_reference_offsets(element.ty, element_base, local_offsets, shared_offsets)?;
+            self.append_reference_offsets(element.ty, element_base, offsets)?;
         }
 
         Ok(())
     }
 
-    /// Return the space when the repr type is one traceable reference.
-    fn trace_reference_space(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::Space> {
+    /// Return the trace column selected by one traceable type.
+    fn trace_address_space(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<AddressSpace> {
         let ty = self.tree.repr_type(ty);
 
         match self.tree.get(ty) {
-            mir::Type::Reference {
-                kind:
-                    mir::ReferenceKind::Managed
-                    | mir::ReferenceKind::Unique
-                    | mir::ReferenceKind::Borrowed,
-                space,
-                ..
-            } => Some(space.clone()),
+            mir::Type::Reference { kind, space, .. } => {
+                Self::trace_address_space_from_parts(*kind, space)
+            }
             _ => None,
+        }
+    }
+
+    /// Return the trace column selected by one reference kind and space.
+    fn trace_address_space_from_parts(
+        kind: mir::ReferenceKind,
+        space: &mir::Space,
+    ) -> Option<AddressSpace> {
+        match space {
+            mir::Space::Frame => Some(AddressSpace::Frame),
+            mir::Space::Static => None,
+            mir::Space::Local => match kind {
+                mir::ReferenceKind::Raw => None,
+                mir::ReferenceKind::Managed
+                | mir::ReferenceKind::Unique
+                | mir::ReferenceKind::Borrowed => Some(AddressSpace::Local),
+            },
+            mir::Space::Shared => match kind {
+                mir::ReferenceKind::Raw => None,
+                mir::ReferenceKind::Managed
+                | mir::ReferenceKind::Unique
+                | mir::ReferenceKind::Borrowed => Some(AddressSpace::Shared),
+            },
         }
     }
 }
