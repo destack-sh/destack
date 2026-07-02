@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{self, Write};
 use std::time::Duration;
 
 use super::{Case, CaseResult, RunSummary};
@@ -147,22 +147,30 @@ pub fn print_failures(cases: &[(Case, CaseResult)]) {
 
 /// Print the discovered test list without running.
 pub fn print_test_list(cases: &[Case]) {
+    let mut stdout = io::stdout().lock();
+
     for case in cases {
         let suffix = if case.is_skipped {
             format!(": {} {}", color::yellow("test"), color::dim("(skipped)"))
         } else {
             format!(": {}", color::cyan("test"))
         };
-        println!("{}{}", case.full_name(), suffix);
+
+        if writeln!(stdout, "{}{}", case.full_name(), suffix).is_err() {
+            return;
+        }
     }
 
-    println!();
+    if writeln!(stdout).is_err() {
+        return;
+    }
+
     let total = color::bold(&format!("{}", cases.len()));
     let skipped_count = cases.iter().filter(|case| case.is_skipped).count();
     if skipped_count > 0 {
         let skipped = color::yellow(&format!("{skipped_count} skipped"));
-        println!("{total} tests ({skipped})");
+        let _ = writeln!(stdout, "{total} tests ({skipped})");
     } else {
-        println!("{total} tests");
+        let _ = writeln!(stdout, "{total} tests");
     }
 }
