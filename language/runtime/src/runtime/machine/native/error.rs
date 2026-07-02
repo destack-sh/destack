@@ -2,8 +2,7 @@ use std::fmt;
 
 use destack_core::StringId;
 use destack_program::native::{
-    NativeContinuationError, NativeExitError, NativeMaterializationError, NativeTrap,
-    NativeTrapError, NativeValueError,
+    NativeContinuationError, NativeExitError, NativeTrap, NativeTrapError, NativeValueError,
 };
 use destack_program::{FrameStateId, Value};
 
@@ -25,8 +24,8 @@ pub enum Error {
         /// The reported trap.
         trap: NativeTrap,
     },
-    /// Native execution requested deoptimization without materialization.
-    DeoptimizedWithoutMaterialization {
+    /// Native execution requested deoptimization without a continuation.
+    DeoptimizedWithoutContinuation {
         /// The safepoint that requested deoptimization.
         safepoint: u32,
     },
@@ -41,8 +40,6 @@ pub enum Error {
     InvalidTrap(NativeTrapError),
     /// A native ABI value could not be decoded.
     Value(NativeValueError),
-    /// A native materialization could not be decoded.
-    InvalidMaterialization(NativeMaterializationError),
     /// A native continuation could not be decoded.
     InvalidContinuation(NativeContinuationError),
     /// A native continuation frame does not match program frame metadata.
@@ -84,10 +81,10 @@ impl fmt::Display for Error {
             Self::Trapped { trap } => {
                 write!(formatter, "native execution trapped: {trap:?}")
             }
-            Self::DeoptimizedWithoutMaterialization { safepoint } => {
+            Self::DeoptimizedWithoutContinuation { safepoint } => {
                 write!(
                     formatter,
-                    "native execution deoptimized at safepoint {safepoint} without materialization"
+                    "native execution deoptimized at safepoint {safepoint} without a continuation"
                 )
             }
             Self::Panicked { payload } => {
@@ -96,9 +93,6 @@ impl fmt::Display for Error {
             Self::InvalidExit(error) => write!(formatter, "native exit error: {error}"),
             Self::InvalidTrap(error) => write!(formatter, "native trap error: {error}"),
             Self::Value(error) => write!(formatter, "native value error: {error}"),
-            Self::InvalidMaterialization(error) => {
-                write!(formatter, "native materialization error: {error}")
-            }
             Self::InvalidContinuation(error) => {
                 write!(formatter, "native continuation error: {error}")
             }

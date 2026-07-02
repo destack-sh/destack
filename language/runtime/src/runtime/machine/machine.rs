@@ -5,14 +5,12 @@ use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
-use super::{
-    Continuation, ContinuationImage, Entry, Image, Outcome, ProgramActivation, ProgramStorage,
-    native,
-};
+use super::{Continuation, Entry, Image, Outcome, ProgramActivation, ProgramStorage, native};
 use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 
 const NATIVE_MACHINE: &str = "native";
 const VM_MACHINE: &str = "vm";
+const CONTINUATION: &str = "continuation";
 
 /// Stable identifier for one worker-owned machine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -293,13 +291,15 @@ impl Machine {
         if continuation.machine() != self.id {
             return Err(machine_continuation_mismatch(
                 &machine_name(self.kind(), self.id),
-                &machine_name(continuation_kind(&continuation), continuation.machine()),
+                &machine_name(CONTINUATION, continuation.machine()),
             ));
         }
 
         let id = self.id;
-        match (&mut self.engine, continuation) {
-            (Engine::Vm(machine), Continuation::Vm { continuation, .. }) => {
+        let continuation = continuation.program;
+
+        match &mut self.engine {
+            Engine::Vm(machine) => {
                 let context = context.storage;
                 let outcome = vm::Machine::resume(
                     machine.as_mut(),
@@ -316,33 +316,38 @@ impl Machine {
 
                 Ok(outcome_from_vm(id, outcome))
             }
-            (Engine::Native { code, vm }, Continuation::Native { continuation, .. }) => {
+            Engine::Native { code, vm } => {
                 let program = vm.program();
-                let outcome = code
-                    .resume(program, &mut context, continuation, value)
-                    .map_err(native_runtime_error)?;
 
-                outcome_from_native(id, vm.as_mut(), context, outcome)
-            }
-            (Engine::Native { vm, .. }, Continuation::Vm { continuation, .. }) => {
-                let context = context.storage;
-                let outcome = vm::Machine::resume(
-                    vm.as_mut(),
-                    context.local_static,
-                    context.shared_static,
-                    context.heap,
-                    context.shared_heap,
-                    context.shared_cache,
-                    context.shared_mark_worker,
-                    continuation,
-                    value,
-                )
-                .map_err(Box::<RuntimeError>::from)?;
+                // resume natively when a matching resume entry exists
+                if code
+                    .can_resume(&continuation)
+                    .map_err(native_runtime_error)?
+                {
+                    let outcome = code
+                        .resume(program, &mut context, continuation, value)
+                        .map_err(native_runtime_error)?;
 
-                Ok(outcome_from_vm(id, outcome))
-            }
-            (Engine::Vm(_), Continuation::Native { .. }) => {
-                Err(machine_continuation_mismatch(VM_MACHINE, NATIVE_MACHINE))
+                    outcome_from_native(id, vm.as_mut(), context, outcome)
+                }
+                // otherwise resume through the VM with the same durable continuation
+                else {
+                    let context = context.storage;
+                    let outcome = vm::Machine::resume(
+                        vm.as_mut(),
+                        context.local_static,
+                        context.shared_static,
+                        context.heap,
+                        context.shared_heap,
+                        context.shared_cache,
+                        context.shared_mark_worker,
+                        continuation,
+                        value,
+                    )
+                    .map_err(Box::<RuntimeError>::from)?;
+
+                    Ok(outcome_from_vm(id, outcome))
+                }
             }
         }
     }
@@ -397,57 +402,26 @@ impl Machine {
             return Ok(());
         }
 
-        match (&mut self.engine, continuation) {
-            (Engine::Vm(machine), Continuation::Vm { continuation, .. }) => {
-                vm::Machine::visit_continuation_root_slots(machine.as_mut(), continuation, visit)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            (Engine::Native { vm, code }, Continuation::Native { continuation, .. }) => {
-                let program = vm.program();
-                code.visit_continuation_root_slots(program, continuation, visit)
-                    .map_err(native_runtime_error)
-            }
-            (Engine::Native { vm, .. }, Continuation::Vm { continuation, .. }) => {
-                vm::Machine::visit_continuation_root_slots(vm.as_mut(), continuation, visit)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            (Engine::Vm(_), Continuation::Native { .. }) => Ok(()),
-        }
-    }
-
-    /// Visit mutable heap root slots from one captured continuation image.
-    pub fn visit_continuation_image_root_slots(
-        &mut self,
-        continuation: &mut ContinuationImage,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> RuntimeResult<()> {
-        if continuation.machine() != self.id {
-            return Ok(());
-        }
-
-        match (&mut self.engine, continuation) {
-            (Engine::Vm(machine), ContinuationImage::Vm { image, .. }) => {
-                vm::Machine::visit_image_root_slots(machine.as_mut(), image, visit)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            (Engine::Native { vm, code }, ContinuationImage::Native { image, .. }) => {
-                let program = vm.program();
-                code.visit_continuation_root_slots(program, image, visit)
-                    .map_err(native_runtime_error)
-            }
-            (Engine::Native { vm, .. }, ContinuationImage::Vm { image, .. }) => {
-                vm::Machine::visit_image_root_slots(vm.as_mut(), image, visit)
-                    .map_err(Box::<RuntimeError>::from)
-            }
-            (Engine::Vm(_), ContinuationImage::Native { .. }) => Ok(()),
+        match &mut self.engine {
+            Engine::Vm(machine) => vm::Machine::visit_continuation_root_slots(
+                machine.as_mut(),
+                &mut continuation.program,
+                visit,
+            )
+            .map_err(Box::<RuntimeError>::from),
+            Engine::Native { vm, .. } => vm::Machine::visit_continuation_root_slots(
+                vm.as_mut(),
+                &mut continuation.program,
+                visit,
+            )
+            .map_err(Box::<RuntimeError>::from),
         }
     }
 
     /// Fork this machine over already-forked memory.
-    pub fn fork(&self, context: ProgramStorage<'_>) -> RuntimeResult<Self> {
+    pub fn fork(&self) -> RuntimeResult<Self> {
         let engine = match &self.engine {
             Engine::Vm(machine) => {
-                let _context = context;
                 let machine =
                     vm::Machine::fork(machine.as_ref()).map_err(Box::<RuntimeError>::from)?;
 
@@ -455,7 +429,6 @@ impl Machine {
             }
             Engine::Native { vm, code } => {
                 let vm = vm::Machine::fork(vm.as_ref()).map_err(Box::<RuntimeError>::from)?;
-                let _context = context;
 
                 Engine::Native {
                     vm: Box::new(vm),
@@ -471,10 +444,9 @@ impl Machine {
     }
 
     /// Capture one immutable machine image.
-    pub fn image(&self, context: ProgramStorage<'_>) -> RuntimeResult<Image> {
+    pub fn image(&self) -> RuntimeResult<Image> {
         match &self.engine {
             Engine::Vm(machine) => {
-                let _context = context;
                 let image =
                     vm::Machine::image(machine.as_ref()).map_err(Box::<RuntimeError>::from)?;
 
@@ -486,7 +458,6 @@ impl Machine {
             Engine::Native { vm, .. } => {
                 let vm_image =
                     vm::Machine::image(vm.as_ref()).map_err(Box::<RuntimeError>::from)?;
-                let _context = context;
 
                 Ok(Image::Native {
                     machine: self.id,
@@ -497,7 +468,7 @@ impl Machine {
     }
 
     /// Restore one immutable machine image.
-    pub fn restore(&mut self, context: ProgramStorage<'_>, image: &Image) -> RuntimeResult<()> {
+    pub fn restore(&mut self, image: &Image) -> RuntimeResult<()> {
         if image.machine() != self.id {
             return Err(machine_image_mismatch(
                 &machine_name(self.kind(), self.id),
@@ -507,106 +478,17 @@ impl Machine {
 
         match (&mut self.engine, image) {
             (Engine::Vm(machine), Image::Vm { image, .. }) => {
-                let _context = context;
                 vm::Machine::restore_image(machine.as_mut(), image)
                     .map_err(Box::<RuntimeError>::from)
             }
             (Engine::Native { vm, .. }, Image::Native { vm: vm_image, .. }) => {
-                let _context = context;
                 vm::Machine::restore_image(vm.as_mut(), vm_image).map_err(Box::<RuntimeError>::from)
             }
             (Engine::Vm(_), Image::Native { .. }) => {
                 Err(machine_image_mismatch(VM_MACHINE, NATIVE_MACHINE))
             }
             (Engine::Native { vm, .. }, Image::Vm { image, .. }) => {
-                let _context = context;
                 vm::Machine::restore_image(vm.as_mut(), image).map_err(Box::<RuntimeError>::from)
-            }
-        }
-    }
-
-    /// Capture one continuation as one immutable continuation image.
-    pub fn continuation_image(
-        &mut self,
-        continuation: &Continuation,
-    ) -> RuntimeResult<ContinuationImage> {
-        if continuation.machine() != self.id {
-            return Err(machine_continuation_mismatch(
-                &machine_name(self.kind(), self.id),
-                &machine_name(continuation_kind(continuation), continuation.machine()),
-            ));
-        }
-
-        match (&mut self.engine, continuation) {
-            (Engine::Vm(machine), Continuation::Vm { continuation, .. }) => {
-                let image = vm::Machine::continuation_image(machine.as_ref(), continuation)
-                    .map_err(Box::<RuntimeError>::from)?;
-
-                Ok(ContinuationImage::Vm {
-                    machine: self.id,
-                    image,
-                })
-            }
-            (Engine::Native { .. }, Continuation::Native { continuation, .. }) => {
-                Ok(ContinuationImage::Native {
-                    machine: self.id,
-                    image: continuation.clone(),
-                })
-            }
-            (Engine::Native { vm, .. }, Continuation::Vm { continuation, .. }) => {
-                let image = vm::Machine::continuation_image(vm.as_ref(), continuation)
-                    .map_err(Box::<RuntimeError>::from)?;
-
-                Ok(ContinuationImage::Vm {
-                    machine: self.id,
-                    image,
-                })
-            }
-            (Engine::Vm(_), Continuation::Native { .. }) => {
-                Err(machine_continuation_mismatch(VM_MACHINE, NATIVE_MACHINE))
-            }
-        }
-    }
-
-    /// Restore one continuation from one immutable continuation image.
-    pub fn restore_continuation_image(
-        &mut self,
-        image: &ContinuationImage,
-    ) -> RuntimeResult<Continuation> {
-        if image.machine() != self.id {
-            return Err(machine_continuation_mismatch(
-                &machine_name(self.kind(), self.id),
-                &machine_name(continuation_image_kind(image), image.machine()),
-            ));
-        }
-
-        match (&mut self.engine, image) {
-            (Engine::Vm(machine), ContinuationImage::Vm { image, .. }) => {
-                let continuation = vm::Machine::restore_continuation_image(machine.as_ref(), image)
-                    .map_err(Box::<RuntimeError>::from)?;
-
-                Ok(Continuation::Vm {
-                    machine: self.id,
-                    continuation,
-                })
-            }
-            (Engine::Native { .. }, ContinuationImage::Native { image, .. }) => {
-                Ok(Continuation::Native {
-                    machine: self.id,
-                    continuation: image.clone(),
-                })
-            }
-            (Engine::Native { vm, .. }, ContinuationImage::Vm { image, .. }) => {
-                let continuation = vm::Machine::restore_continuation_image(vm.as_ref(), image)
-                    .map_err(Box::<RuntimeError>::from)?;
-
-                Ok(Continuation::Vm {
-                    machine: self.id,
-                    continuation,
-                })
-            }
-            (Engine::Vm(_), ContinuationImage::Native { .. }) => {
-                Err(machine_continuation_mismatch(VM_MACHINE, NATIVE_MACHINE))
             }
         }
     }
@@ -721,9 +603,9 @@ fn outcome_from_vm(id: MachineId, outcome: vm::Outcome) -> Outcome<Continuation>
             continuation,
             value,
         } => Outcome::Yielded {
-            continuation: Continuation::Vm {
+            continuation: Continuation {
                 machine: id,
-                continuation,
+                program: continuation,
             },
             value,
         },
@@ -743,15 +625,15 @@ fn outcome_from_native(
             continuation,
             value,
         } => Ok(Outcome::Yielded {
-            continuation: Continuation::Native {
+            continuation: Continuation {
                 machine: id,
-                continuation,
+                program: continuation,
             },
             value,
         }),
         native::Outcome::Deoptimized { continuation } => {
             let context = context.storage;
-            let outcome = vm::Machine::continue_continuation_image(
+            let outcome = vm::Machine::continue_continuation(
                 vm,
                 context.local_static,
                 context.shared_static,
@@ -759,28 +641,12 @@ fn outcome_from_native(
                 context.shared_heap,
                 context.shared_cache,
                 context.shared_mark_worker,
-                &continuation,
+                continuation,
             )
             .map_err(Box::<RuntimeError>::from)?;
 
             Ok(outcome_from_vm(id, outcome))
         }
-    }
-}
-
-/// Return one continuation machine kind.
-fn continuation_kind(continuation: &Continuation) -> &'static str {
-    match continuation {
-        Continuation::Vm { .. } => VM_MACHINE,
-        Continuation::Native { .. } => NATIVE_MACHINE,
-    }
-}
-
-/// Return one continuation image machine kind.
-fn continuation_image_kind(image: &ContinuationImage) -> &'static str {
-    match image {
-        ContinuationImage::Vm { .. } => VM_MACHINE,
-        ContinuationImage::Native { .. } => NATIVE_MACHINE,
     }
 }
 
@@ -833,7 +699,7 @@ fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
             machine_error(NATIVE_MACHINE, MachineError::YieldMissing)
         }
         native::Error::Trapped { .. } => machine_error(NATIVE_MACHINE, MachineError::Trap),
-        native::Error::DeoptimizedWithoutMaterialization { .. } => {
+        native::Error::DeoptimizedWithoutContinuation { .. } => {
             machine_error(NATIVE_MACHINE, MachineError::DeoptMissing)
         }
         native::Error::Panicked { .. } => machine_error(NATIVE_MACHINE, MachineError::Panic),
@@ -853,12 +719,6 @@ fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
             NATIVE_MACHINE,
             MachineError::Unsupported {
                 feature: format!("value {error}"),
-            },
-        ),
-        native::Error::InvalidMaterialization(error) => machine_error(
-            NATIVE_MACHINE,
-            MachineError::Unsupported {
-                feature: format!("materialization {error}"),
             },
         ),
         native::Error::InvalidContinuation(error) => machine_error(

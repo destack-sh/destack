@@ -683,6 +683,7 @@ entry:
         Ok(TraceMap::Fixed {
             local_offsets: vec![8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
+            frame_offsets: Vec::new().into_boxed_slice(),
         })
     );
 }
@@ -717,6 +718,7 @@ entry:
         Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
+            frame_offsets: Vec::new().into_boxed_slice(),
         })
     );
 }

@@ -32,6 +32,7 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Cell>) -> HeapReference {
         TraceMap::Fixed {
             local_offsets: offsets.into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
+            frame_offsets: Vec::new().into_boxed_slice(),
         }
     };
     let shape = AllocationShape::new(bytes.len(), Cell::BYTE_LEN, None, trace_map);
@@ -188,6 +189,7 @@ fn test_gc_handles_cycles() {
     let trace_map = TraceMap::Fixed {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
+        frame_offsets: Vec::new().into_boxed_slice(),
     };
     let shape = AllocationShape::new(Cell::BYTE_LEN, Cell::BYTE_LEN, None, trace_map);
     let a =

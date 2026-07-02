@@ -557,7 +557,7 @@ pub enum MachineError {
     YieldMissing,
     /// Machine trapped.
     Trap,
-    /// Machine deoptimized without materialization.
+    /// Machine deoptimized without a continuation.
     DeoptMissing,
     /// Machine panicked.
     Panic,
@@ -938,7 +938,7 @@ impl MachineError {
                 format!("{machine} machine trapped")
             }
             Self::DeoptMissing => {
-                format!("{machine} machine deoptimized without materialization")
+                format!("{machine} machine deoptimized without a continuation")
             }
             Self::Panic => {
                 format!("{machine} machine panicked")

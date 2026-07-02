@@ -16,7 +16,7 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
 use crate::options::{LimitOptions, MachineOptions};
 use crate::{Cell, Result as VmResult};
 
-use super::{Continuation, ContinuationImage, Frame, FrameImage, Stack, StackImage};
+use super::{Continuation, Frame, FrameImage, Stack, StackImage};
 
 /// Coroutine-capable machine outcome.
 pub type Outcome = program::Outcome<Continuation, program::Value>;
@@ -295,24 +295,8 @@ impl Machine {
         )
     }
 
-    /// Capture one continuation as one immutable image.
-    pub fn continuation_image(
-        &self,
-        continuation: &Continuation,
-    ) -> RuntimeResult<ContinuationImage> {
-        continuation.image(&self.program)
-    }
-
-    /// Restore one continuation from one immutable image.
-    pub fn restore_continuation_image(
-        &self,
-        image: &ContinuationImage,
-    ) -> RuntimeResult<Continuation> {
-        Continuation::from_image(image, &self.program, &self.options)
-    }
-
-    /// Continue execution from one continuation image.
-    pub fn continue_continuation_image(
+    /// Continue a materialized continuation without a received value.
+    pub fn continue_continuation(
         &mut self,
         local_static: &mut StaticSpace,
         shared_static: &mut StaticSpace,
@@ -320,13 +304,12 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
-        image: &ContinuationImage,
+        continuation: Continuation,
     ) -> RuntimeResult<Outcome> {
         let program = Arc::clone(&self.program);
         let limits = self.options.limits;
-        let continuation = self.restore_continuation_image(image)?;
 
-        self.execute_continuation_image(
+        self.execute_continue(
             program.as_ref(),
             limits,
             local_static,
@@ -361,27 +344,6 @@ impl Machine {
         self.program
             .visit_static_root_slots(location, static_space, visit)
             .map_err(|error| self.runtime_error(error.into()))
-    }
-
-    /// Visit mutable heap root slots from one live continuation.
-    pub fn visit_continuation_root_slots(
-        &mut self,
-        continuation: &mut Continuation,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> RuntimeResult<()> {
-        continuation
-            .visit_root_slots(&self.program, visit)
-            .map_err(|error| self.runtime_error(error))
-    }
-
-    /// Visit mutable heap root slots from one captured continuation image.
-    pub fn visit_image_root_slots(
-        &mut self,
-        image: &mut ContinuationImage,
-        visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
-    ) -> RuntimeResult<()> {
-        Continuation::visit_image_root_slots(image, &self.program, visit)
-            .map_err(|error| self.runtime_error(error))
     }
 
     /// Capture one immutable VM image.
@@ -559,8 +521,7 @@ impl Machine {
 
         // suspended continuations
         for continuation in continuations {
-            continuation
-                .visit_root_slots(program, visit)
+            Self::visit_continuation_slots(program, continuation, visit)
                 .map_err(|error| self.runtime_error_with_program(program, error))?;
         }
 
