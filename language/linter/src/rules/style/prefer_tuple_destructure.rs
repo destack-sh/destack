@@ -253,7 +253,7 @@ fn prefer_tuple_destructure_fix(
         is_ambient: _,
         mutability: _,
         declarators,
-        is_shared: _,
+        place: _,
     } = parent_expression
     else {
         return None;
@@ -308,7 +308,7 @@ fn prefer_tuple_destructure_fix(
         is_ambient: _,
         mutability: _,
         declarators: _,
-        is_shared: _,
+        place: _,
     } = source_expression
     else {
         return None;
