@@ -75,7 +75,7 @@ impl ModuleLowerer<'_> {
                         ),
                     ));
                 };
-                let value = self.lower_type(declared_type_id)?;
+                let value = self.lower_type(declared_type_id, declaration_id.into_any())?;
 
                 let declaration = js::TypeDeclaration {
                     name: Some(self.lower_name(declaration.name)),

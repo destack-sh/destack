@@ -27,25 +27,12 @@ impl CheckState<'_> {
         value: dir::ScalarLiteral,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match value {
-            dir::ScalarLiteral::RegexString { .. } => self.push_language_type(
-                node.module_id,
-                node.local_id.into_any(),
-                dir::LanguageItem::RegExp,
-                Vec::new(),
-            ),
-            dir::ScalarLiteral::Null => {
-                self.push_type(node.module_id, dir::Type::Null, node.local_id.into_any())
+            dir::ScalarLiteral::RegexString { .. } => {
+                self.language_type(node.module_id, dir::LanguageItem::RegExp, &[])
             }
-            dir::ScalarLiteral::Undefined => self.push_type(
-                node.module_id,
-                dir::Type::Undefined,
-                node.local_id.into_any(),
-            ),
-            value => self.push_type(
-                node.module_id,
-                dir::Type::Literal(value),
-                node.local_id.into_any(),
-            ),
+            dir::ScalarLiteral::Null => self.intern_type(node.module_id, dir::Type::Null),
+            dir::ScalarLiteral::Undefined => self.intern_type(node.module_id, dir::Type::Undefined),
+            value => self.intern_type(node.module_id, dir::Type::Literal(value)),
         }
     }
 }

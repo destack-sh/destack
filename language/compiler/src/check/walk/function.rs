@@ -37,7 +37,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// ```
     pub(in crate::check) fn walk_function_signature_type(
         &mut self,
-        source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         header: FunctionHeader,
         owner: Option<GenericInductionDeclaration>,
@@ -56,6 +55,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
         )?;
 
+        let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: signature.asynchrony,
             template,
@@ -65,7 +65,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             is_generator: signature.is_generator,
         };
 
-        self.push_type(dir::Type::FunctionSignature(function), source)
+        self.intern_type(dir::Type::FunctionSignature(function))
     }
 
     /// Apply elided result lifetimes to the unique input borrow lifetime.
@@ -125,7 +125,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
             let current = self.check.ty(ty)?;
             if let dir::Type::Variable(variable) = current {
-                let representative = self.check.solver.representative(*variable)?;
+                let representative = self.check.solver.representative(variable)?;
                 let is_lifetime = match self.check.generics.induction(representative) {
                     Some(induction) => self.is_lifetime_induction(induction)?,
                     None => false,
@@ -137,7 +137,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 continue;
             }
 
-            current.for_each_child(|child| pending.push(child));
+            self.check
+                .for_each_type_child(ty.module_id, &current, |child| pending.push(child))?;
         }
 
         Ok(lifetimes)
@@ -252,6 +253,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
+        let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             template,
@@ -260,9 +262,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_type,
             is_generator: false,
         };
-        let signature = self.push_type(dir::Type::FunctionSignature(function), source)?;
+        let signature = self.intern_type(dir::Type::FunctionSignature(function))?;
 
-        self.push_function_value_type(source, signature)
+        self.push_function_value_type(signature)
     }
 
     /// Walk one constructor type expression.
@@ -301,6 +303,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
+        let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             template,
@@ -310,22 +313,21 @@ impl<'check, 'state> WalkState<'check, 'state> {
             is_generator: false,
         };
 
-        self.push_type(dir::Type::FunctionSignature(function), source)
+        self.intern_type(dir::Type::FunctionSignature(function))
     }
 
     /// Return one fat callable value type for a function signature.
     pub(in crate::check) fn push_function_value_type(
         &mut self,
-        source: dir::LocalNodeIdAny,
         signature: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let environment = self.push_type(dir::Type::Unknown, source)?;
+        let environment = self.intern_type(dir::Type::Unknown)?;
         let function = dir::FunctionType {
             signature,
             environment,
         };
 
-        self.push_type(dir::Type::Function(function), source)
+        self.intern_type(dir::Type::Function(function))
     }
 
     /// Return the template owned by one callable type header.
@@ -388,7 +390,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             let completed = self.open_type_hole(source, Widening::Preserve)?;
             let promised =
-                self.language_type_reference(source, dir::LanguageItem::Promise, vec![completed])?;
+                self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
             self.relate_type(origin, Relation::Assignable, promised, result);
 
             return_target = completed;
@@ -405,8 +407,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 // async function* f() {}
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
-            let generated =
-                self.language_type_reference(source, item, vec![yielded, completed, resumed])?;
+            let generated = self.language_type_reference(item, &[yielded, completed, resumed])?;
             self.relate_type(origin, Relation::Assignable, generated, result);
 
             return_target = completed;
@@ -580,7 +581,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             GenericInductionPosition::Parameter,
         )?;
         let binding = if is_optional {
-            self.optional_value_type(argument, id.into_any())?
+            self.optional_value_type(argument)?
         } else {
             argument
         };
@@ -604,7 +605,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(binding);
         }
 
-        self.remove_undefined_from_parameter_type(id.into_any(), binding)
+        self.remove_undefined_from_parameter_type(binding)
     }
 
     /// Return whether one parameter annotation explicitly includes `undefined`.
@@ -633,14 +634,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Remove the synthetic optional-parameter `undefined` arm.
     fn remove_undefined_from_parameter_type(
         &mut self,
-        source: dir::LocalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let dir::Type::Union(union) = self.check.ty(ty)? else {
             return Ok(ty);
         };
         let mut kept = Vec::new();
-        for element in union.elements.iter().copied() {
+        for element in self.check.type_ids(ty.module_id, union.elements)?.to_vec() {
             if !self.check.ty(element)?.is_undefined() {
                 kept.push(element);
             }
@@ -649,7 +649,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         match kept.as_slice() {
             [] => Ok(ty),
             [single] => Ok(*single),
-            _ => self.normalized_union_type(kept, source),
+            _ => self.normalized_union_type(kept),
         }
     }
 }

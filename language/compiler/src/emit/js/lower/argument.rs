@@ -28,7 +28,7 @@ impl ModuleLowerer<'_> {
                 let ty = self
                     .types
                     .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty))
+                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
                     .transpose()?;
                 let default = default
                     .map(|default| self.lower_expression_as::<js::Expression>(default))
@@ -60,7 +60,7 @@ impl ModuleLowerer<'_> {
                 let ty = self
                     .types
                     .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty))
+                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
                     .transpose()?;
                 let default = default
                     .map(|default| self.lower_expression_as::<js::Expression>(default))
@@ -83,7 +83,7 @@ impl ModuleLowerer<'_> {
                 let ty = self
                     .types
                     .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty))
+                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
                     .transpose()?;
                 let parameter = js::Parameter::VariadicNamed {
                     modifiers,
@@ -102,7 +102,7 @@ impl ModuleLowerer<'_> {
                 let ty = self
                     .types
                     .get_node_type_id(parameter_id.into_global_any(self.module.id))
-                    .map(|ty| self.lower_type(ty))
+                    .map(|ty| self.lower_type(ty, parameter_id.into_any()))
                     .transpose()?;
                 let parameter = js::Parameter::VariadicPattern {
                     modifiers,

@@ -53,7 +53,7 @@ impl LayoutQuery<'_, '_> {
         let origin = self.origin;
         let count = answer!(self.check.reduce_type_head(origin, count)?);
         let length = match self.check.ty(count)? {
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => u32::try_from(*value).ok(),
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => u32::try_from(value).ok(),
             _ => None,
         };
         let Some(length) = length else {

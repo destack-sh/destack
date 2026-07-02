@@ -59,7 +59,7 @@ impl WalkState<'_, '_> {
                 };
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), &path);
-                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
 
@@ -70,13 +70,13 @@ impl WalkState<'_, '_> {
                 };
                 self.check
                     .report_unresolved_reference(self.module, id.into_any(), &path);
-                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
-                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
 
@@ -143,7 +143,7 @@ impl WalkState<'_, '_> {
                     self.check
                         .report_ambiguous_reference(self.module, id.into_any(), &path);
                 }
-                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
 
@@ -153,13 +153,13 @@ impl WalkState<'_, '_> {
                     self.check
                         .report_unresolved_reference(self.module, id.into_any(), &path);
                 }
-                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
 
             // reject namespaces used directly as values
             Some(dir::Reference::Namespace(_)) => {
-                let error = self.push_type(dir::Type::Error, id.into_any())?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, error)?;
             }
 

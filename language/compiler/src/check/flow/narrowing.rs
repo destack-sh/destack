@@ -205,11 +205,7 @@ impl CheckState<'_> {
             target,
             is_positive,
         });
-        let narrowed = self.push_type(
-            node.module_id,
-            dir::Type::Operation(operation),
-            node.local_id,
-        )?;
+        let narrowed = self.intern_type(node.module_id, dir::Type::Operation(operation))?;
         let narrowed = match self.reduce_type_head(Origin::Node(node), narrowed)? {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -247,10 +243,11 @@ impl CheckState<'_> {
             dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Nominal(
                 nominal,
             )) => {
-                let arguments =
+                let arguments: Vec<dir::GlobalTypeId> =
                     dir::GenericArgumentBinding::values(&nominal.generic_arguments).collect();
-                let ty = self.push_type_at_origin(
-                    origin,
+                let arguments = self.intern_type_ids(origin.module(), &arguments)?;
+                let ty = self.intern_type(
+                    origin.module(),
                     dir::Type::Instance(dir::GenericInstance {
                         symbol: nominal.symbol,
                         arguments,
@@ -311,11 +308,7 @@ impl CheckState<'_> {
         let target = match targets.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.normalized_union_type(
-                pattern.module_id,
-                targets,
-                pattern.local_id.into(),
-            )?),
+            _ => Some(self.normalized_union_type(pattern.module_id, targets)?),
         };
 
         Ok(Answer::Ready(target))
@@ -335,14 +328,15 @@ impl CheckState<'_> {
             is_optional: false,
             is_readonly: false,
         };
+        let fields = self.intern_fields(module, &[field])?;
         let shape = dir::ShapeType {
-            fields: vec![field],
-            call_signatures: Vec::new(),
-            construct_signatures: Vec::new(),
-            index_signatures: Vec::new(),
+            fields,
+            call_signatures: dir::TypeListId::EMPTY,
+            construct_signatures: dir::TypeListId::EMPTY,
+            index_signatures: dir::TypeListId::EMPTY,
         };
 
-        self.push_type(module, dir::Type::Shape(shape), source_node)
+        self.intern_type(module, dir::Type::Shape(shape))
     }
 }
 
@@ -382,7 +376,7 @@ impl WalkState<'_, '_> {
 
             // keep objects with the requested key
             NarrowPredicate::Has(key) => {
-                let unknown = self.push_type(dir::Type::Unknown, source_node)?;
+                let unknown = self.intern_type(dir::Type::Unknown)?;
                 let target = self.member_shape_type(key, unknown, source_node)?;
                 let predicate = NarrowPredicate::Is(target);
 
@@ -419,7 +413,7 @@ impl WalkState<'_, '_> {
 
             // keep parent values with a member that has the nested key
             NarrowPredicate::Has(member_key) => {
-                let unknown = self.push_type(dir::Type::Unknown, source_node)?;
+                let unknown = self.intern_type(dir::Type::Unknown)?;
                 let member = self.member_shape_type(member_key, unknown, source_node)?;
                 let target = self.member_shape_type(key, member, source_node)?;
 

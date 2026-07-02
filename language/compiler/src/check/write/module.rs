@@ -1,7 +1,7 @@
 use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{Answer, CheckState, Decision, Origin};
 use crate::{CompilerError, CompilerResult};
@@ -10,9 +10,9 @@ impl CheckState<'_> {
     /// Write one solved module into its checked DIR segments.
     pub(in crate::check) fn write_module(&mut self, module: ModuleId) -> CompilerResult<()> {
         let mut reported = IndexSet::new();
-        let sealed_variables = self.sealed_variable_types(module)?;
-        let node_types = self.resolved_node_types(module, &mut reported)?;
-        let symbol_types = self.resolved_symbol_types(module, &mut reported)?;
+        let mut sealed = IndexMap::new();
+        let node_types = self.resolved_node_types(module, &mut sealed, &mut reported)?;
+        let symbol_types = self.resolved_symbol_types(module, &mut sealed, &mut reported)?;
         let reduced_types =
             self.resolved_reduced_types(module, &node_types, &symbol_types, &mut reported)?;
         let symbol_literals = self.static_symbol_literals(module)?;
@@ -21,21 +21,16 @@ impl CheckState<'_> {
             self.module_mut(module).layouts = layouts;
         }
 
-        // seal variable placeholders with their solved types
-        let state = self.module_mut(module);
-        for (local, sealed) in sealed_variables {
-            state.types.update_type(local, sealed);
-        }
-
         // record inferred types and checked reduced types
+        let state = self.module_mut(module);
         for (node, ty) in node_types {
-            state.types.set_node_type(node, ty);
+            state.types_tail.set_node_type(node, ty);
         }
         for (symbol, ty) in symbol_types {
-            state.types.set_symbol_type(symbol, ty);
+            state.types_tail.set_symbol_type(symbol, ty);
         }
         for (source, target) in reduced_types {
-            state.types.set_type_reduction(source, target);
+            state.types_tail.set_type_reduction(source, target);
         }
 
         // record implicit representation changes beside their value nodes
@@ -67,50 +62,74 @@ impl CheckState<'_> {
         // write closure capture frames and bindings
         self.write_captures(module, &mut reported)?;
 
+        // seal every type id embedded in the output segments
+        self.seal_output_segments(module, &mut sealed)?;
+
         Ok(())
     }
 
-    /// Return every variable placeholder with its final written type.
-    ///
-    /// Unsolved variables write as error because their diagnostics come from the unsolved sweep.
-    fn sealed_variable_types(
+    /// Seal every type id written into this module's output segments.
+    /// Definitions and generics are built during the walk, and resolutions,
+    /// captures, and statics during solving, so their embedded types may
+    /// still reference variables that only solved later.
+    fn seal_output_segments(
         &mut self,
         module: ModuleId,
-    ) -> CompilerResult<Vec<(dir::LocalTypeId, dir::Type)>> {
-        // collect the variable entries owned by this segment
-        let working = &self.module(module).types;
-        let mut variables = Vec::new();
-        for local in working.iter_type_ids() {
-            let Some(dir::Type::Variable(variable)) = working.get_type_maybe(local) else {
-                continue;
-            };
+        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    ) -> CompilerResult<()> {
+        let mut result = Ok(());
 
-            variables.push((local, *variable));
-        }
+        // seal declaration definitions
+        let empty = dir::DefinitionSegment::new(module);
+        let mut definitions = std::mem::replace(&mut self.module_mut(module).definitions, empty);
+        definitions.map_type_ids(&mut |id| self.seal_or_record(id, sealed, &mut result));
+        self.module_mut(module).definitions = definitions;
 
-        // resolve each entry to its solution's type
-        let mut sealed = Vec::with_capacity(variables.len());
-        for (local, variable) in variables {
-            let representative = self.solver.representative(variable)?;
-            let solution = self.solver.solution(representative)?;
-            let ty = match solution {
-                Some(solution) => {
-                    let solved = self.settled_root(solution)?;
+        // seal decided node resolutions
+        let empty = dir::ResolutionSegment::new(module);
+        let mut resolutions = std::mem::replace(&mut self.module_mut(module).resolutions, empty);
+        resolutions.map_type_ids(&mut |id| self.seal_or_record(id, sealed, &mut result));
+        self.module_mut(module).resolutions = resolutions;
 
-                    self.ty(solved)?.clone()
+        // seal closure capture frames
+        let empty = dir::CaptureSegment::new(module);
+        let mut captures = std::mem::replace(&mut self.module_mut(module).capture_segment, empty);
+        captures.map_type_ids(&mut |id| self.seal_or_record(id, sealed, &mut result));
+        self.module_mut(module).capture_segment = captures;
+
+        // seal static terms
+        let empty = dir::StaticSegment::new(module);
+        let mut statics = std::mem::replace(&mut self.module_mut(module).statics, empty);
+        statics.map_type_ids(&mut |id| self.seal_or_record(id, sealed, &mut result));
+        self.module_mut(module).statics = statics;
+
+        result
+    }
+
+    /// Seal one embedded type id, recording the first failure aside.
+    fn seal_or_record(
+        &mut self,
+        id: dir::GlobalTypeId,
+        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        result: &mut CompilerResult<()>,
+    ) -> dir::GlobalTypeId {
+        match self.seal_type(id, sealed) {
+            Ok(sealed) => sealed,
+            Err(error) => {
+                if result.is_ok() {
+                    *result = Err(error);
                 }
-                None => dir::Type::Error,
-            };
-            sealed.push((local, ty));
-        }
 
-        Ok(sealed)
+                id
+            }
+        }
     }
 
     /// Resolve one module's recorded node types.
     fn resolved_node_types(
         &mut self,
         module: ModuleId,
+        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
         let node_types = self
@@ -121,17 +140,13 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
         let mut resolved = Vec::with_capacity(node_types.len());
         for (node, ty) in node_types {
-            let ty = self.resolved_node_type(ty)?;
+            let ty = self.settled_root(ty)?;
+            let ty = self.seal_type(ty, sealed)?;
             self.report_unresolved_output_type(Origin::Node(node), ty, reported)?;
             resolved.push((node, ty));
         }
 
         Ok(resolved)
-    }
-
-    /// Resolve one written node type to its settled type.
-    fn resolved_node_type(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
-        self.settled_root(ty)
     }
 
     /// Resolve one written reduced type.
@@ -142,7 +157,7 @@ impl CheckState<'_> {
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let ty = self.settled_root(ty)?;
-        if !self.type_variables(ty)?.is_empty() {
+        if self.type_flags(ty)?.has_variable() {
             return Ok(None);
         }
 
@@ -169,6 +184,7 @@ impl CheckState<'_> {
     fn resolved_symbol_types(
         &mut self,
         module: ModuleId,
+        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let mut symbol_types = Vec::new();
@@ -186,6 +202,7 @@ impl CheckState<'_> {
         let mut resolved = Vec::with_capacity(symbol_types.len());
         for (symbol, ty) in symbol_types {
             let ty = self.settled_root(ty)?;
+            let ty = self.seal_type(ty, sealed)?;
             self.report_unresolved_output_type(Origin::Symbol(symbol), ty, reported)?;
             resolved.push((symbol, ty));
         }
@@ -254,7 +271,7 @@ impl CheckState<'_> {
         for (symbol, value) in static_values {
             let value = self.settled_root(value)?;
             if let dir::Type::Literal(literal) = self.ty(value)? {
-                literals.push((symbol, *literal));
+                literals.push((symbol, literal));
             }
         }
 
@@ -301,5 +318,50 @@ impl CheckState<'_> {
                 Decision::Rejected => {}
             }
         }
+    }
+
+    /// Seal one written type by replacing every variable with its solution.
+    /// Unsolved variables seal as error because their diagnostics come from the unsolved sweep.
+    pub(in crate::check) fn seal_type(
+        &mut self,
+        id: dir::GlobalTypeId,
+        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep variable-free types as they are
+        if !self.type_flags(id)?.has_variable() {
+            return Ok(id);
+        }
+
+        // reuse an already sealed type
+        if let Some(existing) = sealed.get(&id) {
+            return Ok(*existing);
+        }
+
+        // seal a variable through its solved root, or error when unsolved
+        let ty = self.ty(id)?;
+        let result = if let dir::Type::Variable(variable) = ty {
+            let representative = self.solver.representative(variable)?;
+            match self.solver.solution(representative)? {
+                Some(solution) => {
+                    let solution = self.settled_root(solution)?;
+
+                    self.seal_type(solution, sealed)?
+                }
+                None => self.intern_type(id.module_id, dir::Type::Error)?,
+            }
+        }
+        // rebuild a composite around its sealed children, in place in its module
+        else {
+            let rebuilt =
+                self.map_type_children(id.module_id, id.module_id, ty, &mut |state, child| {
+                    state.seal_type(child, sealed)
+                })?;
+
+            self.intern_type(id.module_id, rebuilt)?
+        };
+
+        sealed.insert(id, result);
+
+        Ok(result)
     }
 }

@@ -70,7 +70,8 @@ impl CheckState<'_> {
 
         // cover unions arm by arm
         if let dir::Type::Union(union) = self.ty(value)? {
-            let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+            let elements: SmallVec<[_; 4]> =
+                SmallVec::from_slice(self.type_ids(value.module_id, union.elements)?);
             let mut decision = Answer::Ready(true);
             for element in elements {
                 decision = decision.and(self.decide_patterns_cover(origin, patterns, element)?);
@@ -104,8 +105,7 @@ impl CheckState<'_> {
             let source = self.origin_source_node(origin)?;
             let mut decision = Answer::Ready(true);
             for literal in domain {
-                let element =
-                    self.push_type(origin.module(), dir::Type::Literal(literal), source)?;
+                let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
                 decision = decision.and(self.decide_patterns_cover(origin, patterns, element)?);
                 if decision.is_ready_false() {
                     return Ok(decision);
@@ -117,8 +117,6 @@ impl CheckState<'_> {
 
         // cover scalar intervals by subtracting pattern intervals
         if let dir::Type::Range(domain) = self.ty(value)? {
-            let domain = domain.clone();
-
             return self.decide_patterns_cover_range(origin, patterns, &domain);
         }
 
@@ -150,7 +148,8 @@ impl CheckState<'_> {
 
         // descend into the first uncovered union element
         if let dir::Type::Union(union) = self.ty(value)? {
-            let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+            let elements: SmallVec<[_; 4]> =
+                SmallVec::from_slice(self.type_ids(value.module_id, union.elements)?);
             for element in elements {
                 if self
                     .decide_patterns_cover(origin, patterns, element)?
@@ -182,7 +181,7 @@ impl CheckState<'_> {
                     }
 
                     let literal =
-                        self.push_type(origin.module(), dir::Type::Literal(discriminant), source)?;
+                        self.intern_type(origin.module(), dir::Type::Literal(discriminant))?;
                     return Ok(self.format_type(literal));
                 }
             }
@@ -192,8 +191,7 @@ impl CheckState<'_> {
         if let Some(domain) = self.finite_scalar_domain(value)? {
             let source = self.origin_source_node(origin)?;
             for literal in domain {
-                let element =
-                    self.push_type(origin.module(), dir::Type::Literal(literal), source)?;
+                let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
                 if self
                     .decide_patterns_cover(origin, patterns, element)?
                     .is_ready_false()
@@ -205,7 +203,6 @@ impl CheckState<'_> {
 
         // name the first uncovered scalar interval
         if let dir::Type::Range(domain) = self.ty(value)? {
-            let domain = domain.clone();
             match self.uncovered_range(origin, patterns, &domain)? {
                 Answer::Ready(Some(range)) => {
                     let source = self.origin_source_node(origin)?;
@@ -213,7 +210,7 @@ impl CheckState<'_> {
                         Some(literal) => dir::Type::Literal(literal),
                         None => dir::Type::Range(range),
                     };
-                    let range = self.push_type(origin.module(), ty, source)?;
+                    let range = self.intern_type(origin.module(), ty)?;
 
                     return Ok(self.format_type(range));
                 }
@@ -505,8 +502,7 @@ impl CheckState<'_> {
                         None => {
                             if is_defaulted {
                                 let source = self.origin_source_node(origin)?;
-                                let undefined =
-                                    self.push_type(module, dir::Type::Undefined, source)?;
+                                let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
                                 self.decide_pattern_covers(
                                     origin,
@@ -544,7 +540,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let instance = match self.ty(value)? {
-            dir::Type::Instance(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance,
             _ => return Ok(Answer::Ready(value)),
         };
         let backing = match self.definition(instance.symbol) {
@@ -553,9 +549,8 @@ impl CheckState<'_> {
         };
 
         // substitute applied arguments through the backing
-        let substitution = self.instance_substitution(&instance)?;
-        let source = self.origin_source_node(origin)?;
-        let backing = self.substitute_type(origin.module(), source, backing, &substitution)?;
+        let substitution = self.instance_substitution(value.module_id, &instance)?;
+        let backing = self.substitute_type(origin.module(), backing, &substitution)?;
 
         self.reduce_type_head(origin, backing)
     }
@@ -595,7 +590,7 @@ impl CheckState<'_> {
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         domain: &dir::RangeType,
     ) -> CompilerResult<Answer<Option<dir::RangeType>>> {
-        let mut uncovered = vec![domain.clone()];
+        let mut uncovered = vec![*domain];
 
         // subtract each pattern's interval coverage
         for pattern in patterns {
@@ -718,7 +713,6 @@ impl CheckState<'_> {
         let dir::Type::Literal(literal) = self.ty(value)? else {
             return Ok(Answer::Ready(false));
         };
-        let literal = *literal;
 
         // closed range patterns can be used for static coverage
         let Some(range) =
@@ -768,7 +762,7 @@ impl CheckState<'_> {
         let reduced = answer!(self.reduce_type_head(origin, ty)?);
         match self.ty(reduced)? {
             dir::Type::Literal(literal) => {
-                Ok(Answer::Ready(Some(StaticRangeBound::Literal(*literal))))
+                Ok(Answer::Ready(Some(StaticRangeBound::Literal(literal))))
             }
             _ => Ok(Answer::Ready(None)),
         }
@@ -780,7 +774,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::ScalarLiteral>> {
         let literal = match self.ty(value)? {
-            dir::Type::Literal(literal) => Some(*literal),
+            dir::Type::Literal(literal) => Some(literal),
             dir::Type::Null => Some(dir::ScalarLiteral::Null),
             dir::Type::Undefined => Some(dir::ScalarLiteral::Undefined),
             _ => None,

@@ -30,7 +30,7 @@ impl CheckState<'_> {
 
         // closed literal values select literal predicates
         let literal = match self.ty(ty)? {
-            dir::Type::Literal(literal) => Some(*literal),
+            dir::Type::Literal(literal) => Some(literal),
             dir::Type::Null => Some(dir::ScalarLiteral::Null),
             dir::Type::Undefined => Some(dir::ScalarLiteral::Undefined),
             _ => None,
@@ -93,7 +93,7 @@ impl CheckState<'_> {
                 }
             };
             if let dir::Type::Literal(literal) = self.ty(ty)? {
-                bounds[slot] = Some(*literal);
+                bounds[slot] = Some(literal);
             }
         }
         if !blockers.is_empty() {
@@ -103,8 +103,7 @@ impl CheckState<'_> {
         // narrow successful matches to the represented interval
         let domain = input;
         let written = dir::RangeType::new(bounds[0], bounds[1], end_kind);
-        let narrowed =
-            self.range_pattern_narrowed_type(module, node.local_id.into_any(), domain, &written)?;
+        let narrowed = self.range_pattern_narrowed_type(module, domain, &written)?;
         let predicate = dir::Predicate::unary(
             dir::PredicateOperand::new(domain),
             dir::PredicateCondition::Range(dir::PredicateRange {
@@ -126,7 +125,6 @@ impl CheckState<'_> {
     fn range_pattern_narrowed_type(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         domain: dir::GlobalTypeId,
         written: &dir::RangeType,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -141,11 +139,11 @@ impl CheckState<'_> {
                 .finite_interval()
                 .and_then(|domain| domain.intersection(written))
                 .map(dir::Type::Range)
-                .unwrap_or_else(|| dir::Type::Range(written.clone())),
+                .unwrap_or_else(|| dir::Type::Range(*written)),
             // otherwise the written interval is the strongest represented test type
-            _ => dir::Type::Range(written.clone()),
+            _ => dir::Type::Range(*written),
         };
 
-        self.push_type(module, narrowed, source)
+        self.intern_type(module, narrowed)
     }
 }

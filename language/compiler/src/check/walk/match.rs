@@ -84,7 +84,7 @@ impl WalkState<'_, '_> {
             // walk the arm under the current narrowed scrutinee
             let expected = match value_path {
                 Some(_) => ExpectedType::Node(self.node_site(value)?),
-                None => value_expectation.clone(),
+                None => *value_expectation,
             };
             self.walk_match_case(
                 *case,

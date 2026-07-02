@@ -141,7 +141,7 @@ impl CheckState<'_> {
 
                 match widening {
                     Widening::Preserve => ty,
-                    Widening::Widen => self.widen_type(symbol.module_id, site.node.local_id, ty)?,
+                    Widening::Widen => self.widen_type(ty)?,
                 }
             }
         };

@@ -339,10 +339,9 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         value: usize,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.push_type(
+        self.intern_type(
             node.module_id,
             dir::Type::Literal(dir::ScalarLiteral::Integer(value as i64)),
-            node.local_id,
         )
     }
 

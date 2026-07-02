@@ -22,7 +22,7 @@ let values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=8 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -49,7 +49,7 @@ const values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=8 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -137,7 +137,7 @@ const values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -193,7 +193,7 @@ const values: number[] = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=7 constraints=3 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=6 constraints=3 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -220,7 +220,7 @@ const values: number[] = [1, "two"];
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=6 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"

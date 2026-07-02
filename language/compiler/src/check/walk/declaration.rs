@@ -39,12 +39,9 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let origin = Origin::Symbol(symbol);
-        let source = self.origin_source_node(origin)?;
-        let ty = self.push_type(
+        let ty = self.intern_type(
             symbol.module_id,
             dir::Type::Reference(dir::TypeReference { symbol }),
-            source,
         )?;
         self.commit_declaration_type(symbol, ty)?;
 
@@ -287,7 +284,7 @@ impl WalkState<'_, '_> {
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if declaration.is_nominal {
-            let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+            let receiver = self.nominal_receiver(symbol)?;
             let members = self.walk_tagged_variant_members(source, symbol, receiver.ty, value)?;
 
             dir::Definition::Newtype(dir::NewtypeDefinition {
@@ -318,7 +315,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let source = id.into_global_any(self.module);
 
-        let value = self.push_type(dir::Type::Intrinsic, declaration.value.into_any())?;
+        let value = self.intern_type(dir::Type::Intrinsic)?;
 
         // intrinsic newtypes stay opaque
         if declaration.is_nominal {
@@ -381,7 +378,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
@@ -400,7 +397,10 @@ impl WalkState<'_, '_> {
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
-                        arguments: instance.arguments,
+                        arguments: self
+                            .check
+                            .type_ids(ty.module_id, instance.arguments)?
+                            .to_vec(),
                     });
                 } else {
                     self.check
@@ -494,7 +494,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk superclass type
@@ -509,7 +509,10 @@ impl WalkState<'_, '_> {
                     extends = Some(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
-                        arguments: instance.arguments,
+                        arguments: self
+                            .check
+                            .type_ids(ty.module_id, instance.arguments)?
+                            .to_vec(),
                     });
                     super_ty = Some(ty);
                 } else {
@@ -541,7 +544,10 @@ impl WalkState<'_, '_> {
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
-                        arguments: instance.arguments,
+                        arguments: self
+                            .check
+                            .type_ids(ty.module_id, instance.arguments)?
+                            .to_vec(),
                     });
                 } else {
                     self.check
@@ -582,12 +588,8 @@ impl WalkState<'_, '_> {
             }
             member_headers.push((*member, header.body));
         }
-        let constructors = self.class_construct_candidates(
-            id.into_any(),
-            receiver.ty,
-            extends.is_some(),
-            &members,
-        )?;
+        let constructors =
+            self.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
 
         let definition = dir::Definition::Class(dir::ClassDefinition {
             template: template.map(|template| template.local_id),
@@ -642,7 +644,6 @@ impl WalkState<'_, '_> {
     /// Return direct construct candidates for one class.
     fn class_construct_candidates(
         &mut self,
-        source: dir::LocalNodeIdAny,
         receiver: dir::GlobalTypeId,
         is_derived: bool,
         members: &[dir::DefinitionMember],
@@ -655,7 +656,7 @@ impl WalkState<'_, '_> {
             return Ok(Vec::new());
         }
 
-        self.default_class_construct_candidate(source, receiver)
+        self.default_class_construct_candidate(receiver)
     }
 
     /// Return explicitly declared class construct candidates.
@@ -686,18 +687,17 @@ impl WalkState<'_, '_> {
     /// Return a base class default construct candidate.
     fn default_class_construct_candidate(
         &mut self,
-        source: dir::LocalNodeIdAny,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             template: None,
             this_parameter: None,
-            parameters: Vec::new(),
+            parameters: dir::TypeListId::EMPTY,
             return_type: Some(receiver),
             is_generator: false,
         };
-        let ty = self.push_type(dir::Type::FunctionSignature(function), source)?;
+        let ty = self.intern_type(dir::Type::FunctionSignature(function))?;
 
         Ok(vec![dir::ClassConstructorDefinition {
             constructor: dir::ClassConstructor::Default,
@@ -736,7 +736,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk implemented interfaces
@@ -755,7 +755,10 @@ impl WalkState<'_, '_> {
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
-                        arguments: instance.arguments,
+                        arguments: self
+                            .check
+                            .type_ids(ty.module_id, instance.arguments)?
+                            .to_vec(),
                     });
                 } else {
                     self.check
@@ -852,7 +855,7 @@ impl WalkState<'_, '_> {
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause)?;
         }
-        let receiver = self.nominal_receiver(id.into_any(), symbol)?;
+        let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
         // walk inherited interfaces
@@ -865,7 +868,10 @@ impl WalkState<'_, '_> {
                     extends.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
-                        arguments: instance.arguments,
+                        arguments: self
+                            .check
+                            .type_ids(ty.module_id, instance.arguments)?
+                            .to_vec(),
                     });
                 } else {
                     self.check.report_interface_base_not_interface_symbol(
@@ -966,7 +972,10 @@ impl WalkState<'_, '_> {
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
-                        arguments: instance.arguments,
+                        arguments: self
+                            .check
+                            .type_ids(ty.module_id, instance.arguments)?
+                            .to_vec(),
                     });
                 } else {
                     self.check
@@ -1137,7 +1146,6 @@ impl WalkState<'_, '_> {
 
         // write the function symbol type
         let signature = self.walk_function_signature_type(
-            id.into_any(),
             &declaration.signature,
             header,
             Some(induction),
@@ -1147,7 +1155,7 @@ impl WalkState<'_, '_> {
         let is_function_value =
             declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
         let function = if is_function_value {
-            self.push_function_value_type(id.into_any(), signature)?
+            self.push_function_value_type(signature)?
         } else {
             signature
         };
@@ -1205,13 +1213,10 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        let ty = self.push_type(
-            dir::Type::EnumMember(dir::EnumMemberType {
-                owner,
-                member: symbol,
-            }),
-            id.into_any(),
-        )?;
+        let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType {
+            owner,
+            member: symbol,
+        }))?;
         self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(dir::DefinitionMember::Variant(
@@ -1241,7 +1246,10 @@ impl WalkState<'_, '_> {
             self.check
                 .require_reduced_type_head(origin, value, "tagged newtype backing")?;
         let arms = match self.check.ty(backing)? {
-            dir::Type::Union(union) => union.elements.clone(),
+            dir::Type::Union(union) => self
+                .check
+                .type_ids(backing.module_id, union.elements)?
+                .to_vec(),
             _ => vec![backing],
         };
 
@@ -1283,10 +1291,7 @@ impl WalkState<'_, '_> {
 
         // insert the case member and bind its singleton type
         let member = self.check.insert_tagged_variant_symbol(symbol, key)?;
-        let ty = self.push_type(
-            dir::Type::EnumMember(dir::EnumMemberType { owner, member }),
-            source.local_id,
-        )?;
+        let ty = self.intern_type(dir::Type::EnumMember(dir::EnumMemberType { owner, member }))?;
         self.bind_symbol_type(member, ty)?;
 
         Ok(Some(dir::DefinitionMember::Variant(
@@ -1349,7 +1354,6 @@ impl WalkState<'_, '_> {
         let dir::Type::Parameter(parameter) = self.check.ty(left)? else {
             return Ok(false);
         };
-        let parameter = *parameter;
 
         // keep explicit inline bounds, their clause still checks
         let Some(binding) = self.check.generic_parameter(parameter) else {
@@ -1475,7 +1479,7 @@ impl WalkState<'_, '_> {
             });
         };
 
-        let ty = self.apply_receiver_scope(parameter.into_any(), scope, ty)?;
+        let ty = self.apply_receiver_scope(scope, ty)?;
 
         Ok(ReceiverBinding {
             symbol,
@@ -1490,7 +1494,6 @@ impl WalkState<'_, '_> {
     /// Apply the active receiver scope to one receiver parameter type.
     pub(in crate::check) fn apply_receiver_scope(
         &mut self,
-        source: dir::LocalNodeIdAny,
         scope: Option<Receiver>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -1500,8 +1503,7 @@ impl WalkState<'_, '_> {
 
         let substitution = TypeSubstitution::default().with_receiver(scope.ty);
 
-        self.check
-            .substitute_type(self.module, source, ty, &substitution)
+        self.check.substitute_type(self.module, ty, &substitution)
     }
 
     /// Walk one function return annotation or open its inferred result.
@@ -1538,11 +1540,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn nominal_receiver(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Receiver> {
+    fn nominal_receiver(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<Receiver> {
         // apply the declaration's own parameters as arguments
         let parameters = self
             .check
@@ -1552,12 +1550,13 @@ impl WalkState<'_, '_> {
             .unwrap_or_default();
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
-            arguments.push(self.push_type(dir::Type::Parameter(parameter), source)?);
+            arguments.push(self.intern_type(dir::Type::Parameter(parameter))?);
         }
-        let ty = self.push_type(
-            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
-            source,
-        )?;
+        let arguments = self.intern_type_ids(&arguments)?;
+        let ty = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+            symbol,
+            arguments,
+        }))?;
 
         Ok(Receiver {
             declaration: Some(symbol),
@@ -1577,7 +1576,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        Ok(Some((global_source, instance.clone())))
+        Ok(Some((global_source, instance)))
     }
 
     /// Relate one written heritage clause.
@@ -1598,7 +1597,7 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
         // root extensions under the same declaration used for member lookup
-        if let Some(instance) = self.check.apparent_instance(ty)? {
+        if let Some((_, instance)) = self.check.apparent_instance(ty)? {
             let root = instance.symbol;
 
             return Ok(dir::ExtensionTarget::Rooted { root, ty });

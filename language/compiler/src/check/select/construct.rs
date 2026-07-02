@@ -35,7 +35,7 @@ impl CheckState<'_> {
         let target = answer!(self.committed_node_type(annotation)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
         let instance = match self.ty(target)? {
-            dir::Type::Instance(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance,
             _ => return self.reject_not_constructible(node, origin, target, ""),
         };
 
@@ -89,6 +89,7 @@ impl CheckState<'_> {
             let attempt = self.attempt_construct(
                 origin,
                 module,
+                target.module_id,
                 &instance,
                 target,
                 constructor.ty,
@@ -96,20 +97,18 @@ impl CheckState<'_> {
                 &argument_sources,
             )?;
 
-            match answer!(attempt) {
-                Ok(signature) => {
-                    return self.commit_construct(
-                        site,
-                        node,
-                        module,
-                        argument_nodes,
-                        &instance,
-                        constructor.constructor,
-                        signature,
-                        result,
-                    );
-                }
-                Err(_) => {}
+            if let Ok(signature) = answer!(attempt) {
+                return self.commit_construct(
+                    site,
+                    node,
+                    module,
+                    target.module_id,
+                    argument_nodes,
+                    &instance,
+                    constructor.constructor,
+                    signature,
+                    result,
+                );
             }
         }
 
@@ -160,14 +159,13 @@ impl CheckState<'_> {
                 });
             }
         };
-        let source = self.origin_source_node(origin)?;
         let module = origin.module();
+        let arguments = self.intern_type_ids(module, &extends.arguments)?;
         let instance = dir::GenericInstance {
             symbol: extends.symbol,
-            arguments: extends.arguments.clone(),
+            arguments,
         };
-        let base_receiver =
-            self.push_type(module, dir::Type::Instance(instance.clone()), source)?;
+        let base_receiver = self.intern_type(module, dir::Type::Instance(instance))?;
         let base_constructors = answer!(self.collect_class_construct_candidates(
             origin,
             base_receiver,
@@ -179,12 +177,12 @@ impl CheckState<'_> {
         active.pop();
 
         let substitution = self
-            .instance_substitution(&instance)?
+            .instance_substitution(module, &instance)?
             .with_receiver(receiver);
         let mut constructors = Vec::with_capacity(base_constructors.len());
         for base_constructor in base_constructors {
             let constructor = base_constructor.constructor.forwarded(extends.symbol);
-            let ty = self.substitute_type(module, source, base_constructor.ty, &substitution)?;
+            let ty = self.substitute_type(origin.module(), base_constructor.ty, &substitution)?;
             let ty = self.class_constructor_returning(origin, ty, receiver)?;
 
             constructors.push(dir::ClassConstructorDefinition { constructor, ty });
@@ -200,14 +198,14 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let dir::Type::FunctionSignature(mut function) = self.ty(ty)?.clone() else {
+        let dir::Type::FunctionSignature(mut function) = self.ty(ty)? else {
             return Err(CompilerError::Internal {
                 message: format!("class constructor type {ty:?} is not a function signature"),
             });
         };
         function.return_type = Some(receiver);
 
-        self.push_type_at_origin(origin, dir::Type::FunctionSignature(function))
+        self.intern_type(origin.module(), dir::Type::FunctionSignature(function))
     }
 
     /// Attempt one constructor candidate against collected arguments.
@@ -215,6 +213,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
         target: dir::GlobalTypeId,
         function_type: dir::GlobalTypeId,
@@ -226,7 +225,7 @@ impl CheckState<'_> {
         // reduce the constructor shape before matching arguments
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let function = match self.ty(function_type)? {
-            dir::Type::FunctionSignature(function) => function.clone(),
+            dir::Type::FunctionSignature(function) => function,
             _ => {
                 return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
             }
@@ -242,6 +241,7 @@ impl CheckState<'_> {
             return self.attempt_signature(
                 origin,
                 module,
+                function_type.module_id,
                 source,
                 &parameters,
                 &[],
@@ -254,18 +254,20 @@ impl CheckState<'_> {
         }
 
         // applied classes substitute their written arguments
-        let substitution = self.instance_substitution(instance)?.with_receiver(target);
-        let function_type = self.substitute_type(module, source, function_type, &substitution)?;
+        let substitution = self
+            .instance_substitution(instance_module, instance)?
+            .with_receiver(target);
+        let function_type = self.substitute_type(origin.module(), function_type, &substitution)?;
         let function_type = answer!(self.reduce_type_head(origin, function_type)?);
         let dir::Type::FunctionSignature(function) = self.ty(function_type)? else {
             return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
         };
 
-        let function = function.clone();
         let return_type = function.return_type.or(Some(target));
         self.attempt_signature(
             origin,
             module,
+            function_type.module_id,
             source,
             &[],
             &[],
@@ -312,20 +314,20 @@ impl CheckState<'_> {
         let return_arguments = generic_parameters
             .iter()
             .copied()
-            .map(|parameter| self.push_type(module, dir::Type::Parameter(parameter), source))
+            .map(|parameter| self.intern_type(module, dir::Type::Parameter(parameter)))
             .collect::<CompilerResult<Vec<_>>>()?;
-        let return_type = self.push_type(
+        let return_arguments = self.intern_type_ids(module, &return_arguments)?;
+        let return_type = self.intern_type(
             module,
             dir::Type::Instance(dir::GenericInstance {
                 symbol,
                 arguments: return_arguments,
             }),
-            source,
         )?;
         let backing = answer!(self.reduce_type_head(origin, backing)?);
         let parameters = match self.ty(backing)? {
-            dir::Type::Tuple(tuple) => tuple
-                .elements
+            dir::Type::Tuple(tuple) => self
+                .tuple_elements(backing.module_id, tuple.elements)?
                 .iter()
                 .map(|element| dir::FunctionParameterType {
                     ty: element.ty,
@@ -341,6 +343,7 @@ impl CheckState<'_> {
                 is_rest: false,
             }],
         };
+        let parameters = self.intern_parameters(module, &parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
             template: None,
@@ -351,6 +354,7 @@ impl CheckState<'_> {
         };
         let attempt = self.attempt_signature(
             origin,
+            module,
             module,
             source,
             &generic_parameters,
@@ -390,6 +394,7 @@ impl CheckState<'_> {
         site: FlowSite,
         node: dir::GlobalNodeIdAny,
         module: ModuleId,
+        instance_module: ModuleId,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         instance: &dir::GenericInstance,
         constructor: dir::ClassConstructor,
@@ -397,7 +402,9 @@ impl CheckState<'_> {
         result: ConstructResult,
     ) -> CompilerResult<Answer<()>> {
         let generic_arguments = if signature.generic_arguments.is_empty() {
-            self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?
+            let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+
+            self.symbol_generic_argument_bindings(instance.symbol, &arguments)?
         } else {
             signature.generic_arguments.clone()
         };
@@ -432,17 +439,12 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let allocation_error = self.push_language_type(
+        let allocation_error =
+            self.language_type(node.module_id, dir::LanguageItem::AllocationError, &[])?;
+        let carrier = self.language_type(
             node.module_id,
-            node.local_id,
-            dir::LanguageItem::AllocationError,
-            Vec::new(),
-        )?;
-        let carrier = self.push_language_type(
-            node.module_id,
-            node.local_id,
             dir::LanguageItem::Result,
-            vec![value, allocation_error],
+            &[value, allocation_error],
         )?;
 
         Ok(carrier)

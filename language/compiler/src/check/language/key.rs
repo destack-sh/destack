@@ -108,8 +108,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        let ty =
-            self.push_static_key_type(expression.module_id, expression.local_id.into_any(), key)?;
+        let ty = self.static_key_type(expression.module_id, key)?;
 
         Ok(Some(ty))
     }

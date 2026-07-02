@@ -154,9 +154,8 @@ impl WalkState<'_, '_> {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
             };
             let expected = self.language_type_reference(
-                source,
                 item,
-                vec![yield_target, delegate_return_target, resume_target],
+                &[yield_target, delegate_return_target, resume_target],
             )?;
 
             Ok(Some(Expectation::assignable(
@@ -195,7 +194,7 @@ impl WalkState<'_, '_> {
 
         // flow omitted yield as void
         let origin = Origin::Node(source.into_global(self.module));
-        let value = self.push_type(dir::Type::Void, source)?;
+        let value = self.intern_type(dir::Type::Void)?;
         self.relate_value(
             origin,
             ValueUse::Output,
@@ -244,7 +243,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<()> {
         // flow omitted return as void
-        let value = self.push_type(dir::Type::Void, source)?;
+        let value = self.intern_type(dir::Type::Void)?;
         self.constrain_return_value(source, value);
 
         Ok(())

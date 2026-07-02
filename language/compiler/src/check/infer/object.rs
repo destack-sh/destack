@@ -92,15 +92,16 @@ impl CheckState<'_> {
             }
         }
 
-        let shape = self.push_type(
+        let fields: Vec<dir::TypeField> = fields.into_values().collect();
+        let fields = self.intern_fields(module, &fields)?;
+        let shape = self.intern_type(
             module,
             dir::Type::Shape(dir::ShapeType {
-                fields: fields.into_values().collect(),
-                call_signatures: Vec::new(),
-                construct_signatures: Vec::new(),
-                index_signatures: Vec::new(),
+                fields,
+                call_signatures: dir::TypeListId::EMPTY,
+                construct_signatures: dir::TypeListId::EMPTY,
+                index_signatures: dir::TypeListId::EMPTY,
             }),
-            node.local_id.into_any(),
         )?;
 
         Ok(Answer::Ready(shape))
@@ -128,7 +129,6 @@ impl CheckState<'_> {
         let dir::Type::Shape(shape) = self.ty(target_payload)? else {
             return Ok(Answer::Ready(false));
         };
-        let shape = shape.clone();
         let mut keys = SmallVec::<[dir::StaticKey; 4]>::new();
         let mut should_relate_result = false;
 
@@ -141,7 +141,12 @@ impl CheckState<'_> {
                         return Ok(Answer::Ready(false));
                     };
                     keys.push(key);
-                    let Some(field) = shape.fields.iter().find(|field| field.key == key) else {
+                    let Some(field) = self
+                        .shape_fields(target_payload.module_id, shape.fields)?
+                        .iter()
+                        .find(|field| field.key == key)
+                        .copied()
+                    else {
                         should_relate_result = true;
 
                         continue;
@@ -164,7 +169,7 @@ impl CheckState<'_> {
         }
 
         // require the outer value relation when fields are missing or unmatched
-        for field in &shape.fields {
+        for field in self.shape_fields(target_payload.module_id, shape.fields)? {
             if !keys.contains(&field.key) {
                 should_relate_result = true;
             }

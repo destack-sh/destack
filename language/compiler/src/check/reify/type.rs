@@ -227,10 +227,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(None);
         }
         let id = self.check.settled_root(id)?;
-        let ty = self.check.ty(id)?.clone();
+        let ty = self.check.ty(id)?;
         let next = depth - 1;
 
-        let expression = match &ty {
+        let expression = match ty {
             // open variables and errors have no honest spelling
             dir::Type::Variable(_) | dir::Type::Error => return Ok(None),
 
@@ -244,10 +244,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::Type::Intrinsic => dir::TypeExpression::Intrinsic,
             dir::Type::This => dir::TypeExpression::This,
 
-            dir::Type::Primitive(primitive) => Self::literal(dir::TypeLiteral::from(*primitive)),
-            dir::Type::Literal(literal) => dir::TypeExpression::ScalarLiteral { value: *literal },
+            dir::Type::Primitive(primitive) => Self::literal(dir::TypeLiteral::from(primitive)),
+            dir::Type::Literal(literal) => dir::TypeExpression::ScalarLiteral { value: literal },
             dir::Type::Key(key) => {
-                let Some(value) = Self::static_key_literal(key) else {
+                let Some(value) = Self::static_key_literal(&key) else {
                     return Ok(None);
                 };
 
@@ -256,7 +256,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::Type::Memory(literal) => dir::TypeExpression::ScalarLiteral {
                 value: dir::ScalarLiteral::String(self.strings.intern(literal.text())),
             },
-            dir::Type::Static(value) => match self.check.r#static(*value) {
+            dir::Type::Static(value) => match self.check.r#static(value) {
                 dir::StaticTerm::ScalarLiteral { value } => {
                     dir::TypeExpression::ScalarLiteral { value: *value }
                 }
@@ -283,7 +283,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
 
             dir::Type::Parameter(parameter) => {
-                let Some(name) = self.generic_parameter_name_by_id(*parameter) else {
+                let Some(name) = self.generic_parameter_name_by_id(parameter) else {
                     return Ok(None);
                 };
 
@@ -301,8 +301,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     return Ok(None);
                 };
                 let template = self.check.symbol_template(instance.symbol);
+                let arguments = self
+                    .check
+                    .type_ids(id.module_id, instance.arguments)?
+                    .to_vec();
                 let Some(arguments) =
-                    self.reify_template_arguments_depth(template, &instance.arguments, next)?
+                    self.reify_template_arguments_depth(template, &arguments, next)?
                 else {
                     return Ok(None);
                 };
@@ -323,7 +327,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 };
                 // member types do not carry the selected declaration symbol,
                 // so their generic arguments keep the type-argument form
-                let Some(arguments) = self.reify_arguments(&member.arguments, next)? else {
+                let member_arguments = self
+                    .check
+                    .type_ids(id.module_id, member.arguments)?
+                    .to_vec();
+                let Some(arguments) = self.reify_arguments(&member_arguments, next)? else {
                     return Ok(None);
                 };
 
@@ -357,13 +365,17 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let dir::Type::Literal(value) = self.check.ty(count)? else {
                     return Ok(None);
                 };
-                let length = self.insert(dir::Expression::ScalarLiteral(*value));
+                let length = self.insert(dir::Expression::ScalarLiteral(value));
 
                 dir::TypeExpression::FixedArray { element, length }
             }
             dir::Type::Tuple(tuple) => {
-                let mut elements = Vec::with_capacity(tuple.elements.len());
-                for element in &tuple.elements {
+                let tuple_elements = self
+                    .check
+                    .tuple_elements(id.module_id, tuple.elements)?
+                    .to_vec();
+                let mut elements = Vec::with_capacity(tuple_elements.len());
+                for element in &tuple_elements {
                     let Some(value) = self.reify_depth(element.ty, next)? else {
                         return Ok(None);
                     };
@@ -398,8 +410,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     return Ok(None);
                 }
 
-                let mut members = Vec::with_capacity(shape.fields.len());
-                for field in &shape.fields {
+                let shape_fields = self
+                    .check
+                    .shape_fields(id.module_id, shape.fields)?
+                    .to_vec();
+                let mut members = Vec::with_capacity(shape_fields.len());
+                for field in &shape_fields {
                     let key = match field.key {
                         dir::StaticKey::Name(name) => dir::Key::Name(dir::Name::Identifier(
                             self.strings.intern(&self.check_text(name)),
@@ -424,7 +440,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::Object { members }
             }
             dir::Type::FunctionSignature(function) => {
-                let Some(function) = self.reify_function(function, next)? else {
+                let Some(function) = self.reify_function(id.module_id, &function, next)? else {
                     return Ok(None);
                 };
 
@@ -434,7 +450,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 return self.reify_depth(function.signature, next);
             }
             dir::Type::FunctionPointer(function) => {
-                let Some(expression) = self.reify_function_pointer(function, next)? else {
+                let Some(expression) = self.reify_function_pointer(&function, next)? else {
                     return Ok(None);
                 };
 
@@ -442,14 +458,19 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
 
             dir::Type::Union(union) => {
-                let Some(elements) = self.reify_elements(&union.elements, next)? else {
+                let union_elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
+                let Some(elements) = self.reify_elements(&union_elements, next)? else {
                     return Ok(None);
                 };
 
                 dir::TypeExpression::Union { elements }
             }
             dir::Type::Intersection(intersection) => {
-                let Some(elements) = self.reify_elements(&intersection.elements, next)? else {
+                let intersection_elements = self
+                    .check
+                    .type_ids(id.module_id, intersection.elements)?
+                    .to_vec();
+                let Some(elements) = self.reify_elements(&intersection_elements, next)? else {
                     return Ok(None);
                 };
 
@@ -501,7 +522,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         let place = match self.check.ty(self.check.settled_root(*place)?)? {
                             dir::Type::Memory(dir::MemoryLiteral::Place(dir::Place::Space(
                                 space,
-                            ))) => *space,
+                            ))) => space,
                             _ => return Ok(None),
                         };
 
@@ -528,7 +549,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
 
             dir::Type::Operation(operation) => {
-                let Some(expression) = self.reify_operation(operation, next)? else {
+                let Some(expression) = self.reify_operation(&operation, next)? else {
                     return Ok(None);
                 };
 
@@ -557,9 +578,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let dir::Type::Union(union) = self.check.ty(id)? else {
             return self.reify_depth(id, depth);
         };
+        let union_elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
 
         let mut elements = Vec::new();
-        for element in &union.elements {
+        for element in &union_elements {
             let element = self.check.settled_root(*element)?;
             if self.check.ty(element)?.is_undefined() {
                 continue;
@@ -678,6 +700,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Reify one function type into a function type expression.
     fn reify_function(
         &mut self,
+        module: destack_source::ModuleId,
         function: &dir::FunctionSignatureType,
         depth: usize,
     ) -> CompilerResult<Option<dir::FunctionTypeExpression>> {
@@ -710,8 +733,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             None => None,
         };
 
-        let mut parameters = Vec::with_capacity(function.parameters.len());
-        for (index, parameter) in function.parameters.iter().enumerate() {
+        let function_parameters = self
+            .check
+            .signature_parameters(module, function.parameters)?
+            .to_vec();
+        let mut parameters = Vec::with_capacity(function_parameters.len());
+        for (index, parameter) in function_parameters.iter().enumerate() {
             let Some(declared_type) =
                 self.reify_parameter_type_depth(parameter.ty, parameter.is_optional, depth)?
             else {
@@ -768,12 +795,16 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         function: &dir::FunctionPointerType,
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
-        let signature = self.check.settled_root(function.signature)?;
-        let dir::Type::FunctionSignature(signature) = self.check.ty(signature)?.clone() else {
+        let signature_id = self.check.settled_root(function.signature)?;
+        let dir::Type::FunctionSignature(signature) = self.check.ty(signature_id)? else {
             return Ok(None);
         };
+        let signature_parameters = self
+            .check
+            .signature_parameters(signature_id.module_id, signature.parameters)?
+            .to_vec();
         let Some(parameters) =
-            self.reify_function_pointer_parameters(&signature.parameters, depth)?
+            self.reify_function_pointer_parameters(&signature_parameters, depth)?
         else {
             return Ok(None);
         };
@@ -926,9 +957,9 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let id = self.check.settled_root(id)?;
 
         let expression = match self.check.ty(id)? {
-            dir::Type::Literal(value) => dir::Expression::ScalarLiteral(*value),
+            dir::Type::Literal(value) => dir::Expression::ScalarLiteral(value),
             dir::Type::Key(key) => {
-                let Some(value) = Self::static_key_literal(key) else {
+                let Some(value) = Self::static_key_literal(&key) else {
                     return Ok(None);
                 };
 
@@ -937,12 +968,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             dir::Type::Memory(literal) => dir::Expression::ScalarLiteral(
                 dir::ScalarLiteral::String(self.strings.intern(literal.text())),
             ),
-            dir::Type::Static(value) => match self.check.r#static(*value) {
+            dir::Type::Static(value) => match self.check.r#static(value) {
                 dir::StaticTerm::ScalarLiteral { value } => dir::Expression::ScalarLiteral(*value),
                 _ => return Ok(None),
             },
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<Vec<_>>();
+                let elements = self.check.type_ids(id.module_id, union.elements)?.to_vec();
                 let Some(expression) = self.reify_static_union(&elements, depth - 1)? else {
                     return Ok(None);
                 };
@@ -950,7 +981,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 return Ok(Some(expression));
             }
             dir::Type::Parameter(parameter) => {
-                let Some(name) = self.generic_parameter_name_by_id(*parameter) else {
+                let Some(name) = self.generic_parameter_name_by_id(parameter) else {
                     return Ok(None);
                 };
 

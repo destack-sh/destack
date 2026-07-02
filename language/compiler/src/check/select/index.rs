@@ -94,9 +94,7 @@ impl SubscriptSelection {
 
     /// Return the durable read decision selected for an index expression.
     pub(in crate::check) fn into_decision(self) -> Option<Decision> {
-        let Some(read) = self.read else {
-            return None;
-        };
+        let read = self.read?;
 
         Some(match read {
             dir::SubscriptOperation::Member(resolution) => Decision::Member(resolution),
@@ -238,7 +236,7 @@ impl CheckState<'_> {
         // constrained generics select operations through their constraint
         if let dir::Type::Parameter(parameter) = self.ty(receiver_type)? {
             let constraint = self
-                .generic_parameter(*parameter)
+                .generic_parameter(parameter)
                 .and_then(|binding| binding.constraint);
             if let Some(constraint) = constraint {
                 return self.index_selection(
@@ -247,8 +245,10 @@ impl CheckState<'_> {
             }
         }
 
-        match self.ty(receiver_type)?.clone() {
-            dir::Type::Tuple(tuple) => self.tuple_index_selection(receiver, index, use_, tuple),
+        match self.ty(receiver_type)? {
+            dir::Type::Tuple(tuple) => {
+                self.tuple_index_selection(receiver, receiver_type.module_id, index, use_, tuple)
+            }
             dir::Type::Shape(shape) => {
                 self.shape_index_selection(origin, receiver, receiver_type, index, use_, &shape)
             }
@@ -309,16 +309,18 @@ impl CheckState<'_> {
     fn tuple_index_selection(
         &self,
         receiver: dir::GlobalTypeId,
+        module: ModuleId,
         index: dir::GlobalTypeId,
         use_: PlaceUse,
         tuple: dir::TupleType,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let position = match self.ty(index)? {
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => usize::try_from(*value).ok(),
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => usize::try_from(value).ok(),
             _ => None,
         };
+        let elements = self.tuple_elements(module, tuple.elements)?;
         let selection = position.and_then(|position| {
-            let element = tuple.elements.get(position)?;
+            let element = elements.get(position)?;
             let target = dir::MemberTarget::Element(position);
             let resolution = dir::MemberResolution::new(receiver, target);
 
@@ -340,7 +342,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         // singleton keys project fields first
         if let Some(key) = self.static_key_from_type(index)? {
-            let field = shape.fields.iter().find(|field| field.key == key);
+            let field = self
+                .shape_fields(lookup_receiver.module_id, shape.fields)?
+                .iter()
+                .find(|field| field.key == key)
+                .copied();
             if let Some(field) = field {
                 let target = dir::MemberTarget::Field(key);
                 let resolution = dir::MemberResolution::new(receiver, target);
@@ -352,7 +358,10 @@ impl CheckState<'_> {
         }
 
         // index signatures accept matching key types
-        for signature in &shape.index_signatures {
+        let index_signatures = self
+            .shape_index_signatures(lookup_receiver.module_id, shape.index_signatures)?
+            .to_vec();
+        for signature in index_signatures {
             let accepts = answer!(self.decide_relation(
                 origin,
                 Relation::Assignable,
@@ -365,7 +374,7 @@ impl CheckState<'_> {
                 let ty = match use_ {
                     PlaceUse::Write => signature.value_type,
                     PlaceUse::Read | PlaceUse::Update => {
-                        self.push_index_signature_read_type(origin, signature.value_type)?
+                        self.index_signature_read_type(origin, signature.value_type)?
                     }
                 };
 
@@ -376,26 +385,23 @@ impl CheckState<'_> {
         }
 
         // finite shapes accept computed keys proven within keyof receiver
-        let source = self.origin_source_node(origin)?;
-        let key_domain = self.push_type(
+        let key_domain = self.intern_type(
             origin.module(),
             dir::Type::Operation(dir::TypeOperation::KeyOf(dir::UnaryType {
                 target: lookup_receiver,
             })),
-            source,
         )?;
         let accepts =
             answer!(self.decide_relation(origin, Relation::Assignable, index, key_domain,)?);
         if accepts {
             let target = dir::MemberTarget::Index(index);
             let resolution = dir::MemberResolution::new(receiver, target);
-            let ty = self.push_type(
+            let ty = self.intern_type(
                 origin.module(),
                 dir::Type::Operation(dir::TypeOperation::Index(dir::IndexType {
                     left: lookup_receiver,
                     index,
                 })),
-                source,
             )?;
 
             return Ok(Answer::Ready(Some(SubscriptSelection::member(
@@ -560,8 +566,11 @@ impl CheckState<'_> {
         else {
             return Ok(Answer::Ready(None));
         };
-        let key_parameter = signature.parameters.first().map(|parameter| parameter.ty);
-        let Some(value) = signature.parameters.last().map(|parameter| parameter.ty) else {
+        let signature_parameters = self
+            .signature_parameters(callable.module_id, signature.parameters)?
+            .to_vec();
+        let key_parameter = signature_parameters.first().map(|parameter| parameter.ty);
+        let Some(value) = signature_parameters.last().map(|parameter| parameter.ty) else {
             return Ok(Answer::Ready(None));
         };
         let sources = [
@@ -576,11 +585,11 @@ impl CheckState<'_> {
         let resolution = dir::CallResolution::new(
             target,
             Some(callable),
-            Self::parameter_types(&signature.parameters),
-            Self::generated_argument_bindings(&sources, &signature.parameters),
+            Self::parameter_types(&signature_parameters),
+            Self::generated_argument_bindings(&sources, &signature_parameters),
             signature
                 .return_type
-                .unwrap_or(self.push_type_at_origin(origin, dir::Type::Void)?),
+                .unwrap_or(self.intern_type(origin.module(), dir::Type::Void)?),
         );
 
         Ok(Answer::Ready(Some(SubscriptSelection::call_write(
@@ -603,7 +612,7 @@ impl CheckState<'_> {
         let sources = [dir::ArgumentSource::Omitted];
         let key = method.key(&self.module(origin.module()).strings);
         let protocol = method.protocol(self, arguments.to_vec());
-        let read_type = self.push_index_signature_read_type(origin, value_type)?;
+        let read_type = self.index_signature_read_type(origin, value_type)?;
 
         self.protocol_call_returns(
             origin, receiver, key, &protocol, &arguments, &sources, read_type,
@@ -628,10 +637,14 @@ impl CheckState<'_> {
         };
 
         let signature = answer!(self.callable_signature_type(origin, member.ty)?);
-        let Some((_, signature)) = signature else {
+        let Some((callable, signature)) = signature else {
             return Ok(Answer::Ready(false));
         };
-        let Some(input) = signature.parameters.last().map(|parameter| parameter.ty) else {
+        let Some(input) = self
+            .signature_parameters(callable.module_id, signature.parameters)?
+            .last()
+            .map(|parameter| parameter.ty)
+        else {
             return Ok(Answer::Ready(false));
         };
 

@@ -78,9 +78,6 @@ impl CheckState<'_> {
         sources: &[dir::GlobalNodeIdAny],
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Answer<Option<GenericBoundRejection>>> {
-        let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-
         for ((parameter, argument), argument_source) in parameters
             .iter()
             .copied()
@@ -93,7 +90,7 @@ impl CheckState<'_> {
             else {
                 continue;
             };
-            let bound = self.substitute_type(module, source, constraint, substitution)?;
+            let bound = self.substitute_type(origin.module(), constraint, substitution)?;
 
             if !answer!(self.constrain_generic_bound(origin, argument_source, argument, bound,)?) {
                 return Ok(Answer::Ready(Some(GenericBoundRejection {
@@ -144,21 +141,28 @@ impl CheckState<'_> {
         let pattern = answer!(self.reduce_type(origin, pattern)?);
         let actual = answer!(self.reduce_type(origin, actual)?);
 
-        let pattern_type = self.ty(pattern)?.clone();
-        let actual_type = self.ty(actual)?.clone();
+        let pattern_type = self.ty(pattern)?;
+        let actual_type = self.ty(actual)?;
 
         // bind template parameters directly
-        if let dir::Type::Parameter(parameter) = pattern_type {
-            if generic.parameter_index(parameter).is_some() {
-                return generic.bind(self, origin, parameter, actual);
-            }
+        if let dir::Type::Parameter(parameter) = pattern_type
+            && generic.parameter_index(parameter).is_some()
+        {
+            return generic.bind(self, origin, parameter, actual);
         }
 
         if pattern == actual {
             return Ok(Answer::Ready(true));
         }
 
-        self.match_generic_type_inner(origin, generic, pattern_type, actual_type)
+        self.match_generic_type_inner(
+            origin,
+            generic,
+            pattern.module_id,
+            pattern_type,
+            actual.module_id,
+            actual_type,
+        )
     }
 
     /// Return the substitution captured by one direct generic match.
@@ -167,7 +171,6 @@ impl CheckState<'_> {
         origin: Origin,
         generic: GenericMatch,
     ) -> CompilerResult<TypeSubstitution> {
-        let source = self.origin_source_node(origin)?;
         let mut parameters = SmallVec::<[GenericParameterId; 4]>::new();
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
 
@@ -178,7 +181,6 @@ impl CheckState<'_> {
                 None => {
                     let Some(default) = self.generic_parameter_default(
                         origin.module(),
-                        source,
                         parameter,
                         &parameters,
                         &arguments,
@@ -209,9 +211,6 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Answer<bool>> {
-        let module = origin.module();
-        let local_source = self.origin_source_node(origin)?;
-
         for (parameter, argument) in substitution
             .parameters
             .iter()
@@ -224,8 +223,7 @@ impl CheckState<'_> {
             else {
                 continue;
             };
-            let constraint =
-                self.substitute_type(module, local_source, constraint, substitution)?;
+            let constraint = self.substitute_type(origin.module(), constraint, substitution)?;
             if !answer!(self.constrain_generic_bound(origin, source, argument, constraint)?) {
                 return Ok(Answer::Ready(false));
             }
@@ -235,8 +233,10 @@ impl CheckState<'_> {
     }
 
     /// Return the type substitution for one generic instance.
+    /// `module` is the owner of the instance's argument list.
     pub(in crate::check) fn instance_substitution(
         &self,
+        module: destack_source::ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<TypeSubstitution> {
         let Some(template) = self.symbol_template(instance.symbol) else {
@@ -244,8 +244,8 @@ impl CheckState<'_> {
         };
 
         let parameters = self.generic_template_parameters(template);
-        let arguments = instance
-            .arguments
+        let arguments = self
+            .type_ids(module, instance.arguments)?
             .iter()
             .copied()
             .take(parameters.len())
@@ -263,7 +263,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         generic: &mut GenericMatch,
+        pattern_module: destack_source::ModuleId,
         pattern: dir::Type,
+        actual_module: destack_source::ModuleId,
         actual: dir::Type,
     ) -> CompilerResult<Answer<bool>> {
         match (pattern, actual) {
@@ -271,7 +273,10 @@ impl CheckState<'_> {
             (dir::Type::Instance(pattern), dir::Type::Instance(actual))
                 if pattern.symbol == actual.symbol =>
             {
-                self.match_generic_arguments(origin, generic, &pattern.arguments, &actual.arguments)
+                let pattern_arguments = self.type_ids(pattern_module, pattern.arguments)?.to_vec();
+                let actual_arguments = self.type_ids(actual_module, actual.arguments)?.to_vec();
+
+                self.match_generic_arguments(origin, generic, &pattern_arguments, &actual_arguments)
             }
 
             // value containers match by their contained type
@@ -292,13 +297,13 @@ impl CheckState<'_> {
             (dir::Type::Tuple(pattern), dir::Type::Tuple(actual))
                 if pattern.elements.len() == actual.elements.len() =>
             {
-                let pattern = pattern
-                    .elements
+                let pattern = self
+                    .tuple_elements(pattern_module, pattern.elements)?
                     .iter()
                     .map(|element| element.ty)
                     .collect::<SmallVec<[_; 4]>>();
-                let actual = actual
-                    .elements
+                let actual = self
+                    .tuple_elements(actual_module, actual.elements)?
                     .iter()
                     .map(|element| element.ty)
                     .collect::<SmallVec<[_; 4]>>();

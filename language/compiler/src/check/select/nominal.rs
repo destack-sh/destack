@@ -32,7 +32,7 @@ impl CheckState<'_> {
         let tag = answer!(self.committed_node_type(tag_node)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
-            dir::Type::Instance(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
         };
 
@@ -41,9 +41,10 @@ impl CheckState<'_> {
             Some(dir::Definition::Newtype(definition)) => definition.value,
             _ => return self.reject_pattern(node, origin, tag),
         };
-        let substitution = self.instance_substitution(&instance)?.with_receiver(tag);
-        let source = self.origin_source_node(origin)?;
-        let backing = self.substitute_type(module, source, backing, &substitution)?;
+        let substitution = self
+            .instance_substitution(tag.module_id, &instance)?
+            .with_receiver(tag);
+        let backing = self.substitute_type(origin.module(), backing, &substitution)?;
 
         // flow the backing into the wrapped hole
         let value = fields
@@ -56,13 +57,14 @@ impl CheckState<'_> {
             self.project_pattern_input(flow, backing, value.into_global_any(module))?;
         }
 
+        let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
         self.commit_pattern(
             node,
             dir::PatternResolution::Project(dir::PatternProjectionResolution {
                 projection: dir::Projection::NewtypePayload {
                     symbol: instance.symbol,
                     generic_arguments: self
-                        .symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?,
+                        .symbol_generic_argument_bindings(instance.symbol, &arguments)?,
                     ty: backing,
                 },
                 pattern: value.map(|value| value.into_global_any(module)),
@@ -93,19 +95,20 @@ impl CheckState<'_> {
         let tag = answer!(self.committed_node_type(tag_node)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
-            dir::Type::Instance(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
         };
 
         // project declared fields off the matched declaration
         let (fields, rest) = answer!(self.project_named_fields(node, origin, flow, tag, fields)?);
+        let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
         self.commit_pattern(
             node,
             dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Nominal(
                 dir::PatternNominalDestructureResolution {
                     symbol: instance.symbol,
                     generic_arguments: self
-                        .symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?,
+                        .symbol_generic_argument_bindings(instance.symbol, &arguments)?,
                     fields,
                     rest,
                 },

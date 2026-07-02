@@ -64,10 +64,9 @@ impl CheckState<'_> {
             [] => match resolved.first() {
                 Some(first) => Ok(*first),
                 None => {
-                    let module = variable.module_id;
-                    let source = self.origin_source_node(origin)?;
+                    let module = origin.module();
 
-                    self.push_type(module, dir::Type::Never, source)
+                    self.intern_type(module, dir::Type::Never)
                 }
             },
             _ => {
@@ -78,9 +77,8 @@ impl CheckState<'_> {
                     return Ok(*single);
                 }
 
-                let module = variable.module_id;
-                let source = self.origin_source_node(origin)?;
-                self.normalized_union_type(module, survivors, source)
+                let module = origin.module();
+                self.normalized_union_type(module, survivors)
             }
         }
     }
@@ -133,7 +131,7 @@ impl CheckState<'_> {
         for bound in bounds.iter().copied() {
             match self.ty(bound)? {
                 dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed { .. }) => {
-                    borrows.push((bound, *form));
+                    borrows.push((bound, form));
                 }
                 _ => {}
             }
@@ -185,25 +183,21 @@ impl CheckState<'_> {
             // rebuild the borrow over the joined lifetime
             let lifetimes =
                 self.meet_lifetime_survivors(lifetimes.into_iter().collect::<SmallVec<[_; 4]>>())?;
-            let module = variable.module_id;
-            let source = self.origin_source_node(origin)?;
+            let module = origin.module();
             let lifetime = match lifetimes.as_slice() {
                 [single] => *single,
-                _ => self.push_type(
-                    module,
-                    dir::Type::Union(dir::UnionType {
-                        elements: lifetimes.into_iter().collect(),
-                    }),
-                    source,
-                )?,
+                _ => {
+                    let elements = self.intern_type_ids(module, &lifetimes)?;
+
+                    self.intern_type(module, dir::Type::Union(dir::UnionType { elements }))?
+                }
             };
-            let rebuilt = self.push_type(
+            let rebuilt = self.intern_type(
                 module,
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Borrowed { lifetime, access },
                     value: form.value,
                 }),
-                source,
             )?;
             joined.push(rebuilt);
             consumed.push(*bound);
@@ -246,41 +240,32 @@ impl CheckState<'_> {
         bounds: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
         let origin = self.solver.variable(variable)?.origin;
-        let module = variable.module_id;
-        let source = self.origin_source_node(origin)?;
-        let intersection = dir::Type::Intersection(dir::IntersectionType {
-            elements: bounds.to_vec(),
-        });
+        let module = origin.module();
+        let elements = self.intern_type_ids(module, bounds)?;
+        let intersection = dir::Type::Intersection(dir::IntersectionType { elements });
 
-        self.push_type(module, intersection, source)
+        self.intern_type(module, intersection)
     }
 
     /// Widen one solution literal per the variable's policy.
     pub(in crate::check) fn widen_solution(
         &mut self,
-        variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = variable.module_id;
-        let origin = self.solver.variable(variable)?.origin;
-        let source = self.origin_source_node(origin)?;
-
         match widening {
             Widening::Preserve => Ok(solution),
-            Widening::Widen => self.widen_type(module, source, solution),
+            Widening::Widen => self.widen_type(solution),
         }
     }
 
     /// Widen one closed type, rebuilding literal leaves to their bases.
     pub(in crate::check) fn widen_type(
         &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // widening rebuilds literal leaves through aggregates and unions
-        match self.widen_tree(module, source, ty, 0)? {
+        match self.widen_tree(ty.module_id, ty, 0)? {
             Some(widened) => Ok(widened),
             None => Ok(ty),
         }
@@ -294,7 +279,6 @@ impl CheckState<'_> {
     fn widen_tree(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         id: dir::GlobalTypeId,
         depth: usize,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -309,14 +293,14 @@ impl CheckState<'_> {
             dir::Type::Literal(literal) => {
                 let widened = literal.widen();
 
-                Ok(Some(self.push_type(module, widened, source)?))
+                Ok(Some(self.intern_type(module, widened)?))
             }
             // enum member leaves widen to the owner enum
             dir::Type::EnumMember(member) => Ok(Some(member.owner)),
             // managed forms rebuild around their payloads
             dir::Type::Form(form) if form.form == dir::Form::Managed => {
                 let value = form.value;
-                let Some(widened) = self.widen_tree(module, source, value, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, value, depth + 1)? else {
                     return Ok(None);
                 };
                 let managed = dir::Type::Form(dir::FormType {
@@ -324,56 +308,55 @@ impl CheckState<'_> {
                     value: widened,
                 });
 
-                Ok(Some(self.push_type(module, managed, source)?))
+                Ok(Some(self.intern_type(module, managed)?))
             }
             // collections rebuild around widened elements
             dir::Type::Array(array) => {
                 let element = array.element;
-                let Some(widened) = self.widen_tree(module, source, element, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, element, depth + 1)? else {
                     return Ok(None);
                 };
 
-                Ok(Some(self.push_type(
+                Ok(Some(self.intern_type(
                     module,
                     dir::Type::Array(dir::ArrayType { element: widened }),
-                    source,
                 )?))
             }
             dir::Type::Slice(slice) => {
                 let element = slice.element;
-                let Some(widened) = self.widen_tree(module, source, element, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, element, depth + 1)? else {
                     return Ok(None);
                 };
 
-                Ok(Some(self.push_type(
+                Ok(Some(self.intern_type(
                     module,
                     dir::Type::Slice(dir::SliceType { element: widened }),
-                    source,
                 )?))
             }
             dir::Type::FixedArray(array) => {
                 let element = array.element;
                 let count = array.count;
-                let Some(widened) = self.widen_tree(module, source, element, depth + 1)? else {
+                let Some(widened) = self.widen_tree(module, element, depth + 1)? else {
                     return Ok(None);
                 };
 
-                Ok(Some(self.push_type(
+                Ok(Some(self.intern_type(
                     module,
                     dir::Type::FixedArray(dir::FixedArrayType {
                         element: widened,
                         count,
                     }),
-                    source,
                 )?))
             }
             // tuples widen their element types in place
             dir::Type::Tuple(tuple) => {
-                let mut tuple = tuple.clone();
+                let mut elements = SmallVec::<[dir::TypeElement; 8]>::from_slice(
+                    self.tuple_elements(module, tuple.elements)?,
+                );
                 let mut changed = false;
-                for element in &mut tuple.elements {
+                for element in &mut elements {
                     let ty = self.settled_root(element.ty)?;
-                    if let Some(widened) = self.widen_tree(module, source, ty, depth + 1)? {
+                    if let Some(widened) = self.widen_tree(module, ty, depth + 1)? {
                         element.ty = widened;
                         changed = true;
                     } else {
@@ -384,20 +367,22 @@ impl CheckState<'_> {
                     return Ok(None);
                 }
 
-                Ok(Some(self.push_type(
-                    module,
-                    dir::Type::Tuple(tuple),
-                    source,
-                )?))
+                let elements = self.intern_elements(module, &elements)?;
+                let tuple = dir::TupleType {
+                    form: tuple.form,
+                    elements,
+                };
+
+                Ok(Some(self.intern_type(module, dir::Type::Tuple(tuple))?))
             }
             // unions widen each member and collapse the duplicates
             dir::Type::Union(union) => {
-                let elements = union.elements.clone();
+                let elements = self.type_ids(module, union.elements)?.to_vec();
                 let mut widened = Vec::with_capacity(elements.len());
                 let mut changed = false;
                 for element in elements {
                     let element = self.settled_root(element)?;
-                    match self.widen_tree(module, source, element, depth + 1)? {
+                    match self.widen_tree(module, element, depth + 1)? {
                         Some(wide) => {
                             widened.push(wide);
                             changed = true;
@@ -431,15 +416,17 @@ impl CheckState<'_> {
                     return Ok(Some(*single));
                 }
 
-                Ok(Some(self.normalized_union_type(module, distinct, source)?))
+                Ok(Some(self.normalized_union_type(module, distinct)?))
             }
             // object literal shapes rebuild with widened field types
             dir::Type::Shape(shape) => {
-                let mut shape = shape.clone();
+                let mut fields = SmallVec::<[dir::TypeField; 8]>::from_slice(
+                    self.shape_fields(module, shape.fields)?,
+                );
                 let mut changed = false;
-                for field in &mut shape.fields {
+                for field in &mut fields {
                     let ty = self.settled_root(field.ty)?;
-                    match self.widen_tree(module, source, ty, depth + 1)? {
+                    match self.widen_tree(module, ty, depth + 1)? {
                         Some(widened) => {
                             field.ty = widened;
                             changed = true;
@@ -451,11 +438,15 @@ impl CheckState<'_> {
                     return Ok(None);
                 }
 
-                Ok(Some(self.push_type(
-                    module,
-                    dir::Type::Shape(shape),
-                    source,
-                )?))
+                let fields = self.intern_fields(module, &fields)?;
+                let shape = dir::ShapeType {
+                    fields,
+                    call_signatures: shape.call_signatures,
+                    construct_signatures: shape.construct_signatures,
+                    index_signatures: shape.index_signatures,
+                };
+
+                Ok(Some(self.intern_type(module, dir::Type::Shape(shape))?))
             }
             _ => Ok(None),
         }
@@ -468,9 +459,13 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let widens = match (self.ty(source)?.clone(), self.ty(target)?.clone()) {
-            (dir::Type::Union(source), _) => self.union_widens_to(origin, &source, target)?,
-            (_, dir::Type::Union(target)) => self.widens_to_union(origin, source, &target)?,
+        let widens = match (self.ty(source)?, self.ty(target)?) {
+            (dir::Type::Union(source_union), _) => {
+                self.union_widens_to(origin, source.module_id, &source_union, target)?
+            }
+            (_, dir::Type::Union(target_union)) => {
+                self.widens_to_union(origin, source, target.module_id, &target_union)?
+            }
             _ => self.widens_to_single(origin, source, target)?,
         };
 
@@ -484,7 +479,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let widens = match (self.ty(source)?.clone(), self.ty(target)?.clone()) {
+        let widens = match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Literal(literal), target) => Answer::Ready(literal.widens_to(&target)),
             (dir::Type::Range(range), target) => Answer::Ready(range.widens_to(&target)),
             (dir::Type::EnumMember(member), _) => {
@@ -509,9 +504,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
+        target_module: ModuleId,
         target: &dir::UnionType,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(domain) = self.union_scalar_domain(origin, target)? else {
+        let Some(domain) = self.union_scalar_domain(origin, target_module, target)? else {
             return Ok(Answer::Ready(false));
         };
         if self.scalar_domain_type(origin, source)? != Some(domain) {
@@ -519,8 +515,9 @@ impl CheckState<'_> {
         }
 
         // one finite member must contain the source without a representation change
-        for element in &target.elements {
-            let element = self.reduce_widening_type(origin, *element)?;
+        let elements = self.type_ids(target_module, target.elements)?.to_vec();
+        for element in elements {
+            let element = self.reduce_widening_type(origin, element)?;
             if answer!(self.widens_to_single(origin, source, element)?) {
                 return Ok(Answer::Ready(true));
             }
@@ -533,16 +530,21 @@ impl CheckState<'_> {
     fn union_widens_to(
         &mut self,
         origin: Origin,
+        source_module: ModuleId,
         source: &dir::UnionType,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        if self.union_scalar_domain(origin, source)?.is_none() {
+        if self
+            .union_scalar_domain(origin, source_module, source)?
+            .is_none()
+        {
             return Ok(Answer::Ready(false));
         }
 
         // every finite member must widen to the same target representation
-        for element in &source.elements {
-            let element = self.reduce_widening_type(origin, *element)?;
+        let elements = self.type_ids(source_module, source.elements)?.to_vec();
+        for element in elements {
+            let element = self.reduce_widening_type(origin, element)?;
             if !answer!(self.widens_to_single(origin, element, target)?) {
                 return Ok(Answer::Ready(false));
             }
@@ -555,11 +557,13 @@ impl CheckState<'_> {
     fn union_scalar_domain(
         &mut self,
         origin: Origin,
+        module: ModuleId,
         union: &dir::UnionType,
     ) -> CompilerResult<Option<dir::ScalarDomain>> {
         let mut domain = None;
-        for element in &union.elements {
-            let element = self.reduce_widening_type(origin, *element)?;
+        let elements = self.type_ids(module, union.elements)?.to_vec();
+        for element in elements {
+            let element = self.reduce_widening_type(origin, element)?;
             let Some(element_domain) = self.scalar_domain_type(origin, element)? else {
                 return Ok(None);
             };

@@ -30,9 +30,14 @@ impl<'a, 'b> DumpContext<'a, 'b> {
 
     /// Return a compact type variable label.
     pub(in crate::check) fn variable_label(&self, id: dir::TypeVariableId) -> String {
-        let module = self.module_label(id.module_id);
+        match self.check.solver.variable(id) {
+            Ok(state) => {
+                let module = self.module_label(state.origin.module());
 
-        format!("{module}:v{}", id.index)
+                format!("{module}:v{}", id.0)
+            }
+            Err(_) => format!("v{}", id.0),
+        }
     }
 
     /// Return a compact node label.
@@ -75,7 +80,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     /// Return a compact type label.
     pub(in crate::check) fn type_label(&self, ty: dir::GlobalTypeId) -> String {
         if let Ok(dir::Type::Variable(variable)) = self.check.ty(ty) {
-            return self.variable_label(*variable);
+            return self.variable_label(variable);
         }
 
         self.check.format_type(ty)

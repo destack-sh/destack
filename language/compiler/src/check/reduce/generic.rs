@@ -25,7 +25,6 @@ impl CheckState<'_> {
     pub(in crate::check) fn generic_parameter_default(
         &mut self,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         parameter: GenericParameterId,
         parameters: &[GenericParameterId],
         arguments: &[dir::GlobalTypeId],
@@ -46,7 +45,7 @@ impl CheckState<'_> {
             arguments: arguments.iter().copied().collect(),
             receiver: None,
         };
-        let default = self.substitute_type(module, source, default, &substitution)?;
+        let default = self.substitute_type(module, default, &substitution)?;
 
         Ok(Some(default))
     }
@@ -73,7 +72,6 @@ impl CheckState<'_> {
         if written.len() > parameters.len() {
             return Ok(None);
         }
-        let source = self.origin_source_node(origin)?;
         let mut arguments = SmallVec::new();
 
         // apply written arguments before filling defaults
@@ -83,7 +81,6 @@ impl CheckState<'_> {
                 None => {
                     let Some(default) = self.generic_parameter_default(
                         origin.module(),
-                        source,
                         parameter,
                         &parameters[..index],
                         &arguments,
@@ -127,7 +124,7 @@ impl CheckState<'_> {
                 None => {
                     let widening = self.generic_parameter_widening(parameter);
                     let variable = self.allocate_variable(origin.module(), origin, widening);
-                    let ty = self.push_variable_type(variable, source)?;
+                    let ty = self.variable_type(variable)?;
 
                     // add declared bounds as upper bounds
                     let constraint = self
@@ -139,17 +136,12 @@ impl CheckState<'_> {
                             arguments: arguments.iter().copied().collect(),
                             receiver: None,
                         };
-                        let constraint = self.substitute_type(
-                            origin.module(),
-                            source,
-                            constraint,
-                            &substitution,
-                        )?;
+                        let constraint =
+                            self.substitute_type(origin.module(), constraint, &substitution)?;
                         self.push_upper_bound(variable, source_node, constraint)?;
                     }
                     if let Some(default) = self.generic_parameter_default(
                         origin.module(),
-                        source,
                         parameter,
                         &parameters[..index],
                         &arguments,

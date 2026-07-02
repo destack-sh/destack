@@ -116,14 +116,11 @@ impl<'a> LayoutLinker<'a> {
         sections: &mut SectionPacker,
         storage: &HashMap<mir::TypeId, StorageLayout>,
     ) -> LinkResult<(LayoutTable, TraceTable)> {
-        let max_layout_id = match storage
+        let max_layout_id = storage
             .values()
             .map(|layout| layout.layout_id.raw() as usize)
             .max()
-        {
-            Some(layout_id) => layout_id,
-            None => 0,
-        };
+            .unwrap_or_default();
         let mut traces = TraceTable::new();
         let empty_trace = traces.insert(TraceMap::empty());
         let empty_layout = LayoutBuilder {

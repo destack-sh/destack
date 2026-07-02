@@ -42,7 +42,7 @@ impl CheckState<'_> {
         else {
             return Ok(Answer::Ready((receiver, this_parameter)));
         };
-        let borrowed = self.push_type(
+        let borrowed = self.intern_type(
             module,
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Borrowed {
@@ -51,7 +51,6 @@ impl CheckState<'_> {
                 },
                 value: receiver,
             }),
-            source,
         )?;
 
         Ok(Answer::Ready((borrowed, borrow.target)))

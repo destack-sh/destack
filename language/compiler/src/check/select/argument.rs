@@ -121,7 +121,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = site.node.module_id;
         let Some(value) = self.argument_value_node(module, argument) else {
-            let error = self.push_type(module, dir::Type::Error, argument.into_any())?;
+            let error = self.intern_type(module, dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };

@@ -265,7 +265,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=6 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=5 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -297,7 +297,7 @@ values = [];
 /// @resolution.pattern.assign source=values kind=place place=binding(values) type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -331,7 +331,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=8 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=5 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -366,7 +366,7 @@ values = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=9 constraints=4 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=7 constraints=4 obligations=1 solutions=0 bounds=0 decisions=1
 
 "#,
         r#"
@@ -410,7 +410,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -441,7 +441,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 
 "#,
         r#"
@@ -501,7 +501,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=10 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
 
 "#,
         r#"
@@ -562,7 +562,7 @@ const copy = value;
 /// @type.node source=value type=string | undefined
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=13 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }

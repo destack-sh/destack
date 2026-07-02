@@ -59,13 +59,11 @@ impl WalkState<'_, '_> {
                     dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
                 )
             {
-                let value = self.push_type(
-                    dir::Type::Instance(dir::GenericInstance {
-                        symbol,
-                        arguments: Vec::new(),
-                    }),
-                    ty.into_any(),
-                )?;
+                let arguments = self.intern_type_ids(&[])?;
+                let value = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+                    symbol,
+                    arguments,
+                }))?;
                 self.commit_static_value(symbol, value)?;
             }
 

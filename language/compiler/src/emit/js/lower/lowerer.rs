@@ -44,7 +44,7 @@ impl<'a> ModuleLowerer<'a> {
     // TODO #Cleanup: not entirely sure if guarding js::ModuleLowerer only to local operands is right?
 
     /// Return one checked type visible to this lowering context.
-    pub(crate) fn require_type(&self, type_id: dir::GlobalTypeId) -> Result<&dir::Type, EmitError> {
+    pub(crate) fn require_type(&self, type_id: dir::GlobalTypeId) -> Result<dir::Type, EmitError> {
         if type_id.module_id != self.module.id {
             return Err(self.internal_error(format!(
                 "JS lowering cannot read foreign DIR type {type_id:?}"
@@ -52,20 +52,6 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         Ok(self.types.get_type(type_id.local_id))
-    }
-
-    /// Return one checked type source visible to this lowering context.
-    pub(crate) fn require_type_source(
-        &self,
-        type_id: dir::GlobalTypeId,
-    ) -> Result<dir::LocalNodeIdAny, EmitError> {
-        if type_id.module_id != self.module.id {
-            return Err(self.internal_error(format!(
-                "JS lowering cannot read foreign DIR type source {type_id:?}"
-            )));
-        }
-
-        Ok(self.types.get_type_source(type_id.local_id))
     }
 
     /// Return one checked static value visible to this lowering context.

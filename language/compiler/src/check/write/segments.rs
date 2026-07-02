@@ -35,7 +35,7 @@ impl CheckedModuleSegments {
         Self {
             bindings: state.bindings_tail,
             annotations: state.annotations,
-            types: state.types,
+            types: state.types_tail,
             statics: state.statics,
             resolutions: state.resolutions,
             generics: state.generics,

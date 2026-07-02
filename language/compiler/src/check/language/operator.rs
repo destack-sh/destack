@@ -147,7 +147,6 @@ impl CheckState<'_> {
         type_arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Protocol> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let mut arguments = Vec::with_capacity(type_arguments.len() + protocol.arguments.len());
         arguments.extend_from_slice(type_arguments);
 
@@ -156,7 +155,7 @@ impl CheckState<'_> {
             match argument {
                 OperatorProtocolArgument::Access(access) => {
                     let ty = dir::Type::Memory(dir::MemoryLiteral::Access(*access));
-                    arguments.push(self.push_type(module, ty, source)?);
+                    arguments.push(self.intern_type(module, ty)?);
                 }
             }
         }

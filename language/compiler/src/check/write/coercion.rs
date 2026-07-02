@@ -328,9 +328,10 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        let target_type = self.ty(target)?;
         let stores = match self.ty(source)? {
-            dir::Type::Literal(literal) => literal.widens_to(self.ty(target)?),
-            dir::Type::Range(range) => range.widens_to(self.ty(target)?),
+            dir::Type::Literal(literal) => literal.widens_to(&target_type),
+            dir::Type::Range(range) => range.widens_to(&target_type),
             _ => false,
         };
 
@@ -345,7 +346,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         let converts = match (self.ty(source)?, self.ty(target)?) {
             (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
-                source.widens_to(*target)
+                source.widens_to(target)
             }
             _ => false,
         };

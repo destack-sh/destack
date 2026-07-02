@@ -172,7 +172,7 @@ impl WalkState<'_, '_> {
         let variable = self
             .check
             .allocate_variable(self.module, origin, Widening::Preserve);
-        let induced = self.check.push_variable_type(variable, source)?;
+        let induced = self.check.variable_type(variable)?;
         let induction = GenericInductionParameter {
             name_prefix: "T",
             constraint: Some(ty),
@@ -246,17 +246,13 @@ impl CheckState<'_> {
         // insert generated parameters in variable allocation order,
         // so hidden lifetimes number by their source positions
         let mut induced = induced.into_iter().collect::<Vec<_>>();
-        induced.sort_by_key(|(variable, _)| (variable.module_id, variable.index));
+        induced.sort_by_key(|(variable, _)| variable.0);
 
         for (variable, (declaration, parent, symbol, induction)) in induced {
             let template = self.open_generic_template(declaration, parent, symbol)?;
             let parameter = self.push_induced_generic_parameter(template, induction)?;
-            let source = self.origin_source_node(Origin::Node(declaration))?;
-            let solution = self.push_type(
-                declaration.module_id,
-                dir::Type::Parameter(parameter),
-                source,
-            )?;
+            let solution =
+                self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;
             self.commit_solution(variable, solution)?;
         }
 

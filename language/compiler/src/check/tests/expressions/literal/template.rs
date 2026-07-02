@@ -28,7 +28,7 @@ const greeting = `hello ${name}`;
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -53,7 +53,7 @@ const greeting: string = `hello`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @type.node source=`hello` type=string
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

@@ -67,7 +67,7 @@ impl WalkState<'_, '_> {
         if block.context == dir::BlockContext::Expression {
             self.queue_node_task(id, PlaceUse::Read)?;
         } else {
-            let void = self.push_type(dir::Type::Void, id.into_any())?;
+            let void = self.intern_type(dir::Type::Void)?;
             self.commit_node_type(id, void)?;
         }
 

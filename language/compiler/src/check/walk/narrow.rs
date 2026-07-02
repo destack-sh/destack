@@ -253,9 +253,9 @@ impl WalkState<'_, '_> {
 
         let ty = dir::Type::Instance(dir::GenericInstance {
             symbol: *symbol,
-            arguments: Vec::new(),
+            arguments: dir::TypeListId::EMPTY,
         });
-        let ty = self.push_type(ty, target.into_any())?;
+        let ty = self.intern_type(ty)?;
 
         Ok(Some(ty))
     }
@@ -352,6 +352,6 @@ impl WalkState<'_, '_> {
             _ => return Ok(None),
         };
 
-        Ok(Some(self.push_type(ty, id.into_any())?))
+        Ok(Some(self.intern_type(ty)?))
     }
 }

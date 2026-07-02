@@ -26,12 +26,18 @@ impl Protocol {
         Self { symbol, arguments }
     }
 
-    /// Return this protocol as a generic instance.
-    pub(in crate::check) fn instance(&self) -> dir::GenericInstance {
-        dir::GenericInstance {
+    /// Return this protocol as a generic instance interned into one module.
+    pub(in crate::check) fn instance(
+        &self,
+        check: &mut CheckState<'_>,
+        module: ModuleId,
+    ) -> CompilerResult<dir::GenericInstance> {
+        let arguments = check.intern_type_ids(module, &self.arguments)?;
+
+        Ok(dir::GenericInstance {
             symbol: self.symbol,
-            arguments: self.arguments.clone(),
-        }
+            arguments,
+        })
     }
 }
 
@@ -80,8 +86,7 @@ impl CheckState<'_> {
         protocol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let lookup_receiver = self.apparent_type(lookup_receiver, source)?;
+        let lookup_receiver = self.apparent_type(lookup_receiver)?;
         let extension = self.select_extension_protocol_implementation(
             origin,
             module,
@@ -92,7 +97,7 @@ impl CheckState<'_> {
             return Ok(extension);
         }
 
-        let Some(instance) = self.apparent_instance(lookup_receiver)? else {
+        let Some((instance_module, instance)) = self.apparent_instance(lookup_receiver)? else {
             return Ok(Answer::Ready(None));
         };
         let Some(definition) = self.definition(instance.symbol) else {
@@ -104,7 +109,7 @@ impl CheckState<'_> {
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
         let substitution = self
-            .instance_substitution(&instance)?
+            .instance_substitution(instance_module, &instance)?
             .with_receiver(receiver);
 
         self.select_heritage_protocol_implementation(
@@ -143,7 +148,6 @@ impl CheckState<'_> {
             let template = self.symbol_template(extension_symbol);
             let Some(substitution) = answer!(self.match_extension_target(
                 origin,
-                module,
                 lookup_receiver,
                 template,
                 target_type,
@@ -179,21 +183,19 @@ impl CheckState<'_> {
         heritages: impl IntoIterator<Item = &'a dir::NominalHeritage>,
         protocol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
-        let source = self.origin_source_node(origin)?;
-
         // compare each implemented interface with the requested protocol
         for heritage in heritages {
-            let implemented = self.substituted_heritage(module, source, substitution, heritage)?;
+            let implemented = self.substituted_heritage(module, substitution, heritage)?;
             let instance = if implemented.symbol == protocol {
                 Some(implemented)
             } else {
-                answer!(self.heritage_instance(origin, &implemented, protocol)?)
+                answer!(self.heritage_instance(origin, module, &implemented, protocol)?)
             };
 
             if let Some(instance) = instance {
-                return Ok(Answer::Ready(Some(ProtocolImplementation {
-                    arguments: instance.arguments,
-                })));
+                let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+
+                return Ok(Answer::Ready(Some(ProtocolImplementation { arguments })));
             }
         }
 
@@ -210,8 +212,7 @@ impl CheckState<'_> {
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<ProtocolMember>>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let lookup_receiver = self.apparent_type(lookup_receiver, source)?;
+        let lookup_receiver = self.apparent_type(lookup_receiver)?;
         let extension = self.select_extension_protocol_member(
             origin,
             module,
@@ -258,8 +259,7 @@ impl CheckState<'_> {
         argument_sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Answer<Option<ProtocolCall>>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let lookup_receiver = self.apparent_type(lookup_receiver, source)?;
+        let lookup_receiver = self.apparent_type(lookup_receiver)?;
         let extension = self.select_extension_protocol_call(
             origin,
             module,
@@ -447,7 +447,6 @@ impl CheckState<'_> {
         let template = self.symbol_template(extension_symbol);
         let Some(mut substitution) = answer!(self.match_extension_target(
             origin,
-            module,
             lookup_receiver,
             template,
             target_type,
@@ -480,7 +479,6 @@ impl CheckState<'_> {
 
         let candidates = answer!(self.extension_member_candidates(
             origin,
-            module,
             extension_symbol,
             &substitution,
             members,
@@ -518,15 +516,15 @@ impl CheckState<'_> {
 
             for (implemented, requested) in heritage.arguments.iter().zip(&protocol.arguments) {
                 let implemented =
-                    self.substitute_type(module, source, *implemented, substitution)?;
+                    self.substitute_type(origin.module(), *implemented, substitution)?;
                 let dir::Type::Parameter(parameter) = self.ty(implemented)? else {
                     continue;
                 };
-                if substitution.parameters.contains(parameter) {
+                if substitution.parameters.contains(&parameter) {
                     continue;
                 }
 
-                substitution.parameters.push(*parameter);
+                substitution.parameters.push(parameter);
                 substitution.arguments.push(*requested);
             }
         }
@@ -542,7 +540,7 @@ impl CheckState<'_> {
             else {
                 continue;
             };
-            let constraint = self.substitute_type(module, source, constraint, substitution)?;
+            let constraint = self.substitute_type(origin.module(), constraint, substitution)?;
             let source_node = source.into_global(module);
 
             decision = decision.and(self.constrain_generic_bound(
@@ -814,7 +812,7 @@ impl CheckState<'_> {
             );
         }
 
-        let interface = protocol.instance();
+        let interface = protocol.instance(self, module)?;
 
         self.member_owner_implements_interface(
             origin,
@@ -845,7 +843,7 @@ impl CheckState<'_> {
             );
         }
 
-        let interface = protocol.instance();
+        let interface = protocol.instance(self, module)?;
 
         self.extension_implements_interface(origin, module, substitution, implements, &interface)
     }

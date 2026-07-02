@@ -270,17 +270,18 @@ impl CheckState<'_> {
 
         // same-symbol applications constrain arguments by variance
         let same_symbol = match (self.ty(left)?, self.ty(right)?) {
-            (dir::Type::Instance(left), dir::Type::Instance(right))
-                if left.symbol == right.symbol && left.arguments.len() == right.arguments.len() =>
+            (dir::Type::Instance(left_instance), dir::Type::Instance(right_instance))
+                if left_instance.symbol == right_instance.symbol
+                    && left_instance.arguments.len() == right_instance.arguments.len() =>
             {
-                let source = left.arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let target = right
-                    .arguments
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
+                let source = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(left.module_id, left_instance.arguments)?,
+                );
+                let target = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(right.module_id, right_instance.arguments)?,
+                );
 
-                Some((left.symbol, source, target))
+                Some((left_instance.symbol, source, target))
             }
             _ => None,
         };
@@ -295,7 +296,7 @@ impl CheckState<'_> {
 
         // collect child pairs with their child relations
         let mut pairs = SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
-        match (self.ty(left)?.clone(), self.ty(right)?.clone()) {
+        match (self.ty(left)?, self.ty(right)?) {
             // mutable collections alias their elements and stay invariant
             (dir::Type::Array(source_array), dir::Type::Array(target_array)) => {
                 pairs.push((Relation::Equal, source_array.element, target_array.element));
@@ -314,21 +315,22 @@ impl CheckState<'_> {
                 if source_tuple.form == target_tuple.form
                     && source_tuple.elements.len() == target_tuple.elements.len() =>
             {
-                for (source_element, target_element) in source_tuple
-                    .elements
-                    .iter()
-                    .zip(target_tuple.elements.iter())
+                let source_elements = self.tuple_elements(left.module_id, source_tuple.elements)?;
+                let target_elements =
+                    self.tuple_elements(right.module_id, target_tuple.elements)?;
+                for (source_element, target_element) in
+                    source_elements.iter().zip(target_elements.iter())
                 {
                     pairs.push((relation, source_element.ty, target_element.ty));
                 }
             }
             // shapes relate matching fields, assignability by target keys
-            (dir::Type::Shape(left_shape), dir::Type::Shape(right)) => {
-                let left = left_shape;
+            (dir::Type::Shape(left_shape), dir::Type::Shape(right_shape)) => {
+                let left_fields = self.shape_fields(left.module_id, left_shape.fields)?;
+                let right_fields = self.shape_fields(right.module_id, right_shape.fields)?;
 
-                for right_field in &right.fields {
-                    let left_field = left
-                        .fields
+                for right_field in right_fields {
+                    let left_field = left_fields
                         .iter()
                         .find(|field| field.key == right_field.key);
 
@@ -364,16 +366,25 @@ impl CheckState<'_> {
             {
                 pairs.push((relation, left, right));
             }
-            (dir::Type::FunctionSignature(left), dir::Type::FunctionSignature(right)) => {
-                let shared = left.parameters.len().min(right.parameters.len());
-                for (left, right) in left.parameters[..shared]
+            (
+                dir::Type::FunctionSignature(left_function),
+                dir::Type::FunctionSignature(right_function),
+            ) => {
+                let left_parameters =
+                    self.signature_parameters(left.module_id, left_function.parameters)?;
+                let right_parameters =
+                    self.signature_parameters(right.module_id, right_function.parameters)?;
+                let shared = left_parameters.len().min(right_parameters.len());
+                for (left_parameter, right_parameter) in left_parameters[..shared]
                     .iter()
-                    .zip(right.parameters[..shared].iter())
+                    .zip(right_parameters[..shared].iter())
                 {
-                    pairs.push((relation, right.ty, left.ty));
+                    pairs.push((relation, right_parameter.ty, left_parameter.ty));
                 }
-                if let (Some(left), Some(right)) = (left.return_type, right.return_type) {
-                    pairs.push((relation, left, right));
+                if let (Some(left_return), Some(right_return)) =
+                    (left_function.return_type, right_function.return_type)
+                {
+                    pairs.push((relation, left_return, right_return));
                 }
             }
             // memory forms relate payloads directly, borrows bind their slots
@@ -411,18 +422,19 @@ impl CheckState<'_> {
             }
             // union targets accept when any member accepts
             (_, dir::Type::Union(elements)) if relation == Relation::Assignable => {
-                let elements = elements
-                    .elements
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
+                let elements = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(right.module_id, elements.elements)?,
+                );
 
                 return Ok(Some(self.constrain_union_target(origin, left, &elements)?));
             }
             // union sources flow every element into the target
             (dir::Type::Union(elements), _) if relation == Relation::Assignable => {
-                for element in &elements.elements {
-                    pairs.push((relation, *element, right));
+                let elements = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
+                    self.type_ids(left.module_id, elements.elements)?,
+                );
+                for element in elements {
+                    pairs.push((relation, element, right));
                 }
             }
             (dir::Type::Dynamic(left), dir::Type::Dynamic(right)) => {
@@ -520,7 +532,7 @@ impl CheckState<'_> {
 
         // substitute a solved top variable for its solution
         while let dir::Type::Variable(variable) = self.ty(current)? {
-            let Some(solution) = self.solver.solution(*variable)? else {
+            let Some(solution) = self.solver.solution(variable)? else {
                 return Ok(current);
             };
 
@@ -536,7 +548,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
         match self.ty(id)? {
-            dir::Type::Variable(variable) => Ok(Some(self.solver.representative(*variable)?)),
+            dir::Type::Variable(variable) => Ok(Some(self.solver.representative(variable)?)),
             _ => Ok(None),
         }
     }

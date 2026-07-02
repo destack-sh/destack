@@ -16,13 +16,14 @@ impl CheckState<'_> {
 
         // distribute over union-valued sources
         let elements = match self.ty(source)? {
-            dir::Type::Union(union) => union.elements.iter().copied().collect::<SmallVec<[_; 4]>>(),
+            dir::Type::Union(union) => {
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
+            }
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
             _ => SmallVec::from_slice(&[source]),
         };
 
         let module = origin.module();
-        let source_node = self.origin_source_node(origin)?;
         let mut kept = Vec::with_capacity(elements.len());
 
         // filter each arm through the guard relation
@@ -40,9 +41,9 @@ impl CheckState<'_> {
 
         // rebuild the filtered result
         let joined = match kept.as_slice() {
-            [] => self.push_type(module, dir::Type::Never, source_node)?,
+            [] => self.intern_type(module, dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, kept, source_node)?,
+            _ => self.normalized_union_type(module, kept)?,
         };
 
         Ok(Answer::Ready(Some(joined)))
@@ -57,7 +58,6 @@ impl CheckState<'_> {
         is_positive: bool,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = origin.module();
-        let source_node = self.origin_source_node(origin)?;
 
         // erased values expose the checked target on matching branches
         if matches!(self.ty(source)?, dir::Type::Dynamic(_)) {
@@ -69,7 +69,7 @@ impl CheckState<'_> {
         // disjoint arms can be decided without assignability
         if !answer!(self.types_may_overlap(origin, source, target)?) {
             let narrowed = if is_positive {
-                self.push_type(module, dir::Type::Never, source_node)?
+                self.intern_type(module, dir::Type::Never)?
             } else {
                 source
             };
@@ -82,7 +82,7 @@ impl CheckState<'_> {
             let narrowed = if is_positive {
                 source
             } else {
-                self.push_type(module, dir::Type::Never, source_node)?
+                self.intern_type(module, dir::Type::Never)?
             };
 
             return Ok(Answer::Ready(narrowed));
@@ -94,7 +94,7 @@ impl CheckState<'_> {
         let narrowed = if is_positive && is_top_like {
             target
         } else if is_positive {
-            self.push_type(module, dir::Type::Never, source_node)?
+            self.intern_type(module, dir::Type::Never)?
         } else {
             source
         };

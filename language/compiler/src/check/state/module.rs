@@ -41,8 +41,10 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) external_modules: IndexSet<ModuleId>,
 
     // open checked state owned by this module
-    /// Open inference types layered over the expanded base.
-    pub(in crate::check) types: dir::TypeSegment,
+    /// The committed base type table built once at load.
+    pub(in crate::check) types: dir::TypeTable<'static>,
+    /// Open inference types layered over the committed base.
+    pub(in crate::check) types_tail: dir::TypeSegment,
     /// Checked declaration definitions.
     pub(in crate::check) definitions: dir::DefinitionSegment,
     /// Induced generic templates and parameters.
@@ -94,7 +96,8 @@ impl CheckModuleState {
         // create the inherited bindings and this check's open overlays
         let bindings = expanded.binding_table(&bound);
         let bindings_tail = dir::BindingSegment::from_table(&bindings);
-        let types = dir::TypeSegment::from_base(&expanded.types);
+        let types = expanded.type_table(&bound);
+        let types_tail = dir::TypeSegment::from_base(&expanded.types);
         let definitions = dir::DefinitionSegment::new(module.id);
         let generics = dir::GenericSegment::new(module.id);
         let statics = dir::StaticSegment::from_base(&expanded.statics);
@@ -115,6 +118,7 @@ impl CheckModuleState {
             bindings,
             bindings_tail,
             types,
+            types_tail,
             definitions,
             generics,
             statics,
@@ -221,9 +225,30 @@ impl CheckModuleState {
         Ok(declaration.local_id)
     }
 
-    /// Return one open working type when this module's overlay carries it.
-    pub(in crate::check) fn type_maybe(&self, type_id: dir::LocalTypeId) -> Option<&dir::Type> {
-        self.types.get_type_maybe(type_id)
+    /// Return one type visible to check, reading the overlay over the base table.
+    pub(in crate::check) fn type_maybe(&self, type_id: dir::LocalTypeId) -> Option<dir::Type> {
+        self.types_tail
+            .get_type_maybe(type_id)
+            .or_else(|| self.types.get_type_maybe(type_id))
+    }
+
+    /// Return one type's structural flags, reading the overlay over the base table.
+    pub(in crate::check) fn type_flags_maybe(
+        &self,
+        type_id: dir::LocalTypeId,
+    ) -> Option<dir::TypeFlags> {
+        if let Some(flags) = self.types_tail.get_type_flags_maybe(type_id) {
+            return Some(flags);
+        }
+
+        self.types.get_type_maybe(type_id)?;
+
+        Some(self.types.get_type_flags(type_id))
+    }
+
+    /// Return the cumulative type table visible to check.
+    pub(in crate::check) fn type_table(&self) -> dir::TypeTable<'_> {
+        self.types.with_tail(&self.types_tail)
     }
 
     /// Return one local input static visible to check.
@@ -398,7 +423,7 @@ impl CheckState<'_> {
             return Ok(ty);
         }
 
-        let ty = self.push_type(node.module_id, dir::Type::Error, node.local_id)?;
+        let ty = self.intern_type(node.module_id, dir::Type::Error)?;
         self.commit_node_type(node, ty)?;
 
         Ok(ty)

@@ -112,7 +112,7 @@ impl CheckState<'_> {
         let origin = self.solver.variable(representative)?.origin;
         let (solution, check_upper) = if !lower_types.is_empty() {
             let joined = self.best_common(representative, &lower_types)?;
-            let widened = self.widen_solution(representative, joined, widening)?;
+            let widened = self.widen_solution(joined, widening)?;
             let solution =
                 answer!(self.fit_widened_solution(origin, joined, widened, &upper_types)?);
 

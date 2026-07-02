@@ -21,7 +21,7 @@ const value: RegExp = /abc/;
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -77,7 +77,7 @@ const value: RegExp | int32 = /abc/;
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
 /// @type.node source=/abc/ type=RegExp
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

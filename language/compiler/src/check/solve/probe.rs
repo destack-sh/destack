@@ -11,8 +11,8 @@ use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolverSnaps
 pub(in crate::check) struct Probe {
     /// The solver state before the probe.
     solver: SolverSnapshot,
-    /// Type counts for each loaded module before the probe.
-    types: IndexMap<ModuleId, u32>,
+    /// Working type segment marks for each loaded module before the probe.
+    types: IndexMap<ModuleId, dir::TypeMark>,
     /// Layout segment marks before the probe.
     layouts: IndexMap<ModuleId, LayoutSegmentMark>,
 }
@@ -32,7 +32,7 @@ impl CheckState<'_> {
         let types = self
             .modules
             .iter()
-            .map(|(module, state)| (*module, state.types.type_count()))
+            .map(|(module, state)| (*module, state.types_tail.mark()))
             .collect();
         let layouts = mark_layouts(&self.layouts);
         let solver = self.solver.snapshot();
@@ -187,10 +187,10 @@ impl CheckState<'_> {
     }
 
     /// Drop types allocated inside a rejected probe.
-    fn drop_probe_types(&mut self, marks: IndexMap<ModuleId, u32>) {
-        for (module, count) in marks {
+    fn drop_probe_types(&mut self, marks: IndexMap<ModuleId, dir::TypeMark>) {
+        for (module, mark) in marks {
             if let Some(state) = self.modules.get_mut(&module) {
-                state.types.truncate_types(count);
+                state.types_tail.truncate_to(mark);
             }
         }
     }

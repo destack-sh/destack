@@ -21,7 +21,9 @@ impl CheckState<'_> {
         let mut nullish = Vec::new();
         let mut carriers = Vec::new();
         let elements = match self.ty(value)? {
-            dir::Type::Union(union) => union.elements.iter().copied().collect::<SmallVec<[_; 4]>>(),
+            dir::Type::Union(union) => {
+                SmallVec::<[_; 4]>::from_slice(self.type_ids(value.module_id, union.elements)?)
+            }
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
             _ => SmallVec::from_slice(&[value]),
         };
@@ -37,13 +39,12 @@ impl CheckState<'_> {
         }
 
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
 
         // rebuild the carrier part for associated type projection
         let carrier = match carriers.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.normalized_union_type(module, carriers, source)?),
+            _ => Some(self.normalized_union_type(module, carriers)?),
         };
 
         // project the requested carrier type
@@ -81,9 +82,9 @@ impl CheckState<'_> {
         }
         elements.extend(projected);
         let joined = match elements.as_slice() {
-            [] => self.push_type(module, dir::Type::Never, source)?,
+            [] => self.intern_type(module, dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(module, elements, source)?,
+            _ => self.normalized_union_type(module, elements)?,
         };
 
         Ok(Answer::Ready(Some(joined)))

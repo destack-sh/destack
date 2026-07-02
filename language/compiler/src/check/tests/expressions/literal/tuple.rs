@@ -109,7 +109,7 @@ const value = (1, (2, 3));
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=11 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -136,7 +136,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.node source=1 type=1
 /// @type.node source="\"a\"" type="a"
 
-/// @check.stats.solve variables=0 types=11 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=9 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

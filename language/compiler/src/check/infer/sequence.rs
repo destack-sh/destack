@@ -16,7 +16,7 @@ impl CheckState<'_> {
                 let last_site = self.node_site(last.into_global_any(node.module_id))?;
                 answer!(self.infer_node_type(last_site, PlaceUse::Read)?)
             }
-            None => self.push_type(node.module_id, dir::Type::Void, node.local_id.into_any())?,
+            None => self.intern_type(node.module_id, dir::Type::Void)?,
         };
         self.commit_node_type(node.into_any(), ty)?;
 
@@ -42,7 +42,7 @@ impl CheckState<'_> {
                 self.commit_node_type(site.node, value_type)?;
             }
             None => {
-                let void = self.push_type(module, dir::Type::Void, site.node.local_id)?;
+                let void = self.intern_type(module, dir::Type::Void)?;
                 self.commit_node_type(site.node, void)?;
                 let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
             }

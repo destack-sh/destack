@@ -4,6 +4,20 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin};
 
+/// Working accumulator for merging shape elements of an intersection.
+/// Payload lists stay as plain vectors until the merged shape is interned.
+#[derive(Default)]
+struct ShapeMerge {
+    /// The merged fields.
+    fields: Vec<dir::TypeField>,
+    /// The merged call signatures.
+    call_signatures: Vec<dir::GlobalTypeId>,
+    /// The merged construct signatures.
+    construct_signatures: Vec<dir::GlobalTypeId>,
+    /// The merged index signatures.
+    index_signatures: Vec<dir::TypeIndexSignature>,
+}
+
 impl CheckState<'_> {
     /// Merge one intersection's structural shape elements.
     ///
@@ -34,7 +48,7 @@ impl CheckState<'_> {
         }
 
         // merge structural shapes and keep every other element symbolic
-        let mut merged: Option<dir::ShapeType> = None;
+        let mut merged: Option<ShapeMerge> = None;
         let mut others = Vec::new();
         let mut shape_count = 0usize;
         for element in closed {
@@ -44,25 +58,37 @@ impl CheckState<'_> {
             };
 
             shape_count += 1;
-            self.merge_intersection_shape(origin, &mut merged, shape.clone())?;
+            self.merge_intersection_shape(origin, &mut merged, element.module_id, shape)?;
         }
 
         // keep intersections symbolic unless two or more shapes contributed
         let (Some(merged), 2..) = (merged, shape_count) else {
             return Ok(Answer::Ready(id));
         };
-        let source = self.origin_source_node(origin)?;
-        let shape = self.push_type(origin.module(), dir::Type::Shape(merged), source)?;
+        let module = origin.module();
+        let fields = self.intern_fields(module, &merged.fields)?;
+        let call_signatures = self.intern_type_ids(module, &merged.call_signatures)?;
+        let construct_signatures = self.intern_type_ids(module, &merged.construct_signatures)?;
+        let index_signatures = self.intern_index_signatures(module, &merged.index_signatures)?;
+        let shape = self.intern_type(
+            module,
+            dir::Type::Shape(dir::ShapeType {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            }),
+        )?;
         if others.is_empty() {
             return Ok(Answer::Ready(shape));
         }
 
         let mut elements = vec![shape];
         elements.extend(others);
-        let rebuilt = self.push_type(
-            origin.module(),
+        let elements = self.intern_type_ids(module, &elements)?;
+        let rebuilt = self.intern_type(
+            module,
             dir::Type::Intersection(dir::IntersectionType { elements }),
-            source,
         )?;
 
         Ok(Answer::Ready(rebuilt))
@@ -72,44 +98,54 @@ impl CheckState<'_> {
     fn merge_intersection_shape(
         &mut self,
         origin: Origin,
-        merged: &mut Option<dir::ShapeType>,
+        merged: &mut Option<ShapeMerge>,
+        module: destack_source::ModuleId,
         shape: dir::ShapeType,
     ) -> CompilerResult<()> {
+        let fields = self.shape_fields(module, shape.fields)?.to_vec();
+        let call_signatures = self.type_ids(module, shape.call_signatures)?.to_vec();
+        let construct_signatures = self.type_ids(module, shape.construct_signatures)?.to_vec();
+        let index_signatures = self
+            .shape_index_signatures(module, shape.index_signatures)?
+            .to_vec();
+
         let Some(merged) = merged.as_mut() else {
-            *merged = Some(shape);
+            *merged = Some(ShapeMerge {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            });
 
             return Ok(());
         };
 
-        for field in shape.fields {
-            let Some(shared) = merged
+        for field in fields {
+            let Some(index) = merged
                 .fields
-                .iter_mut()
-                .find(|merged| merged.key == field.key)
+                .iter()
+                .position(|merged| merged.key == field.key)
             else {
                 merged.fields.push(field);
                 continue;
             };
 
             // intersect shared keys and keep stricter field attributes
+            let shared = merged.fields[index];
             if shared.ty != field.ty {
-                shared.ty = self.push_type(
+                let elements = self.intern_type_ids(origin.module(), &[shared.ty, field.ty])?;
+                merged.fields[index].ty = self.intern_type(
                     origin.module(),
-                    dir::Type::Intersection(dir::IntersectionType {
-                        elements: vec![shared.ty, field.ty],
-                    }),
-                    self.origin_source_node(origin)?,
+                    dir::Type::Intersection(dir::IntersectionType { elements }),
                 )?;
             }
-            shared.is_optional &= field.is_optional;
-            shared.is_readonly |= field.is_readonly;
+            merged.fields[index].is_optional &= field.is_optional;
+            merged.fields[index].is_readonly |= field.is_readonly;
         }
 
-        merged.call_signatures.extend(shape.call_signatures);
-        merged
-            .construct_signatures
-            .extend(shape.construct_signatures);
-        merged.index_signatures.extend(shape.index_signatures);
+        merged.call_signatures.extend(call_signatures);
+        merged.construct_signatures.extend(construct_signatures);
+        merged.index_signatures.extend(index_signatures);
 
         Ok(())
     }

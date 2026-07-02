@@ -80,10 +80,9 @@ impl CheckState<'_> {
                     }
                 }
 
-                let ty = self.push_type(
+                let ty = self.intern_type(
                     node.module_id,
                     dir::Type::Primitive(dir::PrimitiveType::String),
-                    node.local_id.into_any(),
                 )?;
                 self.commit_node_type(node.into_any(), ty)?;
 

@@ -204,7 +204,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             self.check
                 .report_ambient_lifetime_elided(self.module, source);
             for (variable, _) in tracked {
-                let error = self.push_type(dir::Type::Error, source)?;
+                let error = self.intern_type(dir::Type::Error)?;
                 self.check.commit_solution(variable, error)?;
             }
         }
@@ -235,10 +235,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         if self.borrow_lifetime_elision == BorrowLifetimeElision::Frame {
-            return self.push_type(
-                dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
-                source,
-            );
+            return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+                dir::Lifetime::Frame,
+            )));
         }
 
         // open one hidden lifetime parameter
@@ -254,13 +253,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .language
             .symbol(dir::LanguageItem::Lifetime)
         {
-            Some(symbol) => Some(self.push_type(
-                dir::Type::Instance(dir::GenericInstance {
+            Some(symbol) => {
+                let arguments = self.intern_type_ids(&[])?;
+
+                Some(self.intern_type(dir::Type::Instance(dir::GenericInstance {
                     symbol,
-                    arguments: Vec::new(),
-                }),
-                source,
-            )?),
+                    arguments,
+                }))?)
+            }
             None => None,
         };
         let induction = GenericInductionParameter {
@@ -306,7 +306,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let origin = Origin::Node(source.into_global(self.module));
         let variable = self.check.allocate_variable(self.module, origin, widening);
 
-        self.check.push_variable_type(variable, source)
+        self.check.variable_type(variable)
     }
 
     /// Commit one source node type.
@@ -490,14 +490,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // infer declaration types on demand for recursive and forward references
         let origin = Origin::Symbol(symbol);
-        let source = self
-            .check
-            .module(symbol.module_id)
-            .symbol_declaration_node(symbol.local_id)?;
         let variable = self
             .check
             .allocate_variable(symbol.module_id, origin, widening);
-        let ty = self.check.push_variable_type(variable, source)?;
+        let ty = self.check.variable_type(variable)?;
         self.check.commit_declaration_type(symbol, ty)?;
 
         Ok(ty)
@@ -514,14 +510,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         let origin = Origin::Symbol(symbol);
-        let source = self
-            .check
-            .module(symbol.module_id)
-            .symbol_declaration_node(symbol.local_id)?;
         let variable = self
             .check
             .allocate_variable(symbol.module_id, origin, widening);
-        let ty = self.check.push_variable_type(variable, source)?;
+        let ty = self.check.variable_type(variable)?;
         self.check.commit_binding_type(symbol, ty)?;
 
         Ok(ty)
@@ -548,44 +540,86 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.commit_static_value(symbol, value)
     }
 
-    /// Push one working type at a source node.
-    pub(in crate::check) fn push_type(
+    /// Intern one type into this module's working segment.
+    pub(in crate::check) fn intern_type(
         &mut self,
         ty: dir::Type,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.push_type(self.module, ty, source)
+        self.check.intern_type(self.module, ty)
+    }
+
+    /// Intern one type id list into this module's working segment.
+    pub(in crate::check) fn intern_type_ids(
+        &mut self,
+        values: &[dir::GlobalTypeId],
+    ) -> CompilerResult<dir::TypeListId> {
+        self.check.intern_type_ids(self.module, values)
+    }
+
+    /// Intern one tuple element list into this module's working segment.
+    pub(in crate::check) fn intern_elements(
+        &mut self,
+        values: &[dir::TypeElement],
+    ) -> CompilerResult<dir::TypeListId> {
+        self.check.intern_elements(self.module, values)
+    }
+
+    /// Intern one shape field list into this module's working segment.
+    pub(in crate::check) fn intern_fields(
+        &mut self,
+        values: &[dir::TypeField],
+    ) -> CompilerResult<dir::TypeListId> {
+        self.check.intern_fields(self.module, values)
+    }
+
+    /// Intern one function parameter list into this module's working segment.
+    pub(in crate::check) fn intern_parameters(
+        &mut self,
+        values: &[dir::FunctionParameterType],
+    ) -> CompilerResult<dir::TypeListId> {
+        self.check.intern_parameters(self.module, values)
+    }
+
+    /// Intern one index signature list into this module's working segment.
+    pub(in crate::check) fn intern_index_signatures(
+        &mut self,
+        values: &[dir::TypeIndexSignature],
+    ) -> CompilerResult<dir::TypeListId> {
+        self.check.intern_index_signatures(self.module, values)
+    }
+
+    /// Intern one string list into this module's working segment.
+    pub(in crate::check) fn intern_strings(
+        &mut self,
+        values: &[destack_source::StringId],
+    ) -> CompilerResult<dir::TypeListId> {
+        self.check.intern_strings(self.module, values)
     }
 
     /// Return a normalized union type.
     pub(in crate::check) fn normalized_union_type(
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check
-            .normalized_union_type(self.module, elements, source)
+        self.check.normalized_union_type(self.module, elements)
     }
 
     /// Return a reference type for one well-known library declaration.
     pub(in crate::check) fn language_type_reference(
         &mut self,
-        source: dir::LocalNodeIdAny,
         item: dir::LanguageItem,
-        arguments: Vec<dir::GlobalTypeId>,
+        arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check
-            .push_language_type(self.module, source, item, arguments)
+        self.check.language_type(self.module, item, arguments)
     }
 
     /// Return a value type with `undefined` included.
     pub(in crate::check) fn optional_value_type(
         &mut self,
         ty: dir::GlobalTypeId,
-        source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let undefined = self.push_type(dir::Type::Undefined, source)?;
+        let undefined = self.intern_type(dir::Type::Undefined)?;
 
-        self.normalized_union_type([ty, undefined], source)
+        self.normalized_union_type([ty, undefined])
     }
 }

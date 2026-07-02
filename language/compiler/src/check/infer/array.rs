@@ -56,22 +56,21 @@ impl CheckState<'_> {
                     is_readonly: false,
                     is_rest: false,
                 })
-                .collect();
-            let tuple = self.push_type(
+                .collect::<Vec<_>>();
+            let elements = self.intern_elements(module, &elements)?;
+            let tuple = self.intern_type(
                 module,
                 dir::Type::Tuple(dir::TupleType {
                     form: dir::TupleForm::Array,
                     elements,
                 }),
-                node.local_id.into_any(),
             )?;
-            let readonly = self.push_type(
+            let readonly = self.intern_type(
                 module,
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
                     value: tuple,
                 }),
-                node.local_id.into_any(),
             )?;
 
             return Ok(Answer::Ready(readonly));
@@ -80,20 +79,16 @@ impl CheckState<'_> {
         // infer the array element type directly when spreads do not constrain it
         let element = if spreads.is_empty() {
             match values.as_slice() {
-                [] => self.push_type(module, dir::Type::Never, node.local_id.into_any())?,
+                [] => self.intern_type(module, dir::Type::Never)?,
                 [(_, single)] => *single,
-                _ => self.normalized_union_type(
-                    module,
-                    values.iter().map(|(_, value)| *value),
-                    node.local_id.into_any(),
-                )?,
+                _ => self.normalized_union_type(module, values.iter().map(|(_, value)| *value))?,
             }
         }
         // use one element hole when spreads participate in array construction
         else {
             let origin = Origin::Node(node.into_any());
             let variable = self.allocate_variable(module, origin, Widening::Preserve);
-            let element = self.push_variable_type(variable, node.local_id.into_any())?;
+            let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
                 self.push_constraint(Constraint::check(
@@ -106,11 +101,7 @@ impl CheckState<'_> {
 
             element
         };
-        let array = self.push_type(
-            module,
-            dir::Type::Array(dir::ArrayType { element }),
-            node.local_id.into_any(),
-        )?;
+        let array = self.intern_type(module, dir::Type::Array(dir::ArrayType { element }))?;
 
         // require spread carriers to be assignable to the inferred array
         for (value, spread) in spreads {
@@ -136,10 +127,9 @@ impl CheckState<'_> {
         let module = node.module_id;
         let value_site = self.node_site(value.into_global_any(module))?;
         let element = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let array = self.push_type(
+        let array = self.intern_type(
             module,
             dir::Type::FixedArray(dir::FixedArrayType { element, count }),
-            node.local_id.into_any(),
         )?;
         self.commit_node_type(node.into_any(), array)?;
 
@@ -181,24 +171,23 @@ impl CheckState<'_> {
             });
         }
 
-        let tuple = self.push_type(
+        let fields = self.intern_elements(module, &fields)?;
+        let tuple = self.intern_type(
             module,
             dir::Type::Tuple(dir::TupleType {
                 form: dir::TupleForm::Tuple,
                 elements: fields,
             }),
-            node.local_id.into_any(),
         )?;
 
         // const tuple inference freezes the tuple value
         if mode == InferMode::Const {
-            let readonly = self.push_type(
+            let readonly = self.intern_type(
                 module,
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
                     value: tuple,
                 }),
-                node.local_id.into_any(),
             )?;
 
             Ok(Answer::Ready(readonly))
@@ -251,25 +240,19 @@ impl CheckState<'_> {
 
         // publish the source array type represented by this literal
         let array = if count.is_some() {
-            let actual_count = self.push_type(
+            let actual_count = self.intern_type(
                 node.module_id,
                 dir::Type::Literal(dir::ScalarLiteral::Integer(elements.len() as i64)),
-                node.local_id.into_any(),
             )?;
-            self.push_type(
+            self.intern_type(
                 node.module_id,
                 dir::Type::FixedArray(dir::FixedArrayType {
                     element,
                     count: actual_count,
                 }),
-                node.local_id.into_any(),
             )?
         } else {
-            self.push_type(
-                node.module_id,
-                dir::Type::Array(dir::ArrayType { element }),
-                node.local_id.into_any(),
-            )?
+            self.intern_type(node.module_id, dir::Type::Array(dir::ArrayType { element }))?
         };
         self.commit_node_type(node.into_any(), array)?;
 
@@ -295,13 +278,15 @@ impl CheckState<'_> {
         let dir::Type::Tuple(tuple) = self.ty(target)? else {
             return Ok(Answer::Ready(false));
         };
-        let tuple = tuple.clone();
-        if tuple.elements.len() != elements.len() {
+        if tuple.elements.len() as usize != elements.len() {
             return Ok(Answer::Ready(false));
         }
+        let tuple_elements = self
+            .tuple_elements(target.module_id, tuple.elements)?
+            .to_vec();
 
         // check each tuple element against its matching expected element type
-        for (argument, element) in elements.iter().zip(tuple.elements.iter()) {
+        for (argument, element) in elements.iter().zip(tuple_elements.iter()) {
             let (dir::Argument::Positional { value }
             | dir::Argument::Named { value, .. }
             | dir::Argument::Labeled { value, .. }) =

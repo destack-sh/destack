@@ -61,7 +61,7 @@ impl WalkState<'_, '_> {
             .push_generic_parameter(binding, template, Some(symbol))?;
 
         // the parameter name writes its own parameter type
-        let ty = self.push_type(dir::Type::Parameter(parameter), id.into_any())?;
+        let ty = self.intern_type(dir::Type::Parameter(parameter))?;
         self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
@@ -414,7 +414,7 @@ impl WalkState<'_, '_> {
             .push_generic_parameter(binding, template, Some(symbol))?;
 
         // write the parameter name as its own parameter type
-        let ty = self.push_type(dir::Type::Parameter(parameter), source)?;
+        let ty = self.intern_type(dir::Type::Parameter(parameter))?;
         self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))

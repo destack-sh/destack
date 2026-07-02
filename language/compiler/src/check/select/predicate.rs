@@ -92,13 +92,13 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(()));
         }
 
-        let target_type = self.push_type(
+        let arguments = self.intern_type_ids(module, &arguments)?;
+        let target_type = self.intern_type(
             module,
             dir::Type::Instance(dir::GenericInstance {
                 symbol: target,
-                arguments: arguments.clone(),
+                arguments,
             }),
-            target_node.local_id,
         )?;
         let predicate = answer!(self.unary_predicate(
             origin,
@@ -184,8 +184,7 @@ impl CheckState<'_> {
         key_node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let key_type = self.widen_type(module, source, key)?;
+        let key_type = self.widen_type(key)?;
         let protocol = self.language_protocol(dir::LanguageItem::Has, vec![key_type]);
         let method = membership_operator_protocol().method;
         let key = method.key(&self.module(module).strings);
@@ -196,11 +195,8 @@ impl CheckState<'_> {
         )?) else {
             return Ok(Answer::Ready(None));
         };
-        let boolean = self.push_type(
-            module,
-            dir::Type::Primitive(dir::PrimitiveType::Boolean),
-            source,
-        )?;
+        let boolean =
+            self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
         let accepts = answer!(self.decide_relation(
             origin,
             Relation::Assignable,
@@ -223,7 +219,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
 
-        let result = match self.ty(receiver)?.clone() {
+        let result = match self.ty(receiver)? {
             dir::Type::Instance(_) => Some(receiver),
             dir::Type::Form(form) => {
                 answer!(self.nominal_membership_receiver(origin, form.value)?)
@@ -278,7 +274,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
-        let condition = match self.ty(target)?.clone() {
+        let condition = match self.ty(target)? {
             dir::Type::Any | dir::Type::Unknown | dir::Type::Object => {
                 dir::PredicateCondition::Always
             }
@@ -323,8 +319,9 @@ impl CheckState<'_> {
             dir::Type::Form(_) => dir::PredicateCondition::Type(target),
             dir::Type::Shape(_) => return Ok(Answer::Ready(None)),
             dir::Type::Union(union) => {
-                let mut alternatives = Vec::with_capacity(union.elements.len());
-                for element in union.elements {
+                let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+                let mut alternatives = Vec::with_capacity(elements.len());
+                for element in elements {
                     let element = answer!(self.reduce_type_head(origin, element)?);
                     let Some(predicate) = answer!(self.runtime_predicate(origin, value, element)?)
                     else {
@@ -371,14 +368,15 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::Predicate>>> {
-        match self.ty(value)?.clone() {
+        match self.ty(value)? {
             // erased values need a runtime witness predicate
             dir::Type::Dynamic(_) => Ok(Answer::Ready(None)),
 
             // tagged unions can still test their known arms
             dir::Type::Union(union) => {
-                let mut alternatives = Vec::with_capacity(union.elements.len());
-                for element in union.elements {
+                let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
+                let mut alternatives = Vec::with_capacity(elements.len());
+                for element in elements {
                     let element = answer!(self.reduce_type_head(origin, element)?);
                     let satisfies = answer!(self.decide_relation(
                         origin,
@@ -485,14 +483,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
-        let unknown = self.push_type(module, dir::Type::Unknown, source)?;
+        let unknown = self.intern_type(module, dir::Type::Unknown)?;
         let target = self.member_shape_type(module, key, unknown, source)?;
         let operation = dir::TypeOperation::Narrow(dir::NarrowType {
             source: receiver,
             target,
             is_positive: true,
         });
-        let narrowed = self.push_type(module, dir::Type::Operation(operation), source)?;
+        let narrowed = self.intern_type(module, dir::Type::Operation(operation))?;
 
         self.reduce_type_head(origin, narrowed)
     }
@@ -572,17 +570,13 @@ impl CheckState<'_> {
     /// Return the reflected type descriptor type.
     fn type_descriptor_type(&mut self, origin: Origin) -> CompilerResult<dir::GlobalTypeId> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
-        let unknown = self.push_type(module, dir::Type::Unknown, source)?;
+        let unknown = self.intern_type(module, dir::Type::Unknown)?;
         let symbol = self.language_symbol(dir::LanguageItem::Type);
+        let arguments = self.intern_type_ids(module, &[unknown])?;
 
-        self.push_type(
+        self.intern_type(
             module,
-            dir::Type::Instance(dir::GenericInstance {
-                symbol,
-                arguments: vec![unknown],
-            }),
-            source,
+            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
         )
     }
 
@@ -596,10 +590,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         self.push_runtime_predicate_obligation(node, left, right, resolution.clone());
         self.commit_decision(node, Decision::Guard(resolution))?;
-        let boolean = self.push_type(
+        let boolean = self.intern_type(
             node.module_id,
             dir::Type::Primitive(dir::PrimitiveType::Boolean),
-            node.local_id,
         )?;
         self.commit_node_type(node, boolean)?;
 

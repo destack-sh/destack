@@ -49,7 +49,7 @@ impl LayoutQuery<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let instance = match self.check.ty(ty)? {
-            dir::Type::Instance(instance) => instance.clone(),
+            dir::Type::Instance(instance) => instance,
             _ => return Ok(Answer::Ready(false)),
         };
 
@@ -57,7 +57,7 @@ impl LayoutQuery<'_, '_> {
             Some(dir::Definition::Class(_)) => return Ok(Answer::Ready(true)),
             // object-shaped newtype backings are managed objects
             Some(dir::Definition::Newtype(definition)) => {
-                let substitution = self.check.instance_substitution(&instance)?;
+                let substitution = self.check.instance_substitution(ty.module_id, &instance)?;
 
                 self.substituted_type(definition.value, &substitution)?
             }

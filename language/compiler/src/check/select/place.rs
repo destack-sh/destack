@@ -70,12 +70,8 @@ impl CheckState<'_> {
         // join projection anchors with the root place lifetime
         let mut lifetime = root;
         for anchor in anchors.into_iter().rev() {
-            lifetime = self.push_language_type(
-                module,
-                borrow.local_id.into_any(),
-                dir::LanguageItem::LifetimeOr,
-                vec![anchor, lifetime],
-            )?;
+            lifetime =
+                self.language_type(module, dir::LanguageItem::LifetimeOr, &[anchor, lifetime])?;
         }
 
         Ok(Answer::Ready(Some(lifetime)))
@@ -103,10 +99,9 @@ impl CheckState<'_> {
             dir::Lifetime::Symbol(symbol)
         };
 
-        let lifetime = self.push_type(
+        let lifetime = self.intern_type(
             borrow.module_id,
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(lifetime)),
-            borrow.local_id.into_any(),
         )?;
 
         Ok(Some(lifetime))
@@ -117,10 +112,9 @@ impl CheckState<'_> {
         &mut self,
         borrow: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.push_type(
+        self.intern_type(
             borrow.module_id,
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
-            borrow.local_id.into_any(),
         )
     }
 
@@ -158,9 +152,7 @@ impl CheckState<'_> {
                 let receiver_node = left.into_global_any(module);
                 let receiver_site = self.node_site(receiver_node)?;
                 let mut receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                if let Some(split) =
-                    answer!(self.split_nullish_type(origin, receiver, source.local_id)?)
-                {
+                if let Some(split) = answer!(self.split_nullish_type(origin, receiver)?) {
                     self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
                     receiver = split.value;
                 }

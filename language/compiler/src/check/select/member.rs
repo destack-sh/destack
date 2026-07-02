@@ -134,8 +134,8 @@ impl DeclaredMember {
             (MemberRole::Getter, dir::Type::FunctionSignature(function)) => {
                 Ok(function.return_type.unwrap_or(ty))
             }
-            (MemberRole::Setter, dir::Type::FunctionSignature(function)) => Ok(function
-                .parameters
+            (MemberRole::Setter, dir::Type::FunctionSignature(function)) => Ok(check
+                .signature_parameters(ty.module_id, function.parameters)?
                 .first()
                 .map_or(ty, |parameter| parameter.ty)),
             _ => Ok(ty),
@@ -275,7 +275,7 @@ impl CheckState<'_> {
         let receiver_node = left.into_global_any(module);
         let receiver_site = self.node_site(receiver_node)?;
         let mut receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-        if let Some(split) = answer!(self.split_nullish_type(origin, receiver, node.local_id)?) {
+        if let Some(split) = answer!(self.split_nullish_type(origin, receiver)?) {
             self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
             receiver = split.value;
         }
@@ -420,7 +420,7 @@ impl CheckState<'_> {
         } else {
             dir::MemberTarget::Existential(resolution_candidates)
         };
-        let ty = self.normalized_union_type(module, types, node.local_id)?;
+        let ty = self.normalized_union_type(module, types)?;
         let resolution = dir::MemberResolution::new(receiver, target);
         self.commit_decision(node, Decision::Member(resolution))?;
         self.commit_node_type(node, ty)?;
@@ -473,14 +473,12 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ty));
         }
 
-        let source = self.origin_source_node(origin)?;
-        let projected = self.push_type(
+        let projected = self.intern_type(
             origin.module(),
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Readonly,
                 value: ty,
             }),
-            source,
         )?;
 
         self.reduce_type_head(origin, projected)
@@ -497,7 +495,7 @@ impl CheckState<'_> {
         loop {
             current = answer!(self.reduce_type_head(origin, current)?);
             let form = match self.ty(current)? {
-                dir::Type::Form(form) => *form,
+                dir::Type::Form(form) => form,
                 _ => return Ok(Answer::Ready(false)),
             };
 
@@ -544,8 +542,7 @@ impl CheckState<'_> {
                         return Ok(Answer::Ready(Some(written)));
                     }
                     if let Some(value) = candidate.value {
-                        let source = self.origin_source_node(origin)?;
-                        let ty = self.push_type(module, dir::Type::Static(value), source)?;
+                        let ty = self.intern_type(module, dir::Type::Static(value))?;
 
                         return Ok(Answer::Ready(Some(ty)));
                     }
@@ -572,14 +569,12 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ty));
         }
 
-        let source = self.origin_source_node(origin)?;
-        let projected = self.push_type(
+        let projected = self.intern_type(
             origin.module(),
             dir::Type::Form(dir::FormType {
                 form: dir::Form::Placed { place },
                 value: ty,
             }),
-            source,
         )?;
 
         self.reduce_type_head(origin, projected)

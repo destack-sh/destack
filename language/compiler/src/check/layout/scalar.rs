@@ -33,8 +33,8 @@ impl LayoutQuery<'_, '_> {
         let value = answer!(self.check.reduce_type_head(origin, value)?);
         let value = self.layout_type(value)?;
         let value = match self.check.ty(value)? {
-            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => convert(*value).ok(),
-            dir::Type::Static(value) => self.static_integer_value(*value, convert),
+            dir::Type::Literal(dir::ScalarLiteral::Integer(value)) => convert(value).ok(),
+            dir::Type::Static(value) => self.static_integer_value(value, convert),
             _ => None,
         };
 

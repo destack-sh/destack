@@ -14,8 +14,8 @@ impl CheckState<'_> {
         let left = answer!(self.reduce_type_head(origin, left)?);
         let right = answer!(self.reduce_type_head(origin, right)?);
 
-        let left_type = self.ty(left)?.clone();
-        let right_type = self.ty(right)?.clone();
+        let left_type = self.ty(left)?;
+        let right_type = self.ty(right)?;
 
         // reject empty inhabitants
         if matches!(left_type, dir::Type::Never) || matches!(right_type, dir::Type::Never) {
@@ -28,10 +28,14 @@ impl CheckState<'_> {
 
         // split unions on either side
         if let dir::Type::Union(union) = left_type {
-            return self.any_type_arm_may_overlap(origin, union.elements, right);
+            let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
+
+            return self.any_type_arm_may_overlap(origin, elements, right);
         }
         if let dir::Type::Union(union) = right_type {
-            return self.any_type_arm_may_overlap(origin, union.elements, left);
+            let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
+
+            return self.any_type_arm_may_overlap(origin, elements, left);
         }
 
         // compare generic parameters through their declared bounds
@@ -85,8 +89,16 @@ impl CheckState<'_> {
         }
 
         // reject distinct concrete runtime identities
-        if let (dir::Type::Instance(left), dir::Type::Instance(right)) = (&left_type, &right_type) {
-            return self.generic_instances_may_overlap(origin, left, right);
+        if let (dir::Type::Instance(left_instance), dir::Type::Instance(right_instance)) =
+            (left_type, right_type)
+        {
+            return self.generic_instances_may_overlap(
+                origin,
+                left.module_id,
+                &left_instance,
+                right.module_id,
+                &right_instance,
+            );
         }
 
         Ok(Answer::Ready(true))
@@ -138,11 +150,16 @@ impl CheckState<'_> {
     fn generic_instances_may_overlap(
         &mut self,
         origin: Origin,
+        left_module: destack_source::ModuleId,
         left: &dir::GenericInstance,
+        right_module: destack_source::ModuleId,
         right: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         if left.symbol == right.symbol {
-            return self.generic_arguments_may_overlap(origin, &left.arguments, &right.arguments);
+            let left_arguments = self.type_ids(left_module, left.arguments)?.to_vec();
+            let right_arguments = self.type_ids(right_module, right.arguments)?.to_vec();
+
+            return self.generic_arguments_may_overlap(origin, &left_arguments, &right_arguments);
         }
 
         let left_kind = self.symbol_kind(left.symbol);

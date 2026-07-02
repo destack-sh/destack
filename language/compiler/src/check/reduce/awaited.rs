@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use indexmap::IndexSet;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Origin, answer};
@@ -29,12 +30,13 @@ impl CheckState<'_> {
         }
 
         // distribute awaitedness over unions
-        if let dir::Type::Union(union) = self.ty(target)?.clone() {
+        if let dir::Type::Union(union) = self.ty(target)? {
             let module = origin.module();
-            let source = self.origin_source_node(origin)?;
-            let mut elements = Vec::with_capacity(union.elements.len());
+            let union_elements: SmallVec<[dir::GlobalTypeId; 8]> =
+                SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
+            let mut elements = Vec::with_capacity(union_elements.len());
 
-            for element in union.elements {
+            for element in union_elements {
                 let Some(element) = answer!(self.reduce_awaited_guarded(origin, element, active)?)
                 else {
                     active.swap_remove(&target);
@@ -45,9 +47,9 @@ impl CheckState<'_> {
             }
 
             let joined = match elements.as_slice() {
-                [] => self.push_type(module, dir::Type::Never, source)?,
+                [] => self.intern_type(module, dir::Type::Never)?,
                 [single] => *single,
-                _ => self.normalized_union_type(module, elements, source)?,
+                _ => self.normalized_union_type(module, elements)?,
             };
             active.swap_remove(&target);
 
@@ -68,14 +70,14 @@ impl CheckState<'_> {
 
         // unwrap compiler-recognized promises
         let instance = match self.ty(target)? {
-            dir::Type::Instance(instance) => Some(instance.clone()),
+            dir::Type::Instance(instance) => Some(instance),
             _ => None,
         };
         let inner = match instance {
             Some(instance)
                 if self.language_item(instance.symbol)? == Some(dir::LanguageItem::Promise) =>
             {
-                instance.arguments.first().copied()
+                self.type_id_at(target.module_id, instance.arguments, 0)?
             }
             _ => None,
         };

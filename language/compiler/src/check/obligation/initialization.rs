@@ -84,11 +84,7 @@ impl CheckState<'_> {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
-        let undefined = self.push_type(
-            field.source.module_id,
-            dir::Type::Undefined,
-            field.source.local_id,
-        )?;
+        let undefined = self.intern_type(field.source.module_id, dir::Type::Undefined)?;
 
         match self.decide_relation(origin, Relation::Assignable, undefined, ty)? {
             Answer::Ready(is_assignable) => Ok(Answer::Ready(!is_assignable)),

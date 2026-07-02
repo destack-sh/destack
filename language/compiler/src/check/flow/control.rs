@@ -44,9 +44,9 @@ impl WalkState<'_, '_> {
 
         // compute the result carried by all exiting paths
         let result = match values.as_slice() {
-            [] => self.push_type(dir::Type::Never, target.source.local_id)?,
+            [] => self.intern_type(dir::Type::Never)?,
             [single] => *single,
-            _ => self.normalized_union_type(values, target.source.local_id)?,
+            _ => self.normalized_union_type(values)?,
         };
 
         // return branches that escaped by break
@@ -83,7 +83,7 @@ impl WalkState<'_, '_> {
         // close failure-free try bodies to never
         if !target.has_failure {
             let origin = Origin::Node(source.into_global(self.module));
-            let never = self.push_type(dir::Type::Never, source)?;
+            let never = self.intern_type(dir::Type::Never)?;
 
             self.relate_type(origin, Relation::Equal, target.failure, never);
         }
@@ -101,7 +101,7 @@ impl WalkState<'_, '_> {
         // use void for omitted break values
         let value = match value {
             Some(value) => value,
-            None => self.push_type(dir::Type::Void, source)?,
+            None => self.intern_type(dir::Type::Void)?,
         };
 
         // resolve the chosen control target

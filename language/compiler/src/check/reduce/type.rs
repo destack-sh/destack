@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
@@ -74,9 +75,8 @@ impl CheckState<'_> {
         // report circular expansions once and poison the chain
         if !expanding.insert(id) {
             self.report_circular_type(origin)?;
-            let source = self.origin_source_node(origin)?;
             let module = origin.module();
-            let poisoned = self.push_type(module, dir::Type::Error, source)?;
+            let poisoned = self.intern_type(module, dir::Type::Error)?;
 
             return Ok(Answer::Ready(poisoned));
         }
@@ -84,22 +84,21 @@ impl CheckState<'_> {
         match self.ty(id)? {
             // open variables wait for their solutions
             dir::Type::Variable(variable) => {
-                let representative = self.solver.representative(*variable)?;
+                let representative = self.solver.representative(variable)?;
 
                 Ok(Answer::pending([Dependency::Variable(representative)]))
             }
 
             // transparent alias references expand to their substituted bodies
             dir::Type::Instance(instance) => {
-                let instance = instance.clone();
-
                 // reduce intrinsic references to their builtin forms
-                if let Some(reduced) = answer!(self.reduce_intrinsic_reference(origin, &instance)?)
+                if let Some(reduced) =
+                    answer!(self.reduce_intrinsic_reference(origin, id.module_id, &instance)?)
                 {
                     return self.reduce_type_head(origin, reduced);
                 }
 
-                match answer!(self.type_alias_body(origin, &instance)?) {
+                match answer!(self.type_alias_body(origin, id.module_id, &instance)?) {
                     Some(value) => {
                         let value = self.settled_root(value)?;
 
@@ -111,7 +110,6 @@ impl CheckState<'_> {
 
             // member projections resolve through their owners
             dir::Type::Member(member) => {
-                let member = member.clone();
                 let projection = self.project_member(origin, &member)?;
 
                 let Some(projected) = answer!(projection) else {
@@ -124,7 +122,6 @@ impl CheckState<'_> {
 
             // reduce type operations once their inputs close
             dir::Type::Operation(operation) => {
-                let operation = operation.clone();
                 let reduction = self.reduce_operation(origin, id, &operation)?;
 
                 let Some(reduced) = answer!(reduction) else {
@@ -137,7 +134,6 @@ impl CheckState<'_> {
 
             // borrows absorb payload placement and close their components
             dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed { .. }) => {
-                let form = *form;
                 let dir::Form::Borrowed { lifetime, access } = form.form else {
                     unreachable!("the borrowed arm only matches borrowed forms");
                 };
@@ -164,8 +160,7 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(id));
                 }
 
-                let source = self.origin_source_node(origin)?;
-                let rebuilt = self.push_type(
+                let rebuilt = self.intern_type(
                     origin.module(),
                     dir::Type::Form(dir::FormType {
                         form: dir::Form::Borrowed {
@@ -174,7 +169,6 @@ impl CheckState<'_> {
                         },
                         value: inner,
                     }),
-                    source,
                 )?;
 
                 self.reduce_type_head(origin, rebuilt)
@@ -183,7 +177,6 @@ impl CheckState<'_> {
             // non-borrow forms close their payload head so aliases can
             // contribute nested memory forms
             dir::Type::Form(form) => {
-                let form = *form;
                 let value = match self.reduce_type_head(origin, form.value)? {
                     Answer::Ready(value) => value,
                     Answer::Pending(_) => return Ok(Answer::Ready(id)),
@@ -200,14 +193,12 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(id));
                 }
 
-                let source = self.origin_source_node(origin)?;
-                let rebuilt = self.push_type(
+                let rebuilt = self.intern_type(
                     origin.module(),
                     dir::Type::Form(dir::FormType {
                         form: form.form,
                         value,
                     }),
-                    source,
                 )?;
 
                 self.reduce_type_head(origin, rebuilt)
@@ -215,11 +206,8 @@ impl CheckState<'_> {
 
             // intersections merge their structural shape elements
             dir::Type::Intersection(intersection) => {
-                let elements = intersection
-                    .elements
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.type_ids(id.module_id, intersection.elements)?);
 
                 self.reduce_intersection(origin, id, &elements)
             }
@@ -236,13 +224,12 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         access: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::GlobalTypeId, dir::GlobalTypeId)> {
-        match self.ty(value)?.clone() {
+        match self.ty(value)? {
             // readonly payloads clamp the borrow access
             dir::Type::Form(inner) if matches!(inner.form, dir::Form::Readonly) => {
-                let access = self.push_type(
+                let access = self.intern_type(
                     origin.module(),
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)),
-                    self.origin_source_node(origin)?,
                 )?;
 
                 Ok((inner.value, access))
@@ -292,7 +279,8 @@ impl CheckState<'_> {
         let mut replacements = indexmap::IndexMap::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-        self.ty(id)?.for_each_child(|child| children.push(child));
+        let root = self.ty(id)?;
+        self.for_each_type_child(id.module_id, &root, |child| children.push(child))?;
         for child in children {
             match self.reduce_type_graph(origin, child, memo, active)? {
                 Answer::Ready(reduced) => {
@@ -315,11 +303,13 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(id));
         }
 
-        // rebuild changed composites in the origin module
-        let mut ty = self.ty(id)?.clone();
-        ty.map_children(&mut |child| replacements.get(&child).copied().unwrap_or(child));
-        let source = self.origin_source_node(origin)?;
-        let rebuilt = self.push_type(origin.module(), ty, source)?;
+        // read payloads where the type lives, intern the rebuild where we work
+        let target = origin.module();
+        let ty = self.ty(id)?;
+        let ty = self.map_type_children(id.module_id, target, ty, &mut |_state, child| {
+            Ok(replacements.get(&child).copied().unwrap_or(child))
+        })?;
+        let rebuilt = self.intern_type(target, ty)?;
         active.swap_remove(&id);
         let rebuilt = answer!(self.reduce_type_graph(origin, rebuilt, memo, active)?);
         memo.insert(original, rebuilt);
@@ -328,9 +318,11 @@ impl CheckState<'_> {
     }
 
     /// Return the substituted body of one transparent type alias application.
+    /// `instance_module` is the owner of `instance`'s argument list.
     fn type_alias_body(
         &mut self,
         origin: Origin,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // expand transparent alias definitions only
@@ -347,32 +339,32 @@ impl CheckState<'_> {
 
         // reject invalid applications before expanding the alias body
         let source = self.origin_source_node(origin)?;
-        let substitution = self.instance_substitution(instance)?;
+        let substitution = self.instance_substitution(instance_module, instance)?;
+        let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
         if let Some(template) = self.symbol_template(instance.symbol) {
             let parameters = self.generic_template_parameters(template);
             let sources = SmallVec::<[dir::GlobalNodeIdAny; 4]>::from_iter(std::iter::repeat_n(
                 source.into_global(origin.module()),
-                instance.arguments.len(),
+                arguments.len(),
             ));
 
             if answer!(self.check_generic_arguments(
                 origin,
                 &parameters,
-                &instance.arguments,
+                &arguments,
                 &sources,
                 &substitution,
             )?)
             .is_some()
             {
-                let error = self.push_type(origin.module(), dir::Type::Error, source)?;
+                let error = self.intern_type(origin.module(), dir::Type::Error)?;
 
                 return Ok(Answer::Ready(Some(error)));
             }
         }
 
         // substitute applied arguments through the body
-        let module = origin.module();
-        let substituted = self.substitute_type(module, source, value, &substitution)?;
+        let substituted = self.substitute_type(origin.module(), value, &substitution)?;
 
         Ok(Answer::Ready(Some(substituted)))
     }

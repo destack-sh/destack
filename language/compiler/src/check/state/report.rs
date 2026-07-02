@@ -1496,7 +1496,7 @@ impl CheckState<'_> {
         let mut keys = Vec::new();
         match self.ty(current)? {
             dir::Type::Shape(shape) => {
-                for field in &shape.fields {
+                for field in self.shape_fields(current.module_id, shape.fields)? {
                     keys.push(self.format_static_key(&field.key));
                 }
             }
@@ -1527,22 +1527,18 @@ impl CheckState<'_> {
     }
 
     /// Return the source anchor of one type written as an annotation.
+    // NOTE #Incomplete: types are interned/hash-consed now, so a type value no
+    // longer carries the node where it was written as an annotation
+    // (`TypeSegment::get_type_source` was removed with no replacement). The
+    // caller's `origin` cannot substitute for it either: this anchor is meant
+    // to point at a *different* site than the relation's origin, and that
+    // distinct site is exactly the provenance that no longer exists. Flagged
+    // for Florian; this always returns `None` until a replacement exists.
     fn written_type_anchor(
         &self,
-        id: dir::GlobalTypeId,
+        _id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<DiagnosticAnchor>> {
-        let id = self.settled_root(id)?;
-
-        let Some(module) = self.modules.get(&id.module_id) else {
-            return Ok(None);
-        };
-        if module.types.get_type_maybe(id.local_id).is_some() {
-            return Ok(None);
-        }
-
-        let source = module.types.get_type_source(id.local_id);
-
-        Ok(Some(self.diagnostic_anchor(id.module_id, source)))
+        Ok(None)
     }
 
     /// Return the first excess property one property literal supplies to one target.
@@ -1569,8 +1565,8 @@ impl CheckState<'_> {
         let dir::Type::Shape(shape) = self.ty(left)? else {
             return Ok(None);
         };
-        let keys = shape
-            .fields
+        let keys = self
+            .shape_fields(left.module_id, shape.fields)?
             .iter()
             .map(|field| field.key)
             .collect::<SmallVec<[_; 8]>>();
@@ -1606,10 +1602,11 @@ impl CheckState<'_> {
         };
 
         // find the first writable index signature
-        let Some(signature) = shape
-            .index_signatures
+        let Some(signature) = self
+            .shape_index_signatures(target.module_id, shape.index_signatures)?
             .iter()
             .find(|signature| !signature.is_readonly)
+            .copied()
         else {
             return Ok(None);
         };
@@ -1646,8 +1643,8 @@ impl CheckState<'_> {
         let dir::Type::Shape(source) = self.ty(left)? else {
             return Ok(None);
         };
-        let source_keys = source
-            .fields
+        let source_keys = self
+            .shape_fields(left.module_id, source.fields)?
             .iter()
             .map(|field| field.key)
             .collect::<SmallVec<[_; 8]>>();
@@ -1692,8 +1689,7 @@ impl CheckState<'_> {
 
         match self.ty(target)? {
             dir::Type::Shape(shape) => Ok(Some(
-                shape
-                    .fields
+                self.shape_fields(target.module_id, shape.fields)?
                     .iter()
                     .filter(|field| !field.is_optional)
                     .map(|field| field.key)
@@ -1726,7 +1722,12 @@ impl CheckState<'_> {
                     return Ok(None);
                 }
 
-                Ok(Some(shape.fields.iter().map(|field| field.key).collect()))
+                Ok(Some(
+                    self.shape_fields(target.module_id, shape.fields)?
+                        .iter()
+                        .map(|field| field.key)
+                        .collect(),
+                ))
             }
             dir::Type::Instance(instance) => match self.definition(instance.symbol) {
                 Some(dir::Definition::Interface(interface)) if !interface.is_nominal => {
@@ -1738,7 +1739,8 @@ impl CheckState<'_> {
                 _ => Ok(None),
             },
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
                 let mut keys = SmallVec::new();
                 for element in elements {
                     let Some(element) = self.reduce_type_head(origin, element)?.ready() else {

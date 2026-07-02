@@ -201,7 +201,7 @@ impl CheckState<'_> {
 
             // declaration references search static members
             dir::Type::Reference(reference) => {
-                self.lookup_declaration_member(origin, module, *reference, space, key, extensions)
+                self.lookup_declaration_member(origin, module, reference, space, key, extensions)
             }
 
             // applied declarations search their definition members
@@ -234,13 +234,13 @@ impl CheckState<'_> {
 
             // generic parameters search through their constraints
             dir::Type::Parameter(parameter) => self.lookup_constraint_member(
-                origin, module, *parameter, space, key, extensions, active,
+                origin, module, parameter, space, key, extensions, active,
             ),
 
             // structural shapes expose their fields
             dir::Type::Shape(shape) => {
-                let field = shape
-                    .fields
+                let field = self
+                    .shape_fields(lookup_type.module_id, shape.fields)?
                     .iter()
                     .find(|field| field.key == key)
                     .map(|field| field.ty);
@@ -261,8 +261,8 @@ impl CheckState<'_> {
 
             // tuples expose their labeled elements
             dir::Type::Tuple(tuple) => {
-                let element = tuple
-                    .elements
+                let element = self
+                    .tuple_elements(lookup_type.module_id, tuple.elements)?
                     .iter()
                     .find(|element| {
                         element
@@ -287,18 +287,18 @@ impl CheckState<'_> {
 
             // unions join member lookups across their elements
             dir::Type::Union(union) => {
-                let elements = union.elements.iter().copied().collect::<SmallVec<[_; 4]>>();
+                let elements = self
+                    .type_ids(lookup_type.module_id, union.elements)?
+                    .to_vec();
 
                 self.lookup_union_member(origin, module, &elements, space, key, extensions, active)
             }
 
             // intersections expose every part's members
             dir::Type::Intersection(intersection) => {
-                let elements = intersection
-                    .elements
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[_; 4]>>();
+                let elements = self
+                    .type_ids(lookup_type.module_id, intersection.elements)?
+                    .to_vec();
                 for element in elements {
                     let element = self.settled_root(element)?;
                     match self.lookup_member_query(
@@ -349,11 +349,20 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         extensions: ExtensionSearch,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let Some(instance) = self.apparent_instance(lookup_type)? else {
+        let Some((instance_module, instance)) = self.apparent_instance(lookup_type)? else {
             return Ok(Answer::Ready(MemberLookup::Missing));
         };
 
-        self.lookup_symbol_member(origin, module, receiver, instance, space, key, extensions)
+        self.lookup_symbol_member(
+            origin,
+            module,
+            receiver,
+            instance_module,
+            instance,
+            space,
+            key,
+            extensions,
+        )
     }
 
     /// Look up one static member on a declaration reference.
@@ -377,8 +386,7 @@ impl CheckState<'_> {
         }
 
         // search declaration members before extensions
-        let inherent =
-            answer!(self.lookup_inherent_declaration_member(origin, module, symbol, key)?);
+        let inherent = answer!(self.lookup_inherent_declaration_member(origin, symbol, key)?);
         match inherent {
             MemberLookup::Found(_) | MemberLookup::Field(_) => {
                 return Ok(Answer::Ready(inherent));
@@ -423,11 +431,7 @@ impl CheckState<'_> {
         if candidates.is_empty() {
             let joined = match fields.as_slice() {
                 [single] => *single,
-                _ => {
-                    let source = self.origin_source_node(origin)?;
-
-                    self.normalized_union_type(origin.module(), fields, source)?
-                }
+                _ => self.normalized_union_type(origin.module(), fields)?,
             };
 
             return Ok(Answer::Ready(MemberLookup::Field(joined)));
@@ -442,6 +446,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
+        instance_module: ModuleId,
         instance: dir::GenericInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
@@ -454,9 +459,15 @@ impl CheckState<'_> {
         }
 
         // search inherent members before extensions
-        let inherent = answer!(
-            self.lookup_inherent_symbol_member(origin, module, receiver, &instance, space, key)?
-        );
+        let inherent = answer!(self.lookup_inherent_symbol_member(
+            origin,
+            module,
+            receiver,
+            instance_module,
+            &instance,
+            space,
+            key
+        )?);
         match inherent {
             MemberLookup::Found(_) | MemberLookup::Field(_) => {
                 return Ok(Answer::Ready(inherent));
@@ -476,7 +487,6 @@ impl CheckState<'_> {
     fn lookup_inherent_declaration_member(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
@@ -487,7 +497,6 @@ impl CheckState<'_> {
             .members_with_key(dir::MemberSpace::Static, key)
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
-        let source = self.origin_source_node(origin)?;
         let mut candidates = Vec::new();
 
         // collect visible static declaration members
@@ -500,7 +509,7 @@ impl CheckState<'_> {
             };
             let ty = member.value_type(self, ty)?;
             let written = member.symbol.and_then(|symbol| self.static_value(symbol));
-            let ty = self.resolve_type_variables(module, source, ty)?;
+            let ty = self.resolve_type_variables(origin.module(), ty)?;
             let ty = answer!(self.projected_member_type(origin, None, member.role, ty)?);
 
             candidates.push(MemberCandidate {
@@ -523,6 +532,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
@@ -543,9 +553,8 @@ impl CheckState<'_> {
 
         // substitute applied arguments and the qualified receiver
         let substitution = self
-            .instance_substitution(instance)?
+            .instance_substitution(instance_module, instance)?
             .with_receiver(receiver);
-        let source = self.origin_source_node(origin)?;
         let mut candidates = Vec::new();
         for member in members {
             let Some(member) = answer!(self.declared_member(&member)?) else {
@@ -556,7 +565,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            let ty = self.substitute_type(module, source, ty, &substitution)?;
+            let ty = self.substitute_type(origin.module(), ty, &substitution)?;
             let ty = member.value_type(self, ty)?;
             let ty =
                 answer!(self.projected_member_type(origin, Some(receiver), member.role, ty)?);
@@ -564,13 +573,14 @@ impl CheckState<'_> {
             // carry substituted static value types for projections
             let written = match symbol.and_then(|symbol| self.static_value(symbol)) {
                 Some(written) => {
-                    Some(self.substitute_type(module, source, written, &substitution)?)
+                    Some(self.substitute_type(origin.module(), written, &substitution)?)
                 }
                 written => written,
             };
 
+            let instance_arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
             let generic_arguments =
-                self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
+                self.symbol_generic_argument_bindings(instance.symbol, &instance_arguments)?;
 
             candidates.push(MemberCandidate {
                 symbol,
@@ -590,14 +600,14 @@ impl CheckState<'_> {
         for (symbol, arguments) in heritages {
             let mut arguments = arguments;
             for argument in &mut arguments {
-                *argument = self.substitute_type(module, source, *argument, &substitution)?;
+                *argument = self.substitute_type(origin.module(), *argument, &substitution)?;
             }
+            let arguments = self.intern_type_ids(module, &arguments)?;
 
             let heritage = dir::GenericInstance { symbol, arguments };
-            let lookup =
-                answer!(self.lookup_inherent_symbol_member(
-                    origin, module, receiver, &heritage, space, key
-                )?);
+            let lookup = answer!(self.lookup_inherent_symbol_member(
+                origin, module, receiver, module, &heritage, space, key
+            )?);
             match lookup {
                 MemberLookup::Missing => continue,
                 lookup => return Ok(Answer::Ready(lookup)),

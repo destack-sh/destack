@@ -95,7 +95,7 @@ const value: "ready" = "ready";
 /// @type.symbol symbol=value source=value type="ready"
 /// @type.node source="\"ready\"" type="ready"
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -120,7 +120,7 @@ const value: true = true;
 /// @type.symbol symbol=value source=value type=true
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -231,7 +231,7 @@ const version = config.version;
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.version receiver={ version: float64 } kind=field key=version
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -270,7 +270,7 @@ const mode = config.nested.mode;
 /// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } kind=field key=nested
 /// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -312,7 +312,7 @@ const mode = value.env.mode;
 /// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } kind=field key=env
 /// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -367,7 +367,7 @@ const copy = version;
 /// @type.node source=version type=1
 /// @resolution.name source=version target=values.version
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -422,7 +422,7 @@ const copy = counter;
 /// @type.node source=counter type=float64
 /// @resolution.name source=counter target=values.counter
 
-/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
