@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use super::{NativeContinuation, NativeMaterialization, NativeTrapCode, NativeValue};
+use super::{NativeContinuation, NativeExitCode, NativeExitKind, NativeTrapCode, NativeValue};
 use crate::{NativeConstantSpace, NativeStaticSpace};
 
 /// Native call context passed to generated native code.
@@ -42,12 +42,12 @@ impl NativeContext {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NativeExit {
+    /// Exit kind written by runtime services that leave native execution.
+    pub kind: NativeExitCode,
     /// Safepoint associated with yield or deoptimization.
     pub safepoint: u32,
-    /// Native continuation associated with yield exits.
+    /// Native continuation associated with yield and deoptimization exits.
     pub continuation: NativeContinuation,
-    /// Materialized continuation associated with deoptimization.
-    pub materialization: NativeMaterialization,
     /// Trap code associated with trap exits.
     pub trap: NativeTrapCode,
     /// Payload associated with language panic exits.
@@ -57,9 +57,9 @@ pub struct NativeExit {
 impl Default for NativeExit {
     fn default() -> Self {
         Self {
+            kind: NativeExitKind::Completed.code(),
             safepoint: 0,
             continuation: NativeContinuation::empty(),
-            materialization: NativeMaterialization::empty(),
             trap: 0,
             payload: NativeValue::VOID,
         }

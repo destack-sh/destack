@@ -107,10 +107,10 @@ impl SymbolImport {
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum RuntimeBinding {
-    /// Typed heap allocation.
-    New,
-    /// Typed repeated heap allocation.
-    NewSlice,
+    /// Heap object allocation through the runtime.
+    Allocate,
+    /// Repeated heap backing allocation through the runtime.
+    AllocateSlice,
     /// Unique heap release.
     Free,
     /// Heap pin.
@@ -151,8 +151,8 @@ impl RuntimeBinding {
     /// Return the fixed runtime symbol name.
     pub const fn symbol_name(self) -> &'static str {
         match self {
-            Self::New => "__destack_new",
-            Self::NewSlice => "__destack_new_slice",
+            Self::Allocate => "__destack_allocate",
+            Self::AllocateSlice => "__destack_allocate_slice",
             Self::Free => "__destack_free",
             Self::Pin => "__destack_pin",
             Self::Unpin => "__destack_unpin",

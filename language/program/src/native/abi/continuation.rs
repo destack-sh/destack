@@ -1,30 +1,30 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::{ContinuationImage, FrameImage, FrameStateId, StackImage};
+use crate::{Continuation, ContinuationFrame, FrameStateId};
 
 /// Native frame captured with one continuation.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NativeFrameImage {
+pub struct NativeFrame {
     /// The captured frame state.
     pub frame_state: u32,
     /// Whether the caller return frame state is present.
     pub return_state_is_present: u32,
     /// The caller return frame state when present.
     pub return_state: u32,
-    /// The captured frame bytes.
+    /// The captured frame bytes in durable continuation encoding.
     pub bytes: *const u8,
     /// The captured frame byte length.
     pub byte_len: usize,
 }
 
-/// Native continuation image passed through the native ABI.
+/// Native continuation passed through the native ABI.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NativeContinuation {
     /// The captured native frames from outermost to innermost.
-    pub frames: *const NativeFrameImage,
+    pub frames: *const NativeFrame,
     /// The number of captured native frames.
     pub frame_count: usize,
 }
@@ -48,9 +48,7 @@ impl NativeContinuation {
     /// # Safety
     ///
     /// The frame pointer must point at `frame_count` immutable frames for the duration of this call.
-    pub unsafe fn to_continuation_image(
-        self,
-    ) -> Result<ContinuationImage, NativeContinuationError> {
+    pub unsafe fn to_continuation(self) -> Result<Continuation, NativeContinuationError> {
         if self.frame_count == 0 {
             return Err(NativeContinuationError::Empty);
         }
@@ -61,25 +59,21 @@ impl NativeContinuation {
 
         // SAFETY: guaranteed by the caller and checked for a null pointer above
         let frames = unsafe { std::slice::from_raw_parts(self.frames, self.frame_count) };
-        let mut stack = StackImage::empty();
-        let mut images = Vec::with_capacity(frames.len());
+        let mut continuation = Continuation::empty();
 
-        // copy native frame bytes into one durable stack image
+        // copy native frame bytes into the continuation byte store
         for frame in frames {
-            let image = unsafe { frame.to_frame_image(&mut stack) }
+            let frame = unsafe { frame.to_continuation_frame(&mut continuation) }
                 .map_err(NativeContinuationError::Frame)?;
 
-            images.push(image);
+            continuation.frames.push(frame);
         }
 
-        Ok(ContinuationImage {
-            stack,
-            frames: images,
-        })
+        Ok(continuation)
     }
 }
 
-impl NativeFrameImage {
+impl NativeFrame {
     /// Return the caller return frame state.
     pub fn caller_return_state(self) -> Option<FrameStateId> {
         if self.return_state_is_present == 0 {
@@ -94,43 +88,37 @@ impl NativeFrameImage {
     /// # Safety
     ///
     /// The byte pointer must point at `byte_len` immutable bytes for the duration of this call.
-    pub unsafe fn to_frame_image(
+    pub unsafe fn to_continuation_frame(
         self,
-        stack: &mut StackImage,
-    ) -> Result<FrameImage, NativeFrameImageError> {
+        continuation: &mut Continuation,
+    ) -> Result<ContinuationFrame, NativeFrameError> {
         let bytes = if self.byte_len == 0 {
             &[][..]
         } else if self.bytes.is_null() {
-            return Err(NativeFrameImageError::NullFrameBytes);
+            return Err(NativeFrameError::NullFrameBytes);
         } else {
             // SAFETY: guaranteed by the caller and checked for a null pointer above
             unsafe { std::slice::from_raw_parts(self.bytes, self.byte_len) }
         };
-        let stack_offset = stack.push_frame(bytes);
+        let byte_offset = continuation.push_frame_bytes(bytes);
 
-        Ok(FrameImage {
+        Ok(ContinuationFrame {
             frame_state: self.frame_state.into(),
             return_state: self.caller_return_state(),
-            stack_offset,
+            byte_offset,
             byte_len: self.byte_len,
         })
     }
 }
 
-impl Default for NativeContinuation {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
-/// Invalid native frame image.
+/// Invalid native frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NativeFrameImageError {
+pub enum NativeFrameError {
     /// One non-empty frame byte pointer was null.
     NullFrameBytes,
 }
 
-impl fmt::Display for NativeFrameImageError {
+impl fmt::Display for NativeFrameError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NullFrameBytes => write!(formatter, "native frame bytes are null"),
@@ -138,7 +126,7 @@ impl fmt::Display for NativeFrameImageError {
     }
 }
 
-impl Error for NativeFrameImageError {}
+impl Error for NativeFrameError {}
 
 /// Invalid native continuation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,8 +135,8 @@ pub enum NativeContinuationError {
     Empty,
     /// The native frame pointer was null.
     NullFrames,
-    /// One native frame image could not be decoded.
-    Frame(NativeFrameImageError),
+    /// One native frame could not be decoded.
+    Frame(NativeFrameError),
 }
 
 impl fmt::Display for NativeContinuationError {
