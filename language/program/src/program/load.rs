@@ -1,13 +1,20 @@
 use std::fmt;
 
-use destack_core::{SectionImageError, SectionStorage};
-use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
-use serde::{Deserialize, Serialize};
+use ::serde::de::DeserializeOwned;
+use ::serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
+use destack_core::{SectionDirectory, SectionImageError, SectionStorage};
+use destack_serde::{self as serde, Reflect, SchemaRef, SchemaRegistry};
 
-use super::{Program, ProgramHeader, TraceTableError};
+use super::{Program, TraceTableError};
+use crate::{
+    DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, ProgramInfo, StaticImage,
+    StringTable, TraceTable, TypeTable, native, vm,
+};
+use destack_heap::{HeapOptions, SharedHeapOptions};
+use destack_mir::TargetLayout;
 
 const PROGRAM_MAGIC: [u8; 4] = *b"DSPG";
-const PROGRAM_HEADER_LENGTH_BYTES: usize = 4;
+const PROGRAM_LENGTH_PREFIX_BYTES: usize = 4;
 
 /// Program load failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,7 +22,7 @@ pub enum ProgramLoadError {
     /// Program bytes are not a supported program image.
     InvalidBytes(&'static str),
     /// Program bytes did not decode.
-    Codec(destack_serde::Error),
+    Codec(serde::Error),
     /// Program sections are malformed.
     Section(SectionImageError),
     /// Program trace table is malformed.
@@ -36,9 +43,9 @@ impl fmt::Display for ProgramLoadError {
 
 impl std::error::Error for ProgramLoadError {}
 
-impl From<destack_serde::Error> for ProgramLoadError {
+impl From<serde::Error> for ProgramLoadError {
     /// Convert one codec error.
-    fn from(error: destack_serde::Error) -> Self {
+    fn from(error: serde::Error) -> Self {
         Self::Codec(error)
     }
 }
@@ -61,9 +68,9 @@ impl Serialize for Program {
     /// Serialize one program through its byte envelope.
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
-        let bytes = self.to_bytes().map_err(serde::ser::Error::custom)?;
+        let bytes = self.to_bytes().map_err(ser::Error::custom)?;
 
         bytes.serialize(serializer)
     }
@@ -73,11 +80,11 @@ impl<'de> Deserialize<'de> for Program {
     /// Deserialize one program from its byte envelope.
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         let bytes = Vec::<u8>::deserialize(deserializer)?;
 
-        Self::load(&bytes).map_err(serde::de::Error::custom)
+        Self::load(&bytes).map_err(de::Error::custom)
     }
 }
 
@@ -91,41 +98,128 @@ impl Reflect for Program {
 impl Program {
     /// Load one program from program bytes.
     pub fn load(bytes: &[u8]) -> Result<Self, ProgramLoadError> {
-        let (header, table_bytes) = Self::decode_bytes(bytes)?;
-        let storage = Self::load_storage(&header, table_bytes)?;
-        let program = Self::new(header, storage)?;
+        let (descriptor_bytes, table_bytes) = Self::split_bytes(bytes)?;
+        let program = Self::decode_program(descriptor_bytes, table_bytes)?;
 
         Ok(program)
     }
 
     /// Store this program as program bytes.
     pub fn to_bytes(&self) -> Result<Vec<u8>, ProgramLoadError> {
-        let header_bytes = destack_serde::to_vec(self.header())?;
-        let header_len = u32::try_from(header_bytes.len()).map_err(|_| {
-            ProgramLoadError::InvalidBytes("program header exceeds supported byte length")
+        let descriptor_bytes = self.encode_descriptor()?;
+        let descriptor_len = u32::try_from(descriptor_bytes.len()).map_err(|_| {
+            ProgramLoadError::InvalidBytes("program descriptor exceeds supported byte length")
         })?;
         let table_bytes = self.sections().table_bytes();
 
         // allocate one contiguous byte envelope
         let byte_len = PROGRAM_MAGIC.len()
-            + PROGRAM_HEADER_LENGTH_BYTES
-            + header_bytes.len()
+            + PROGRAM_LENGTH_PREFIX_BYTES
+            + descriptor_bytes.len()
             + table_bytes.len();
         let mut bytes = Vec::with_capacity(byte_len);
 
         // write envelope prefix and payload
         bytes.extend_from_slice(&PROGRAM_MAGIC);
-        bytes.extend_from_slice(&header_len.to_le_bytes());
-        bytes.extend_from_slice(&header_bytes);
+        bytes.extend_from_slice(&descriptor_len.to_le_bytes());
+        bytes.extend_from_slice(&descriptor_bytes);
         bytes.extend_from_slice(table_bytes);
 
         Ok(bytes)
     }
 
+    /// Encode durable program fields.
+    fn encode_descriptor(&self) -> Result<Vec<u8>, ProgramLoadError> {
+        let mut bytes = Vec::new();
+
+        // encode program tables and executable metadata
+        Self::push_field(&mut bytes, &self.sections)?;
+        Self::push_field(&mut bytes, &self.target_layout)?;
+        Self::push_field(&mut bytes, &self.local_heap)?;
+        Self::push_field(&mut bytes, &self.shared_heap)?;
+        Self::push_field(&mut bytes, &self.strings)?;
+        Self::push_field(&mut bytes, &self.types)?;
+        Self::push_field(&mut bytes, &self.layouts)?;
+        Self::push_field(&mut bytes, &self.frames)?;
+        Self::push_field(&mut bytes, &self.functions)?;
+        Self::push_field(&mut bytes, &self.dispatch)?;
+        Self::push_field(&mut bytes, &self.traces)?;
+        Self::push_field(&mut bytes, &self.globals)?;
+        Self::push_field(&mut bytes, &self.info)?;
+
+        // encode initial static storage and code payloads
+        Self::push_field(&mut bytes, &self.constant_space)?;
+        Self::push_field(&mut bytes, &self.shared_static_space)?;
+        Self::push_field(&mut bytes, &self.local_static_space)?;
+        Self::push_field(&mut bytes, &self.vm)?;
+        Self::push_field(&mut bytes, &self.native)?;
+
+        Ok(bytes)
+    }
+
+    /// Decode durable program fields.
+    fn decode_program(descriptor: &[u8], table: &[u8]) -> Result<Self, ProgramLoadError> {
+        let mut offset = 0usize;
+
+        // decode program tables and executable metadata
+        let sections = Self::pull_field::<SectionDirectory>(descriptor, &mut offset)?;
+        let target_layout = Self::pull_field::<TargetLayout>(descriptor, &mut offset)?;
+        let local_heap = Self::pull_field::<HeapOptions>(descriptor, &mut offset)?;
+        let shared_heap = Self::pull_field::<SharedHeapOptions>(descriptor, &mut offset)?;
+        let strings = Self::pull_field::<StringTable>(descriptor, &mut offset)?;
+        let types = Self::pull_field::<TypeTable>(descriptor, &mut offset)?;
+        let layouts = Self::pull_field::<LayoutTable>(descriptor, &mut offset)?;
+        let frames = Self::pull_field::<FrameTable>(descriptor, &mut offset)?;
+        let functions = Self::pull_field::<FunctionTable>(descriptor, &mut offset)?;
+        let dispatch = Self::pull_field::<DispatchTable>(descriptor, &mut offset)?;
+        let traces = Self::pull_field::<TraceTable>(descriptor, &mut offset)?;
+        let globals = Self::pull_field::<GlobalTable>(descriptor, &mut offset)?;
+        let info = Self::pull_field::<Option<ProgramInfo>>(descriptor, &mut offset)?;
+
+        // decode initial static storage and code payloads
+        let constant_space = Self::pull_field::<StaticImage>(descriptor, &mut offset)?;
+        let shared_static_space = Self::pull_field::<StaticImage>(descriptor, &mut offset)?;
+        let local_static_space = Self::pull_field::<StaticImage>(descriptor, &mut offset)?;
+        let vm = Self::pull_field::<vm::Code>(descriptor, &mut offset)?;
+        let native = Self::pull_field::<Option<native::Code>>(descriptor, &mut offset)?;
+
+        // reject mismatched descriptor schemas
+        if offset != descriptor.len() {
+            return Err(ProgramLoadError::InvalidBytes(
+                "trailing program descriptor bytes",
+            ));
+        }
+
+        let storage = Self::load_storage(&sections, table)?;
+        let program = Self::new(
+            sections,
+            target_layout,
+            local_heap,
+            shared_heap,
+            strings,
+            types,
+            layouts,
+            frames,
+            functions,
+            dispatch,
+            traces,
+            globals,
+            info,
+            constant_space,
+            shared_static_space,
+            local_static_space,
+            vm,
+            native,
+            storage,
+        )?;
+
+        Ok(program)
+    }
+
     /// Decode one program byte envelope.
-    fn decode_bytes(bytes: &[u8]) -> Result<(ProgramHeader, &[u8]), ProgramLoadError> {
-        if bytes.len() < PROGRAM_MAGIC.len() + PROGRAM_HEADER_LENGTH_BYTES {
-            return Err(ProgramLoadError::InvalidBytes("missing program header"));
+    fn split_bytes(bytes: &[u8]) -> Result<(&[u8], &[u8]), ProgramLoadError> {
+        if bytes.len() < PROGRAM_MAGIC.len() + PROGRAM_LENGTH_PREFIX_BYTES {
+            return Err(ProgramLoadError::InvalidBytes("missing program descriptor"));
         }
 
         // validate magic prefix
@@ -133,38 +227,39 @@ impl Program {
             return Err(ProgramLoadError::InvalidBytes("invalid program magic"));
         }
 
-        // decode header byte range
+        // decode descriptor byte range
         let length_offset = PROGRAM_MAGIC.len();
-        let header_offset = length_offset + PROGRAM_HEADER_LENGTH_BYTES;
-        let header_len = u32::from_le_bytes(
-            bytes[length_offset..header_offset]
+        let descriptor_offset = length_offset + PROGRAM_LENGTH_PREFIX_BYTES;
+        let descriptor_len = u32::from_le_bytes(
+            bytes[length_offset..descriptor_offset]
                 .try_into()
-                .map_err(|_| ProgramLoadError::InvalidBytes("invalid program header length"))?,
+                .map_err(|_| ProgramLoadError::InvalidBytes("invalid program descriptor length"))?,
         ) as usize;
         let table_offset =
-            header_offset
-                .checked_add(header_len)
+            descriptor_offset
+                .checked_add(descriptor_len)
                 .ok_or(ProgramLoadError::InvalidBytes(
-                    "program header length overflow",
+                    "program descriptor length overflow",
                 ))?;
         if bytes.len() < table_offset {
-            return Err(ProgramLoadError::InvalidBytes("truncated program header"));
+            return Err(ProgramLoadError::InvalidBytes(
+                "truncated program descriptor",
+            ));
         }
 
-        // decode root header
-        let header =
-            destack_serde::from_slice::<ProgramHeader>(&bytes[header_offset..table_offset])?;
+        // split descriptor and section table payloads
+        let descriptor = &bytes[descriptor_offset..table_offset];
         let table = &bytes[table_offset..];
 
-        Ok((header, table))
+        Ok((descriptor, table))
     }
 
     /// Copy raw table bytes into aligned section storage.
     fn load_storage(
-        header: &ProgramHeader,
+        sections: &SectionDirectory,
         table: &[u8],
     ) -> Result<SectionStorage, ProgramLoadError> {
-        let table_byte_len = usize::try_from(header.sections.table_byte_len()).map_err(|_| {
+        let table_byte_len = usize::try_from(sections.table_byte_len()).map_err(|_| {
             ProgramLoadError::InvalidBytes("program table length exceeds host size")
         })?;
         if table.len() != table_byte_len {
@@ -175,8 +270,63 @@ impl Program {
 
         Ok(SectionStorage::from_table_bytes(
             table,
-            header.sections.table_byte_len(),
+            sections.table_byte_len(),
         )?)
+    }
+
+    /// Push one encoded descriptor field.
+    fn push_field<T>(bytes: &mut Vec<u8>, value: &T) -> Result<(), ProgramLoadError>
+    where
+        T: Serialize + ?Sized,
+    {
+        let field = serde::to_vec(value)?;
+        let field_len = u32::try_from(field.len()).map_err(|_| {
+            ProgramLoadError::InvalidBytes("program descriptor field exceeds supported byte length")
+        })?;
+
+        bytes.extend_from_slice(&field_len.to_le_bytes());
+        bytes.extend_from_slice(&field);
+
+        Ok(())
+    }
+
+    /// Pull one encoded descriptor field.
+    fn pull_field<T>(bytes: &[u8], offset: &mut usize) -> Result<T, ProgramLoadError>
+    where
+        T: DeserializeOwned,
+    {
+        let len_offset = offset.checked_add(PROGRAM_LENGTH_PREFIX_BYTES).ok_or(
+            ProgramLoadError::InvalidBytes("program descriptor field length overflow"),
+        )?;
+        if len_offset > bytes.len() {
+            return Err(ProgramLoadError::InvalidBytes(
+                "truncated program descriptor field length",
+            ));
+        }
+
+        // decode length and field range
+        let len = u32::from_le_bytes(
+            bytes[*offset..len_offset]
+                .try_into()
+                .map_err(|_| ProgramLoadError::InvalidBytes("invalid program descriptor field"))?,
+        ) as usize;
+        let field_offset = len_offset;
+        let next_offset = field_offset
+            .checked_add(len)
+            .ok_or(ProgramLoadError::InvalidBytes(
+                "program descriptor field length overflow",
+            ))?;
+        if next_offset > bytes.len() {
+            return Err(ProgramLoadError::InvalidBytes(
+                "truncated program descriptor field",
+            ));
+        }
+
+        // decode field and advance cursor
+        let value = serde::from_slice(&bytes[field_offset..next_offset])?;
+        *offset = next_offset;
+
+        Ok(value)
     }
 }
 
@@ -187,8 +337,8 @@ mod tests {
     use destack_mir::TargetLayout;
 
     use crate::{
-        DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program, ProgramHeader,
-        ProgramInfo, ProgramLoadError, StaticImage, StringTable, TraceTable, TypeTable, vm,
+        DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program, ProgramInfo,
+        ProgramLoadError, StaticImage, StringTable, TraceTable, TypeTable, vm,
     };
 
     /// Store and load a program without nesting section bytes in the artifact blob codec.
@@ -252,7 +402,7 @@ mod tests {
         );
 
         let (directory, storage) = sections.finish();
-        let header = ProgramHeader::new(
+        let program = Program::new(
             directory,
             TargetLayout::default(),
             HeapOptions::local(),
@@ -271,8 +421,9 @@ mod tests {
             local_static_space,
             vm,
             None,
-        );
-        let program = Program::new(header, storage).expect("program should build");
+            storage,
+        )
+        .expect("program should build");
 
         (program, name)
     }

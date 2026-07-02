@@ -1,4 +1,4 @@
-use destack_core::{SectionImage, SectionStorage, StringId};
+use destack_core::{SectionDirectory, SectionImage, SectionStorage, StringId};
 use destack_heap::{
     AllocationShape, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange, RootSlot,
     SharedHeapOptions, SharedHeapReference, TraceView, visit_heap_root_slots,
@@ -8,52 +8,119 @@ use destack_source::ContentId;
 
 use crate::{
     AddressSpace, CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization,
-    FrameSlot, FrameSlotId, FrameStateId, Function, FunctionId, FunctionSignature, FunctionTable,
-    Global, GlobalAddress, GlobalId, GlobalLocation, Layout, LayoutField, LayoutId, LayoutShape,
-    LayoutTable, ProgramInfo, ScalarFormat, Signature, StaticImage, StaticSpace, StringTable,
-    TraceCache, TraceTable, TypeId, TypeTable, native, vm,
+    FrameSlot, FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature,
+    FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout,
+    LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ScalarFormat, Signature,
+    StaticImage, StaticSpace, StringTable, TraceTable, TypeId, TypeTable, native, vm,
 };
 use vm::error::{Error, Result};
 
-use super::{ProgramHeader, ProgramLoadError};
+use super::ProgramLoadError;
 
 /// Program produced by the toolchain.
 #[derive(Debug, Clone)]
 pub struct Program {
-    /// Root program descriptor.
-    header: ProgramHeader,
+    /// Program section directory.
+    pub(crate) sections: SectionDirectory,
+    /// Target ABI layout used by program layouts and pointer-sized integer types.
+    pub(crate) target_layout: TargetLayout,
+    /// Local heap geometry used by lowered allocation plans.
+    pub(crate) local_heap: HeapOptions,
+    /// Shared heap geometry used by lowered allocation plans.
+    pub(crate) shared_heap: SharedHeapOptions,
+
+    /// Program string table.
+    pub(crate) strings: StringTable,
+    /// Runtime type table.
+    pub(crate) types: TypeTable,
+    /// Runtime layouts keyed by layout id.
+    pub(crate) layouts: LayoutTable,
+    /// Runtime frame table.
+    pub(crate) frames: FrameTable,
+    /// Program function table.
+    pub(crate) functions: FunctionTable,
+    /// Runtime dispatch table.
+    pub(crate) dispatch: DispatchTable,
+    /// Canonical trace table used by heap tables.
+    pub(crate) traces: TraceTable,
+    /// Decoded trace maps indexed by TraceId for heap and GC paths.
+    pub(crate) trace_maps: Vec<TraceMap>,
+    /// Program globals keyed by dense global id.
+    pub(crate) globals: GlobalTable,
+    /// Optional source reflection table.
+    pub(crate) info: Option<ProgramInfo>,
+
+    /// Immutable constant storage owned by this program.
+    pub(crate) constant_space: StaticImage,
+    /// Initial shared static storage for each runtime.
+    pub(crate) shared_static_space: StaticImage,
+    /// Initial local static storage for each worker.
+    pub(crate) local_static_space: StaticImage,
+
+    /// VM code used for interpretation, deoptimization, and continuation resume.
+    pub(crate) vm: vm::Code,
+    /// Native code used as optional acceleration.
+    pub(crate) native: Option<native::Code>,
+
     /// Program section storage.
-    storage: SectionStorage,
-    /// Decoded trace maps for heap and GC paths.
-    traces: TraceCache,
+    pub(crate) storage: SectionStorage,
 }
 
 impl Program {
-    /// Create one program from its root descriptor and section storage.
+    /// Create one program from executable tables and section storage.
     pub fn new(
-        header: ProgramHeader,
+        sections: SectionDirectory,
+        target_layout: TargetLayout,
+        local_heap: HeapOptions,
+        shared_heap: SharedHeapOptions,
+        strings: StringTable,
+        types: TypeTable,
+        layouts: LayoutTable,
+        frames: FrameTable,
+        functions: FunctionTable,
+        dispatch: DispatchTable,
+        traces: TraceTable,
+        globals: GlobalTable,
+        info: Option<ProgramInfo>,
+        constant_space: StaticImage,
+        shared_static_space: StaticImage,
+        local_static_space: StaticImage,
+        vm: vm::Code,
+        native: Option<native::Code>,
         storage: SectionStorage,
     ) -> std::result::Result<Self, ProgramLoadError> {
-        let sections = SectionImage::load(&header.sections, &storage)?;
-        let trace_cache = TraceCache::decode(&header.traces, sections)?;
+        let image = SectionImage::load(&sections, &storage)?;
+        let trace_maps = traces.decode(image)?;
 
         Ok(Self {
-            header,
+            sections,
+            target_layout,
+            local_heap,
+            shared_heap,
+            strings,
+            types,
+            layouts,
+            frames,
+            functions,
+            dispatch,
+            traces,
+            trace_maps,
+            globals,
+            info,
+            constant_space,
+            shared_static_space,
+            local_static_space,
+            vm,
+            native,
             storage,
-            traces: trace_cache,
         })
-    }
-
-    /// Return the root program descriptor.
-    pub(crate) fn header(&self) -> &ProgramHeader {
-        &self.header
     }
 
     /// Return all content ids referenced by this program.
     pub fn content_ids(&self) -> Vec<ContentId> {
-        let mut ids = self.header.vm.content_ids();
+        let mut ids = self.vm.content_ids();
 
-        if let Some(native) = &self.header.native {
+        if let Some(native) = &self.native {
             ids.extend(native.content_ids());
         }
 
@@ -62,12 +129,12 @@ impl Program {
 
     /// Return runtime type table.
     pub fn types(&self) -> &TypeTable {
-        &self.header.types
+        &self.types
     }
 
     /// Return the target ABI layout used by this program.
     pub fn target_layout(&self) -> TargetLayout {
-        self.header.target_layout
+        self.target_layout
     }
 
     /// Return the pointer byte width used by this program.
@@ -77,38 +144,37 @@ impl Program {
 
     /// Return local heap options required by this program.
     pub fn heap_options(&self) -> &HeapOptions {
-        &self.header.local_heap
+        &self.local_heap
     }
 
     /// Return shared heap options required by this program.
     pub fn shared_heap_options(&self) -> &SharedHeapOptions {
-        &self.header.shared_heap
+        &self.shared_heap
     }
 
     /// Return the program function table.
     pub fn functions(&self) -> &FunctionTable {
-        &self.header.functions
+        &self.functions
     }
 
     /// Return a read-only view of program sections.
     pub fn sections(&self) -> SectionImage<'_> {
         // SAFETY: Program::new loads and checks the section image before storing it.
-        unsafe { SectionImage::new_unchecked(&self.header.sections, &self.storage) }
+        unsafe { SectionImage::new_unchecked(&self.sections, &self.storage) }
     }
 
     /// Return one program function record.
     pub fn function(&self, function: FunctionId) -> Option<&Function> {
-        self.header.functions.get(self.sections(), function)
+        self.functions.get(self.sections(), function)
     }
 
     /// Return parameter types for one program function.
     pub fn function_parameters(&self, function: FunctionId) -> Option<&[TypeId]> {
         let sections = self.sections();
 
-        self.header
-            .functions
+        self.functions
             .get(sections, function)
-            .map(|function| self.header.functions.parameters(sections, function))
+            .map(|function| self.functions.parameters(sections, function))
     }
 
     /// Check that one function matches one signature type.
@@ -117,8 +183,7 @@ impl Program {
         function: FunctionId,
         signature: &Signature,
     ) -> Result<()> {
-        self.header
-            .functions
+        self.functions
             .check_signature(self.sections(), function, signature)
     }
 
@@ -131,20 +196,18 @@ impl Program {
     ) -> Result<()> {
         let sections = self.sections();
 
-        self.header
-            .functions
+        self.functions
             .check_signature_entry(sections, function, signature, parameters)
     }
 
     /// Return runtime dispatch table.
     pub fn dispatch(&self) -> &DispatchTable {
-        &self.header.dispatch
+        &self.dispatch
     }
 
     /// Return whether one concrete type satisfies one runtime type.
     pub fn is_subtype(&self, concrete: TypeId, expected: TypeId) -> Result<bool> {
-        self.header
-            .types
+        self.types
             .is_subtype(self.sections(), concrete, expected)
             .ok_or_else(|| {
                 Error::internal(format!("missing runtime type {concrete:?} or {expected:?}"))
@@ -153,37 +216,37 @@ impl Program {
 
     /// Return one program global by id.
     pub fn global(&self, global: GlobalId) -> Option<&Global> {
-        self.header.globals.get(self.sections(), global)
+        self.globals.get(self.sections(), global)
     }
 
     /// Return immutable constant storage owned by this program.
     pub fn constants(&self) -> &StaticImage {
-        &self.header.constant_space
+        &self.constant_space
     }
 
     /// Return native code when this program carries it.
     pub fn native_code(&self) -> Option<&native::Code> {
-        self.header.native.as_ref()
+        self.native.as_ref()
     }
 
     /// Return initial shared static storage for new runtimes.
     pub fn shared_statics(&self) -> &StaticImage {
-        &self.header.shared_static_space
+        &self.shared_static_space
     }
 
     /// Return initial local static storage for new workers.
     pub fn local_statics(&self) -> &StaticImage {
-        &self.header.local_static_space
+        &self.local_static_space
     }
 
     /// Materialize initial shared static storage.
     pub fn materialize_shared_statics(&self) -> StaticSpace {
-        self.header.shared_static_space.materialize(self.sections())
+        self.shared_static_space.materialize(self.sections())
     }
 
     /// Materialize initial local static storage.
     pub fn materialize_local_statics(&self) -> StaticSpace {
-        self.header.local_static_space.materialize(self.sections())
+        self.local_static_space.materialize(self.sections())
     }
 
     /// Initialize runtime-owned static storage from this program.
@@ -201,29 +264,28 @@ impl Program {
 
     /// Resolve one function id by source name.
     pub fn function_id_by_name(&self, name: &str) -> Option<FunctionId> {
-        self.header
-            .functions
+        self.functions
             .id_by_name(self.sections(), StringId::for_text(name))
     }
 
     /// Return the program string table.
     pub fn strings(&self) -> &StringTable {
-        &self.header.strings
+        &self.strings
     }
 
-    /// Return source reflection when this program ships it.
+    /// Return source reflection when present.
     pub fn info(&self) -> Option<&ProgramInfo> {
-        self.header.info.as_ref()
+        self.info.as_ref()
     }
 
     /// Return one program string by stable id when present.
     pub fn string(&self, id: StringId) -> Option<&str> {
-        self.header.strings.string(self.sections(), id)
+        self.strings.string(self.sections(), id)
     }
 
     /// Return runtime layouts for this program.
     pub fn layouts(&self) -> &LayoutTable {
-        &self.header.layouts
+        &self.layouts
     }
 
     /// Return the heap allocation shape for one layout id.
@@ -248,19 +310,19 @@ impl Program {
 
     /// Borrow one program trace map.
     pub fn trace_map(&self, id: TraceId) -> Result<&TraceMap> {
-        self.traces
-            .trace(id)
+        self.trace_maps
+            .get(id.index())
             .ok_or_else(|| Error::internal(format!("missing program trace map {id:?}")))
     }
 
     /// Return decoded program trace maps.
     pub fn trace_maps(&self) -> TraceView<'_> {
-        self.traces.maps()
+        TraceView::new(&self.trace_maps)
     }
 
     /// Return the program trace table.
     pub fn trace_table(&self) -> &TraceTable {
-        &self.header.traces
+        &self.traces
     }
 
     /// Return the constant address for one global.
@@ -282,8 +344,7 @@ impl Program {
             return None;
         }
 
-        self.header
-            .constant_space
+        self.constant_space
             .native_address(sections, global, address, byte_len)
     }
 
@@ -297,19 +358,18 @@ impl Program {
             return false;
         }
 
-        self.header
-            .constant_space
+        self.constant_space
             .owns_address_range(sections, global, address, byte_len)
     }
 
     /// Return VM resume states.
     pub fn resume(&self) -> &vm::ResumeTable {
-        self.header.vm.resume()
+        self.vm.resume()
     }
 
     /// Return the lowered VM functions.
     pub fn vm_functions(&self) -> &vm::FunctionTable {
-        self.header.vm.functions()
+        self.vm.functions()
     }
 
     /// Return one VM call target by function id.
@@ -331,12 +391,12 @@ impl Program {
 
     /// Return the compact VM side table.
     pub fn side_table(&self) -> &vm::SideTable {
-        self.header.vm.side_table()
+        self.vm.side_table()
     }
 
     /// Return the frame layout for one layout id when present.
     pub fn frame_layout_by_id(&self, frame_layout: FrameLayoutId) -> Option<&FrameLayout> {
-        self.header.frames.layout(self.sections(), frame_layout)
+        self.frames.layout(self.sections(), frame_layout)
     }
 
     /// Return the single frame materialization for one resume state.
@@ -344,20 +404,18 @@ impl Program {
         &self,
         frame_state: FrameStateId,
     ) -> Option<&FrameMaterialization> {
-        self.header
-            .frames
-            .materialization(self.sections(), frame_state)
+        self.frames.materialization(self.sections(), frame_state)
     }
 
     /// Return one frame slot by id.
     pub fn frame_slot(&self, layout: &FrameLayout, slot: FrameSlotId) -> Option<&FrameSlot> {
-        self.header.frames.slot(self.sections(), layout, slot)
+        self.frames.slot(self.sections(), layout, slot)
     }
 
     /// Return all value slots for one frame layout.
     pub fn frame_value_slots<'a>(&'a self, layout: &FrameLayout) -> &'a [FrameSlot] {
         let sections = self.sections();
-        let slots = self.header.frames.slots(sections, layout);
+        let slots = self.frames.slots(sections, layout);
 
         layout.values(slots)
     }
@@ -365,7 +423,7 @@ impl Program {
     /// Return all local slots for one frame layout.
     pub fn frame_local_slots<'a>(&'a self, layout: &FrameLayout) -> &'a [FrameSlot] {
         let sections = self.sections();
-        let slots = self.header.frames.slots(sections, layout);
+        let slots = self.frames.slots(sections, layout);
 
         layout.locals(slots)
     }
@@ -373,7 +431,7 @@ impl Program {
     /// Return one local slot for one frame layout.
     pub fn frame_local_slot(&self, layout: &FrameLayout, local: u32) -> Option<&FrameSlot> {
         let sections = self.sections();
-        let slots = self.header.frames.slots(sections, layout);
+        let slots = self.frames.slots(sections, layout);
 
         layout.local(slots, local)
     }
@@ -381,7 +439,7 @@ impl Program {
     /// Return the closure environment slot for one frame layout.
     pub fn frame_environment_slot<'a>(&'a self, layout: &FrameLayout) -> Option<&'a FrameSlot> {
         let sections = self.sections();
-        let slots = self.header.frames.slots(sections, layout);
+        let slots = self.frames.slots(sections, layout);
 
         layout.environment(slots)
     }
@@ -391,9 +449,7 @@ impl Program {
         &'a self,
         materialization: &'a FrameMaterialization,
     ) -> &'a [FrameSlotId] {
-        self.header
-            .frames
-            .copied_slots(self.sections(), materialization)
+        self.frames.copied_slots(self.sections(), materialization)
     }
 
     /// Convert one current frame location into one lowered program point.
@@ -411,17 +467,17 @@ impl Program {
 
     /// Return one field by layout index.
     pub fn layout_field_at(&self, layout: &Layout, index: u32) -> Option<&LayoutField> {
-        self.header.layouts.field_at(self.sections(), layout, index)
+        self.layouts.field_at(self.sections(), layout, index)
     }
 
     /// Return the field count for one layout when it is field-addressable.
     pub fn layout_field_count(&self, layout: &Layout) -> Option<usize> {
-        self.header.layouts.field_count(layout)
+        self.layouts.field_count(layout)
     }
 
     /// Return all fields for one layout when it is field-addressable.
     pub fn layout_fields(&self, layout: &Layout) -> &[LayoutField] {
-        self.header.layouts.fields(self.sections(), layout)
+        self.layouts.fields(self.sections(), layout)
     }
 
     /// Return the layout id for one type.
@@ -526,7 +582,6 @@ impl Program {
     ) -> Result<()> {
         let sections = self.sections();
         let globals = self
-            .header
             .globals
             .iter_location(sections, location)
             .map(|(global_id, global)| (global_id, *global))

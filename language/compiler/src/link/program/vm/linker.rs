@@ -35,9 +35,9 @@ pub(crate) struct VmLinker<'a> {
     types: &'a mir::TypeTable,
     /// MIR layout table produced by lower and optimization.
     layouts: &'a mir::LayoutTable,
-    /// Local heap options baked into the program header.
+    /// Local heap options baked into the program.
     heap_options: &'a heap::HeapOptions,
-    /// Shared heap options baked into the program header.
+    /// Shared heap options baked into the program.
     shared_heap_options: &'a heap::SharedHeapOptions,
     /// Program linker owning dense program id projection.
     program: &'a ProgramLinker,

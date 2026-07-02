@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use destack_core::{SectionPacker, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{
-    FunctionId, GlobalId, Program, ProgramHeader, StringTable, TraceTable, TypeId,
-};
+use destack_program::{FunctionId, GlobalId, Program, StringTable, TraceTable, TypeId};
 use destack_source::PackageId;
 
 use crate::{LinkError, LinkResult};
@@ -18,9 +16,9 @@ use super::{DispatchLinker, FunctionLinker, LayoutLinker, StaticLinker, TypeLink
 pub struct ProgramLinker {
     /// Package that owns the linked program.
     package: PackageId,
-    /// Local heap options baked into the program header.
+    /// Local heap options baked into the program.
     heap_options: heap::HeapOptions,
-    /// Shared heap options baked into the program header.
+    /// Shared heap options baked into the program.
     shared_heap_options: heap::SharedHeapOptions,
     /// MIR tree being linked.
     tree: mir::Tree,
@@ -121,7 +119,7 @@ impl ProgramLinker {
         // assemble the durable program
         let package = self.package;
         let (directory, storage) = sections.finish();
-        let header = ProgramHeader::new(
+        let program = Program::new(
             directory,
             self.target_layout,
             self.heap_options,
@@ -140,8 +138,9 @@ impl ProgramLinker {
             statics.local,
             vm.code,
             None,
-        );
-        let program = Program::new(header, storage).map_err(|error| LinkError::InvalidInput {
+            storage,
+        )
+        .map_err(|error| LinkError::InvalidInput {
             anchor: package.into(),
             package,
             context: error.to_string(),

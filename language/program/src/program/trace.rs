@@ -3,8 +3,7 @@ use std::fmt;
 use destack_core::{
     EntryRange, EntryStore, SectionEntry, SectionImage, SectionPacker, SectionSlice,
 };
-use destack_heap::TraceView;
-use destack_mir::{TraceId, TraceMap, TraceVariant};
+use destack_mir::{TraceMap, TraceVariant};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +37,10 @@ impl TraceTable {
     }
 
     /// Decode all program trace maps in TraceId order.
-    fn decode(&self, sections: SectionImage<'_>) -> Result<Vec<TraceMap>, TraceTableError> {
+    pub(crate) fn decode(
+        &self,
+        sections: SectionImage<'_>,
+    ) -> Result<Vec<TraceMap>, TraceTableError> {
         let roots = sections.entries(self.roots);
         let mut traces = Vec::with_capacity(roots.len());
 
@@ -114,32 +116,6 @@ impl TraceTable {
             }
             kind => Err(TraceTableError::UnknownKind { kind: kind.raw() }),
         }
-    }
-}
-
-/// Decoded trace maps used by heap and GC paths.
-#[derive(Debug, Clone)]
-pub struct TraceCache {
-    /// Decoded trace maps indexed by TraceId.
-    maps: Vec<TraceMap>,
-}
-
-impl TraceCache {
-    /// Decode one trace cache from a section-backed trace table.
-    pub fn decode(table: &TraceTable, sections: SectionImage<'_>) -> Result<Self, TraceTableError> {
-        let maps = table.decode(sections)?;
-
-        Ok(Self { maps })
-    }
-
-    /// Return decoded trace maps as a heap trace view.
-    pub fn maps(&self) -> TraceView<'_> {
-        TraceView::new(&self.maps)
-    }
-
-    /// Return one decoded trace map by id.
-    pub fn trace(&self, id: TraceId) -> Option<&TraceMap> {
-        self.maps().trace(id)
     }
 }
 
