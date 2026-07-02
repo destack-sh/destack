@@ -278,8 +278,10 @@ impl GenericSegment {
         &mut self,
         template_id: LocalGenericTemplateId,
     ) -> Option<&mut GenericTemplate> {
-        self.contains_template_id(template_id)
-            .then(|| self.templates.get_mut(template_id.0 - self.first_template_id))
+        self.contains_template_id(template_id).then(|| {
+            self.templates
+                .get_mut(template_id.0 - self.first_template_id)
+        })
     }
 
     /// Return one local parameter binding mutably.

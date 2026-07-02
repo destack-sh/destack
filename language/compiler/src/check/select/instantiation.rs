@@ -81,11 +81,12 @@ impl CheckState<'_> {
                     self.apply_template_arguments(origin, template, &applied)?
                 else {
                     let name = self.format_symbol(symbol);
+                    let written_count = self.written_parameter_count(&parameters);
                     self.report_wrong_generic_arity(
                         module,
                         source,
                         name,
-                        parameters.len(),
+                        written_count,
                         applied.len(),
                     );
                     self.commit_decision(node, Decision::Rejected)?;

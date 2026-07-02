@@ -245,6 +245,7 @@ impl CheckState<'_> {
                 source,
                 &parameters,
                 &[],
+                &[],
                 &function,
                 return_type,
                 None,
@@ -264,12 +265,15 @@ impl CheckState<'_> {
         };
 
         let return_type = function.return_type.or(Some(target));
+        let carried =
+            self.generic_argument_bindings(&substitution.parameters, &substitution.arguments)?;
         self.attempt_signature(
             origin,
             module,
             function_type.module_id,
             source,
             &[],
+            &carried,
             &[],
             &function,
             return_type,
@@ -358,6 +362,7 @@ impl CheckState<'_> {
             module,
             source,
             &generic_parameters,
+            &[],
             type_arguments,
             &function,
             function.return_type,

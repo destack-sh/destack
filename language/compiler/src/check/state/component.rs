@@ -129,9 +129,13 @@ impl<'a> CheckState<'a> {
         // import external checked artifacts
         self.import_component_external_modules()?;
 
-        // walk component headers before any body can read them
+        // declare template identities, then walk their bounds, so
+        // declarations resolve in any order across module cycles
         for module in modules.iter().copied() {
-            self.walk_module_headers(module)?;
+            self.declare_module_templates(module)?;
+        }
+        for module in modules.iter().copied() {
+            self.walk_module_templates(module)?;
         }
 
         // walk modules in stable component order

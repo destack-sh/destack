@@ -105,6 +105,7 @@ impl CheckState<'_> {
 
         // merge the shape at the literal node
         let fields: Vec<dir::TypeField> = fields.into_values().collect();
+        let field_list = fields.clone();
         let fields = self.intern_fields(module, &fields)?;
         let shape = self.intern_type(
             module,
@@ -119,6 +120,10 @@ impl CheckState<'_> {
         match target {
             // struct literals must fill their declared fields
             Some(target) => {
+                // bound open construction arguments before the writable check
+                if self.type_flags(target)?.has_variable() {
+                    answer!(self.constrain_struct_construction(origin, &field_list, target)?);
+                }
                 let () = answer!(self.relate(origin, Relation::Writable, None, shape, target)?);
                 self.commit_node_type(node.into_any(), target)?;
 

@@ -9,6 +9,16 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
+/// One component template pass: identities declare everywhere before
+/// any bound expression walks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum TemplatePass {
+    /// Declare template and parameter identities.
+    Declare,
+    /// Walk parameter bounds, defaults, and where predicates.
+    Walk,
+}
+
 impl CheckState<'_> {
     /// Bind nominal type definition symbols as declaration references.
     pub(in crate::check) fn bind_module_reference_types(
@@ -56,14 +66,15 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// class Box<T> {}
     /// ```
-    pub(in crate::check) fn walk_expression_header(
+    pub(in crate::check) fn visit_expression_templates(
         &mut self,
         _id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
+        pass: TemplatePass,
     ) -> CompilerResult<()> {
         if let dir::Expression::Declaration(declaration) = expression {
             let declaration = *declaration;
-            self.walk_declaration_header(declaration, self.tree.get(declaration))?;
+            self.visit_declaration_templates(declaration, self.tree.get(declaration), pass)?;
         }
 
         Ok(())
@@ -75,10 +86,11 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// function value<T>(input: T): T { input }
     /// ```
-    fn walk_declaration_header(
+    fn visit_declaration_templates(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
+        pass: TemplatePass,
     ) -> CompilerResult<()> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
@@ -88,53 +100,92 @@ impl WalkState<'_, '_> {
             // global { ... }
             dir::Declaration::Global(declaration) => {
                 for expression in &declaration.expressions {
-                    self.walk_expression_header(*expression, self.tree.get(*expression))?;
+                    self.visit_expression_templates(*expression, self.tree.get(*expression), pass)?;
                 }
             }
             // module M { ... }
             dir::Declaration::Module(declaration) => {
                 for expression in &declaration.expressions {
-                    self.walk_expression_header(*expression, self.tree.get(*expression))?;
+                    self.visit_expression_templates(*expression, self.tree.get(*expression), pass)?;
                 }
             }
             // type X<T> = T
             dir::Declaration::Type(declaration) => {
-                self.open_declaration_generic_template(id, &declaration.generic_parameters)?;
+                self.visit_declaration_template(
+                    id,
+                    &declaration.generic_parameters,
+                    &declaration.where_clauses,
+                    pass,
+                )?;
             }
             // struct S<T> {}
             dir::Declaration::Struct(declaration) => {
-                self.open_declaration_generic_template(id, &declaration.generic_parameters)?;
+                self.visit_declaration_template(
+                    id,
+                    &declaration.generic_parameters,
+                    &declaration.where_clauses,
+                    pass,
+                )?;
             }
             // class C<T> {}
             dir::Declaration::Class(declaration) => {
-                self.open_declaration_generic_template(id, &declaration.generic_parameters)?;
+                self.visit_declaration_template(
+                    id,
+                    &declaration.generic_parameters,
+                    &declaration.where_clauses,
+                    pass,
+                )?;
             }
             // enum E<T> {}
             dir::Declaration::Enum(declaration) => {
-                self.open_declaration_generic_template(id, &declaration.generic_parameters)?;
+                self.visit_declaration_template(
+                    id,
+                    &declaration.generic_parameters,
+                    &declaration.where_clauses,
+                    pass,
+                )?;
             }
             // interface I<T> {}
             dir::Declaration::Interface(declaration) => {
-                self.open_declaration_generic_template(id, &declaration.generic_parameters)?;
+                self.visit_declaration_template(
+                    id,
+                    &declaration.generic_parameters,
+                    &declaration.where_clauses,
+                    pass,
+                )?;
             }
             // extension T<U> {}
             dir::Declaration::Extension(declaration) => {
-                self.open_declaration_generic_template(id, &declaration.generic_parameters)?;
+                self.visit_declaration_template(
+                    id,
+                    &declaration.generic_parameters,
+                    &declaration.where_clauses,
+                    pass,
+                )?;
             }
             // function f<T>() {}
             dir::Declaration::Function(declaration) => {
-                self.open_function_generic_template(id, &declaration.signature)?;
+                if pass == TemplatePass::Declare {
+                    self.open_function_generic_template(id, &declaration.signature)?;
+                }
             }
         }
 
         Ok(())
     }
 
-    /// Open the generic template owned by one symbol declaration.
-    fn open_declaration_generic_template(
+    /// Visit one type-level declaration's template in one pass.
+    ///
+    /// Annotations instantiate these templates while sibling modules
+    /// still walk, so their bounds walk before any module bodies.
+    /// Callable templates instantiate at solve time instead and walk
+    /// with their declarations.
+    fn visit_declaration_template(
         &mut self,
         id: dir::LocalNodeId<dir::Declaration>,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
+        where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
+        pass: TemplatePass,
     ) -> CompilerResult<()> {
         let Some(symbol) = self
             .check
@@ -144,7 +195,17 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
         let source = id.into_global_any(self.module);
-        self.open_generic_template(source, None, Some(symbol), parameters)?;
+
+        // declare identities first so bounds may reference any template
+        if pass == TemplatePass::Declare {
+            self.open_generic_template(source, None, Some(symbol), parameters)?;
+
+            return Ok(());
+        }
+        let template = self.walk_generic_template(source, None, Some(symbol), parameters)?;
+        for where_clause in where_clauses {
+            self.walk_where_clause(template, *where_clause)?;
+        }
 
         Ok(())
     }
@@ -259,15 +320,8 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        let template = self.walk_generic_template(
-            source,
-            None,
-            Some(symbol),
-            &declaration.generic_parameters,
-        )?;
-        for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause)?;
-        }
+        let template = self.check.generics.template_by_source(source);
+        let _scope = self.enter_template_scope(template);
 
         // handle intrinsic declarations separately from ordinary aliases
         if matches!(
@@ -369,15 +423,8 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        let template = self.walk_generic_template(
-            source,
-            None,
-            Some(symbol),
-            &declaration.generic_parameters,
-        )?;
-        for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause)?;
-        }
+        let template = self.check.generics.template_by_source(source);
+        let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
@@ -485,15 +532,8 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        let template = self.walk_generic_template(
-            source,
-            None,
-            Some(symbol),
-            &declaration.generic_parameters,
-        )?;
-        for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause)?;
-        }
+        let template = self.check.generics.template_by_source(source);
+        let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
@@ -727,15 +767,8 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        let template = self.walk_generic_template(
-            source,
-            None,
-            Some(symbol),
-            &declaration.generic_parameters,
-        )?;
-        for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause)?;
-        }
+        let template = self.check.generics.template_by_source(source);
+        let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
@@ -846,15 +879,8 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        let template = self.walk_generic_template(
-            source,
-            None,
-            Some(symbol),
-            &declaration.generic_parameters,
-        )?;
-        for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause)?;
-        }
+        let template = self.check.generics.template_by_source(source);
+        let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
         let _receiver = self.enter_receiver_scope(Some(receiver));
 
@@ -936,16 +962,8 @@ impl WalkState<'_, '_> {
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
-        let template = self.walk_generic_template(
-            source,
-            None,
-            Some(symbol),
-            &declaration.generic_parameters,
-        )?;
-        let mut where_clauses = Vec::new();
-        for where_clause in &declaration.where_clauses {
-            where_clauses.extend(self.walk_extension_where_clause(*where_clause)?);
-        }
+        let template = self.check.generics.template_by_source(source);
+        let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
         let target_type = self.walk_type_expression(declaration.target_type)?;
@@ -1023,7 +1041,6 @@ impl WalkState<'_, '_> {
             template: template.map(|template| template.local_id),
             target,
             implements,
-            where_clauses,
             members,
         });
         self.check.insert_definition(symbol, source, definition)?;
@@ -1304,7 +1321,11 @@ impl WalkState<'_, '_> {
         )))
     }
 
-    /// Walk one where clause as a satisfaction constraint.
+    /// Walk one where clause onto its declaring template.
+    ///
+    /// Instantiation sites prove recorded predicates and the template's
+    /// own scope assumes them.
+    /// Clauses without a template check satisfaction at the declaration.
     ///
     /// Example:
     /// ```ds
@@ -1312,61 +1333,30 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_where_clause(
         &mut self,
+        template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::WhereClause>,
     ) -> CompilerResult<()> {
-        self.walk_extension_where_clause(id)?;
-
-        Ok(())
-    }
-
-    /// Walk one where clause and return its checked sides.
-    fn walk_extension_where_clause(
-        &mut self,
-        id: dir::LocalNodeId<dir::WhereClause>,
-    ) -> CompilerResult<Option<dir::ExtensionWhereClause>> {
         let clause = self.tree.get(id);
         let (left, right) = (clause.left, clause.right);
         let left = self.walk_type_expression(left)?;
         let right = self.walk_type_expression(right)?;
 
-        // bounds on own unconstrained parameters attach as constraints,
-        // every other clause checks satisfaction at the declaration
-        let attached = self.attach_parameter_bound(left, right)?;
-        if !attached {
+        let Some(template) = template else {
             let origin = Origin::Node(id.into_global_any(self.module));
             self.relate_type(origin, Relation::Satisfies, left, right);
-        }
 
-        Ok(Some(dir::ExtensionWhereClause {
-            source: id.into_global_any(self.module),
-            left,
-            right,
-        }))
-    }
-
-    /// Attach one where bound onto its bare parameter when it has no
-    /// constraint yet. Returns whether the bound was attached.
-    fn attach_parameter_bound(
-        &mut self,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let dir::Type::Parameter(parameter) = self.check.ty(left)? else {
-            return Ok(false);
+            return Ok(());
         };
+        self.check.push_template_predicate(
+            template,
+            dir::WherePredicate {
+                source: id.into_global_any(self.module),
+                left,
+                right,
+            },
+        )?;
 
-        // keep explicit inline bounds, their clause still checks
-        let Some(binding) = self.check.generic_parameter(parameter) else {
-            return Ok(false);
-        };
-        if binding.constraint.is_some() {
-            return Ok(false);
-        }
-        let default = binding.default;
-        self.check
-            .update_generic_parameter_bounds(parameter, Some(right), default)?;
-
-        Ok(true)
+        Ok(())
     }
 
     /// Walk one function signature without entering the function body.
@@ -1426,7 +1416,7 @@ impl WalkState<'_, '_> {
 
         // walk where clauses
         for where_clause in &signature.where_clauses {
-            self.walk_where_clause(*where_clause)?;
+            self.walk_where_clause(template, *where_clause)?;
         }
 
         Ok(FunctionHeader {

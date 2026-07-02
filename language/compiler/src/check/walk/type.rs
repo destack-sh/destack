@@ -1,7 +1,10 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Decision, GenericArgument, Origin, TypeSubstitution, WalkState, Widening};
+use crate::check::{
+    Decision, GenericArgument, GenericPosition, Origin, Relation, TypeSubstitution, WalkState,
+    Widening,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -112,7 +115,7 @@ impl WalkState<'_, '_> {
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
 
-                self.walk_reference_type(id, &path, &generic_arguments)
+                self.walk_reference_type(id, &path, &generic_arguments, GenericPosition::Annotation)
             }
             // T.Item
             dir::TypeExpression::Member {
@@ -553,12 +556,46 @@ impl WalkState<'_, '_> {
         }
     }
 
+    /// Walk one construct target, such as the `Wrap` in `Wrap { value }`.
+    ///
+    /// Construction infers omitted head arguments from its inputs, so
+    /// the head application opens where an annotation would reject.
+    pub(in crate::check) fn walk_construct_type_expression(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // infer at reference heads, walk every other form strictly
+        if let dir::TypeExpression::Reference {
+            path,
+            generic_arguments,
+        } = self.tree.get(id)
+        {
+            let path = path.clone();
+            let generic_arguments = generic_arguments
+                .iter()
+                .copied()
+                .collect::<SmallVec<[_; 4]>>();
+            let ty = self.walk_reference_type(
+                id,
+                &path,
+                &generic_arguments,
+                GenericPosition::Inference,
+            )?;
+            self.commit_node_type(id, ty)?;
+
+            return Ok(ty);
+        }
+
+        self.walk_type_expression(id)
+    }
+
     /// Return the type for one reference annotation, such as `Foo<T>`.
     fn walk_reference_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
 
@@ -574,7 +611,7 @@ impl WalkState<'_, '_> {
         match reference {
             // use one resolved type declaration directly
             Some(dir::Reference::Bound(symbols)) => {
-                self.walk_bound_reference_type(id, path, generic_arguments, &symbols)
+                self.walk_bound_reference_type(id, path, generic_arguments, &symbols, position)
             }
 
             // project a type-member path from the resolved base declaration
@@ -615,6 +652,7 @@ impl WalkState<'_, '_> {
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         symbols: &[dir::GlobalSymbolId],
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
         let symbols = self.check.present_symbols(symbols);
@@ -626,7 +664,7 @@ impl WalkState<'_, '_> {
             }),
 
             // use the single resolved type declaration
-            [symbol] => self.walk_symbol_reference_type(id, *symbol, generic_arguments),
+            [symbol] => self.walk_symbol_reference_type(id, *symbol, generic_arguments, position),
 
             // reject annotations that name more than one declaration
             _ => {
@@ -644,6 +682,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         symbol: dir::GlobalSymbolId,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_global_any(self.module);
 
@@ -652,9 +691,9 @@ impl WalkState<'_, '_> {
         self.check
             .commit_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
 
-        // apply written type arguments and declaration defaults
+        // apply written type arguments and open omitted slots
         let applied = self.walk_generic_arguments(generic_arguments)?;
-        let ty = self.referenced_symbol_type(id.into_any(), symbol, &applied)?;
+        let ty = self.referenced_symbol_type(id.into_any(), symbol, &applied, position)?;
 
         Ok(ty)
     }
@@ -665,6 +704,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
         applied: &[GenericArgument],
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // return the parameter type for generic parameter names
         if let Some(parameter) = self.check.generics.parameter_by_symbol(symbol) {
@@ -697,22 +737,23 @@ impl WalkState<'_, '_> {
             }));
         };
 
-        // reject impossible arities before applying defaults
+        // reject impossible arities before instantiating
         let parameters = self.check.generic_template_parameters(template);
-        if applied.len() > parameters.len() {
+        let written_count = self.check.written_parameter_count(&parameters);
+        if applied.len() > written_count {
             let name = self.check.format_symbol(symbol);
             self.check.report_wrong_generic_arity(
                 self.module,
                 source,
                 name,
-                parameters.len(),
+                written_count,
                 applied.len(),
             );
 
             return self.intern_type(dir::Type::Error);
         }
 
-        // apply written arguments and declared defaults in order
+        // bind written arguments and open every omitted slot
         let written = applied
             .iter()
             .map(|argument| argument.ty)
@@ -720,14 +761,14 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source.into_global(self.module));
         let Some(substitution) =
             self.check
-                .apply_generic_parameters(origin, &parameters, &written)?
+                .instantiate_generic_parameters(origin, &parameters, &written, position)?
         else {
             let name = self.check.format_symbol(symbol);
             self.check.report_wrong_generic_arity(
                 self.module,
                 source,
                 name,
-                parameters.len(),
+                written_count,
                 applied.len(),
             );
 
@@ -736,7 +777,7 @@ impl WalkState<'_, '_> {
         let arguments = substitution.arguments;
 
         // constrain type arguments by declared parameter bounds
-        self.constrain_applied_symbol_arguments(source, &parameters, &arguments)?;
+        self.constrain_applied_symbol_arguments(source, symbol, &parameters, &arguments)?;
 
         let arguments = self.intern_type_ids(&arguments)?;
 
@@ -750,6 +791,7 @@ impl WalkState<'_, '_> {
     fn constrain_applied_symbol_arguments(
         &mut self,
         source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
         parameters: &[dir::GlobalGenericParameterId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<()> {
@@ -781,6 +823,19 @@ impl WalkState<'_, '_> {
             );
         }
 
+        // enqueue declared where predicates as satisfaction relations
+        let template = self.check.symbol_template(symbol);
+        for predicate in self.check.template_predicates(template) {
+            let left = self
+                .check
+                .substitute_type(self.module, predicate.left, &substitution)?;
+            let right = self
+                .check
+                .substitute_type(self.module, predicate.right, &substitution)?;
+
+            self.relate_type(origin, Relation::Satisfies, left, right);
+        }
+
         Ok(())
     }
 
@@ -799,7 +854,8 @@ impl WalkState<'_, '_> {
         )?;
 
         // start from the resolved base symbol
-        let mut ty = self.referenced_symbol_type(id.into_any(), base, &[])?;
+        let mut ty =
+            self.referenced_symbol_type(id.into_any(), base, &[], GenericPosition::Annotation)?;
 
         // append each remaining path segment as a type member
         for (index, segment) in tail.iter().copied().enumerate() {

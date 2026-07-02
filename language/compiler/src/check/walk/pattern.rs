@@ -94,7 +94,7 @@ impl WalkState<'_, '_> {
             // T(a, b), T { name }
             dir::Pattern::NominalTuple { ty, fields } | dir::Pattern::NominalObject { ty, fields } => {
                 let fields = fields.clone();
-                self.walk_type_expression(*ty)?;
+                self.walk_construct_type_expression(*ty)?;
                 for field in fields {
                     self.walk_pattern_field(field, self.tree.get(field))?;
                 }

@@ -304,3 +304,336 @@ const text = identity("x");
 /// @generic.instance id=lib.identity<string> template=lib.identity arguments=(string)
 "#);
 }
+
+#[test]
+fn test_defaulted_parameter_fills_omitted_annotation_argument() {
+    let session = TestSession::single(
+        r#"
+interface Iter<T, R = unknown> {
+    next(): T;
+}
+
+declare function probe(values: Iter<int32>): boolean;
+const value = probe(todo("iter"));
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Iter<T, R = unknown> {
+    next(): T;
+}
+
+declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
+const value: boolean = probe<never>(todo("iter"));
+
+=== checked ===
+interface Iter<T, R = unknown> {
+/// @generic.template symbol=Iter parameters=(T, R = unknown)
+/// @type.symbol symbol=Iter type=Iter
+/// @definition.interface symbol=Iter template=LocalGenericTemplateId(0)
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
+/// @type.symbol symbol=Iter.T source=T type=T
+/// @type.symbol symbol=Iter.R source="R = unknown" type=R
+
+    next(): T;
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
+    /// @resolution.name source=T target=Iter.T
+
+}
+
+declare function probe(values: Iter<int32>): boolean;
+/// @generic.template symbol=probe parameters=(T0: Iter<int32, unknown>)
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=<probe.T0: Iter<int32, unknown>>(probe.T0) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=probe.T0
+/// @resolution.name source=Iter target=Iter
+
+const value = probe(todo("iter"));
+/// @type.symbol symbol=value source=value type=boolean
+/// @resolution.name source=probe target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
+/// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
+/// @resolution.name source=todo target=error.panic.todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string) arguments=(provided("iter") as string) return=never kind=symbol target=error.panic.todo
+
+/// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
+/// @generic.instance id=probe<never> template=probe arguments=(never)
+"#, "");
+}
+
+#[test]
+fn test_defaulted_parameter_fills_through_reexport_chain() {
+    let session = TestSession::builder()
+        .module(
+            "inner.ds",
+            r#"
+export newtype interface Iter<T, R = unknown> {
+    next(): T;
+}
+"#,
+        )
+        .module(
+            "lib.ds",
+            r#"
+export { Iter } from "./inner.ds";
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { Iter } from "./lib.ds";
+
+declare function probe(values: Iter<int32>): boolean;
+const value = probe(todo("iter"));
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked_many(&["inner.ds", "lib.ds", "main.ds"], DirRows::checked(), r#"
+=== inner.ds ===
+
+=== annotated ===
+export newtype interface Iter<T, R = unknown> {
+    next(): T;
+}
+
+=== checked ===
+export newtype interface Iter<T, R = unknown> {
+/// @generic.template symbol=Iter parameters=(T, R = unknown)
+/// @type.symbol symbol=Iter type=Iter
+/// @definition.interface symbol=Iter template=LocalGenericTemplateId(0) nominal=true
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
+/// @type.symbol symbol=Iter.T source=T type=T
+/// @type.symbol symbol=Iter.R source="R = unknown" type=R
+
+    next(): T;
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
+    /// @resolution.name source=T target=Iter.T
+
+}
+
+/// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
+
+=== lib.ds ===
+
+=== annotated ===
+export { Iter } from "./inner.ds";
+
+=== checked ===
+export { Iter } from "./inner.ds";
+
+=== main.ds ===
+
+=== annotated ===
+import { Iter } from "./lib.ds";
+
+declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
+const value: boolean = probe<never>(todo("iter"));
+
+=== checked ===
+import { Iter } from "./lib.ds";
+
+declare function probe(values: Iter<int32>): boolean;
+/// @generic.template symbol=probe parameters=(T0: inner.Iter<int32, unknown>)
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=<probe.T0: inner.Iter<int32, unknown>>(probe.T0) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=probe.T0
+/// @resolution.name source=Iter target=inner.Iter
+
+const value = probe(todo("iter"));
+/// @type.symbol symbol=value source=value type=boolean
+/// @resolution.name source=probe target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
+/// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
+/// @resolution.name source=todo target=error.panic.todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string) arguments=(provided("iter") as string) return=never kind=symbol target=error.panic.todo
+
+/// @generic.instance id=probe<never> template=probe arguments=(never)
+"#);
+}
+
+#[test]
+fn test_defaulted_parameter_fills_inside_import_cycle() {
+    let session = TestSession::builder()
+        .module(
+            "a.ds",
+            r#"
+import { Iter } from "./b.ds";
+
+export interface Marker {
+    marked: boolean;
+}
+
+declare function probe(values: Iter<int32>): boolean;
+const value = probe(todo("iter"));
+"#,
+        )
+        .module(
+            "b.ds",
+            r#"
+import { Marker } from "./a.ds";
+
+export interface Iter<T, R = unknown> {
+    next(): T;
+    mark(): Marker;
+}
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked_many(&["a.ds", "b.ds"], DirRows::checked(), r#"
+=== a.ds ===
+
+=== annotated ===
+import { Iter } from "./b.ds";
+
+export interface Marker {
+    marked: boolean;
+}
+
+declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
+const value: boolean = probe<never>(todo("iter"));
+
+=== checked ===
+import { Iter } from "./b.ds";
+
+export interface Marker {
+/// @type.symbol symbol=Marker type=Marker
+/// @definition.interface symbol=Marker
+/// @definition.field symbol=Marker.marked source="marked: boolean" key=marked type=boolean
+
+    marked: boolean;
+    /// @type.symbol symbol=Marker.marked source="marked: boolean" type=boolean
+
+}
+
+declare function probe(values: Iter<int32>): boolean;
+/// @generic.template symbol=probe parameters=(T0: b.Iter<int32, b.ds.type3>)
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=<probe.T0: b.Iter<int32, b.ds.type3>>(probe.T0) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=probe.T0
+/// @resolution.name source=Iter target=b.Iter
+
+const value = probe(todo("iter"));
+/// @type.symbol symbol=value source=value type=boolean
+/// @resolution.name source=probe target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
+/// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
+/// @resolution.name source=todo target=error.panic.todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string) arguments=(provided("iter") as string) return=never kind=symbol target=error.panic.todo
+
+/// @generic.instance id=probe<never> template=probe arguments=(never)
+
+=== b.ds ===
+
+=== annotated ===
+import { Marker } from "./a.ds";
+
+export interface Iter<T, R = unknown> {
+    next(): T;
+    mark(): Marker;
+}
+
+=== checked ===
+import { Marker } from "./a.ds";
+
+export interface Iter<T, R = unknown> {
+/// @generic.template symbol=Iter parameters=(T, R = unknown)
+/// @type.symbol symbol=Iter type=Iter
+/// @definition.interface symbol=Iter template=LocalGenericTemplateId(0)
+/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: Iter<T, R>) => a.Marker
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
+/// @type.symbol symbol=Iter.T source=T type=T
+/// @type.symbol symbol=Iter.R source="R = unknown" type=R
+
+    next(): T;
+    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: Iter<T, R>) => T
+    /// @resolution.name source=T target=Iter.T
+
+    mark(): Marker;
+    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=(this: Iter<T, R>) => a.Marker
+    /// @resolution.name source=Marker target=a.Marker
+
+}
+
+/// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
+"#);
+}
+
+#[test]
+fn test_generic_struct_pattern_infers_omitted_arguments() {
+    let session = TestSession::single(
+        r#"
+struct Wrap<T> {
+    value: T;
+}
+
+function unwrap(wrapped: Wrap<float64>): float64 {
+    match (wrapped) {
+        Wrap { value } => value
+    }
+}
+
+const built = Wrap { value: 1 };
+const out = unwrap(built);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Wrap<T> {
+    value: T;
+}
+
+function unwrap(wrapped: Wrap<float64>): float64 {
+    match (wrapped) {
+        Wrap { value } => value
+    }
+}
+
+const built: Wrap<float64> = Wrap { value: 1 };
+const out: float64 = unwrap(built);
+
+=== checked ===
+struct Wrap<T> {
+/// @generic.template symbol=Wrap parameters=(T)
+/// @type.symbol symbol=Wrap type=Wrap
+/// @definition.struct symbol=Wrap template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Wrap.value source="value: T" key=value type=T
+/// @type.symbol symbol=Wrap.T source=T type=T
+
+    value: T;
+    /// @type.symbol symbol=Wrap.value source="value: T" type=T
+    /// @resolution.name source=T target=Wrap.T
+
+}
+
+function unwrap(wrapped: Wrap<float64>): float64 {
+/// @type.symbol symbol=unwrap type=(Wrap<float64>) => float64
+/// @type.symbol symbol=unwrap.wrapped source="wrapped: Wrap<float64>" type=Wrap<float64>
+/// @resolution.name source=Wrap target=Wrap
+
+    match (wrapped) {
+    /// @resolution.name source=wrapped target=unwrap.wrapped
+
+        Wrap { value } => value
+        /// @resolution.name source=Wrap target=Wrap
+        /// @resolution.pattern source="Wrap { value }" kind=nominal_object target=Wrap instance=Wrap<float64> fields={ Wrap.value }
+        /// @generic.instance source="Wrap { value }" id=Wrap<float64>
+        /// @type.symbol symbol=unwrap.value source=value type=float64
+        /// @resolution.name source=value target=unwrap.value
+
+    }
+}
+
+const built = Wrap { value: 1 };
+/// @type.symbol symbol=built source=built type=Wrap<float64>
+/// @resolution.name source=Wrap target=Wrap
+
+const out = unwrap(built);
+/// @type.symbol symbol=out source=out type=float64
+/// @resolution.name source=unwrap target=unwrap
+/// @resolution.call source=unwrap(built) parameters=(Wrap<float64>) arguments=(provided(built) as Wrap<float64>) return=float64 kind=symbol target=unwrap
+/// @resolution.name source=built target=built
+
+/// @generic.instance id=Wrap<float64> template=Wrap arguments=(float64)
+"#, "");
+}
