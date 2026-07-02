@@ -6,18 +6,51 @@ use super::super::state::{BindState, BindingContext};
 use crate::Compiler;
 
 impl Compiler {
-    /// Bind generic parameters in order.
+    /// Bind generic parameters: the whole list declares before any bound
+    /// binds, so bounds and defaults may reference every parameter.
     pub(in crate::bind) fn bind_generic_parameters(
         &self,
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         generic_parameters: &[dir::LocalNodeId<dir::GenericParameter>],
     ) {
-        // visit generic parameters
+        // declare every parameter identity
+        for parameter_id in generic_parameters {
+            let parameter = tree.get(*parameter_id);
+            self.declare_generic_parameter(state, *parameter_id, parameter);
+        }
+
+        // bind bounds and defaults against the full list
         for parameter_id in generic_parameters {
             let parameter = tree.get(*parameter_id);
             state.visit_generic_parameter(tree, *parameter_id, parameter);
         }
+    }
+
+    /// Declare one generic parameter symbol.
+    fn declare_generic_parameter(
+        &self,
+        state: &mut BindState<'_>,
+        node_id: dir::LocalNodeId<dir::GenericParameter>,
+        parameter: &dir::GenericParameter,
+    ) {
+        // ignore malformed parameters
+        let Some(key) = parameter.symbol_key() else {
+            return;
+        };
+        let Some(kind) = parameter.symbol_kind() else {
+            return;
+        };
+
+        let symbol_id = state.insert_symbol(
+            dir::SymbolRole::Local,
+            kind,
+            Some(key),
+            None,
+            dir::SymbolVisibility::Forward,
+        );
+
+        state.declare_symbol(symbol_id, node_id);
     }
 
     /// Bind where clauses in order.
@@ -66,7 +99,7 @@ impl Compiler {
         }
     }
 
-    /// Bind one generic parameter.
+    /// Bind one declared generic parameter's bounds and defaults.
     pub(in crate::bind) fn bind_generic_parameter(
         &self,
         state: &mut BindState<'_>,
@@ -76,15 +109,6 @@ impl Compiler {
     ) {
         state.bind_node(node_id.into_any());
 
-        // ignore malformed parameters
-        let Some(key) = parameter.symbol_key() else {
-            return;
-        };
-        let Some(kind) = parameter.symbol_kind() else {
-            return;
-        };
-
-        // visit generic parameter bounds and defaults before self declaration
         match parameter {
             dir::GenericParameter::Type {
                 constraint,
@@ -132,17 +156,6 @@ impl Compiler {
             }
             dir::GenericParameter::Error => {}
         }
-
-        // declare generic parameter symbol
-        let symbol_id = state.insert_symbol(
-            dir::SymbolRole::Local,
-            kind,
-            Some(key),
-            None,
-            dir::SymbolVisibility::Forward,
-        );
-
-        state.declare_symbol(symbol_id, node_id);
     }
 
     /// Bind one callable parameter.
