@@ -166,3 +166,95 @@ const isPending = kind == "pending";
 "#,
     );
 }
+
+#[test]
+fn test_overloaded_equality_selects_extension_method() {
+    let session = TestSession::single(
+        r#"
+import { PartialEqual } from "destack:ops";
+
+struct Badge {
+    id: float64;
+}
+
+extension of Badge implements PartialEqual<Badge> {
+    equal(other: Badge): boolean {
+        this.id == other.id
+    }
+}
+
+declare const left: Badge;
+declare const right: Badge;
+const same = left == right;
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { PartialEqual } from "destack:ops";
+
+struct Badge {
+    id: float64;
+}
+
+extension of Badge implements PartialEqual<Badge> {
+    equal(other: Badge): boolean {
+        this.id == other.id
+    }
+}
+
+declare const left: Badge;
+declare const right: Badge;
+const same: boolean = left == right;
+
+=== checked ===
+import { PartialEqual } from "destack:ops";
+
+struct Badge {
+/// @type.symbol symbol=Badge type=Badge
+/// @definition.struct symbol=Badge
+/// @definition.field symbol=Badge.id source="id: float64" key=id type=float64
+
+    id: float64;
+    /// @type.symbol symbol=Badge.id source="id: float64" type=float64
+
+}
+
+extension of Badge implements PartialEqual<Badge> {
+/// @definition.extension symbol=<module>#2 form=local target=Badge
+/// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=ops.equality.PartialEqual arguments=(Badge)
+/// @definition.method symbol=equal slot=equal type=(this: Badge, Badge) => boolean
+/// @resolution.name source=Badge target=Badge
+/// @resolution.name source=PartialEqual target=ops.equality.PartialEqual
+/// @resolution.name source=Badge target=Badge
+
+    equal(other: Badge): boolean {
+    /// @type.symbol symbol=equal type=(this: Badge, Badge) => boolean
+    /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
+    /// @resolution.name source=Badge target=Badge
+
+        this.id == other.id
+        /// @resolution.member source=this.id receiver=Badge kind=symbol target=Badge.id
+        /// @resolution.call source="this.id == other.id" parameters=() return=boolean kind=builtin builtin=binary.equal
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Badge
+        /// @resolution.name source=other target=equal.other
+        /// @resolution.member source=other.id receiver=Badge kind=symbol target=Badge.id
+
+    }
+}
+
+declare const left: Badge;
+/// @type.symbol symbol=left source=left type=Badge
+/// @resolution.name source=Badge target=Badge
+
+declare const right: Badge;
+/// @type.symbol symbol=right source=right type=Badge
+/// @resolution.name source=Badge target=Badge
+
+const same = left == right;
+/// @type.symbol symbol=same source=same type=boolean
+/// @resolution.name source=left target=left
+/// @resolution.call source="left == right" parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge
+/// @resolution.name source=right target=right
+"#);
+}

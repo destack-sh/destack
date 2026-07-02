@@ -163,3 +163,207 @@ const sum = left + right;
 /// @resolution.name source=right target=right
 "#);
 }
+
+#[test]
+fn test_compound_assignment_selects_extension_method() {
+    let session = TestSession::single(
+        r#"
+import { Add } from "destack:ops";
+
+struct Score {
+    value: float64;
+}
+
+extension of Score implements Add<Score> {
+    type Output = Score;
+
+    add(other: Score): Score {
+        Score { value: this.value + other.value }
+    }
+}
+
+declare let total: Score;
+declare const bonus: Score;
+total += bonus;
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Add } from "destack:ops";
+
+struct Score {
+    value: float64;
+}
+
+extension of Score implements Add<Score> {
+    type Output = Score;
+
+    add(other: Score): Score {
+        Score { value: this.value + other.value }
+    }
+}
+
+declare let total: Score;
+declare const bonus: Score;
+total += bonus;
+
+=== checked ===
+import { Add } from "destack:ops";
+
+struct Score {
+/// @type.symbol symbol=Score type=Score
+/// @definition.struct symbol=Score
+/// @definition.field symbol=Score.value source="value: float64" key=value type=float64
+
+    value: float64;
+    /// @type.symbol symbol=Score.value source="value: float64" type=float64
+
+}
+
+extension of Score implements Add<Score> {
+/// @definition.extension symbol=<module>#2 form=local target=Score
+/// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
+/// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
+/// @definition.method symbol=add slot=add type=(this: Score, Score) => Score
+/// @resolution.name source=Score target=Score
+/// @resolution.name source=Add target=ops.plus.Add
+/// @resolution.name source=Score target=Score
+
+    type Output = Score;
+    /// @type.symbol symbol=Output source="type Output = Score" type=Score
+    /// @resolution.name source=Score target=Score
+
+    add(other: Score): Score {
+    /// @type.symbol symbol=add type=(this: Score, Score) => Score
+    /// @type.symbol symbol=add.other source="other: Score" type=Score
+    /// @resolution.name source=Score target=Score
+    /// @resolution.name source=Score target=Score
+
+        Score { value: this.value + other.value }
+        /// @resolution.name source=Score target=Score
+        /// @resolution.member source=this.value receiver=Score kind=symbol target=Score.value
+        /// @resolution.call source="this.value + other.value" parameters=() return=float64 kind=builtin builtin=binary.add
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Score
+        /// @resolution.name source=other target=add.other
+        /// @resolution.member source=other.value receiver=Score kind=symbol target=Score.value
+
+    }
+}
+
+declare let total: Score;
+/// @type.symbol symbol=total source=total type=Score
+/// @resolution.name source=Score target=Score
+
+declare const bonus: Score;
+/// @type.symbol symbol=bonus source=bonus type=Score
+/// @resolution.name source=Score target=Score
+
+total += bonus;
+/// @resolution.call source="total += bonus" parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score
+/// @resolution.pattern.assign source=total kind=place place=binding(total) type=Score
+/// @resolution.name source=bonus target=bonus
+"#);
+}
+
+#[test]
+fn test_implements_argument_defaults_to_the_implementer() {
+    let session = TestSession::single(
+        r#"
+import { Add } from "destack:ops";
+
+struct Score {
+    value: float64;
+}
+
+extension of Score implements Add {
+    type Output = Score;
+
+    add(other: Score): Score {
+        Score { value: this.value + other.value }
+    }
+}
+
+declare let total: Score;
+declare const bonus: Score;
+total += bonus;
+"#,
+    );
+
+    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+=== annotated ===
+import { Add } from "destack:ops";
+
+struct Score {
+    value: float64;
+}
+
+extension of Score implements Add {
+    type Output = Score;
+
+    add(other: Score): Score {
+        Score { value: this.value + other.value }
+    }
+}
+
+declare let total: Score;
+declare const bonus: Score;
+total += bonus;
+
+=== checked ===
+import { Add } from "destack:ops";
+
+struct Score {
+/// @type.symbol symbol=Score type=Score
+/// @definition.struct symbol=Score
+/// @definition.field symbol=Score.value source="value: float64" key=value type=float64
+
+    value: float64;
+    /// @type.symbol symbol=Score.value source="value: float64" type=float64
+
+}
+
+extension of Score implements Add {
+/// @definition.extension symbol=<module>#2 form=local target=Score
+/// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
+/// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
+/// @definition.method symbol=add slot=add type=(this: Score, Score) => Score
+/// @resolution.name source=Score target=Score
+/// @resolution.name source=Add target=ops.plus.Add
+/// @resolution.name source=Score target=Score
+
+    type Output = Score;
+    /// @type.symbol symbol=Output source="type Output = Score" type=Score
+    /// @resolution.name source=Score target=Score
+
+    add(other: Score): Score {
+    /// @type.symbol symbol=add type=(this: Score, Score) => Score
+    /// @type.symbol symbol=add.other source="other: Score" type=Score
+    /// @resolution.name source=Score target=Score
+    /// @resolution.name source=Score target=Score
+
+        Score { value: this.value + other.value }
+        /// @resolution.name source=Score target=Score
+        /// @resolution.member source=this.value receiver=Score kind=symbol target=Score.value
+        /// @resolution.call source="this.value + other.value" parameters=() return=float64 kind=builtin builtin=binary.add
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Score
+        /// @resolution.name source=other target=add.other
+        /// @resolution.member source=other.value receiver=Score kind=symbol target=Score.value
+
+    }
+}
+
+declare let total: Score;
+/// @type.symbol symbol=total source=total type=Score
+/// @resolution.name source=Score target=Score
+
+declare const bonus: Score;
+/// @type.symbol symbol=bonus source=bonus type=Score
+/// @resolution.name source=Score target=Score
+
+total += bonus;
+/// @resolution.call source="total += bonus" parameters=(Score) arguments=(provided(bonus) as Score) return=Score kind=symbol target=add receiver=Score
+/// @resolution.pattern.assign source=total kind=place place=binding(total) type=Score
+/// @resolution.name source=bonus target=bonus
+"#);
+}
