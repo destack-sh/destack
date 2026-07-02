@@ -175,9 +175,7 @@ impl CheckState<'_> {
         let receiver_site = self.node_site(receiver_node)?;
         let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
         let Some(index) = index else {
-            let operands = format!("'{}'", self.format_type(receiver));
-
-            return self.reject_index(node, origin, operands);
+            return self.reject_operator(node, origin, "[]".to_string(), &[receiver]);
         };
         let index_node = index.into_global_any(module);
         let index_site = self.node_site(index_node)?;
@@ -197,15 +195,7 @@ impl CheckState<'_> {
             index_node,
             index,
         )?) else {
-            return self.reject_index(
-                node,
-                origin,
-                format!(
-                    "'{}' and '{}'",
-                    self.format_type(receiver_type),
-                    self.format_type(index)
-                ),
-            );
+            return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
         };
 
         if let Some(constraint) = selection.key_constraint(index, index_node) {
@@ -649,19 +639,5 @@ impl CheckState<'_> {
         };
 
         self.decide_relation(origin, Relation::Assignable, value_type, input)
-    }
-
-    /// Reject one subscript with a diagnostic.
-    fn reject_index(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-        origin: Origin,
-        operands: String,
-    ) -> CompilerResult<Answer<()>> {
-        self.report_no_matching_operator(origin, "[]".to_string(), operands)?;
-        self.commit_decision(node, Decision::Rejected)?;
-        self.commit_error_node(node)?;
-
-        Ok(Answer::Ready(()))
     }
 }

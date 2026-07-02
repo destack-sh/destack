@@ -1,7 +1,9 @@
 mod r#as;
+mod bitwise;
 mod equality;
 mod r#in;
 mod instanceof;
 mod r#is;
+mod parameter;
 mod plus;
 mod update;
