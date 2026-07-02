@@ -7,7 +7,7 @@ use crate::CompilerResult;
 use crate::check::CheckState;
 
 /// One positional generic substitution.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub(in crate::check) struct TypeSubstitution {
     /// The declared parameters in declaration order.
     pub(in crate::check) parameters: SmallVec<[dir::GlobalGenericParameterId; 4]>,
@@ -36,6 +36,19 @@ impl TypeSubstitution {
     pub(in crate::check) fn with_receiver(mut self, receiver: dir::GlobalTypeId) -> Self {
         self.receiver = Some(receiver);
         self
+    }
+
+    /// Return this substitution extended by carried outer bindings.
+    pub(in crate::check) fn with_carried(&self, carried: &[dir::GenericArgumentBinding]) -> Self {
+        let mut composed = self.clone();
+        for binding in carried {
+            if !composed.parameters.contains(&binding.parameter) {
+                composed.parameters.push(binding.parameter);
+                composed.arguments.push(binding.argument);
+            }
+        }
+
+        composed
     }
 
     /// Return inference variables referenced by this substitution's arguments.

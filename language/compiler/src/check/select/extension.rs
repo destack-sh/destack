@@ -165,18 +165,11 @@ impl CheckState<'_> {
 
             // take declaration inputs before entering the candidate probe
             let target_type = extension.target.r#type();
-            let where_clauses = extension.where_clauses.clone();
             let template = self.symbol_template(extension_symbol);
 
             // match the extension target under a probe
             let probe = self.begin_probe();
-            let result = self.match_extension_target(
-                origin,
-                receiver,
-                template,
-                target_type,
-                &where_clauses,
-            );
+            let result = self.match_extension_target(origin, receiver, template, target_type);
 
             let matched = match result {
                 Ok(Answer::Ready(Some(substitution))) => self.extension_implements_interface(
@@ -275,7 +268,6 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
         let target_type = extension.target.r#type();
-        let where_clauses = extension.where_clauses.clone();
         let definition_members = extension.members.clone();
         let mut matched = SmallVec::<[_; 2]>::new();
         for member in &definition_members {
@@ -300,7 +292,6 @@ impl CheckState<'_> {
             extension_symbol,
             template,
             target_type,
-            &where_clauses,
             &members,
         );
         match result {
@@ -357,7 +348,6 @@ impl CheckState<'_> {
         if extension.target.root() != Some(symbol) {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
-        let where_clauses = extension.where_clauses.clone();
         let definition_members = extension.members.clone();
         let mut members = SmallVec::<[_; 2]>::new();
         for member in &definition_members {
@@ -372,12 +362,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
 
-        self.lookup_parameterized_static_extension(
-            origin,
-            extension_symbol,
-            &where_clauses,
-            &members,
-        )
+        self.lookup_parameterized_static_extension(origin, extension_symbol, &members)
     }
 
     /// Look up static extension members with unspecialized extension parameters.
@@ -385,26 +370,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         extension_symbol: dir::GlobalSymbolId,
-        where_clauses: &[dir::ExtensionWhereClause],
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<MemberLookup>> {
         let arguments = self.extension_parameter_arguments(origin, extension_symbol)?;
-
-        // require clauses that do not depend on call inference now
-        if !where_clauses.is_empty() && self.symbol_template(extension_symbol).is_none() {
-            for clause in where_clauses {
-                match self.decide_relation(
-                    origin,
-                    Relation::Satisfies,
-                    clause.left,
-                    clause.right,
-                )? {
-                    Answer::Ready(true) => {}
-                    Answer::Ready(false) => return Ok(Answer::Ready(MemberLookup::Missing)),
-                    Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-                }
-            }
-        }
 
         // expose matching static members for later call inference
         let mut candidates = Vec::new();
@@ -460,7 +428,6 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-        where_clauses: &[dir::ExtensionWhereClause],
     ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
         // bind extension generics from the receiver target pattern
         let substitution = match template {
@@ -483,14 +450,15 @@ impl CheckState<'_> {
 
         // prove the receiver satisfies the completed target
         let target_type = self.substitute_type(origin.module(), target_type, &substitution)?;
-        if !answer!(self.decide_relation(origin, Relation::Assignable, receiver, target_type,)?) {
+        if !answer!(self.decide_relation(origin, Relation::Assignable, receiver, target_type)?) {
             return Ok(Answer::Ready(None));
         }
 
-        // require every where clause to hold
-        for clause in where_clauses {
-            let left = self.substitute_type(origin.module(), clause.left, &substitution)?;
-            let right = self.substitute_type(origin.module(), clause.right, &substitution)?;
+        // prove every declared where predicate for this receiver
+        let predicates = self.template_predicates(template);
+        for predicate in predicates {
+            let left = self.substitute_type(origin.module(), predicate.left, &substitution)?;
+            let right = self.substitute_type(origin.module(), predicate.right, &substitution)?;
 
             if !answer!(self.decide_relation(origin, Relation::Satisfies, left, right)?) {
                 return Ok(Answer::Ready(None));
@@ -560,16 +528,11 @@ impl CheckState<'_> {
         extension_symbol: dir::GlobalSymbolId,
         template: Option<GenericTemplateId>,
         target_type: dir::GlobalTypeId,
-        where_clauses: &[dir::ExtensionWhereClause],
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
-        let Some(substitution) = answer!(self.match_extension_target(
-            origin,
-            receiver,
-            template,
-            target_type,
-            where_clauses,
-        )?) else {
+        let Some(substitution) =
+            answer!(self.match_extension_target(origin, receiver, template, target_type,)?)
+        else {
             return Ok(Answer::Ready(None));
         };
 

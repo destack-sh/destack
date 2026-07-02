@@ -936,7 +936,10 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return the generic table for one module.
-    fn generic_table(&self, module: destack_source::ModuleId) -> Option<&dir::GenericTable<'_>> {
+    pub(super) fn generic_table(
+        &self,
+        module: destack_source::ModuleId,
+    ) -> Option<&dir::GenericTable<'_>> {
         if module == self.tree.module_id {
             self.generics.as_ref()
         } else {

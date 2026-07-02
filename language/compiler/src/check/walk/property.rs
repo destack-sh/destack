@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 
 use crate::check::{
     Expectation, FlowBranch, FlowState, GenericInductionDeclaration, GenericInductionPosition,
-    Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    GenericTemplateId, Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -48,6 +48,23 @@ impl Drop for ReceiverGuard {
     }
 }
 
+/// One active generic template scope.
+pub(in crate::check) struct TemplateScopeGuard {
+    /// The guarded flow state, absent when no template was entered.
+    flow: Option<NonNull<FlowState>>,
+}
+
+impl Drop for TemplateScopeGuard {
+    fn drop(&mut self) {
+        // pop the template scope owned by this guard
+        if let Some(mut flow) = self.flow {
+            unsafe {
+                flow.as_mut().pop_template_scope();
+            }
+        }
+    }
+}
+
 impl WalkState<'_, '_> {
     /// Enter one explicit contextual receiver scope.
     pub(in crate::check) fn enter_receiver_scope(
@@ -57,6 +74,21 @@ impl WalkState<'_, '_> {
         self.flow_mut().push_receiver_scope(receiver);
 
         ReceiverGuard::new(self.flow_mut())
+    }
+
+    /// Enter one generic template scope; absent templates inherit.
+    pub(in crate::check) fn enter_template_scope(
+        &mut self,
+        template: Option<GenericTemplateId>,
+    ) -> TemplateScopeGuard {
+        let Some(template) = template else {
+            return TemplateScopeGuard { flow: None };
+        };
+        self.flow_mut().push_template_scope(template);
+
+        TemplateScopeGuard {
+            flow: Some(NonNull::from(self.flow_mut())),
+        }
     }
 
     /// Walk one literal's properties.
@@ -199,13 +231,19 @@ impl WalkState<'_, '_> {
                 // walk generic parameters
                 let source = id.into_global_any(self.module);
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
-                if let Some(symbol) = symbol {
-                    self.walk_generic_template(source, parent, Some(symbol), generic_parameters)?;
-                }
+                let template = match symbol {
+                    Some(symbol) => self.walk_generic_template(
+                        source,
+                        parent,
+                        Some(symbol),
+                        generic_parameters,
+                    )?,
+                    None => None,
+                };
 
                 // walk where clauses
                 for where_clause in where_clauses {
-                    self.walk_where_clause(*where_clause)?;
+                    self.walk_where_clause(template, *where_clause)?;
                 }
 
                 // walk constraint and value
@@ -825,11 +863,17 @@ impl WalkState<'_, '_> {
 
                 // walk generic parameters
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
-                if let Some(symbol) = symbol {
-                    self.walk_generic_template(source, parent, Some(symbol), generic_parameters)?;
-                }
+                let template = match symbol {
+                    Some(symbol) => self.walk_generic_template(
+                        source,
+                        parent,
+                        Some(symbol),
+                        generic_parameters,
+                    )?,
+                    None => None,
+                };
                 for where_clause in where_clauses {
-                    self.walk_where_clause(*where_clause)?;
+                    self.walk_where_clause(template, *where_clause)?;
                 }
 
                 let constraint = constraint

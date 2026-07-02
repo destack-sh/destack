@@ -143,7 +143,6 @@ impl CheckState<'_> {
             }
 
             let target_type = extension.target.r#type();
-            let where_clauses = extension.where_clauses.clone();
             let implements = extension.implements.clone();
             let template = self.symbol_template(extension_symbol);
             let Some(substitution) = answer!(self.match_extension_target(
@@ -151,7 +150,6 @@ impl CheckState<'_> {
                 lookup_receiver,
                 template,
                 target_type,
-                &where_clauses,
             )?) else {
                 continue;
             };
@@ -376,7 +374,6 @@ impl CheckState<'_> {
             }
 
             let target_type = extension.target.r#type();
-            let where_clauses = extension.where_clauses.clone();
             let implements = extension.implements.clone();
             let definition_members = extension.members.clone();
             let members = answer!(self.protocol_extension_members(&definition_members, key)?);
@@ -391,7 +388,6 @@ impl CheckState<'_> {
                 lookup_receiver,
                 extension_symbol,
                 target_type,
-                &where_clauses,
                 &implements,
                 &members,
                 protocol,
@@ -439,19 +435,14 @@ impl CheckState<'_> {
         lookup_receiver: dir::GlobalTypeId,
         extension_symbol: dir::GlobalSymbolId,
         target_type: dir::GlobalTypeId,
-        where_clauses: &[dir::ExtensionWhereClause],
         implements: &[dir::NominalHeritage],
         members: &[DeclaredMember],
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
         let template = self.symbol_template(extension_symbol);
-        let Some(mut substitution) = answer!(self.match_extension_target(
-            origin,
-            lookup_receiver,
-            template,
-            target_type,
-            where_clauses,
-        )?) else {
+        let Some(mut substitution) =
+            answer!(self.match_extension_target(origin, lookup_receiver, template, target_type,)?)
+        else {
             return Ok(Answer::Ready(None));
         };
 
@@ -739,6 +730,7 @@ impl CheckState<'_> {
             origin,
             candidate.ty,
             Some(receiver),
+            &candidate.generic_arguments,
             &[],
             argument_types,
             &source_nodes,

@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, TypeSubstitution, answer};
+use crate::check::{
+    Answer, CheckState, GenericPosition, Origin, Relation, TypeSubstitution, answer,
+};
 
 /// Callable signature accepted for an invocation.
 pub(in crate::check) struct SignatureSelection {
@@ -151,6 +153,7 @@ impl CheckState<'_> {
         origin: Origin,
         function_type: dir::GlobalTypeId,
         receiver: Option<dir::GlobalTypeId>,
+        carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[dir::GlobalTypeId],
         argument_sources: &[dir::GlobalNodeIdAny],
@@ -169,6 +172,7 @@ impl CheckState<'_> {
                     origin,
                     function,
                     receiver,
+                    carried,
                     type_arguments,
                     arguments,
                     argument_sources,
@@ -181,6 +185,7 @@ impl CheckState<'_> {
                     origin,
                     function,
                     receiver,
+                    carried,
                     type_arguments,
                     arguments,
                     argument_sources,
@@ -199,6 +204,7 @@ impl CheckState<'_> {
             function_type.module_id,
             source,
             &generic_parameters,
+            carried,
             type_arguments,
             &function,
             return_type,
@@ -216,6 +222,7 @@ impl CheckState<'_> {
         signature_module: ModuleId,
         source: dir::LocalNodeIdAny,
         generic_parameters: &[dir::GlobalGenericParameterId],
+        carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
@@ -230,6 +237,7 @@ impl CheckState<'_> {
             signature_module,
             source,
             generic_parameters,
+            carried,
             type_arguments,
             function,
             function_return,
@@ -272,6 +280,7 @@ impl CheckState<'_> {
         signature_module: ModuleId,
         source: dir::LocalNodeIdAny,
         generic_parameters: &[dir::GlobalGenericParameterId],
+        carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
@@ -304,11 +313,12 @@ impl CheckState<'_> {
         // instantiate the signature's generic parameters
         let substitution = match generic_parameters {
             [_, ..] => {
-                let substitution = if type_arguments.is_empty() {
-                    self.open_generic_parameters(origin, generic_parameters, type_arguments)?
-                } else {
-                    self.apply_generic_parameters(origin, generic_parameters, type_arguments)?
-                };
+                let substitution = self.instantiate_generic_parameters(
+                    origin,
+                    generic_parameters,
+                    type_arguments,
+                    GenericPosition::Inference,
+                )?;
                 match substitution {
                     Some(substitution) => substitution,
                     None => {
@@ -343,6 +353,24 @@ impl CheckState<'_> {
                     let source_node = source.into_global(module);
                     let rejection =
                         self.signature_bound_rejection(origin, source_node, argument, bound)?;
+
+                    return Ok(Answer::Ready(Err(rejection)));
+                }
+            }
+        }
+
+        // prove template predicates under the composed call substitution
+        let predicates = self.template_predicates(function.template);
+        if !predicates.is_empty() {
+            let composed = substitution.with_carried(carried);
+            for predicate in predicates {
+                let left = self.substitute_type(origin.module(), predicate.left, &composed)?;
+                let right = self.substitute_type(origin.module(), predicate.right, &composed)?;
+
+                if !answer!(self.constrain(origin, Relation::Satisfies, left, right)?) {
+                    let source_node = source.into_global(module);
+                    let rejection =
+                        self.signature_bound_rejection(origin, source_node, left, right)?;
 
                     return Ok(Answer::Ready(Err(rejection)));
                 }

@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 
 use crate::check::{
     BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
-    FlowState, GenericInductionParameter, Origin, PlaceUse, Relation, Task, TypeConstraint,
-    ValueUse, Widening,
+    FlowState, GenericInductionParameter, GenericTemplateId, Origin, PlaceUse, Relation, Task,
+    TypeConstraint, ValueUse, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -25,6 +25,8 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     flow: FlowState,
     /// Entry flow point for each source node occurrence walked in this module.
     node_flows: IndexMap<dir::GlobalNodeIdAny, FlowPointId>,
+    /// Innermost generic template scoping each walked source node.
+    node_scopes: IndexMap<dir::GlobalNodeIdAny, GenericTemplateId>,
     /// Capture directive waiting for an immediate function value initializer.
     capture_directive: Option<dir::CaptureDirective>,
 }
@@ -93,6 +95,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let state = check.module_mut(module);
         let flow = FlowState::from_points(std::mem::take(&mut state.flows));
         let node_flows = std::mem::take(&mut state.node_flows);
+        let node_scopes = std::mem::take(&mut state.node_scopes);
 
         Self {
             check,
@@ -102,6 +105,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_borrow_lifetimes: Vec::new(),
             flow,
             node_flows,
+            node_scopes,
             capture_directive: None,
         }
     }
@@ -141,10 +145,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let module = self.module;
         let flows = self.flow.into_points();
         let node_flows = self.node_flows;
+        let node_scopes = self.node_scopes;
 
         let state = self.check.module_mut(module);
         state.flows = flows;
         state.node_flows = node_flows;
+        state.node_scopes = node_scopes;
     }
 
     /// Enter one source node occurrence at the current flow point.
@@ -154,6 +160,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<FlowSite> {
         let node = id.into_global_any(self.module);
         let flow = self.flow().point();
+        if let Some(scope) = self.flow().template_scope() {
+            self.node_scopes.insert(node, scope);
+        }
         if let Some(previous) = self.node_flows.insert(node, flow)
             && previous != flow
         {

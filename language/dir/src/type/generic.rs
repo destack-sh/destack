@@ -185,9 +185,10 @@ impl GenericTemplate {
     }
 }
 
-/// One where-clause predicate declared on a generic template.
-/// Predicates are proved at instantiation sites and assumed as
-/// hypotheses inside the declaring template's own scope.
+/// One where clause declared on a generic template.
+///
+/// Instantiation sites prove each predicate and the declaring
+/// template's own scope assumes them.
 ///
 /// Example:
 /// ```ds

@@ -12,6 +12,8 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) functions: Vec<FunctionFrame>,
     /// Contextual receiver scopes currently visible outside function bodies.
     pub(in crate::check::flow) receivers: Vec<Option<Receiver>>,
+    /// Generic template scopes enclosing the current walk point.
+    pub(in crate::check::flow) template_scopes: Vec<dir::GlobalGenericTemplateId>,
     /// Control targets currently visible to `break` and `continue`.
     pub(in crate::check::flow) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
@@ -37,6 +39,7 @@ impl Default for FlowState {
         Self {
             functions: Vec::new(),
             receivers: Vec::new(),
+            template_scopes: Vec::new(),
             targets: Vec::new(),
             tries: Vec::new(),
             assigned: IndexSet::new(),
@@ -278,6 +281,23 @@ impl FlowState {
     /// Enter one explicit contextual receiver scope.
     pub(in crate::check) fn push_receiver_scope(&mut self, receiver: Option<Receiver>) {
         self.receivers.push(receiver);
+    }
+
+    /// Enter one generic template scope.
+    pub(in crate::check) fn push_template_scope(&mut self, template: dir::GlobalGenericTemplateId) {
+        self.template_scopes.push(template);
+    }
+
+    /// Leave the current generic template scope.
+    pub(in crate::check) fn pop_template_scope(&mut self) {
+        if self.template_scopes.pop().is_none() {
+            unreachable!("template scope stack underflow");
+        }
+    }
+
+    /// Return the innermost generic template scope.
+    pub(in crate::check) fn template_scope(&self) -> Option<dir::GlobalGenericTemplateId> {
+        self.template_scopes.last().copied()
     }
 
     /// Leave the current contextual receiver.
