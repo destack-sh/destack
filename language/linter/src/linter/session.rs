@@ -135,7 +135,7 @@ impl LintSession {
         let module = self.checked_module(type_id.module_id)?;
         let ty = module.types.get_type_maybe(type_id.local_id)?;
 
-        Some(read(ty, &module))
+        Some(read(&ty, &module))
     }
 
     /// Read one global static value through its owning checked module.

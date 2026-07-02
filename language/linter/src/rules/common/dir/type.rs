@@ -75,10 +75,16 @@ fn callable_signature_type_id(ty: &dir::Type) -> Option<dir::GlobalTypeId> {
 }
 
 /// Resolve union or intersection element type ids.
-fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::GlobalTypeId]> {
+fn union_or_intersection_elements(
+    ctx: &LintModuleContext<'_>,
+    module: destack_source::ModuleId,
+    ty: &dir::Type,
+) -> Option<Vec<dir::GlobalTypeId>> {
     match ty {
-        dir::Type::Union(union) => Some(union.elements.as_slice()),
-        dir::Type::Intersection(intersection) => Some(intersection.elements.as_slice()),
+        dir::Type::Union(union) => Some(ctx.checked_type_ids(module, union.elements)),
+        dir::Type::Intersection(intersection) => {
+            Some(ctx.checked_type_ids(module, intersection.elements))
+        }
         _ => None,
     }
 }
@@ -307,26 +313,36 @@ fn evaluate_boolean_type_query_inner(
     } else if let Some(signature_type_id) = callable_signature_type_id(&ty) {
         evaluate_boolean_type_query_inner(ctx, statics, signature_type_id, query, state)
     } else if let dir::Type::Instance(reference) = ty {
+        let arguments = ctx.checked_type_ids(normalized_type_id.module_id, reference.arguments);
         evaluate_reference_boolean_type_query(
             ctx,
             statics,
             reference.symbol,
-            Some(reference.arguments.as_slice()),
+            Some(&arguments),
             query,
             state,
         )
-    } else if let Some(element_type_ids) = union_or_intersection_elements(&ty) {
+    } else if let Some(element_type_ids) =
+        union_or_intersection_elements(ctx, normalized_type_id.module_id, &ty)
+    {
         let composition_policy = type_query_composition_policy(query, &ty);
         aggregate_boolean_query_results(
             ctx,
             statics,
-            element_type_ids,
+            &element_type_ids,
             query,
             composition_policy,
             state,
         )
     } else {
-        evaluate_terminal_boolean_type_query(ctx, statics, &ty, query, state)
+        evaluate_terminal_boolean_type_query(
+            ctx,
+            statics,
+            normalized_type_id.module_id,
+            &ty,
+            query,
+            state,
+        )
     };
 
     state.leave_type_id(normalized_type_id);
@@ -476,6 +492,7 @@ fn evaluate_reference_boolean_type_query(
 fn evaluate_terminal_boolean_type_query(
     ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
+    module: destack_source::ModuleId,
     ty: &dir::Type,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
@@ -520,15 +537,19 @@ fn evaluate_terminal_boolean_type_query(
                 TypeBooleanQuery::PromiseOrAny { promise_symbol },
                 state,
             ),
-            dir::Type::Tuple(tuple) => tuple.elements.iter().any(|element| {
-                evaluate_boolean_type_query_inner(
-                    ctx,
-                    statics,
-                    element.ty,
-                    TypeBooleanQuery::PromiseOrAny { promise_symbol },
-                    state,
-                )
-            }),
+            dir::Type::Tuple(tuple) => {
+                ctx.checked_elements(module, tuple.elements)
+                    .iter()
+                    .any(|element| {
+                        evaluate_boolean_type_query_inner(
+                            ctx,
+                            statics,
+                            element.ty,
+                            TypeBooleanQuery::PromiseOrAny { promise_symbol },
+                            state,
+                        )
+                    })
+            }
             _ => false,
         },
         TypeBooleanQuery::MapWithEmptyValue { .. } => false,
@@ -555,15 +576,19 @@ fn evaluate_terminal_boolean_type_query(
                 TypeBooleanQuery::HasUsefulToString,
                 state,
             ),
-            dir::Type::Tuple(tuple) => tuple.elements.iter().all(|element| {
-                evaluate_boolean_type_query_inner(
-                    ctx,
-                    statics,
-                    element.ty,
-                    TypeBooleanQuery::HasUsefulToString,
-                    state,
-                )
-            }),
+            dir::Type::Tuple(tuple) => {
+                ctx.checked_elements(module, tuple.elements)
+                    .iter()
+                    .all(|element| {
+                        evaluate_boolean_type_query_inner(
+                            ctx,
+                            statics,
+                            element.ty,
+                            TypeBooleanQuery::HasUsefulToString,
+                            state,
+                        )
+                    })
+            }
             dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_) => true,
@@ -573,15 +598,18 @@ fn evaluate_terminal_boolean_type_query(
         },
         TypeBooleanQuery::AsyncFunction => match ty {
             dir::Type::FunctionSignature(function) => function.asynchrony == dir::Asynchrony::Async,
-            dir::Type::Shape(object) => object.call_signatures.iter().any(|type_id| {
-                evaluate_boolean_type_query_inner(
-                    ctx,
-                    statics,
-                    *type_id,
-                    TypeBooleanQuery::AsyncFunction,
-                    state,
-                )
-            }),
+            dir::Type::Shape(object) => ctx
+                .checked_type_ids(module, object.call_signatures)
+                .iter()
+                .any(|type_id| {
+                    evaluate_boolean_type_query_inner(
+                        ctx,
+                        statics,
+                        *type_id,
+                        TypeBooleanQuery::AsyncFunction,
+                        state,
+                    )
+                }),
             _ => false,
         },
         TypeBooleanQuery::Any => matches!(ty, dir::Type::Any | dir::Type::Unknown),
@@ -774,7 +802,7 @@ pub fn tuple_type_arity(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId)
             .checked_type(current_type_id)
             .unwrap_or(dir::Type::Error);
         match current_type {
-            dir::Type::Tuple(tuple) => return Some(tuple.elements.len()),
+            dir::Type::Tuple(tuple) => return Some(tuple.elements.len() as usize),
             dir::Type::Form(value) => {
                 current_type_id = value.value;
             }
@@ -816,24 +844,25 @@ fn is_string_array_type_inner(
     let result = match ty {
         dir::Type::Slice(slice) => is_string_type(ctx, slice.element, string_symbol),
         dir::Type::FixedArray(array) => is_string_type(ctx, array.element, string_symbol),
-        dir::Type::Tuple(tuple) => tuple
-            .elements
+        dir::Type::Tuple(tuple) => ctx
+            .checked_elements(normalized_type_id.module_id, tuple.elements)
             .iter()
             .all(|element| is_string_type(ctx, element.ty, string_symbol)),
         dir::Type::Instance(reference) => {
             if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
-                reference.arguments.first().is_some_and(|element_type_id| {
-                    is_string_type(ctx, *element_type_id, string_symbol)
-                })
+                ctx.checked_type_ids(normalized_type_id.module_id, reference.arguments)
+                    .first()
+                    .is_some_and(|element_type_id| {
+                        is_string_type(ctx, *element_type_id, string_symbol)
+                    })
             }
         }
-        dir::Type::Union(union) => union.elements.iter().all(|element_type_id| {
-            is_string_array_type_inner(ctx, *element_type_id, array_symbol, string_symbol, state)
-        }),
-        dir::Type::Intersection(intersection) => {
-            intersection.elements.iter().any(|element_type_id| {
+        dir::Type::Union(union) => ctx
+            .checked_type_ids(normalized_type_id.module_id, union.elements)
+            .iter()
+            .all(|element_type_id| {
                 is_string_array_type_inner(
                     ctx,
                     *element_type_id,
@@ -841,8 +870,19 @@ fn is_string_array_type_inner(
                     string_symbol,
                     state,
                 )
-            })
-        }
+            }),
+        dir::Type::Intersection(intersection) => ctx
+            .checked_type_ids(normalized_type_id.module_id, intersection.elements)
+            .iter()
+            .any(|element_type_id| {
+                is_string_array_type_inner(
+                    ctx,
+                    *element_type_id,
+                    array_symbol,
+                    string_symbol,
+                    state,
+                )
+            }),
         dir::Type::Form(value) => {
             is_string_array_type_inner(ctx, value.value, array_symbol, string_symbol, state)
         }
@@ -885,17 +925,10 @@ fn is_array_like_iteration_type_inner(
 
     let type_node = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     match type_node {
-        dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
-            is_array_like_iteration_type_inner(
-                ctx,
-                strings,
-                *element_type_id,
-                array_symbol,
-                visited_type_ids,
-            )
-        }),
-        dir::Type::Intersection(intersection) => {
-            intersection.elements.iter().any(|element_type_id| {
+        dir::Type::Union(union) => ctx
+            .checked_type_ids(type_id.module_id, union.elements)
+            .iter()
+            .any(|element_type_id| {
                 is_array_like_iteration_type_inner(
                     ctx,
                     strings,
@@ -903,8 +936,19 @@ fn is_array_like_iteration_type_inner(
                     array_symbol,
                     visited_type_ids,
                 )
-            })
-        }
+            }),
+        dir::Type::Intersection(intersection) => ctx
+            .checked_type_ids(type_id.module_id, intersection.elements)
+            .iter()
+            .any(|element_type_id| {
+                is_array_like_iteration_type_inner(
+                    ctx,
+                    strings,
+                    *element_type_id,
+                    array_symbol,
+                    visited_type_ids,
+                )
+            }),
         dir::Type::Form(value) => is_array_like_iteration_type_inner(
             ctx,
             strings,
@@ -913,8 +957,12 @@ fn is_array_like_iteration_type_inner(
             visited_type_ids,
         ),
         dir::Type::Shape(object) => {
-            object_has_numeric_index_signature(ctx, &object.index_signatures)
-                && object_has_array_like_length_field(ctx, strings, &object.fields)
+            let index_signatures =
+                ctx.checked_index_signatures(type_id.module_id, object.index_signatures);
+            let fields = ctx.checked_fields(type_id.module_id, object.fields);
+
+            object_has_numeric_index_signature(ctx, &index_signatures)
+                && object_has_array_like_length_field(ctx, strings, &fields)
         }
         _ => false,
     }
@@ -1020,17 +1068,24 @@ fn has_non_void_this_parameter_type_inner(
                     !is_void_or_never_type(ctx, this_parameter_type_id)
                 })
         }
-        dir::Type::Shape(object) => object.call_signatures.iter().any(|signature_type_id| {
-            has_non_void_this_parameter_type_inner(ctx, *signature_type_id, visited_type_ids)
-        }),
-        dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
-            has_non_void_this_parameter_type_inner(ctx, *element_type_id, visited_type_ids)
-        }),
-        dir::Type::Intersection(intersection) => {
-            intersection.elements.iter().any(|element_type_id| {
+        dir::Type::Shape(object) => ctx
+            .checked_type_ids(normalized_type_id.module_id, object.call_signatures)
+            .iter()
+            .any(|signature_type_id| {
+                has_non_void_this_parameter_type_inner(ctx, *signature_type_id, visited_type_ids)
+            }),
+        dir::Type::Union(union) => ctx
+            .checked_type_ids(normalized_type_id.module_id, union.elements)
+            .iter()
+            .any(|element_type_id| {
                 has_non_void_this_parameter_type_inner(ctx, *element_type_id, visited_type_ids)
-            })
-        }
+            }),
+        dir::Type::Intersection(intersection) => ctx
+            .checked_type_ids(normalized_type_id.module_id, intersection.elements)
+            .iter()
+            .any(|element_type_id| {
+                has_non_void_this_parameter_type_inner(ctx, *element_type_id, visited_type_ids)
+            }),
         dir::Type::Form(value) => {
             has_non_void_this_parameter_type_inner(ctx, value.value, visited_type_ids)
         }
@@ -1337,7 +1392,9 @@ fn type_truthiness_inner(
         } else {
             TypeTruthiness::AlwaysTruthy
         }
-    } else if let Some(element_type_ids) = union_or_intersection_elements(&ty) {
+    } else if let Some(element_type_ids) =
+        union_or_intersection_elements(ctx, normalized_type_id.module_id, &ty)
+    {
         combine_truthiness(
             element_type_ids
                 .iter()
@@ -1456,7 +1513,9 @@ fn type_nullishness_inner(
         } else {
             TypeNullishness::Never
         }
-    } else if let Some(element_type_ids) = union_or_intersection_elements(&ty) {
+    } else if let Some(element_type_ids) =
+        union_or_intersection_elements(ctx, normalized_type_id.module_id, &ty)
+    {
         combine_nullishness(
             element_type_ids
                 .iter()
@@ -1626,12 +1685,12 @@ fn type_may_be_nominal_symbol_inner(
             }
         }
         dir::Type::Form(value) => type_may_be_nominal_symbol_inner(ctx, value.value, symbol, state),
-        dir::Type::Union(union) => union
-            .elements
+        dir::Type::Union(union) => ctx
+            .checked_type_ids(type_id.module_id, union.elements)
             .iter()
             .any(|element| type_may_be_nominal_symbol_inner(ctx, *element, symbol, state)),
-        dir::Type::Intersection(intersection) => intersection
-            .elements
+        dir::Type::Intersection(intersection) => ctx
+            .checked_type_ids(type_id.module_id, intersection.elements)
             .iter()
             .any(|element| type_may_be_nominal_symbol_inner(ctx, *element, symbol, state)),
         _ => false,
@@ -1668,18 +1727,17 @@ fn function_parameter_type_at_inner(
         function_parameter_type_at_inner(ctx, signature_type_id, index, state)
     } else {
         match ty {
-            dir::Type::FunctionSignature(function) => {
-                function.parameters.get(index).map(|parameter| parameter.ty)
-            }
-            dir::Type::Shape(object) => {
-                object
-                    .call_signatures
-                    .first()
-                    .copied()
-                    .and_then(|first_signature| {
-                        function_parameter_type_at_inner(ctx, first_signature, index, state)
-                    })
-            }
+            dir::Type::FunctionSignature(function) => ctx
+                .checked_parameters(type_id.module_id, function.parameters)
+                .get(index)
+                .map(|parameter| parameter.ty),
+            dir::Type::Shape(object) => ctx
+                .checked_type_ids(type_id.module_id, object.call_signatures)
+                .first()
+                .copied()
+                .and_then(|first_signature| {
+                    function_parameter_type_at_inner(ctx, first_signature, index, state)
+                }),
             dir::Type::Form(value) => {
                 function_parameter_type_at_inner(ctx, value.value, index, state)
             }
@@ -1717,26 +1775,31 @@ fn function_parameter_types_at_inner(
     } else {
         match ty {
             dir::Type::FunctionSignature(function) => {
-                if let Some(parameter_type_id) =
-                    function.parameters.get(index).map(|parameter| parameter.ty)
+                if let Some(parameter_type_id) = ctx
+                    .checked_parameters(type_id.module_id, function.parameters)
+                    .get(index)
+                    .map(|parameter| parameter.ty)
                     && !results.contains(&parameter_type_id)
                 {
                     results.push(parameter_type_id);
                 }
             }
             dir::Type::Shape(object) => {
-                for signature_id in &object.call_signatures {
-                    function_parameter_types_at_inner(ctx, *signature_id, index, state, results);
+                for signature_id in ctx.checked_type_ids(type_id.module_id, object.call_signatures)
+                {
+                    function_parameter_types_at_inner(ctx, signature_id, index, state, results);
                 }
             }
             dir::Type::Union(union) => {
-                for element_type_id in &union.elements {
-                    function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
+                for element_type_id in ctx.checked_type_ids(type_id.module_id, union.elements) {
+                    function_parameter_types_at_inner(ctx, element_type_id, index, state, results);
                 }
             }
             dir::Type::Intersection(intersection) => {
-                for element_type_id in &intersection.elements {
-                    function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
+                for element_type_id in
+                    ctx.checked_type_ids(type_id.module_id, intersection.elements)
+                {
+                    function_parameter_types_at_inner(ctx, element_type_id, index, state, results);
                 }
             }
             dir::Type::Form(value) => {
@@ -1772,15 +1835,13 @@ fn function_return_type_inner(
     } else {
         match ty {
             dir::Type::FunctionSignature(function) => function.return_type,
-            dir::Type::Shape(object) => {
-                object
-                    .call_signatures
-                    .first()
-                    .copied()
-                    .and_then(|first_signature| {
-                        function_return_type_inner(ctx, first_signature, state)
-                    })
-            }
+            dir::Type::Shape(object) => ctx
+                .checked_type_ids(type_id.module_id, object.call_signatures)
+                .first()
+                .copied()
+                .and_then(|first_signature| {
+                    function_return_type_inner(ctx, first_signature, state)
+                }),
             dir::Type::Form(value) => function_return_type_inner(ctx, value.value, state),
             dir::Type::Instance(reference) => {
                 if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
