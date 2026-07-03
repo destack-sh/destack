@@ -60,7 +60,19 @@ pub(in crate::check) struct CheckState<'a> {
 
     // memoized closed reductions, valid across rejected probes
     /// Memoized closed reduced types keyed by source type.
-    pub(in crate::check) reduced_types: IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+    /// Parameter reductions key by their assuming scope, so scope-dependent answers never leak across declarations.
+    pub(in crate::check) reduced_types:
+        IndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
+    /// Opened method sources keyed by conformance pair and assuming scope.
+    /// Re-polled conformance decisions reuse their opened inference variables, so the solver can settle them.
+    pub(in crate::check) opened_signatures: IndexMap<
+        (
+            dir::GlobalTypeId,
+            dir::GlobalTypeId,
+            Option<dir::GlobalGenericTemplateId>,
+        ),
+        dir::GlobalTypeId,
+    >,
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
     /// Memoized layout segments per module, component and external.
@@ -103,6 +115,7 @@ impl<'a> CheckState<'a> {
             decisions: DecisionTable::new(),
             solver: Solver::new(),
             reduced_types: IndexMap::new(),
+            opened_signatures: IndexMap::new(),
             generics: GenericIndex::new(),
             layouts: IndexMap::new(),
             variances: IndexMap::new(),
@@ -689,6 +702,10 @@ impl CheckState<'_> {
             dir::Type::Member(mut member) => {
                 member.owner = map(self, member.owner)?;
                 member.arguments = self.map_type_id_list(source, target, member.arguments, map)?;
+                member.qualifier = member
+                    .qualifier
+                    .map(|qualifier| map(self, qualifier))
+                    .transpose()?;
 
                 dir::Type::Member(member)
             }

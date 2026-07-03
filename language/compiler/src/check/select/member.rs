@@ -532,6 +532,29 @@ impl CheckState<'_> {
             member.key,
         )?);
 
+        // qualified projections keep only their declaring scope's members
+        let lookup = match (lookup, member.qualifier) {
+            (MemberLookup::Found(candidates), Some(qualifier)) => {
+                let mut kept = Vec::new();
+                for candidate in candidates {
+                    if answer!(self.candidate_declared_by(origin, &candidate, qualifier)?) {
+                        kept.push(candidate);
+                    }
+                }
+
+                // implementations shadow the scope's own abstract member
+                let scope = self.type_symbol(qualifier)?;
+                if let Some(scope) = scope
+                    && kept.iter().any(|candidate| candidate.owner != scope)
+                {
+                    kept.retain(|candidate| candidate.owner != scope);
+                }
+
+                MemberLookup::Found(kept)
+            }
+            (lookup, _) => lookup,
+        };
+
         match lookup {
             // single projections substitute member arguments
             MemberLookup::Field(ty) => Ok(Answer::Ready(Some(ty))),
@@ -553,6 +576,105 @@ impl CheckState<'_> {
             },
             MemberLookup::Missing => Ok(Answer::Ready(None)),
         }
+    }
+
+    /// Return the unique bound application declaring one projected member.
+    pub(in crate::check) fn projection_qualifier(
+        &mut self,
+        origin: Origin,
+        parameter: dir::GlobalGenericParameterId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let mut qualifier = None;
+        for bound in self.parameter_bounds(origin, parameter)? {
+            // only interface bounds can declare projected members
+            let bound = answer!(self.reduce_type_head(origin, bound)?);
+            let dir::Type::Instance(instance) = self.ty(bound)? else {
+                continue;
+            };
+            let members = match self.definition(instance.symbol) {
+                Some(dir::Definition::Interface(definition)) => definition.members.clone(),
+                _ => continue,
+            };
+
+            // remember the declaring interface, rejecting ambiguity
+            for member in &members {
+                let declared = match self.declared_member(member)? {
+                    Answer::Ready(Some(declared)) => declared,
+                    Answer::Ready(None) => continue,
+                    Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
+                };
+                if !declared.matches(dir::MemberSpace::Static, key) {
+                    continue;
+                }
+                if qualifier.is_some_and(|previous| previous != bound) {
+                    return Ok(Answer::Ready(None));
+                }
+                qualifier = Some(bound);
+            }
+        }
+
+        Ok(Answer::Ready(qualifier))
+    }
+
+    /// Decide whether one candidate projects through one qualifying scope.
+    ///
+    /// Extension references match their declaration lexically.
+    /// Interface applications match the declaring interface itself or
+    /// any declaration whose implemented application unifies with them.
+    fn candidate_declared_by(
+        &mut self,
+        origin: Origin,
+        candidate: &MemberCandidate,
+        qualifier: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let instance = match self.ty(qualifier)? {
+            // extension scopes bind lexically to their declaration
+            dir::Type::Reference(reference) => {
+                return Ok(Answer::Ready(candidate.owner == reference.symbol));
+            }
+            dir::Type::Instance(instance) => instance,
+            _ => return Ok(Answer::Ready(false)),
+        };
+
+        // the declaring interface carries its own abstract members
+        if candidate.owner == instance.symbol {
+            return Ok(Answer::Ready(true));
+        }
+        let heritages = match self.definition(candidate.owner) {
+            Some(definition) => definition
+                .heritages()
+                .into_iter()
+                .filter(|heritage| heritage.symbol == instance.symbol)
+                .cloned()
+                .collect::<Vec<_>>(),
+            None => return Ok(Answer::Ready(false)),
+        };
+
+        // match any implemented application against the applied scope,
+        // binding the implementer's own parameters as pattern holes
+        let module = origin.module();
+        let parameters = self
+            .symbol_template(candidate.owner)
+            .map(|template| self.generic_template_parameters(template))
+            .unwrap_or_default();
+        for heritage in heritages {
+            let arguments = self.intern_type_ids(module, &heritage.arguments)?;
+            let pattern = self.intern_type(
+                module,
+                dir::Type::Instance(dir::GenericInstance {
+                    symbol: heritage.symbol,
+                    arguments,
+                }),
+            )?;
+            let matched =
+                answer!(self.match_generic_pattern(origin, &parameters, pattern, qualifier)?);
+            if matched.is_some() {
+                return Ok(Answer::Ready(true));
+            }
+        }
+
+        Ok(Answer::Ready(false))
     }
 
     /// Return one field type projected through the receiver placement.

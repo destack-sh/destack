@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Decision, GenericArgument, GenericPosition, Origin, Relation, TypeSubstitution, WalkState,
-    Widening,
+    Decision, GenericArgument, GenericPosition, Origin, Receiver, Relation, TypeSubstitution,
+    WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -128,6 +128,16 @@ impl WalkState<'_, '_> {
                     .iter()
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
+
+                // this projections bind to their declaring scope
+                let qualifier = match self.tree.get(*left) {
+                    dir::TypeExpression::This => {
+                        let receiver = self.flow().current_receiver();
+
+                        self.receiver_projection_scope(receiver)?
+                    }
+                    _ => None,
+                };
                 let owner = self.walk_type_expression(*left)?;
                 let arguments = self.walk_generic_arguments(&generic_arguments)?;
                 let arguments: Vec<_> = arguments.into_iter().map(|argument| argument.ty).collect();
@@ -137,6 +147,7 @@ impl WalkState<'_, '_> {
                     owner,
                     key: dir::StaticKey::Name(name),
                     arguments,
+                    qualifier,
                 }))
             }
             // 0..10
@@ -698,6 +709,35 @@ impl WalkState<'_, '_> {
         Ok(ty)
     }
 
+    /// Return the type identity of one receiver's declaring scope.
+    /// Extensions project by declaration reference, every other scope
+    /// by its self application, which substitutes with the receiver.
+    fn receiver_projection_scope(
+        &mut self,
+        receiver: Option<Receiver>,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(receiver) = receiver else {
+            return Ok(None);
+        };
+        let Some(declaration) = receiver.declaration else {
+            return Ok(None);
+        };
+
+        // extensions have no application, so they project by reference
+        if matches!(
+            self.check.symbol_kind(declaration),
+            dir::SymbolKind::Extension
+        ) {
+            let reference = dir::Type::Reference(dir::TypeReference {
+                symbol: declaration,
+            });
+
+            return Ok(Some(self.intern_type(reference)?));
+        }
+
+        Ok(Some(receiver.ty))
+    }
+
     /// Return the type for one declaration symbol application.
     fn referenced_symbol_type(
         &mut self,
@@ -874,6 +914,7 @@ impl WalkState<'_, '_> {
                 owner: ty,
                 key: dir::StaticKey::Name(segment),
                 arguments,
+                qualifier: None,
             }))?;
         }
 
