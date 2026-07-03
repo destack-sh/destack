@@ -1170,21 +1170,33 @@ pub enum YieldCardinality {
     Generator,
 }
 
+/// A where-clause relation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum WhereRelation {
+    /// The left type must satisfy the right type.
+    Satisfies,
+    /// The left static term must equal the right static term after normalization.
+    Equals,
+}
+
 /// A WhereClause is a single clause in a where type declaration.
-/// It is a type constraint (`T: Y`) only.
+/// It is a type relation (`T: Y` or `T.Output == U`).
 /// Only positive declarations should have aliases (checked later).
 ///
 /// Examples:
 /// ```
 /// T: int32
+/// T.Output == U
 /// Self: geom.Mesh<T>
 /// BaseOf<T>: Copy
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct WhereClause {
-    /// The target type to constrain (like `T` in `T: int32`).
+    /// The relation between the two operands.
+    pub relation: WhereRelation,
+    /// The left relation operand, like `T` in `T: int32`.
     pub left: LocalNodeId<TypeExpression>,
-    /// The constraint type (like `int32` in `T: int32`).
+    /// The right relation operand, like `int32` in `T: int32`.
     pub right: LocalNodeId<TypeExpression>,
 }
 

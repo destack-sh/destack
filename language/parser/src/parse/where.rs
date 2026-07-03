@@ -1,7 +1,7 @@
 // parse use and where declarations
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause};
+use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, WhereClause, WhereRelation};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
@@ -10,6 +10,7 @@ impl Parser {
     /// Examples:
     /// ```
     /// where T: int32
+    /// where T.Output == U
     /// where Foo: Bar
     /// where Foo.Bar: Baz
     /// where BaseOf<Foo>: Copy
@@ -28,6 +29,7 @@ impl Parser {
     /// Examples:
     /// ```
     /// where T: int32
+    /// where T.Output == U
     /// where Foo: Bar
     /// where Foo.Bar: Baz
     /// where BaseOf<Foo>: Copy
@@ -87,10 +89,9 @@ impl Parser {
 
     /// Eat a single where clause.
     fn eat_where_clause(&mut self) -> ParserResult<LocalNodeId<WhereClause>> {
-        // span start
         let start = self.span_start();
 
-        // left type
+        // parse left operand
         let left_flags = self
             .flags
             .in_type()
@@ -101,29 +102,48 @@ impl Parser {
             self.eat_type_expression_or_recover_missing(left_flags, NodeType::WhereClause)?;
         let left_span = self.tree.get_span(left);
 
-        // constraint marker
+        // start relation span
         let type_start = self.span_start();
-        if self.peek_colon_is() {
+
+        // accept constraint relation
+        let relation = if self.peek_colon_is() {
             self.bump(); // eat colon
-        } else if matches!(
+            WhereRelation::Satisfies
+        }
+        // accept equality relation
+        else if self.peek_is(TokenType::Equal) {
+            self.bump(); // eat ==
+            WhereRelation::Equals
+        }
+        // recover stale relation keywords
+        else if matches!(
             self.current_keyword(),
             Some(Keyword::Extends | Keyword::Implements)
         ) {
             let error = ParserError::expected(self.peek()?, TokenType::Colon);
             self.error(&error);
             self.bump(); // eat stale relation separator
-        } else {
-            self.eat_token(TokenType::Colon)?;
+            WhereRelation::Satisfies
         }
+        // require canonical relation syntax
+        else {
+            self.eat_token(TokenType::Colon)?;
+            WhereRelation::Satisfies
+        };
 
-        // constraint type
+        // parse right operand
         let right = self
             .eat_type_expression_or_recover_missing(self.flags.in_type(), NodeType::WhereClause)?;
-        let clause = self
-            .tree
-            .insert(WhereClause { left, right }, self.get_span_from(&start));
+        let clause = self.tree.insert(
+            WhereClause {
+                relation,
+                left,
+                right,
+            },
+            self.get_span_from(&start),
+        );
 
-        // spans
+        // record spans
         self.tree.set_main_span(clause, left_span);
         self.tree.set_side_span(
             clause,

@@ -2,7 +2,9 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StringId, VarianceModifier};
+use crate::{
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, StringId, VarianceModifier, WhereRelation,
+};
 
 /// Unique identifier for generic templates.
 #[repr(transparent)]
@@ -198,9 +200,11 @@ impl GenericTemplate {
 pub struct WherePredicate {
     /// The source where clause node.
     pub source: GlobalNodeIdAny,
-    /// The constrained type.
+    /// The relation between the two operands.
+    pub relation: WhereRelation,
+    /// The left relation operand.
     pub left: GlobalTypeId,
-    /// The required constraint type.
+    /// The right relation operand.
     pub right: GlobalTypeId,
 }
 

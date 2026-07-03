@@ -71,3 +71,17 @@ function repeat<comptime N: int>(value: string): string {
     return value;
 }
 ```
+
+### generic with equality predicate
+
+Where-clause equality predicates keep the equality operator.
+
+```ds
+function project<T,U>():T where T.Output==U { return value }
+```
+
+```ds expected
+function project<T, U>(): T where T.Output == U {
+    return value;
+}
+```

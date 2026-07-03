@@ -14,7 +14,7 @@ use destack_core::StringId;
 use destack_dir::{
     Asynchrony, Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
     GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, ThisForm, TokenType, Tree,
-    TreeStore, TypeExpression, VarianceModifier, Visibility, WhereClause,
+    TreeStore, TypeExpression, VarianceModifier, Visibility, WhereClause, WhereRelation,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -1129,7 +1129,15 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
-        write!(f, [self.left, token(":"), space(), self.right])?;
+
+        // format relation with its canonical spacing
+        match self.relation {
+            WhereRelation::Satisfies => write!(f, [self.left, token(":"), space(), self.right])?,
+            WhereRelation::Equals => {
+                write!(f, [self.left, space(), token("=="), space(), self.right])?;
+            }
+        }
+
         write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
     }
 }

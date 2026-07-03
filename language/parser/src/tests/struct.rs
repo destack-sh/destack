@@ -480,7 +480,7 @@ struct Foo where Guard: Limit {
 
         // where Guard: Limit
         assert_eq!(where_clauses.len(), 1);
-        assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
+        assert_node!(parser.tree, where_clauses[0], WhereClause { relation: _, left, right } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Guard");
             assert_expression_path!(parser, parser.tree.get(*right), "Limit");
         });

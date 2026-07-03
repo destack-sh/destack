@@ -96,7 +96,7 @@ struct Document {
 extension<T> of Box<T> where T: Readable {
 /// @generic.template parameters=(T#2: Readable)
 /// @definition.extension form=inherent target=Box<T#2>
-/// @definition.where source="T: Readable" left=T#2 right=Readable
+/// @definition.where source="T: Readable" relation=satisfies left=T#2 right=Readable
 /// @definition.method symbol=read slot=read type=(this: Box<T#2>) => string
 /// @type.symbol symbol=T#2 source=T type=T#2
 /// @resolution.name source=Box target=Box
@@ -213,7 +213,7 @@ struct Token {}
 extension<T> of Box<T> where T: Readable {
 /// @generic.template parameters=(T#2: Readable)
 /// @definition.extension form=inherent target=Box<T#2>
-/// @definition.where source="T: Readable" left=T#2 right=Readable
+/// @definition.where source="T: Readable" relation=satisfies left=T#2 right=Readable
 /// @definition.method symbol=read slot=read type=(this: Box<T#2>) => string
 /// @type.symbol symbol=T#2 source=T type=T#2
 /// @resolution.name source=Box target=Box

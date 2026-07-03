@@ -481,7 +481,7 @@ class Box<K> {
 extension<K> of Box<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
-/// @definition.where symbol=<module>#2 source="K: Equal<K>" left=K#2 right=Equal<K#2>
+/// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=Equal<K#2>
 /// @definition.method symbol=check slot=check type=(this: Box<K#2>) => boolean
 /// @type.symbol symbol=K source=K type=K#2
 /// @resolution.name source=Box target=Box
@@ -844,7 +844,7 @@ class Box<K> {
 extension<K: Hash> of Box<K> where K: Equal<K> {
 /// @generic.template symbol=<module>#2 parameters=(K#2: Hash)
 /// @definition.extension symbol=<module>#2 form=local target=Box<K#2>
-/// @definition.where symbol=<module>#2 source="K: Equal<K>" left=K#2 right=Equal<K#2>
+/// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=Equal<K#2>
 /// @definition.method symbol=check slot=check type=(this: Box<K#2>) => boolean
 /// @type.symbol symbol=K source="K: Hash" type=K#2
 /// @resolution.name source=Hash target=Hash

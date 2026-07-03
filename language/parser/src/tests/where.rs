@@ -1,4 +1,6 @@
-use destack_dir::{CommentKind, IntegerType, NodeType, TypeExpression, TypeLiteral, WhereClause};
+use destack_dir::{
+    CommentKind, IntegerType, NodeType, TypeExpression, TypeLiteral, WhereClause, WhereRelation,
+};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{TestParser, assert_comment, assert_expression_path, assert_node, assert_path};
@@ -11,7 +13,8 @@ fn test_parse_where_type_assertion() {
 
     // where T: int32
     assert_eq!(clauses.len(), 1);
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
+        assert_eq!(*relation, WhereRelation::Satisfies);
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_node!(parser.tree, *right, TypeExpression::Literal { value } => {
             assert_eq!(
@@ -32,7 +35,7 @@ fn test_parse_where_negative_capability() {
     test.assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_node!(parser.tree, *right, TypeExpression::Not { target_type } => {
             assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
@@ -40,6 +43,28 @@ fn test_parse_where_negative_capability() {
             });
         });
     });
+}
+
+#[test]
+fn test_parse_where_equality_constraint() {
+    let mut test = TestParser::new("where T.Output == U");
+    let mut parser = test.prepare();
+    let clauses = parser.eat_where().unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_eq!(clauses.len(), 1);
+    assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
+        assert_eq!(*relation, WhereRelation::Equals);
+        assert_expression_path!(parser, parser.tree.get(*left), "T.Output");
+        assert_expression_path!(parser, parser.tree.get(*right), "U");
+    });
+
+    let type_span = parser
+        .tree
+        .get_side_span(clauses[0], NodeSpanType::Region(NodeSpanRegion::Type))
+        .expect("expected where type span");
+    assert_eq!(parser.get_span_str(type_span), "== U");
 }
 
 #[test]
@@ -51,19 +76,19 @@ fn test_parse_where_multiple_clauses() {
 
     assert_eq!(clauses.len(), 3);
 
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Numeric");
         });
     });
-    assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[1], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "U");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Copy");
         });
     });
-    assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[2], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "V");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Comparable");
@@ -84,19 +109,19 @@ fn test_parse_where_parenthesized_multiline() {
 
     assert_eq!(clauses.len(), 3);
 
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Numeric");
         });
     });
-    assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[1], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "U");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Copy");
         });
     });
-    assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[2], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "V");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Comparable");
@@ -114,7 +139,7 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     assert_eq!(clauses.len(), 2);
 
     // T: Numeric
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Numeric");
@@ -122,7 +147,7 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     });
 
     // U: Copy
-    assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[1], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "U");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Copy");
@@ -164,7 +189,7 @@ fn test_where_clause_constraint_with_boundary_comment() {
     assert_eq!(clauses.len(), 1);
 
     // T: Numeric
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
             assert_path!(parser, *path, "Numeric");
@@ -192,7 +217,7 @@ fn test_parse_where_type_expression_left() {
     test.assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "BaseOf");
         assert_expression_path!(parser, parser.tree.get(*right), "Clone");
     });
@@ -211,7 +236,7 @@ fn test_recover_where_implements_separator() {
     );
 
     assert_eq!(clauses.len(), 1);
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_expression_path!(parser, parser.tree.get(*right), "Clone");
     });
@@ -227,7 +252,7 @@ fn test_recover_where_extends_separator() {
     assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "extends");
 
     assert_eq!(clauses.len(), 1);
-    assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+    assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
         assert_expression_path!(parser, parser.tree.get(*left), "T");
         assert_expression_path!(parser, parser.tree.get(*right), "Clone");
     });

@@ -1342,21 +1342,26 @@ impl WalkState<'_, '_> {
         template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::WhereClause>,
     ) -> CompilerResult<()> {
+        // walk operands
         let clause = self.tree.get(id);
-        let (left, right) = (clause.left, clause.right);
+        let (relation, left, right) = (clause.relation, clause.left, clause.right);
         let left = self.walk_type_expression(left)?;
         let right = self.walk_type_expression(right)?;
 
+        // check clauses without a template through current bound logic
         let Some(template) = template else {
             let origin = Origin::Node(id.into_global_any(self.module));
             self.relate_type(origin, Relation::Satisfies, left, right);
 
             return Ok(());
         };
+
+        // preserve template predicate relation for later proof
         self.check.push_template_predicate(
             template,
             dir::WherePredicate {
                 source: id.into_global_any(self.module),
+                relation,
                 left,
                 right,
             },
