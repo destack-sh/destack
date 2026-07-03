@@ -735,6 +735,8 @@ pub struct MethodDefinition {
     pub abstraction: MethodAbstraction,
     /// Whether the method overrides an inherited member.
     pub is_override: bool,
+    /// Whether the method carries a default body.
+    pub is_default: bool,
 }
 
 /// One checked associated type.
@@ -818,6 +820,14 @@ pub enum DefinitionMember {
 }
 
 impl DefinitionMember {
+    /// Return whether this member carries a default implementation.
+    pub fn is_default(&self) -> bool {
+        match self {
+            Self::Method(method) => method.is_default,
+            _ => false,
+        }
+    }
+
     /// Return the source node declaring this member.
     pub fn source(&self) -> GlobalNodeIdAny {
         match self {
