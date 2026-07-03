@@ -2935,20 +2935,20 @@ Specifically, all surface sigils and keywords are just compact syntax for those 
 declare class User { /* ... */ };
 declare struct Point { /* ... */ };
 
-User            // unqualified, normal default representation
-Point           // unqualified value type, default-owned/direct
-readonly User   // WithAccess<User, "readonly">
-^User           // Owned<User>
-^Point          // Owned<Point>, reduced to Point
-&readonly User  // Borrowed<User, L, "readonly">
-&User           // Borrowed<User, L, "mutable">
-&exclusive User // Borrowed<User, L, "exclusive">
-*User           // Raw<User>
-local User      // Placed<User, "local">
-shared User     // Placed<User, "shared">
-local ^User     // Placed<Owned<User>, "local">
-shared ^User    // Placed<Owned<User>, "shared">
-^shared User    // Owned<Placed<User, "shared">>
+type NormalUser = User;                        // unqualified, normal default representation
+type NormalPoint = Point;                      // unqualified value type, default-owned/direct
+type ReadonlyUser = readonly User;             // WithAccess<User, "readonly">
+type OwnedUser = ^User;                        // Owned<User>
+type OwnedPoint = ^Point;                      // Owned<Point>, reduced to Point
+type ReadonlyBorrowedUser = &readonly User;    // Borrowed<User, L, "readonly">
+type BorrowedUser = &User;                     // Borrowed<User, L, "mutable">
+type ExclusiveBorrowedUser = &exclusive User;  // Borrowed<User, L, "exclusive">
+type RawUser = *User;                          // Raw<User>
+type LocalUser = local User;                   // Placed<User, "local">
+type SharedUser = shared User;                 // Placed<User, "shared">
+type LocalOwnedUser = local ^User;             // Placed<Owned<User>, "local">
+type SharedOwnedUser = shared ^User;           // Placed<Owned<User>, "shared">
+type OwnedSharedUser = ^shared User;           // Owned<Placed<User, "shared">>
 ```
 
 It follows that because forms compose, owning a borrow is different from borrowing an owner:
