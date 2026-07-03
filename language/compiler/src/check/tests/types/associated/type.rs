@@ -149,6 +149,103 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 }
 
 #[test]
+fn test_direct_implementation_projects_its_associated_type() {
+    let session = TestSession::single(
+        r#"
+interface Producing {
+    type Output;
+
+    produce(): this.Output;
+}
+
+class Factory implements Producing {
+    type Output = int32;
+
+    produce(): this.Output {
+        return 7;
+    }
+}
+
+type Made<F: Producing> = F.Output;
+
+declare const made: Made<Factory>;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Producing {
+    type Output;
+
+    produce(): this.Output;
+}
+
+class Factory implements Producing {
+    type Output = int32;
+
+    produce(): Factory.Output {
+        return 7;
+    }
+}
+
+type Made<F: Producing> = F.Output;
+
+declare const made: Made<Factory>;
+
+=== checked ===
+interface Producing {
+/// @type.symbol symbol=Producing type=Producing
+/// @definition.interface symbol=Producing
+/// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => this.Output
+
+    type Output;
+
+    produce(): this.Output;
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: Producing) => this.Output
+
+}
+
+class Factory implements Producing {
+/// @type.symbol symbol=Factory type=Factory
+/// @definition.class symbol=Factory
+/// @definition.implements symbol=Factory source=Producing target=Producing
+/// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
+/// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => Factory.Output
+/// @resolution.name source=Producing target=Producing
+
+    type Output = int32;
+    /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
+
+    produce(): this.Output {
+    /// @type.symbol symbol=Factory.produce type=(this: Factory) => Factory.Output reduced=(this: Factory) => int32
+
+        return 7;
+    }
+}
+
+type Made<F: Producing> = F.Output;
+/// @generic.template symbol=Made parameters=(F: Producing)
+/// @type.symbol symbol=Made source="type Made<F: Producing> = F.Output" type=F.Output
+/// @definition.type symbol=Made source="type Made<F: Producing> = F.Output" template=(F: Producing) value=F.Output
+/// @type.symbol symbol=Made.F source="F: Producing" type=F
+/// @resolution.name source=Producing target=Producing
+/// @resolution.name source=F.Output target=Made.F
+
+declare const made: Made<Factory>;
+/// @type.symbol symbol=made source=made type=Made<Factory> reduced=int32
+/// @resolution.name source=Made target=Made
+/// @resolution.name source=Factory target=Factory
+
+/// @generic.instance id=Made<Factory> template=Made arguments=(Factory)
+"#,
+    );
+}
+
+#[test]
 fn test_associated_type_default_flows_through_constraint() {
     let session = TestSession::single(
         r#"

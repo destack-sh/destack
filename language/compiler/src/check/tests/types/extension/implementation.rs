@@ -588,3 +588,160 @@ extension of int32 implements Halving {
 }
 "#);
 }
+
+#[test]
+fn test_ambiguous_associated_types_qualify_by_interface() {
+    let session = TestSession::single(
+        r#"
+interface Reading {
+    type Output;
+
+    read(): this.Output;
+}
+
+interface Writing {
+    type Output;
+
+    write(): this.Output;
+}
+
+struct Cell {
+    value: int32;
+}
+
+extension of Cell implements Reading {
+    type Output = int32;
+
+    read(): this.Output {
+        todo("read")
+    }
+}
+
+extension of Cell implements Writing {
+    type Output = float64;
+
+    write(): this.Output {
+        todo("write")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Reading {
+    type Output;
+
+    read(): this.Output;
+}
+
+interface Writing {
+    type Output;
+
+    write(): this.Output;
+}
+
+struct Cell {
+    value: int32;
+}
+
+extension of Cell implements Reading {
+    type Output = int32;
+
+    read(): Cell.Output {
+        todo("read")
+    }
+}
+
+extension of Cell implements Writing {
+    type Output = float64;
+
+    write(): Cell.Output {
+        todo("write")
+    }
+}
+
+=== checked ===
+interface Reading {
+/// @type.symbol symbol=Reading type=Reading
+/// @definition.interface symbol=Reading
+/// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
+/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: Reading) => this.Output
+
+    type Output;
+
+    read(): this.Output;
+    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: Reading) => this.Output
+
+}
+
+interface Writing {
+/// @type.symbol symbol=Writing type=Writing
+/// @definition.interface symbol=Writing
+/// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
+/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: Writing) => this.Output
+
+    type Output;
+
+    write(): this.Output;
+    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: Writing) => this.Output
+
+}
+
+struct Cell {
+/// @type.symbol symbol=Cell type=Cell
+/// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
+
+}
+
+extension of Cell implements Reading {
+/// @definition.extension symbol=<module>#2 form=local target=Cell
+/// @definition.implements symbol=<module>#2 source=Reading target=Reading
+/// @definition.associated.type symbol=Output#1 source="type Output = int32" key=Output value=int32
+/// @definition.method symbol=read slot=read type=(this: Cell) => Cell.Output
+/// @resolution.name source=Cell target=Cell
+/// @resolution.name source=Reading target=Reading
+
+    type Output = int32;
+    /// @type.symbol symbol=Output#1 source="type Output = int32" type=int32
+
+    read(): this.Output {
+    /// @type.symbol symbol=read type=(this: Cell) => Cell.Output reduced=(this: Cell) => int32
+
+        todo("read")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"read\")" parameters=(string) arguments=(provided("read") as string) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+extension of Cell implements Writing {
+/// @definition.extension symbol=<module>#3 form=local target=Cell
+/// @definition.implements symbol=<module>#3 source=Writing target=Writing
+/// @definition.associated.type symbol=Output#2 source="type Output = float64" key=Output value=float64
+/// @definition.method symbol=write slot=write type=(this: Cell) => Cell.Output
+/// @resolution.name source=Cell target=Cell
+/// @resolution.name source=Writing target=Writing
+
+    type Output = float64;
+    /// @type.symbol symbol=Output#2 source="type Output = float64" type=float64
+
+    write(): this.Output {
+    /// @type.symbol symbol=write type=(this: Cell) => Cell.Output reduced=(this: Cell) => float64
+
+        todo("write")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"write\")" parameters=(string) arguments=(provided("write") as string) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+"#,
+    );
+}
