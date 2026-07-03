@@ -63,3 +63,51 @@ block0(v0: boolean):
   (symbol_identifier)
   (terminator_keyword)
   (punctuation))
+
+==================================
+Local and function identifiers
+==================================
+
+function @identifier.kinds(v0: int64) -> void {
+block0:
+    local0 = v0
+    function0 = @identifier.kinds
+    call function0(v0): (int64) -> void
+    return
+}
+
+
+---
+
+(source_file
+  (function_keyword)
+  (symbol_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (punctuation)
+  (block_identifier)
+  (punctuation)
+  (local_identifier)
+  (operator)
+  (ssa_identifier)
+  (function_identifier)
+  (operator)
+  (symbol_identifier)
+  (terminator_keyword)
+  (function_identifier)
+  (punctuation)
+  (ssa_identifier)
+  (punctuation)
+  (punctuation)
+  (punctuation)
+  (type_keyword)
+  (punctuation)
+  (arrow)
+  (type_keyword)
+  (terminator_keyword)
+  (punctuation))
