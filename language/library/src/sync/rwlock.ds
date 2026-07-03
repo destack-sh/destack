@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Default, Dispose } from "destack:memory";
+import { Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Atomic } from "./atomic.ds";
@@ -63,7 +63,7 @@ export local struct RwLockReadGuard<T> {
 
 export extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Release this guard.
     dispose(): void {
@@ -71,7 +71,7 @@ export extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"reado
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("RwLockReadGuard.dereference")
     }
 }
@@ -84,7 +84,7 @@ export local struct RwLockWriteGuard<T> {
 
 export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
-    type Output = &exclusive T;
+    type Output = T;
 
     /// Release this guard.
     dispose(): void {
@@ -92,7 +92,7 @@ export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"excl
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "exclusive"> {
         todo("RwLockWriteGuard.dereference")
     }
 

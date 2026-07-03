@@ -1,7 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Clone, Default, Dispose } from "destack:memory";
+import { Clone, Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference, Equal, Has, Hash } from "destack:ops";
 
 import { ConcurrentMap, ConcurrentMapRead } from "./concurrent-map.ds";
@@ -20,7 +20,7 @@ export shared class ConcurrentSet<T> {
 
 export extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Borrow the stored value.
     get value(): &readonly T {
@@ -33,7 +33,7 @@ export extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereferenc
     }
 
     /// Borrow the stored value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("ConcurrentSetRead.dereference")
     }
 }

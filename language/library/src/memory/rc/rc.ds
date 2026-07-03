@@ -1,3 +1,4 @@
+import { WithAccess } from "destack:memory";
 import { As, Borrow } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
@@ -33,7 +34,7 @@ export local struct Rc<T> {
 
 export extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Allocate a new reference-counted value.
     static new(value: ^T): Rc<T> {
@@ -152,7 +153,7 @@ export extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the referenced value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("Rc.dereference")
     }
 

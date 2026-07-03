@@ -1,3 +1,4 @@
+import { WithAccess } from "destack:memory";
 import { As, Borrow } from "destack:convert";
 import { todo } from "destack:error";
 import { Dereference } from "destack:ops";
@@ -43,7 +44,7 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Borrow the pinned root.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("Pin.dereference")
     }
 

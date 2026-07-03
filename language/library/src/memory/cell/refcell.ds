@@ -1,3 +1,4 @@
+import { WithAccess } from "destack:memory";
 import { todo } from "destack:error";
 import { Dereference } from "destack:ops";
 
@@ -71,7 +72,7 @@ export struct Ref<T> {
 
 export extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Release this borrow.
     dispose(): void {
@@ -79,7 +80,7 @@ export extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("Ref.dereference")
     }
 }
@@ -92,7 +93,7 @@ export struct ExclusiveRef<T> {
 
 export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
-    type Output = &exclusive T;
+    type Output = T;
 
     /// Release this borrow.
     dispose(): void {
@@ -100,7 +101,7 @@ export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusiv
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "exclusive"> {
         todo("ExclusiveRef.dereference")
     }
 }

@@ -100,7 +100,7 @@ export extension<T, comptime A: Access = "readonly"> of Box<T>
     }
 
     /// Borrow the boxed value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, A> {
         todo("Box.dereference")
     }
 

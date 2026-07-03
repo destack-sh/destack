@@ -1,7 +1,7 @@
 import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Clone, Default, Dispose } from "destack:memory";
+import { Clone, Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference, Equal, Has, Hash } from "destack:ops";
 import { Atomic, RwLock, RwLockReadGuard, RwLockWriteGuard } from "destack:sync";
 
@@ -46,7 +46,7 @@ export shared class ConcurrentMap<K, V> {
 
 export extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
-    type Output = &readonly V;
+    type Output = V;
 
     /// Borrow the entry key.
     get key(): &readonly K {
@@ -64,14 +64,14 @@ export extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dere
     }
 
     /// Borrow the entry value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("ConcurrentMapRead.dereference")
     }
 }
 
 export extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
-    type Output = &exclusive V;
+    type Output = V;
 
     /// Borrow the entry key.
     get key(): &readonly K {
@@ -94,7 +94,7 @@ export extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Der
     }
 
     /// Borrow the entry value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "exclusive"> {
         todo("ConcurrentMapWrite.dereference")
     }
 }

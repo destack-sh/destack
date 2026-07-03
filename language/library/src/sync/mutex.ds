@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Default, Dispose } from "destack:memory";
+import { Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Atomic } from "./atomic.ds";
@@ -53,7 +53,7 @@ export local struct MutexGuard<T> {
 
 export extension<T> of MutexGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
-    type Output = &exclusive T;
+    type Output = T;
 
     /// Unlock this guard.
     dispose(): void {
@@ -61,7 +61,7 @@ export extension<T> of MutexGuard<T> implements Dispose, Dereference<"exclusive"
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "exclusive"> {
         todo("MutexGuard.dereference")
     }
 }
