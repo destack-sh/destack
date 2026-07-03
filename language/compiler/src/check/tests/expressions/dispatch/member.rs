@@ -243,3 +243,51 @@ values.push(1);
 "#,
     );
 }
+
+#[test]
+fn test_member_on_never_reports_missing_member() {
+    let session = TestSession::single(
+        r#"
+import { todo } from "destack:error";
+
+function pending(): int32 {
+    let value = todo("later");
+    return value.field;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { todo } from "destack:error";
+
+function pending(): int32 {
+    let value: never = todo("later");
+    return value.field;
+}
+
+=== checked ===
+import { todo } from "destack:error";
+
+function pending(): int32 {
+/// @type.symbol symbol=pending type=() => int32
+
+    let value = todo("later");
+    /// @type.symbol symbol=pending.value source=value type=never
+    /// @resolution.name source=todo target=error.panic.todo
+    /// @resolution.call source="todo(\"later\")" parameters=(string) arguments=(provided("later") as string) return=never kind=symbol target=error.panic.todo
+
+    return value.field;
+    /// @resolution.name source=value target=pending.value
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC300 message="member 'field' does not exist on type 'never'"
+/// @diagnostic.label line=6 column=18 span="field" line_source="return value.field;"
+"#,
+    );
+}

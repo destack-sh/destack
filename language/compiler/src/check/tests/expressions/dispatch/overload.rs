@@ -131,3 +131,71 @@ function parse(value: string): int32;
 "#,
     );
 }
+
+#[test]
+fn test_intrinsic_declaration_carries_its_implementation() {
+    let session = TestSession::single(
+        r#"
+struct Buffer {
+    length: usize;
+}
+
+extension of Buffer {
+    @intrinsic("buffer.capacity")
+    get capacity(): usize;
+
+    trailing(): usize;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Buffer {
+    length: usize;
+}
+
+extension of Buffer {
+    @intrinsic("buffer.capacity")
+    get capacity(): usize;
+
+    trailing(): usize;
+}
+
+=== checked ===
+struct Buffer {
+/// @type.symbol symbol=Buffer type=Buffer
+/// @definition.struct symbol=Buffer
+/// @definition.field symbol=Buffer.length source="length: usize" key=length type=usize
+
+    length: usize;
+    /// @type.symbol symbol=Buffer.length source="length: usize" type=usize
+
+}
+
+extension of Buffer {
+/// @definition.extension symbol=<module>#2 form=local target=Buffer
+/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=(this: Buffer) => usize
+/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=(this: Buffer) => usize
+/// @resolution.name source=Buffer target=Buffer
+
+    @intrinsic("buffer.capacity")
+    /// @resolution.name source=intrinsic target=decorator.intrinsic.intrinsic
+
+    get capacity(): usize;
+    /// @type.symbol symbol=capacity source="get capacity(): usize" type=(this: Buffer) => usize
+
+    trailing(): usize;
+    /// @type.symbol symbol=trailing source="trailing(): usize" type=(this: Buffer) => usize
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC611 message="declaration 'trailing' requires a body"
+/// @diagnostic.label line=10 column=5 span="trailing" line_source="trailing(): usize;"
+"#,
+    );
+}
