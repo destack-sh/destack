@@ -1,5 +1,5 @@
 import { AsyncResult, Result, todo } from "destack:error";
-import { Dispose, Send } from "destack:memory";
+import { Dispose, Send, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { ReceiveError, SendError } from "./channel.ds";
@@ -12,7 +12,7 @@ export local struct WatchRef<T> {
 
 export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Release this snapshot.
     dispose(): void {
@@ -20,7 +20,7 @@ export extension<T> of WatchRef<T> implements Dispose, Dereference<"readonly"> {
     }
 
     /// Borrow the watched value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("WatchRef.dereference")
     }
 }

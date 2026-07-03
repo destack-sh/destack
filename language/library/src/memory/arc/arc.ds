@@ -1,3 +1,4 @@
+import { WithAccess } from "destack:memory";
 import { As, Borrow } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
@@ -34,7 +35,7 @@ export struct Arc<T> {
 
 export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Allocate a new shared reference-counted value.
     static new(value: ^T): Arc<T> {
@@ -153,7 +154,7 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the referenced value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("Arc.dereference")
     }
 

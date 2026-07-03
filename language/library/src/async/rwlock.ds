@@ -1,5 +1,5 @@
 import { todo } from "destack:error";
-import { Default, Dispose } from "destack:memory";
+import { Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Promise } from "./promise.ds";
@@ -60,7 +60,7 @@ export local struct AsyncRwLockReadGuard<T> {
 
 export extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
     /// The projected result form.
-    type Output = &readonly T;
+    type Output = T;
 
     /// Release this guard.
     dispose(): void {
@@ -68,7 +68,7 @@ export extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "readonly"> {
         todo("AsyncRwLockReadGuard.dereference")
     }
 }
@@ -81,7 +81,7 @@ export local struct AsyncRwLockWriteGuard<T> {
 
 export extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
     /// The projected result form.
-    type Output = &exclusive T;
+    type Output = T;
 
     /// Release this guard.
     dispose(): void {
@@ -89,7 +89,7 @@ export extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<
     }
 
     /// Borrow the protected value.
-    dereference(): this.Output {
+    dereference(): WithAccess<&this.Output, "exclusive"> {
         todo("AsyncRwLockWriteGuard.dereference")
     }
 
