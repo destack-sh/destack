@@ -675,7 +675,7 @@ impl<'a> FunctionLowerer<'a> {
                         *else_expression,
                     )
                 } else {
-                    // TODO #Broken: condition chains need elaborate lowering
+                    // TODO #Broken: lower condition chains to MIR
                     Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             expression_id

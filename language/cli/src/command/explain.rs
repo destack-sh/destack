@@ -4,11 +4,10 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 use destack_compiler::{
-    BindError, BindWarning, CheckError, CheckWarning, DiagnosticDefinition, ElaborateError,
-    ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning, ExportError,
-    ExportWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning,
-    MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
-    VerifyWarning,
+    BindError, BindWarning, CheckError, CheckWarning, DiagnosticDefinition, EmitError, EmitWarning,
+    ExpandError, ExpandWarning, ExportError, ExportWarning, ImportError, ImportWarning, LinkError,
+    LinkWarning, LowerError, LowerWarning, MaterializeError, MaterializeWarning, OptimizeError,
+    OptimizeWarning, VerifyError, VerifyWarning,
 };
 
 use crate::common::{
@@ -281,11 +280,6 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         definitions: CheckError::ALL,
     },
     CompilerDiagnosticGroup {
-        phase: CompilerPhase::Elaborate,
-        severity: CompilerSeverity::Error,
-        definitions: ElaborateError::ALL,
-    },
-    CompilerDiagnosticGroup {
         phase: CompilerPhase::Materialize,
         severity: CompilerSeverity::Error,
         definitions: MaterializeError::ALL,
@@ -339,11 +333,6 @@ const COMPILER_DIAGNOSTIC_GROUPS: &[CompilerDiagnosticGroup] = &[
         phase: CompilerPhase::Check,
         severity: CompilerSeverity::Warning,
         definitions: CheckWarning::ALL,
-    },
-    CompilerDiagnosticGroup {
-        phase: CompilerPhase::Elaborate,
-        severity: CompilerSeverity::Warning,
-        definitions: ElaborateWarning::ALL,
     },
     CompilerDiagnosticGroup {
         phase: CompilerPhase::Materialize,
@@ -776,7 +765,6 @@ fn phase_label(phase: CompilerPhase) -> &'static str {
         CompilerPhase::Expand => "expand",
         CompilerPhase::Export => "export",
         CompilerPhase::Check => "check",
-        CompilerPhase::Elaborate => "elaborate",
         CompilerPhase::Materialize => "materialize",
         CompilerPhase::Lower => "lower",
         CompilerPhase::Verify => "verify",

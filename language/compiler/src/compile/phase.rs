@@ -16,8 +16,6 @@ pub enum CompilerPhase {
     Check = 6,
     /// Materialize comptime and patch DIR.
     Materialize = 7,
-    /// Elaborate materialized DIR into lowered DIR form.
-    Elaborate = 8,
     /// Lower patched DIR into MIR.
     Lower = 9,
     /// Verify lowered MIR.
@@ -51,7 +49,6 @@ impl CompilerPhase {
             Self::Export => "export",
             Self::Resolve => "resolve",
             Self::Check => "check",
-            Self::Elaborate => "elaborate",
             Self::Materialize => "materialize",
             Self::Lower => "lower",
             Self::Verify => "verify",
@@ -71,7 +68,6 @@ impl CompilerPhase {
             Self::Resolve => "resolve imports into symbol targets",
             Self::Check => "check expanded DIR",
             Self::Materialize => "materialize comptime code and patch DIR",
-            Self::Elaborate => "desugar and reify DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
             Self::Optimize => "optimize MIR",
@@ -89,7 +85,6 @@ impl CompilerPhase {
             Self::Export => 'T',
             Self::Resolve => 'R',
             Self::Check => 'C',
-            Self::Elaborate => 'E',
             Self::Materialize => 'M',
             Self::Lower => 'L',
             Self::Verify => 'V',
@@ -100,7 +95,7 @@ impl CompilerPhase {
     }
 
     /// All phases in build order.
-    pub const ALL: [CompilerPhase; 13] = [
+    pub const ALL: [CompilerPhase; 12] = [
         Self::Bind,
         Self::Import,
         Self::Expand,
@@ -108,7 +103,6 @@ impl CompilerPhase {
         Self::Resolve,
         Self::Check,
         Self::Materialize,
-        Self::Elaborate,
         Self::Lower,
         Self::Verify,
         Self::Optimize,

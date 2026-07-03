@@ -112,19 +112,13 @@ impl ModuleLowerer<'_> {
             dir::GenericParameter::VariadicType { .. } => {
                 return Err(self.unsupported_construct(
                     parameter_id.into_global_any(self.module.id),
-                    Some(
-                        "variadic generic parameters must be elaborated before JS lowering"
-                            .to_string(),
-                    ),
+                    Some("variadic generic parameters are not lowered to JS yet".to_string()),
                 ));
             }
             dir::GenericParameter::Value { .. } | dir::GenericParameter::VariadicValue { .. } => {
                 return Err(self.unsupported_construct(
                     parameter_id.into_global_any(self.module.id),
-                    Some(
-                        "value generic parameters must be elaborated before JS lowering"
-                            .to_string(),
-                    ),
+                    Some("value generic parameters are not lowered to JS yet".to_string()),
                 ));
             }
             dir::GenericParameter::Error => {
@@ -280,15 +274,13 @@ impl ModuleLowerer<'_> {
             }
             dir::GenericArgument::SpreadType { .. } => Err(self.unsupported_construct(
                 argument_id.into_global_any(self.module.id),
-                Some(
-                    "variadic generic arguments must be elaborated before JS lowering".to_string(),
-                ),
+                Some("variadic generic arguments are not lowered to JS yet".to_string()),
             )),
             dir::GenericArgument::Value { .. }
             | dir::GenericArgument::SpreadValue { .. }
             | dir::GenericArgument::AssociatedConst { .. } => Err(self.unsupported_construct(
                 argument_id.into_global_any(self.module.id),
-                Some("value generic arguments must be elaborated before JS lowering".to_string()),
+                Some("value generic arguments are not lowered to JS yet".to_string()),
             )),
             dir::GenericArgument::Error => Err(self.unsupported_construct(
                 argument_id.into_global_any(self.module.id),

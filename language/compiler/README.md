@@ -1,7 +1,7 @@
 # Compiler
 
 The main job of the compiler is to turn _sources_ into final _outputs_ for various _targets_.
-The compiler (mostly) operates over our three primary IRs - AST, DIR, MIR - and most of the actually interesting stuff happens over DIR (resolution, analysis, elaboration) and MIR (lowering, optimization, codegen).
+The compiler (mostly) operates over our three primary IRs - AST, DIR, MIR - and most of the actually interesting stuff happens over DIR (resolution, analysis, materialization) and MIR (lowering, optimization, codegen).
 
 ## Structure
 
@@ -17,8 +17,7 @@ The compiler is organized around artifact-producing phases.
 | `resolve/` | `DirImported` + `DirExpanded` + `DirExported` -> `DirResolved` |
 | `check/` | `DirExpanded` + `DirExported` + `DirResolved` -> `DirChecked` |
 | `materialize/` | `DirChecked` + macro state -> `DirMaterialized` |
-| `elaborate/` | `DirMaterialized` -> `DirElaborated` |
-| `lower/` | `DirElaborated` -> `MirLowered` |
+| `lower/` | `DirMaterialized` -> `MirLowered` |
 | `verify/` | `MirLowered` -> `MirVerified` |
 | `optimize/` | `MirVerified` + `MirLowered` -> `MirOptimized` |
 | `generate/` | compiler artifacts -> module outputs |
