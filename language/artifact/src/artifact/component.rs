@@ -642,8 +642,7 @@ impl ComponentIndex {
         let mut module_components = vec![0u32; modules.len()];
 
         // write per-module component projections
-        for partition_component in 0..membership.len() {
-            let component = partition_to_component[partition_component];
+        for (partition_component, component) in partition_to_component.iter().copied().enumerate() {
             let component_id = ids[component as usize];
 
             for module in membership.members(partition_component) {

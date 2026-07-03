@@ -14,8 +14,8 @@ pub enum ArtifactProvider {
     Compiler,
     /// Linter artifacts derived by lint rules.
     Linter,
-    /// Query indexes derived for navigation and refactoring.
-    Query,
+    /// Index artifacts derived from checked compiler IR.
+    Index,
 }
 
 /// Semantic artifact identity.
@@ -116,13 +116,13 @@ pub enum ArtifactKey {
         target: TargetId,
     },
 
-    /// Query index for one module profile.
-    ModuleQueryIndex {
+    /// Index for one module profile.
+    ModuleIndex {
         module: ModuleId,
         profile: ProfileId,
     },
-    /// Query index for one workspace profile.
-    WorkspaceQueryIndex { profile: ProfileId },
+    /// Index for one program profile.
+    ProgramIndex { profile: ProfileId },
 
     /// One structured linker input for one target.
     Script { module: ModuleId, target: TargetId },
@@ -182,8 +182,8 @@ pub enum ArtifactStage {
     Link,
     /// Lint analysis over modules, packages, and the workspace.
     Lint,
-    /// Query indexes serving editors and tooling.
-    Query,
+    /// Indexes serving editors and tooling.
+    Index,
 }
 
 impl ArtifactStage {
@@ -200,7 +200,7 @@ impl ArtifactStage {
         Self::Emit,
         Self::Link,
         Self::Lint,
-        Self::Query,
+        Self::Index,
     ];
 
     /// Return this stage's display name.
@@ -217,7 +217,7 @@ impl ArtifactStage {
             Self::Emit => "emit",
             Self::Link => "link",
             Self::Lint => "lint",
-            Self::Query => "query",
+            Self::Index => "index",
         }
     }
 }
@@ -254,9 +254,7 @@ impl ArtifactKey {
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactProvider::Linter
             }
-            Self::ModuleQueryIndex { .. } | Self::WorkspaceQueryIndex { .. } => {
-                ArtifactProvider::Query
-            }
+            Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactProvider::Index,
         }
     }
 
@@ -391,14 +389,14 @@ impl ArtifactKey {
         }
     }
 
-    /// Build one module query index artifact key.
-    pub fn module_query_index(module: ModuleId, profile: ProfileId) -> Self {
-        Self::ModuleQueryIndex { module, profile }
+    /// Build one module index artifact key.
+    pub fn module_index(module: ModuleId, profile: ProfileId) -> Self {
+        Self::ModuleIndex { module, profile }
     }
 
-    /// Build one workspace query index artifact key.
-    pub fn workspace_query_index(profile: ProfileId) -> Self {
-        Self::WorkspaceQueryIndex { profile }
+    /// Build one program index artifact key.
+    pub fn program_index(profile: ProfileId) -> Self {
+        Self::ProgramIndex { profile }
     }
 
     /// Build one structured script key.
@@ -476,9 +474,7 @@ impl ArtifactKey {
             Self::ModuleLinted { .. } | Self::PackageLinted { .. } | Self::WorkspaceLinted => {
                 ArtifactStage::Lint
             }
-            Self::ModuleQueryIndex { .. } | Self::WorkspaceQueryIndex { .. } => {
-                ArtifactStage::Query
-            }
+            Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
             Self::GlobalEnvironment { .. } | Self::PackageIndex { .. } => ArtifactStage::Init,
         }
     }
@@ -505,8 +501,8 @@ impl ArtifactKey {
             Self::MirVerified { .. } => "mir.verify",
             Self::MirAnalyzed { .. } => "mir.analyze",
             Self::MirOptimized { .. } => "mir.optimize",
-            Self::ModuleQueryIndex { .. } => "module.index",
-            Self::WorkspaceQueryIndex { .. } => "workspace.index",
+            Self::ModuleIndex { .. } => "module.index",
+            Self::ProgramIndex { .. } => "program.index",
             Self::Script { .. } => "script.emit",
             Self::Object { .. } => "object.emit",
             Self::Asset { .. } => "asset.emit",
@@ -542,8 +538,8 @@ impl ArtifactKey {
             Self::MirVerified { .. } => "mir_verified",
             Self::MirAnalyzed { .. } => "mir_analyzed",
             Self::MirOptimized { .. } => "mir_optimized",
-            Self::ModuleQueryIndex { .. } => "module_query_index",
-            Self::WorkspaceQueryIndex { .. } => "workspace_query_index",
+            Self::ModuleIndex { .. } => "module_index",
+            Self::ProgramIndex { .. } => "program_index",
             Self::Script { .. } => "script",
             Self::Object { .. } => "object",
             Self::Asset { .. } => "asset",
@@ -575,7 +571,7 @@ impl ArtifactKey {
             | Self::MirVerified { module, .. }
             | Self::MirAnalyzed { module, .. }
             | Self::MirOptimized { module, .. }
-            | Self::ModuleQueryIndex { module, .. }
+            | Self::ModuleIndex { module, .. }
             | Self::Script { module, .. }
             | Self::Object { module, .. }
             | Self::Asset { module, .. }
@@ -584,7 +580,7 @@ impl ArtifactKey {
             | Self::PackageIndex { .. }
             | Self::ComponentGraph { .. }
             | Self::ProgramAnalysis { .. }
-            | Self::WorkspaceQueryIndex { .. }
+            | Self::ProgramIndex { .. }
             | Self::Build { .. }
             | Self::Bundle { .. }
             | Self::Program { .. }
@@ -637,8 +633,8 @@ impl ArtifactKey {
             | Self::MirVerified { profile, .. }
             | Self::MirAnalyzed { profile, .. }
             | Self::MirOptimized { profile, .. }
-            | Self::ModuleQueryIndex { profile, .. }
-            | Self::WorkspaceQueryIndex { profile }
+            | Self::ModuleIndex { profile, .. }
+            | Self::ProgramIndex { profile }
             | Self::ModuleLinted { profile, .. } => Some(*profile),
             Self::DirParsed { .. }
             | Self::Data { .. }

@@ -8,9 +8,8 @@ use crate::{
     ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle,
     ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleQueryIndex, Object,
-    PackageIndex, PackageLinted, Product, ProgramAnalysis, Script, WorkspaceLinted,
-    WorkspaceQueryIndex,
+    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
+    PackageIndex, PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
 };
 use serde::{Deserialize, Serialize};
 
@@ -55,10 +54,10 @@ pub enum ArtifactPayload {
     MirAnalyzed(Arc<MirAnalyzed>),
     /// Optimized MIR.
     MirOptimized(Arc<MirOptimized>),
-    /// Query index for one module profile.
-    ModuleQueryIndex(Arc<ModuleQueryIndex>),
-    /// Query index for one workspace profile.
-    WorkspaceQueryIndex(Arc<WorkspaceQueryIndex>),
+    /// Index for one module profile.
+    ModuleIndex(Arc<ModuleIndex>),
+    /// Index for one program profile.
+    ProgramIndex(Arc<ProgramIndex>),
     /// One structured linker input for one target.
     Script(Arc<Script>),
     /// One compiled-code linker input for one target.
@@ -122,10 +121,10 @@ pub enum ArtifactPayloadRef<'a> {
     MirAnalyzed(&'a MirAnalyzed),
     /// Optimized MIR.
     MirOptimized(&'a MirOptimized),
-    /// Query index for one module profile.
-    ModuleQueryIndex(&'a ModuleQueryIndex),
-    /// Query index for one workspace profile.
-    WorkspaceQueryIndex(&'a WorkspaceQueryIndex),
+    /// Index for one module profile.
+    ModuleIndex(&'a ModuleIndex),
+    /// Index for one program profile.
+    ProgramIndex(&'a ProgramIndex),
     /// One structured linker input for one target.
     Script(&'a Script),
     /// One compiled-code linker input for one target.
@@ -217,12 +216,12 @@ impl ArtifactPayload {
                     ArtifactPayload::MirOptimized(_)
                 )
                 | (
-                    ArtifactKey::ModuleQueryIndex { .. },
-                    ArtifactPayload::ModuleQueryIndex(_)
+                    ArtifactKey::ModuleIndex { .. },
+                    ArtifactPayload::ModuleIndex(_)
                 )
                 | (
-                    ArtifactKey::WorkspaceQueryIndex { .. },
-                    ArtifactPayload::WorkspaceQueryIndex(_)
+                    ArtifactKey::ProgramIndex { .. },
+                    ArtifactPayload::ProgramIndex(_)
                 )
                 | (ArtifactKey::Script { .. }, ArtifactPayload::Script(_))
                 | (ArtifactKey::Object { .. }, ArtifactPayload::Object(_))
@@ -272,12 +271,8 @@ impl ArtifactPayload {
             Self::MirVerified(payload) => ArtifactPayloadRef::MirVerified(payload.as_ref()),
             Self::MirAnalyzed(payload) => ArtifactPayloadRef::MirAnalyzed(payload.as_ref()),
             Self::MirOptimized(payload) => ArtifactPayloadRef::MirOptimized(payload.as_ref()),
-            Self::ModuleQueryIndex(payload) => {
-                ArtifactPayloadRef::ModuleQueryIndex(payload.as_ref())
-            }
-            Self::WorkspaceQueryIndex(payload) => {
-                ArtifactPayloadRef::WorkspaceQueryIndex(payload.as_ref())
-            }
+            Self::ModuleIndex(payload) => ArtifactPayloadRef::ModuleIndex(payload.as_ref()),
+            Self::ProgramIndex(payload) => ArtifactPayloadRef::ProgramIndex(payload.as_ref()),
             Self::Script(payload) => ArtifactPayloadRef::Script(payload.as_ref()),
             Self::Object(payload) => ArtifactPayloadRef::Object(payload.as_ref()),
             Self::Asset(payload) => ArtifactPayloadRef::Asset(payload.as_ref()),
@@ -302,6 +297,9 @@ impl ArtifactPayload {
             }
             (Self::DirCheckedComponent(payload), ArtifactProjectionKey::DirChecked(module)) => {
                 payload.module(module).map(|entry| entry.fingerprint)
+            }
+            (Self::ModuleIndex(payload), ArtifactProjectionKey::ModuleIndex(projection)) => {
+                Some(payload.projection_fingerprint(projection))
             }
             _ => None,
         }
@@ -329,8 +327,8 @@ impl ArtifactPayload {
             Self::MirVerified(_) => "mir_verified",
             Self::MirAnalyzed(_) => "mir_analyzed",
             Self::MirOptimized(_) => "mir_optimized",
-            Self::ModuleQueryIndex(_) => "module_query_index",
-            Self::WorkspaceQueryIndex(_) => "workspace_query_index",
+            Self::ModuleIndex(_) => "module_index",
+            Self::ProgramIndex(_) => "program_index",
             Self::Script(_) => "script",
             Self::Object(_) => "object",
             Self::Asset(_) => "asset",
@@ -491,17 +489,17 @@ impl From<MirOptimized> for ArtifactPayload {
     }
 }
 
-impl From<ModuleQueryIndex> for ArtifactPayload {
+impl From<ModuleIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: ModuleQueryIndex) -> Self {
-        Self::ModuleQueryIndex(Arc::new(payload))
+    fn from(payload: ModuleIndex) -> Self {
+        Self::ModuleIndex(Arc::new(payload))
     }
 }
 
-impl From<WorkspaceQueryIndex> for ArtifactPayload {
+impl From<ProgramIndex> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: WorkspaceQueryIndex) -> Self {
-        Self::WorkspaceQueryIndex(Arc::new(payload))
+    fn from(payload: ProgramIndex) -> Self {
+        Self::ProgramIndex(Arc::new(payload))
     }
 }
 

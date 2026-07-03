@@ -5,7 +5,7 @@ use destack_core::StableHasher;
 use destack_source::{ComponentId, ContentId, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
 
-use crate::{ArtifactKey, ArtifactVersion};
+use crate::{ArtifactKey, ArtifactVersion, ModuleIndexProjection};
 
 /// One exact source file content observed while building an artifact.
 #[derive(
@@ -78,11 +78,19 @@ pub enum ArtifactProjectionKey {
     ComponentGraph(ComponentGraphProjection),
     /// A checked DIR module inside a checked component.
     DirChecked(ModuleId),
+    /// A module index projection.
+    ModuleIndex(ModuleIndexProjection),
 }
 
 impl From<ComponentGraphProjection> for ArtifactProjectionKey {
     fn from(projection: ComponentGraphProjection) -> Self {
         Self::ComponentGraph(projection)
+    }
+}
+
+impl From<ModuleIndexProjection> for ArtifactProjectionKey {
+    fn from(projection: ModuleIndexProjection) -> Self {
+        Self::ModuleIndex(projection)
     }
 }
 
