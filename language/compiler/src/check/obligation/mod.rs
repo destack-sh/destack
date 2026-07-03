@@ -6,6 +6,7 @@ mod initialization;
 mod interface;
 mod obligation;
 mod predicate;
+mod representation;
 mod write;
 
 pub(in crate::check) use obligation::*;

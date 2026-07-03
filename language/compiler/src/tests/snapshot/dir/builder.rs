@@ -295,10 +295,6 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.coercions.as_ref());
         }
 
-        if selection.layout {
-            self.add_table(checked.layouts.as_ref());
-        }
-
         if selection.capture {
             self.add_table(checked.captures.as_ref());
         }
@@ -716,28 +712,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         let debug = format!("{value:?}");
 
         Self::lower_snake(&debug)
-    }
-
-    /// Render one layout shape label.
-    pub(crate) fn layout_shape_label(shape: &dir::LayoutShape) -> String {
-        match shape {
-            dir::LayoutShape::None => "none".to_string(),
-            dir::LayoutShape::Scalar => "scalar".to_string(),
-            dir::LayoutShape::Struct(_) => "struct".to_string(),
-            dir::LayoutShape::Tuple(_) => "tuple".to_string(),
-            dir::LayoutShape::Slice => "slice".to_string(),
-            dir::LayoutShape::Array(_) => "array".to_string(),
-            dir::LayoutShape::Vector(_) => "vector".to_string(),
-            dir::LayoutShape::Tensor(_) => "tensor".to_string(),
-            dir::LayoutShape::TensorView(_) => "tensorView".to_string(),
-            dir::LayoutShape::Variant(_) => "variant".to_string(),
-            dir::LayoutShape::Enum(_) => "enum".to_string(),
-            dir::LayoutShape::Object(_) => "object".to_string(),
-            dir::LayoutShape::Dynamic => "dynamic".to_string(),
-            dir::LayoutShape::Function => "function".to_string(),
-            dir::LayoutShape::Newtype(_) => "newtype".to_string(),
-            dir::LayoutShape::Pointer(_) => "pointer".to_string(),
-        }
     }
 
     /// Render one optional integer label.

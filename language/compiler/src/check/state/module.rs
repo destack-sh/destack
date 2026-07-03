@@ -55,8 +55,6 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) resolutions: dir::ResolutionSegment,
     /// Checked implicit coercions.
     pub(in crate::check) coercions: dir::CoercionSegment,
-    /// Checked layout derivations.
-    pub(in crate::check) layouts: dir::LayoutSegment,
     /// Checked captures.
     pub(in crate::check) capture_segment: dir::CaptureSegment,
     /// Checked annotations.
@@ -105,7 +103,6 @@ impl CheckModuleState {
         let statics = dir::StaticSegment::from_base(&expanded.statics);
         let resolutions = dir::ResolutionSegment::new(module.id);
         let coercions = dir::CoercionSegment::new(module.id);
-        let layouts = dir::LayoutSegment::new(module.id);
         let capture_segment = dir::CaptureSegment::new(module.id);
         let annotations = dir::AnnotationSegment::new(module.id);
 
@@ -126,7 +123,6 @@ impl CheckModuleState {
             statics,
             resolutions,
             coercions,
-            layouts,
             capture_segment,
             annotations,
             static_values: IndexMap::new(),

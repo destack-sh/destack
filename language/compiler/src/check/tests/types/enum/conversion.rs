@@ -17,7 +17,7 @@ const mode: Mode = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_layout(),
+        DirRows::checked(),
         r#"
 === annotated ===
 @repr("uint8")

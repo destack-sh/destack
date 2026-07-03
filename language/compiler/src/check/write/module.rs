@@ -17,9 +17,6 @@ impl CheckState<'_> {
             self.resolved_reduced_types(module, &node_types, &symbol_types, &mut reported)?;
         let symbol_literals = self.static_symbol_literals(module)?;
         let coercions = self.implicit_coercions(module)?;
-        if let Some(layouts) = self.layouts.swap_remove(&module) {
-            self.module_mut(module).layouts = layouts;
-        }
 
         // record inferred types and checked reduced types
         let state = self.module_mut(module);

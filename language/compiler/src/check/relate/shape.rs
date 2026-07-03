@@ -686,9 +686,11 @@ impl CheckState<'_> {
                         GenericPosition::Inference,
                     )?;
                     if let Some(substitution) = substitution {
-                        let opened = self.substitute_type(origin.module(), source, &substitution)?;
+                        let opened =
+                            self.substitute_type(origin.module(), source, &substitution)?;
                         if !self.solver.is_probing() {
-                            self.opened_signatures.insert((source, target, scope), opened);
+                            self.opened_signatures
+                                .insert((source, target, scope), opened);
                         }
                         source = opened;
                     }

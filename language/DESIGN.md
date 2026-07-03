@@ -998,6 +998,10 @@ function bar(): Shape { // reified: the compiled return type is the Shape varian
 }
 ```
 
+A representation change is also exactly what separates a compiled conversion from a plain type-level widening.
+An implicit conversion reifies as a coercion only when the identity function is not a valid witness for it: injecting a value into a tagged union writes a tag and erasing behind `Dynamic<T>` builds the fat pointer, while readonly and variance widenings change nothing physical and compile to nothing.
+Literals never convert at all; a constant materializes directly at its solved type.
+
 ### Dynamic
 
 The default being that structural constraints become hidden generic parameters is _generally_ great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
@@ -1064,6 +1068,10 @@ Destack also supports querying parameters of the effective representation during
 | `alignOf<T>()` | The required alignment of `T` as `usize`. |
 | `strideOf<T>()` | The spacing between adjacent array elements of `T` as `usize`. |
 | `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T` as a `Layout` value. |
+
+Layout queries evaluate as type operations: a query over an open or generic type stays symbolic and reduces to its value once its argument becomes concrete.
+Inference therefore answers exactly the queries whose inputs it has settled, and comptime evaluation forces the remainder.
+Layout is never stored in the compiler's program representation; every phase recomputes it on demand from the type and the active target through one shared measure, and code generation derives its structural layout from that same measure.
 
 ### Reflection
 

@@ -41,8 +41,6 @@ pub(crate) struct DirRows {
     pub(super) capture: bool,
     /// Whether to render macro table rows.
     pub(super) macros: bool,
-    /// Whether to render layout table rows.
-    pub(super) layout: bool,
     /// Tables row prefixes to render.
     pub(super) metadata_rows: &'static [&'static str],
     /// Event row prefixes to render.
@@ -72,7 +70,6 @@ impl DirRows {
             export: false,
             capture: false,
             macros: false,
-            layout: false,
             metadata_rows: &[],
             event_rows: &[],
             summaries: false,
@@ -180,12 +177,6 @@ impl DirRows {
     /// Include export table rows.
     pub(crate) const fn with_export(mut self) -> Self {
         self.export = true;
-        self
-    }
-
-    /// Include layout table rows.
-    pub(crate) const fn with_layout(mut self) -> Self {
-        self.layout = true;
         self
     }
 
@@ -309,6 +300,5 @@ impl DirRows {
             || self.definitions
             || self.coercion
             || self.capture
-            || self.layout
     }
 }

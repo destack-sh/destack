@@ -75,8 +75,6 @@ pub(in crate::check) struct CheckState<'a> {
     >,
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
-    /// Memoized layout segments per module, component and external.
-    pub(in crate::check) layouts: IndexMap<ModuleId, dir::LayoutSegment>,
     /// Generic parameter variance derivations.
     pub(in crate::check) variances: IndexMap<dir::GlobalGenericParameterId, VarianceEntry>,
 
@@ -117,7 +115,6 @@ impl<'a> CheckState<'a> {
             reduced_types: IndexMap::new(),
             opened_signatures: IndexMap::new(),
             generics: GenericIndex::new(),
-            layouts: IndexMap::new(),
             variances: IndexMap::new(),
             reduce_depth: 0,
             events: Vec::new(),
@@ -204,8 +201,6 @@ impl<'a> CheckState<'a> {
         );
 
         self.modules.insert(module_id, module);
-        self.layouts
-            .insert(module_id, dir::LayoutSegment::new(module_id));
 
         Ok(())
     }

@@ -268,8 +268,6 @@ pub struct DirCheckedModule {
     pub definitions: Arc<dir::DefinitionSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
-    /// New layouts.
-    pub layouts: Arc<dir::LayoutSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
 }
@@ -348,11 +346,6 @@ impl DirCheckedModule {
     pub fn capture_table(&self) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segment(self.captures.clone())
     }
-
-    /// Return the cumulative layout table for checked DIR.
-    pub fn layout_table(&self) -> dir::LayoutTable<'static> {
-        dir::LayoutTable::from_segment(self.layouts.clone())
-    }
 }
 
 /// Comptime materialization segment for one profile-scoped module.
@@ -374,8 +367,6 @@ pub struct DirMaterialized {
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
-    /// New layouts.
-    pub layouts: Arc<dir::LayoutSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 }
@@ -451,11 +442,6 @@ impl DirMaterialized {
     pub fn capture_table(&self, checked: &DirCheckedModule) -> dir::CaptureTable<'static> {
         dir::CaptureTable::from_segments(vec![checked.captures.clone(), self.captures.clone()])
     }
-
-    /// Return the cumulative layout table for materialized DIR.
-    pub fn layout_table(&self, checked: &DirCheckedModule) -> dir::LayoutTable<'static> {
-        dir::LayoutTable::from_segments(vec![checked.layouts.clone(), self.layouts.clone()])
-    }
 }
 
 /// DIR-to-MIR elaboration segment for one profile-scoped module.
@@ -477,8 +463,6 @@ pub struct DirElaborated {
     pub coercions: Arc<dir::CoercionSegment>,
     /// New captures.
     pub captures: Arc<dir::CaptureSegment>,
-    /// New layouts.
-    pub layouts: Arc<dir::LayoutSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 }
@@ -587,19 +571,6 @@ impl DirElaborated {
             checked.captures.clone(),
             materialized.captures.clone(),
             self.captures.clone(),
-        ])
-    }
-
-    /// Return the cumulative layout table for elaborated DIR.
-    pub fn layout_table(
-        &self,
-        checked: &DirCheckedModule,
-        materialized: &DirMaterialized,
-    ) -> dir::LayoutTable<'static> {
-        dir::LayoutTable::from_segments(vec![
-            checked.layouts.clone(),
-            materialized.layouts.clone(),
-            self.layouts.clone(),
         ])
     }
 }

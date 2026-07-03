@@ -23,8 +23,6 @@ pub(in crate::check) struct CheckedModuleSegments {
     pub(super) definitions: dir::DefinitionSegment,
     /// Checked coercion segment.
     pub(super) coercions: dir::CoercionSegment,
-    /// Checked layout segment.
-    pub(super) layouts: dir::LayoutSegment,
     /// Checked capture segment.
     pub(super) captures: dir::CaptureSegment,
 }
@@ -41,7 +39,6 @@ impl CheckedModuleSegments {
             generics: state.generics,
             definitions: state.definitions,
             coercions: state.coercions,
-            layouts: state.layouts,
             captures: state.capture_segment,
         }
     }
@@ -59,7 +56,6 @@ impl From<CheckedModuleSegments> for DirCheckedModule {
             generics: Arc::new(segments.generics),
             definitions: Arc::new(segments.definitions),
             coercions: Arc::new(segments.coercions),
-            layouts: Arc::new(segments.layouts),
             captures: Arc::new(segments.captures),
         }
     }

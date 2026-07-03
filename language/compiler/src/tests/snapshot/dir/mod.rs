@@ -9,7 +9,6 @@ mod export;
 mod generic;
 mod global;
 mod import;
-mod layout;
 mod r#macro;
 mod metadata;
 mod module;
