@@ -47,3 +47,67 @@ interface Person {
 "#,
     );
 }
+
+#[test]
+fn test_this_bound_holds_inside_its_own_interface() {
+    let session = TestSession::single(
+        r#"
+interface Serializer {
+    serializeValue<T: Serialize<this>>(value: T): void;
+}
+
+interface Serialize<S: Serializer> {
+    serialize(target: S): void;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Serializer {
+    serializeValue<T: Serialize<this>>(value: T): void;
+}
+
+interface Serialize<S: Serializer> {
+    serialize(target: S): void;
+}
+
+=== checked ===
+interface Serializer {
+/// @type.symbol symbol=Serializer type=Serializer
+/// @definition.interface symbol=Serializer
+/// @definition.method symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" slot=serializeValue type=<T: Serialize<this>>(this: Serializer, T) => void
+
+    serializeValue<T: Serialize<this>>(value: T): void;
+    /// @generic.template symbol=Serializer.serializeValue parameters=(T: Serialize<this>)
+    /// @type.symbol symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" type=<T: Serialize<this>>(this: Serializer, T) => void
+    /// @type.symbol symbol=Serializer.serializeValue.T source="T: Serialize<this>" type=T
+    /// @resolution.name source=Serialize target=Serialize
+    /// @type.symbol symbol=Serializer.serializeValue.value source="value: T" type=T
+    /// @resolution.name source=T target=Serializer.serializeValue.T
+
+}
+
+interface Serialize<S: Serializer> {
+/// @generic.template symbol=Serialize parameters=(S: Serializer)
+/// @type.symbol symbol=Serialize type=Serialize
+/// @definition.interface symbol=Serialize template=(S: Serializer)
+/// @definition.where symbol=Serialize relation=satisfies left=this right=Serialize<S>
+/// @definition.method symbol=Serialize.serialize source="serialize(target: S): void" slot=serialize type=(this: Serialize<S>, S) => void
+/// @type.symbol symbol=Serialize.S source="S: Serializer" type=S
+/// @resolution.name source=Serializer target=Serializer
+
+    serialize(target: S): void;
+    /// @type.symbol symbol=Serialize.serialize source="serialize(target: S): void" type=(this: Serialize<S>, S) => void
+    /// @type.symbol symbol=Serialize.serialize.target source="target: S" type=S
+    /// @resolution.name source=S target=Serialize.S
+
+}
+
+/// @generic.instance id=Serialize<S> template=Serialize arguments=(S)
+"#,
+    );
+}

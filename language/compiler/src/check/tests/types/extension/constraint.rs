@@ -254,3 +254,132 @@ boxed.read();
 "#,
     );
 }
+
+#[test]
+fn test_conformance_assumes_the_extension_where_clause() {
+    let session = TestSession::single(
+        r#"
+import { todo } from "destack:error";
+import { Equal, Hash } from "destack:ops";
+
+interface Keyed<I> {
+    type Output;
+
+    index(key: I): this.Output;
+}
+
+struct Table<K, V> {
+    size: usize;
+}
+
+extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
+    type Output = V | undefined;
+
+    index(key: K): V | undefined {
+        todo("Table.index")
+    }
+}
+"#,
+    );
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { todo } from "destack:error";
+import { Equal, Hash } from "destack:ops";
+
+interface Keyed<I> {
+    type Output;
+
+    index(key: I): this.Output;
+}
+
+struct Table<K, V> {
+    size: usize;
+}
+
+extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
+    type Output = V | undefined;
+
+    index(key: K): V | undefined {
+        todo("Table.index")
+    }
+}
+
+=== checked ===
+import { todo } from "destack:error";
+import { Equal, Hash } from "destack:ops";
+
+interface Keyed<I> {
+/// @generic.template symbol=Keyed parameters=(I)
+/// @type.symbol symbol=Keyed type=Keyed
+/// @definition.interface symbol=Keyed template=(I)
+/// @definition.where symbol=Keyed relation=satisfies left=this right=Keyed<I>
+/// @definition.associated.type symbol=Keyed.Output source="type Output" key=Output
+/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(this: Keyed<I>, I) => this.Output
+/// @type.symbol symbol=Keyed.I source=I type=I
+
+    type Output;
+
+    index(key: I): this.Output;
+    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(this: Keyed<I>, I) => this.Output
+    /// @type.symbol symbol=Keyed.index.key source="key: I" type=I
+    /// @resolution.name source=I target=Keyed.I
+
+}
+
+struct Table<K, V> {
+/// @generic.template symbol=Table parameters=(K#1, V#1)
+/// @type.symbol symbol=Table type=Table
+/// @definition.struct symbol=Table template=(K#1, V#1)
+/// @definition.field symbol=Table.size source="size: usize" key=size type=usize
+/// @type.symbol symbol=Table.K source=K type=K#1
+/// @type.symbol symbol=Table.V source=V type=V#1
+
+    size: usize;
+    /// @type.symbol symbol=Table.size source="size: usize" type=usize
+
+}
+
+extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
+/// @generic.template symbol=<module>#2 parameters=(K#2: ops.hash.Hash, V#2)
+/// @definition.extension symbol=<module>#2 form=local target=Table<K#2, V#2>
+/// @definition.where symbol=<module>#2 source="K: Equal<K>" relation=satisfies left=K#2 right=ops.equality.Equal<K#2>
+/// @definition.implements symbol=<module>#2 source=Keyed<K> target=Keyed arguments=(K#2)
+/// @definition.associated.type symbol=Output source="type Output = V | undefined" key=Output value="V#2 | undefined"
+/// @definition.method symbol=index slot=index type=(this: Table<K#2, V#2>, K#2) => V#2 | undefined
+/// @type.symbol symbol=K source="K: Hash" type=K#2
+/// @resolution.name source=Hash target=ops.hash.Hash
+/// @type.symbol symbol=V source=V type=V#2
+/// @resolution.name source=Table target=Table
+/// @resolution.name source=K target=K
+/// @resolution.name source=V target=V
+/// @resolution.name source=Keyed target=Keyed
+/// @resolution.name source=K target=K
+/// @resolution.name source=K target=K
+/// @resolution.name source=Equal target=ops.equality.Equal
+/// @resolution.name source=K target=K
+
+    type Output = V | undefined;
+    /// @type.symbol symbol=Output source="type Output = V | undefined" type=V#2 | undefined
+    /// @resolution.name source=V target=V
+
+    index(key: K): V | undefined {
+    /// @type.symbol symbol=index type=(this: Table<K#2, V#2>, K#2) => V#2 | undefined
+    /// @type.symbol symbol=index.key source="key: K" type=K#2
+    /// @resolution.name source=K target=K
+    /// @resolution.name source=V target=V
+
+        todo("Table.index")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"Table.index\")" parameters=(string) arguments=(provided("Table.index") as string) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+/// @generic.instance id="Table<K#2, V#2>" template=Table arguments=(K#2, V#2)
+/// @generic.instance id=Keyed<I> template=Keyed arguments=(I)
+"#,
+    );
+}
