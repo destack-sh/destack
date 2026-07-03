@@ -554,7 +554,6 @@ fn kind_color(name: &str) -> &'static str {
         "dir.check.component" => "38;5;170",
         "dir.check" => "38;5;176",
         "dir.materialize" => "38;5;178",
-        "dir.elaborate" => "38;5;179",
         "mir.lower" => "38;5;208",
         "mir.verify" => "38;5;209",
         "mir.optimize" => "38;5;214",

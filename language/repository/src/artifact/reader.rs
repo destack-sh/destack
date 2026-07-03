@@ -3,10 +3,10 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection, ArtifactProjectionKey,
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
-    DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered,
-    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex, PackageLinted,
-    Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
+    DirCheckedComponent, DirCheckedModule, DirExpanded, DirExported, DirImported, DirMaterialized,
+    DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
+    ModuleIndex, ModuleLinted, Object, PackageIndex, PackageLinted, Product, ProgramAnalysis,
+    ProgramIndex, Script, WorkspaceLinted,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -256,18 +256,6 @@ impl<'a> ArtifactReader<'a> {
         self.read(
             ArtifactKey::dir_materialized(module, profile),
             ArtifactTable::dir_materialized,
-        )
-    }
-
-    /// Read one elaborated DIR artifact.
-    pub fn dir_elaborated(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> Result<Arc<DirElaborated>, ProviderError> {
-        self.read(
-            ArtifactKey::dir_elaborated(module, profile),
-            ArtifactTable::dir_elaborated,
         )
     }
 

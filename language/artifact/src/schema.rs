@@ -4,8 +4,8 @@ use crate::{
     ArtifactDependency, ArtifactEventLog, ArtifactKey, ArtifactPayload, ArtifactRecord,
     ArtifactReference, ArtifactSidecar, ArtifactVersion, Asset, Build, BuildLinkage, BuildManifest,
     BuildProfile, Bundle, BundleFile, BundleMode, BundleSection, ComponentGraph, Data, Declaration,
-    DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
+    DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported, DirImported,
+    DirMaterialized, DirParsed, DirResolved, EmitFormat, GlobalEnvironment, Host,
     LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirLowered, MirOptimized, MirVerified,
     ModuleGraph, ModuleIndex, ModuleLinted, Object, ObjectFormat, PackageIndex, PackageLinted,
     Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, Runtime, Script, ScriptBody,
@@ -53,7 +53,6 @@ pub fn schema(registry: &mut SchemaRegistry) {
     registry.register::<DirCheckedComponent>();
     registry.register::<DirChecked>();
     registry.register::<DirMaterialized>();
-    registry.register::<DirElaborated>();
 
     registry.register::<MirLowered>();
     registry.register::<MirVerified>();
