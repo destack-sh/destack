@@ -262,6 +262,9 @@ impl<'a> TypeTable<'a> {
                 for child in self.type_ids(member.arguments) {
                     visit(*child);
                 }
+                if let Some(qualifier) = member.qualifier {
+                    visit(qualifier);
+                }
             }
             Type::EnumMember(member) => visit(member.owner),
 

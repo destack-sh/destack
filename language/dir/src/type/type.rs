@@ -563,6 +563,8 @@ pub struct MemberType {
     pub key: StaticKey,
     /// The complete positional argument list applied to the member.
     pub arguments: TypeListId,
+    /// The declaring scope qualifying the projection.
+    pub qualifier: Option<GlobalTypeId>,
 }
 
 /// Singleton type of one enum member.
