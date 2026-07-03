@@ -132,6 +132,9 @@ Await try propagation expression
 ================================
 
 const user = await? fetchUser(id);
+const fallback = await! fetchUser(id);
+const cached = await! user;
+const selected = await! result.value;
 
 ---
 
@@ -143,7 +146,27 @@ const user = await? fetchUser(id);
         (call_expression
           (identifier)
           (arguments
-            (identifier)))))))
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (await_try_propagation_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (await_try_propagation_expression
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (await_try_propagation_expression
+        (member_expression
+          (identifier)
+          (property_identifier))))))
 
 =======================================
 Match statement patterns

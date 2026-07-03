@@ -84,7 +84,6 @@ module.exports = grammar(JavaScript, {
       [$.new_expression, $.pattern],
       [$.primary_expression, $._static_value_operand],
       [$.primary_expression, $.static_value_argument],
-      [$.primary_expression, $._struct_literal_generic_type, $._static_value_call_expression],
       [$.nested_identifier, $.nested_type_identifier, $.primary_expression],
       [$.nested_identifier, $.nested_type_identifier],
       [$.primary_expression, $.nested_identifier],
@@ -99,8 +98,17 @@ module.exports = grammar(JavaScript, {
       [$.primary_expression, $._parameter_name, $.primary_type],
       [$.primary_expression, $.literal_type],
       [$.primary_expression, $.literal_type, $.rest_pattern],
+      [$.literal_type, $._static_value_operand],
       [$.primary_expression, $.predefined_type, $.rest_pattern],
       [$.primary_expression, $.primary_type],
+      [$.primary_expression, $.placement_type],
+      [$.lexical_declaration, $.primary_type],
+      [$.placed_type_satisfies_left, $.primary_type],
+      [$.primary_type, $._static_value_operand],
+      [$.primary_type, $._static_value_call_expression],
+      [$.generic_type, $._static_value_call_expression],
+      [$.static_value_argument, $._static_value_operand],
+      [$.jsx_namespace_name, $.primary_type, $._static_value_operand],
       [$.primary_expression, $._struct_literal_generic_type],
       [$.primary_expression, $._struct_literal_generic_type, $.generic_type],
       [$.primary_expression, $._struct_literal_generic_type, $.generic_type, $._static_value_call_expression],
@@ -126,6 +134,7 @@ module.exports = grammar(JavaScript, {
       [$.object, $.object_type],
       [$.object, $.object_pattern, $.object_type],
       [$.object, $.object_pattern, $._property_name],
+      [$.primary_expression, $._property_name, $.placement_type],
       [$.object_pattern, $.object_type],
 
       [$.array, $.tuple_type],
@@ -156,6 +165,7 @@ module.exports = grammar(JavaScript, {
       [$._range_expression_atom, $._interval_type_bound],
     ]).concat([
       [$.comptime_block_statement, $.comptime_expression],
+      [$.static_if_expression],
       [$.optional_type, $.index_type_query],
       [$.type, $.optional_type],
       [$.primary_type, $._interval_type_bound],
@@ -166,14 +176,14 @@ module.exports = grammar(JavaScript, {
       [$.pattern, $._try_propagation_argument],
       [$.call_expression, $.match_arm_expression_statement],
       [$.primary_expression, $.match_arm_expression_statement],
-      [$.primary_expression, $.await_try_propagation_expression],
       [$.binary_expression, $.match_arm_expression_statement],
       [$.if_statement, $.primary_expression, $.if_let_condition],
       [$.primary_expression, $.if_let_condition],
-      [$.if_statement, $.parenthesized_expression],
+      [$.expression, $._if_let_right_expression],
+      [$.primary_expression, $._if_let_right_expression],
+      [$.parenthesized_expression, $._if_condition],
     ]).concat([
       [$.jsx_opening_element, $.type_parameter],
-      [$.jsx_namespace_name, $.primary_type],
     ]),
 
   inline: ($, previous) => previous
@@ -372,6 +382,7 @@ module.exports = grammar(JavaScript, {
 
     expression: ($, previous) => {
       const choices = [
+        $.static_if_expression,
         $.as_expression,
         $.satisfies_expression,
         $.instantiation_expression,
@@ -483,11 +494,17 @@ module.exports = grammar(JavaScript, {
       $.using_assignment_statement,
       $.dereference_assignment_statement,
       $.loop_expression,
+      alias($.placed_abstract_class_declaration, $.abstract_class_declaration),
+      alias($.placed_class_declaration, $.class_declaration),
+      alias($.placed_struct_declaration, $.struct_declaration),
+      alias($.placed_enum_declaration, $.enum_declaration),
+      alias($.placed_interface_declaration, $.interface_declaration),
+      alias($.placed_type_alias_declaration, $.type_alias_declaration),
       $.export_statement,
       $.import_statement,
+      $.declaration,
       $.debugger_statement,
       $.expression_statement,
-      $.declaration,
       $.statement_block,
       $.if_statement,
       $.switch_statement,
@@ -524,7 +541,14 @@ module.exports = grammar(JavaScript, {
     ),
 
     let_else_must_pattern: $ => prec.left('unary', seq(
-      field('argument', $.identifier),
+      field('argument', choice(
+        $.identifier,
+        $.match_constructor_pattern,
+        $.match_member_pattern,
+        $.match_struct_pattern,
+        $.tuple_pattern,
+        $.array_pattern,
+      )),
       '!',
     )),
 
@@ -596,20 +620,14 @@ module.exports = grammar(JavaScript, {
       prec.right(seq(
         'if',
         '(',
-        field('condition', choice(
-          $.expression,
-          $.if_let_condition,
-        )),
+        field('condition', $._if_condition),
         ')',
         field('consequence', $.statement_block),
         optional(field('alternative', $.else_clause)),
       )),
       prec.right(seq(
         'if',
-        field('condition', choice(
-          $.expression,
-          $.if_let_condition,
-        )),
+        field('condition', $._if_condition),
         field('consequence', $.statement_block),
         optional(field('alternative', $.else_clause)),
       )),
@@ -817,9 +835,21 @@ module.exports = grammar(JavaScript, {
     ),
 
     where_constraint: $ => seq(
-      field('name', choice($._type_identifier, $.nested_type_identifier, $.generic_type)),
+      field('left', $._where_constraint_left),
       field('operator', choice(':', '==')),
-      field('type', $.type),
+      field('right', $._where_constraint_right),
+    ),
+
+    _where_constraint_left: $ => choice(
+      $.associated_type_projection,
+      $.generic_type,
+      $.nested_type_identifier,
+      $._type_identifier,
+    ),
+
+    _where_constraint_right: $ => choice(
+      $.type,
+      $.static_value_argument,
     ),
 
     loop_expression: $ => seq(
@@ -849,11 +879,12 @@ module.exports = grammar(JavaScript, {
       $.annotation_call_expression,
     ),
 
-    await_try_propagation_expression: $ => prec.left('call', seq(
-      'await',
-      token.immediate('?'),
-      field('argument', $.call_expression),
+    await_try_propagation_expression: $ => prec.right('unary', seq(
+      field('operator', $._await_try_propagation_operator),
+      field('argument', $.expression),
     )),
+
+    _await_try_propagation_operator: _ => token(prec(2, seq('await', choice('?', '!')))),
 
     comptime_expression: $ => prec.right(seq(
       'comptime',
@@ -895,8 +926,8 @@ module.exports = grammar(JavaScript, {
 
     placement_expression: $ => prec.left('unary', seq(
       choice(
-        alias(token(seq('local', /\s+/)), 'local'),
-        alias(token(seq('shared', /\s+/)), 'shared'),
+        alias(token(prec(1, seq('local', /\s+/))), 'local'),
+        alias(token(prec(1, seq('shared', /\s+/))), 'shared'),
       ),
       field('argument', $.primary_expression),
     )),
@@ -976,6 +1007,25 @@ module.exports = grammar(JavaScript, {
 
     if_let_pattern: $ => prec.right('if_let_pattern', $.match_pattern),
 
+    _if_condition: $ => choice(
+      $.if_let_chain,
+      $.if_let_condition,
+      $.expression,
+    ),
+
+    if_let_chain: $ => prec.left('binary', choice(
+      seq(
+        field('left', $.if_let_condition),
+        field('operator', '&&'),
+        field('right', choice($.if_let_condition, $.expression, $.if_let_chain)),
+      ),
+      seq(
+        field('left', $.expression),
+        field('operator', '&&'),
+        field('right', choice($.if_let_condition, $.if_let_chain)),
+      ),
+    )),
+
     if_let_condition: $ => prec.right('if_let_pattern', seq(
       choice('let', 'const'),
       field('left', $.if_let_pattern),
@@ -1052,7 +1102,13 @@ module.exports = grammar(JavaScript, {
       ),
     ),
 
-    _import_identifier: $ => choice($.identifier, alias('type', $.identifier)),
+    _import_identifier: $ => choice(
+      $.identifier,
+      alias('type', $.identifier),
+      alias('local', $.identifier),
+      alias('shared', $.identifier),
+      alias($.placement_modifier, $.identifier),
+    ),
 
     import_specifier: $ => seq(
       repeat(field('guard', $.static_if_guard)),
@@ -1099,14 +1155,12 @@ module.exports = grammar(JavaScript, {
       '(',
       optional(seq(
         optional(choice(
-          $.static_if_expression,
           $.expression,
           $.spread_element,
         )),
         repeat(seq(
           ',',
           optional(choice(
-            $.static_if_expression,
             $.expression,
             $.spread_element,
           )),
@@ -1117,6 +1171,18 @@ module.exports = grammar(JavaScript, {
 
     export_statement: ($, previous) => choice(
       previous,
+      seq(
+        'export',
+        optional('default'),
+        choice(
+          alias($.placed_abstract_class_declaration, $.abstract_class_declaration),
+          alias($.placed_class_declaration, $.class_declaration),
+          alias($.placed_struct_declaration, $.struct_declaration),
+          alias($.placed_enum_declaration, $.enum_declaration),
+          alias($.placed_interface_declaration, $.interface_declaration),
+          alias($.placed_type_alias_declaration, $.type_alias_declaration),
+        ),
+      ),
       seq(
         'export',
         choice(
@@ -1403,7 +1469,7 @@ module.exports = grammar(JavaScript, {
     ),
 
     shared_lexical_declaration: $ => seq(
-      alias(token(seq('shared', /\s+/)), 'shared'),
+      field('place', $.placement_modifier),
       $.lexical_declaration,
     ),
 
@@ -1456,9 +1522,16 @@ module.exports = grammar(JavaScript, {
     _type_satisfies_left: $ => choice(
       $.generic_type,
       $.memory_type,
+      $.placement_type,
+      alias($.placed_type_satisfies_left, $.placement_type),
       $.readonly_type,
       $.parenthesized_type,
     ),
+
+    placed_type_satisfies_left: $ => prec.right('unary', seq(
+      $.placement_modifier,
+      choice($.memory_type, $.primary_type),
+    )),
 
     _cast_intersection_type: $ => prec.right(100, seq(
       $.primary_type,
@@ -1574,6 +1647,7 @@ module.exports = grammar(JavaScript, {
         $.global_declaration,
         $.abstract_class_declaration,
         $.class_declaration,
+        $.struct_declaration,
         $.variable_declaration,
         $.lexical_declaration,
         $.type_alias_declaration,
@@ -1600,6 +1674,19 @@ module.exports = grammar(JavaScript, {
       field('name', $._type_identifier),
       field('type_parameters', optional($.type_parameters)),
       optional($.class_heritage),
+      optional($.where_clause),
+      field('body', $.class_body),
+    )),
+
+    placed_abstract_class_declaration: $ => prec('declaration', seq(
+      repeat(field('decorator', $.decorator)),
+      field('place', $.placement_modifier),
+      'abstract',
+      'class',
+      field('name', $._type_identifier),
+      field('type_parameters', optional($.type_parameters)),
+      optional($.class_heritage),
+      optional($.where_clause),
       field('body', $.class_body),
     )),
 
@@ -1610,6 +1697,20 @@ module.exports = grammar(JavaScript, {
       field('name', $._type_identifier),
       field('type_parameters', optional($.type_parameters)),
       optional($.class_heritage),
+      optional($.where_clause),
+      field('body', $.class_body),
+      optional($._automatic_semicolon),
+    )),
+
+    placed_class_declaration: $ => prec.left('declaration', seq(
+      repeat(field('decorator', $.decorator)),
+      field('place', $.placement_modifier),
+      optional('final'),
+      'class',
+      field('name', $._type_identifier),
+      field('type_parameters', optional($.type_parameters)),
+      optional($.class_heritage),
+      optional($.where_clause),
       field('body', $.class_body),
       optional($._automatic_semicolon),
     )),
@@ -1620,6 +1721,19 @@ module.exports = grammar(JavaScript, {
       field('name', $._type_identifier),
       field('type_parameters', optional($.type_parameters)),
       optional($.implements_clause),
+      optional($.where_clause),
+      field('body', $.class_body),
+      optional($._automatic_semicolon),
+    )),
+
+    placed_struct_declaration: $ => prec.left('declaration', seq(
+      repeat(field('decorator', $.decorator)),
+      field('place', $.placement_modifier),
+      'struct',
+      field('name', $._type_identifier),
+      field('type_parameters', optional($.type_parameters)),
+      optional($.implements_clause),
+      optional($.where_clause),
       field('body', $.class_body),
       optional($._automatic_semicolon),
     )),
@@ -1652,6 +1766,18 @@ module.exports = grammar(JavaScript, {
       field('name', optional($._type_identifier)),
       field('type_parameters', optional($.type_parameters)),
       optional($.extends_type_clause),
+      optional($.where_clause),
+      field('body', $.interface_body),
+    )),
+
+    placed_interface_declaration: $ => prec.right('declaration', seq(
+      field('place', $.placement_modifier),
+      optional('newtype'),
+      'interface',
+      field('name', optional($._type_identifier)),
+      field('type_parameters', optional($.type_parameters)),
+      optional($.extends_type_clause),
+      optional($.where_clause),
       field('body', $.interface_body),
     )),
 
@@ -1693,7 +1819,24 @@ module.exports = grammar(JavaScript, {
       repeat(field('decorator', $.decorator)),
       optional('const'),
       'enum',
-      field('name', $.identifier),
+      field('name', optional($.identifier)),
+      field('type_parameters', optional($.type_parameters)),
+      optional($.extends_type_clause),
+      optional($.implements_clause),
+      optional($.where_clause),
+      field('body', $.enum_body),
+    ),
+
+    placed_enum_declaration: $ => seq(
+      repeat(field('decorator', $.decorator)),
+      field('place', $.placement_modifier),
+      optional('const'),
+      'enum',
+      field('name', optional($.identifier)),
+      field('type_parameters', optional($.type_parameters)),
+      optional($.extends_type_clause),
+      optional($.implements_clause),
+      optional($.where_clause),
       field('body', $.enum_body),
     ),
 
@@ -1745,6 +1888,17 @@ module.exports = grammar(JavaScript, {
       $._semicolon,
     ),
 
+    placed_type_alias_declaration: $ => seq(
+      repeat(field('decorator', $.decorator)),
+      field('place', $.placement_modifier),
+      choice('type', 'newtype'),
+      field('name', $._type_identifier),
+      field('type_parameters', optional($.type_parameters)),
+      '=',
+      field('value', choice($.implements_type, $.type)),
+      $._semicolon,
+    ),
+
     associated_type_declaration: $ => seq(
       'type',
       field('name', $._type_identifier),
@@ -1769,6 +1923,8 @@ module.exports = grammar(JavaScript, {
 
     override_modifier: _ => 'override',
 
+    placement_modifier: _ => token(prec(2, seq(choice('local', 'shared'), /[ \t]+/))),
+
     required_parameter: $ => seq(
       $._parameter_name,
       field('type', optional($.type_annotation)),
@@ -1783,6 +1939,7 @@ module.exports = grammar(JavaScript, {
     )),
 
     _parameter_name: $ => seq(
+      repeat(field('guard', $.static_if_guard)),
       repeat(field('decorator', $.decorator)),
       optional($.accessibility_modifier),
       optional('readonly'),
@@ -1864,6 +2021,7 @@ module.exports = grammar(JavaScript, {
       $.function_type,
       $.constructor_type,
       $.conditional_union_type,
+      $.static_conditional_type,
       $.conditional_type,
       $.key_in_type,
       $.primary_type,
@@ -1967,6 +2125,14 @@ module.exports = grammar(JavaScript, {
         ':',
         field('alternative', $.type),
       )),
+    )),
+
+    static_conditional_type: $ => prec.right(2, seq(
+      field('condition', $.static_comparison),
+      '?',
+      field('consequence', $.type),
+      ':',
+      field('alternative', $.type),
     )),
 
     conditional_union_type: $ => prec.right(3, seq(
@@ -2314,9 +2480,16 @@ module.exports = grammar(JavaScript, {
     ),
 
     _static_value_operand: $ => choice(
+      $.generic_type,
+      $.associated_type_projection,
       $.number,
+      $.string,
+      $.true,
+      $.false,
+      $.null,
+      $.undefined,
       $.identifier,
-      $.parenthesized_expression,
+      alias($.this, $.this_type),
       alias($._static_value_call_expression, $.call_expression),
       seq('(', $.static_value_argument, ')'),
     ),
@@ -2456,6 +2629,8 @@ module.exports = grammar(JavaScript, {
       'override',
       'readonly',
       'module',
+      'local',
+      'shared',
       'loop',
       'any',
       'number',
