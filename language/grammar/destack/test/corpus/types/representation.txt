@@ -161,7 +161,7 @@ declare let erased: Any<Writer>;
       (variable_declarator
         (identifier)
         (type_annotation
-          (tuple_type
+          (fixed_array_type
             (type_identifier)
             (static_value_argument
               (call_expression
@@ -185,7 +185,7 @@ declare let erased: Any<Writer>;
               (type_arguments
                 (type_identifier))
               (arguments))))))
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (identifier)))
   (ambient_declaration

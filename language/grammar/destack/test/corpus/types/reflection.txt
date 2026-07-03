@@ -211,7 +211,7 @@ class A {
       (public_field_definition
         (property_identifier)
         (type_annotation
-          (tuple_type
+          (slice_type
             (object_type
               (property_signature
                 (property_identifier)

@@ -36,11 +36,11 @@ type Empty = ();
       (type_identifier)))
   (type_alias_declaration
     (type_identifier)
-    (tuple_type
+    (slice_type
       (type_identifier)))
   (type_alias_declaration
     (type_identifier)
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (number)))
   (type_alias_declaration
@@ -187,7 +187,7 @@ type Sized<comptime N: uint> = [uint8; N > 4 ? 2 : 5];
         (type_identifier)
         (constraint
           (type_identifier))))
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (static_conditional
         (static_comparison

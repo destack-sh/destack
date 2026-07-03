@@ -21,7 +21,7 @@ lane satisfies [uint8; 8];
         (type_identifier)
         (constraint
           (type_identifier))))
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (static_value_argument
         (identifier)
@@ -50,7 +50,7 @@ lane satisfies [uint8; 8];
                 (number))))))))
   (value_satisfies_statement
     (identifier)
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (number))))
 
@@ -78,7 +78,7 @@ type Shape<comptime ...Dims: usize> = [usize; Dims];
         (type_identifier)
         (constraint
           (type_identifier))))
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (identifier))))
 
@@ -100,7 +100,7 @@ type StaticFactory<T extends static abstract new (...args: any) => any> = T;
         (type_identifier)
         (constraint
           (type_identifier))))
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (identifier)))
   (type_alias_declaration
@@ -155,7 +155,7 @@ function allocate<T: static Type, comptime ...Shape: usize>(
         (type_annotation
           (type_identifier))))
     (type_annotation
-      (tuple_type
+      (fixed_array_type
         (type_identifier)
         (identifier)))
     (statement_block

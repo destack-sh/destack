@@ -34,7 +34,7 @@ lane satisfies [uint8; 8];
           (number)))
       (associated_type_declaration
         (type_identifier)
-        (tuple_type
+        (fixed_array_type
           (type_identifier)
           (identifier)))))
   (ambient_declaration
@@ -50,6 +50,6 @@ lane satisfies [uint8; 8];
             (type_identifier))))))
   (value_satisfies_statement
     (identifier)
-    (tuple_type
+    (fixed_array_type
       (type_identifier)
       (number))))

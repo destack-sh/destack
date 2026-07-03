@@ -54,6 +54,6 @@ struct InlineBuffer<T, comptime N: 0..=4096> {
       (public_field_definition
         (property_identifier)
         (type_annotation
-          (tuple_type
+          (fixed_array_type
             (type_identifier)
             (identifier)))))))

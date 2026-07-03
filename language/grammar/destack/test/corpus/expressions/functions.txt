@@ -207,7 +207,7 @@ a<C.D[]>();
         object: (identifier)
         property: (property_identifier))
       type_arguments: (type_arguments
-        (tuple_type
+        (slice_type
           (type_identifier)))
       arguments: (arguments)))
   (expression_statement

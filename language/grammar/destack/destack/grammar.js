@@ -2076,6 +2076,8 @@ module.exports = grammar(JavaScript, {
       $.generic_type,
       $.object_type,
       $.array_type,
+      $.slice_type,
+      $.fixed_array_type,
       $.tuple_type,
       $.type_query,
       $.index_type_query,
@@ -2557,9 +2559,14 @@ module.exports = grammar(JavaScript, {
     _interval_type_bound: $ => choice($.literal_type, $._type_identifier),
 
     array_type: $ => seq($.primary_type, '[', ']'),
+    slice_type: $ => seq('[', $.type, ']'),
+    fixed_array_type: $ => seq('[', $.type, ';', $._fixed_array_length, ']'),
     tuple_type: $ => choice(
-      seq('[', $.type, ';', $._fixed_array_length, ']'),
-      seq('[', commaSep($._tuple_type_member), optional(','), ']'),
+      seq('[', ']'),
+      seq('[', $._tuple_type_member, ',', optional(seq(
+        commaSep1($._tuple_type_member),
+        optional(','),
+      )), ']'),
       seq('(', ')'),
       seq('(', $.rest_type, ')'),
       seq('(', $._parenthesized_tuple_type_member, ',', ')'),
