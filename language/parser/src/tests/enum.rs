@@ -276,7 +276,7 @@ enum Foo where Requirement: Interface {
         assert_eq!(where_clauses.len(), 1);
 
         // where Requirement: Interface
-        assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
+        assert_node!(parser.tree, where_clauses[0], WhereClause { relation: _, left, right } => {
             assert_expression_path!(parser, parser.tree.get(*left), "Requirement");
             assert_node!(parser.tree, *right, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Interface");

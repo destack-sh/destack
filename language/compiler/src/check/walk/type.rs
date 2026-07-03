@@ -863,7 +863,7 @@ impl WalkState<'_, '_> {
             );
         }
 
-        // enqueue declared where predicates as satisfaction relations
+        // enqueue declared where predicates
         let template = self.check.symbol_template(symbol);
         for predicate in self.check.template_predicates(template) {
             let left = self

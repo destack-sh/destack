@@ -263,6 +263,13 @@ fn add_template_predicates(
         let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "where")
             .field("symbol", builder.symbol_path_label(owner))
             .optional_field("source", builder.node_source(predicate.source))
+            .field(
+                "relation",
+                match predicate.relation {
+                    dir::WhereRelation::Satisfies => "satisfies",
+                    dir::WhereRelation::Equals => "equals",
+                },
+            )
             .type_field("left", builder.global_type_label(predicate.left))
             .type_field("right", builder.global_type_label(predicate.right));
 
