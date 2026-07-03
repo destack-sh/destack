@@ -21,7 +21,6 @@ destack_dir = { workspace = true }
 destack_program = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
-destack_qir = { workspace = true }
 destack_serde = { workspace = true }
 destack_source = { workspace = true }
 
