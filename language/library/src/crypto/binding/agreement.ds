@@ -92,7 +92,7 @@ export interface CryptoAgreement {
         privateKey: CryptoKeyHandle,
         peerPublicKey: CryptoKeyHandle,
         algorithm: CryptoKeyAgreementAlgorithm,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Derive raw bytes from one local private key and one peer public key.
     @binding("destack.crypto.agreement.deriveBits", {
@@ -106,7 +106,7 @@ export interface CryptoAgreement {
         privateKey: CryptoKeyHandle,
         peerPublicKey: CryptoKeyHandle,
         request: &readonly CryptoAgreementBits,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Derive one key from one local private key and one peer public key.
     @binding("destack.crypto.agreement.deriveKey", {

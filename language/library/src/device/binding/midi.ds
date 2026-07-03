@@ -319,7 +319,7 @@ export interface DeviceMidi {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listMidiBackends(): Result<Array<MidiBackend>, HostError>;
+    listMidiBackends(): Result<MidiBackend[], HostError>;
 
     /// Open a MIDI topology watch.
     @binding("destack.device.midi.event.open", {
@@ -355,7 +355,7 @@ export interface DeviceMidi {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listMidiInputs(options: &readonly MidiListOptions): Result<Array<MidiPort>, HostError>;
+    listMidiInputs(options: &readonly MidiListOptions): Result<MidiPort[], HostError>;
 
     /// Open a MIDI input port.
     @binding("destack.device.midi.input.open", {
@@ -418,7 +418,7 @@ export interface DeviceMidi {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listMidiOutputs(options: &readonly MidiListOptions): Result<Array<MidiPort>, HostError>;
+    listMidiOutputs(options: &readonly MidiListOptions): Result<MidiPort[], HostError>;
 
     /// Open a MIDI output port.
     @binding("destack.device.midi.output.open", {

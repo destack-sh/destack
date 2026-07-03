@@ -151,5 +151,5 @@ export interface AudioEvent {
         events: AudioEventHandle,
         maxEvents: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<AudioEvent>, HostError>;
+    ): Result<AudioEvent[], HostError>;
 }

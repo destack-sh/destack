@@ -30,7 +30,7 @@ export struct Snapshot {
 /// Snapshot list page.
 export struct SnapshotPage {
     /// Snapshot records in this page.
-    snapshots: Array<Snapshot>;
+    snapshots: Snapshot[];
     /// Next snapshot cursor when more records exist.
     next?: SnapshotId;
 }
@@ -91,7 +91,7 @@ export declare function snapshotList(
 export declare function snapshotRead(
     world: WorldHandle,
     snapshotId: SnapshotId,
-): Result<Array<uint8>, HostError>;
+): Result<uint8[], HostError>;
 
 /// Import one serialized snapshot payload.
 @binding("destack.runtime.snapshot.import", {

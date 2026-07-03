@@ -297,7 +297,7 @@ export interface DeviceSerial {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listSerialPorts(): Result<Array<SerialPort>, HostError>;
+    listSerialPorts(): Result<SerialPort[], HostError>;
 
     /// Open a serial topology watch.
     @binding("destack.device.serial.watch.open", {

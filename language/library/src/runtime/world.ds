@@ -140,7 +140,7 @@ export class Worker {
 /// Runtime list page.
 export struct RuntimePage {
     /// Runtime records in this page.
-    runtimes: Array<Runtime>;
+    runtimes: Runtime[];
     /// Next runtime cursor when more records exist.
     next?: RuntimeId;
 }
@@ -148,7 +148,7 @@ export struct RuntimePage {
 /// Worker list page.
 export struct WorkerPage {
     /// Worker records in this page.
-    workers: Array<Worker>;
+    workers: Worker[];
     /// Next worker cursor when more records exist.
     next?: WorkerId;
 }

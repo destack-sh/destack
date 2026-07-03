@@ -18,17 +18,17 @@ export newtype Mesh = intrinsic;
 
 export extension of Mesh {
     /// Create a mesh from devices and named axes.
-    static new(devices: &readonly Slice<Device>, axes: &readonly Slice<MeshAxis>): Mesh {
+    static new(devices: &readonly [Device], axes: &readonly [MeshAxis]): Mesh {
         todo("Mesh.new")
     }
 
     /// Return the mesh axes.
     @intrinsic("compute.mesh.axes")
-    get axes(): &readonly Slice<MeshAxis>;
+    get axes(): &readonly [MeshAxis];
 
     /// Return the devices in row-major mesh order.
     @intrinsic("compute.mesh.devices")
-    get devices(): &readonly Slice<Device>;
+    get devices(): &readonly [Device];
 
     /// Return the number of mesh axes.
     @intrinsic("compute.mesh.rank")

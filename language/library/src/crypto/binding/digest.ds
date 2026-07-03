@@ -20,7 +20,7 @@ export interface CryptoDigest {
     computeDigest(
         algorithm: CryptoDigestAlgorithm,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Open one streaming digest context.
     @binding("destack.crypto.digest.open", {
@@ -50,7 +50,7 @@ export interface CryptoDigest {
         families: ["windows", "unix"],
         simulation: true,
     })
-    finishDigest(digest: CryptoDigestHandle): Result<Array<uint8>, HostError>;
+    finishDigest(digest: CryptoDigestHandle): Result<uint8[], HostError>;
 
     /// Close one streaming digest context.
     @binding("destack.crypto.digest.close", {

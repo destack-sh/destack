@@ -299,7 +299,7 @@ export extension of String implements As<StringSlice>, Borrow<StringSlice> {
     }
 
     /// Borrow this string as readonly bytes.
-    asBytes(&readonly this): &readonly Slice<uint8> {
+    asBytes(&readonly this): &readonly [uint8] {
         todo("String.asBytes")
     }
 }

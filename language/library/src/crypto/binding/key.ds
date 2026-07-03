@@ -241,7 +241,7 @@ export interface CryptoKey {
         families: ["windows", "unix"],
         simulation: true,
     })
-    exportPublicKey(key: CryptoKeyHandle, format: CryptoKeyFormat): Result<Array<uint8>, HostError>;
+    exportPublicKey(key: CryptoKeyHandle, format: CryptoKeyFormat): Result<uint8[], HostError>;
 
     /// Export one private key.
     @binding("destack.crypto.key.private.export", {
@@ -254,7 +254,7 @@ export interface CryptoKey {
     exportPrivateKey(
         key: CryptoKeyHandle,
         request: &readonly CryptoPrivateKeyExport,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Export one secret key.
     @binding("destack.crypto.key.secret.export", {
@@ -264,7 +264,7 @@ export interface CryptoKey {
         families: ["windows", "unix"],
         simulation: true,
     })
-    exportSecretKey(key: CryptoKeyHandle, format: CryptoKeyFormat): Result<Array<uint8>, HostError>;
+    exportSecretKey(key: CryptoKeyHandle, format: CryptoKeyFormat): Result<uint8[], HostError>;
 
     /// Describe one key.
     @binding("destack.crypto.key.describe", {
@@ -288,7 +288,7 @@ export interface CryptoKey {
         key: CryptoKeyHandle,
         parameters: &readonly CryptoSignatureParameters,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Verify one signature.
     @binding("destack.crypto.key.verify", {
@@ -317,7 +317,7 @@ export interface CryptoKey {
         key: CryptoKeyHandle,
         parameters: &readonly CryptoAsymmetricEncryptionParameters,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Decrypt one payload with one asymmetric key.
     @binding("destack.crypto.key.decrypt", {
@@ -331,7 +331,7 @@ export interface CryptoKey {
         key: CryptoKeyHandle,
         parameters: &readonly CryptoAsymmetricEncryptionParameters,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Wrap one key.
     @binding("destack.crypto.key.wrap", {
@@ -346,7 +346,7 @@ export interface CryptoKey {
         keyToWrap: CryptoKeyHandle,
         format: CryptoKeyFormat,
         parameters: &readonly CryptoKeyWrapParameters,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Unwrap one key.
     @binding("destack.crypto.key.unwrap", {

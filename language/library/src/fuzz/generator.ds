@@ -63,7 +63,7 @@ export class Generator<T> {
     }
 
     /// Generate arrays.
-    static array<T>(options: ArrayOptions<T>): Generator<Array<T>> {
+    static array<T>(options: ArrayOptions<T>): Generator<T[]> {
         todo("fuzz.Generator.array")
     }
 

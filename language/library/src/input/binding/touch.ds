@@ -45,7 +45,7 @@ export struct TouchState {
     /// Stable source device identifier.
     deviceId: string;
     /// Active contacts for this snapshot.
-    contacts: Array<TouchContact>;
+    contacts: TouchContact[];
 }
 
 /// Touch binding family.

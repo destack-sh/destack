@@ -37,13 +37,13 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         FromIterator<T>,
         Extend<T, "exclusive">,
         Default,
-        From<Array<T>>,
-        From<FixedArray<T, N>> {
+        From<T[]>,
+        From<[T; N]> {
     /// The indexed output type.
     type Output = T;
 
     /// The contiguous range view type.
-    type View = Slice<T>;
+    type View = [T];
 
     /// Create an empty small array.
     static new(): SmallArray<T, N> {
@@ -71,12 +71,12 @@ export extension<T, comptime N: number> of SmallArray<T, N>
     }
 
     /// Create a small array from an array.
-    static from(value: Array<T>): SmallArray<T, N> {
+    static from(value: T[]): SmallArray<T, N> {
         todo("SmallArray.fromArray")
     }
 
     /// Create a small array from a fixed array.
-    static from(value: FixedArray<T, N>): SmallArray<T, N> {
+    static from(value: [T; N]): SmallArray<T, N> {
         todo("SmallArray.fromFixedArray")
     }
 
@@ -120,7 +120,7 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         this: WithAccess<&SmallArray<T, N>, A>,
         start: usize,
         end?: usize,
-    ): WithAccess<&Slice<T>, A> {
+    ): WithAccess<&[T], A> {
         todo("SmallArray.view")
     }
 
@@ -266,22 +266,23 @@ export extension<T, comptime N: number> of SmallArray<T, N>
 
 export extension<T, comptime N: number, comptime A: Access = "readonly"> of SmallArray<T, N>
     implements
-        As<Slice<T>, A>,
-        Borrow<Slice<T>, A> {
+        As<[T], A>,
+        Borrow<[T], A> {
     /// Borrow the initialized storage as a slice.
-    as(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&Slice<T>, A> {
+    as(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&[T], A> {
         todo("SmallArray.as")
     }
 
     /// Borrow the initialized storage as a slice.
-    borrow(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&Slice<T>, A> {
+    borrow(this: WithAccess<&SmallArray<T, N>, A>): WithAccess<&[T], A> {
         this.as()
     }
 }
 
-export extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements Index<R> {
+export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Access = "readonly">
+    of SmallArray<T, N> implements Index<R, A> {
     /// The indexed output type.
-    type Output = Slice<T>;
+    type Output = WithAccess<&[T], A>;
 
     /// Return the normalized start and length for `range`.
     rangeSpan(&readonly this, range: R): (usize, usize) {
@@ -305,28 +306,25 @@ export extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, 
     }
 
     /// Borrow the selected range as a view.
-    index<comptime A: Access = "readonly">(
-        this: WithAccess<&SmallArray<T, N>, A>,
-        range: R,
-    ): WithAccess<&Slice<T>, A> {
+    index(this: WithAccess<&SmallArray<T, N>, A>, range: R): WithAccess<&[T], A> {
         todo("SmallArray.indexRange")
     }
 }
 
 export extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N>
     implements
-        IndexSet<R, Slice<T>> where T: Copy {
+        IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: Slice<T>): void {
+    indexSet(&exclusive this, range: R, source: [T]): void {
         todo("SmallArray.indexSetRange");
     }
 }
 
 export extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N>
     implements
-        IndexSet<R, &readonly Slice<T>> where T: Copy {
+        IndexSet<R, &readonly [T]> where T: Copy {
     /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: &readonly Slice<T>): void {
+    indexSet(&exclusive this, range: R, source: &readonly [T]): void {
         todo("SmallArray.indexSetRange");
     }
 }

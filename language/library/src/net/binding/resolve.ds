@@ -195,7 +195,7 @@ export struct DnsRecordText {
     /// Record discriminator.
     kind: "text";
     /// Text chunks.
-    chunks: Array<string>;
+    chunks: string[];
 }
 
 /// DNS mail exchange record payload.
@@ -288,7 +288,7 @@ export interface NetResolve {
     })
     lookupAddress(
         query: &readonly AddressLookupQuery,
-    ): Result<Array<AddressLookupResult>, HostError>;
+    ): Result<AddressLookupResult[], HostError>;
 
     /// Resolve DNS records.
     @binding("destack.net.resolve.record", {
@@ -297,7 +297,7 @@ export interface NetResolve {
         families: ["windows", "unix"],
         simulation: true,
     })
-    record(query: &readonly DnsQuery): Result<Array<DnsRecord>, HostError>;
+    record(query: &readonly DnsQuery): Result<DnsRecord[], HostError>;
 
     /// Reverse lookup a socket address into host and service names.
     @binding("destack.net.resolve.reverseLookup", {
@@ -309,5 +309,5 @@ export interface NetResolve {
     reverseLookup(
         address: &readonly SocketAddress,
         flags: ReverseAddressLookupFlags,
-    ): Result<Array<ReverseAddressLookupResult>, HostError>;
+    ): Result<ReverseAddressLookupResult[], HostError>;
 }

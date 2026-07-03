@@ -415,7 +415,7 @@ export interface DeviceBluetooth {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listBluetoothAdapters(): Result<Array<BluetoothAdapter>, HostError>;
+    listBluetoothAdapters(): Result<BluetoothAdapter[], HostError>;
 
     /// Open a Bluetooth adapter topology watch.
     @binding("destack.device.bluetooth.adapter.watch.open", {
@@ -554,7 +554,7 @@ export interface DeviceBluetooth {
     })
     listBluetoothGattServices(
         device: BluetoothDeviceHandle,
-    ): Result<Array<BluetoothGattService>, HostError>;
+    ): Result<BluetoothGattService[], HostError>;
 
     /// List Bluetooth GATT characteristics.
     @binding("destack.device.bluetooth.gatt.characteristic.list", {
@@ -566,7 +566,7 @@ export interface DeviceBluetooth {
     listBluetoothGattCharacteristics(
         device: BluetoothDeviceHandle,
         serviceId: &readonly string,
-    ): Result<Array<BluetoothGattCharacteristic>, HostError>;
+    ): Result<BluetoothGattCharacteristic[], HostError>;
 
     /// List Bluetooth GATT descriptors.
     @binding("destack.device.bluetooth.gatt.descriptor.list", {
@@ -578,7 +578,7 @@ export interface DeviceBluetooth {
     listBluetoothGattDescriptors(
         device: BluetoothDeviceHandle,
         characteristicId: &readonly string,
-    ): Result<Array<BluetoothGattDescriptor>, HostError>;
+    ): Result<BluetoothGattDescriptor[], HostError>;
 
     /// Read a Bluetooth GATT characteristic.
     @binding("destack.device.bluetooth.gatt.characteristic.read", {

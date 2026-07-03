@@ -104,11 +104,11 @@ export struct AudioFormatRange {
     /// Maximum channel count.
     maxChannels: uint16;
     /// Supported sample formats.
-    sampleFormats: Array<AudioSampleFormat>;
+    sampleFormats: AudioSampleFormat[];
     /// Supported buffer layouts.
-    bufferLayouts: Array<AudioBufferLayout>;
+    bufferLayouts: AudioBufferLayout[];
     /// Supported channel layouts.
-    channelLayouts: Array<AudioChannelLayout>;
+    channelLayouts: AudioChannelLayout[];
 }
 
 /// Audio device query.
@@ -146,11 +146,11 @@ export struct AudioDevice {
     /// Whether this is the default loopback endpoint.
     isDefaultLoopback: boolean;
     /// Supported share modes.
-    shareModes: Array<AudioShareMode>;
+    shareModes: AudioShareMode[];
     /// Preferred format.
     preferredFormat: AudioFormat;
     /// Supported format ranges.
-    formats: Array<AudioFormatRange>;
+    formats: AudioFormatRange[];
 }
 
 /// Device binding family.
@@ -162,7 +162,7 @@ export interface AudioDevice {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listAudioDevices(query: &readonly AudioDeviceQuery): Result<Array<AudioDevice>, HostError>;
+    listAudioDevices(query: &readonly AudioDeviceQuery): Result<AudioDevice[], HostError>;
 
     /// Return the default device identifier for one direction.
     @binding("destack.audio.device.default", {

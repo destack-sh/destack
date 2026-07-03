@@ -89,11 +89,11 @@ export struct MonitorColorState {
 /// Display gamma ramp.
 export struct MonitorGammaRamp {
     /// Red channel gamma table entries.
-    red: Array<uint16>;
+    red: uint16[];
     /// Green channel gamma table entries.
-    green: Array<uint16>;
+    green: uint16[];
     /// Blue channel gamma table entries.
-    blue: Array<uint16>;
+    blue: uint16[];
 }
 
 /// Display output rectangle in desktop pixels.
@@ -160,7 +160,7 @@ export interface DisplayMonitor {
         simulation: true,
         affinity: "worker",
     })
-    listMonitors(query: &readonly MonitorQuery): Result<Array<Monitor>, HostError>;
+    listMonitors(query: &readonly MonitorQuery): Result<Monitor[], HostError>;
 
     /// Return the primary monitor handle.
     @binding("destack.display.monitor.primary", {
@@ -213,7 +213,7 @@ export interface DisplayMonitor {
         simulation: true,
         affinity: "worker",
     })
-    listMonitorModes(monitor: MonitorHandle): Result<Array<MonitorMode>, HostError>;
+    listMonitorModes(monitor: MonitorHandle): Result<MonitorMode[], HostError>;
 
     /// Select the closest supported monitor mode.
     @binding("destack.display.monitor.mode.closest", {

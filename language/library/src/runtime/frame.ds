@@ -34,7 +34,7 @@ export struct Frame {
 /// Frame list page.
 export struct FramePage {
     /// Frame records in this page.
-    frames: Array<Frame>;
+    frames: Frame[];
     /// Next frame cursor when more records exist.
     next?: FrameId;
 }
@@ -55,7 +55,7 @@ export struct FrameSlot {
 /// Frame slot list page.
 export struct FrameSlotPage {
     /// Frame slot records in this page.
-    slots: Array<FrameSlot>;
+    slots: FrameSlot[];
     /// Next slot cursor when more records exist.
     next?: FrameSlotId;
 }
@@ -113,4 +113,4 @@ export declare function readFrameValues(
     view: WorldViewHandle,
     frame: FrameId,
     slots: &readonly [FrameSlotId],
-): Result<Array<FrameValue>, HostError>;
+): Result<FrameValue[], HostError>;

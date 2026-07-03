@@ -47,7 +47,7 @@ export struct TraceRecord {
 /// Trace record page.
 export struct TraceRecordPage {
     /// Trace records in this page.
-    records: Array<TraceRecord>;
+    records: TraceRecord[];
     /// Next trace sequence when more records exist.
     next?: TraceSequence;
 }

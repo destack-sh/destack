@@ -1,15 +1,17 @@
+import { Access, WithAccess } from "destack:memory";
+
 /// Interface for index access `a[i]`.
 ///
 /// `a[i]` becomes `a.index(i)`.
 ///
 /// The index type `I` can be any type (int, string, tuple, range, etc.).
 @languageItem("ops.Index")
-export newtype interface Index<I> {
+export newtype interface Index<I, comptime A: Access = "readonly"> {
     /// The indexed output type.
     type Output;
 
     /// Return the value at `key`.
-    index(key: I): this.Output;
+    index(this: WithAccess<&this, A>, key: I): this.Output;
 }
 
 /// Interface for index assignment `a[i] = v`.

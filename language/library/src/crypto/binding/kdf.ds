@@ -163,7 +163,7 @@ export interface CryptoKdf {
         families: ["windows", "unix"],
         simulation: true,
     })
-    deriveKdfBits(request: &readonly CryptoKdfBits): Result<Array<uint8>, HostError>;
+    deriveKdfBits(request: &readonly CryptoKdfBits): Result<uint8[], HostError>;
 
     /// Derive one key.
     @binding("destack.crypto.kdf.deriveKey", {

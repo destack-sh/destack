@@ -414,7 +414,7 @@ export interface GpuAdapter {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listAdapters(request: &readonly GpuAdapterRequest): Result<Array<GpuAdapter>, HostError>;
+    listAdapters(request: &readonly GpuAdapterRequest): Result<GpuAdapter[], HostError>;
 
     /// Open a GPU adapter.
     @binding("destack.gpu.adapter.open", {
@@ -441,7 +441,7 @@ export interface GpuAdapter {
         families: ["windows", "unix"],
         simulation: true,
     })
-    readAdapterFeatures(adapter: GpuAdapterHandle): Result<Array<GpuFeatureId>, HostError>;
+    readAdapterFeatures(adapter: GpuAdapterHandle): Result<GpuFeatureId[], HostError>;
 
     /// Read an adapter limits snapshot.
     @binding("destack.gpu.adapter.limits.read", {

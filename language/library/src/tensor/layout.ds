@@ -54,7 +54,7 @@ export extension<comptime Order: MemoryOrder> of Dense<Order> {
 
     /// Return the linear element offset for `indices`.
     @intrinsic("tensor.format.dense.offset")
-    offset<comptime Rank: int>(indices: FixedArray<usize, Rank>, shape: Shape<Rank>): isize;
+    offset<comptime Rank: int>(indices: [usize; Rank], shape: Shape<Rank>): isize;
 }
 
 export extension of Strided {
@@ -67,14 +67,14 @@ export extension of Strided {
     @intrinsic("tensor.format.strided.isContiguous")
     isContiguous<comptime Rank: int>(
         shape: Shape<Rank>,
-        strides: FixedArray<Stride, Rank>,
+        strides: [Stride; Rank],
     ): boolean;
 
     /// Return the linear element offset for `indices`.
     @intrinsic("tensor.format.strided.offset")
     offset<comptime Rank: int>(
-        indices: FixedArray<usize, Rank>,
-        strides: FixedArray<Stride, Rank>,
+        indices: [usize; Rank],
+        strides: [Stride; Rank],
     ): isize;
 }
 

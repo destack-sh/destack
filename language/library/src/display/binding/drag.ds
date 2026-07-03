@@ -73,7 +73,7 @@ export struct DisplayDragTransfer {
     /// Position inside the window.
     position?: WindowPoint;
     /// Offered items.
-    items: Array<DisplayDragItem>;
+    items: DisplayDragItem[];
 }
 
 /// Source side drag preview.
@@ -83,7 +83,7 @@ export struct DisplayDragPreview {
     /// Pixel height.
     height: uint32;
     /// RGBA8 pixel bytes.
-    rgba: Array<uint8>;
+    rgba: uint8[];
     /// Cursor hotspot x coordinate in pixels.
     hotspotX: int32;
     /// Cursor hotspot y coordinate in pixels.
@@ -121,7 +121,7 @@ export struct DisplayDragSourceItemBinary {
     /// Suggested display name.
     name?: string;
     /// Byte payload.
-    bytes: Array<uint8>;
+    bytes: uint8[];
 }
 
 /// Source side drag item.
@@ -137,7 +137,7 @@ export struct DisplayDragRequest {
     /// Offered operations.
     operations: DisplayDragOperationFlags;
     /// Drag items.
-    items: Array<DisplayDragSourceItem>;
+    items: DisplayDragSourceItem[];
     /// Starting position inside the window.
     position?: WindowPoint;
     /// Optional preview image.
@@ -167,7 +167,7 @@ export interface DisplayDrag {
     readDragBytes(
         session: DisplayDragSessionHandle,
         itemIndex: uint32,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Read one drag filesystem item.
     @binding("destack.display.drag.path.read", {

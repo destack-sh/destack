@@ -73,7 +73,7 @@ export extension<T, comptime Rank: int, P: Placement, comptime A: Access> of
     TensorView<T, Rank, Strided, P, A> {
     /// Return the element stride for each axis.
     @intrinsic("tensor.view.strides")
-    get strides(): FixedArray<Stride, Rank>;
+    get strides(): [Stride; Rank];
 }
 
 export extension<
@@ -93,9 +93,9 @@ export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharde
     @unsafe
     @intrinsic("tensor.view.fromStridedSlice")
     static fromSlice(
-        slice: &Slice<T>,
+        slice: &[T],
         shape: Shape<Rank>,
-        strides: FixedArray<Stride, Rank>,
+        strides: [Stride; Rank],
     ): TensorView<T, Rank, Strided, Unsharded, "mutable">;
 }
 
@@ -104,9 +104,9 @@ export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharde
     @unsafe
     @intrinsic("tensor.view.fromStridedSlice")
     static fromSlice(
-        slice: &readonly Slice<T>,
+        slice: &readonly [T],
         shape: Shape<Rank>,
-        strides: FixedArray<Stride, Rank>,
+        strides: [Stride; Rank],
     ): TensorView<T, Rank, Strided, Unsharded, "readonly">;
 }
 
@@ -115,9 +115,9 @@ export extension<T, comptime Rank: int> of TensorView<T, Rank, Strided, Unsharde
     @unsafe
     @intrinsic("tensor.view.fromStridedSlice")
     static fromSlice(
-        slice: &exclusive Slice<T>,
+        slice: &exclusive [T],
         shape: Shape<Rank>,
-        strides: FixedArray<Stride, Rank>,
+        strides: [Stride; Rank],
     ): TensorView<T, Rank, Strided, Unsharded, "exclusive">;
 }
 
@@ -127,7 +127,7 @@ export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     @unsafe
     @intrinsic("tensor.view.fromSlice")
     static fromSlice(
-        slice: &Slice<T>,
+        slice: &[T],
         shape: Shape<Rank>,
     ): TensorView<T, Rank, Dense<Order>, Unsharded, "mutable">;
 }
@@ -138,7 +138,7 @@ export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     @unsafe
     @intrinsic("tensor.view.fromSlice")
     static fromSlice(
-        slice: &readonly Slice<T>,
+        slice: &readonly [T],
         shape: Shape<Rank>,
     ): TensorView<T, Rank, Dense<Order>, Unsharded, "readonly">;
 }
@@ -149,7 +149,7 @@ export extension<T, comptime Rank: int, comptime Order: MemoryOrder> of
     @unsafe
     @intrinsic("tensor.view.fromSlice")
     static fromSlice(
-        slice: &exclusive Slice<T>,
+        slice: &exclusive [T],
         shape: Shape<Rank>,
     ): TensorView<T, Rank, Dense<Order>, Unsharded, "exclusive">;
 }

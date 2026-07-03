@@ -70,7 +70,7 @@ export extension<T> of Buffer<T> {
     /// Create a buffer initialized from host values.
     static from(
         device: Device,
-        values: Slice<T>,
+        values: [T],
         options?: BufferOptions,
     ): Result<Buffer<T>, ComputeError> {
         todo("Buffer.from")
@@ -87,12 +87,12 @@ export extension<T> of Buffer<T> {
     }
 
     /// Read this buffer into host memory.
-    read(stream?: Stream): Result<Slice<T>, ComputeError> {
+    read(stream?: Stream): Result<[T], ComputeError> {
         todo("Buffer.read")
     }
 
     /// Write host values into this buffer.
-    write(values: Slice<T>, stream?: Stream): Event {
+    write(values: [T], stream?: Stream): Event {
         todo("Buffer.write")
     }
 }

@@ -95,7 +95,7 @@ export interface TlsConnection {
         families: ["windows", "unix"],
         simulation: true,
     })
-    readTlsAlpn(connection: TlsConnectionHandle): Result<Array<uint8>, HostError>;
+    readTlsAlpn(connection: TlsConnectionHandle): Result<uint8[], HostError>;
 
     /// Read the peer certificate chain in PEM encoding.
     @binding("destack.tls.connection.peerCertificates.pem.read", {
@@ -104,7 +104,7 @@ export interface TlsConnection {
         families: ["windows", "unix"],
         simulation: true,
     })
-    readTlsPeerCertificatesPem(connection: TlsConnectionHandle): Result<Array<uint8>, HostError>;
+    readTlsPeerCertificatesPem(connection: TlsConnectionHandle): Result<uint8[], HostError>;
 
     /// Export keying material bytes for one TLS connection.
     @binding("destack.tls.connection.keyingMaterial.export", {
@@ -118,7 +118,7 @@ export interface TlsConnection {
         label: &readonly string,
         context: &readonly [uint8],
         length: uint32,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Return whether one connection resumed from cached state or ticket.
     @binding("destack.tls.connection.resumption.read", {

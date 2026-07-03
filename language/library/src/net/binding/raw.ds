@@ -158,7 +158,7 @@ export interface NetRaw {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listPacketBackends(): Result<Array<NetworkPacketBackendStatus>, HostError>;
+    listPacketBackends(): Result<NetworkPacketBackendStatus[], HostError>;
 
     /// Open a raw IP socket.
     @binding("destack.net.raw.socket", {

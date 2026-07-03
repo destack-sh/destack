@@ -433,5 +433,5 @@ export interface AccessibilityAction {
         actions: AccessibilityActionHandle,
         maxActions: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<AccessibilityAction>, HostError>;
+    ): Result<AccessibilityAction[], HostError>;
 }

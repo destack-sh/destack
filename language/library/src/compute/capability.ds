@@ -67,7 +67,7 @@ export struct DeviceLimits {
 /// Compute capabilities exposed by one device.
 export struct DeviceCapabilities {
     /// Optional features.
-    features: Array<DeviceFeature>;
+    features: DeviceFeature[];
 
     /// Portable resource and dispatch limits.
     limits: DeviceLimits;

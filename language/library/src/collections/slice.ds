@@ -21,29 +21,29 @@ export extension<T> of Slice<T>
         FromIterator<T>,
         Default {
     /// Create an empty slice.
-    static new(): Slice<T> {
+    static new(): [T] {
         todo("Slice.new")
     }
 
     /// Create a slice from `values`.
-    static from(values: Iterable<T>): Slice<T> {
+    static from(values: Iterable<T>): [T] {
         todo("Slice.from")
     }
 
     /// Create a slice from `values`.
-    static fromIterator(values: Iterator<T>): Slice<T> {
+    static fromIterator(values: Iterator<T>): [T] {
         todo("Slice.fromIterator")
     }
 
     /// Create the default slice.
-    static default(): Slice<T> {
+    static default(): [T] {
         Slice.new()
     }
 
     /// Build a raw slice descriptor from raw storage.
     @unsafe
     @intrinsic("collections.slice.fromRaw")
-    static fromRaw(data: *T, length: usize): Raw<Slice<T>>;
+    static fromRaw(data: *T, length: usize): Raw<[T]>;
 
     /// Return the number of elements.
     get length(): usize {
@@ -80,7 +80,7 @@ export extension<T> of Slice<T>
 
     /// Borrow the first element.
     first<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
     ): WithAccess<&T, A> | undefined {
         todo("Slice.first")
     }
@@ -98,7 +98,7 @@ export extension<T> of Slice<T>
 
     /// Borrow the last element.
     last<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
     ): WithAccess<&T, A> | undefined {
         todo("Slice.last")
     }
@@ -106,25 +106,25 @@ export extension<T> of Slice<T>
     /// Borrow a contiguous range as a view.
     @intrinsic("collections.slice.subslice")
     subslice<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
         start: usize,
         length: usize,
-    ): WithAccess<&Slice<T>, A>;
+    ): WithAccess<&[T], A>;
 
     /// Borrow a selected range as a view.
     slice<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
         start?: usize,
         end?: usize,
-    ): WithAccess<&Slice<T>, A> {
+    ): WithAccess<&[T], A> {
         todo("Slice.slice")
     }
 
     /// Split this slice into two borrowed views.
     splitAt<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
         index: usize,
-    ): (WithAccess<&Slice<T>, A>, WithAccess<&Slice<T>, A>) {
+    ): (WithAccess<&[T], A>, WithAccess<&[T], A>) {
         todo("Slice.splitAt")
     }
 
@@ -134,7 +134,7 @@ export extension<T> of Slice<T>
     }
 
     /// Copy elements from `source` into this slice.
-    copyFrom(&exclusive this, source: &readonly Slice<T>): void where T: Copy {
+    copyFrom(&exclusive this, source: &readonly [T]): void where T: Copy {
         if (source.size != this.size) {
             panic("slice copy length mismatch")
         }
@@ -166,7 +166,7 @@ export extension<T> of Slice<T>
 
     /// Return an iterator over borrowed values.
     iterator<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
     ): Iterator<WithAccess<&T, A>> {
         todo("Slice.iterator")
     }
@@ -177,7 +177,7 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
     type Output = T;
 
     /// The contiguous range view type.
-    type View = Slice<T>;
+    type View = [T];
 
     /// Return the element at `index` by value.
     index(index: usize): T {
@@ -186,10 +186,10 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
 
     /// Borrow a view over `start..end`.
     view<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
         start: usize,
         end?: usize,
-    ): WithAccess<&Slice<T>, A> {
+    ): WithAccess<&[T], A> {
         this.slice(start, end)
     }
 
@@ -200,7 +200,7 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
 
     /// Borrow the element at `index`.
     index<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
+        this: WithAccess<&[T], A>,
         index: usize,
     ): WithAccess<&T, A> {
         todo("Slice.index")
@@ -212,9 +212,10 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
     }
 }
 
-export extension<T, R: RangeBounds<usize>> of Slice<T> implements Index<R> {
+export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly">
+    of Slice<T> implements Index<R, A> {
     /// The indexed output type.
-    type Output = Slice<T>;
+    type Output = WithAccess<&[T], A>;
 
     /// Return the normalized start and length for `range`.
     rangeSpan(&readonly this, range: R): (usize, usize) {
@@ -238,29 +239,26 @@ export extension<T, R: RangeBounds<usize>> of Slice<T> implements Index<R> {
     }
 
     /// Borrow the selected range as a view.
-    index<comptime A: Access = "readonly">(
-        this: WithAccess<&Slice<T>, A>,
-        range: R,
-    ): WithAccess<&Slice<T>, A> {
+    index(this: WithAccess<&[T], A>, range: R): WithAccess<&[T], A> {
         let (start, length) = this.rangeSpan(range);
 
         this.subslice(start, length)
     }
 }
 
-export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, Slice<T>> where T: Copy {
+export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, [T]> where T: Copy {
     /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: Slice<T>): void {
+    indexSet(&exclusive this, range: R, source: [T]): void {
         let target = this.index(range);
 
         target.copyFrom(&readonly source);
     }
 }
 
-export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &readonly Slice<T>>
+export extension<T, R: RangeBounds<usize>> of Slice<T> implements IndexSet<R, &readonly [T]>
     where T: Copy {
     /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: &readonly Slice<T>): void {
+    indexSet(&exclusive this, range: R, source: &readonly [T]): void {
         let target = this.index(range);
 
         target.copyFrom(source);

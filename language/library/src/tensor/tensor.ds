@@ -65,7 +65,7 @@ export extension<T, comptime Rank: int, F: TensorFormat, P: Placement> of Tensor
 
     /// Copy a contiguous slice into a tensor.
     static fromSlice(
-        slice: &readonly Slice<T>,
+        slice: &readonly [T],
         shape: Shape<Rank>,
         options?: TensorCreateOptions<Rank, F, P>,
     ): Tensor<T, Rank, F, P> {

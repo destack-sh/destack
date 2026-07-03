@@ -160,7 +160,7 @@ export newtype Value = ValueSlot | ValueBytes | ValueOptimizedOut | ValueUnavail
 /// Debug scope list page.
 export struct ScopePage {
     /// Scope records in this page.
-    scopes: Array<Scope>;
+    scopes: Scope[];
     /// Next scope cursor when more records exist.
     next?: ScopeId;
 }
@@ -168,7 +168,7 @@ export struct ScopePage {
 /// Debug binding list page.
 export struct BindingPage {
     /// Binding records in this page.
-    bindings: Array<Binding>;
+    bindings: Binding[];
     /// Next binding cursor when more records exist.
     next?: BindingId;
 }

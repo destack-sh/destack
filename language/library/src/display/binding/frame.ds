@@ -83,5 +83,5 @@ export interface DisplayFrame {
         frames: DisplayFrameHandle,
         maxEvents: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<DisplayFrameEvent>, HostError>;
+    ): Result<DisplayFrameEvent[], HostError>;
 }

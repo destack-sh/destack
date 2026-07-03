@@ -46,7 +46,7 @@ export struct ProgramBinary {
     format: ProgramFormat;
 
     /// The source bytes.
-    bytes: Slice<uint8>;
+    bytes: [uint8];
 }
 
 /// Compute program source.
@@ -59,7 +59,7 @@ export struct ProgramOptions {
     label?: string;
 
     /// Entry point names to retain when provided.
-    entries?: Slice<string>;
+    entries?: [string];
 
     /// Whether to keep backend debug information.
     debug: boolean = false;
@@ -108,7 +108,7 @@ export struct ProgramReport {
     program?: Program;
 
     /// Compiler diagnostics.
-    diagnostics: Slice<ProgramDiagnostic>;
+    diagnostics: [ProgramDiagnostic];
 }
 
 /// Compiled compute code for one device.
@@ -157,7 +157,7 @@ export extension of KernelArgument {
 
     /// Encode raw argument bytes.
     @unsafe
-    static bytes(bytes: Slice<uint8>): KernelArgument {
+    static bytes(bytes: [uint8]): KernelArgument {
         todo("KernelArgument.bytes")
     }
 }
@@ -192,7 +192,7 @@ export struct KernelParameter {
 /// Kernel entry point metadata.
 export struct KernelSignature {
     /// Parameter metadata in call order.
-    parameters: Slice<KernelParameter>;
+    parameters: [KernelParameter];
 
     /// Default workgroup size when declared.
     workgroupSize?: WorkgroupSize;
@@ -218,7 +218,7 @@ export extension of Kernel {
 
     /// Dispatch this kernel on `stream`.
     dispatch(
-        arguments: Slice<KernelArgument>,
+        arguments: [KernelArgument],
         workgroups: WorkgroupCount,
         workgroupSize?: WorkgroupSize,
         stream?: Stream,

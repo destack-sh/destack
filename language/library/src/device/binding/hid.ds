@@ -92,7 +92,7 @@ export struct HidReport {
     /// Report identifier, or zero when the format omits explicit report identifiers.
     reportId: uint8;
     /// Raw report bytes.
-    bytes: Array<uint8>;
+    bytes: uint8[];
 }
 
 /// Hid binding family.
@@ -104,7 +104,7 @@ export interface DeviceHid {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listHidDevices(query: &readonly HidDeviceQuery): Result<Array<HidDevice>, HostError>;
+    listHidDevices(query: &readonly HidDeviceQuery): Result<HidDevice[], HostError>;
 
     /// Open one HID device.
     @binding("destack.device.hid.open", {
@@ -131,7 +131,7 @@ export interface DeviceHid {
         families: ["windows", "unix"],
         simulation: true,
     })
-    readHidDescriptor(device: HidDeviceHandle): Result<Array<uint8>, HostError>;
+    readHidDescriptor(device: HidDeviceHandle): Result<uint8[], HostError>;
 
     /// Read one HID input report.
     @binding("destack.device.hid.report.read", {
@@ -170,7 +170,7 @@ export interface DeviceHid {
         device: HidDeviceHandle,
         reportId: uint8,
         maxBytes: uint32,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Write one HID feature report.
     @binding("destack.device.hid.feature.write", {

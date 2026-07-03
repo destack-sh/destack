@@ -364,5 +364,5 @@ export interface GpuPresent {
         events: GpuPresentationHandle,
         maxEvents: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<GpuPresentationEvent>, HostError>;
+    ): Result<GpuPresentationEvent[], HostError>;
 }

@@ -273,7 +273,7 @@ export interface DeviceCamera {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listCameraDevices(): Result<Array<CameraDevice>, HostError>;
+    listCameraDevices(): Result<CameraDevice[], HostError>;
 
     /// Open a camera topology watch.
     @binding("destack.device.camera.watch.open", {
@@ -339,7 +339,7 @@ export interface DeviceCamera {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listCameraFormats(camera: CameraDeviceHandle): Result<Array<CameraFormat>, HostError>;
+    listCameraFormats(camera: CameraDeviceHandle): Result<CameraFormat[], HostError>;
 
     /// Open a camera stream.
     @binding("destack.device.camera.stream.open", {
@@ -403,7 +403,7 @@ export interface DeviceCamera {
     })
     listCameraControls(
         stream: CameraStreamHandle,
-    ): Result<Array<CameraControlCapability>, HostError>;
+    ): Result<CameraControlCapability[], HostError>;
 
     /// Read camera control values.
     @binding("destack.device.camera.control.get", {

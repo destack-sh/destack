@@ -4,9 +4,9 @@ import { todo } from "destack:error";
 
 /// Borrowed UTF-8 string slice.
 @languageItem("string.StringSlice")
-export newtype StringSlice = Slice<uint8>;
+export newtype StringSlice = [uint8];
 
-export extension of StringSlice implements ToOwned, As<Slice<uint8>, "readonly"> {
+export extension of StringSlice implements ToOwned, As<[uint8], "readonly"> {
     /// The owned value type.
     type Owned = ^string;
 
@@ -16,12 +16,12 @@ export extension of StringSlice implements ToOwned, As<Slice<uint8>, "readonly">
     }
 
     /// Borrow this string slice as readonly bytes.
-    as(&readonly this): &readonly Slice<uint8> {
+    as(&readonly this): &readonly [uint8] {
         todo("StringSlice.as")
     }
 
     /// Borrow this string slice as readonly bytes.
-    asBytes(&readonly this): &readonly Slice<uint8> {
+    asBytes(&readonly this): &readonly [uint8] {
         this.as()
     }
 }

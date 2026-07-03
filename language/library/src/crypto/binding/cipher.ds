@@ -33,9 +33,9 @@ export struct CryptoCipherParameters {
 /// Cipher output.
 export struct CryptoCipherOutput {
     /// Cipher output bytes.
-    bytes: Array<uint8>;
+    bytes: uint8[];
     /// Authentication tag for AEAD encryption.
-    tag?: Array<uint8>;
+    tag?: uint8[];
 }
 
 /// Cipher binding family.
@@ -66,7 +66,7 @@ export interface CryptoCipher {
         key: CryptoKeyHandle,
         parameters: &readonly CryptoCipherParameters,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Open one streaming cipher context.
     @binding("destack.crypto.cipher.open", {
@@ -106,7 +106,7 @@ export interface CryptoCipher {
     updateCipher(
         cipher: CryptoCipherHandle,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Finalize one streaming cipher context.
     @binding("destack.crypto.cipher.finish", {

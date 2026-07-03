@@ -39,7 +39,7 @@ export struct Resource {
 /// Resource list page.
 export struct ResourcePage {
     /// Resource records in this page.
-    resources: Array<Resource>;
+    resources: Resource[];
     /// Next resource cursor when more records exist.
     next?: ResourceId;
 }
