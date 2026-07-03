@@ -198,9 +198,9 @@ test-specification:
 test-grammar-overlay:
     bun grammar/scripts/check-overlay.mjs
 
-# validate corpus language routing
-test-grammar-corpus-routing:
-    bun grammar/scripts/check-corpus-routing.mjs
+# validate Destack grammar section language directives
+test-grammar-section-languages:
+    bun grammar/scripts/check-section-languages.mjs
 
 # run Destack tree sitter corpus tests
 test-grammar-destack:
@@ -214,23 +214,27 @@ test-grammar-mir:
 test-grammar-destack-node-coverage:
     bun grammar/scripts/check-destack-node-coverage.mjs
 
-# validate shared grammar fixture structure and parse smoke
+# validate grammar fixture structure and parse smoke
 test-grammar-fixtures:
     bun grammar/scripts/check-grammar-fixtures.mjs
 
-# validate design and specification code fences parse and tokenize
-test-grammar-fences:
-    cd grammar/destack && npm run report:specification -- --fail
+# validate language examples in docs and specification fixtures
+test-grammar-docs:
+    cd grammar/destack && npm run report:docs -- --fail
 
 # run the grammar validation stack
 test-grammar:
-    just test-grammar-corpus-routing
     just test-grammar-destack
     just test-grammar-mir
+    just test-grammar-section-languages
     just test-grammar-destack-node-coverage
-    just test-grammar-fixtures
     just test-grammar-overlay
-    just test-grammar-fences
+
+# run broader grammar audits
+test-grammar-audit:
+    just test-grammar
+    just test-grammar-fixtures
+    just test-grammar-docs
 
 # profile tree sitter grammar state deltas
 profile-grammar-delta args="--target destack --baseline tsx --top 30":

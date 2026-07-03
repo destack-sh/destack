@@ -15,19 +15,12 @@ We maintain two grammars:
 Run these from the repository root.
 
 ```sh
-# corpus routing
-just -f language/justfile test-grammar-corpus-routing
-
-# compatibility and language coverage
-just -f language/justfile test-grammar-typescript-tsx
-just -f language/justfile test-grammar-destack
-just -f language/justfile test-grammar-mir
-
-# coverage
-just -f language/justfile test-grammar-destack-node-coverage
-
-# full stack
+# core grammar stack
 just -f language/justfile test-grammar
+
+# broader audits
+just -f language/justfile test-grammar-audit
+just -f language/justfile test-grammar-docs
 ```
 
 ## Profiling

@@ -102,14 +102,14 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-    console.log("Report whether language fences in specification fixtures parse and tokenize.");
+    console.log("Report whether language examples in docs parse and tokenize.");
     console.log("");
     console.log("Usage:");
-    console.log("  node language/grammar/scripts/check-specification-fences.mjs [options]");
+    console.log("  node language/grammar/scripts/check-docs.mjs [options]");
     console.log("");
     console.log("Options:");
-    console.log("  --fail       exit non-zero when any fence fails");
-    console.log("  --limit <n>  number of failed fence samples to print (default: 100)");
+    console.log("  --fail       exit non-zero when any unexpected example fails");
+    console.log("  --limit <n>  number of failed example samples to print (default: 100)");
 }
 
 function collectMarkdownFiles(sourcePath) {
@@ -135,7 +135,7 @@ function collectMarkdownFiles(sourcePath) {
     return files.sort();
 }
 
-function fenceLanguage(info) {
+function exampleLanguage(info) {
     const tag = info.trim().split(/\s+/)[0].toLowerCase();
 
     for (const language of languageList) {
@@ -147,21 +147,21 @@ function fenceLanguage(info) {
     return null;
 }
 
-function collectLanguageFences(filePath) {
+function collectLanguageExamples(filePath) {
     const source = fs.readFileSync(filePath, "utf8");
     const relativePath = path.relative(repoRoot, filePath);
-    const fences = [];
+    const examples = [];
     const expression = /^```([^\n]*)\n([\s\S]*?)^```/gm;
     let match;
 
     while ((match = expression.exec(source)) !== null) {
-        const language = fenceLanguage(match[1]);
+        const language = exampleLanguage(match[1]);
         if (!language) {
             continue;
         }
 
         const line = source.slice(0, match.index).split("\n").length;
-        fences.push({
+        examples.push({
             filePath,
             relativePath,
             line,
@@ -171,26 +171,26 @@ function collectLanguageFences(filePath) {
         });
     }
 
-    return fences;
+    return examples;
 }
 
-function writeFence(fence, language, attempt, tempDirectory) {
+function writeExample(example, language, attempt, tempDirectory) {
     const safeName = [
-        fence.index.toString().padStart(4, "0"),
+        example.index.toString().padStart(4, "0"),
         attempt.name,
-        fence.relativePath.replaceAll(path.sep, "-").replaceAll(/[^A-Za-z0-9_.-]/g, "-"),
+        example.relativePath.replaceAll(path.sep, "-").replaceAll(/[^A-Za-z0-9_.-]/g, "-"),
     ].join("-");
     const tempPath = path.join(tempDirectory, `${safeName}.${language.extension}`);
 
-    fs.writeFileSync(tempPath, attempt.wrap(fence.source));
+    fs.writeFileSync(tempPath, attempt.wrap(example.source));
 
-    return { ...fence, tempPath, attempt: attempt.name };
+    return { ...example, tempPath, attempt: attempt.name };
 }
 
-function parseBatch(fences, language) {
+function parseBatch(examples, language) {
     const result = spawnSync(
         "bunx",
-        ["tree-sitter-cli@0.24.4", "parse", "--quiet", "--stat", ...fences.map((fence) => fence.tempPath)],
+        ["tree-sitter-cli@0.24.4", "parse", "--quiet", "--stat", ...examples.map((example) => example.tempPath)],
         {
             cwd: language.grammarRoot,
             encoding: "utf8",
@@ -212,42 +212,35 @@ function parseBatch(fences, language) {
     };
 }
 
-// constructs the real parser accepts but the editor grammar deliberately
-// rejects: supporting them would destabilize core expression disambiguation
-const knownUnparsed = new Set([
-    // static if guards in expression operand positions
-    "language/test/fixtures/specification/expressions/static-if/validation.md:88",
-]);
-
-function parseFences(fences, language, tempDirectory) {
-    let remaining = fences;
+function parseExamples(examples, language, tempDirectory) {
+    let remaining = examples;
     const passedByAttempt = new Map();
     const batchSize = 100;
 
     for (const attempt of language.attempts) {
-        const tempFences = remaining.map((fence) => writeFence(fence, language, attempt, tempDirectory));
-        const failedFences = [];
+        const tempExamples = remaining.map((example) => writeExample(example, language, attempt, tempDirectory));
+        const failedExamples = [];
 
-        for (let index = 0; index < tempFences.length; index += batchSize) {
-            const batch = tempFences.slice(index, index + batchSize);
+        for (let index = 0; index < tempExamples.length; index += batchSize) {
+            const batch = tempExamples.slice(index, index + batchSize);
             const result = parseBatch(batch, language);
 
             if (result.status !== 0 && result.failedPaths.size === 0) {
-                failedFences.push(...batch);
+                failedExamples.push(...batch);
             } else {
-                failedFences.push(...batch.filter((fence) => result.failedPaths.has(fence.tempPath)));
+                failedExamples.push(...batch.filter((example) => result.failedPaths.has(example.tempPath)));
             }
         }
 
-        const failedIndexes = new Set(failedFences.map((fence) => fence.index));
+        const failedIndexes = new Set(failedExamples.map((example) => example.index));
 
-        for (const fence of remaining) {
-            if (!failedIndexes.has(fence.index)) {
-                passedByAttempt.set(fence.index, attempt.name);
+        for (const example of remaining) {
+            if (!failedIndexes.has(example.index)) {
+                passedByAttempt.set(example.index, attempt.name);
             }
         }
 
-        remaining = failedFences.map(({ tempPath, attempt, ...fence }) => fence);
+        remaining = failedExamples.map(({ tempPath, attempt, ...example }) => example);
 
         if (remaining.length === 0) {
             break;
@@ -255,7 +248,7 @@ function parseFences(fences, language, tempDirectory) {
     }
 
     return {
-        failures: remaining.filter((fence) => !knownUnparsed.has(`${fence.relativePath}:${fence.line}`)),
+        failures: remaining,
         passedByAttempt,
     };
 }
@@ -275,29 +268,29 @@ function firstCodeLine(source) {
     return source.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "";
 }
 
-function printParseBreakdown(language, fences, failures, passedByAttempt, limit) {
+function printParseBreakdown(language, examples, result, limit) {
     const passed = language.attempts.map((attempt) => {
-        const count = [...passedByAttempt.values()].filter((name) => name === attempt.name).length;
+        const count = [...result.passedByAttempt.values()].filter((name) => name === attempt.name).length;
         return `${attempt.name}=${count}`;
     });
 
-    console.log(`${language.name}: ${fences.length - failures.length}/${fences.length} fences parsed`);
+    console.log(`${language.name}: ${examples.length - result.failures.length}/${examples.length} examples parsed`);
     console.log(`passed by attempt: ${passed.join(" ")}`);
 
-    if (failures.length === 0) {
+    if (result.failures.length === 0) {
         return;
     }
 
-    console.log(`failed all attempts: ${failures.length}`);
+    console.log(`failed all attempts: ${result.failures.length}`);
     console.log("");
     console.log("by top directory:");
-    for (const [name, count] of countBy(failures, (failure) => failure.relativePath.split(path.sep)[0])) {
+    for (const [name, count] of countBy(result.failures, (failure) => failure.relativePath.split(path.sep)[0])) {
         console.log(`${count.toString().padStart(3, " ")} ${name}`);
     }
 
     console.log("");
     console.log("by file:");
-    for (const [name, count] of countBy(failures, (failure) => failure.relativePath)) {
+    for (const [name, count] of countBy(result.failures, (failure) => failure.relativePath)) {
         console.log(`${count.toString().padStart(3, " ")} ${name}`);
     }
 
@@ -307,7 +300,7 @@ function printParseBreakdown(language, fences, failures, passedByAttempt, limit)
 
     console.log("");
     console.log("samples:");
-    for (const failure of failures.slice(0, limit)) {
+    for (const failure of result.failures.slice(0, limit)) {
         console.log(`${failure.relativePath}:${failure.line}: ${failure.info}: ${firstCodeLine(failure.source)}`);
     }
 }
@@ -335,31 +328,31 @@ async function loadTextMateRegistry() {
     });
 }
 
-async function smokeTextMateFences(fencesByLanguage) {
+async function smokeTextMateExamples(examplesByLanguage) {
     const registry = await loadTextMateRegistry();
     const failuresByLanguage = new Map();
 
     for (const language of languageList) {
-        const fences = fencesByLanguage.get(language.name) ?? [];
+        const examples = examplesByLanguage.get(language.name) ?? [];
         const failures = [];
 
-        if (fences.length === 0) {
+        if (examples.length === 0) {
             failuresByLanguage.set(language.name, failures);
             continue;
         }
 
         const grammar = await registry.loadGrammar(language.textmateScope);
 
-        for (const fence of fences) {
+        for (const example of examples) {
             try {
                 let ruleStack = null;
 
-                for (const line of fence.source.split(/\r?\n/)) {
+                for (const line of example.source.split(/\r?\n/)) {
                     const result = grammar.tokenizeLine(line, ruleStack);
                     ruleStack = result.ruleStack;
                 }
             } catch (error) {
-                failures.push({ ...fence, error });
+                failures.push({ ...example, error });
             }
         }
 
@@ -369,8 +362,8 @@ async function smokeTextMateFences(fencesByLanguage) {
     return failuresByLanguage;
 }
 
-function printTextMateBreakdown(language, fences, failures, limit) {
-    console.log(`${language.name}: ${fences.length - failures.length}/${fences.length} fences tokenized`);
+function printTextMateBreakdown(language, examples, failures, limit) {
+    console.log(`${language.name}: ${examples.length - failures.length}/${examples.length} examples tokenized`);
 
     if (failures.length === 0 || limit === 0) {
         return;
@@ -390,30 +383,30 @@ async function main() {
         ...collectMarkdownFiles(specificationRoot),
         ...collectMarkdownFiles(mirReadmePath),
     ];
-    const fences = markdownFiles.flatMap(collectLanguageFences).map((fence, index) => ({ ...fence, index }));
-    const fencesByLanguage = new Map(languageList.map((language) => [
+    const examples = markdownFiles.flatMap(collectLanguageExamples).map((example, index) => ({ ...example, index }));
+    const examplesByLanguage = new Map(languageList.map((language) => [
         language.name,
-        fences.filter((fence) => fence.language === language.name),
+        examples.filter((example) => example.language === language.name),
     ]));
-    const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "destack-spec-fences-"));
+    const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "destack-docs-"));
     let hasFailures = false;
 
     try {
-        console.log("language fence parse:");
+        console.log("language docs parse:");
         for (const language of languageList) {
-            const languageFences = fencesByLanguage.get(language.name) ?? [];
-            const result = parseFences(languageFences, language, tempDirectory);
-            printParseBreakdown(language, languageFences, result.failures, result.passedByAttempt, options.limit);
+            const languageExamples = examplesByLanguage.get(language.name) ?? [];
+            const result = parseExamples(languageExamples, language, tempDirectory);
+            printParseBreakdown(language, languageExamples, result, options.limit);
             hasFailures ||= result.failures.length > 0;
         }
 
         console.log("");
         console.log("language TextMate smoke:");
-        const textMateFailures = await smokeTextMateFences(fencesByLanguage);
+        const textMateFailures = await smokeTextMateExamples(examplesByLanguage);
         for (const language of languageList) {
-            const languageFences = fencesByLanguage.get(language.name) ?? [];
+            const languageExamples = examplesByLanguage.get(language.name) ?? [];
             const failures = textMateFailures.get(language.name) ?? [];
-            printTextMateBreakdown(language, languageFences, failures, options.limit);
+            printTextMateBreakdown(language, languageExamples, failures, options.limit);
             hasFailures ||= failures.length > 0;
         }
 

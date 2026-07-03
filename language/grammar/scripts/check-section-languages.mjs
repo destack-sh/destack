@@ -3,13 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
-const corpusDirectory = path.resolve(scriptDirectory, "..", "destack", "test", "corpus");
+const sectionsDirectory = path.resolve(scriptDirectory, "..", "destack", "test", "corpus");
 
 function readLines(filePath) {
     return fs.readFileSync(filePath, "utf8").split(/\r?\n/);
 }
 
-function corpusFiles(directory) {
+function sectionFiles(directory) {
     const entries = fs.readdirSync(directory, { withFileTypes: true });
     const files = [];
 
@@ -17,7 +17,7 @@ function corpusFiles(directory) {
         const entryPath = path.join(directory, entry.name);
 
         if (entry.isDirectory()) {
-            files.push(...corpusFiles(entryPath));
+            files.push(...sectionFiles(entryPath));
         } else if (entry.name.endsWith(".txt")) {
             files.push(entryPath);
         }
@@ -26,7 +26,7 @@ function corpusFiles(directory) {
     return files.sort();
 }
 
-function checkCorpusFile(filePath, errors) {
+function checkSectionFile(filePath, errors) {
     const lines = readLines(filePath);
     let sectionCount = 0;
 
@@ -65,26 +65,26 @@ function checkCorpusFile(filePath, errors) {
 
 function main() {
     const errors = [];
-    const files = corpusFiles(corpusDirectory);
+    const files = sectionFiles(sectionsDirectory);
 
     if (files.length === 0) {
-        errors.push(`no corpus files found in ${corpusDirectory}`);
+        errors.push(`no section files found in ${sectionsDirectory}`);
     }
 
     let sectionCount = 0;
     for (const filePath of files) {
-        sectionCount += checkCorpusFile(filePath, errors);
+        sectionCount += checkSectionFile(filePath, errors);
     }
 
     if (errors.length > 0) {
-        console.error("corpus routing check failed:");
+        console.error("section language check failed:");
         for (const error of errors) {
             console.error(`- ${error}`);
         }
         process.exit(1);
     }
 
-    console.log(`corpus routing: ok (${files.length} files, ${sectionCount} sections)`);
+    console.log(`section languages: ok (${files.length} files, ${sectionCount} sections)`);
 }
 
 main();

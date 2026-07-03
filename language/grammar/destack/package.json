@@ -31,9 +31,9 @@
   },
   "scripts": {
     "lint": "eslint destack/grammar.js common/define-grammar.js",
-    "audit:corpus": "node ../scripts/check-corpus-routing.mjs && node ../scripts/check-destack-node-coverage.mjs",
+    "audit:sections": "node ../scripts/check-section-languages.mjs && node ../scripts/check-destack-node-coverage.mjs",
     "audit:fixtures": "node ../scripts/check-grammar-fixtures.mjs",
-    "report:specification": "node ../scripts/check-specification-fences.mjs",
+    "report:docs": "node ../scripts/check-docs.mjs",
     "test": "tree-sitter test"
   }
 }
