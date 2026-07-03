@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use destack_core::StringPool;
 
 use crate::{
-    Argument, Expression, FloatType, IntegerType, LanguageItem, Layout, LocalNodeId, Name, Node,
-    NodeType, PrimitiveType, RangeType, StringId, Type,
+    Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeType,
+    PrimitiveType, RangeType, StringId, Type,
 };
 
 /// One scalar type family.
@@ -209,23 +209,6 @@ impl ScalarLiteral {
     /// Return whether this literal can widen to one interval type.
     pub fn widens_to_range(&self, range: &RangeType) -> bool {
         range.contains_literal(*self)
-    }
-
-    /// Return this literal singleton's layout.
-    /// Singleton values are statically known and occupy no storage.
-    pub fn layout(&self) -> Option<Layout> {
-        match self {
-            Self::Null
-            | Self::Undefined
-            | Self::Boolean(_)
-            | Self::Integer(_)
-            | Self::Float(_)
-            | Self::Character(_)
-            | Self::String(_)
-            | Self::Bigint(_) => Some(Layout::unit()),
-            // regex literals are managed runtime objects
-            Self::RegexString { .. } => None,
-        }
     }
 
     /// Return the language item owning this literal's members.

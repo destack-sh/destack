@@ -356,7 +356,7 @@ impl CheckState<'_> {
             Obligation::PatternCoverage(obligation) => self.check_pattern_coverage(obligation),
             Obligation::WritablePlace(obligation) => self.check_writable_place(obligation),
             Obligation::Representation(obligation) => {
-                self.check_layout(obligation.source, obligation.ty)
+                self.check_representation(obligation.source, obligation.ty)
             }
             Obligation::AutoInterface(obligation) => {
                 self.check_auto_interface(obligation.source, obligation.ty, obligation.interface)

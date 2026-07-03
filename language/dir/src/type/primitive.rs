@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, roundtrip_float};
 
-use crate::{LanguageItem, Layout, Niche, RangeType, ScalarLiteral, StringId};
+use crate::{LanguageItem, RangeType, ScalarLiteral, StringId};
 
 /// A primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -43,38 +43,6 @@ impl PrimitiveType {
             }
             _ => false,
         }
-    }
-
-    /// Return this primitive's layout, when it has a concrete one.
-    pub fn layout(self, pointer_bytes: u32) -> Option<Layout> {
-        let layout = match self {
-            Self::Boolean => Layout::scalar(
-                1,
-                1,
-                Some(Niche {
-                    offset: 0,
-                    width: 1,
-                    start: 0,
-                    end: 1,
-                }),
-            ),
-            Self::Character => Layout::scalar(
-                4,
-                4,
-                Some(Niche {
-                    offset: 0,
-                    width: 4,
-                    start: 0,
-                    end: 0x10FFFF,
-                }),
-            ),
-            Self::String | Self::Bigint => return None,
-            Self::Integer(integer) => integer.layout(pointer_bytes),
-            Self::Float(float) => float.layout(),
-            Self::Symbol | Self::UniqueSymbol => Layout::pointer(pointer_bytes, true),
-        };
-
-        Some(layout)
     }
 
     /// Return the language item that owns this primitive's representation.
@@ -233,20 +201,6 @@ impl IntegerType {
         })
     }
 
-    /// Return this integer's layout.
-    pub fn layout(self, pointer_bytes: u32) -> Layout {
-        match self {
-            IntegerType::Integer { .. } | IntegerType::Pointer { .. } => {
-                Layout::scalar(pointer_bytes, pointer_bytes, None)
-            }
-            IntegerType::Fixed { width, .. } => {
-                let bytes = u32::from(width).div_ceil(8).max(1);
-
-                Layout::scalar(bytes, bytes, None)
-            }
-        }
-    }
-
     /// Return the fixed bit width, if known without target layout.
     pub fn width(&self) -> Option<u16> {
         match self {
@@ -335,15 +289,6 @@ impl FloatType {
     pub fn fits_literal(self, value: f64) -> bool {
         self.roundtrip_f64(value)
             .is_some_and(|rounded| rounded == value)
-    }
-
-    /// Return this float's layout.
-    pub fn layout(self) -> Layout {
-        match self {
-            FloatType::Float16 | FloatType::Bfloat16 => Layout::scalar(2, 2, None),
-            FloatType::Float32 => Layout::scalar(4, 4, None),
-            FloatType::Float | FloatType::Float64 => Layout::scalar(8, 8, None),
-        }
     }
 
     /// Return the concrete bit width, if known without target layout.

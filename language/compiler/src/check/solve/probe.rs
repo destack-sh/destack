@@ -15,17 +15,6 @@ pub(in crate::check) struct Probe {
     decisions: usize,
     /// Working type segment marks for each loaded module before the probe.
     types: IndexMap<ModuleId, dir::TypeMark>,
-    /// Layout segment marks before the probe.
-    layouts: IndexMap<ModuleId, LayoutSegmentMark>,
-}
-
-/// Layout segment mark.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct LayoutSegmentMark {
-    /// The layout count before the probe.
-    layouts: u32,
-    /// The type-layout binding count before the probe.
-    type_layouts: usize,
 }
 
 impl CheckState<'_> {
@@ -36,14 +25,12 @@ impl CheckState<'_> {
             .iter()
             .map(|(module, state)| (*module, state.types_tail.mark()))
             .collect();
-        let layouts = mark_layouts(&self.layouts);
         let solver = self.solver.snapshot();
 
         Probe {
             solver,
             decisions: self.decisions.count(),
             types,
-            layouts,
         }
     }
 
@@ -55,7 +42,6 @@ impl CheckState<'_> {
             "a rejected probe may not commit node decisions"
         );
         self.solver.rollback(snapshot.solver);
-        self.drop_probe_layouts(snapshot.layouts);
         self.drop_probe_types(snapshot.types);
     }
 
@@ -213,34 +199,4 @@ impl CheckState<'_> {
             }
         }
     }
-
-    /// Drop layouts allocated inside a rejected probe.
-    fn drop_probe_layouts(&mut self, marks: IndexMap<ModuleId, LayoutSegmentMark>) {
-        self.layouts.retain(|module, _| marks.contains_key(module));
-
-        for (module, mark) in marks {
-            let Some(segment) = self.layouts.get_mut(&module) else {
-                continue;
-            };
-            segment.truncate_layouts(mark.layouts, mark.type_layouts);
-        }
-    }
-}
-
-/// Mark every loaded layout segment.
-fn mark_layouts(
-    layouts: &IndexMap<ModuleId, dir::LayoutSegment>,
-) -> IndexMap<ModuleId, LayoutSegmentMark> {
-    layouts
-        .iter()
-        .map(|(module, segment)| {
-            (
-                *module,
-                LayoutSegmentMark {
-                    layouts: segment.layout_count(),
-                    type_layouts: segment.type_layout_count(),
-                },
-            )
-        })
-        .collect()
 }

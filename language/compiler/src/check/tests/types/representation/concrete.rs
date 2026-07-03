@@ -77,7 +77,7 @@ size satisfies usize;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_statics().with_layout(),
+        DirRows::checked().with_statics(),
         r#"
 === annotated ===
 struct Circle {
@@ -155,7 +155,7 @@ size satisfies usize;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_statics().with_layout(),
+        DirRows::checked().with_statics(),
         r#"
 === annotated ===
 interface Writer {
@@ -203,7 +203,7 @@ size satisfies usize;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_statics().with_layout(),
+        DirRows::checked().with_statics(),
         r#"
 === annotated ===
 type Writer = {

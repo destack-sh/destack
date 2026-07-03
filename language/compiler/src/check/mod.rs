@@ -4,7 +4,6 @@ mod error;
 mod flow;
 mod infer;
 mod language;
-mod layout;
 mod obligation;
 mod provide;
 mod reduce;
