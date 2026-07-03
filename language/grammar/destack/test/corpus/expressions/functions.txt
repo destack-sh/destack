@@ -688,3 +688,173 @@ function specialize(static value: int32, static maybe?: int32 = 1): int32 {
     (statement_block
       (return_statement
         (identifier)))))
+
+==================================
+Closures with capture policies
+:language(destack)
+==================================
+
+let count = 0;
+
+@capture("borrow")
+let borrowed: &Function<(), int32> = () => count;
+
+@capture({
+    default: "copy",
+    socket: "move",
+    logger: "borrow",
+    this: "borrow",
+})
+const send = (message: string) => {
+    logger.info(message);
+    socket.write(message)
+};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (number)))
+  (decorated_statement
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (memory_type
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (tuple_type)
+                (type_identifier)))))
+        (arrow_function
+          (formal_parameters)
+          (identifier)))))
+  (decorated_statement
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))))))
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (arrow_function
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (statement_block
+            (expression_statement
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments
+                  (identifier))))
+            (expression_statement
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments
+                  (identifier))))))))))
+
+==================================
+Async functions and generators
+:language(destack)
+==================================
+
+async function read(user: User): Promise<string> {
+    await tick();
+    return user.name;
+}
+
+async function* stream(): AsyncGenerator<string, void, void> {
+    yield await readNext();
+}
+
+function* ids(): Generator<int32, void, void> {
+    yield 1;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (await_expression
+          (call_expression
+            (identifier)
+            (arguments))))
+      (return_statement
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (generator_function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (predefined_type)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (yield_expression
+          (await_expression
+            (call_expression
+              (identifier)
+              (arguments)))))))
+  (generator_function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (yield_expression
+          (number))))))

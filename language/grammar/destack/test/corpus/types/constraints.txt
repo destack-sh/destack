@@ -235,3 +235,171 @@ function projectSize<T, U>(): T where T.Output == SizeOf<T>() {
     (statement_block
       (return_statement
         (identifier)))))
+
+==========================================================
+Where attaches to declaration heads
+:language(destack)
+==========================================================
+
+class Box<T> extends Base<T> implements Clone where T: Copy {
+    value: T;
+}
+
+struct Pair<T, U> implements Equal where T.Output == U {
+    left: T;
+    right: U;
+}
+
+interface Reader<T> extends Source<T> where T.Item == byte {
+    read(): T.Item;
+}
+
+enum State<T> extends uint8 implements Serializable where T.Tag == 1 {
+    Ready = 0,
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_heritage
+      (extends_clause
+        (instantiation_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))))
+      (implements_clause
+        (type_identifier)))
+    (where_clause
+      (where_constraint
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (implements_clause
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (extends_type_clause
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (nested_type_identifier
+            (identifier)
+            (type_identifier))))))
+  (enum_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (extends_type_clause
+      (type_identifier))
+    (implements_clause
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (literal_type
+          (number))))
+    (enum_body
+      (enum_assignment
+        (property_identifier)
+        (number)))))
+
+==========================================================
+Where accepts parenthesized relation lists
+:language(destack)
+==========================================================
+
+function combine<T, U>(): T where (
+    T.Output == U,
+    U: Clone,
+    Box<T>.Count == SizeOf<T>(),
+) {
+    return value;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier))
+      (where_constraint
+        (type_identifier)
+        (type_identifier))
+      (where_constraint
+        (associated_type_projection
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))
+          (type_identifier))
+        (static_value_argument
+          (call_expression
+            (identifier)
+            (type_arguments
+              (type_identifier))
+            (arguments)))))
+    (statement_block
+      (return_statement
+        (identifier)))))

@@ -72,3 +72,110 @@ async function read(packet: shared ^Packet): Promise<int32> {
       (return_statement
         (memory_expression
           (identifier))))))
+
+================================================================
+Explicit lifetime relationships
+:language(destack)
+================================================================
+
+declare function only<comptime L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
+
+declare function choose<comptime L1: Lifetime, comptime L2: Lifetime>(
+    a: Borrowed<Node, L1>,
+    b: Borrowed<Node, L2>,
+): Borrowed<Node, L1 | L2>;
+
+struct WorldView<comptime L1: Lifetime, comptime L2: Lifetime> {
+    engine: Borrowed<Engine, L1>;
+    assets: Borrowed<AssetStore, L2>;
+}
+
+---
+
+(program
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (type_identifier)))))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier)))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier)))))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (union_type
+            (type_identifier)
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier)))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier)))))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))))))

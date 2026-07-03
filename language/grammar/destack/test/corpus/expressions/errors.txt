@@ -272,3 +272,315 @@ value satisfies int;
   (value_satisfies_statement
     (identifier)
     (type_identifier)))
+
+=======================================
+Try coalesce and must unwrap
+:language(destack)
+=======================================
+
+const a = loadConfig() ?? defaultConfig;
+const b = loadNested() ?? defaultConfig;
+const config = loadConfig()!;
+const adjusted = loadNumber()? - 1;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (binary_expression
+        (call_expression
+          (identifier)
+          (arguments))
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (binary_expression
+        (call_expression
+          (identifier)
+          (arguments))
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (non_null_expression
+        (call_expression
+          (identifier)
+          (arguments)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (binary_expression
+        (try_propagation_expression
+          (call_expression
+            (identifier)
+            (arguments)))
+        (number)))))
+
+=======================================
+Panics and abort calls
+:language(destack)
+=======================================
+
+function fail(message: string): never {
+    panic(message);
+}
+
+function stop(): never {
+    abort("corrupt");
+}
+
+function impossible(): never {
+    unreachable();
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (predefined_type))))
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (string
+              (string_fragment)))))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments))))))
+
+=======================================
+Error result and try carriers
+:language(destack)
+=======================================
+
+newtype interface Error {
+    display(): string;
+    source(): Dynamic<Error> | undefined {
+        undefined
+    }
+}
+
+export struct Ok<T> {
+    kind: "Ok" = "Ok";
+    value: T;
+}
+
+export struct Err<E> {
+    kind: "Err" = "Err";
+    error: E;
+}
+
+export newtype Result<T, E> = Ok<T> | Err<E>;
+
+struct TryContinue<T> {
+    kind: "continue" = "continue";
+    value: T;
+}
+
+struct TryFailure<F> {
+    kind: "failure" = "failure";
+    failure: F;
+}
+
+type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
+
+newtype interface Try {
+    type Value;
+    type Failure;
+
+    static fromValue(value: this.Value): this;
+    branch(): TryBranch<this.Value, this.Failure>;
+}
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (union_type
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (type_identifier)))
+            (literal_type
+              (undefined))))
+        (statement_block
+          (expression_statement
+            (undefined))))))
+  (export_statement
+    (struct_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (class_body
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment))))
+          (string
+            (string_fragment)))
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (export_statement
+    (struct_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier)))
+      (class_body
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (literal_type
+              (string
+                (string_fragment))))
+          (string
+            (string_fragment)))
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (type_identifier))))))
+  (export_statement
+    (type_alias_declaration
+      (type_identifier)
+      (type_parameters
+        (type_parameter
+          (type_identifier))
+        (type_parameter
+          (type_identifier)))
+      (union_type
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)))
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment))))
+        (string
+          (string_fragment)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (literal_type
+            (string
+              (string_fragment))))
+        (string
+          (string_fragment)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (union_type
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)))
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)))))
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (associated_type_declaration
+        (type_identifier))
+      (associated_type_declaration
+        (type_identifier))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (associated_type_projection
+                (this_type)
+                (type_identifier)))))
+        (type_annotation
+          (this_type)))
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (associated_type_projection
+                (this_type)
+                (type_identifier))
+              (associated_type_projection
+                (this_type)
+                (type_identifier)))))))))

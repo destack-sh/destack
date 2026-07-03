@@ -18,3 +18,70 @@ const decorated = 1;
       (variable_declarator
         (identifier)
         (number)))))
+
+==========================================================
+Macro-shaped decorators and comptime eval
+:language(destack)
+==========================================================
+
+newtype memoize = {
+    capacity?: uint;
+};
+
+@memoize({ capacity: 1024 })
+function load(id: UserId): Result<User, Error> {
+}
+
+const source = comptime renderParser(grammar);
+const parser = comptime eval<FunctionDeclaration>(source);
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (function_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (number))))))
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (type_identifier))))
+    (statement_block))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (comptime_expression
+        (call_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))
+          (arguments
+            (identifier)))))))

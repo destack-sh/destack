@@ -197,3 +197,109 @@ declare let erased: Any<Writer>;
             (type_identifier)
             (type_arguments
               (type_identifier))))))))
+
+================================================================================
+Dynamic erasure and structural shapes
+:language(destack)
+================================================================================
+
+interface Writer {
+    write(bytes: &[uint8]): Result<usize, Error>;
+}
+
+struct Logger<T: Writer> {
+    writer: T;
+}
+
+struct ErasedLogger {
+    writer: Dynamic<Writer>;
+}
+
+type WriterField = {
+    write: (bytes: &[uint8]) => Result<usize, Error>;
+};
+
+const point: { x: int32; y: int32 } = { x: 1, y: 2 };
+
+--------------------------------------------------------------------------------
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (memory_type
+                (slice_type
+                  (type_identifier))))))
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier)))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (function_type
+            (formal_parameters
+              (required_parameter
+                (identifier)
+                (type_annotation
+                  (memory_type
+                    (slice_type
+                      (type_identifier))))))
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (type_identifier)
+                (type_identifier))))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (object_type
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))
+          (property_signature
+            (property_identifier)
+            (type_annotation
+              (type_identifier)))))
+      (object
+        (pair
+          (property_identifier)
+          (number))
+        (pair
+          (property_identifier)
+          (number))))))
