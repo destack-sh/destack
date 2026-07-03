@@ -10,6 +10,15 @@ pub(in crate::check) struct FlowSite {
     pub(in crate::check) node: dir::GlobalNodeIdAny,
     /// The flow point where the node is used.
     pub(in crate::check) flow: FlowPointId,
+    /// The generic template whose predicates the node assumes.
+    pub(in crate::check) scope: Option<dir::GlobalGenericTemplateId>,
+}
+
+impl FlowSite {
+    /// Return the work origin anchored at this site.
+    pub(in crate::check) fn origin(self) -> crate::check::Origin {
+        crate::check::Origin::Node(self.node, self.scope)
+    }
 }
 
 /// One stable value path root tracked by flow analysis.

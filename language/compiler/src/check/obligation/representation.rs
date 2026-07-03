@@ -11,10 +11,10 @@ impl CheckState<'_> {
     /// Check that one stored type does not contain itself by value.
     pub(in crate::check) fn check_representation(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
+        let source = self.origin_source(origin)?;
         let mut active = IndexSet::new();
         let mut circular = None;
 
@@ -22,7 +22,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
         let anchor = circular.unwrap_or(source);
-        let error = self.circular_type_error(Origin::Node(anchor))?;
+        let error = self.circular_type_error(self.origin_at(origin, anchor))?;
 
         Ok(Answer::Ready(Some(error.into())))
     }

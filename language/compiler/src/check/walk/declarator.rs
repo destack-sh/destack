@@ -71,7 +71,10 @@ impl WalkState<'_, '_> {
             if let Some(value) = declarator.value {
                 let expectation = Expectation::assignable(
                     written,
-                    Origin::Node(value.into_global_any(self.module)),
+                    Origin::Node(
+                        value.into_global_any(self.module),
+                        self.flow().template_scope(),
+                    ),
                     ValueUse::Store,
                 );
                 self.walk_declarator_initializer(id, decorated, value)?;
@@ -146,43 +149,48 @@ impl WalkState<'_, '_> {
             let value_site = self.node_site(value)?;
             let expectation = Expectation::assignable_node(
                 value_site,
-                Origin::Node(value_site.node),
+                Origin::Node(value_site.node, self.flow().template_scope()),
                 ValueUse::Store,
             );
             self.queue_node_check(declarator.pattern, expectation)?;
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
-                self.check.push_obligation(Obligation::PatternCoverage(
-                    PatternCoverageObligation {
+                self.check.push_obligation(
+                    Obligation::PatternCoverage(PatternCoverageObligation {
                         source: declarator.pattern.into_global_any(self.module),
                         value: ExpectedType::Node(value_site),
                         coverage: PatternCoverage::Binding {
                             pattern: declarator.pattern.into_global(self.module),
                         },
-                    },
-                ));
+                    }),
+                    self.flow().template_scope(),
+                );
             }
         } else if let Some(ty) = declarator.ty {
             let matched = self.walk_type_expression(ty)?;
             let expectation = Expectation::assignable(
                 matched,
-                Origin::Node(ty.into_global_any(self.module)),
+                Origin::Node(
+                    ty.into_global_any(self.module),
+                    self.flow().template_scope(),
+                ),
                 ValueUse::Store,
             );
             self.queue_node_check(declarator.pattern, expectation)?;
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
-                self.check.push_obligation(Obligation::PatternCoverage(
-                    PatternCoverageObligation {
+                self.check.push_obligation(
+                    Obligation::PatternCoverage(PatternCoverageObligation {
                         source: declarator.pattern.into_global_any(self.module),
                         value: ExpectedType::Type(matched),
                         coverage: PatternCoverage::Binding {
                             pattern: declarator.pattern.into_global(self.module),
                         },
-                    },
-                ));
+                    }),
+                    self.flow().template_scope(),
+                );
             }
         }
 

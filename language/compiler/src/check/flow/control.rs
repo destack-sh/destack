@@ -82,7 +82,10 @@ impl WalkState<'_, '_> {
 
         // close failure-free try bodies to never
         if !target.has_failure {
-            let origin = Origin::Node(source.into_global(self.module));
+            let origin = Origin::Node(
+                source.into_global(self.module),
+                self.flow().template_scope(),
+            );
             let never = self.intern_type(dir::Type::Never)?;
 
             self.relate_type(origin, Relation::Equal, target.failure, never);
@@ -134,7 +137,10 @@ impl WalkState<'_, '_> {
         let ty = self.open_type_hole(source, Widening::Preserve)?;
         let expectation = Expectation::assignable(
             ty,
-            Origin::Node(value.into_global_any(self.module)),
+            Origin::Node(
+                value.into_global_any(self.module),
+                self.flow().template_scope(),
+            ),
             ValueUse::Output,
         );
         self.queue_node_check(value, expectation)?;
@@ -201,6 +207,7 @@ impl WalkState<'_, '_> {
             value: FlowSite {
                 node: value,
                 flow: self.flow().point(),
+                scope: self.flow().template_scope(),
             },
             target,
         }));

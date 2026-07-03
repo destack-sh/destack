@@ -105,7 +105,7 @@ impl CheckState<'_> {
                 Relation::Assignable,
                 source,
                 binding.ty,
-                Origin::Node(value),
+                Origin::Node(value, site.scope),
                 ValueUse::Argument,
             ));
         }

@@ -6,8 +6,8 @@ use indexmap::IndexMap;
 use crate::{CheckError, CompilerError, CompilerResult, DiagnosticAnchor};
 
 use crate::check::{
-    Answer, AutoInterface, CheckEvent, CheckState, ExpectedType, FlowBranch, Origin, Task,
-    WriteTarget, answer,
+    Answer, AutoInterface, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId,
+    Origin, Task, WriteTarget, answer,
 };
 
 /// Component-global id of one collected obligation.
@@ -264,11 +264,20 @@ pub(in crate::check) struct ImplementationCoherenceObligation {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
+/// One collected obligation with its assuming scope.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct ObligationEntry {
+    /// The obligation to check.
+    pub(in crate::check) obligation: Obligation,
+    /// The generic template whose predicates the check assumes.
+    pub(in crate::check) scope: Option<GenericTemplateId>,
+}
+
 /// Collected obligations in allocation order.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct ObligationTable {
     /// The collected obligations keyed by absolute obligation id.
-    obligations: IndexMap<ObligationId, Obligation>,
+    obligations: IndexMap<ObligationId, ObligationEntry>,
 }
 
 impl ObligationTable {
@@ -280,17 +289,17 @@ impl ObligationTable {
     }
 
     /// Insert one exact obligation id.
-    pub(in crate::check) fn insert(&mut self, id: ObligationId, obligation: Obligation) {
-        self.obligations.insert(id, obligation);
+    pub(in crate::check) fn insert(&mut self, id: ObligationId, entry: ObligationEntry) {
+        self.obligations.insert(id, entry);
     }
 
     /// Remove one exact obligation id.
-    pub(in crate::check) fn remove(&mut self, id: ObligationId) -> Option<Obligation> {
+    pub(in crate::check) fn remove(&mut self, id: ObligationId) -> Option<ObligationEntry> {
         self.obligations.swap_remove(&id)
     }
 
     /// Return one collected obligation.
-    pub(in crate::check) fn get(&self, id: ObligationId) -> CompilerResult<&Obligation> {
+    pub(in crate::check) fn get(&self, id: ObligationId) -> CompilerResult<&ObligationEntry> {
         self.obligations
             .get(&id)
             .ok_or_else(|| CompilerError::Internal {
@@ -305,9 +314,14 @@ impl ObligationTable {
 }
 
 impl CheckState<'_> {
-    /// Collect one obligation.
-    pub(in crate::check) fn push_obligation(&mut self, obligation: Obligation) -> ObligationId {
-        let id = self.solver.allocate_obligation(obligation);
+    /// Collect one obligation under one assuming scope.
+    pub(in crate::check) fn push_obligation(
+        &mut self,
+        obligation: Obligation,
+        scope: Option<GenericTemplateId>,
+    ) -> ObligationId {
+        let entry = ObligationEntry { obligation, scope };
+        let id = self.solver.allocate_obligation(entry);
         self.queue_task(Task::Oblige(id));
 
         id
@@ -319,8 +333,10 @@ impl CheckState<'_> {
         id: ObligationId,
     ) -> CompilerResult<Answer<()>> {
         // copy the obligation for the borrow-free check
-        let obligation = self.solver.obligations.get(id)?.clone();
-        let decision = self.check_obligation(&obligation)?;
+        let entry = self.solver.obligations.get(id)?.clone();
+        let origin = Origin::Node(entry.obligation.source(), entry.scope);
+        let obligation = entry.obligation;
+        let decision = self.check_obligation(origin, &obligation)?;
 
         match decision {
             Answer::Ready(diagnostic) => {
@@ -350,30 +366,35 @@ impl CheckState<'_> {
     /// Check one obligation against solved inputs.
     fn check_obligation(
         &mut self,
+        origin: Origin,
         obligation: &Obligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         match obligation {
-            Obligation::PatternCoverage(obligation) => self.check_pattern_coverage(obligation),
-            Obligation::WritablePlace(obligation) => self.check_writable_place(obligation),
+            Obligation::PatternCoverage(obligation) => {
+                self.check_pattern_coverage(origin, obligation)
+            }
+            Obligation::WritablePlace(obligation) => self.check_writable_place(origin, obligation),
             Obligation::Representation(obligation) => {
-                self.check_representation(obligation.source, obligation.ty)
+                self.check_representation(origin, obligation.ty)
             }
             Obligation::AutoInterface(obligation) => {
-                self.check_auto_interface(obligation.source, obligation.ty, obligation.interface)
+                self.check_auto_interface(origin, obligation.ty, obligation.interface)
             }
-            Obligation::RuntimePredicate(obligation) => self.check_runtime_predicate(obligation),
-            Obligation::ForInSource(obligation) => self.check_for_in_source(obligation),
+            Obligation::RuntimePredicate(obligation) => {
+                self.check_runtime_predicate(origin, obligation)
+            }
+            Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
             Obligation::ExtensionConformance(obligation) => {
-                self.check_extension_conformance(obligation.source, obligation.symbol)
+                self.check_extension_conformance(origin, obligation.symbol)
             }
             Obligation::ImplementationCoherence(obligation) => {
-                self.check_implementation_coherence(obligation.source, obligation.symbol)
+                self.check_implementation_coherence(origin, obligation.symbol)
             }
             Obligation::DeclarationHeritage(obligation) => {
-                self.check_declaration_heritage(obligation.source, obligation.symbol)
+                self.check_declaration_heritage(origin, obligation.symbol)
             }
             Obligation::ClassInitialization(obligation) => {
-                self.check_class_initialization(obligation)
+                self.check_class_initialization(origin, obligation)
             }
         }
     }
@@ -381,16 +402,17 @@ impl CheckState<'_> {
     /// Check one pattern coverage obligation.
     fn check_pattern_coverage(
         &mut self,
+        origin: Origin,
         obligation: &PatternCoverageObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let value = answer!(self.resolve_expected_type(&obligation.value)?);
 
         match &obligation.coverage {
             PatternCoverage::Match { cases } => {
-                self.check_match_exhaustive(obligation.source, value, cases)
+                self.check_match_exhaustive(origin, obligation.source, value, cases)
             }
             PatternCoverage::Binding { pattern } => self.check_irrefutable_pattern(
-                obligation.source,
+                origin,
                 *pattern,
                 value,
                 |anchor, module, missing| {
@@ -403,7 +425,7 @@ impl CheckState<'_> {
                 },
             ),
             PatternCoverage::Catch { pattern } => self.check_irrefutable_pattern(
-                obligation.source,
+                origin,
                 *pattern,
                 value,
                 |anchor, module, missing| {
@@ -421,9 +443,9 @@ impl CheckState<'_> {
     /// Check one for-in source obligation.
     fn check_for_in_source(
         &mut self,
+        origin: Origin,
         obligation: &ForInSourceObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(obligation.source);
         if answer!(self.is_keyed_type(origin, obligation.ty)?) {
             return Ok(Answer::Ready(None));
         }

@@ -11,6 +11,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
@@ -74,7 +75,12 @@ impl CheckState<'_> {
                     };
                     let element = call.return_type;
 
-                    self.project_pattern_input(flow, element, pattern.into_global_any(module))?;
+                    self.project_pattern_input(
+                        flow,
+                        scope,
+                        element,
+                        pattern.into_global_any(module),
+                    )?;
                     projected.push(dir::PatternFieldResolution {
                         source: field.into_global_any(module),
                         projection: dir::Projection::Call { call, ty: element },
@@ -98,6 +104,7 @@ impl CheckState<'_> {
                     if let Some(pattern) = pattern {
                         self.project_pattern_input(
                             flow,
+                            scope,
                             rest_type,
                             pattern.into_global_any(module),
                         )?;
@@ -137,6 +144,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::AssignPattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<Answer<bool>> {
@@ -193,7 +201,12 @@ impl CheckState<'_> {
                     };
                     let element = call.return_type;
 
-                    self.project_pattern_input(flow, element, pattern.into_global_any(module))?;
+                    self.project_pattern_input(
+                        flow,
+                        scope,
+                        element,
+                        pattern.into_global_any(module),
+                    )?;
                     projected.push(dir::AssignPatternFieldResolution {
                         source: field.into_global_any(module),
                         projection: dir::Projection::Call { call, ty: element },
@@ -217,6 +230,7 @@ impl CheckState<'_> {
                     if let Some(pattern) = pattern {
                         self.project_pattern_input(
                             flow,
+                            scope,
                             rest_type,
                             pattern.into_global_any(module),
                         )?;

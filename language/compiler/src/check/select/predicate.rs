@@ -17,7 +17,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
         let value_node = value.into_global_any(module);
         let target_node = target.into_global_any(module);
 
@@ -34,7 +34,7 @@ impl CheckState<'_> {
             predicate,
         });
 
-        self.commit_predicate(node, value_node, target_node, resolution)
+        self.commit_predicate(origin, node, value_node, target_node, resolution)
     }
 
     /// Select one `value instanceof Class` predicate.
@@ -47,7 +47,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
         let value_node = value.into_global_any(module);
         let target_node = target.into_global_any(module);
 
@@ -114,7 +114,7 @@ impl CheckState<'_> {
             predicate,
         });
 
-        self.commit_predicate(node, value_node, target_node, resolution)
+        self.commit_predicate(origin, node, value_node, target_node, resolution)
     }
 
     /// Select one `key in value` predicate.
@@ -127,7 +127,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
         let key_node = key.into_global_any(module);
         let receiver_node = receiver.into_global_any(module);
 
@@ -172,7 +172,7 @@ impl CheckState<'_> {
             predicate,
         });
 
-        self.commit_predicate(node, key_node, receiver_node, resolution)
+        self.commit_predicate(origin, node, key_node, receiver_node, resolution)
     }
 
     /// Select one custom `Has<K>` membership implementation.
@@ -583,12 +583,13 @@ impl CheckState<'_> {
     /// Commit one predicate resolution and its boolean result.
     fn commit_predicate(
         &mut self,
+        origin: Origin,
         node: dir::GlobalNodeIdAny,
         left: dir::GlobalNodeIdAny,
         right: dir::GlobalNodeIdAny,
         resolution: dir::GuardResolution,
     ) -> CompilerResult<Answer<()>> {
-        self.push_runtime_predicate_obligation(node, left, right, resolution.clone());
+        self.push_runtime_predicate_obligation(origin, node, left, right, resolution.clone());
         self.commit_decision(node, Decision::Guard(resolution))?;
         let boolean = self.intern_type(
             node.module_id,
@@ -602,6 +603,7 @@ impl CheckState<'_> {
     /// Push one runtime predicate obligation.
     fn push_runtime_predicate_obligation(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         left: dir::GlobalNodeIdAny,
         right: dir::GlobalNodeIdAny,
@@ -613,7 +615,8 @@ impl CheckState<'_> {
             right,
             predicate,
         };
+        let scope = self.origin_scope(origin);
 
-        self.push_obligation(Obligation::RuntimePredicate(obligation));
+        self.push_obligation(Obligation::RuntimePredicate(obligation), scope);
     }
 }

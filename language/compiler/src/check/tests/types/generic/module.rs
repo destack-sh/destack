@@ -332,6 +332,7 @@ interface Iter<T, R = unknown> {
 /// @generic.template symbol=Iter parameters=(T, R = unknown)
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(T, R = unknown)
+/// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="R = unknown" type=R
@@ -402,6 +403,7 @@ export newtype interface Iter<T, R = unknown> {
 /// @generic.template symbol=Iter parameters=(T, R = unknown)
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(T, R = unknown) nominal=true
+/// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="R = unknown" type=R
@@ -539,6 +541,7 @@ export interface Iter<T, R = unknown> {
 /// @generic.template symbol=Iter parameters=(T, R = unknown)
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(T, R = unknown)
+/// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: Iter<T, R>) => a.Marker
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T

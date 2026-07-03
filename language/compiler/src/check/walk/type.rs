@@ -798,7 +798,10 @@ impl WalkState<'_, '_> {
             .iter()
             .map(|argument| argument.ty)
             .collect::<SmallVec<[_; 4]>>();
-        let origin = Origin::Node(source.into_global(self.module));
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
         let Some(substitution) =
             self.check
                 .instantiate_generic_parameters(origin, &parameters, &written, position)?
@@ -840,7 +843,10 @@ impl WalkState<'_, '_> {
             arguments: arguments.iter().copied().collect(),
             receiver: None,
         };
-        let origin = Origin::Node(source.into_global(self.module));
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
 
         // enqueue parameter bounds as ordinary type relations
         for (parameter, argument) in parameters.iter().copied().zip(arguments.iter().copied()) {
@@ -863,9 +869,13 @@ impl WalkState<'_, '_> {
             );
         }
 
-        // enqueue declared where predicates
+        // enqueue declared where predicates, leaving predicates over
+        // this to conformance sites where a receiver is bound
         let template = self.check.symbol_template(symbol);
         for predicate in self.check.template_predicates(template) {
+            if self.check.type_flags(predicate.left)?.has_this() {
+                continue;
+            }
             let left = self
                 .check
                 .substitute_type(self.module, predicate.left, &substitution)?;
@@ -975,11 +985,19 @@ impl WalkState<'_, '_> {
                         None,
                         &signature,
                     )?;
-                    let header = self.walk_function_signature(template, &signature)?;
-                    let result =
-                        self.walk_function_result_type(member.into_any(), &signature, None)?;
-                    let ty =
-                        self.walk_function_signature_type(&signature, header, None, None, result)?;
+
+                    let (header, result, tracked) =
+                        self.walk_signature_header(member.into_any(), template, &signature, None)?;
+                    let ty = self.walk_function_signature_type(
+                        member.into_any(),
+                        &signature,
+                        header,
+                        None,
+                        None,
+                        result,
+                        tracked,
+                        false,
+                    )?;
 
                     fields.push(dir::TypeField {
                         key,

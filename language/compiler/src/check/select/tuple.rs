@@ -13,6 +13,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
@@ -72,6 +73,7 @@ impl CheckState<'_> {
                     let pattern = dir::LocalNodeId::<dir::Pattern>::new(target.local_id.id);
                     self.project_pattern_input(
                         flow,
+                        scope,
                         projected_value,
                         pattern.into_global_any(module),
                     )?;
@@ -110,6 +112,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::AssignPattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<Answer<bool>> {
@@ -154,7 +157,12 @@ impl CheckState<'_> {
                 continue;
             };
 
-            self.project_pattern_input(flow, projected_value, pattern.into_global_any(module))?;
+            self.project_pattern_input(
+                flow,
+                scope,
+                projected_value,
+                pattern.into_global_any(module),
+            )?;
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
                 projection: dir::Projection::FieldGet {

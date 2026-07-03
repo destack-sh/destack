@@ -323,6 +323,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(T)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T>, T) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T
 
@@ -434,6 +435,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(T#1)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -559,6 +561,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(T#1)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -797,6 +800,7 @@ interface Equal<T> {
 /// @generic.template symbol=Equal parameters=(T#1)
 /// @type.symbol symbol=Equal type=Equal
 /// @definition.interface symbol=Equal template=(T#1)
+/// @definition.where symbol=Equal relation=satisfies left=this right=Equal<T#1>
 /// @definition.method symbol=Equal.equals source="equals(other: T): boolean" slot=equals type=(this: Equal<T#1>, T#1) => boolean
 /// @type.symbol symbol=Equal.T source=T type=T#1
 
@@ -872,4 +876,61 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 /// @generic.instance id=Equal<T#1> template=Equal arguments=(T#1)
 /// @generic.instance id=probe<K#2> template=probe arguments=(K#2)
 "#, "");
+}
+
+#[test]
+fn test_member_selects_through_where_bound() {
+    let session = TestSession::single(
+        r#"
+interface Doubling {
+    double(): int32;
+}
+
+function twice<T>(value: T): int32 where T: Doubling {
+    return value.double();
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Doubling {
+    double(): int32;
+}
+
+function twice<T>(value: T): int32 where T: Doubling {
+    return value.double();
+}
+
+=== checked ===
+interface Doubling {
+/// @type.symbol symbol=Doubling type=Doubling
+/// @definition.interface symbol=Doubling
+/// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: Doubling) => int32
+
+    double(): int32;
+    /// @type.symbol symbol=Doubling.double source="double(): int32" type=(this: Doubling) => int32
+
+}
+
+function twice<T>(value: T): int32 where T: Doubling {
+/// @generic.template symbol=twice parameters=(T)
+/// @type.symbol symbol=twice type=<T>(T) => int32
+/// @type.symbol symbol=twice.T source=T type=T
+/// @type.symbol symbol=twice.value source="value: T" type=T
+/// @resolution.name source=T target=twice.T
+/// @resolution.name source=T target=twice.T
+/// @resolution.name source=Doubling target=Doubling
+
+    return value.double();
+    /// @resolution.name source=value target=twice.value
+    /// @resolution.member source=value.double receiver=T kind=symbol target=Doubling.double
+    /// @resolution.call source=value.double() parameters=() return=int32 kind=symbol target=Doubling.double receiver=T
+
+}
+"#,
+    );
 }

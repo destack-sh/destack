@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 
 use crate::check::{
     BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
-    FlowState, GenericInductionParameter, GenericTemplateId, Origin, PlaceUse, Relation, Task,
-    TypeConstraint, ValueUse, Widening,
+    FlowState, GenericInductionParameter, Origin, PlaceUse, Relation, Task, TypeConstraint,
+    ValueUse, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,13 +20,12 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     /// How elided borrow lifetimes are handled in the active type position.
     borrow_lifetime_elision: BorrowLifetimeElision,
     /// Elided borrow lifetimes tracked by the active return type.
-    return_borrow_lifetimes: Vec<(dir::TypeVariableId, GenericInductionParameter)>,
+    return_borrow_lifetimes: Vec<dir::TypeVariableId>,
     /// Flow state for the current module walk.
     flow: FlowState,
     /// Entry flow point for each source node occurrence walked in this module.
-    node_flows: IndexMap<dir::GlobalNodeIdAny, FlowPointId>,
+    node_flows: IndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
     /// Innermost generic template scoping each walked source node.
-    node_scopes: IndexMap<dir::GlobalNodeIdAny, GenericTemplateId>,
     /// Capture directive waiting for an immediate function value initializer.
     capture_directive: Option<dir::CaptureDirective>,
 }
@@ -95,7 +94,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let state = check.module_mut(module);
         let flow = FlowState::from_points(std::mem::take(&mut state.flows));
         let node_flows = std::mem::take(&mut state.node_flows);
-        let node_scopes = std::mem::take(&mut state.node_scopes);
 
         Self {
             check,
@@ -105,7 +103,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return_borrow_lifetimes: Vec::new(),
             flow,
             node_flows,
-            node_scopes,
             capture_directive: None,
         }
     }
@@ -145,12 +142,54 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let module = self.module;
         let flows = self.flow.into_points();
         let node_flows = self.node_flows;
-        let node_scopes = self.node_scopes;
 
         let state = self.check.module_mut(module);
         state.flows = flows;
         state.node_flows = node_flows;
-        state.node_scopes = node_scopes;
+    }
+
+    /// Return whether one declaration's implementation is a compiler intrinsic.
+    ///
+    /// A decorator resolving to the `intrinsic` language item carries
+    /// the implementation, so such declarations need no body.
+    pub(in crate::check) fn is_intrinsic<T: dir::Node>(
+        &mut self,
+        id: dir::LocalNodeId<T>,
+    ) -> CompilerResult<bool> {
+        for decorator_id in self.tree.get_decorators(id) {
+            let decorator = self.tree.get(decorator_id);
+            // unwrap a decorator call to its callee
+            let expression = match self.tree.get(decorator.expression) {
+                dir::Expression::Call { left, .. } => *left,
+                _ => decorator.expression,
+            };
+            let source = expression.into_global_any(self.module);
+            let Some(dir::Reference::Bound(symbols)) = self
+                .check
+                .module(self.module)
+                .resolved
+                .references
+                .get(source)
+                .cloned()
+            else {
+                continue;
+            };
+            for symbol in symbols {
+                if self.check.language_item(symbol)? == Some(dir::LanguageItem::Intrinsic) {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Return one work origin for a walked node under the current scope.
+    pub(in crate::check) fn node_origin<T: dir::Node>(&self, id: dir::LocalNodeId<T>) -> Origin {
+        Origin::Node(
+            id.into_global_any(self.module),
+            self.flow().template_scope(),
+        )
     }
 
     /// Enter one source node occurrence at the current flow point.
@@ -160,10 +199,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<FlowSite> {
         let node = id.into_global_any(self.module);
         let flow = self.flow().point();
-        if let Some(scope) = self.flow().template_scope() {
-            self.node_scopes.insert(node, scope);
-        }
-        if let Some(previous) = self.node_flows.insert(node, flow)
+        let scope = self.flow().template_scope();
+        if let Some((previous, _)) = self.node_flows.insert(node, (flow, scope))
             && previous != flow
         {
             let node = self.check.node_label(node);
@@ -173,7 +210,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             });
         }
 
-        Ok(FlowSite { node, flow })
+        Ok(FlowSite { node, flow, scope })
     }
 
     /// Return one source node occurrence site already reached by the walk.
@@ -182,7 +219,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<FlowSite> {
         let node = id.into_global_any(self.module);
-        let Some(flow) = self.node_flows.get(&node).copied() else {
+        let Some((flow, scope)) = self.node_flows.get(&node).copied() else {
             let node = self.check.node_label(node);
 
             return Err(CompilerError::Internal {
@@ -190,39 +227,22 @@ impl<'check, 'state> WalkState<'check, 'state> {
             });
         };
 
-        Ok(FlowSite { node, flow })
+        Ok(FlowSite { node, flow, scope })
     }
 
     /// Walk one return type while tracking elided borrow lifetimes.
     pub(in crate::check) fn walk_return_type_expression(
         &mut self,
-        source: dir::LocalNodeIdAny,
         id: dir::LocalNodeId<dir::TypeExpression>,
-        has_body: bool,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<(dir::GlobalTypeId, Vec<dir::TypeVariableId>)> {
         let previous = self.borrow_lifetime_elision;
         let first_tracked = self.return_borrow_lifetimes.len();
         self.borrow_lifetime_elision = BorrowLifetimeElision::TrackReturn;
         let result = self.walk_type_expression(id);
         self.borrow_lifetime_elision = previous;
-        let ty = result?;
-
-        // reject bodyless borrowed returns whose lifetime has no source
         let tracked = self.return_borrow_lifetimes.split_off(first_tracked);
-        if !has_body && !tracked.is_empty() {
-            self.check
-                .report_ambient_lifetime_elided(self.module, source);
-            for (variable, _) in tracked {
-                let error = self.intern_type(dir::Type::Error)?;
-                self.check.commit_solution(variable, error)?;
-            }
-        }
-        // bodyful callables infer elided result lifetimes from returns
-        else {
-            let _ = tracked;
-        }
 
-        Ok(ty)
+        Ok((result?, tracked))
     }
 
     /// Walk one type expression with elided borrow lifetimes closed to frame.
@@ -294,7 +314,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.check.generics.insert_induction(variable, induction)?;
             }
             BorrowLifetimeElision::TrackReturn => {
-                self.return_borrow_lifetimes.push((variable, induction));
+                self.return_borrow_lifetimes.push(variable);
             }
             BorrowLifetimeElision::Frame => {
                 return Err(CompilerError::Internal {
@@ -312,7 +332,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
         widening: Widening,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = Origin::Node(source.into_global(self.module));
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
         let variable = self.check.allocate_variable(self.module, origin, widening);
 
         self.check.variable_type(variable)

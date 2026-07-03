@@ -10,12 +10,11 @@ impl CheckState<'_> {
     /// Check whether one match covers every known selector value.
     pub(in crate::check) fn check_match_exhaustive(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         cases: &[MatchCase],
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
-
         // collect unguarded patterns with valid pattern decisions
         let mut patterns = Vec::new();
         for case in cases {

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
-use crate::check::{Answer, CheckState, Decision, Origin};
+use crate::check::{Answer, CheckState, Decision, FlowSite, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -139,7 +139,11 @@ impl CheckState<'_> {
         for (node, ty) in node_types {
             let ty = self.settled_root(ty)?;
             let ty = self.seal_type(ty, sealed)?;
-            self.report_unresolved_output_type(Origin::Node(node), ty, reported)?;
+            let origin = self
+                .node_site(node)
+                .map(FlowSite::origin)
+                .unwrap_or(Origin::Node(node, None));
+            self.report_unresolved_output_type(origin, ty, reported)?;
             resolved.push((node, ty));
         }
 
@@ -216,11 +220,14 @@ impl CheckState<'_> {
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let mut sources = Vec::new();
-        sources.extend(
-            node_types
-                .iter()
-                .map(|(node, ty)| (Origin::Node(*node), *ty)),
-        );
+        sources.extend(node_types.iter().map(|(node, ty)| {
+            let origin = self
+                .node_site(*node)
+                .map(FlowSite::origin)
+                .unwrap_or(Origin::Node(*node, None));
+
+            (origin, *ty)
+        }));
         sources.extend(
             symbol_types
                 .iter()

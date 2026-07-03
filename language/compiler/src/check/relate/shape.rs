@@ -668,10 +668,20 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // open the source's own generics like a call site would, so
+        // open the source's own generics against the target's, so
         // generalized implementations serve every allowed invocation;
-        // polls reuse the opened source, so the solver can settle it
+        // explicit parameters map onto the target's own parameters and
+        // induced ones open; polls reuse the opened source to settle
         let mut source = answer!(self.reduce_type_head(origin, source)?);
+        if !matches!(
+            (self.ty(source)?, self.ty(target)?),
+            (
+                dir::Type::FunctionSignature(_),
+                dir::Type::FunctionSignature(_)
+            )
+        ) {
+            return self.decide_relation(origin, Relation::Assignable, source, target);
+        }
         if let dir::Type::FunctionSignature(signature) = self.ty(source)? {
             let parameters = self.signature_generic_parameters(&signature)?;
             if !parameters.is_empty() {
@@ -679,10 +689,11 @@ impl CheckState<'_> {
                 if let Some(opened) = self.opened_signatures.get(&(source, target, scope)) {
                     source = *opened;
                 } else {
+                    let written = self.target_parameter_arguments(origin, target)?;
                     let substitution = self.instantiate_generic_parameters(
                         origin,
                         &parameters,
-                        &[],
+                        &written,
                         GenericPosition::Inference,
                     )?;
                     if let Some(substitution) = substitution {
@@ -709,6 +720,31 @@ impl CheckState<'_> {
         };
 
         self.decide_each(origin, Relation::Assignable, &pairs)
+    }
+
+    /// Return the target signature's explicit parameters as arguments.
+    ///
+    /// Conformance maps the found generics onto the required ones, so both sides quantify over the same rigid parameters.
+    fn target_parameter_arguments(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let dir::Type::FunctionSignature(required) = self.ty(target)? else {
+            return Ok(Vec::new());
+        };
+        let parameters = self.signature_generic_parameters(&required)?;
+        let mut written = Vec::new();
+        for parameter in parameters {
+            let is_explicit = self.generic_parameter(parameter).is_some_and(|binding| {
+                matches!(binding.origin, dir::GenericParameterOrigin::Explicit)
+            });
+            if is_explicit {
+                written.push(self.intern_type(origin.module(), dir::Type::Parameter(parameter))?);
+            }
+        }
+
+        Ok(written)
     }
 
     /// Return directed function assignment pairs, or none when the shapes cannot relate.

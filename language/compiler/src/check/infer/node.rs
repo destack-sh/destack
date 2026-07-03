@@ -50,9 +50,11 @@ impl CheckState<'_> {
             dir::NodeType::Expression => {
                 self.check_expression(site, target, relation, origin, use_)
             }
-            dir::NodeType::Pattern => self.check_pattern(node.into_typed(), site.flow, target),
+            dir::NodeType::Pattern => {
+                self.check_pattern(node.into_typed(), site.flow, site.scope, target)
+            }
             dir::NodeType::AssignPattern => {
-                self.check_assign_pattern(node.into_typed(), site.flow, target, origin)
+                self.check_assign_pattern(node.into_typed(), site.flow, site.scope, target, origin)
             }
             dir::NodeType::TypeExpression => Ok(Answer::Ready(())),
             other => self.reject_untyped_node("check", node, other),

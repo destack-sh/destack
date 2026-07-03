@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Decision, Dependency, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Decision, Dependency, Relation, answer};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -15,7 +15,7 @@ impl CheckState<'_> {
         let module = node.module_id;
         let source = node.local_id.into_any();
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = self.node_site(node)?.origin();
 
         // read the decided target name
         let left_node = left.into_global_any(module);
@@ -107,7 +107,7 @@ impl CheckState<'_> {
                     &substitution,
                 )?) {
                     self.relate(
-                        Origin::Node(rejection.source),
+                        self.origin_at(origin, rejection.source),
                         Relation::Satisfies,
                         None,
                         rejection.argument,

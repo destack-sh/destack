@@ -226,7 +226,10 @@ impl WalkState<'_, '_> {
                     let expectation = parameter_type.map(|parameter_type| {
                         Expectation::assignable(
                             parameter_type.argument,
-                            Origin::Node(default.into_global_any(self.module)),
+                            Origin::Node(
+                                default.into_global_any(self.module),
+                                self.flow().template_scope(),
+                            ),
                             ValueUse::Store,
                         )
                     });
@@ -298,7 +301,10 @@ impl WalkState<'_, '_> {
                 if let Some(parameter_type) = parameter_type {
                     let expectation = Expectation::assignable(
                         parameter_type.binding,
-                        Origin::Node(pattern.into_global_any(self.module)),
+                        Origin::Node(
+                            pattern.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        ),
                         ValueUse::Store,
                     );
                     self.queue_node_check(pattern, expectation)?;
@@ -310,7 +316,10 @@ impl WalkState<'_, '_> {
                     let expectation = parameter_type.map(|parameter_type| {
                         Expectation::assignable(
                             parameter_type.argument,
-                            Origin::Node(default.into_global_any(self.module)),
+                            Origin::Node(
+                                default.into_global_any(self.module),
+                                self.flow().template_scope(),
+                            ),
                             ValueUse::Store,
                         )
                     });
@@ -341,7 +350,10 @@ impl WalkState<'_, '_> {
                 if let Some(parameter_type) = self.walk_parameter_type(id)? {
                     let expectation = Expectation::assignable(
                         parameter_type.binding,
-                        Origin::Node(pattern.into_global_any(self.module)),
+                        Origin::Node(
+                            pattern.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        ),
                         ValueUse::Store,
                     );
                     self.queue_node_check(pattern, expectation)?;

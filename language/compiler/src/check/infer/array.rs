@@ -86,7 +86,7 @@ impl CheckState<'_> {
         }
         // use one element hole when spreads participate in array construction
         else {
-            let origin = Origin::Node(node.into_any());
+            let origin = site.origin();
             let variable = self.allocate_variable(module, origin, Widening::Preserve);
             let element = self.variable_type(variable)?;
 
@@ -95,7 +95,7 @@ impl CheckState<'_> {
                     Relation::Assignable,
                     *value,
                     element,
-                    Origin::Node(source.into_global_any(module)),
+                    Origin::Node(source.into_global_any(module), site.scope),
                 ));
             }
 
@@ -109,7 +109,7 @@ impl CheckState<'_> {
                 Relation::Assignable,
                 spread,
                 array,
-                Origin::Node(value.into_global_any(module)),
+                Origin::Node(value.into_global_any(module), site.scope),
             ));
         }
 
@@ -233,7 +233,7 @@ impl CheckState<'_> {
                 child_site,
                 element,
                 relation,
-                Origin::Node(child),
+                Origin::Node(child, site.scope),
                 use_
             )?);
         }
@@ -300,7 +300,7 @@ impl CheckState<'_> {
                 child_site,
                 element.ty,
                 relation,
-                Origin::Node(child),
+                Origin::Node(child, site.scope),
                 use_
             )?);
         }

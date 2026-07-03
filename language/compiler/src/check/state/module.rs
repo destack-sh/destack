@@ -66,9 +66,8 @@ pub(in crate::check) struct CheckModuleState {
     /// Durable flow states discovered while walking this module.
     pub(in crate::check) flows: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
-    pub(in crate::check) node_flows: IndexMap<dir::GlobalNodeIdAny, FlowPointId>,
-    /// Innermost generic template scoping each walked source node.
-    pub(in crate::check) node_scopes: IndexMap<dir::GlobalNodeIdAny, dir::GlobalGenericTemplateId>,
+    pub(in crate::check) node_flows:
+        IndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
@@ -132,7 +131,6 @@ impl CheckModuleState {
             captures: Vec::new(),
             flows: Vec::new(),
             node_flows: IndexMap::new(),
-            node_scopes: IndexMap::new(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }
@@ -448,7 +446,7 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<FlowSite> {
-        let Some(flow) = self.module(node.module_id).node_flows.get(&node).copied() else {
+        let Some((flow, scope)) = self.module(node.module_id).node_flows.get(&node).copied() else {
             let node = self.node_label(node);
 
             return Err(CompilerError::Internal {
@@ -456,7 +454,7 @@ impl CheckState<'_> {
             });
         };
 
-        Ok(FlowSite { node, flow })
+        Ok(FlowSite { node, flow, scope })
     }
 
     /// Return one component declaration type, if present.

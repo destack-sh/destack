@@ -34,7 +34,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let origin = Origin::Node(node.into_any());
+        let origin = site.origin();
 
         // collect the property entries in source order
         let mut entries = SmallVec::<[MergeEntry; 8]>::new();
@@ -94,7 +94,7 @@ impl CheckState<'_> {
                     let Some(spread_fields) = answer!(self.spread_fields(origin, module, spread)?)
                     else {
                         // reject spreads with no field projection
-                        return self.reject_spread(node, source, spread);
+                        return self.reject_spread(origin, node, source, spread);
                     };
                     for field in spread_fields {
                         fields.insert(field.key, field);
@@ -232,11 +232,12 @@ impl CheckState<'_> {
     /// Reject one literal whose spread source has no fields.
     fn reject_spread(
         &mut self,
+        origin: Origin,
         node: dir::GlobalNodeId<dir::Expression>,
         source: dir::GlobalNodeIdAny,
         spread: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        self.report_spread_not_object(Origin::Node(source), spread)?;
+        self.report_spread_not_object(self.origin_at(origin, source), spread)?;
         self.commit_decision(node.into_any(), Decision::Rejected)?;
         self.commit_error_node(node.into_any())?;
 

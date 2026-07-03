@@ -203,11 +203,41 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
         let template = self.walk_generic_template(source, None, Some(symbol), parameters)?;
+
+        // interfaces assume this satisfies their own application
+        if self.check.symbol_kind(symbol).is_interface()
+            && let Some(template) = template
+        {
+            self.push_this_predicate(source, symbol, template)?;
+        }
+
+        // where clauses resolve under the declaration's own template
+        let _scope = self.enter_template_scope(template);
         for where_clause in where_clauses {
             self.walk_where_clause(template, *where_clause)?;
         }
 
         Ok(())
+    }
+
+    /// Assume `this` satisfies one interface's own application.
+    pub(in crate::check) fn push_this_predicate(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        interface: dir::GlobalSymbolId,
+        template: GenericTemplateId,
+    ) -> CompilerResult<()> {
+        let instance = self.check.declaration_instance(self.module, interface)?;
+        let left = self.intern_type(dir::Type::This)?;
+        let right = self.intern_type(dir::Type::Instance(instance))?;
+        let predicate = dir::WherePredicate {
+            source,
+            relation: dir::WhereRelation::Satisfies,
+            left,
+            right,
+        };
+
+        self.check.push_template_predicate(template, predicate)
     }
 
     /// Open the generic template owned by one function declaration.
@@ -668,14 +698,16 @@ impl WalkState<'_, '_> {
                 constructor_branches.push(FlowBranch::empty());
             }
 
-            self.check.push_obligation(Obligation::ClassInitialization(
-                ClassInitializationObligation {
+            let scope = self.check.symbol_template(symbol);
+            self.check.push_obligation(
+                Obligation::ClassInitialization(ClassInitializationObligation {
                     source,
                     symbol,
                     receiver: receiver.ty,
                     constructor_branches,
-                },
-            ));
+                }),
+                scope,
+            );
         }
 
         // heritage rules check once the inherited declarations close
@@ -1075,9 +1107,11 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        self.check.push_obligation(Obligation::ExtensionConformance(
-            ExtensionConformanceObligation { source, symbol },
-        ));
+        let scope = self.check.symbol_template(symbol);
+        self.check.push_obligation(
+            Obligation::ExtensionConformance(ExtensionConformanceObligation { source, symbol }),
+            scope,
+        );
     }
 
     /// Queue one implementation coherence obligation.
@@ -1086,10 +1120,14 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        self.check
-            .push_obligation(Obligation::ImplementationCoherence(
-                ImplementationCoherenceObligation { source, symbol },
-            ));
+        let scope = self.check.symbol_template(symbol);
+        self.check.push_obligation(
+            Obligation::ImplementationCoherence(ImplementationCoherenceObligation {
+                source,
+                symbol,
+            }),
+            scope,
+        );
     }
 
     /// Queue one heritage obligation.
@@ -1098,9 +1136,11 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        self.check.push_obligation(Obligation::DeclarationHeritage(
-            DeclarationHeritageObligation { source, symbol },
-        ));
+        let scope = self.check.symbol_template(symbol);
+        self.check.push_obligation(
+            Obligation::DeclarationHeritage(DeclarationHeritageObligation { source, symbol }),
+            scope,
+        );
     }
 
     /// Queue one concrete declaration's layout check.
@@ -1118,11 +1158,14 @@ impl WalkState<'_, '_> {
             .check
             .module(self.module)
             .symbol_declaration_node(symbol.local_id)?;
-        self.check
-            .push_obligation(Obligation::Representation(RepresentationObligation {
+        let scope = self.check.symbol_template(symbol);
+        self.check.push_obligation(
+            Obligation::Representation(RepresentationObligation {
                 source: source.into_global(self.module),
                 ty: receiver.ty,
-            }));
+            }),
+            scope,
+        );
 
         Ok(())
     }
@@ -1154,26 +1197,32 @@ impl WalkState<'_, '_> {
         let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
         let template =
             self.open_signature_template(source, None, Some(symbol), &declaration.signature)?;
-        let header = self.walk_function_signature(template, &declaration.signature)?;
+
+        let (header, result, tracked) = self.walk_signature_header(
+            id.into_any(),
+            template,
+            &declaration.signature,
+            declaration.body,
+        )?;
         let this_parameter = header.this_parameter;
-        if declaration.body.is_none() && !declaration.is_ambient {
+
+        // require a body unless an intrinsic or ambience carries one
+        if declaration.body.is_none() && !declaration.is_ambient && !self.is_intrinsic(id)? {
             let source = id.into_global_any(self.module);
             self.check
                 .report_missing_declaration_body(source, self.check.format_symbol(symbol));
         }
-        let result = self.walk_function_result_type(
-            id.into_any(),
-            &declaration.signature,
-            declaration.body,
-        )?;
 
         // write the function symbol type
         let signature = self.walk_function_signature_type(
+            id.into_any(),
             &declaration.signature,
             header,
             Some(induction),
             None,
             result,
+            tracked,
+            declaration.body.is_some(),
         )?;
         let is_function_value =
             declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
@@ -1264,7 +1313,7 @@ impl WalkState<'_, '_> {
             return Ok(Vec::new());
         }
 
-        let origin = Origin::Node(source);
+        let origin = Origin::Node(source, self.flow().template_scope());
         let backing =
             self.check
                 .require_reduced_type_head(origin, value, "tagged newtype backing")?;
@@ -1293,7 +1342,7 @@ impl WalkState<'_, '_> {
         owner: dir::GlobalTypeId,
         arm: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        let origin = Origin::Node(source);
+        let origin = Origin::Node(source, self.flow().template_scope());
         let arm = self
             .check
             .require_reduced_type_head(origin, arm, "tagged newtype arm")?;
@@ -1350,7 +1399,10 @@ impl WalkState<'_, '_> {
 
         // check clauses without a template through current bound logic
         let Some(template) = template else {
-            let origin = Origin::Node(id.into_global_any(self.module));
+            let origin = Origin::Node(
+                id.into_global_any(self.module),
+                self.flow().template_scope(),
+            );
             self.relate_type(origin, Relation::Satisfies, left, right);
 
             return Ok(());
@@ -1507,6 +1559,26 @@ impl WalkState<'_, '_> {
         self.check.substitute_type(self.module, ty, &substitution)
     }
 
+    /// Walk one callable header under the template it declares.
+    pub(in crate::check) fn walk_signature_header(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        template: Option<GenericTemplateId>,
+        signature: &dir::FunctionSignature,
+        body: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<(
+        FunctionHeader,
+        Option<dir::GlobalTypeId>,
+        Vec<dir::TypeVariableId>,
+    )> {
+        // walk the whole header under the template it declares
+        let _scope = self.enter_template_scope(template);
+        let header = self.walk_function_signature(template, signature)?;
+        let (result, tracked) = self.walk_function_result_type(source, signature, body)?;
+
+        Ok((header, result, tracked))
+    }
+
     /// Walk one function return annotation or open its inferred result.
     ///
     /// Example:
@@ -1518,21 +1590,24 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            let result = self.walk_return_type_expression(source, return_type, body.is_some())?;
+            let (result, tracked) = self.walk_return_type_expression(return_type)?;
 
-            return Ok(Some(result));
+            return Ok((Some(result), tracked));
         }
 
         // skip ambient signatures
         if body.is_none() {
-            return Ok(None);
+            return Ok((None, Vec::new()));
         }
 
         // open the inferred result
-        Ok(Some(self.open_type_hole(source, Widening::Preserve)?))
+        Ok((
+            Some(self.open_type_hole(source, Widening::Preserve)?),
+            Vec::new(),
+        ))
     }
 
     /// Return one nominal declaration receiver scope.
@@ -1598,7 +1673,10 @@ impl WalkState<'_, '_> {
         declared: dir::GlobalTypeId,
         heritage: dir::GlobalTypeId,
     ) {
-        let origin = Origin::Node(source.into_global_any(self.module));
+        let origin = Origin::Node(
+            source.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
         self.relate_type(origin, relation, declared, heritage);
     }
 

@@ -359,10 +359,14 @@ impl CheckState<'_> {
             }
         }
 
-        // prove template predicates under the composed call substitution
+        // prove template predicates under the composed call substitution,
+        // with the receiver bound so self predicates prove against it
         let predicates = self.template_predicates(function.template);
         if !predicates.is_empty() {
-            let composed = substitution.with_carried(carried);
+            let mut composed = substitution.with_carried(carried);
+            if let Some(receiver) = receiver {
+                composed = composed.with_receiver(receiver);
+            }
             for predicate in predicates {
                 let left = self.substitute_type(origin.module(), predicate.left, &composed)?;
                 let right = self.substitute_type(origin.module(), predicate.right, &composed)?;
@@ -423,7 +427,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let argument_origin = Origin::Node(argument_source);
+            let argument_origin = self.origin_at(origin, argument_source);
             if !answer!(self.constrain(
                 argument_origin,
                 Relation::Assignable,
@@ -465,7 +469,7 @@ impl CheckState<'_> {
             let parameter_type = self.erase_inference_barriers(origin.module(), parameter_type)?;
             let parameter_type = answer!(self.reduce_type(origin, parameter_type)?);
 
-            let argument_origin = Origin::Node(argument_source);
+            let argument_origin = self.origin_at(origin, argument_source);
             if !answer!(self.constrain(
                 argument_origin,
                 Relation::Assignable,

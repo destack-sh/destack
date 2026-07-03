@@ -10,15 +10,18 @@ impl CheckState<'_> {
     /// Check whether one selected runtime predicate is valid.
     pub(in crate::check) fn check_runtime_predicate(
         &mut self,
+        origin: Origin,
         obligation: &RuntimePredicateObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         match &obligation.predicate {
-            dir::GuardResolution::Is(predicate) => self.check_is_predicate(obligation, predicate),
+            dir::GuardResolution::Is(predicate) => {
+                self.check_is_predicate(origin, obligation, predicate)
+            }
             dir::GuardResolution::InstanceOf(predicate) => {
-                self.check_instanceof_predicate(obligation, predicate)
+                self.check_instanceof_predicate(origin, obligation, predicate)
             }
             dir::GuardResolution::In(predicate) => {
-                self.check_in_predicate(obligation.source, predicate)
+                self.check_in_predicate(origin, obligation.source, predicate)
             }
         }
     }
@@ -26,19 +29,18 @@ impl CheckState<'_> {
     /// Check whether one `is` predicate can execute.
     fn check_is_predicate(
         &mut self,
+        origin: Origin,
         obligation: &RuntimePredicateObligation,
         predicate: &dir::IsGuardResolution,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         if let Some(error) = answer!(self.check_auto_interface(
-            obligation.right,
+            self.origin_at(origin, obligation.right),
             predicate.target_type,
             AutoInterface::DynamicSafe,
         )?) {
             return Ok(Answer::Ready(Some(error)));
         }
 
-        let source = obligation.source;
-        let origin = Origin::Node(source);
         if answer!(self.types_may_overlap(origin, predicate.value_type, predicate.target_type)?) {
             return Ok(Answer::Ready(None));
         }
@@ -60,12 +62,10 @@ impl CheckState<'_> {
     /// Check whether one `instanceof` predicate can execute.
     fn check_instanceof_predicate(
         &mut self,
+        origin: Origin,
         obligation: &RuntimePredicateObligation,
         predicate: &dir::InstanceOfGuardResolution,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let source = obligation.source;
-        let origin = Origin::Node(source);
-
         // reject predicates whose source type cannot overlap the class
         if answer!(self.types_may_overlap(origin, predicate.value_type, predicate.target_type)?) {
             return Ok(Answer::Ready(None));
@@ -88,14 +88,13 @@ impl CheckState<'_> {
     /// Check whether one `in` predicate can execute.
     fn check_in_predicate(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         predicate: &dir::InGuardResolution,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         if matches!(predicate.predicate.test, dir::PredicateTest::Call(_)) {
             return Ok(Answer::Ready(None));
         }
-
-        let origin = Origin::Node(source);
 
         let is_key = answer!(self.is_property_key_type(origin, predicate.key_type)?);
         let is_receiver = answer!(self.is_keyed_type(origin, predicate.receiver_type)?);

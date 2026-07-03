@@ -63,7 +63,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
         let callee_site = self.node_site(callee.into_global_any(module))?;
 
         // collect explicit type arguments from the call node

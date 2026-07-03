@@ -69,7 +69,10 @@ impl WalkState<'_, '_> {
         };
 
         // constrain value against the active return target
-        let origin = Origin::Node(source.into_global(self.module));
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
         let return_target = function.return_target;
 
         self.relate_value(
@@ -100,10 +103,14 @@ impl WalkState<'_, '_> {
             site: FlowSite {
                 node: value.into_global_any(self.module),
                 flow: self.flow().point(),
+                scope: self.flow().template_scope(),
             },
             expected: ExpectedType::Type(function.return_target),
             relation: Relation::Assignable,
-            origin: Origin::Node(source.into_global(self.module)),
+            origin: Origin::Node(
+                source.into_global(self.module),
+                self.flow().template_scope(),
+            ),
             use_: ValueUse::Output,
         });
     }
@@ -134,7 +141,10 @@ impl WalkState<'_, '_> {
 
         let resume_target = function.resume_target;
         let asynchrony = function.asynchrony;
-        let origin = Origin::Node(value.into_global_any(self.module));
+        let origin = Origin::Node(
+            value.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
 
         // scalar yield values flow directly to the yield target
         if cardinality == dir::YieldCardinality::Scalar {
@@ -193,7 +203,10 @@ impl WalkState<'_, '_> {
         };
 
         // flow omitted yield as void
-        let origin = Origin::Node(source.into_global(self.module));
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
         let value = self.intern_type(dir::Type::Void)?;
         self.relate_value(
             origin,

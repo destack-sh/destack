@@ -117,6 +117,18 @@ impl GenericIndex {
         Ok(())
     }
 
+    /// Move one variable's induced parameter onto its representative.
+    pub(in crate::check) fn merge_induction(
+        &mut self,
+        variable: dir::TypeVariableId,
+        target: dir::TypeVariableId,
+    ) {
+        let Some(induction) = self.inductions.swap_remove(&variable) else {
+            return;
+        };
+        self.inductions.entry(target).or_insert(induction);
+    }
+
     /// Return the generic parameter induced by one variable.
     pub(in crate::check) fn induction(
         &self,
@@ -427,17 +439,17 @@ impl CheckState<'_> {
             .unwrap_or_default()
     }
 
-    /// Return the innermost generic template scoping one work origin.
+    /// Return the assuming generic template carried by one work origin.
     pub(in crate::check) fn origin_scope(&self, origin: Origin) -> Option<GenericTemplateId> {
         match origin {
-            Origin::Node(node) => self
-                .modules
-                .get(&node.module_id)?
-                .node_scopes
-                .get(&node)
-                .copied(),
+            Origin::Node(_, scope) => scope,
             Origin::Symbol(symbol) => self.symbol_template(symbol),
         }
+    }
+
+    /// Return one work origin re-anchored at a node under the same assumptions.
+    pub(in crate::check) fn origin_at(&self, origin: Origin, node: dir::GlobalNodeIdAny) -> Origin {
+        Origin::Node(node, self.origin_scope(origin))
     }
 
     /// Collect one parameter's declared constraint and assumed bounds.
@@ -465,6 +477,21 @@ impl CheckState<'_> {
         origin: Origin,
         parameter: GenericParameterId,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        self.assumed_bounds(
+            origin,
+            |ty| matches!(ty, dir::Type::Parameter(subject) if *subject == parameter),
+        )
+    }
+
+    /// Collect the assumed bounds whose predicate subject matches.
+    ///
+    /// The scope chain walks enclosing templates, so work assumes its
+    /// own predicates and those of its enclosing declarations.
+    pub(in crate::check) fn assumed_bounds(
+        &self,
+        origin: Origin,
+        subject: impl Fn(&dir::Type) -> bool,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         let mut bounds = SmallVec::new();
         let mut scope = self.origin_scope(origin);
 
@@ -473,11 +500,10 @@ impl CheckState<'_> {
                 break;
             };
             for predicate in &template.predicates {
-                let subject = match self.ty(predicate.left) {
-                    Ok(dir::Type::Parameter(subject)) => subject,
-                    _ => continue,
+                let Ok(left) = self.ty(predicate.left) else {
+                    continue;
                 };
-                if subject == parameter {
+                if subject(&left) {
                     bounds.push(predicate.right);
                 }
             }

@@ -83,6 +83,7 @@ impl CheckState<'_> {
     /// Check one writable place requirement.
     pub(in crate::check) fn check_writable_place(
         &mut self,
+        origin: Origin,
         obligation: &WritablePlaceObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
         let target = &obligation.place;
@@ -92,10 +93,10 @@ impl CheckState<'_> {
             }
             dir::Storage::Field { receiver, field } => match field {
                 dir::ProjectionField::Key(_) => {
-                    self.writable_field_error(target.source, *receiver, *field)?
+                    self.writable_field_error(origin, target.source, *receiver, *field)?
                 }
                 dir::ProjectionField::Member(_) => {
-                    self.writable_field_error(target.source, *receiver, *field)?
+                    self.writable_field_error(origin, target.source, *receiver, *field)?
                 }
             },
             dir::Storage::Property { .. }
@@ -107,7 +108,7 @@ impl CheckState<'_> {
             Answer::Ready(None) => match target.mode {
                 WriteMode::Direct => Ok(Answer::Ready(None)),
                 WriteMode::StableOverwrite { receiver } => {
-                    self.stable_overwrite_error(target.source, receiver, obligation.ty)
+                    self.stable_overwrite_error(origin, target.source, receiver, obligation.ty)
                 }
             },
         }
@@ -116,15 +117,15 @@ impl CheckState<'_> {
     /// Return the diagnostic for one non-exclusive overwrite.
     fn stable_overwrite_error(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        if answer!(self.is_exclusive_receiver(Origin::Node(source), receiver)?) {
+        if answer!(self.is_exclusive_receiver(origin, receiver)?) {
             return Ok(Answer::Ready(None));
         }
 
-        let origin = Origin::Node(source);
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         if answer!(self.satisfies_auto_interface(origin, ty, AutoInterface::OverwriteStable)?) {
             return Ok(Answer::Ready(None));
@@ -242,11 +243,11 @@ impl CheckState<'_> {
     /// Return the diagnostic for one field that rejects writes.
     fn writable_field_error(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalTypeId,
         field: dir::ProjectionField,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
         let owner = answer!(self.reduce_type_head(origin, owner)?);
         let member = match field {
             dir::ProjectionField::Key(key) => self.format_static_key(&key),

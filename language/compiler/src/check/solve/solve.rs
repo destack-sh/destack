@@ -71,7 +71,7 @@ impl CheckState<'_> {
                     state.origin
                 }
                 Dependency::SymbolType(symbol) => Origin::Symbol(symbol),
-                Dependency::NodeType(node) | Dependency::Decision(node) => Origin::Node(node),
+                Dependency::NodeType(node) | Dependency::Decision(node) => Origin::Node(node, None),
             };
             if !origins.contains(&origin) {
                 origins.push(origin);
@@ -107,16 +107,16 @@ impl CheckState<'_> {
                 Origin::Symbol(_) => {
                     declared.insert(origin.module());
                 }
-                Origin::Node(node) if node.local_id.ty != dir::NodeType::Expression => {
+                Origin::Node(node, _) if node.local_id.ty != dir::NodeType::Expression => {
                     declared.insert(origin.module());
                 }
-                Origin::Node(_) => {}
+                Origin::Node(..) => {}
             }
         }
         for origin in origins {
             let expression = matches!(
                 origin,
-                Origin::Node(node) if node.local_id.ty == dir::NodeType::Expression
+                Origin::Node(node, _) if node.local_id.ty == dir::NodeType::Expression
             );
             if expression && declared.contains(&origin.module()) {
                 continue;

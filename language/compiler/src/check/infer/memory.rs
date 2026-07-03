@@ -1,5 +1,5 @@
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, FlowSite, Origin, PlaceUse, answer};
+use crate::check::{Answer, CheckState, FlowSite, PlaceUse, answer};
 use destack_dir as dir;
 
 impl CheckState<'_> {
@@ -71,7 +71,7 @@ impl CheckState<'_> {
                 value,
             }),
         )?;
-        let borrowed = answer!(self.reduce_type_head(Origin::Node(node.into_any()), borrowed)?);
+        let borrowed = answer!(self.reduce_type_head(site.origin(), borrowed)?);
         self.commit_node_type(node.into_any(), borrowed)?;
 
         Ok(Answer::Ready(()))

@@ -8,16 +8,16 @@ impl CheckState<'_> {
     /// Check whether one type satisfies one compiler-known auto interface.
     pub(in crate::check) fn check_auto_interface(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         ty: dir::GlobalTypeId,
         interface: AutoInterface,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         if answer!(self.satisfies_auto_interface(origin, ty, interface)?) {
             return Ok(Answer::Ready(None));
         }
 
+        let source = self.origin_source(origin)?;
         let (module, anchor) = self.source_anchor(source);
         let diagnostic = match interface {
             AutoInterface::DynamicSafe => {
