@@ -185,3 +185,101 @@ extension of Cell<T> {
               (member_expression
                 (this)
                 (property_identifier)))))))))
+
+=======================================
+Blanket extensions
+:language(destack)
+=======================================
+
+extension<T: int> of T {
+    abs(): T {
+        this
+    }
+}
+
+extension<T> of Box<T> implements Show where T: Show {
+    show(): string {
+        `Box(${this.value.show()})`
+    }
+}
+
+extension<T: Equal> of T implements PartialEqual {
+    equal(other: T): boolean {
+        true
+    }
+}
+
+---
+
+(program
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (this))))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (implements_clause
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (template_string
+              (string_fragment)
+              (template_substitution
+                (call_expression
+                  (member_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (property_identifier))
+                  (arguments)))
+              (string_fragment)))))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (true)))))))

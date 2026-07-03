@@ -201,3 +201,140 @@ function run(): () => int32 {
             (member_expression
               (identifier)
               (property_identifier))))))))
+
+============================================================================
+Diagnostic restriction taint and derive decorators
+:language(destack)
+============================================================================
+
+@allow("no-floating-promises", {
+    if: import.meta.dev,
+    otherwise: "deny",
+    reason: "debug telemetry",
+})
+@noHeap
+@noUnsafe
+module {}
+
+@unsafe
+declare function read<T>(pointer: *T): ^T;
+
+@safe
+function get<T>(items: Slice<T>, index: usize): T {
+    if (index >= items.length) {
+        panic("index out of bounds");
+    }
+
+    return items.unsafeGet(index);
+}
+
+@derive(Clone, Debug)
+struct User {
+    id: UserId;
+    name: string;
+}
+
+---
+
+(program
+  (module_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))
+          (object
+            (pair
+              (property_identifier)
+              (member_expression
+                (meta_property)
+                (property_identifier)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))))))
+    (decorator
+      (identifier))
+    (decorator
+      (identifier))
+    (statement_block))
+  (declare_function_signature
+    (decorator
+      (identifier))
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (memory_type
+            (type_identifier)))))
+    (type_annotation
+      (memory_type
+        (type_identifier))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (if_statement
+        (binary_expression
+          (identifier)
+          (member_expression
+            (identifier)
+            (property_identifier)))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (arguments
+                (string
+                  (string_fragment)))))))
+      (return_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (identifier))))))
+  (struct_declaration
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (identifier)
+          (identifier))))
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type))))))

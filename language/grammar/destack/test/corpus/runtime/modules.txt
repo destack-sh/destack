@@ -224,3 +224,180 @@ module {
         (variable_declarator
           (identifier)
           (number))))))
+
+==========================
+Import meta conditions
+:language(destack)
+==========================
+
+function getRenderer(): Renderer {
+    if (import.meta.features.includes("rendererv2")) {
+        return new RendererV2();
+    } else {
+        return new RendererV1();
+    }
+}
+
+@if(import.meta.platform != "windows")
+export function chmod(path: string, mode: uint16): Result<void, IOError> {
+    return fs.chmod(path, mode);
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (if_statement
+        (call_expression
+          (member_expression
+            (member_expression
+              (meta_property)
+              (property_identifier))
+            (property_identifier))
+          (arguments
+            (string
+              (string_fragment))))
+        (statement_block
+          (return_statement
+            (new_expression
+              (identifier)
+              (arguments))))
+        (else_clause
+          (statement_block
+            (return_statement
+              (new_expression
+                (identifier)
+                (arguments))))))))
+  (static_if_statement
+    (static_if_guard
+      (binary_expression
+        (member_expression
+          (meta_property)
+          (property_identifier))
+        (string
+          (string_fragment))))
+    (export_statement
+      (function_declaration
+        (identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (predefined_type)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (predefined_type)
+              (type_identifier))))
+        (statement_block
+          (return_statement
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (identifier)
+                (identifier)))))))))
+
+==========================
+Data text and binary modules
+:language(destack)
+==========================
+
+import config from "./config.json";
+import README from "./README.md";
+import icon from "./icon.png";
+
+config.server.port satisfies 8080;
+README satisfies string;
+icon satisfies uint8[];
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment)))
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment)))
+  (value_satisfies_statement
+    (member_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (property_identifier))
+    (literal_type
+      (number)))
+  (value_satisfies_statement
+    (identifier)
+    (predefined_type))
+  (value_satisfies_statement
+    (identifier)
+    (array_type
+      (type_identifier))))
+
+==========================
+Loader import attributes
+:language(destack)
+==========================
+
+import dataJson from "./data.toml" with { type: "json" };
+import dataRaw from "./data.json" with { type: "text" };
+import dataBytes from "./file.txt" with { type: "binary" };
+
+---
+
+(program
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment))
+    (import_attribute
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment))
+    (import_attribute
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment))))))
+  (import_statement
+    (import_clause
+      (identifier))
+    (string
+      (string_fragment))
+    (import_attribute
+      (object
+        (pair
+          (property_identifier)
+          (string
+            (string_fragment)))))))
