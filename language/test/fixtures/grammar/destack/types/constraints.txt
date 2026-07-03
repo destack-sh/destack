@@ -11,3 +11,14 @@ function merge<T, U>(left: T, right: U): T where (T: Merge<U>, U: Clone) {
 // <- keyword.declaration.type.ds
     left.merge(right.clone())
 }
+
+// types / constraints / where equality
+function project<T, U>(): T where (
+// <- keyword.declaration.type.ds
+    T.Output == U,
+//           ^^ keyword.operator.comparison.ds
+    Box<T>.Count == SizeOf<T>(),
+//               ^^ keyword.operator.comparison.ds
+) {
+    return value;
+}
