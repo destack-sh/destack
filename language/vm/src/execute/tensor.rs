@@ -447,13 +447,13 @@ where
     let mut error = None;
 
     // fill active tensor indices directly into the destination place
-    for_each_index(&layout.shape, |output_index| {
+    for_each_index(layout.shape, |output_index| {
         if error.is_some() {
             return;
         }
 
         let destination_offset =
-            match tensor_linear_index(output_index, &layout.shape, &layout.strides) {
+            match tensor_linear_index(output_index, layout.shape, layout.strides) {
                 Ok(offset) => offset,
                 Err(current_error) => {
                     error = Some(current_error);
@@ -559,9 +559,9 @@ fn execute_tensor_binary_elements(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let left_layout = program_tensor_layout(&program, left_layout);
-    let right_layout = program_tensor_layout(&program, right_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let left_layout = program_tensor_layout(program, left_layout);
+    let right_layout = program_tensor_layout(program, right_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // execute the scalar operation on each tensor element
     store_tensor_indexed_elements(
@@ -570,9 +570,9 @@ fn execute_tensor_binary_elements(
         dest_layout,
         |activation, output_index| {
             let left_index =
-                tensor_linear_index(output_index, &left_layout.shape, &left_layout.strides)?;
+                tensor_linear_index(output_index, left_layout.shape, left_layout.strides)?;
             let right_index =
-                tensor_linear_index(output_index, &right_layout.shape, &right_layout.strides)?;
+                tensor_linear_index(output_index, right_layout.shape, right_layout.strides)?;
             let left = load_tensor_element_at(activation, left_value, left_layout, left_index)?;
             let right = load_tensor_element_at(activation, right_value, right_layout, right_index)?;
 
@@ -675,7 +675,7 @@ pub(crate) fn execute_tensor_contiguous_binary(
         kernel,
     } = record;
     let program = activation.program;
-    let layout = program_tensor_layout(&program, dest_layout);
+    let layout = program_tensor_layout(program, dest_layout);
     execute_contiguous_tensor_binary_elements(
         activation,
         (dest_offset, left_offset, right_offset),
@@ -709,8 +709,8 @@ fn execute_tensor_unary_elements(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let argument_layout = program_tensor_layout(&program, argument_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let argument_layout = program_tensor_layout(program, argument_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // execute the scalar operation on each logical tensor element
     store_tensor_indexed_elements(
@@ -720,8 +720,8 @@ fn execute_tensor_unary_elements(
         |activation, output_index| {
             let argument_index = tensor_linear_index(
                 output_index,
-                &argument_layout.shape,
-                &argument_layout.strides,
+                argument_layout.shape,
+                argument_layout.strides,
             )?;
             let value = load_tensor_element_at(
                 activation,
@@ -1758,7 +1758,7 @@ pub(crate) fn execute_tensor_contiguous_unary(
         kernel,
     } = record;
     let program = activation.program;
-    let layout = program_tensor_layout(&program, dest_layout);
+    let layout = program_tensor_layout(program, dest_layout);
     execute_contiguous_tensor_unary_elements(
         activation,
         (dest_offset, argument_offset),
@@ -1781,7 +1781,7 @@ pub(crate) fn execute_tensor_splat(
 
     // resolve lowered tensor descriptor
     let program = activation.program;
-    let layout = program_tensor_layout(&program, layout);
+    let layout = program_tensor_layout(program, layout);
     let value = activation.load_cell_at(value);
 
     // store the same value into each active index
@@ -1808,12 +1808,12 @@ pub(crate) fn execute_tensor_extract(
 
     // resolve lowered tensor descriptor
     let program = activation.program;
-    let layout = program_tensor_layout(&program, tensor_layout_id);
+    let layout = program_tensor_layout(program, tensor_layout_id);
 
     // resolve indices
-    let index_values = program_frame_offsets(&program, indices);
+    let index_values = program_frame_offsets(program, indices);
     let index = tensor_index_values(activation, index_values)?;
-    let element_index = tensor_linear_index(&index, &layout.shape, &layout.strides)?;
+    let element_index = tensor_linear_index(&index, layout.shape, layout.strides)?;
 
     // load the tensor value
     let tensor_value = tensor_value(activation, tensor_offset);
@@ -1977,16 +1977,16 @@ where
     O: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
     S: FnMut(&mut Activation<'_>, Cell, Projection, Cell) -> Result<(), Error>,
 {
-    let span_len = tensor_element_span_len(&layout.shape, strides)?;
+    let span_len = tensor_element_span_len(layout.shape, strides)?;
     let mut error = None;
 
     // write each logical element through the selected concrete accessor
-    for_each_index(&layout.shape, |index| {
+    for_each_index(layout.shape, |index| {
         if error.is_some() {
             return;
         }
 
-        let offset = match tensor_linear_index(index, &layout.shape, strides) {
+        let offset = match tensor_linear_index(index, layout.shape, strides) {
             Ok(offset) => offset,
             Err(current_error) => {
                 error = Some(current_error);
@@ -2035,24 +2035,24 @@ where
     L: FnMut(&mut Activation<'_>, Cell, Projection) -> Result<Cell, Error>,
     S: FnMut(&mut Activation<'_>, Cell, Projection, Cell) -> Result<(), Error>,
 {
-    let target_span_len = tensor_element_span_len(&target_layout.shape, target_strides)?;
-    let source_span_len = tensor_element_span_len(&source_layout.shape, source_strides)?;
+    let target_span_len = tensor_element_span_len(target_layout.shape, target_strides)?;
+    let source_span_len = tensor_element_span_len(source_layout.shape, source_strides)?;
     let mut error = None;
 
     // copy each logical element through the selected concrete accessors
-    for_each_index(&target_layout.shape, |index| {
+    for_each_index(target_layout.shape, |index| {
         if error.is_some() {
             return;
         }
 
-        let target_index = match tensor_linear_index(index, &target_layout.shape, target_strides) {
+        let target_index = match tensor_linear_index(index, target_layout.shape, target_strides) {
             Ok(offset) => offset,
             Err(current_error) => {
                 error = Some(current_error);
                 return;
             }
         };
-        let source_index = match tensor_linear_index(index, &source_layout.shape, source_strides) {
+        let source_index = match tensor_linear_index(index, source_layout.shape, source_strides) {
             Ok(offset) => offset,
             Err(current_error) => {
                 error = Some(current_error);
@@ -2114,10 +2114,10 @@ pub(crate) fn execute_tensor_view_cast(
     } = record;
 
     let program = activation.program;
-    let layout = program_tensor_layout(&program, view_layout);
+    let layout = program_tensor_layout(program, view_layout);
     let pointer = activation.load_cell_at(pointer_offset);
 
-    store_tensor_view_descriptor(activation, dest_offset, pointer, &layout.strides)
+    store_tensor_view_descriptor(activation, dest_offset, pointer, layout.strides)
 }
 
 /// Execute tensor.load.
@@ -2138,12 +2138,12 @@ pub(crate) fn execute_tensor_load(
 
     // compute the logical element offset
     let program = activation.program;
-    let layout = program_tensor_layout(&program, view_layout);
-    let index_values = program_frame_offsets(&program, indices);
+    let layout = program_tensor_layout(program, view_layout);
+    let index_values = program_frame_offsets(program, indices);
     let index = tensor_index_values(activation, index_values)?;
     let strides = load_tensor_view_strides(activation, view_offset, layout)?;
-    let span_len = tensor_element_span_len(&layout.shape, &strides)?;
-    let offset = tensor_linear_index(&index, &layout.shape, &strides)?;
+    let span_len = tensor_element_span_len(layout.shape, &strides)?;
+    let offset = tensor_linear_index(&index, layout.shape, &strides)?;
 
     // load through the concrete memory accessors selected by lower
     let view_value = load_tensor_view_pointer(activation, view_offset);
@@ -2174,12 +2174,12 @@ pub(crate) fn execute_tensor_store(
 
     // compute the logical element offset
     let program = activation.program;
-    let layout = program_tensor_layout(&program, view_layout);
-    let index_values = program_frame_offsets(&program, indices);
+    let layout = program_tensor_layout(program, view_layout);
+    let index_values = program_frame_offsets(program, indices);
     let index = tensor_index_values(activation, index_values)?;
     let strides = load_tensor_view_strides(activation, view_offset, layout)?;
-    let span_len = tensor_element_span_len(&layout.shape, &strides)?;
-    let offset = tensor_linear_index(&index, &layout.shape, &strides)?;
+    let span_len = tensor_element_span_len(layout.shape, &strides)?;
+    let offset = tensor_linear_index(&index, layout.shape, &strides)?;
 
     // store through the concrete memory accessors selected by lower
     let view_value = load_tensor_view_pointer(activation, view_offset);
@@ -2209,7 +2209,7 @@ pub(crate) fn execute_tensor_fill(
 
     // resolve the repeated value and base view once
     let program = activation.program;
-    let layout = program_tensor_layout(&program, view_layout);
+    let layout = program_tensor_layout(program, view_layout);
     let fill_value = activation.load_cell_at(value_offset);
     let strides = load_tensor_view_strides(activation, view_offset, layout)?;
     let base_pointer = load_tensor_view_pointer(activation, view_offset);
@@ -2302,8 +2302,8 @@ pub(crate) fn execute_tensor_copy(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let target_layout = program_tensor_layout(&program, target_layout);
-    let source_layout = program_tensor_layout(&program, source_layout);
+    let target_layout = program_tensor_layout(program, target_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
 
     // require identical logical shapes
     if target_layout.shape != source_layout.shape {
@@ -2368,11 +2368,11 @@ pub(crate) fn execute_tensor_reshape(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // compute expected element count from shape values when provided
-    let shape_values = program_frame_offsets(&program, shape);
+    let shape_values = program_frame_offsets(program, shape);
     let mut shape_len = 1u64;
     for offset in shape_values {
         let value = activation.load_cell_at(*offset);
@@ -2418,11 +2418,11 @@ pub(crate) fn execute_tensor_broadcast(
         dest_layout,
     } = *activation.side::<TensorBroadcast>(instruction);
     let program = activation.program;
-    let dimensions = program_frame_offsets(&program, dimensions);
+    let dimensions = program_frame_offsets(program, dimensions);
 
     // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // validate dimension mapping
     if dimensions.len() != source_layout.shape.len() {
@@ -2449,7 +2449,7 @@ pub(crate) fn execute_tensor_broadcast(
             }
 
             let source_offset =
-                tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
+                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
 
             load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
@@ -2473,11 +2473,11 @@ pub(crate) fn execute_tensor_transpose(
         dest_layout,
     } = record;
     let program = activation.program;
-    let permutation = program_frame_offsets(&program, permutation);
+    let permutation = program_frame_offsets(program, permutation);
 
     // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // validate permutation
     if permutation.len() != source_layout.shape.len() {
@@ -2502,7 +2502,7 @@ pub(crate) fn execute_tensor_transpose(
             }
 
             let source_offset =
-                tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
+                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
 
             load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
@@ -2531,11 +2531,11 @@ pub(crate) fn execute_tensor_slice(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // resolve arguments
-    let args = program_frame_offsets(&program, arguments);
+    let args = program_frame_offsets(program, arguments);
     let (offset_values, rest) = args.split_at(offsets_count.into());
     let (size_values, stride_values) = rest.split_at(sizes_count.into());
     if stride_values.len() != usize::from(strides_count) {
@@ -2597,7 +2597,7 @@ pub(crate) fn execute_tensor_slice(
             }
 
             let source_offset =
-                tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
+                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
 
             load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
@@ -2627,11 +2627,11 @@ pub(crate) fn execute_tensor_pad(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // resolve arguments
-    let args = program_frame_offsets(&program, arguments);
+    let args = program_frame_offsets(program, arguments);
     let (low_values, rest) = args.split_at(low_count.into());
     let (high_values, interior_values) = rest.split_at(high_count.into());
     if interior_values.len() != usize::from(interior_count) {
@@ -2696,7 +2696,7 @@ pub(crate) fn execute_tensor_pad(
             }
 
             let source_offset =
-                tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
+                tensor_linear_index(&input_index, source_layout.shape, source_layout.strides)?;
 
             load_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
@@ -2720,13 +2720,13 @@ pub(crate) fn execute_tensor_concat(
         dest_layout,
     } = record;
     let program = activation.program;
-    let tensor_layouts = program_frame_offsets(&program, tensor_layouts);
+    let tensor_layouts = program_frame_offsets(program, tensor_layouts);
 
     // resolve lowered tensor descriptor
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // resolve input tensors
-    let tensor_offsets = program_frame_offsets(&program, tensors);
+    let tensor_offsets = program_frame_offsets(program, tensors);
     // validate input tables
     if tensor_offsets.len() != tensor_layouts.len() {
         return Err(Error::invalid_instruction());
@@ -2735,7 +2735,7 @@ pub(crate) fn execute_tensor_concat(
     let mut axis_sizes = Vec::with_capacity(tensor_offsets.len());
     for (offset, layout) in tensor_offsets.iter().zip(tensor_layouts.iter()) {
         let value = tensor_value(activation, *offset);
-        let layout = program_tensor_layout(&program, TensorLayoutId(*layout));
+        let layout = program_tensor_layout(program, TensorLayoutId(*layout));
         let axis_index = axis as usize;
         if axis_index >= layout.shape.len() {
             return Err(Error::invalid_instruction());
@@ -2778,7 +2778,7 @@ pub(crate) fn execute_tensor_concat(
             input_index[axis_index] = local_axis;
             let (tensor_value, layout) = inputs[input_idx];
 
-            let source_offset = tensor_linear_index(&input_index, &layout.shape, &layout.strides)?;
+            let source_offset = tensor_linear_index(&input_index, layout.shape, layout.strides)?;
 
             load_tensor_element_at(activation, tensor_value, layout, source_offset)
         },
@@ -2815,18 +2815,18 @@ fn execute_tensor_reduce_elements(
         kernel: _,
     } = record;
     let program = activation.program;
-    let axes = program_frame_offsets(&program, axes);
+    let axes = program_frame_offsets(program, axes);
 
     // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
     let element_layout = source_layout.entry.element_layout;
 
     // resolve source tensor
     let tensor_value = tensor_value(activation, tensor_offset);
     let init_value = activation.load_cell_at(initial_offset);
-    let reduction = tensor_reduction(&source_layout.shape, axes)?;
-    if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
+    let reduction = tensor_reduction(source_layout.shape, axes)?;
+    if dest_layout.shape != reduction.output_shape.as_slice() {
         return Err(Error::invalid_instruction());
     }
     let mut source_index = vec![0u64; source_layout.shape.len()];
@@ -2866,8 +2866,8 @@ fn execute_tensor_reduce_elements(
 
                 let source_offset = match tensor_linear_index(
                     &source_index,
-                    &source_layout.shape,
-                    &source_layout.strides,
+                    source_layout.shape,
+                    source_layout.strides,
                 ) {
                     Ok(offset) => offset,
                     Err(error) => {
@@ -2989,17 +2989,17 @@ pub(crate) fn execute_tensor_index_reduce(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
     let element_layout = source_layout.entry.element_layout;
 
     // resolve reduced shape
     let tensor_value = tensor_value(activation, tensor_offset);
-    let reduction = tensor_reduction(&source_layout.shape, &axes)?;
+    let reduction = tensor_reduction(source_layout.shape, &axes)?;
     if reduction.element_count == 0 {
         return Err(Error::invalid_instruction());
     }
-    if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
+    if dest_layout.shape != reduction.output_shape.as_slice() {
         return Err(Error::invalid_instruction());
     }
     if !tensor_index_layout_can_store(dest_layout.entry.element_layout, reduction.element_count) {
@@ -3043,8 +3043,8 @@ pub(crate) fn execute_tensor_index_reduce(
 
                 let source_offset = match tensor_linear_index(
                     &source_index,
-                    &source_layout.shape,
-                    &source_layout.strides,
+                    source_layout.shape,
+                    source_layout.strides,
                 ) {
                     Ok(offset) => offset,
                     Err(error) => {
@@ -3175,9 +3175,9 @@ pub(crate) fn execute_tensor_dot(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let left_layout = program_tensor_layout(&program, left_layout);
-    let right_layout = program_tensor_layout(&program, right_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let left_layout = program_tensor_layout(program, left_layout);
+    let right_layout = program_tensor_layout(program, right_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // resolve source tensors
     let left_value = tensor_value(activation, left_offset);
@@ -3199,10 +3199,10 @@ pub(crate) fn execute_tensor_dot(
     }
 
     // compute axis sets
-    let lhs_batch = program_tensor_u32_range(&program, dimensions.lhs_batch);
-    let rhs_batch = program_tensor_u32_range(&program, dimensions.rhs_batch);
-    let lhs_contract = program_tensor_u32_range(&program, dimensions.lhs_contracting);
-    let rhs_contract = program_tensor_u32_range(&program, dimensions.rhs_contracting);
+    let lhs_batch = program_tensor_u32_range(program, dimensions.lhs_batch);
+    let rhs_batch = program_tensor_u32_range(program, dimensions.rhs_batch);
+    let lhs_contract = program_tensor_u32_range(program, dimensions.lhs_contracting);
+    let rhs_contract = program_tensor_u32_range(program, dimensions.rhs_contracting);
     if lhs_batch.len() != rhs_batch.len() || lhs_contract.len() != rhs_contract.len() {
         return Err(Error::invalid_instruction());
     }
@@ -3265,7 +3265,7 @@ pub(crate) fn execute_tensor_dot(
                 }
 
                 let lhs_offset =
-                    match tensor_linear_index(&lhs_index, &left_layout.shape, &left_layout.strides)
+                    match tensor_linear_index(&lhs_index, left_layout.shape, left_layout.strides)
                     {
                         Ok(offset) => offset,
                         Err(error) => {
@@ -3275,8 +3275,8 @@ pub(crate) fn execute_tensor_dot(
                     };
                 let rhs_offset = match tensor_linear_index(
                     &rhs_index,
-                    &right_layout.shape,
-                    &right_layout.strides,
+                    right_layout.shape,
+                    right_layout.strides,
                 ) {
                     Ok(offset) => offset,
                     Err(error) => {
@@ -3357,24 +3357,24 @@ pub(crate) fn execute_tensor_convolution(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let input_layout = program_tensor_layout(&program, input_layout);
-    let kernel_layout = program_tensor_layout(&program, kernel_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let input_layout = program_tensor_layout(program, input_layout);
+    let kernel_layout = program_tensor_layout(program, kernel_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // resolve source tensors
     let input_value = tensor_value(activation, input_offset);
     let kernel_value = tensor_value(activation, kernel_offset);
 
     // derive dimension mappings
-    let input_spatial = program_tensor_u32_range(&program, dimensions.input_spatial);
-    let output_spatial = program_tensor_u32_range(&program, dimensions.output_spatial);
-    let kernel_spatial = program_tensor_u32_range(&program, dimensions.kernel_spatial);
-    let strides = program_tensor_u64_range(&program, window.strides);
-    let padding_low = program_tensor_u64_range(&program, window.padding_low);
-    let padding_high = program_tensor_u64_range(&program, window.padding_high);
-    let lhs_dilation = program_tensor_u64_range(&program, window.lhs_dilation);
-    let rhs_dilation = program_tensor_u64_range(&program, window.rhs_dilation);
-    let window_reversal = program_tensor_flag_range(&program, window.window_reversal);
+    let input_spatial = program_tensor_u32_range(program, dimensions.input_spatial);
+    let output_spatial = program_tensor_u32_range(program, dimensions.output_spatial);
+    let kernel_spatial = program_tensor_u32_range(program, dimensions.kernel_spatial);
+    let strides = program_tensor_u64_range(program, window.strides);
+    let padding_low = program_tensor_u64_range(program, window.padding_low);
+    let padding_high = program_tensor_u64_range(program, window.padding_high);
+    let lhs_dilation = program_tensor_u64_range(program, window.lhs_dilation);
+    let rhs_dilation = program_tensor_u64_range(program, window.rhs_dilation);
+    let window_reversal = program_tensor_flag_range(program, window.window_reversal);
     let spatial_rank = input_spatial.len();
     if output_spatial.len() != spatial_rank || kernel_spatial.len() != spatial_rank {
         return Err(Error::invalid_instruction());
@@ -3522,8 +3522,8 @@ pub(crate) fn execute_tensor_convolution(
 
                     let input_offset = match tensor_linear_index(
                         &input_index,
-                        &input_layout.shape,
-                        &input_layout.strides,
+                        input_layout.shape,
+                        input_layout.strides,
                     ) {
                         Ok(offset) => offset,
                         Err(error) => {
@@ -3533,8 +3533,8 @@ pub(crate) fn execute_tensor_convolution(
                     };
                     let kernel_offset = match tensor_linear_index(
                         &kernel_index,
-                        &kernel_layout.shape,
-                        &kernel_layout.strides,
+                        kernel_layout.shape,
+                        kernel_layout.strides,
                     ) {
                         Ok(offset) => offset,
                         Err(error) => {
@@ -3618,18 +3618,18 @@ pub(crate) fn execute_tensor_gather(
     } = record;
     let dimensions = activation.tensor_gather(dimensions);
     let program = activation.program;
-    let slice_sizes = program_frame_offsets(&program, slice_sizes);
+    let slice_sizes = program_frame_offsets(program, slice_sizes);
 
     // resolve lowered tensor descriptors
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let indices_layout = program_tensor_layout(&program, indices_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let indices_layout = program_tensor_layout(program, indices_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
     // resolve tensors
     let source_value = tensor_value(activation, source_offset);
     let indices_value = tensor_value(activation, indices_offset);
-    let offset_dims = program_tensor_u32_range(&program, dimensions.offset_dims);
-    let collapsed_slice_dims = program_tensor_u32_range(&program, dimensions.collapsed_slice_dims);
-    let start_index_map = program_tensor_u32_range(&program, dimensions.start_index_map);
+    let offset_dims = program_tensor_u32_range(program, dimensions.offset_dims);
+    let collapsed_slice_dims = program_tensor_u32_range(program, dimensions.collapsed_slice_dims);
+    let start_index_map = program_tensor_u32_range(program, dimensions.start_index_map);
     let offset_dims: HashSet<u32> = offset_dims.iter().copied().collect();
     let collapsed_dims: HashSet<u32> = collapsed_slice_dims.iter().copied().collect();
 
@@ -3662,8 +3662,8 @@ pub(crate) fn execute_tensor_gather(
 
             let index_offset = tensor_linear_index(
                 &indices_index,
-                &indices_layout.shape,
-                &indices_layout.strides,
+                indices_layout.shape,
+                indices_layout.strides,
             )?;
             let index_base = index_offset;
             for (i, &_map_dim) in start_index_map.iter().enumerate() {
@@ -3710,7 +3710,7 @@ pub(crate) fn execute_tensor_gather(
             }
 
             let source_offset =
-                tensor_linear_index(&source_index, &source_layout.shape, &source_layout.strides)?;
+                tensor_linear_index(&source_index, source_layout.shape, source_layout.strides)?;
 
             load_tensor_element_at(activation, source_value, source_layout, source_offset)
         },
@@ -3754,10 +3754,10 @@ fn execute_tensor_scatter_elements(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let indices_layout = program_tensor_layout(&program, indices_layout);
-    let updates_layout = program_tensor_layout(&program, updates_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let indices_layout = program_tensor_layout(program, indices_layout);
+    let updates_layout = program_tensor_layout(program, updates_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     // resolve tensors
     let source_value = tensor_value(activation, source_offset);
@@ -3773,16 +3773,16 @@ fn execute_tensor_scatter_elements(
         },
     )?;
     let result = tensor_value(activation, dest_offset);
-    let update_window_dims = program_tensor_u32_range(&program, dimensions.update_window_dims);
-    let inserted_window_dims = program_tensor_u32_range(&program, dimensions.inserted_window_dims);
+    let update_window_dims = program_tensor_u32_range(program, dimensions.update_window_dims);
+    let inserted_window_dims = program_tensor_u32_range(program, dimensions.inserted_window_dims);
     let scatter_dims_to_operand_dims =
-        program_tensor_u32_range(&program, dimensions.scatter_dims_to_operand_dims);
+        program_tensor_u32_range(program, dimensions.scatter_dims_to_operand_dims);
     let update_window_dims: HashSet<u32> = update_window_dims.iter().copied().collect();
     let inserted_window_dims: HashSet<u32> = inserted_window_dims.iter().copied().collect();
     let mut scatter_error = None;
 
     // scatter updates
-    for_each_index(&updates_layout.shape, |update_index| {
+    for_each_index(updates_layout.shape, |update_index| {
         if scatter_error.is_some() {
             return;
         }
@@ -3810,8 +3810,8 @@ fn execute_tensor_scatter_elements(
 
         let index_offset = tensor_linear_index(
             &indices_index,
-            &indices_layout.shape,
-            &indices_layout.strides,
+            indices_layout.shape,
+            indices_layout.strides,
         );
         let Ok(index_offset) = index_offset else {
             scatter_error = Some(Error::invalid_instruction());
@@ -3855,13 +3855,13 @@ fn execute_tensor_scatter_elements(
         }
 
         let destination_offset =
-            tensor_linear_index(&source_index, &dest_layout.shape, &dest_layout.strides);
+            tensor_linear_index(&source_index, dest_layout.shape, dest_layout.strides);
         let Ok(destination_offset) = destination_offset else {
             scatter_error = Some(Error::invalid_instruction());
             return;
         };
         let update_offset =
-            tensor_linear_index(update_index, &updates_layout.shape, &updates_layout.strides);
+            tensor_linear_index(update_index, updates_layout.shape, updates_layout.strides);
         let Ok(update_offset) = update_offset else {
             scatter_error = Some(Error::invalid_instruction());
             return;
@@ -3958,8 +3958,8 @@ fn execute_tensor_convert_elements(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let source_layout = program_tensor_layout(&program, source_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let source_layout = program_tensor_layout(program, source_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     let tensor_value = tensor_value(activation, tensor_offset);
     if source_layout.element_span_len() != dest_layout.element_span_len() {
@@ -4022,10 +4022,10 @@ pub(crate) fn execute_tensor_select(
 
     // resolve lowered tensor descriptors
     let program = activation.program;
-    let mask_layout = program_tensor_layout(&program, mask_layout);
-    let then_layout = program_tensor_layout(&program, then_layout);
-    let else_layout = program_tensor_layout(&program, else_layout);
-    let dest_layout = program_tensor_layout(&program, dest_layout);
+    let mask_layout = program_tensor_layout(program, mask_layout);
+    let then_layout = program_tensor_layout(program, then_layout);
+    let else_layout = program_tensor_layout(program, else_layout);
+    let dest_layout = program_tensor_layout(program, dest_layout);
 
     let mask_value = tensor_value(activation, mask_offset);
     let then_value = tensor_value(activation, then_offset);
@@ -4175,11 +4175,11 @@ pub(crate) fn execute_tensor_view(
         }
     }
 
-    let offset = tensor_linear_index(&offsets, &source_layout.shape, &source_strides)?;
+    let offset = tensor_linear_index(&offsets, source_layout.shape, &source_strides)?;
 
     let view_value = load_tensor_view_pointer(activation, *view_offset);
     let element = activation.projection(*element);
-    let source_span_len = tensor_element_span_len(&source_layout.shape, &source_strides)?;
+    let source_span_len = tensor_element_span_len(source_layout.shape, &source_strides)?;
     let pointer =
         offset_tensor_view_pointer(view_value, element, offset, source_span_len, *address)?;
 

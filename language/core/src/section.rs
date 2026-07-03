@@ -978,7 +978,7 @@ impl SectionPacker {
         debug_assert!(mem::align_of::<T>() <= SECTION_TABLE_ALIGNMENT_BYTES);
 
         let entries = entries.as_ref();
-        let byte_len = entries.len() * mem::size_of::<T>();
+        let byte_len = mem::size_of_val(entries);
         let alignment = mem::align_of::<T>().max(1);
         let byte_offset = align_usize(self.directory.table_byte_len as usize, alignment);
 

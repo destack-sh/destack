@@ -73,7 +73,7 @@ impl TestHeapPlan for HeapStorage {
                 self.small.span_size_bytes,
             )
         };
-        let plan = AllocationPlan::new(&shape, class);
+        let plan = AllocationPlan::new(shape, class);
 
         plan.allocation(&shape.trace_map)
     }

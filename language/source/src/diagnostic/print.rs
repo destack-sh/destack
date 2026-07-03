@@ -297,6 +297,20 @@ fn color_bold(options: &PrintOptions, color: Color, text: &str) -> String {
     }
 }
 
+fn write_line(options: &PrintOptions, line: &str) {
+    if let Some(writer) = &options.line_writer {
+        writer(line);
+    } else {
+        eprintln!("{line}");
+    }
+}
+
+fn write_block(options: &PrintOptions, block: &str) {
+    for line in block.split('\n') {
+        write_line(options, line);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
@@ -389,19 +403,5 @@ mod tests {
             "+   1│ const value = 1;\n",
         );
         assert_eq!(rendered, expected);
-    }
-}
-
-fn write_line(options: &PrintOptions, line: &str) {
-    if let Some(writer) = &options.line_writer {
-        writer(line);
-    } else {
-        eprintln!("{line}");
-    }
-}
-
-fn write_block(options: &PrintOptions, block: &str) {
-    for line in block.split('\n') {
-        write_line(options, line);
     }
 }
