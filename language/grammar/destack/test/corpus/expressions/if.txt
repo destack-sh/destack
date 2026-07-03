@@ -271,3 +271,41 @@ if (let 1 | 2 = value) {
           (identifier)
           (literal_type
             (number)))))))
+
+==========================================
+If let chains combine boolean conditions
+:language(destack)
+==========================================
+
+if (ready && let Result.Ok(value)! = result && value.valid) {
+    use(value);
+}
+
+---
+
+(program
+  (if_statement
+    condition: (if_let_chain
+      left: (identifier)
+      right: (if_let_chain
+        left: (if_let_condition
+          left: (if_let_pattern
+            (match_pattern
+              (must_pattern
+                argument: (match_pattern
+                  (match_constructor_pattern
+                    name: (nested_identifier
+                      object: (identifier)
+                      property: (property_identifier))
+                    (match_pattern
+                      (identifier)))))))
+          right: (identifier))
+        right: (member_expression
+          object: (identifier)
+          property: (property_identifier))))
+    consequence: (statement_block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (arguments
+            (identifier)))))))

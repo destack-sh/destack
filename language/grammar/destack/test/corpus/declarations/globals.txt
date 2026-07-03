@@ -34,6 +34,7 @@ shared const registry = new Registry();
 
 (program
   (shared_lexical_declaration
+    (placement_modifier)
     (lexical_declaration
       (variable_declarator
         (identifier)

@@ -126,3 +126,112 @@ clone<Readable>(value);
         (type_identifier))
       (arguments
         (identifier)))))
+
+==========================================================
+Where accepts equality constraints
+:language(destack)
+==========================================================
+
+function project<T, U>(): T where T.Output == U {
+    return value;
+}
+
+function projectBox<T, U>(): T where Box<T>.Output == U {
+    return value;
+}
+
+function projectThis<T, U>(): T where this.Output == U {
+    return value;
+}
+
+function projectSize<T, U>(): T where T.Output == SizeOf<T>() {
+    return value;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (associated_type_projection
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))
+          (type_identifier))
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (associated_type_projection
+          (this_type)
+          (type_identifier))
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (static_value_argument
+          (call_expression
+            (identifier)
+            (type_arguments
+              (type_identifier))
+            (arguments)))))
+    (statement_block
+      (return_statement
+        (identifier)))))

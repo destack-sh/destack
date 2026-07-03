@@ -230,6 +230,53 @@ type T<X> = T extends { x: infer X extends number } ? X : never;
       (type_identifier)
       (predefined_type))))
 
+==================================
+Static conditional types
+:language(destack)
+==================================
+
+type InlineValue<comptime Mode: string> = Mode == "inline" ? Inline : Outlined;
+type Receiver<T> = PlaceOf<T> == "shared" ? SharedReceiver<T> : LocalReceiver<T>;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (predefined_type))))
+    (static_conditional_type
+      (static_comparison
+        (identifier)
+        (string
+          (string_fragment)))
+      (type_identifier)
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (static_conditional_type
+      (static_comparison
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier)))
+        (string
+          (string_fragment)))
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)))
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))))
+
 =========================
 Indexed Access Precedence
 :language(destack)
