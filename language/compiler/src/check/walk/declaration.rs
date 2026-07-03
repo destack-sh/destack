@@ -332,13 +332,19 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // nominal values bind `this` to their own declaration
+        let receiver = match declaration.is_nominal {
+            true => Some(self.nominal_receiver(symbol)?),
+            false => None,
+        };
+        let _receiver = receiver.map(|receiver| self.enter_receiver_scope(Some(receiver)));
+
         // walk the written value
         let value = self.walk_type_expression(declaration.value)?;
         self.push_type_induction_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
-        let definition = if declaration.is_nominal {
-            let receiver = self.nominal_receiver(symbol)?;
+        let definition = if let Some(receiver) = receiver {
             let members = self.walk_tagged_variant_members(source, symbol, receiver.ty, value)?;
 
             dir::Definition::Newtype(dir::NewtypeDefinition {

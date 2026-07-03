@@ -17,4 +17,3 @@ mod union;
 
 pub(in crate::check) use generic::GenericPosition;
 pub(in crate::check) use rewrite::TypeSubstitution;
-pub(in crate::check) use scalar::ScalarFamily;

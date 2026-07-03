@@ -368,6 +368,7 @@ impl WalkState<'_, '_> {
                     owner,
                     key: dir::StaticKey::Name(*name),
                     arguments: dir::TypeListId::EMPTY,
+                    qualifier: None,
                 });
                 let ty = self.intern_type(member)?;
 

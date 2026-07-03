@@ -33,8 +33,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let id = self.settled_root(id)?;
 
+        // key parameter reductions by their assuming scope
+        let scope = match self.type_flags(id)?.has_parameter() {
+            true => self.origin_scope(origin),
+            false => None,
+        };
+
         // replay memoized closed reductions
-        if let Some(reduced) = self.reduced_types.get(&id) {
+        if let Some(reduced) = self.reduced_types.get(&(id, scope)) {
             return Ok(Answer::Ready(*reduced));
         }
 
@@ -50,7 +56,7 @@ impl CheckState<'_> {
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
         {
-            self.reduced_types.insert(id, reduced);
+            self.reduced_types.insert((id, scope), reduced);
         }
 
         Ok(answer)
@@ -140,7 +146,14 @@ impl CheckState<'_> {
                 while let dir::Type::Form(form) = self.ty(owner)? {
                     owner = answer!(self.reduce_type_head(origin, form.value)?);
                 }
-                if owner != member.owner {
+                // parameter owners qualify through their unique bound
+                let mut qualifier = member.qualifier;
+                if qualifier.is_none()
+                    && let dir::Type::Parameter(parameter) = self.ty(owner)?
+                {
+                    qualifier = answer!(self.projection_qualifier(origin, parameter, member.key)?);
+                }
+                if owner != member.owner || qualifier != member.qualifier {
                     let arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
                         self.type_ids(id.module_id, member.arguments)?,
                     );
@@ -151,6 +164,7 @@ impl CheckState<'_> {
                             owner,
                             key: member.key,
                             arguments,
+                            qualifier,
                         }),
                     )?;
 

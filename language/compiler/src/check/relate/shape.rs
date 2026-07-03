@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, GenericPosition, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -668,6 +668,34 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
+        // open the source's own generics like a call site would, so
+        // generalized implementations serve every allowed invocation;
+        // polls reuse the opened source, so the solver can settle it
+        let mut source = answer!(self.reduce_type_head(origin, source)?);
+        if let dir::Type::FunctionSignature(signature) = self.ty(source)? {
+            let parameters = self.signature_generic_parameters(&signature)?;
+            if !parameters.is_empty() {
+                let scope = self.origin_scope(origin);
+                if let Some(opened) = self.opened_signatures.get(&(source, target, scope)) {
+                    source = *opened;
+                } else {
+                    let substitution = self.instantiate_generic_parameters(
+                        origin,
+                        &parameters,
+                        &[],
+                        GenericPosition::Inference,
+                    )?;
+                    if let Some(substitution) = substitution {
+                        let opened = self.substitute_type(origin.module(), source, &substitution)?;
+                        if !self.solver.is_probing() {
+                            self.opened_signatures.insert((source, target, scope), opened);
+                        }
+                        source = opened;
+                    }
+                }
+            }
+        }
+
         // collect directed comparison pairs
         let pairs = {
             let Some(pairs) =
