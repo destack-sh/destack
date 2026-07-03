@@ -203,9 +203,9 @@ export struct InputEventPointerMove {
     /// Pen state when available.
     pen?: PenState;
     /// Coalesced pointer samples.
-    coalesced: Array<PointerSample>;
+    coalesced: PointerSample[];
     /// Predicted pointer samples.
-    predicted: Array<PointerSample>;
+    predicted: PointerSample[];
 }
 
 /// Input pointer button event.
@@ -428,5 +428,5 @@ export interface InputEvent {
         events: InputEventHandle,
         maxEvents: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<InputEvent>, HostError>;
+    ): Result<InputEvent[], HostError>;
 }

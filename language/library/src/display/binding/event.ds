@@ -436,5 +436,5 @@ export interface DisplayEvent {
         events: DisplayEventHandle,
         maxEvents: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<DisplayEvent>, HostError>;
+    ): Result<DisplayEvent[], HostError>;
 }

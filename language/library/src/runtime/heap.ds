@@ -40,7 +40,7 @@ export struct HeapEdge {
 /// Heap object list page.
 export struct HeapObjectPage {
     /// Heap object records in this page.
-    objects: Array<HeapObject>;
+    objects: HeapObject[];
     /// Next object cursor when more records exist.
     next?: HeapObjectId;
 }
@@ -48,7 +48,7 @@ export struct HeapObjectPage {
 /// Heap edge list page.
 export struct HeapEdgePage {
     /// Heap edge records in this page.
-    edges: Array<HeapEdge>;
+    edges: HeapEdge[];
     /// Next edge byte offset when more records exist.
     nextOffset?: uint64;
 }

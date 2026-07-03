@@ -118,7 +118,7 @@ export struct PolicyRule {
 /// Runtime policy rule page.
 export struct PolicyRulePage {
     /// Policy rules in this page.
-    rules: Array<PolicyRule>;
+    rules: PolicyRule[];
     /// Next rule cursor when more records exist.
     next?: PolicyRuleCursor;
 }

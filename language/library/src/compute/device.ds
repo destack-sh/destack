@@ -61,7 +61,7 @@ export struct DeviceQuery {
     backend?: string;
 
     /// Required features.
-    features?: Slice<DeviceFeature>;
+    features?: [DeviceFeature];
 }
 
 /// Compute device identity and placement handle.

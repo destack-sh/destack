@@ -80,7 +80,7 @@ export struct Image {
 /// Branch list page.
 export struct BranchPage {
     /// Branch records in this page.
-    branches: Array<Branch>;
+    branches: Branch[];
     /// Next branch cursor when more records exist.
     next?: BranchId;
 }
@@ -88,7 +88,7 @@ export struct BranchPage {
 /// Revision list page.
 export struct RevisionPage {
     /// Revision records in this page.
-    revisions: Array<Revision>;
+    revisions: Revision[];
     /// Next revision cursor when more records exist.
     next?: RevisionId;
 }
@@ -96,7 +96,7 @@ export struct RevisionPage {
 /// Checkpoint list page.
 export struct CheckpointPage {
     /// Checkpoint records in this page.
-    checkpoints: Array<Checkpoint>;
+    checkpoints: Checkpoint[];
     /// Next checkpoint cursor when more records exist.
     next?: CheckpointId;
 }
@@ -104,7 +104,7 @@ export struct CheckpointPage {
 /// Image list page.
 export struct ImagePage {
     /// Image records in this page.
-    images: Array<Image>;
+    images: Image[];
     /// Next image cursor when more records exist.
     next?: ImageId;
 }

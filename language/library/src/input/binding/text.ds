@@ -240,9 +240,9 @@ export struct TextSessionEventEdit {
     /// Text payload when available.
     text?: string;
     /// Target text ranges in source order.
-    ranges: Array<TextRange>;
+    ranges: TextRange[];
     /// Clipboard item descriptors when available.
-    clipboardItems?: Array<ClipboardItem>;
+    clipboardItems?: ClipboardItem[];
     /// Drag transfer metadata when available.
     drag?: DisplayDragTransfer;
     /// Whether the edit belongs to active composition.
@@ -258,7 +258,7 @@ export struct TextSessionEventClipboard {
     /// Clipboard command.
     command: ClipboardCommand;
     /// Clipboard item descriptors when available.
-    clipboardItems?: Array<ClipboardItem>;
+    clipboardItems?: ClipboardItem[];
     /// Whether the command belongs to active composition.
     isComposing: boolean;
 }
@@ -344,5 +344,5 @@ export interface InputText {
         session: InputTextSessionHandle,
         maxEvents: uint32,
         timeoutNs?: uint64,
-    ): Result<Array<TextSessionEvent>, HostError>;
+    ): Result<TextSessionEvent[], HostError>;
 }

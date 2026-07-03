@@ -200,7 +200,7 @@ export struct WindowIcon {
     /// Pixel height.
     height: uint32;
     /// RGBA8 pixel bytes.
-    rgba: Array<uint8>;
+    rgba: uint8[];
 }
 
 /// Windowed display mode.
@@ -254,7 +254,7 @@ export struct WindowRequest {
     /// Whether the window background may be transparent.
     isTransparent: boolean;
     /// Optional window icon images.
-    icons: Array<WindowIcon>;
+    icons: WindowIcon[];
 }
 
 /// Window descriptor.

@@ -53,31 +53,31 @@ export struct CryptoStoreIdentity {
 /// Crypto provider capability.
 export struct CryptoProviderCapability {
     /// Available store kinds.
-    stores: Array<CryptoStoreKind>;
+    stores: CryptoStoreKind[];
     /// Supported key algorithms.
-    keyAlgorithms: Array<CryptoKeyAlgorithm>;
+    keyAlgorithms: CryptoKeyAlgorithm[];
     /// Supported key formats.
-    keyFormats: Array<CryptoKeyFormat>;
+    keyFormats: CryptoKeyFormat[];
     /// Supported key residencies.
-    keyResidencies: Array<CryptoKeyResidency>;
+    keyResidencies: CryptoKeyResidency[];
     /// Supported named curves.
-    curves: Array<CryptoNamedCurve>;
+    curves: CryptoNamedCurve[];
     /// Supported digest algorithms.
-    digests: Array<CryptoDigestAlgorithm>;
+    digests: CryptoDigestAlgorithm[];
     /// Supported signature algorithms.
-    signatures: Array<CryptoSignatureAlgorithm>;
+    signatures: CryptoSignatureAlgorithm[];
     /// Supported asymmetric encryption algorithms.
-    asymmetricEncryption: Array<CryptoAsymmetricEncryptionAlgorithm>;
+    asymmetricEncryption: CryptoAsymmetricEncryptionAlgorithm[];
     /// Supported key-wrap algorithms.
-    keyWrap: Array<CryptoKeyWrapAlgorithm>;
+    keyWrap: CryptoKeyWrapAlgorithm[];
     /// Supported symmetric cipher algorithms.
-    ciphers: Array<CryptoCipherAlgorithm>;
+    ciphers: CryptoCipherAlgorithm[];
     /// Supported MAC algorithms.
-    macs: Array<CryptoMacAlgorithm>;
+    macs: CryptoMacAlgorithm[];
     /// Supported KDF algorithms.
-    kdfs: Array<CryptoKdfAlgorithm>;
+    kdfs: CryptoKdfAlgorithm[];
     /// Supported key-agreement algorithms.
-    agreements: Array<CryptoKeyAgreementAlgorithm>;
+    agreements: CryptoKeyAgreementAlgorithm[];
     /// Supported key usage bits.
     keyUsages: CryptoKeyUsageFlags;
     /// Whether certificate verification is supported.
@@ -129,7 +129,7 @@ export struct CryptoKeyListEntry {
 /// Key list page.
 export struct CryptoKeyListPage {
     /// Page entries.
-    entries: Array<CryptoKeyListEntry>;
+    entries: CryptoKeyListEntry[];
     /// Continuation cursor.
     nextCursor?: string;
 }
@@ -149,7 +149,7 @@ export struct CryptoCertificateListEntry {
 /// Certificate list page.
 export struct CryptoCertificateListPage {
     /// Page entries.
-    entries: Array<CryptoCertificateListEntry>;
+    entries: CryptoCertificateListEntry[];
     /// Continuation cursor.
     nextCursor?: string;
 }

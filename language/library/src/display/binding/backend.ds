@@ -93,5 +93,5 @@ export interface DisplayBackend {
         simulation: true,
         affinity: "worker",
     })
-    listDisplayBackends(): Result<Array<DisplayBackend>, HostError>;
+    listDisplayBackends(): Result<DisplayBackend[], HostError>;
 }

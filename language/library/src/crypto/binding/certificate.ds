@@ -138,9 +138,9 @@ export struct CryptoCertificateDescriptor {
     /// Serial number string.
     serialNumber: string;
     /// Subject alternative names.
-    subjectAlternativeNames: Array<string>;
+    subjectAlternativeNames: string[];
     /// SHA-256 fingerprint bytes.
-    fingerprintSha256: Array<uint8>;
+    fingerprintSha256: uint8[];
     /// Certificate validity window.
     validity: CryptoCertificateValidity;
     /// Whether this certificate is a certificate authority.
@@ -216,7 +216,7 @@ export interface CryptoCertificate {
     exportCertificate(
         certificate: CryptoCertificateHandle,
         format: CryptoCertificateFormat,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Describe one certificate.
     @binding("destack.crypto.certificate.describe", {

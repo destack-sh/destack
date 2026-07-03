@@ -114,7 +114,7 @@ export extension<T> of Slab<T>
     }
 
     /// Return whether `key` identifies a live entry.
-    has(key: SlabKey): boolean {
+    has(key: &readonly SlabKey): boolean {
         todo("Slab.has")
     }
 

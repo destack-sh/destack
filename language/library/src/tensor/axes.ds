@@ -5,16 +5,16 @@ import { Axis } from "./shape.ds";
 /// Axis mapping for tensor dot.
 export struct DotAxes<comptime BatchCount: int, comptime ContractCount: int> {
     /// Batch axes in the left tensor.
-    leftBatch: FixedArray<Axis, BatchCount>;
+    leftBatch: [Axis; BatchCount];
 
     /// Batch axes in the right tensor.
-    rightBatch: FixedArray<Axis, BatchCount>;
+    rightBatch: [Axis; BatchCount];
 
     /// Contracted axes in the left tensor.
-    leftContract: FixedArray<Axis, ContractCount>;
+    leftContract: [Axis; ContractCount];
 
     /// Contracted axes in the right tensor.
-    rightContract: FixedArray<Axis, ContractCount>;
+    rightContract: [Axis; ContractCount];
 }
 
 /// Axis mapping for tensor convolution.
@@ -26,7 +26,7 @@ export struct ConvolutionAxes<comptime SpatialRank: int> {
     inputFeature: Axis;
 
     /// Spatial axes in the input tensor.
-    inputSpatial: FixedArray<Axis, SpatialRank>;
+    inputSpatial: [Axis; SpatialRank];
 
     /// Input feature axis in the kernel tensor.
     kernelInputFeature: Axis;
@@ -35,7 +35,7 @@ export struct ConvolutionAxes<comptime SpatialRank: int> {
     kernelOutputFeature: Axis;
 
     /// Spatial axes in the kernel tensor.
-    kernelSpatial: FixedArray<Axis, SpatialRank>;
+    kernelSpatial: [Axis; SpatialRank];
 
     /// Batch axis in the output tensor.
     outputBatch: Axis;
@@ -44,7 +44,7 @@ export struct ConvolutionAxes<comptime SpatialRank: int> {
     outputFeature: Axis;
 
     /// Spatial axes in the output tensor.
-    outputSpatial: FixedArray<Axis, SpatialRank>;
+    outputSpatial: [Axis; SpatialRank];
 }
 
 /// Axis mapping for tensor gather.
@@ -54,13 +54,13 @@ export struct GatherAxes<
     comptime StartIndexCount: int,
 > {
     /// Offset axes in the output tensor.
-    offset: FixedArray<Axis, OffsetCount>;
+    offset: [Axis; OffsetCount];
 
     /// Collapsed slice axes in the operand tensor.
-    collapsedSlice: FixedArray<Axis, CollapsedCount>;
+    collapsedSlice: [Axis; CollapsedCount];
 
     /// Mapping from index components to operand axes.
-    startIndexMap: FixedArray<Axis, StartIndexCount>;
+    startIndexMap: [Axis; StartIndexCount];
 
     /// Axis containing index vectors in the indices tensor.
     indexVector: Axis;
@@ -73,13 +73,13 @@ export struct ScatterAxes<
     comptime ScatterOperandCount: int,
 > {
     /// Window axes in the updates tensor.
-    updateWindow: FixedArray<Axis, UpdateWindowCount>;
+    updateWindow: [Axis; UpdateWindowCount];
 
     /// Inserted window axes in the operand tensor.
-    insertedWindow: FixedArray<Axis, InsertedWindowCount>;
+    insertedWindow: [Axis; InsertedWindowCount];
 
     /// Mapping from scatter index components to operand axes.
-    scatterToOperand: FixedArray<Axis, ScatterOperandCount>;
+    scatterToOperand: [Axis; ScatterOperandCount];
 
     /// Axis containing index vectors in the indices tensor.
     indexVector: Axis;

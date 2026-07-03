@@ -97,7 +97,7 @@ export interface InputSensor {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listSensors(device: InputDeviceHandle): Result<Array<Sensor>, HostError>;
+    listSensors(device: InputDeviceHandle): Result<Sensor[], HostError>;
 
     /// Set one sensor stream state.
     @binding("destack.input.sensor.stream.set", {

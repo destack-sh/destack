@@ -32,7 +32,7 @@ export interface CryptoMac {
         key: CryptoKeyHandle,
         parameters: &readonly CryptoMacParameters,
         payload: &readonly [uint8],
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Verify one message authentication code in one shot.
     @binding("destack.crypto.mac.verify", {
@@ -80,7 +80,7 @@ export interface CryptoMac {
         families: ["windows", "unix"],
         simulation: true,
     })
-    finishMac(mac: CryptoMacHandle): Result<Array<uint8>, HostError>;
+    finishMac(mac: CryptoMacHandle): Result<uint8[], HostError>;
 
     /// Close one streaming MAC context.
     @binding("destack.crypto.mac.close", {

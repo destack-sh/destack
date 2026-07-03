@@ -9,7 +9,7 @@ import { Array } from "./array.ds";
 /// A binary max-heap.
 export struct BinaryHeap<T> {
     /// The heap storage.
-    storage: Array<T>;
+    storage: T[];
 }
 
 export extension<T> of BinaryHeap<T> implements Default {

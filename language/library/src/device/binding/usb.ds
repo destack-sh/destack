@@ -252,7 +252,7 @@ export interface DeviceUsb {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listUsbDevices(): Result<Array<UsbDevice>, HostError>;
+    listUsbDevices(): Result<UsbDevice[], HostError>;
 
     /// Open a USB topology watch.
     @binding("destack.device.usb.watch.open", {
@@ -315,7 +315,7 @@ export interface DeviceUsb {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listUsbConfigurations(device: UsbDeviceHandle): Result<Array<UsbConfiguration>, HostError>;
+    listUsbConfigurations(device: UsbDeviceHandle): Result<UsbConfiguration[], HostError>;
 
     /// Read the active USB configuration.
     @binding("destack.device.usb.configuration.get", {
@@ -345,7 +345,7 @@ export interface DeviceUsb {
     listUsbInterfaces(
         device: UsbDeviceHandle,
         configuration: uint8,
-    ): Result<Array<UsbInterface>, HostError>;
+    ): Result<UsbInterface[], HostError>;
 
     /// Claim a USB interface.
     @binding("destack.device.usb.interface.claim", {
@@ -389,7 +389,7 @@ export interface DeviceUsb {
         device: UsbDeviceHandle,
         interfaceNumber: uint8,
         alternateSetting: uint8,
-    ): Result<Array<UsbEndpoint>, HostError>;
+    ): Result<UsbEndpoint[], HostError>;
 
     /// Clear one halted USB endpoint.
     @binding("destack.device.usb.endpoint.clearHalt", {

@@ -149,7 +149,7 @@ export interface GpuDevice {
         families: ["windows", "unix"],
         simulation: true,
     })
-    readDeviceFeatures(device: GpuDeviceHandle): Result<Array<GpuFeatureId>, HostError>;
+    readDeviceFeatures(device: GpuDeviceHandle): Result<GpuFeatureId[], HostError>;
 
     /// Read a device limits snapshot.
     @binding("destack.gpu.device.limits.read", {

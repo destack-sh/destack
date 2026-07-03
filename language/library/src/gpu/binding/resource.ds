@@ -782,7 +782,7 @@ export interface GpuResource {
         buffer: GpuBufferHandle,
         offset: uint64,
         length: uint64,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Map a buffer range.
     @binding("destack.gpu.resource.buffer.map", {

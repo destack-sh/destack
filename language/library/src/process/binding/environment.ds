@@ -35,7 +35,7 @@ export interface ProcessEnvironment {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listEnvironment(): Result<Array<EnvironmentVariable>, HostError>;
+    listEnvironment(): Result<EnvironmentVariable[], HostError>;
 
     /// Set an environment variable.
     @binding("destack.process.environment.set", {
@@ -62,7 +62,7 @@ export interface ProcessEnvironment {
         families: ["unix"],
         simulation: true,
     })
-    getRawEnvironment(name: &readonly [uint8]): Result<Array<uint8> | undefined, HostError>;
+    getRawEnvironment(name: &readonly [uint8]): Result<uint8[] | undefined, HostError>;
 
     /// List raw Unix environment variables.
     @binding("destack.process.environment.listRaw", {
@@ -71,7 +71,7 @@ export interface ProcessEnvironment {
         families: ["unix"],
         simulation: true,
     })
-    listRawEnvironment(): Result<Array<RawEnvironmentVariable>, HostError>;
+    listRawEnvironment(): Result<RawEnvironmentVariable[], HostError>;
 
     /// Set a raw Unix environment variable.
     @binding("destack.process.environment.setRaw", {

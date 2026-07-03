@@ -43,7 +43,7 @@ export interface InputHaptics {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listHapticEffects(device: InputDeviceHandle): Result<Array<HapticEffect>, HostError>;
+    listHapticEffects(device: InputDeviceHandle): Result<HapticEffect[], HostError>;
 
     /// Play one haptic effect.
     @binding("destack.input.haptics.play", {

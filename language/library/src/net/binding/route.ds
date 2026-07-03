@@ -50,7 +50,7 @@ export interface NetRoute {
         families: ["windows", "unix"],
         simulation: true,
     })
-    list(family: SocketFamily): Result<Array<NetworkRouteEntry>, HostError>;
+    list(family: SocketFamily): Result<NetworkRouteEntry[], HostError>;
 
     /// Add a route table entry.
     @binding("destack.net.route.add", {

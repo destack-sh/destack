@@ -42,7 +42,7 @@ export struct NetworkInterface {
     /// Link-layer hardware address.
     hardwareAddress: [uint8];
     /// Interface addresses.
-    addresses: Array<NetworkInterfaceAddress>;
+    addresses: NetworkInterfaceAddress[];
 }
 
 /// Network interface binding family.
@@ -54,7 +54,7 @@ export interface NetInterface {
         families: ["windows", "unix"],
         simulation: true,
     })
-    list(): Result<Array<NetworkInterface>, HostError>;
+    list(): Result<NetworkInterface[], HostError>;
 
     /// Resolve an interface name to an index.
     @binding("destack.net.interface.index", {

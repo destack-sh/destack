@@ -98,5 +98,5 @@ export interface AudioBackend {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listAudioBackends(): Result<Array<AudioBackend>, HostError>;
+    listAudioBackends(): Result<AudioBackend[], HostError>;
 }

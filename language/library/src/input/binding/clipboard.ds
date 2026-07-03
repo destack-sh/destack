@@ -41,7 +41,7 @@ export struct ClipboardItem {
     /// Presentation preference.
     presentationStyle: ClipboardPresentationStyle;
     /// Available representations in provider order.
-    representations: Array<ClipboardRepresentation>;
+    representations: ClipboardRepresentation[];
 }
 
 /// Clipboard text payload.
@@ -79,7 +79,7 @@ export struct ClipboardPayloadBytes {
     /// Suggested representation name when available.
     name?: string;
     /// Byte payload.
-    bytes: Array<uint8>;
+    bytes: uint8[];
 }
 
 /// Clipboard representation payload.
@@ -94,7 +94,7 @@ export struct ClipboardWriteItem {
     /// Presentation preference.
     presentationStyle: ClipboardPresentationStyle;
     /// Representations to publish in provider order.
-    payloads: Array<ClipboardPayload>;
+    payloads: ClipboardPayload[];
 }
 
 /// Clipboard binding family.
@@ -115,7 +115,7 @@ export interface InputClipboard {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listClipboardItems(): Result<Array<ClipboardItem>, HostError>;
+    listClipboardItems(): Result<ClipboardItem[], HostError>;
 
     /// Read one text clipboard payload.
     @binding("destack.input.clipboard.text.read", {
@@ -148,7 +148,7 @@ export interface InputClipboard {
     readClipboardItemBytes(
         itemIndex: uint32,
         representationIndex: uint32,
-    ): Result<Array<uint8>, HostError>;
+    ): Result<uint8[], HostError>;
 
     /// Read one clipboard item representation as a filesystem path.
     @binding("destack.input.clipboard.item.path.read", {

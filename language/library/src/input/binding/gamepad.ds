@@ -153,11 +153,11 @@ export struct GamepadState {
     /// Effective motion sample rate in hertz when available.
     motionSampleRateHz?: float64;
     /// Axis values in normalized host order.
-    axes: Array<float64>;
+    axes: float64[];
     /// Button values in normalized host order.
-    buttons: Array<GamepadButton>;
+    buttons: GamepadButton[];
     /// Touch contacts when the device exposes touch surfaces.
-    touches: Array<GamepadTouch>;
+    touches: GamepadTouch[];
     /// Motion state when sensors are enabled.
     motion?: GamepadMotion;
 }

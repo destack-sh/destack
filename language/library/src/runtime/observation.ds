@@ -53,7 +53,7 @@ export struct ObservationRecord {
 /// Observation record page.
 export struct ObservationRecordPage {
     /// Observation records in this page.
-    records: Array<ObservationRecord>;
+    records: ObservationRecord[];
     /// Whether more records are immediately available.
     hasMore: boolean;
 }

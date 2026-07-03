@@ -140,9 +140,9 @@ export struct InputButton {
 /// Input device controls.
 export struct InputDeviceControls {
     /// Axis descriptors in host order.
-    axes: Array<InputAxis>;
+    axes: InputAxis[];
     /// Button descriptors in host order.
-    buttons: Array<InputButton>;
+    buttons: InputButton[];
 }
 
 /// Device binding family.
@@ -154,7 +154,7 @@ export interface InputDevice {
         families: ["windows", "unix"],
         simulation: true,
     })
-    listInputDevices(query: &readonly InputDeviceQuery): Result<Array<InputDevice>, HostError>;
+    listInputDevices(query: &readonly InputDeviceQuery): Result<InputDevice[], HostError>;
 
     /// Open one input device.
     @binding("destack.input.device.open", {

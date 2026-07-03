@@ -57,13 +57,13 @@ export declare function select<T, comptime N: int>(
 export declare function convert<U, T, comptime N: int>(value: Vector<T, N>): Vector<U, N>;
 
 /// Load `N` contiguous values from `source`.
-export function load<T, comptime N: int>(source: &readonly Slice<T>): Vector<T, N> {
+export function load<T, comptime N: int>(source: &readonly [T]): Vector<T, N> {
     todo("vector.load")
 }
 
 /// Store `value` into `destination`.
 export function store<T, comptime N: int>(
-    destination: &exclusive Slice<T>,
+    destination: &exclusive [T],
     value: Vector<T, N>,
 ): void {
     todo("vector.store");

@@ -165,7 +165,7 @@ export interface ProcessIdentity {
         families: ["unix"],
         simulation: true,
     })
-    listSupplementaryGroups(): Result<Array<GroupId>, HostError>;
+    listSupplementaryGroups(): Result<GroupId[], HostError>;
 
     /// Set supplementary group identifiers.
     @binding("destack.process.identity.setGroups", {
