@@ -4,8 +4,8 @@ use destack_artifact::{
 use destack_repository::{ProviderError, RepositoryError};
 
 use crate::{
-    AnalyzeError, BindError, CheckError, ElaborateError, EmitError, ExpandError, ExportError,
-    ImportError, LinkError, LowerError, MaterializeError, OptimizeError, ResolveError, VerifyError,
+    AnalyzeError, BindError, CheckError, EmitError, ExpandError, ExportError, ImportError,
+    LinkError, LowerError, MaterializeError, OptimizeError, ResolveError, VerifyError,
 };
 
 /// Compiler-local error while providing one artifact.
@@ -69,7 +69,6 @@ macro_rules! impl_compiler_error_from_diagnostic {
 
 impl_compiler_error_from_diagnostic!(CheckError);
 impl_compiler_error_from_diagnostic!(BindError);
-impl_compiler_error_from_diagnostic!(ElaborateError);
 impl_compiler_error_from_diagnostic!(MaterializeError);
 impl_compiler_error_from_diagnostic!(ExpandError);
 impl_compiler_error_from_diagnostic!(ExportError);

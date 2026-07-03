@@ -699,10 +699,7 @@ impl ModuleLowerer<'_> {
                 let dir::TypeExpression::Literal { value } = type_expression else {
                     return Err(self.unsupported_construct(
                         expression_id.into_global_any(self.module.id),
-                        Some(
-                            "runtime type values should be elaborated before JS lowering"
-                                .to_string(),
-                        ),
+                        Some("runtime type values are not lowered to JS expressions".to_string()),
                     ));
                 };
 
@@ -792,7 +789,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::Is { .. } => {
                 return Err(self.unsupported_construct(
                     expression_id.into_global_any(self.module.id),
-                    Some("`is` expressions must be elaborated before JS lowering".to_string()),
+                    Some("`is` expressions are not lowered to JS yet".to_string()),
                 ));
             }
             dir::Expression::InstanceOf { value, target } => {
@@ -985,12 +982,10 @@ impl ModuleLowerer<'_> {
             } => match form {
                 dir::IfForm::Ternary => {
                     let Some(condition) = condition.as_expression() else {
-                        // TODO #Broken: condition chains need elaborate lowering
+                        // TODO #Broken: lower condition chains to JS
                         return Err(self.unsupported_construct(
                             expression_id.into_global_any(self.module.id),
-                            Some(
-                                "condition chains should be elaborated before JS emit".to_string(),
-                            ),
+                            Some("condition chains are not lowered to JS yet".to_string()),
                         ));
                     };
                     let condition = self.lower_expression_as_anchored::<js::Expression>(
@@ -1015,12 +1010,10 @@ impl ModuleLowerer<'_> {
                 }
                 dir::IfForm::If => {
                     let Some(condition) = condition.as_expression() else {
-                        // TODO #Broken: condition chains need elaborate lowering
+                        // TODO #Broken: lower condition chains to JS
                         return Err(self.unsupported_construct(
                             expression_id.into_global_any(self.module.id),
-                            Some(
-                                "condition chains should be elaborated before JS emit".to_string(),
-                            ),
+                            Some("condition chains are not lowered to JS yet".to_string()),
                         ));
                     };
                     let condition = self.lower_expression_as_anchored::<js::Expression>(
@@ -1172,10 +1165,7 @@ impl ModuleLowerer<'_> {
                 if *form != dir::MatchForm::Switch {
                     return Err(self.unsupported_construct(
                         expression_id.into_global_any(self.module.id),
-                        Some(
-                            "non-switch match expressions should be elaborated before JS emit"
-                                .to_string(),
-                        ),
+                        Some("non-switch match expressions are not lowered to JS yet".to_string()),
                     ));
                 }
 

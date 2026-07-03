@@ -101,7 +101,7 @@ impl ModuleLowerer<'_> {
                 body,
                 ..
             } => {
-                // default methods on nominal interfaces still need explicit JS elaboration
+                // TODO #Broken: lower nominal interface default methods to JS
                 if body.is_some() {
                     return Err(self.unsupported_construct(
                         member_id.into_global_any(self.module.id),

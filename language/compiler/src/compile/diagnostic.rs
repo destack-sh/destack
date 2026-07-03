@@ -1,11 +1,10 @@
 pub use destack_artifact::{DiagnosticAnchor, DiagnosticDefinition, DiagnosticFormat};
 
 use crate::{
-    AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, ElaborateError,
-    ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning, ExportError,
-    ExportWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning,
-    MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
-    VerifyWarning,
+    AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, EmitError,
+    EmitWarning, ExpandError, ExpandWarning, ExportError, ExportWarning, ImportError,
+    ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
+    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
 };
 
 /// Registry of all compiler diagnostic codes.
@@ -23,7 +22,6 @@ impl DiagnosticRegistry {
         ExpandError::ALL,
         ExportError::ALL,
         CheckError::ALL,
-        ElaborateError::ALL,
         MaterializeError::ALL,
         LowerError::ALL,
         VerifyError::ALL,
@@ -40,7 +38,6 @@ impl DiagnosticRegistry {
         ExpandWarning::ALL,
         ExportWarning::ALL,
         CheckWarning::ALL,
-        ElaborateWarning::ALL,
         MaterializeWarning::ALL,
         LowerWarning::ALL,
         VerifyWarning::ALL,
@@ -57,7 +54,6 @@ impl DiagnosticRegistry {
             || ExpandError::is_valid_code(code)
             || ExportError::is_valid_code(code)
             || CheckError::is_valid_code(code)
-            || ElaborateError::is_valid_code(code)
             || MaterializeError::is_valid_code(code)
             || LowerError::is_valid_code(code)
             || VerifyError::is_valid_code(code)
@@ -74,7 +70,6 @@ impl DiagnosticRegistry {
             || ExpandWarning::is_valid_code(code)
             || ExportWarning::is_valid_code(code)
             || CheckWarning::is_valid_code(code)
-            || ElaborateWarning::is_valid_code(code)
             || MaterializeWarning::is_valid_code(code)
             || LowerWarning::is_valid_code(code)
             || VerifyWarning::is_valid_code(code)
@@ -97,7 +92,6 @@ impl DiagnosticRegistry {
             .or_else(|| ExpandError::definition(code))
             .or_else(|| ExportError::definition(code))
             .or_else(|| CheckError::definition(code))
-            .or_else(|| ElaborateError::definition(code))
             .or_else(|| MaterializeError::definition(code))
             .or_else(|| LowerError::definition(code))
             .or_else(|| VerifyError::definition(code))
@@ -110,7 +104,6 @@ impl DiagnosticRegistry {
             .or_else(|| ExpandWarning::definition(code))
             .or_else(|| ExportWarning::definition(code))
             .or_else(|| CheckWarning::definition(code))
-            .or_else(|| ElaborateWarning::definition(code))
             .or_else(|| MaterializeWarning::definition(code))
             .or_else(|| LowerWarning::definition(code))
             .or_else(|| VerifyWarning::definition(code))
@@ -144,7 +137,6 @@ impl DiagnosticRegistry {
             'X' => ExpandError::ALL_CODES,
             'T' => ExportError::ALL_CODES,
             'C' => CheckError::ALL_CODES,
-            'E' => ElaborateError::ALL_CODES,
             'M' => MaterializeError::ALL_CODES,
             'L' => LowerError::ALL_CODES,
             'V' => VerifyError::ALL_CODES,
@@ -164,7 +156,6 @@ impl DiagnosticRegistry {
             'X' => ExpandWarning::ALL_CODES,
             'T' => ExportWarning::ALL_CODES,
             'C' => CheckWarning::ALL_CODES,
-            'E' => ElaborateWarning::ALL_CODES,
             'M' => MaterializeWarning::ALL_CODES,
             'L' => LowerWarning::ALL_CODES,
             'V' => &[],

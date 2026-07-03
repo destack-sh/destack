@@ -116,7 +116,7 @@ impl FunctionLowerer<'_> {
                 if let Some(condition) = condition.as_expression() {
                     self.lower_if_statement(condition, *then_expression, *else_expression)
                 } else {
-                    // TODO #Broken: condition chains need elaborate lowering
+                    // TODO #Broken: lower condition chains to MIR
                     Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
                             expression_id
@@ -217,7 +217,7 @@ impl FunctionLowerer<'_> {
     }
 
     /// Lower a labelled statement with an explicit break target.
-    /// TODO #Architecture: should we elaborate labelled statements away..?
+    /// TODO #Architecture: should labelled statements lower directly into MIR control flow?
     fn lower_labelled_statement(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -654,7 +654,7 @@ impl FunctionLowerer<'_> {
         value_id: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::MatchCase>],
     ) -> CompilerResult<Terminates> {
-        // match expressions must be elaborated before lowering
+        // reject match expressions until MIR lowering supports them
         if form == dir::MatchForm::Match {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -662,7 +662,7 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "match expressions must be elaborated before lowering".to_string(),
+                message: "match expressions are not lowered to MIR yet".to_string(),
             }
             .into());
         }
