@@ -80,6 +80,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         head: TaggedPatternHead,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
@@ -113,6 +114,7 @@ impl CheckState<'_> {
             node,
             origin,
             flow,
+            scope,
             case.payload,
             &case.fields,
             fields,
@@ -419,6 +421,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         payload: dir::GlobalTypeId,
         payload_fields: &[TaggedPayloadField],
         fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -448,6 +451,7 @@ impl CheckState<'_> {
 
                     self.project_pattern_input(
                         flow,
+                        scope,
                         pattern_type,
                         pattern.into_global_any(module),
                     )?;
@@ -473,6 +477,7 @@ impl CheckState<'_> {
                     if let Some(pattern) = pattern {
                         self.project_pattern_input(
                             flow,
+                            scope,
                             field.ty,
                             pattern.into_global_any(module),
                         )?;

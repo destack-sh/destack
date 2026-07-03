@@ -149,15 +149,23 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any());
 
-                // open signature parameters before building the method type
+                // walk the header before building the method type
                 let source = id.into_global_any(self.module);
                 let template = self.open_signature_template(source, None, symbol, signature)?;
-                let header = self.walk_function_signature(template, signature)?;
-                let result = self.walk_function_result_type(id.into_any(), signature, body)?;
+                let (header, result, tracked) =
+                    self.walk_signature_header(id.into_any(), template, signature, body)?;
 
                 // write the method's function type
-                let method =
-                    self.walk_function_signature_type(signature, header, None, None, result)?;
+                let method = self.walk_function_signature_type(
+                    id.into_any(),
+                    signature,
+                    header,
+                    None,
+                    None,
+                    result,
+                    tracked,
+                    body.is_some(),
+                )?;
                 if let Some(symbol) = symbol {
                     self.bind_symbol_type(symbol, method)?;
                 }
@@ -318,7 +326,10 @@ impl WalkState<'_, '_> {
 
                     if let Some(written) = written {
                         // the written value constraints into the declared type
-                        let origin = Origin::Node(id.into_global_any(self.module));
+                        let origin = Origin::Node(
+                            id.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        );
                         self.relate_value(
                             origin,
                             ValueUse::Store,
@@ -424,7 +435,10 @@ impl WalkState<'_, '_> {
                     let before_default = self.fork_flow();
                     let expectation = Expectation::assignable(
                         field_type,
-                        Origin::Node(default.into_global_any(self.module)),
+                        Origin::Node(
+                            default.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        ),
                         ValueUse::Store,
                     );
                     self.walk_expression(default, self.tree.get(default))?;
@@ -503,10 +517,20 @@ impl WalkState<'_, '_> {
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
 
-                // open signature parameters before building the method type
+                // open signature parameters under the signature's own scope
+                let _scope = self.enter_template_scope(template);
                 let header = self.walk_function_signature(template, signature)?;
                 let this_parameter = header.this_parameter;
-                let needs_body = body.is_none()
+
+                // classify how the method receives its implementation
+                let implementation = if body.is_some() {
+                    dir::MethodImplementation::Body
+                } else if self.is_intrinsic(id)? {
+                    dir::MethodImplementation::Intrinsic
+                } else {
+                    dir::MethodImplementation::Required
+                };
+                let needs_body = implementation == dir::MethodImplementation::Required
                     && !is_ambient_scope
                     && !*is_ambient
                     && !abstraction.is_abstract();
@@ -522,13 +546,15 @@ impl WalkState<'_, '_> {
                     implicit_receiver_scope,
                     this_parameter,
                 )?;
-                let result = self.walk_method_result_type(id, signature, *body, receiver)?;
+                let (result, tracked) =
+                    self.walk_method_result_type(id, signature, *body, receiver)?;
 
                 // write the method's function type
                 let receiver_type = receiver
                     .filter(|_| Self::is_receiver_visible_in_method_type(signature))
                     .map(|receiver| receiver.receiver.ty);
                 let method = self.walk_function_signature_type(
+                    id.into_any(),
                     signature,
                     header,
                     Some(GenericInductionDeclaration::new(
@@ -538,6 +564,8 @@ impl WalkState<'_, '_> {
                     )),
                     receiver_type,
                     result,
+                    tracked,
+                    body.is_some(),
                 )?;
                 let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
                 self.push_type_induction_site(induction, method);
@@ -567,6 +595,7 @@ impl WalkState<'_, '_> {
                         role: signature.role,
                         abstraction: *abstraction,
                         is_override: *is_override,
+                        implementation,
                     })),
                     body,
                 })
@@ -771,20 +800,33 @@ impl WalkState<'_, '_> {
                 let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
+                let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
 
-                // open signature parameters before building the method type
-                let header = self.walk_function_signature(template, signature)?;
-                let result = self.walk_function_result_type(id.into_any(), signature, body)?;
+                // interface members assume this satisfies their interface
+                if let Some(template) = template
+                    && let Some(interface) = receiver_scope
+                        .and_then(|receiver| receiver.declaration)
+                        .filter(|declaration| self.check.symbol_kind(*declaration).is_interface())
+                {
+                    self.push_this_predicate(source, interface, template)?;
+                }
+
+                let (header, result, tracked) =
+                    self.walk_signature_header(id.into_any(), template, signature, body)?;
                 let receiver_type = receiver_scope
                     .filter(|_| !is_static)
                     .map(|receiver| receiver.ty);
                 let method = self.walk_function_signature_type(
+                    id.into_any(),
                     signature,
                     header,
-                    None,
+                    Some(induction),
                     receiver_type,
                     result,
+                    tracked,
+                    body.is_some(),
                 )?;
+                self.push_type_induction_site(induction, method);
 
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
@@ -793,6 +835,15 @@ impl WalkState<'_, '_> {
                 if let (Some(body), Some(result)) = (body, result) {
                     self.walk_function_body(symbol, signature, body, result, None)?;
                 }
+
+                // classify how the member receives its implementation
+                let implementation = if body.is_some() {
+                    dir::MethodImplementation::Default
+                } else if self.is_intrinsic(id)? {
+                    dir::MethodImplementation::Intrinsic
+                } else {
+                    dir::MethodImplementation::Required
+                };
 
                 Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
                     space: if is_static {
@@ -806,6 +857,7 @@ impl WalkState<'_, '_> {
                     role: signature.role,
                     abstraction: dir::MethodAbstraction::Concrete,
                     is_override: false,
+                    implementation,
                 })))
             }
             // (value: T): U
@@ -933,7 +985,7 @@ impl WalkState<'_, '_> {
                     }
                     if let Some(written) = written {
                         if let Some(declared) = declared {
-                            let origin = Origin::Node(source);
+                            let origin = Origin::Node(source, self.flow().template_scope());
                             self.relate_value(
                                 origin,
                                 ValueUse::Store,
@@ -1046,19 +1098,19 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
         receiver: Option<ReceiverBinding>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+    ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
         // use the receiver as the constructor result
         if matches!(
             signature.role,
             Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
         ) {
-            return Ok(receiver.map(|receiver| receiver.receiver.ty));
+            return Ok((receiver.map(|receiver| receiver.receiver.ty), Vec::new()));
         }
 
         // walk regular method result
-        let result = self.walk_function_result_type(id.into_any(), signature, body)?;
+        let (result, tracked) = self.walk_function_result_type(id.into_any(), signature, body)?;
         let Some(result) = result else {
-            return Ok(None);
+            return Ok((None, tracked));
         };
 
         // apply the implicit receiver to `this` in result position
@@ -1067,6 +1119,6 @@ impl WalkState<'_, '_> {
             None => result,
         };
 
-        Ok(Some(result))
+        Ok((Some(result), tracked))
     }
 }

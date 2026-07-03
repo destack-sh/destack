@@ -54,19 +54,27 @@ impl CheckState<'_> {
                 self.constrain(origin, Relation::Satisfies, argument, constraint)
             }
             Some(dir::LanguageItem::Concrete) => {
-                self.push_obligation(Obligation::Representation(RepresentationObligation {
-                    source,
-                    ty: argument,
-                }));
+                let scope = self.origin_scope(origin);
+                self.push_obligation(
+                    Obligation::Representation(RepresentationObligation {
+                        source,
+                        ty: argument,
+                    }),
+                    scope,
+                );
 
                 Ok(Answer::Ready(true))
             }
             Some(item) if let Some(interface) = AutoInterface::from_language_item(item) => {
-                self.push_obligation(Obligation::AutoInterface(AutoInterfaceObligation {
-                    source,
-                    ty: argument,
-                    interface,
-                }));
+                let scope = self.origin_scope(origin);
+                self.push_obligation(
+                    Obligation::AutoInterface(AutoInterfaceObligation {
+                        source,
+                        ty: argument,
+                        interface,
+                    }),
+                    scope,
+                );
 
                 Ok(Answer::Ready(true))
             }
@@ -161,7 +169,7 @@ impl CheckState<'_> {
         };
         if !holds {
             let origin = match subject {
-                ConstraintSubject::GenericArgument { source } => Origin::Node(source),
+                ConstraintSubject::GenericArgument { source } => Origin::Node(source, None),
             };
             self.report_relation_failure(origin, relation, None, left, right)?;
 
@@ -571,12 +579,22 @@ impl CheckState<'_> {
     }
 
     /// Return the source node behind one origin for type allocation.
+    pub(in crate::check) fn origin_source(
+        &self,
+        origin: Origin,
+    ) -> CompilerResult<dir::GlobalNodeIdAny> {
+        let module = origin.module();
+
+        Ok(self.origin_source_node(origin)?.into_global(module))
+    }
+
+    /// Return the local source node anchoring one work origin.
     pub(in crate::check) fn origin_source_node(
         &self,
         origin: Origin,
     ) -> CompilerResult<dir::LocalNodeIdAny> {
         match origin {
-            Origin::Node(node) => Ok(node.local_id),
+            Origin::Node(node, _) => Ok(node.local_id),
             Origin::Symbol(symbol) => self
                 .module(symbol.module_id)
                 .symbol_declaration_node(symbol.local_id),

@@ -11,6 +11,8 @@ pub(in crate::check) enum Relation {
     Equal,
     /// The left operand is assignable to the right operand.
     Assignable,
+    /// The left method signature serves every use of the right one.
+    MethodAssignable,
     /// The left operand is assignable to the right operand without influencing it.
     Writable,
     /// The left operand is castable to the right operand.

@@ -605,7 +605,7 @@ impl CheckState<'_> {
                 let origin = arguments
                     .get(index)
                     .and_then(|argument| self.argument_value_node(module, *argument))
-                    .map(Origin::Node)
+                    .map(|node| self.origin_at(origin, node))
                     .unwrap_or(origin);
                 let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
                 let error = CheckError::ArgumentNotAssignable {
@@ -623,7 +623,8 @@ impl CheckState<'_> {
                 source,
                 target,
             } => {
-                let (module, anchor) = self.origin_diagnostic_anchor(Origin::Node(source_node))?;
+                let (module, anchor) =
+                    self.origin_diagnostic_anchor(self.origin_at(origin, source_node))?;
                 let error = CheckError::ConstraintNotSatisfied {
                     anchor,
                     module,
@@ -640,7 +641,8 @@ impl CheckState<'_> {
                 key,
                 value,
             } => {
-                let (module, anchor) = self.origin_diagnostic_anchor(Origin::Node(source_node))?;
+                let (module, anchor) =
+                    self.origin_diagnostic_anchor(self.origin_at(origin, source_node))?;
                 let error = CheckError::WritableIndexRequiresIndexSet {
                     anchor,
                     module,
@@ -1423,7 +1425,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
         let module = origin.module();
         let anchor = match origin {
-            Origin::Node(node) => self.diagnostic_anchor(module, node.local_id),
+            Origin::Node(node, _) => self.diagnostic_anchor(module, node.local_id),
             Origin::Symbol(symbol) => {
                 let source = self
                     .module(symbol.module_id)

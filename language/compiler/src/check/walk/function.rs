@@ -37,16 +37,26 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// ```
     pub(in crate::check) fn walk_function_signature_type(
         &mut self,
+        source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         header: FunctionHeader,
         owner: Option<GenericInductionDeclaration>,
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
+        tracked: Vec<dir::TypeVariableId>,
+        has_body: bool,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let this_parameter = receiver_type.or(header.this_parameter);
         let parameters = header.parameters;
-        let return_type =
-            self.apply_result_lifetime_elision(this_parameter, &parameters, return_type)?;
+        // elision reads the annotated receiver, which carries its borrow
+        let return_type = self.apply_result_lifetime_elision(
+            source,
+            header.this_parameter.or(receiver_type),
+            &parameters,
+            return_type,
+            tracked,
+            has_body,
+        )?;
         let template = self.signature_template(
             header.template,
             owner,
@@ -68,37 +78,61 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.intern_type(dir::Type::FunctionSignature(function))
     }
 
-    /// Apply elided result lifetimes to the unique input borrow lifetime.
-    fn apply_result_lifetime_elision(
+    /// Apply elided result lifetimes to the receiver or unique input borrow lifetime.
+    ///
+    /// Bodyful signatures leave untied lifetimes to body inference.
+    /// Bodyless signatures must spell unsourced lifetimes explicitly.
+    pub(in crate::check) fn apply_result_lifetime_elision(
         &mut self,
+        source: dir::LocalNodeIdAny,
         this_parameter: Option<dir::GlobalTypeId>,
         parameters: &[dir::FunctionParameterType],
         return_type: Option<dir::GlobalTypeId>,
+        tracked: Vec<dir::TypeVariableId>,
+        has_body: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(return_type) = return_type else {
             return Ok(None);
         };
 
+        // the receiver's lifetime wins over value parameter lifetimes,
+        // de-duplicating aliases introduced by reused annotations
+        let mut seen = IndexSet::new();
         let mut input_lifetimes = Vec::new();
         if let Some(this_parameter) = this_parameter {
             input_lifetimes.extend(self.induced_lifetime_types(this_parameter)?);
+            input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
         }
-        for parameter in parameters {
-            input_lifetimes.extend(self.induced_lifetime_types(parameter.ty)?);
+        if input_lifetimes.is_empty() {
+            for parameter in parameters {
+                input_lifetimes.extend(self.induced_lifetime_types(parameter.ty)?);
+            }
+            input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
         }
-
-        // de-duplicate aliases introduced by reused lifetime annotations
-        let mut seen = IndexSet::new();
-        input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
 
         let [(input_variable, input_lifetime)] = input_lifetimes.as_slice() else {
+            // bodyless returns cannot infer their lifetimes from anywhere
+            if !tracked.is_empty() && !has_body {
+                self.check
+                    .report_ambient_lifetime_elided(self.module, source);
+                for variable in tracked {
+                    let error = self.intern_type(dir::Type::Error)?;
+                    self.check.commit_solution(variable, error)?;
+                }
+            }
+
             return Ok(Some(return_type));
         };
         let input_lifetime = *input_lifetime;
-        let return_lifetimes = self.induced_lifetime_types(return_type)?;
+        let mut return_lifetimes = self
+            .induced_lifetime_types(return_type)?
+            .into_iter()
+            .map(|(variable, _)| variable)
+            .collect::<Vec<_>>();
+        return_lifetimes.extend(tracked);
 
-        // tie each elided result lifetime to the unique input lifetime
-        for (return_variable, _) in return_lifetimes {
+        // tie each elided result lifetime to the receiver or input lifetime
+        for return_variable in return_lifetimes {
             if return_variable != *input_variable {
                 self.check
                     .commit_solution(return_variable, input_lifetime)?;
@@ -231,12 +265,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
-        let return_type = match (return_type, declaration.return_type) {
-            (Some(return_type), _) => Some(return_type),
+        let (return_type, tracked) = match (return_type, declaration.return_type) {
+            (Some(return_type), _) => (Some(return_type), Vec::new()),
             (None, Some(return_type)) => {
-                Some(self.walk_return_type_expression(source, return_type, false)?)
+                let (return_type, tracked) = self.walk_return_type_expression(return_type)?;
+
+                (Some(return_type), tracked)
             }
-            (None, None) => None,
+            (None, None) => (None, Vec::new()),
         };
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
@@ -253,6 +289,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
+        let return_type = self.apply_result_lifetime_elision(
+            source,
+            this_parameter,
+            &parameters,
+            return_type,
+            tracked,
+            false,
+        )?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
@@ -287,12 +331,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
-        let return_type = match (return_type, declaration.return_type) {
-            (Some(return_type), _) => Some(return_type),
+        let (return_type, tracked) = match (return_type, declaration.return_type) {
+            (Some(return_type), _) => (Some(return_type), Vec::new()),
             (None, Some(return_type)) => {
-                Some(self.walk_return_type_expression(source, return_type, false)?)
+                let (return_type, tracked) = self.walk_return_type_expression(return_type)?;
+
+                (Some(return_type), tracked)
             }
-            (None, None) => None,
+            (None, None) => (None, Vec::new()),
         };
 
         // collect signature parameters
@@ -303,6 +349,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
         }
 
+        let return_type = self.apply_result_lifetime_elision(
+            source,
+            None,
+            &parameters,
+            return_type,
+            tracked,
+            false,
+        )?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
@@ -381,7 +435,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<FlowBranch> {
         let source = body.into_any();
-        let origin = Origin::Node(body.into_global_any(self.module));
+        let origin = Origin::Node(
+            body.into_global_any(self.module),
+            self.check.symbol_template(symbol),
+        );
         let _scope = self.enter_template_scope(self.check.symbol_template(symbol));
         let mut return_target = result;
         let mut yield_target = None;

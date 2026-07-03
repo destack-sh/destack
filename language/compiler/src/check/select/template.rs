@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, answer};
+use crate::check::{Answer, CheckState, Decision, FlowSite, PlaceUse, answer};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -13,7 +13,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
 
         // reduce the tag's callable shape
         let tag_node = tag.into_global_any(module);

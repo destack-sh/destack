@@ -10,6 +10,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         ty: dir::LocalNodeId<dir::TypeExpression>,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
@@ -24,7 +25,7 @@ impl CheckState<'_> {
 
         // select tagged owner.case patterns before ordinary newtype unwraps
         if let Some(head) = answer!(self.tagged_pattern_head(origin, module, ty)?) {
-            return self.select_tagged_variant_pattern(node, origin, flow, head, fields);
+            return self.select_tagged_variant_pattern(node, origin, flow, scope, head, fields);
         }
 
         // reduce the written nominal tag
@@ -54,7 +55,7 @@ impl CheckState<'_> {
                 _ => None,
             });
         if let Some(value) = value {
-            self.project_pattern_input(flow, backing, value.into_global_any(module))?;
+            self.project_pattern_input(flow, scope, backing, value.into_global_any(module))?;
         }
 
         let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
@@ -78,6 +79,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         ty: dir::LocalNodeId<dir::TypeExpression>,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
@@ -100,7 +102,8 @@ impl CheckState<'_> {
         };
 
         // project declared fields off the matched declaration
-        let (fields, rest) = answer!(self.project_named_fields(node, origin, flow, tag, fields)?);
+        let (fields, rest) =
+            answer!(self.project_named_fields(node, origin, flow, scope, tag, fields)?);
         let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
         self.commit_pattern(
             node,

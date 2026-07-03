@@ -12,9 +12,9 @@ impl CheckState<'_> {
     /// Check one class's required field initialization.
     pub(in crate::check) fn check_class_initialization(
         &mut self,
+        origin: Origin,
         obligation: &ClassInitializationObligation,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(obligation.source);
         let fields = self.class_initialization_fields(obligation.symbol);
         let mut errors = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();

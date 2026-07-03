@@ -232,9 +232,25 @@ impl CheckState<'_> {
                 active,
             ),
 
-            // generic parameters search through their constraints
-            dir::Type::Parameter(parameter) => self.lookup_constraint_member(
-                origin, module, parameter, space, key, extensions, active,
+            // generic parameters search through their bounds
+            dir::Type::Parameter(parameter) => {
+                let bounds = self.parameter_bounds(origin, parameter)?;
+
+                self.lookup_bound_member(
+                    origin, module, receiver, &bounds, space, key, extensions, active,
+                )
+            }
+
+            // erased values expose their constraint's members
+            dir::Type::Dynamic(dynamic) => self.lookup_bound_member(
+                origin,
+                module,
+                receiver,
+                &[dynamic.constraint],
+                space,
+                key,
+                extensions,
+                active,
             ),
 
             // structural shapes expose their fields
@@ -317,25 +333,30 @@ impl CheckState<'_> {
         }
     }
 
-    /// Look up one member through a generic parameter's constraint.
-    fn lookup_constraint_member(
+    /// Look up one member on a receiver known only by its bounds.
+    fn lookup_bound_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
-        parameter: dir::GlobalGenericParameterId,
+        receiver: dir::GlobalTypeId,
+        bounds: &[dir::GlobalTypeId],
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionSearch,
         active: &mut IndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let Some(binding) = self.generic_parameter(parameter) else {
-            return Ok(Answer::Ready(MemberLookup::Missing));
-        };
-        let Some(constraint) = binding.constraint else {
-            return Ok(Answer::Ready(MemberLookup::Missing));
-        };
+        for bound in bounds {
+            let lookup = self.lookup_member_query_at(
+                origin, module, receiver, *bound, space, key, extensions, active,
+            )?;
+            match lookup {
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+                Answer::Ready(MemberLookup::Missing) => continue,
+                Answer::Ready(lookup) => return Ok(Answer::Ready(lookup)),
+            }
+        }
 
-        self.lookup_member_query(origin, module, constraint, space, key, extensions, active)
+        Ok(Answer::Ready(MemberLookup::Missing))
     }
 
     /// Look up one member through the receiver's apparent declaration instance.

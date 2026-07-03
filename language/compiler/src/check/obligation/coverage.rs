@@ -40,17 +40,17 @@ impl CheckState<'_> {
     /// Check whether one pattern is irrefutable for its matched value type.
     pub(in crate::check) fn check_irrefutable_pattern(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
         diagnostic: impl FnOnce(DiagnosticAnchor, ModuleId, String) -> DiagnosticBuilder<CheckError>,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
         let decision = self.decide_pattern_covers(origin, pattern, value)?;
         let diagnostic = if answer!(decision) {
             None
         } else {
             let missing = self.uncovered_witness(origin, &[pattern], value)?;
+            let source = self.origin_source(origin)?;
             let (module, anchor) = self.source_anchor(source);
 
             let error = diagnostic(anchor, module, missing);

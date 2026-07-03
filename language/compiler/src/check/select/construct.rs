@@ -20,7 +20,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
 
         // infer constructor argument value types at this construct site
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();

@@ -48,9 +48,9 @@ impl CheckEvent {
                 obligation,
                 is_finished,
             } => match context.check.solver.obligations.get(*obligation) {
-                Ok(obligation_state) => {
-                    obligation_state.render_event(*obligation, *is_finished, context)
-                }
+                Ok(entry) => entry
+                    .obligation
+                    .render_event(*obligation, *is_finished, context),
                 Err(_) => ArtifactEvent::new("obligation.checked")
                     .debug()
                     .text("id", context.obligation_label(*obligation))

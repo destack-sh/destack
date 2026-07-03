@@ -48,11 +48,11 @@ impl CheckState<'_> {
                 right_site,
                 target,
                 Relation::Assignable,
-                Origin::Node(right_node),
+                Origin::Node(right_node, site.scope),
                 ValueUse::Store,
             )?);
             let value = answer!(self.node_type_at(right_site)?);
-            let _ = answer!(self.commit_assign_pattern_place(left_node, place)?);
+            let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
             self.commit_node_type(left_node.into_any(), value)?;
 
             value
@@ -66,8 +66,9 @@ impl CheckState<'_> {
             let selected = answer!(self.select_assign_pattern(
                 left_node,
                 site.flow,
+                site.scope,
                 value,
-                Origin::Node(right_node),
+                Origin::Node(right_node, site.scope),
             )?);
             if !selected {
                 return self.reject_assignment_expression(node, left_node);
@@ -112,9 +113,9 @@ impl CheckState<'_> {
         if let Some(operator) = operator.binary_operator() {
             let right_site = self.node_site(right_node)?;
             let right_type = answer!(self.infer_node_type(right_site, PlaceUse::Read)?);
-            let left_type =
-                answer!(self.reduce_type_head(Origin::Node(node.into_any()), target_type)?);
-            let right_type = answer!(self.reduce_type_head(Origin::Node(right_node), right_type)?);
+            let left_type = answer!(self.reduce_type_head(site.origin(), target_type)?);
+            let right_type =
+                answer!(self.reduce_type_head(Origin::Node(right_node, site.scope), right_type)?);
             let () = answer!(self.select_binary_operation(
                 site,
                 operator,
@@ -123,7 +124,7 @@ impl CheckState<'_> {
                 right_node,
                 Some(target_type)
             )?);
-            let _ = answer!(self.commit_assign_pattern_place(left_node, place)?);
+            let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
 
             return Ok(Answer::Ready(()));
         }
@@ -134,10 +135,10 @@ impl CheckState<'_> {
             right_site,
             target_type,
             Relation::Assignable,
-            Origin::Node(right_node),
+            Origin::Node(right_node, site.scope),
             ValueUse::Store,
         )?);
-        let _ = answer!(self.commit_assign_pattern_place(left_node, place)?);
+        let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
         self.commit_node_type(node.into_any(), target_type)?;
 
         Ok(Answer::Ready(()))

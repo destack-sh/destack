@@ -3,16 +3,17 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, TypeSubstitution, answer};
 use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
     /// Check one extension's implemented interfaces.
     pub(in crate::check) fn check_extension_conformance(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let source = self.origin_source(origin)?;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
             return Ok(Answer::Ready(None));
         };
@@ -28,8 +29,13 @@ impl CheckState<'_> {
         let module = source.module_id;
 
         // require each declared implementation to satisfy its interface
-        let conformance =
-            self.check_extension_members(source, extension.target.r#type(), &members, &implements)?;
+        let conformance = self.check_extension_members(
+            origin,
+            source,
+            extension.target.r#type(),
+            &members,
+            &implements,
+        )?;
         let diagnostics = answer!(conformance);
         self.module_mut(module).diagnostics.extend(diagnostics);
 
@@ -39,9 +45,10 @@ impl CheckState<'_> {
     /// Check one extension's implementation coherence.
     pub(in crate::check) fn check_implementation_coherence(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        let source = self.origin_source(origin)?;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
             return Ok(Answer::Ready(None));
         };
@@ -75,6 +82,7 @@ impl CheckState<'_> {
                 }
 
                 let coherence = self.check_conflicting_implementations(
+                    origin,
                     module,
                     source,
                     symbol,
@@ -123,6 +131,7 @@ impl CheckState<'_> {
     /// Check one extension's declared members against its implemented interfaces.
     fn check_extension_members(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
@@ -139,6 +148,7 @@ impl CheckState<'_> {
                 arguments,
             };
             let result = self.check_extension_interface(
+                origin,
                 source,
                 heritage.source,
                 target,
@@ -161,6 +171,7 @@ impl CheckState<'_> {
     /// Check one extension's declared members against one implemented interface.
     fn check_extension_interface(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         anchor_source: dir::GlobalNodeIdAny,
         target: dir::GlobalTypeId,
@@ -174,16 +185,14 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        let required = answer!(self.interface_members(
-            Origin::Node(source),
-            source.module_id,
-            interface,
-            target
-        )?);
+        let required =
+            answer!(self.interface_members(origin, source.module_id, interface, target)?);
 
-        // compare each required member with the extension's declared member
+        // compare each required member with the extension's declared
+        // members, where any matching overload satisfies the contract
+        let receiver = TypeSubstitution::default().with_receiver(target);
         for interface_member in required {
-            let mut found = None;
+            let mut candidates = SmallVec::<[_; 2]>::new();
             for member in members {
                 let member = match self.declared_member(member)? {
                     Answer::Ready(Some(member)) => member,
@@ -191,44 +200,45 @@ impl CheckState<'_> {
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                 };
                 if member.matches(interface_member.space, interface_member.key) {
-                    found = Some(member);
-                    break;
+                    candidates.push(member);
                 }
             }
-            let Some(found) = found else {
+            if candidates.is_empty() {
+                // defaulted members satisfy their own contract
+                if interface_member.has_default {
+                    continue;
+                }
+
                 return Ok(Answer::Ready(Some(self.extension_interface_error(
                     anchor_source,
                     target,
                     interface.symbol,
                 ))));
-            };
+            }
 
             // associated types without values only need presence
             let Some(required_type) = interface_member.ty else {
                 continue;
             };
-            let Some(found_type) = found.ty else {
-                return Ok(Answer::Ready(Some(self.extension_interface_error(
-                    anchor_source,
-                    target,
-                    interface.symbol,
-                ))));
-            };
 
-            let assignment = if found.role.uses_method_assignability()
-                && interface_member.role.uses_method_assignability()
-            {
-                self.decide_method_assignable(Origin::Node(source), found_type, required_type)?
-            } else {
-                self.decide_relation(
-                    Origin::Node(source),
-                    Relation::Assignable,
-                    found_type,
-                    required_type,
-                )?
-            };
+            let mut satisfied = false;
+            for found in candidates {
+                let Some(found_type) = found.ty else {
+                    continue;
+                };
+                // the found member binds this to the implementing target
+                let found_type = self.substitute_type(source.module_id, found_type, &receiver)?;
 
-            if !answer!(assignment) {
+                let relation = interface_member.role.conformance_relation();
+                let assignment =
+                    self.decide_relation(origin, relation, found_type, required_type)?;
+                if answer!(assignment) {
+                    satisfied = true;
+                    break;
+                }
+            }
+
+            if !satisfied {
                 return Ok(Answer::Ready(Some(self.extension_interface_error(
                     anchor_source,
                     target,
@@ -259,8 +269,10 @@ impl CheckState<'_> {
     }
 
     /// Report visible implementations conflicting with one new extension.
+    #[allow(clippy::too_many_arguments)]
     fn check_conflicting_implementations(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -306,7 +318,6 @@ impl CheckState<'_> {
         }
 
         // reject overlapping receivers for the same interface
-        let origin = Origin::Node(source);
         for (other, other_ty, interface) in candidates {
             if !answer!(self.types_may_overlap(origin, ty, other_ty)?) {
                 continue;

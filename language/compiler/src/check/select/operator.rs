@@ -17,10 +17,8 @@ impl CheckState<'_> {
         right_node: dir::LocalNodeId<dir::Expression>,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
-        let node = site.node.into_typed::<dir::Expression>();
-        let module = node.module_id;
-        let node = node.into_any();
-        let origin = Origin::Node(node);
+        let module = site.node.module_id;
+        let origin = site.origin();
         let left_site = self.node_site(left_node.into_global_any(module))?;
         let right_site = self.node_site(right_node.into_global_any(module))?;
         let left = answer!(self.operand_type(origin, left_site)?);
@@ -43,7 +41,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
 
         // identity and logic produce builtin results directly
         let nullish_or_never = matches!(
@@ -142,7 +140,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
         let operand_site = self.node_site(operand_node.into_global_any(module))?;
 
         // increments rewrite builtin numeric places by one
@@ -172,10 +170,11 @@ impl CheckState<'_> {
                 let resolution = place.clone().resolution();
                 self.commit_node_type(place.source, operand)?;
                 self.commit_decision(place.source, Decision::Place(resolution))?;
-                self.push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
-                    place,
-                    ty: operand,
-                }));
+                let scope = self.origin_scope(origin);
+                self.push_obligation(
+                    Obligation::WritablePlace(WritablePlaceObligation { place, ty: operand }),
+                    scope,
+                );
                 self.commit_node_type(node, operand)?;
 
                 return Ok(Answer::Ready(()));

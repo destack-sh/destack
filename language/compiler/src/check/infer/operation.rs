@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Constraint, FlowSite, Origin, PlaceUse, Relation, answer};
+use crate::check::{Answer, CheckState, Constraint, FlowSite, PlaceUse, Relation, answer};
 
 impl CheckState<'_> {
     /// Infer one `satisfies` expression from its value while checking the target.
@@ -22,7 +22,7 @@ impl CheckState<'_> {
             Relation::Satisfies,
             value_type,
             target,
-            Origin::Node(node.into_any()),
+            site.origin(),
         ));
         self.commit_node_type(node.into_any(), value_type)?;
 
@@ -58,7 +58,7 @@ impl CheckState<'_> {
             Relation::Castable,
             value_type,
             target,
-            Origin::Node(node.into_any()),
+            site.origin(),
         ));
         self.commit_node_type(node.into_any(), target)?;
 
@@ -113,10 +113,9 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let value_site = self.node_site(value.into_global_any(node.module_id))?;
         let value = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let output = answer!(self.reduce_operation_type(
-            Origin::Node(node.into_any()),
-            dir::TypeOperation::TryOutput { value },
-        )?);
+        let output = answer!(
+            self.reduce_operation_type(site.origin(), dir::TypeOperation::TryOutput { value },)?
+        );
         self.commit_node_type(node.into_any(), output)?;
 
         Ok(Answer::Ready(()))
@@ -130,7 +129,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-        let origin = Origin::Node(node.into_any());
+        let origin = site.origin();
         let awaited_site = self.node_site(awaited.into_global_any(module))?;
         let value = answer!(self.infer_node_type(awaited_site, PlaceUse::Read)?);
         let result = answer!(self.reduce_operation_type(

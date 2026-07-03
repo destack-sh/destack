@@ -127,7 +127,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<WriteTarget>>> {
         let module = site.node.module_id;
         let source = site.node;
-        let origin = Origin::Node(source);
+        let origin = site.origin();
         let expression = self.module(module).view().get(expression).clone();
 
         match expression {
@@ -187,7 +187,7 @@ impl CheckState<'_> {
                 )?) else {
                     return Ok(Answer::Ready(None));
                 };
-                if let Some(constraint) = selection.key_constraint(index, index_node) {
+                if let Some(constraint) = selection.key_constraint(self.origin_scope(origin), index, index_node) {
                     self.push_constraint(constraint);
                 }
                 let ty = selection.ty();

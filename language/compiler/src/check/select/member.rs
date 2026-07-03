@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, answer};
+use crate::check::{Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, Relation, answer};
 use crate::{CompilerError, CompilerResult};
 
 /// Result of looking up one member on a receiver type.
@@ -107,9 +107,13 @@ impl MemberRole {
         }
     }
 
-    /// Return whether this role uses method assignability.
-    pub(in crate::check) fn uses_method_assignability(self) -> bool {
-        matches!(self, Self::Method | Self::Getter | Self::Setter)
+    /// Return the relation one implementing member must hold against
+    /// this role's required member.
+    pub(in crate::check) fn conformance_relation(self) -> Relation {
+        match self {
+            Self::Method | Self::Getter | Self::Setter => Relation::MethodAssignable,
+            _ => Relation::Assignable,
+        }
     }
 
     /// Return whether this role can be read by member access.
@@ -262,7 +266,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
 
         let Some(name) = name else {
             return Err(CompilerError::Internal {
@@ -429,6 +433,8 @@ impl CheckState<'_> {
     }
 
     /// Reject one member access with a diagnostic.
+    ///
+    /// Poisoned receivers reject silently, so one root error reports.
     fn reject_member(
         &mut self,
         node: dir::GlobalNodeIdAny,
@@ -436,6 +442,12 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         key: String,
     ) -> CompilerResult<Answer<()>> {
+        if self.type_flags(receiver)?.has_error() {
+            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_error_node(node)?;
+
+            return Ok(Answer::Ready(()));
+        }
         self.report_missing_member(origin, receiver, key)?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;

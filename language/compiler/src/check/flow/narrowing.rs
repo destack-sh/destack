@@ -178,7 +178,7 @@ impl CheckState<'_> {
             FlowNarrowing::Pattern {
                 pattern,
                 is_positive,
-            } => match self.pattern_narrowing_target(Origin::Node(node), pattern)? {
+            } => match self.pattern_narrowing_target(self.node_site(node)?.origin(), pattern)? {
                 Answer::Ready(Some(target)) => {
                     self.resolve_type_narrowing(node, source, target, is_positive)
                 }
@@ -206,7 +206,7 @@ impl CheckState<'_> {
             is_positive,
         });
         let narrowed = self.intern_type(node.module_id, dir::Type::Operation(operation))?;
-        let narrowed = match self.reduce_type_head(Origin::Node(node), narrowed)? {
+        let narrowed = match self.reduce_type_head(self.node_site(node)?.origin(), narrowed)? {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };

@@ -168,7 +168,7 @@ impl WalkState<'_, '_> {
 
         // open the inducible hole bounded by its interface
         let node = source.into_global(self.module);
-        let origin = Origin::Node(node);
+        let origin = Origin::Node(node, self.flow().template_scope());
         let variable = self
             .check
             .allocate_variable(self.module, origin, Widening::Preserve);

@@ -11,6 +11,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
         mutability: Option<dir::Mutability>,
@@ -38,7 +39,7 @@ impl CheckState<'_> {
             }),
         )?;
 
-        self.project_pattern_input(flow, projected, pattern.into_global_any(module))?;
+        self.project_pattern_input(flow, scope, projected, pattern.into_global_any(module))?;
 
         self.commit_pattern(
             node,
@@ -57,6 +58,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
         mutability: Option<dir::Mutability>,
@@ -64,7 +66,7 @@ impl CheckState<'_> {
         let module = node.module_id;
         let access = mutability.map(dir::Mutability::access);
 
-        self.project_pattern_input(flow, input, pattern.into_global_any(module))?;
+        self.project_pattern_input(flow, scope, input, pattern.into_global_any(module))?;
 
         self.commit_pattern(
             node,
@@ -81,6 +83,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
     ) -> CompilerResult<Answer<()>> {
@@ -92,7 +95,7 @@ impl CheckState<'_> {
             && matches!(form.form, dir::Form::Borrowed { .. } | dir::Form::Raw)
         {
             let projected = form.value;
-            self.project_pattern_input(flow, projected, pattern.into_global_any(module))?;
+            self.project_pattern_input(flow, scope, projected, pattern.into_global_any(module))?;
 
             return self.commit_pattern(
                 node,
@@ -128,7 +131,7 @@ impl CheckState<'_> {
                 operator_protocol.expression_result,
                 call.return_type,
             )?);
-            self.project_pattern_input(flow, projected, pattern.into_global_any(module))?;
+            self.project_pattern_input(flow, scope, projected, pattern.into_global_any(module))?;
 
             return self.commit_pattern(
                 node,

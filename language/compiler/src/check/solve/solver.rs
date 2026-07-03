@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, Obligation,
+    Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, ObligationEntry,
     ObligationId, ObligationTable, Origin, RelationCache, RelationCacheSnapshot, Task, TaskKey,
     VariableState, VariableTable, Widening, WorkMark, WorkQueue,
 };
@@ -209,10 +209,10 @@ impl Solver {
     }
 
     /// Allocate one obligation.
-    pub(in crate::check) fn allocate_obligation(&mut self, obligation: Obligation) -> ObligationId {
+    pub(in crate::check) fn allocate_obligation(&mut self, entry: ObligationEntry) -> ObligationId {
         let id = ObligationId::at(self.next_obligation as usize);
         self.next_obligation += 1;
-        self.obligations.insert(id, obligation);
+        self.obligations.insert(id, entry);
 
         id
     }

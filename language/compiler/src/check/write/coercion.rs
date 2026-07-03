@@ -43,7 +43,7 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        if self.coercions_match(Origin::Node(node), previous, coercion)? {
+        if self.coercions_match(self.node_site(node)?.origin(), previous, coercion)? {
             return Ok(());
         }
 
@@ -156,6 +156,10 @@ impl CheckState<'_> {
         }
 
         if self.types_are_equal(origin, source, target)? {
+            return Ok(false);
+        }
+
+        if matches!(self.ty(source)?, dir::Type::Never) {
             return Ok(false);
         }
 

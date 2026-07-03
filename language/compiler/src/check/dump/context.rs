@@ -219,7 +219,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     /// Return a compact origin label.
     pub(in crate::check) fn origin_label(&self, origin: Origin) -> String {
         match origin {
-            Origin::Node(node) => self.node_label(node),
+            Origin::Node(node, _) => self.node_label(node),
             Origin::Symbol(symbol) => self.symbol_label(symbol),
         }
     }
@@ -227,7 +227,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     /// Return the source location for one origin.
     pub(in crate::check) fn origin_source_label(&self, origin: Origin) -> String {
         match origin {
-            Origin::Node(node) => self.node_source_label(node),
+            Origin::Node(node, _) => self.node_source_label(node),
             Origin::Symbol(symbol) => self
                 .symbol_source(symbol)
                 .map(|node| self.node_source_label(node))
@@ -240,6 +240,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         match relation {
             Relation::Equal => "equal",
             Relation::Assignable => "assignable",
+            Relation::MethodAssignable => "method-assignable",
             Relation::Writable => "writable",
             Relation::Castable => "castable",
             Relation::Satisfies => "satisfies",

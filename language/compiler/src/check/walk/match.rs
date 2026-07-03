@@ -175,7 +175,10 @@ impl WalkState<'_, '_> {
                     let expectation = Expectation {
                         expected,
                         relation: Relation::Assignable,
-                        origin: Origin::Node(pattern.into_global_any(self.module)),
+                        origin: Origin::Node(
+                            pattern.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        ),
                         use_: ValueUse::Store,
                     };
                     self.queue_node_check(*pattern, expectation)?;
@@ -210,12 +213,14 @@ impl WalkState<'_, '_> {
         value: ExpectedType,
         cases: Vec<MatchCase>,
     ) {
-        self.check
-            .push_obligation(Obligation::PatternCoverage(PatternCoverageObligation {
+        self.check.push_obligation(
+            Obligation::PatternCoverage(PatternCoverageObligation {
                 source: id.into_global_any(self.module),
                 value,
                 coverage: PatternCoverage::Match { cases },
-            }));
+            }),
+            self.flow().template_scope(),
+        );
     }
 
     /// Return the coverage case for one match arm.

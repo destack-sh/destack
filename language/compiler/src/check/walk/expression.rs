@@ -217,7 +217,10 @@ impl WalkState<'_, '_> {
                     let expectation = self.current_return_target().map(|target| {
                         Expectation::assignable(
                             target,
-                            Origin::Node(value.into_global_any(self.module)),
+                            Origin::Node(
+                                value.into_global_any(self.module),
+                                self.flow().template_scope(),
+                            ),
                             ValueUse::Output,
                         )
                     });
@@ -440,7 +443,10 @@ impl WalkState<'_, '_> {
                     let expectation = Expectation {
                         expected: ExpectedType::Type(target),
                         relation: Relation::Castable,
-                        origin: Origin::Node(child.into_global_any(self.module)),
+                        origin: Origin::Node(
+                            child.into_global_any(self.module),
+                            self.flow().template_scope(),
+                        ),
                         use_: ValueUse::Store,
                     };
                     self.walk_expression(child, self.tree.get(child))?;
@@ -1160,7 +1166,10 @@ impl WalkState<'_, '_> {
         // catch (error: T)
         let expected = ty.map(|ty| self.walk_type_expression(ty)).transpose()?;
         if let (Some(failure), Some(expected)) = (failure, expected) {
-            let origin = Origin::Node(id.into_global_any(self.module));
+            let origin = Origin::Node(
+                id.into_global_any(self.module),
+                self.flow().template_scope(),
+            );
             self.relate_type(origin, Relation::Assignable, failure, expected);
         }
 
@@ -1172,20 +1181,24 @@ impl WalkState<'_, '_> {
             if let Some(value) = expected.or(failure) {
                 let expectation = Expectation::assignable(
                     value,
-                    Origin::Node(pattern.into_global_any(self.module)),
+                    Origin::Node(
+                        pattern.into_global_any(self.module),
+                        self.flow().template_scope(),
+                    ),
                     ValueUse::Store,
                 );
                 self.queue_node_check(pattern, expectation)?;
 
-                self.check.push_obligation(Obligation::PatternCoverage(
-                    PatternCoverageObligation {
+                self.check.push_obligation(
+                    Obligation::PatternCoverage(PatternCoverageObligation {
                         source: pattern.into_global_any(self.module),
                         value: ExpectedType::Type(value),
                         coverage: PatternCoverage::Catch {
                             pattern: pattern.into_global(self.module),
                         },
-                    },
-                ));
+                    }),
+                    self.flow().template_scope(),
+                );
             }
 
             self.mark_bindings_assigned(pattern.into_any());
@@ -1439,7 +1452,10 @@ impl WalkState<'_, '_> {
         &mut self,
         condition: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Expectation> {
-        let origin = Origin::Node(condition.into_global_any(self.module));
+        let origin = Origin::Node(
+            condition.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
         let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
 
         Ok(Expectation::assignable(

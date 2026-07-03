@@ -71,10 +71,12 @@ impl CheckState<'_> {
                     let source_site = self.node_site(source)?;
                     answer!(self.infer_expression(source_site, PlaceUse::Read, mode)?);
                     let spread = answer!(self.node_type_at(source_site)?);
-                    let Some(spread_fields) =
-                        answer!(self.spread_fields(Origin::Node(source), module, spread)?)
-                    else {
-                        self.report_spread_not_object(Origin::Node(source), spread)?;
+                    let Some(spread_fields) = answer!(self.spread_fields(
+                        Origin::Node(source, site.scope),
+                        module,
+                        spread
+                    )?) else {
+                        self.report_spread_not_object(Origin::Node(source, site.scope), spread)?;
                         self.commit_decision(node.into_any(), Decision::Rejected)?;
                         let error = self.commit_error_node(node.into_any())?;
 
@@ -157,7 +159,7 @@ impl CheckState<'_> {
                         child_site,
                         field.ty,
                         relation,
-                        Origin::Node(child),
+                        Origin::Node(child, site.scope),
                         use_
                     )?);
                 }

@@ -14,6 +14,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<()>> {
@@ -23,6 +24,7 @@ impl CheckState<'_> {
             FlowSite {
                 node: value_node,
                 flow,
+                scope,
             },
             PlaceUse::Read
         )?);
@@ -62,6 +64,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         start: Option<dir::LocalNodeId<dir::Expression>>,
         end: Option<dir::LocalNodeId<dir::Expression>>,
@@ -81,6 +84,7 @@ impl CheckState<'_> {
                 FlowSite {
                     node: bound_node,
                     flow,
+                    scope,
                 },
                 PlaceUse::Read
             )?);

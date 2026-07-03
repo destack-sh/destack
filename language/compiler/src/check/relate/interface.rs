@@ -16,6 +16,8 @@ pub(in crate::check) struct InterfaceMember {
     pub(in crate::check) ty: Option<dir::GlobalTypeId>,
     /// How the member participates in assignability.
     pub(in crate::check) role: MemberRole,
+    /// Whether the member carries a default implementation.
+    pub(in crate::check) has_default: bool,
 }
 
 impl CheckState<'_> {
@@ -48,11 +50,8 @@ impl CheckState<'_> {
                 continue;
             };
 
-            let assignment = if member.role.uses_method_assignability() {
-                self.decide_method_assignable(origin, found, member_type)?
-            } else {
-                self.decide_relation(origin, Relation::Assignable, found, member_type)?
-            };
+            let relation = member.role.conformance_relation();
+            let assignment = self.decide_relation(origin, relation, found, member_type)?;
             decision = decision.and(assignment);
             if decision.is_ready_false() {
                 return Ok(decision);
@@ -131,6 +130,7 @@ impl CheckState<'_> {
                 key,
                 ty,
                 role,
+                has_default: member.is_default(),
             });
         }
 

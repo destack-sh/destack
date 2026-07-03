@@ -25,6 +25,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<Answer<()>> {
@@ -46,7 +47,7 @@ impl CheckState<'_> {
         }
 
         let (fields, rest) =
-            answer!(self.project_named_fields(node, origin, flow, scrutinee, fields)?);
+            answer!(self.project_named_fields(node, origin, flow, scope, scrutinee, fields)?);
 
         self.commit_pattern(
             node,
@@ -62,6 +63,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::AssignPattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         scrutinee: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<Answer<bool>> {
@@ -81,9 +83,9 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(false));
         }
 
-        let Some((fields, rest)) =
-            answer!(self.project_assign_named_fields(node, origin, flow, scrutinee, fields)?)
-        else {
+        let Some((fields, rest)) = answer!(
+            self.project_assign_named_fields(node, origin, flow, scope, scrutinee, fields)?
+        ) else {
             self.commit_decision(node.into_any(), Decision::Rejected)?;
 
             return Ok(Answer::Ready(false));
@@ -106,6 +108,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Pattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         owner: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
     ) -> CompilerResult<
@@ -121,7 +124,7 @@ impl CheckState<'_> {
         let mut rest = None;
         for field in fields {
             let field_node = self.module(module).view().get(*field).clone();
-            let field_origin = Origin::Node(field.into_global_any(module));
+            let field_origin = Origin::Node(field.into_global_any(module), scope);
             let (key, pattern) = match field_node {
                 dir::PatternField::Named { name, pattern, .. } => (name.static_key(), pattern),
                 dir::PatternField::Computed { key, pattern } => {
@@ -129,6 +132,7 @@ impl CheckState<'_> {
                     let key_site = FlowSite {
                         node: key_node,
                         flow,
+                        scope,
                     };
 
                     let Some(key) = answer!(self.select_static_key(key_site, key)?) else {
@@ -142,6 +146,7 @@ impl CheckState<'_> {
 
                         self.project_pattern_input(
                             flow,
+                            scope,
                             projection.ty(),
                             pattern.into_global_any(module),
                         )?;
@@ -157,7 +162,7 @@ impl CheckState<'_> {
                     (key, Some(pattern))
                 }
                 dir::PatternField::Spread { pattern } => {
-                    let rest_origin = Origin::Node(field.into_global_any(module));
+                    let rest_origin = Origin::Node(field.into_global_any(module), scope);
                     let Some(projection) = answer!(self.object_rest_projection(
                         rest_origin,
                         module,
@@ -172,6 +177,7 @@ impl CheckState<'_> {
                     if let Some(pattern) = pattern {
                         self.project_pattern_input(
                             flow,
+                            scope,
                             projection.ty(),
                             pattern.into_global_any(module),
                         )?;
@@ -199,6 +205,7 @@ impl CheckState<'_> {
 
                         self.project_pattern_input(
                             flow,
+                            scope,
                             undefined,
                             pattern.into_global_any(module),
                         )?;
@@ -227,6 +234,7 @@ impl CheckState<'_> {
                 Some(pattern) => {
                     self.project_pattern_input(
                         flow,
+                        scope,
                         projected_value,
                         pattern.into_global_any(module),
                     )?;
@@ -259,6 +267,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::AssignPattern>,
         origin: Origin,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         owner: dir::GlobalTypeId,
         fields: &[dir::LocalNodeId<dir::AssignPatternField>],
     ) -> CompilerResult<
@@ -276,7 +285,7 @@ impl CheckState<'_> {
         let mut rest = None;
         for field in fields {
             let source = field.into_global_any(module);
-            let field_origin = Origin::Node(source);
+            let field_origin = Origin::Node(source, scope);
             let field_node = self.module(module).view().get(*field).clone();
             let (key, pattern) = match field_node {
                 dir::AssignPatternField::Named { name, pattern, .. } => {
@@ -287,6 +296,7 @@ impl CheckState<'_> {
                     let key_site = FlowSite {
                         node: key_node,
                         flow,
+                        scope,
                     };
 
                     let Some(key) = answer!(self.select_static_key(key_site, key)?) else {
@@ -300,6 +310,7 @@ impl CheckState<'_> {
 
                         self.project_pattern_input(
                             flow,
+                            scope,
                             projection.ty(),
                             pattern.into_global_any(module),
                         )?;
@@ -315,7 +326,7 @@ impl CheckState<'_> {
                     (key, Some(pattern))
                 }
                 dir::AssignPatternField::Spread { pattern } => {
-                    let rest_origin = Origin::Node(source);
+                    let rest_origin = Origin::Node(source, scope);
                     let Some(projection) = answer!(self.object_rest_projection(
                         rest_origin,
                         module,
@@ -331,6 +342,7 @@ impl CheckState<'_> {
                     if let Some(pattern) = pattern {
                         self.project_pattern_input(
                             flow,
+                            scope,
                             rest_type,
                             pattern.into_global_any(module),
                         )?;
@@ -362,6 +374,7 @@ impl CheckState<'_> {
 
                         self.project_pattern_input(
                             flow,
+                            scope,
                             undefined,
                             pattern.into_global_any(module),
                         )?;
@@ -393,7 +406,12 @@ impl CheckState<'_> {
                     message: "named assignment field has no target pattern".to_string(),
                 });
             };
-            self.project_pattern_input(flow, projected_value, pattern.into_global_any(module))?;
+            self.project_pattern_input(
+                flow,
+                scope,
+                projected_value,
+                pattern.into_global_any(module),
+            )?;
             projected.push(dir::AssignPatternFieldResolution {
                 source: field.into_global_any(module),
                 projection,

@@ -15,8 +15,8 @@ impl CheckState<'_> {
 
         match propagation.target {
             TryPropagationTarget::Failure { ty } => {
-                let origin = Origin::Node(propagation.source);
-                let failure = answer!(self.try_residual(propagation.source, value)?);
+                let origin = Origin::Node(propagation.source, propagation.value.scope);
+                let failure = answer!(self.try_residual(origin, propagation.source, value)?);
                 let is_assignable =
                     answer!(self.constrain(origin, Relation::Assignable, failure, ty,)?);
                 if !is_assignable {
@@ -26,7 +26,9 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(()))
             }
             TryPropagationTarget::Return { ty } => {
-                self.run_return_propagation(propagation.source, value, ty)
+                let origin = Origin::Node(propagation.source, propagation.value.scope);
+
+                self.run_return_propagation(origin, propagation.source, value, ty)
             }
         }
     }
@@ -34,6 +36,7 @@ impl CheckState<'_> {
     /// Propagate one try value through an enclosing return type.
     fn run_return_propagation(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         return_type: Option<dir::GlobalTypeId>,
@@ -44,7 +47,8 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(()));
         };
 
-        let is_implemented = answer!(self.decide_try_propagation(source, value, return_type)?);
+        let is_implemented =
+            answer!(self.decide_try_propagation(origin, source, value, return_type)?);
         if !is_implemented {
             self.report_try_propagation_not_implemented(source, value, return_type);
         }
@@ -55,12 +59,12 @@ impl CheckState<'_> {
     /// Decide whether a propagated try failure fits an enclosing return type.
     fn decide_try_propagation(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         return_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let origin = Origin::Node(source);
-        let residual = answer!(self.try_residual(source, value)?);
+        let residual = answer!(self.try_residual(origin, source, value)?);
 
         // require the return type to accept the residual
         let symbol = self.language_symbol(dir::LanguageItem::FromResidual);
@@ -76,11 +80,12 @@ impl CheckState<'_> {
     /// Return the residual projected from one try value.
     fn try_residual(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         self.reduce_operation_type(
-            Origin::Node(source),
+            self.origin_at(origin, source),
             dir::TypeOperation::TryResidual { value },
         )
     }

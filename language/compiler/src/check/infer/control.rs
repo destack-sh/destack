@@ -140,7 +140,8 @@ impl CheckState<'_> {
         let module = node.module_id;
         let iterator_site = self.node_site(iterator.into_global_any(module))?;
         let iterator_type = answer!(self.infer_node_type(iterator_site, PlaceUse::Read)?);
-        let target = answer!(self.for_each_value_type(site.node, operator, iterator_type)?);
+        let target =
+            answer!(self.for_each_value_type(site.origin(), site.node, operator, iterator_type)?);
 
         // check the binding against the value produced by the iteration source
         let pattern = match binding {
@@ -152,7 +153,7 @@ impl CheckState<'_> {
             pattern_site,
             target,
             Relation::Assignable,
-            Origin::Node(site.node),
+            site.origin(),
             ValueUse::Store
         )?);
 
@@ -166,26 +167,32 @@ impl CheckState<'_> {
     /// Return the value type bound by one for-in or for-of source.
     fn for_each_value_type(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         operator: dir::ForEachOperator,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         match operator {
-            dir::ForEachOperator::In => self.for_in_value_type(source, iterator_type),
-            dir::ForEachOperator::Of => self.for_of_value_type(source, iterator_type),
+            dir::ForEachOperator::In => self.for_in_value_type(origin, source, iterator_type),
+            dir::ForEachOperator::Of => self.for_of_value_type(origin, source, iterator_type),
         }
     }
 
     /// Return the key type bound by one for-in source.
     fn for_in_value_type(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        self.push_obligation(Obligation::ForInSource(ForInSourceObligation {
-            source,
-            ty: iterator_type,
-        }));
+        let scope = self.origin_scope(origin);
+        self.push_obligation(
+            Obligation::ForInSource(ForInSourceObligation {
+                source,
+                ty: iterator_type,
+            }),
+            scope,
+        );
         let string = self.intern_type(
             source.module_id,
             dir::Type::Primitive(dir::PrimitiveType::String),
@@ -197,12 +204,13 @@ impl CheckState<'_> {
     /// Return the yielded value type of one for-of source.
     fn for_of_value_type(
         &mut self,
+        origin: Origin,
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let protocol = self.language_symbol(dir::LanguageItem::Iterable);
         let implementation = answer!(self.select_protocol_implementation(
-            Origin::Node(source),
+            self.origin_at(origin, source),
             iterator_type,
             iterator_type,
             protocol,

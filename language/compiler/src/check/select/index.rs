@@ -78,6 +78,7 @@ impl SubscriptSelection {
     /// Return the key constraint required by the selected operator call.
     pub(in crate::check) fn key_constraint(
         &self,
+        scope: Option<dir::GlobalGenericTemplateId>,
         index: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
     ) -> Option<Constraint> {
@@ -87,7 +88,7 @@ impl SubscriptSelection {
             Relation::Assignable,
             index,
             parameter,
-            Origin::Node(index_node),
+            Origin::Node(index_node, scope),
             ValueUse::Argument,
         ))
     }
@@ -168,7 +169,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
-        let origin = Origin::Node(node);
+        let origin = site.origin();
 
         // infer the receiver and index operands at this site
         let receiver_node = left.into_global_any(module);
@@ -198,7 +199,9 @@ impl CheckState<'_> {
             return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
         };
 
-        if let Some(constraint) = selection.key_constraint(index, index_node) {
+        if let Some(constraint) =
+            selection.key_constraint(self.origin_scope(origin), index, index_node)
+        {
             self.push_constraint(constraint);
         }
         let ty = selection.ty();
@@ -288,7 +291,9 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
 
-        if let Some(constraint) = selection.key_constraint(index, index_node) {
+        if let Some(constraint) =
+            selection.key_constraint(self.origin_scope(origin), index, index_node)
+        {
             self.push_constraint(constraint);
         }
 

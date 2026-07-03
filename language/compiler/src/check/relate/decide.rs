@@ -39,13 +39,12 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(left_key == right_key));
         }
 
-        // key parameter queries by their assuming scope
-        let scope =
-            if self.type_flags(left)?.has_parameter() || self.type_flags(right)?.has_parameter() {
-                self.origin_scope(origin)
-            } else {
-                None
-            };
+        // key parameter and this queries by their assuming scope
+        let flags = self.type_flags(left)? | self.type_flags(right)?;
+        let scope = match flags.has_parameter() || flags.has_this() {
+            true => self.origin_scope(origin),
+            false => None,
+        };
 
         // reuse memoized answers, treating in-flight pairs as recursive cycles
         if let Some(holds) = self.relations().lookup(relation, left, right, scope) {
@@ -56,6 +55,7 @@ impl CheckState<'_> {
         let decision = match relation {
             Relation::Equal => self.decide_equal(origin, left, right),
             Relation::Assignable => self.decide_assignable(origin, left, right),
+            Relation::MethodAssignable => self.decide_method_assignable(origin, left, right),
             Relation::Writable => self.decide_writable(origin, left, right),
             Relation::Castable => self.decide_castable(origin, left, right),
             Relation::Satisfies | Relation::Extends | Relation::Implements => {
@@ -433,6 +433,8 @@ impl CheckState<'_> {
             (dir::Type::Parameter(parameter), _) => {
                 self.decide_parameter_assignable(origin, parameter, target)?
             }
+            // this assigns through its enclosing interface hypotheses
+            (dir::Type::This, _) => self.decide_this_assignable(origin, target)?,
             // intersection sources assign through any element
             (dir::Type::Intersection(intersection), _) => {
                 let elements = self
@@ -643,6 +645,25 @@ impl CheckState<'_> {
         // prove through any declared or assumed bound
         let mut decision = Answer::Ready(false);
         for bound in self.parameter_bounds(origin, parameter)? {
+            decision =
+                decision.or(self.decide_relation(origin, Relation::Assignable, bound, target)?);
+            if decision.is_ready_true() {
+                break;
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Decide whether one assumed bound carries `this`.
+    fn decide_this_assignable(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        // prove through any assumed bound on this
+        let mut decision = Answer::Ready(false);
+        for bound in self.assumed_bounds(origin, |ty| matches!(ty, dir::Type::This))? {
             decision =
                 decision.or(self.decide_relation(origin, Relation::Assignable, bound, target)?);
             if decision.is_ready_true() {
@@ -941,8 +962,9 @@ impl CheckState<'_> {
                     access: target_access,
                 },
             ) => {
-                // collect open lifetime annotation bounds
+                // collect open lifetime annotation bounds on either side
                 self.push_lifetime_lower_bound_if_open(origin, source_lifetime, target_lifetime)?;
+                self.push_lifetime_lower_bound_if_open(origin, target_lifetime, source_lifetime)?;
 
                 self.decide_access_assignable(origin, source_access, target_access)
             }

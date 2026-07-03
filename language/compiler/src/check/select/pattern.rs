@@ -14,11 +14,12 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         self.commit_node_type(node.into_any(), input)?;
 
-        self.select_pattern(node, flow, input)
+        self.select_pattern(node, flow, scope, input)
     }
 
     /// Check one assignment pattern against its input type.
@@ -26,12 +27,13 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::AssignPattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         origin: Origin,
     ) -> CompilerResult<Answer<()>> {
         self.commit_node_type(node.into_any(), input)?;
 
-        let accepted = answer!(self.select_assign_pattern(node, flow, input, origin)?);
+        let accepted = answer!(self.select_assign_pattern(node, flow, scope, input, origin)?);
         if !accepted {
             return Ok(Answer::Ready(()));
         }
@@ -47,11 +49,12 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::AssignPattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         input_origin: Origin,
     ) -> CompilerResult<Answer<bool>> {
         let module = node.module_id;
-        let pattern_origin = Origin::Node(node.into_any());
+        let pattern_origin = Origin::Node(node.into_any(), scope);
 
         // read each assignment target shape once and dispatch with it
         let pattern = self.module(module).view().get(node.local_id).clone();
@@ -62,6 +65,7 @@ impl CheckState<'_> {
                     FlowSite {
                         node: value.into_global_any(module),
                         flow,
+                        scope,
                     },
                     value,
                     PlaceUse::Write
@@ -70,7 +74,8 @@ impl CheckState<'_> {
 
                     return Ok(Answer::Ready(false));
                 };
-                let target = answer!(self.commit_assign_pattern_place(node, place)?);
+                let target =
+                    answer!(self.commit_assign_pattern_place(input_origin, node, place)?);
                 self.push_constraint(Constraint::value(
                     Relation::Assignable,
                     input,
@@ -88,6 +93,7 @@ impl CheckState<'_> {
                     FlowSite {
                         node: value_node,
                         flow,
+                        scope,
                     },
                     PlaceUse::Read
                 )?);
@@ -95,7 +101,7 @@ impl CheckState<'_> {
                     answer!(self.defaulted_pattern_input(pattern_origin, input, default)?);
 
                 // flow the defaulted input into the nested target
-                self.project_pattern_input(flow, input, pattern.into_global_any(module))?;
+                self.project_pattern_input(flow, scope, input, pattern.into_global_any(module))?;
 
                 let () = answer!(self.commit_assign_pattern(
                     node,
@@ -111,19 +117,26 @@ impl CheckState<'_> {
             dir::AssignPattern::Sequence { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_assign_sequence_pattern(node, pattern_origin, flow, input, &fields)
+                self.select_assign_sequence_pattern(
+                    node,
+                    pattern_origin,
+                    flow,
+                    scope,
+                    input,
+                    &fields,
+                )
             }
             // (a, b) = point
             dir::AssignPattern::Tuple { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_assign_tuple_pattern(node, pattern_origin, flow, input, &fields)
+                self.select_assign_tuple_pattern(node, pattern_origin, flow, scope, input, &fields)
             }
             // { x, y: z } = point
             dir::AssignPattern::Object { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_assign_object_pattern(node, pattern_origin, flow, input, &fields)
+                self.select_assign_object_pattern(node, pattern_origin, flow, scope, input, &fields)
             }
         }
     }
@@ -131,6 +144,7 @@ impl CheckState<'_> {
     /// Commit one assignment pattern that writes into a selected place.
     pub(in crate::check) fn commit_assign_pattern_place(
         &mut self,
+        origin: Origin,
         node: dir::GlobalNodeId<dir::AssignPattern>,
         place: WriteTarget,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
@@ -140,10 +154,14 @@ impl CheckState<'_> {
         self.commit_node_type(resolution.source, target_type)?;
 
         // require the written place to be writable
-        self.push_obligation(Obligation::WritablePlace(WritablePlaceObligation {
-            place,
-            ty: target_type,
-        }));
+        let scope = self.origin_scope(origin);
+        self.push_obligation(
+            Obligation::WritablePlace(WritablePlaceObligation {
+                place,
+                ty: target_type,
+            }),
+            scope,
+        );
 
         // commit the assignment pattern resolution
         let () = answer!(
@@ -162,10 +180,11 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         let module = node.module_id;
-        let origin = Origin::Node(node.into_any());
+        let origin = Origin::Node(node.into_any(), scope);
         let input = answer!(self.reduce_type_head(origin, input)?);
         let input = answer!(self.accepted_pattern_input(node, origin, input)?);
 
@@ -187,7 +206,12 @@ impl CheckState<'_> {
                     self.bind_symbol_type(symbol, input)?;
                 }
                 if let Some(pattern) = pattern {
-                    self.project_pattern_input(flow, input, pattern.into_global_any(module))?;
+                    self.project_pattern_input(
+                        flow,
+                        scope,
+                        input,
+                        pattern.into_global_any(module),
+                    )?;
                 }
 
                 self.commit_pattern(
@@ -217,13 +241,14 @@ impl CheckState<'_> {
                     FlowSite {
                         node: value_node,
                         flow,
+                        scope,
                     },
                     PlaceUse::Read
                 )?);
                 let input = answer!(self.defaulted_pattern_input(origin, input, default)?);
 
                 // flow the defaulted input into the nested pattern
-                self.project_pattern_input(flow, input, pattern.into_global_any(module))?;
+                self.project_pattern_input(flow, scope, input, pattern.into_global_any(module))?;
 
                 self.commit_pattern(
                     node,
@@ -236,20 +261,20 @@ impl CheckState<'_> {
 
             // &pattern, ^pattern, *pattern
             dir::Pattern::BorrowOf { mutability, right } => {
-                self.select_borrow_pattern(node, flow, input, *right, *mutability)
+                self.select_borrow_pattern(node, flow, scope, input, *right, *mutability)
             }
             dir::Pattern::MoveOf { mutability, right } => {
-                self.select_move_pattern(node, flow, input, *right, *mutability)
+                self.select_move_pattern(node, flow, scope, input, *right, *mutability)
             }
             dir::Pattern::DereferenceOf { right } => {
-                self.select_dereference_pattern(node, origin, flow, input, *right)
+                self.select_dereference_pattern(node, origin, flow, scope, input, *right)
             }
 
             // 1, "ready"
             dir::Pattern::Expression { value } => {
                 let value = *value;
 
-                self.select_literal_pattern(node, origin, flow, input, value)
+                self.select_literal_pattern(node, origin, flow, scope, input, value)
             }
 
             // start..end
@@ -260,47 +285,47 @@ impl CheckState<'_> {
             } => {
                 let (start, end, end_kind) = (*start, *end, *end_kind);
 
-                self.select_range_pattern(node, origin, flow, input, start, end, end_kind)
+                self.select_range_pattern(node, origin, flow, scope, input, start, end, end_kind)
             }
 
             // (a, b)
             dir::Pattern::Tuple { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_tuple_pattern(node, origin, flow, input, &fields)
+                self.select_tuple_pattern(node, origin, flow, scope, input, &fields)
             }
 
             // [a, b, ...rest]
             dir::Pattern::Sequence { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_sequence_pattern(node, origin, flow, input, &fields)
+                self.select_sequence_pattern(node, origin, flow, scope, input, &fields)
             }
 
             // { name, nested: pattern }
             dir::Pattern::Object { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_object_pattern(node, origin, flow, input, &fields)
+                self.select_object_pattern(node, origin, flow, scope, input, &fields)
             }
 
             // T(value), T { name }
             dir::Pattern::NominalTuple { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
 
-                self.select_newtype_pattern(node, origin, flow, ty, &fields)
+                self.select_newtype_pattern(node, origin, flow, scope, ty, &fields)
             }
             dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
 
-                self.select_nominal_pattern(node, origin, flow, ty, &fields)
+                self.select_nominal_pattern(node, origin, flow, scope, ty, &fields)
             }
 
             // a | b
             dir::Pattern::Union { patterns } => {
                 let patterns = patterns.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.select_union_pattern(node, flow, input, &patterns)
+                self.select_union_pattern(node, flow, scope, input, &patterns)
             }
         }
     }
@@ -310,6 +335,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         patterns: &[dir::LocalNodeId<dir::Pattern>],
     ) -> CompilerResult<Answer<()>> {
@@ -317,7 +343,7 @@ impl CheckState<'_> {
 
         // match every branch against the same input
         for pattern in patterns {
-            self.project_pattern_input(flow, input, (*pattern).into_global_any(module))?;
+            self.project_pattern_input(flow, scope, input, (*pattern).into_global_any(module))?;
         }
 
         self.commit_pattern(
@@ -448,6 +474,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn project_pattern_input(
         &mut self,
         flow: FlowPointId,
+        scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
@@ -455,10 +482,11 @@ impl CheckState<'_> {
             site: FlowSite {
                 node: pattern,
                 flow,
+                scope,
             },
             expected: ExpectedType::Type(input),
             relation: Relation::Assignable,
-            origin: Origin::Node(pattern),
+            origin: Origin::Node(pattern, scope),
             use_: ValueUse::Store,
         });
 

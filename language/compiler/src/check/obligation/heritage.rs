@@ -1,5 +1,6 @@
 use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -84,11 +85,11 @@ impl CheckState<'_> {
     /// Check one declaration against its heritage rules.
     pub(in crate::check) fn check_declaration_heritage(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
-        let instance = self.declaration_instance(source, symbol)?;
+        let source = self.origin_source(origin)?;
+        let instance = self.declaration_instance(source.module_id, symbol)?;
         let closure = answer!(self.heritage_closure(origin, source.module_id, &instance)?);
 
         // report graph errors before class member rules
@@ -120,16 +121,16 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(self.report_heritage_errors(source, errors)));
         }
 
-        self.check_class_member_heritage(source, symbol)
+        self.check_class_member_heritage(origin, symbol)
     }
 
     /// Check one class declaration against its member heritage rules.
     fn check_class_member_heritage(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        origin: Origin,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let origin = Origin::Node(source);
+        let source = self.origin_source(origin)?;
         let Some(dir::Definition::Class(class)) = self.definition(symbol) else {
             return Ok(Answer::Ready(None));
         };
@@ -347,9 +348,9 @@ impl CheckState<'_> {
     }
 
     /// Return one declaration's own generic application.
-    fn declaration_instance(
+    pub(in crate::check) fn declaration_instance(
         &mut self,
-        source: dir::GlobalNodeIdAny,
+        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GenericInstance> {
         let parameters = self
@@ -359,10 +360,10 @@ impl CheckState<'_> {
         let mut arguments = Vec::with_capacity(parameters.len());
         for parameter in parameters {
             let ty = dir::Type::Parameter(parameter);
-            let argument = self.intern_type(source.module_id, ty)?;
+            let argument = self.intern_type(module, ty)?;
             arguments.push(argument);
         }
-        let arguments = self.intern_type_ids(source.module_id, &arguments)?;
+        let arguments = self.intern_type_ids(module, &arguments)?;
 
         Ok(dir::GenericInstance { symbol, arguments })
     }

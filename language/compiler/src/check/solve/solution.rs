@@ -319,6 +319,9 @@ impl CheckState<'_> {
             self.solver.wait_for(Dependency::Variable(target), waiter);
         }
 
+        // move the induced parameter onto the representative
+        self.generics.merge_induction(variable, target);
+
         self.record_event(CheckEvent::VariableAliased {
             variable,
             representative: target,
