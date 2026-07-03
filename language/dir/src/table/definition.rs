@@ -735,8 +735,21 @@ pub struct MethodDefinition {
     pub abstraction: MethodAbstraction,
     /// Whether the method overrides an inherited member.
     pub is_override: bool,
-    /// Whether the method carries a default body.
-    pub is_default: bool,
+    /// How the method receives its implementation.
+    pub implementation: MethodImplementation,
+}
+
+/// How one method receives its implementation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum MethodImplementation {
+    /// Implementers must supply a body.
+    Required,
+    /// The declaration supplies its own body.
+    Body,
+    /// The declaring interface supplies a fallback body.
+    Default,
+    /// The compiler supplies the body.
+    Intrinsic,
 }
 
 /// One checked associated type.
@@ -823,7 +836,7 @@ impl DefinitionMember {
     /// Return whether this member carries a default implementation.
     pub fn is_default(&self) -> bool {
         match self {
-            Self::Method(method) => method.is_default,
+            Self::Method(method) => method.implementation == MethodImplementation::Default,
             _ => false,
         }
     }
