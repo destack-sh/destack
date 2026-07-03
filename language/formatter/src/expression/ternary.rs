@@ -261,17 +261,13 @@ fn ternary_branch_parent(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
-    let Some((parent_id, parent_type)) = context.parent_by_id(expression_id.id) else {
-        return None;
-    };
+    let (parent_id, parent_type) = context.parent_by_id(expression_id.id)?;
     if parent_type != NodeType::Expression {
         return None;
     }
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, parent_id) else {
-        return None;
-    };
+    let (_, then_expression, else_expression) = ternary_parts(context.tree, parent_id)?;
     if then_expression == expression_id || else_expression.is_some_and(|id| id == expression_id) {
         return Some(parent_id);
     }

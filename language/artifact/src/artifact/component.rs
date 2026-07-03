@@ -88,10 +88,10 @@ impl ModuleGraph {
         removed_modules.sort_unstable();
         removed_modules.dedup();
 
-        if removed_modules.is_empty() {
-            if let Some(graph) = self.patch_edges(&updated_edges) {
-                return graph;
-            }
+        if removed_modules.is_empty()
+            && let Some(graph) = self.patch_edges(&updated_edges)
+        {
+            return graph;
         }
 
         self.derive_edges(updated_edges, &removed_modules)
@@ -435,9 +435,7 @@ impl ComponentGraph {
 
         let mut changed_components = Vec::with_capacity(updated_edges.len());
         for (module, new_edges) in updated_edges {
-            let Some(source) = self.module_graph.module_index(*module) else {
-                return None;
-            };
+            let source = self.module_graph.module_index(*module)?;
             let source_component = self.module_components[source];
             let old_edges = self.module_graph.edge_targets(source);
             changed_components.push(source_component);
@@ -458,9 +456,7 @@ impl ComponentGraph {
 
             // adding a dependency edge can merge components only when it closes a DAG cycle
             for target in new_edges.iter().copied() {
-                let Some(target) = self.module_graph.module_index(target) else {
-                    return None;
-                };
+                let target = self.module_graph.module_index(target)?;
 
                 let target_component = self.module_components[target];
                 if source_component == target_component || old_edges.contains(&(target as u32)) {

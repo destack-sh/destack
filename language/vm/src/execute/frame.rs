@@ -188,7 +188,7 @@ pub(crate) fn encode_argument_bytes(
     ty: TypeId,
     value: Cell,
 ) -> Result<Vec<u8>, Error> {
-    let layout = activation.require_layout(ty)?.clone();
+    let layout = *activation.require_layout(ty)?;
     if activation.program.is_cell_type(ty) {
         let cell_layout = require_cell_layout(activation.program, ty)?;
         let bytes = encode_cell_bytes(cell_layout, value, activation.program.pointer_bytes());
@@ -453,7 +453,7 @@ pub(crate) fn store_frame_pair(
     first: Cell,
     second: Cell,
 ) -> Result<(), Error> {
-    let layout = activation.require_layout(destination.ty)?.clone();
+    let layout = *activation.require_layout(destination.ty)?;
     let first_field = activation
         .program
         .layout_field_at(&layout, 0)

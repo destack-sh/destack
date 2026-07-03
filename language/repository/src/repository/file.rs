@@ -357,8 +357,8 @@ impl Repository {
         directories.insert(self.root.normalize());
 
         // physical workspace directories
-        for (_file_id, entry) in files.iter().copied() {
-            let path = self.file_entry_path(&entry);
+        for (_file_id, entry) in files {
+            let path = self.file_entry_path(entry);
 
             let mut current = path.parent().map(Path::to_path_buf);
             while let Some(directory) = current {
