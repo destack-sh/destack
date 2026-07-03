@@ -6,10 +6,10 @@ use destack_source::ContentId;
 
 use crate::{
     ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build, Bundle,
-    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    MirAnalyzed, MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object,
-    PackageIndex, PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
+    ComponentGraph, Data, DirBound, DirChecked, DirCheckedComponent, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed,
+    MirLowered, MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex,
+    PackageLinted, Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
 };
 use serde::{Deserialize, Serialize};
 
@@ -44,8 +44,6 @@ pub enum ArtifactPayload {
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
     DirMaterialized(Arc<DirMaterialized>),
-    /// Elaborated DIR.
-    DirElaborated(Arc<DirElaborated>),
     /// Lowered MIR before optimization.
     MirLowered(Arc<MirLowered>),
     /// Verified MIR marker after required semantic verification.
@@ -111,8 +109,6 @@ pub enum ArtifactPayloadRef<'a> {
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
     DirMaterialized(&'a DirMaterialized),
-    /// Elaborated DIR.
-    DirElaborated(&'a DirElaborated),
     /// Lowered MIR before optimization.
     MirLowered(&'a MirLowered),
     /// Verified MIR marker after required semantic verification.
@@ -196,10 +192,6 @@ impl ArtifactPayload {
                     ArtifactPayload::DirMaterialized(_)
                 )
                 | (
-                    ArtifactKey::DirElaborated { .. },
-                    ArtifactPayload::DirElaborated(_)
-                )
-                | (
                     ArtifactKey::MirLowered { .. },
                     ArtifactPayload::MirLowered(_)
                 )
@@ -266,7 +258,6 @@ impl ArtifactPayload {
             }
             Self::DirChecked(payload) => ArtifactPayloadRef::DirChecked(payload.as_ref()),
             Self::DirMaterialized(payload) => ArtifactPayloadRef::DirMaterialized(payload.as_ref()),
-            Self::DirElaborated(payload) => ArtifactPayloadRef::DirElaborated(payload.as_ref()),
             Self::MirLowered(payload) => ArtifactPayloadRef::MirLowered(payload.as_ref()),
             Self::MirVerified(payload) => ArtifactPayloadRef::MirVerified(payload.as_ref()),
             Self::MirAnalyzed(payload) => ArtifactPayloadRef::MirAnalyzed(payload.as_ref()),
@@ -322,7 +313,6 @@ impl ArtifactPayload {
             Self::DirCheckedComponent(_) => "dir_checked_component",
             Self::DirChecked(_) => "dir_checked",
             Self::DirMaterialized(_) => "dir_materialized",
-            Self::DirElaborated(_) => "dir_elaborated",
             Self::MirLowered(_) => "mir_lowered",
             Self::MirVerified(_) => "mir_verified",
             Self::MirAnalyzed(_) => "mir_analyzed",
@@ -451,13 +441,6 @@ impl From<DirMaterialized> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirMaterialized) -> Self {
         Self::DirMaterialized(Arc::new(payload))
-    }
-}
-
-impl From<DirElaborated> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirElaborated) -> Self {
-        Self::DirElaborated(Arc::new(payload))
     }
 }
 
