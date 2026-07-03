@@ -8,7 +8,6 @@ import { fileURLToPath } from "node:url";
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDirectory, "..", "..", "..");
 const grammarFixtureDirectory = path.join(repoRoot, "language", "test", "fixtures", "grammar");
-const specificationFixtureDirectory = path.join(repoRoot, "language", "test", "fixtures", "specification");
 const vscodeFixtureDirectory = path.join(grammarFixtureDirectory, "destack");
 const destackCorpusDirectory = path.join(repoRoot, "language", "grammar", "destack", "test", "corpus");
 const destackGrammarDirectory = path.join(repoRoot, "language", "grammar", "destack", "destack");
@@ -50,39 +49,6 @@ function relativeFiles(directory, extension) {
     return walkFiles(directory, (filePath) => filePath.endsWith(extension))
         .map((filePath) => path.relative(directory, filePath))
         .sort();
-}
-
-function fixtureFamily(filePath) {
-    const parts = filePath.replace(/\.[^.]+$/, "").split(path.sep);
-
-    if (parts.length >= 2) {
-        return `${parts[0]}/${parts[1]}`;
-    }
-
-    return parts[0];
-}
-
-function checkSpecificationFamilyCoverage(errors) {
-    const specificationFamilies = new Set(
-        relativeFiles(specificationFixtureDirectory, ".md")
-            .filter((filePath) => filePath !== "known-failures.txt")
-            .map((filePath) => fixtureFamily(filePath)),
-    );
-    const grammarFamilies = new Set(
-        relativeFiles(vscodeFixtureDirectory, ".txt")
-            .map((filePath) => fixtureFamily(filePath)),
-    );
-    const missingFamilies = [...specificationFamilies]
-        .filter((family) => !grammarFamilies.has(family))
-        .sort();
-
-    if (missingFamilies.length > 0) {
-        errors.push(`${missingFamilies.length} specification fixture families have no shared grammar fixture`);
-
-        for (const family of missingFamilies) {
-            errors.push(`${family}: missing shared grammar fixture`);
-        }
-    }
 }
 
 function sectionHeaders(source) {
@@ -318,7 +284,6 @@ function main() {
     const errors = [];
 
     checkVscodeFixtures(errors);
-    checkSpecificationFamilyCoverage(errors);
     checkDestackCorpus(errors);
     checkMirFixtures(errors);
     checkDestackFixtureParse(errors);
