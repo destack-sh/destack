@@ -1,6 +1,12 @@
 import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
+/// The positive float infinity.
+export const Infinity: number = 1.0 / 0.0;
+
+/// The float not-a-number value.
+export const NaN: number = 0.0 / 0.0;
+
 /// Number locale formatting options.
 export type NumberFormatOptions = {
     /// Locale matching algorithm.

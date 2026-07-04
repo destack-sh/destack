@@ -1,5 +1,5 @@
 import { HostError } from "destack:error/host";
-import { FileHandle, FileMode, Path } from "destack:fs/binding";
+import { FileHandle, FileMode, FileOpenFlags, Path } from "destack:fs/binding";
 import { PipeHandle } from "destack:ipc/binding";
 import { ProcessHandle } from "destack:process/binding";
 
