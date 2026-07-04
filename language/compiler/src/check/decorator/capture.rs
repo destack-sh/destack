@@ -23,23 +23,24 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<Option<dir::CaptureDirective>> {
-        let invocations = self.decorator_invocations(module, source);
+        let applications = self.decorator_applications(module, source);
         let mut directive = None;
 
         // use the last capture decorator in source order
-        for invocation in invocations {
-            if self.decorator_language_item(module, &invocation) != Some(dir::LanguageItem::Capture)
+        for application in applications {
+            if self.decorator_language_item(module, &application)
+                != Some(dir::LanguageItem::Capture)
             {
                 continue;
             }
 
-            directive = self.capture_directive_from_arguments(module, &invocation.arguments);
+            directive = self.capture_directive_from_arguments(module, &application.arguments);
         }
 
         Ok(directive)
     }
 
-    /// Return the capture directive represented by decorator invocation arguments.
+    /// Return the capture directive represented by decorator application arguments.
     fn capture_directive_from_arguments(
         &self,
         module: ModuleId,

@@ -4,7 +4,7 @@ use crate::CompilerResult;
 use crate::check::{Decision, WalkState};
 
 impl WalkState<'_, '_> {
-    /// Walk one annotation invocation.
+    /// Walk one decorator application.
     ///
     /// Example:
     /// ```ds
@@ -15,18 +15,18 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Decorator>,
     ) -> CompilerResult<()> {
-        let invocation = self.check.decorator_invocation(self.module, id);
+        let application = self.check.decorator_application(self.module, id);
 
         // walk non-if decorator target names
         if self
             .check
-            .static_if_decorator_from_invocation(self.module, &invocation)
+            .static_if_decorator_from_application(self.module, &application)
             .is_none()
         {
-            self.walk_decorator_target_name(invocation.target)?;
+            self.walk_decorator_target_name(application.target)?;
         }
 
-        // annotation arguments are read by their decorator consumers
+        // decorator arguments are read by their decorator consumers
         Ok(())
     }
 

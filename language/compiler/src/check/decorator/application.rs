@@ -3,42 +3,42 @@ use destack_source::ModuleId;
 
 use crate::check::CheckState;
 
-/// Decorator invocation extracted from syntax.
+/// Decorator application extracted from syntax.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct DecoratorInvocation {
+pub(in crate::check) struct DecoratorApplication {
     /// The decorator node.
     pub(in crate::check) decorator: dir::LocalNodeId<dir::Decorator>,
     /// The decorator target expression.
     pub(in crate::check) target: dir::LocalNodeId<dir::Expression>,
-    /// The decorator invocation arguments.
+    /// The decorator application arguments.
     pub(in crate::check) arguments: Vec<dir::LocalNodeId<dir::Argument>>,
 }
 
 impl CheckState<'_> {
-    /// Return decorator invocations attached to one decorated node.
-    pub(in crate::check) fn decorator_invocations(
+    /// Return decorator applications attached to one decorated node.
+    pub(in crate::check) fn decorator_applications(
         &self,
         module: ModuleId,
         decorated: dir::LocalNodeIdAny,
-    ) -> Vec<DecoratorInvocation> {
+    ) -> Vec<DecoratorApplication> {
         let view = self.module(module).view();
         let decorators = view.get_decorators_any(decorated);
-        let mut invocations = Vec::with_capacity(decorators.len());
+        let mut applications = Vec::with_capacity(decorators.len());
 
-        // extract attached decorator invocations in source order
+        // extract attached decorator applications in source order
         for decorator in decorators {
-            invocations.push(self.decorator_invocation(module, decorator));
+            applications.push(self.decorator_application(module, decorator));
         }
 
-        invocations
+        applications
     }
 
-    /// Extract one decorator invocation.
-    pub(in crate::check) fn decorator_invocation(
+    /// Extract one decorator application.
+    pub(in crate::check) fn decorator_application(
         &self,
         module: ModuleId,
         decorator: dir::LocalNodeId<dir::Decorator>,
-    ) -> DecoratorInvocation {
+    ) -> DecoratorApplication {
         let view = self.module(module).view();
         let expression = view.get(decorator).expression;
         let (target, arguments) = match view.get(expression) {
@@ -48,7 +48,7 @@ impl CheckState<'_> {
             _ => (expression, Vec::new()),
         };
 
-        DecoratorInvocation {
+        DecoratorApplication {
             decorator,
             target,
             arguments,

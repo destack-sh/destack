@@ -66,13 +66,18 @@ impl WalkState<'_, '_> {
             return Ok(StaticGate::from_presence(is_present));
         }
 
-        let invocations = self.check.decorator_invocations(self.module, decorated);
+        let applications = self.check.decorator_applications(self.module, decorated);
+
+        // record checked decorator applications before any static gate exits
+        for application in &applications {
+            self.commit_decorator_application(decorated_global, application);
+        }
 
         // decide static gates before walking ordinary decorators
-        for invocation in &invocations {
+        for application in &applications {
             if let Some(decorator) = self
                 .check
-                .static_if_decorator_from_invocation(self.module, invocation)
+                .static_if_decorator_from_application(self.module, application)
             {
                 let StaticIfCondition::Present(condition_expression) = decorator.condition else {
                     self.check
@@ -94,19 +99,47 @@ impl WalkState<'_, '_> {
         }
 
         // walk ordinary decorators only when the node is present
-        for invocation in invocations {
+        for application in applications {
             if self
                 .check
-                .static_if_decorator_from_invocation(self.module, &invocation)
+                .static_if_decorator_from_application(self.module, &application)
                 .is_none()
             {
-                self.walk_decorator(invocation.decorator)?;
+                self.walk_decorator(application.decorator)?;
             }
         }
 
         self.commit_static_gate(decorated_global, StaticGate::Present);
 
         Ok(StaticGate::Present)
+    }
+
+    /// Commit one checked decorator application.
+    fn commit_decorator_application(
+        &mut self,
+        decorated: dir::GlobalNodeIdAny,
+        application: &crate::check::DecoratorApplication,
+    ) {
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| dir::DecoratorArgument {
+                source: (*argument).into_global_any(self.module),
+                value: None,
+            })
+            .collect();
+        let application = dir::DecoratorApplication {
+            source: application.decorator.into_global_any(self.module),
+            owner: decorated,
+            target: application.target.into_global_any(self.module),
+            resolution: self.check.decorator_target(self.module, application),
+            arguments,
+        };
+
+        self.check
+            .module_mut(self.module)
+            .decorators
+            .insert_application(application);
     }
 
     /// Commit one static gate decision.

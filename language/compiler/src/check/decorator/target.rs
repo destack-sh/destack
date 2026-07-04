@@ -1,18 +1,18 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, DecoratorInvocation};
+use crate::check::{CheckState, DecoratorApplication};
 
 impl CheckState<'_> {
-    /// Return the language item referenced by one decorator invocation.
+    /// Return the language item referenced by one decorator application.
     pub(in crate::check) fn decorator_language_item(
         &self,
         module: ModuleId,
-        invocation: &DecoratorInvocation,
+        application: &DecoratorApplication,
     ) -> Option<dir::LanguageItem> {
-        match self.decorator_target(module, invocation) {
-            dir::AnnotationTarget::LanguageItem(item) => Some(item),
-            dir::AnnotationTarget::Symbol(_) | dir::AnnotationTarget::Unknown => None,
+        match self.decorator_target(module, application) {
+            dir::DecoratorResolution::LanguageItem(item) => Some(item),
+            dir::DecoratorResolution::Symbol(_) | dir::DecoratorResolution::Unresolved => None,
         }
     }
 
@@ -40,33 +40,33 @@ impl CheckState<'_> {
         self.environment.language.item(symbol)
     }
 
-    /// Return the target resolved by one decorator invocation.
+    /// Return the target resolved by one decorator application.
     ///
     /// Decorator names resolve eagerly because language item decorators affect later traversal.
     pub(in crate::check) fn decorator_target(
         &self,
         module: ModuleId,
-        invocation: &DecoratorInvocation,
-    ) -> dir::AnnotationTarget {
+        application: &DecoratorApplication,
+    ) -> dir::DecoratorResolution {
         let view = self.module(module).view();
 
         // require a bare decorator name
         if !matches!(
-            view.get(invocation.target),
+            view.get(application.target),
             dir::Expression::Identifier { .. }
         ) {
-            return dir::AnnotationTarget::Unknown;
+            return dir::DecoratorResolution::Unresolved;
         }
 
         // read the single resolved decorator binding
-        let source = invocation.target.into_global_any(module);
+        let source = application.target.into_global_any(module);
         let symbol = self.reference_symbol(source);
         match symbol {
             Some(symbol) => match self.environment.language.item(symbol) {
-                Some(item) => dir::AnnotationTarget::LanguageItem(item),
-                None => dir::AnnotationTarget::Symbol(symbol),
+                Some(item) => dir::DecoratorResolution::LanguageItem(item),
+                None => dir::DecoratorResolution::Symbol(symbol),
             },
-            None => dir::AnnotationTarget::Unknown,
+            None => dir::DecoratorResolution::Unresolved,
         }
     }
 }
