@@ -15,7 +15,6 @@ const PUBLIC_ROOTS: &[&str] = &[
     "js",
     "mir",
     "program",
-    "qir",
     "query",
     "repository",
     "source",
@@ -24,6 +23,8 @@ const PUBLIC_ROOTS: &[&str] = &[
 pub(super) struct PythonPackage {
     /// Package path segments below `destack`.
     pub(super) segments: Vec<String>,
+    /// Child package namespaces exported by this package.
+    pub(super) namespaces: Vec<String>,
     /// Re-exported names in stable order.
     pub(super) names: Vec<String>,
     /// Re-export source module keyed by exported name.
@@ -55,7 +56,7 @@ impl PythonPackage {
             }
 
             let names = public_module_names(schema, &module.keys);
-            Self::add(&mut packages, segments, &names);
+            Self::add_public(&mut packages, segments, &names);
         }
 
         packages
@@ -152,13 +153,78 @@ impl PythonPackage {
         }
     }
 
+    /// Add package re-exports for one public generated module path.
+    fn add_public(
+        packages: &mut BTreeMap<Vec<String>, Self>,
+        segments: Vec<String>,
+        names: &[String],
+    ) {
+        let Some(namespace_depth) = public_namespace_depth(&segments) else {
+            Self::add(packages, segments, names);
+
+            return;
+        };
+
+        let parent_segments = segments[..namespace_depth - 1].to_vec();
+        let namespace = segments[namespace_depth - 1].clone();
+        Self::get(packages, parent_segments).add_namespace(&namespace);
+        Self::add_from_depth(packages, segments, names, namespace_depth);
+    }
+
+    /// Add package re-exports starting at one package depth.
+    fn add_from_depth(
+        packages: &mut BTreeMap<Vec<String>, Self>,
+        segments: Vec<String>,
+        names: &[String],
+        first_depth: usize,
+    ) {
+        if segments.is_empty() {
+            return;
+        }
+
+        let module_name = segments[segments.len() - 1].clone();
+
+        for depth in first_depth..segments.len() {
+            let package_segments = segments[..depth].to_vec();
+            let package = Self::get(packages, package_segments);
+            let suffix = segments[depth..].join(".");
+
+            for name in names {
+                package.add_reexport(name, &suffix);
+            }
+        }
+
+        let package_segments = segments[..segments.len() - 1].to_vec();
+        if package_segments.len() < first_depth {
+            return;
+        }
+
+        let package = Self::get(packages, package_segments);
+        for name in names {
+            package
+                .modules
+                .entry(name.clone())
+                .or_insert(module_name.clone());
+        }
+    }
+
     /// Return one package entry.
     fn get(packages: &mut BTreeMap<Vec<String>, Self>, segments: Vec<String>) -> &mut Self {
         packages.entry(segments.clone()).or_insert_with(|| Self {
             segments,
+            namespaces: Vec::new(),
             names: Vec::new(),
             modules: BTreeMap::new(),
         })
+    }
+
+    /// Add one child namespace when it is not already declared.
+    fn add_namespace(&mut self, namespace: &str) {
+        if self.namespaces.iter().any(|existing| existing == namespace) {
+            return;
+        }
+
+        self.namespaces.push(namespace.to_string());
     }
 
     /// Add one re-export when it is not already declared.
@@ -189,6 +255,10 @@ impl PythonPackage {
         let dots = ".".repeat(self.segments.len() + 1);
         let base = format!("{dots}_generated.{}", self.segments.join("."));
 
+        for namespace in &self.namespaces {
+            text.line(format!("from . import {namespace}"));
+        }
+
         for (module, names) in self.modules() {
             text.line(format!("from {base}.{module} import ("));
 
@@ -216,7 +286,8 @@ impl PythonPackage {
 
     /// Return public exported names for this package.
     fn public_names(&self) -> Vec<String> {
-        let mut names = self.names.clone();
+        let mut names = self.namespaces.clone();
+        names.extend(self.names.clone());
 
         if self.segments.as_slice() == ["core"] {
             names.push("StringPool".to_string());
@@ -341,6 +412,15 @@ fn is_public_segments(segments: &[String]) -> bool {
     segments
         .first()
         .is_some_and(|segment| PUBLIC_ROOTS.contains(&segment.as_str()))
+}
+
+/// Return the package depth of a public child namespace.
+fn public_namespace_depth(segments: &[String]) -> Option<usize> {
+    if segments.len() >= 2 && segments[0] == "dir" && segments[1] == "index" {
+        Some(2)
+    } else {
+        None
+    }
 }
 
 /// Return public names emitted by one generated Python module.

@@ -780,6 +780,15 @@ pub enum ConstructTarget {
 }
 
 impl ConstructTarget {
+    /// Get the underlying symbol.
+    pub fn symbol(&self) -> GlobalSymbolId {
+        match self {
+            Self::Class(candidate) => candidate.symbol,
+            Self::Newtype(candidate) => candidate.symbol,
+            Self::Variant(candidate) => candidate.case.member,
+        }
+    }
+
     /// Apply one mapping to every type id stored in this target.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {

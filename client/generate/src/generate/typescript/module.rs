@@ -13,7 +13,7 @@ pub(super) fn render_module(schema: &Schema, module: &SchemaModule, names: &[Str
     text.blank();
 
     let imports = render_imports(schema, module, names, &type_names);
-    let implementation_imports = render_implementation_imports(module);
+    let implementation_imports = render_implementation_imports(schema, module, names);
 
     if !imports.is_empty() {
         text.raw(imports);
@@ -35,10 +35,22 @@ pub(super) fn render_module(schema: &Schema, module: &SchemaModule, names: &[Str
 }
 
 /// Render TypeScript implementation imports for one generated module.
-fn render_implementation_imports(module: &SchemaModule) -> String {
+fn render_implementation_imports(
+    schema: &Schema,
+    module: &SchemaModule,
+    names: &[String],
+) -> String {
     let mut text = Text::new();
 
     for owner in implementation_owners(module) {
+        let has_matching_item = names
+            .iter()
+            .map(|name| schema.item(name))
+            .any(|item| owner.matches(item));
+        if !has_matching_item {
+            continue;
+        }
+
         let import = typescript_implementation_import(module, owner.module());
         text.line(format!(
             "import {{ {} }} from {:?};",

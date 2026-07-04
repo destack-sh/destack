@@ -43,6 +43,7 @@ impl Schema {
     fn from_registry(root: SchemaRoot, registry: SchemaRegistry) -> Result<Self> {
         let type_keys = schema_type_keys(&registry);
         let mut items = BTreeMap::new();
+        let mut item_sources = BTreeMap::new();
         let mut modules = Vec::new();
         let mut item_modules = BTreeMap::new();
 
@@ -56,7 +57,7 @@ impl Schema {
             let keys = module_names
                 .iter()
                 .map(|name| {
-                    let key = schema_type_key(root, &name, &type_keys);
+                    let key = schema_type_key(root, name, &type_keys);
                     item_modules.insert(key.clone(), path.clone());
 
                     key
@@ -70,11 +71,17 @@ impl Schema {
 
         for item in registry.items.into_values() {
             let key = schema_type_key(root, &item.name, &type_keys);
+            let source = format!("{}::{}", item.name.module.join("::"), item.name.name);
             let item = Item::from_schema(key.clone(), item, &type_keys)?;
 
             if items.insert(key.clone(), item).is_some() {
-                bail!("schema contains duplicate item {key}");
+                let previous = item_sources
+                    .get(&key)
+                    .map(String::as_str)
+                    .unwrap_or("<unknown>");
+                bail!("schema contains duplicate item {key}: {previous} and {source}");
             }
+            item_sources.insert(key, source);
         }
 
         Ok(Self {

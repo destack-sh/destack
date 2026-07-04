@@ -145,10 +145,25 @@ fn crate_segments(crate_name: &str, segments: &[String]) -> Vec<String> {
 pub(super) fn schema_type_keys(
     registry: &destack_serde::SchemaRegistry,
 ) -> BTreeMap<destack_serde::SchemaName, String> {
-    registry
+    let keys = registry
         .items
         .keys()
         .map(|name| (name.clone(), qualified_schema_type_name(name)))
+        .collect::<BTreeMap<_, _>>();
+    let mut counts = BTreeMap::<String, usize>::new();
+
+    for key in keys.values() {
+        *counts.entry(key.clone()).or_default() += 1;
+    }
+
+    keys.into_iter()
+        .map(|(name, key)| {
+            if counts.get(&key).copied().unwrap_or_default() > 1 {
+                (name.clone(), fully_qualified_schema_type_name(&name))
+            } else {
+                (name, key)
+            }
+        })
         .collect()
 }
 
@@ -169,6 +184,19 @@ pub(super) fn schema_type_key(
 
 /// Return a stable qualified name for colliding protocol types.
 fn qualified_schema_type_name(name: &destack_serde::SchemaName) -> String {
+    qualified_schema_type_name_with_options(name, true)
+}
+
+/// Return a stable fully qualified name for a colliding schema type.
+fn fully_qualified_schema_type_name(name: &destack_serde::SchemaName) -> String {
+    qualified_schema_type_name_with_options(name, false)
+}
+
+/// Return a stable qualified name with optional redundant-tail compression.
+fn qualified_schema_type_name_with_options(
+    name: &destack_serde::SchemaName,
+    trim_redundant_tail: bool,
+) -> String {
     let segments = name
         .module
         .iter()
@@ -195,9 +223,10 @@ fn qualified_schema_type_name(name: &destack_serde::SchemaName) -> String {
     })
     .collect::<Vec<_>>();
 
-    if segments
-        .last()
-        .is_some_and(|segment| segment == &name.name || name.name.starts_with(segment))
+    if trim_redundant_tail
+        && segments
+            .last()
+            .is_some_and(|segment| segment == &name.name || name.name.starts_with(segment))
     {
         segments.pop();
     }

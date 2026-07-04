@@ -13,7 +13,6 @@ const PUBLIC_ROOTS: &[&str] = &[
     "js",
     "mir",
     "program",
-    "qir",
     "query",
     "repository",
     "source",
@@ -103,7 +102,7 @@ impl PublicIndexTree {
         let mut outputs = Vec::new();
 
         for (root, modules) in &self.modules {
-            if has_colliding_names(modules) {
+            if has_colliding_names(root, modules) {
                 outputs.extend(self.render_nested_root(root, modules));
             } else {
                 outputs.push(self.render_flat_root(root, modules));
@@ -124,14 +123,21 @@ impl PublicIndexTree {
         text.blank();
 
         for (path, names) in modules {
-            text.line("export {");
-            for name in names {
-                text.line(format!("    {name},"));
+            if is_public_namespace_path(root, path) {
+                let namespace = namespace(&path[0]);
+                text.line(format!(
+                    "export * as {namespace} from \"./{namespace}/index.generated.js\";"
+                ));
+            } else {
+                text.line("export {");
+                for name in names {
+                    text.line(format!("    {name},"));
+                }
+                text.line(format!(
+                    "}} from {:?};",
+                    public_generated_import(root, &[], path)
+                ));
             }
-            text.line(format!(
-                "}} from {:?};",
-                public_generated_import(root, &[], path)
-            ));
         }
 
         render_handwritten_exports(root, &[], &mut text);
@@ -178,7 +184,9 @@ impl PublicIndexTree {
                 continue;
             }
 
-            if path.len() == directory.len() + 1 {
+            if is_public_namespace_path(root, path) && directory.is_empty() {
+                child_directories.insert(path[0].clone());
+            } else if path.len() == directory.len() + 1 {
                 direct_modules.push((path, names));
             } else if path.len() > directory.len() + 1 {
                 child_directories.insert(path[directory.len()].clone());
@@ -319,10 +327,14 @@ fn is_public_root(root: &str) -> bool {
 }
 
 /// Return whether any public names collide in one root facade.
-fn has_colliding_names(modules: &BTreeMap<Vec<String>, BTreeSet<String>>) -> bool {
+fn has_colliding_names(root: &str, modules: &BTreeMap<Vec<String>, BTreeSet<String>>) -> bool {
     let mut names = BTreeSet::<String>::new();
 
-    for module_names in modules.values() {
+    for (path, module_names) in modules {
+        if is_public_namespace_path(root, path) {
+            continue;
+        }
+
         for name in module_names {
             if !names.insert(name.clone()) {
                 return true;
@@ -331,6 +343,11 @@ fn has_colliding_names(modules: &BTreeMap<Vec<String>, BTreeSet<String>>) -> boo
     }
 
     false
+}
+
+/// Return whether one public module is exposed as a child namespace.
+fn is_public_namespace_path(root: &str, path: &[String]) -> bool {
+    root == "dir" && path.len() == 1 && path[0] == "index"
 }
 
 /// Return one import path from a public facade to a generated source module.
