@@ -133,7 +133,7 @@ impl MemberIndex {
 
 impl MemberPostings {
     /// Build member postings from module index sections.
-    pub fn new(indexes: &[&MemberIndex]) -> Self {
+    pub fn build(indexes: &[&MemberIndex]) -> Self {
         let names = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
 

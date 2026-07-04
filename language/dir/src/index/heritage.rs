@@ -82,7 +82,7 @@ impl HeritageIndex {
 
 impl HeritagePostings {
     /// Build heritage postings from module index sections.
-    pub fn new(indexes: &[&HeritageIndex]) -> Self {
+    pub fn build(indexes: &[&HeritageIndex]) -> Self {
         let bases = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
 
