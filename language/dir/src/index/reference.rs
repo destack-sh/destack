@@ -41,6 +41,13 @@ impl ReferenceIndex {
             .map(|entry| entry.source.module_id)
     }
 
+    /// Iterate references to one target symbol.
+    pub fn target_entries(&self, target: GlobalSymbolId) -> impl Iterator<Item = &ReferenceEntry> {
+        let range = self.target_range(target);
+
+        self.by_target[range].iter()
+    }
+
     /// Return all indexed references.
     pub fn entries(&self) -> &[ReferenceEntry] {
         &self.by_target

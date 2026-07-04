@@ -239,5 +239,5 @@ pub enum DecoratorResolution {
     /// User-defined decorator symbol.
     Symbol(GlobalSymbolId),
     /// Unresolved or non-symbol decorator target.
-    Unknown,
+    Unresolved,
 }

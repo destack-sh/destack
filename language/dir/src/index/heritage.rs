@@ -42,7 +42,7 @@ impl HeritageIndex {
     }
 
     /// Iterate heritage edges that target one base symbol.
-    pub fn for_base(&self, base: GlobalSymbolId) -> impl Iterator<Item = &HeritageEntry> {
+    pub fn base_entries(&self, base: GlobalSymbolId) -> impl Iterator<Item = &HeritageEntry> {
         let range = self.base_range(base);
 
         self.by_base[range].iter()
@@ -54,7 +54,7 @@ impl HeritageIndex {
     }
 
     /// Iterate heritage edges declared by one derived symbol.
-    pub fn for_derived(&self, derived: GlobalSymbolId) -> impl Iterator<Item = &HeritageEntry> {
+    pub fn derived_entries(&self, derived: GlobalSymbolId) -> impl Iterator<Item = &HeritageEntry> {
         let range = self.derived_range(derived);
 
         self.by_derived[range].iter()

@@ -23,8 +23,8 @@ pub struct DecoratorPostings {
 pub struct DecoratorEntry {
     /// The decorator name when syntactically known.
     pub name: Option<String>,
-    /// The local decorator application id when checked.
-    pub application: Option<LocalDecoratorId>,
+    /// The local decorator application id.
+    pub application: LocalDecoratorId,
     /// The decorator node.
     pub decorator: GlobalNodeIdAny,
     /// The decorator expression target.
