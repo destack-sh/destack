@@ -1,6 +1,8 @@
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{FloatType, IntegerType, Keyword, TokenType, TypeLiteral, VarianceBound};
+use destack_dir::{
+    FloatType, IntegerType, Keyword, ScalarAlias, TokenType, TypeLiteral, VarianceBound,
+};
 
 impl Parser {
     /// Map identifier text to always-available type literals.
@@ -31,19 +33,15 @@ impl Parser {
             "string" => Some(TypeLiteral::String),
             "bigint" => Some(TypeLiteral::Bigint),
             "number" => Some(TypeLiteral::Number),
-            "int" => Some(TypeLiteral::Integer(IntegerType::Integer {
-                is_signed: true,
-            })),
+            "int" => Some(TypeLiteral::Alias(ScalarAlias::Int)),
             "isize" => Some(TypeLiteral::Integer(IntegerType::Pointer {
                 is_signed: true,
             })),
-            "uint" => Some(TypeLiteral::Integer(IntegerType::Integer {
-                is_signed: false,
-            })),
+            "uint" => Some(TypeLiteral::Alias(ScalarAlias::Uint)),
             "usize" => Some(TypeLiteral::Integer(IntegerType::Pointer {
                 is_signed: false,
             })),
-            "float" => Some(TypeLiteral::Float(FloatType::Float)),
+            "float" => Some(TypeLiteral::Alias(ScalarAlias::Float)),
             "symbol" => Some(TypeLiteral::Symbol),
             "unique" if next_identifier == Some("symbol") => Some(TypeLiteral::UniqueSymbol),
             _ => None,
