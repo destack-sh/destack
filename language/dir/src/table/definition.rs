@@ -714,6 +714,8 @@ pub struct FieldDefinition {
     pub key: StaticKey,
     /// The field initializer expression, when one is declared.
     pub initializer: Option<GlobalNodeIdAny>,
+    /// Whether the field asserts definite assignment outside constructors.
+    pub is_definite: bool,
     /// Whether subclasses must provide the field.
     pub is_abstract: bool,
     /// Whether the field overrides an inherited member.
