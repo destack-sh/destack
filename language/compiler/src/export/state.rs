@@ -86,7 +86,7 @@ impl<'a> ExportState<'a> {
     /// Insert one named export and report duplicate keys.
     pub(in crate::export) fn insert_export(
         &mut self,
-        export: dir::ExportEntry,
+        export: dir::NamedExport,
         anchor: DiagnosticAnchor,
     ) -> ExportResult<()> {
         let key = export.key();
@@ -230,7 +230,7 @@ impl<'a> ExportState<'a> {
     /// Return the source anchor for one local export.
     pub(in crate::export) fn local_export_anchor(
         &self,
-        export: &dir::LocalExportEntry,
+        export: &dir::LocalExport,
     ) -> ExportResult<DiagnosticAnchor> {
         if let Some(item) = export.item {
             return self.anchor_node(item.id);

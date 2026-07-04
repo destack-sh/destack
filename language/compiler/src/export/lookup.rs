@@ -196,14 +196,14 @@ impl ExportResolver {
         &mut self,
         artifacts: &ArtifactReader<'_>,
         module: ModuleId,
-        export: dir::ExportEntry,
+        export: dir::NamedExport,
     ) -> CompilerResult<ExportLookup> {
         match export {
-            dir::ExportEntry::Local(export) => Ok(ExportLookup::Found(ExportTarget::Symbol(
+            dir::NamedExport::Local(export) => Ok(ExportLookup::Found(ExportTarget::Symbol(
                 export.source.into_global(module),
             ))),
 
-            dir::ExportEntry::Indirect(export) => {
+            dir::NamedExport::Indirect(export) => {
                 let Some(target) = export.target else {
                     return Ok(ExportLookup::Missing);
                 };

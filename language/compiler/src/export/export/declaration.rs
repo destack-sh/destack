@@ -17,7 +17,7 @@ impl Compiler {
 
             if let Some(export) = self.declaration_export_entry(state, symbol_id)? {
                 let anchor = state.local_export_anchor(&export)?;
-                state.insert_export(dir::ExportEntry::Local(export), anchor)?;
+                state.insert_export(dir::NamedExport::Local(export), anchor)?;
             }
         }
 
@@ -68,7 +68,7 @@ impl Compiler {
         &self,
         state: &mut ExportState<'_>,
         symbol_id: dir::LocalSymbolId,
-    ) -> ExportResult<Option<dir::LocalExportEntry>> {
+    ) -> ExportResult<Option<dir::LocalExport>> {
         let symbol = state.bindings.get_symbol(symbol_id);
         let scope = symbol.scope.id;
         let declaration = symbol.declaration;
@@ -112,7 +112,7 @@ impl Compiler {
             }
         };
 
-        Ok(Some(dir::LocalExportEntry {
+        Ok(Some(dir::LocalExport {
             key: name,
             source: symbol_id,
             item: None,
