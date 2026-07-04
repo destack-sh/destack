@@ -10,6 +10,11 @@ export class ByteReader {
     /// The current byte offset.
     offset: usize = 0;
 
+    /// Create a reader over `source`.
+    private constructor(source: Bytes) {
+        this.bytes = source;
+    }
+
     /// Create a reader for `bytes`.
     static from(bytes: Bytes): ^ByteReader {
         todo("ByteReader.from")

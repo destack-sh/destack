@@ -29,7 +29,7 @@ export class BigInt {
     private sign: int8 = 0;
 
     /// The little-endian limb storage.
-    private limbs: Unique<[MaybeUninit<uint64>]>;
+    private limbs: Unique<[MaybeUninit<uint64>]> = Unique.empty();
 
     /// The initialized limb count.
     private initializedLength: usize = 0;

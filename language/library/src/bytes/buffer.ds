@@ -6,7 +6,7 @@ import { Bytes } from "./bytes.ds";
 /// Growable byte buffer.
 export class ByteBuffer {
     /// The owned byte storage.
-    storage: Unique<[MaybeUninit<uint8>]>;
+    storage: Unique<[MaybeUninit<uint8>]> = Unique.empty();
 
     /// The initialized byte count.
     initializedLength: usize = 0;

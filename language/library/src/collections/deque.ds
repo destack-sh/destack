@@ -7,7 +7,7 @@ import { Index, IndexSet } from "destack:ops";
 /// A compact double-ended queue.
 export class Deque<T> {
     /// The ring storage.
-    storage: Unique<[MaybeUninit<T>]>;
+    storage: Unique<[MaybeUninit<T>]> = Unique.empty();
 
     /// The first initialized slot.
     start: usize = 0;

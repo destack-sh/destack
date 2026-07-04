@@ -38,10 +38,10 @@ export local struct ConcurrentMapEntry<K, V> {
 /// A sharded concurrent hash map.
 export shared class ConcurrentMap<K, V> {
     /// The map shards.
-    shards: Array<RwLock<Map<K, V>>>;
+    shards: Array<RwLock<Map<K, V>>> = Array.new();
 
     /// The number of live entries.
-    count: Atomic<usize>;
+    count: Atomic<usize> = Atomic.new(0);
 }
 
 export extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dereference<"readonly"> {

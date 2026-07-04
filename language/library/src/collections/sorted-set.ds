@@ -10,7 +10,7 @@ import { SortedMap } from "./sorted-map.ds";
 /// A compact sorted set.
 export class SortedSet<T> {
     /// The backing sorted map.
-    map: SortedMap<T, void>;
+    map: SortedMap<T, void> = SortedMap.new();
 }
 
 export extension<T> of SortedSet<T> {

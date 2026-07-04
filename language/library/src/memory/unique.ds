@@ -13,3 +13,9 @@ export extension<T> of Unique<Owned<T>> {
     @intrinsic("memory.unique.leak")
     leak(this): Borrowed<T, "static">;
 }
+
+export extension<T> of Unique<[T]> {
+    /// Create an empty slice handle without allocating.
+    @intrinsic("memory.unique.empty")
+    static empty(): Unique<[T]>;
+}

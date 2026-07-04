@@ -27,7 +27,7 @@ export type StringReplacement =
 @languageItem("string.String")
 export class String {
     /// The owned UTF-8 bytes.
-    bytes: Unique<[uint8]>;
+    bytes: Unique<[uint8]> = Unique.empty();
 }
 
 export extension of String {

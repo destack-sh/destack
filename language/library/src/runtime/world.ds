@@ -103,6 +103,14 @@ export class World {
     runtimes: uint32;
     /// World labels.
     labels?: [Label];
+
+    /// Create a world view.
+    private constructor(handle: WorldHandle, branch: BranchId, revision: RevisionId, runtimes: uint32) {
+        this.handle = handle;
+        this.branch = branch;
+        this.revision = revision;
+        this.runtimes = runtimes;
+    }
 }
 
 /// Live runtime.
@@ -118,6 +126,13 @@ export class Runtime {
     workers: uint32;
     /// Runtime labels.
     labels?: [Label];
+
+    /// Create a runtime view.
+    private constructor(handle: RuntimeHandle, id: RuntimeId, workers: uint32) {
+        this.handle = handle;
+        this.id = id;
+        this.workers = workers;
+    }
 }
 
 /// Live worker.
@@ -135,6 +150,14 @@ export class Worker {
     hasPendingWork: boolean;
     /// Worker labels.
     labels?: [Label];
+
+    /// Create a worker view.
+    private constructor(handle: WorkerHandle, id: WorkerId, runtime: RuntimeId, hasPendingWork: boolean) {
+        this.handle = handle;
+        this.id = id;
+        this.runtime = runtime;
+        this.hasPendingWork = hasPendingWork;
+    }
 }
 
 /// Runtime list page.

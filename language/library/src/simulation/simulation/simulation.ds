@@ -16,7 +16,8 @@ export class Simulation {
 
     /// Create a simulation.
     constructor(options?: Options) {
-        todo("simulation.Simulation.constructor");
+        this.world = todo("simulation.Simulation.constructor");
+        this.scenario = todo("simulation.Simulation.constructor");
     }
 
     /// Return context overrides for this simulation.

@@ -15,7 +15,7 @@ export local struct ConcurrentSetRead<T> {
 /// A sharded concurrent hash set.
 export shared class ConcurrentSet<T> {
     /// The backing concurrent map.
-    map: ConcurrentMap<T, void>;
+    map: ConcurrentMap<T, void> = ConcurrentMap.new();
 }
 
 export extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereference<"readonly"> {

@@ -7,7 +7,7 @@ import { Atomic } from "destack:sync";
 /// A concurrent multi-producer multi-consumer queue.
 export shared class ConcurrentQueue<T> {
     /// The queue state.
-    state: Atomic<uint64>;
+    state: Atomic<uint64> = Atomic.new(0);
 }
 
 export extension<T> of ConcurrentQueue<T> implements Extend<T> {

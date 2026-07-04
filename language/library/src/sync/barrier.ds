@@ -8,7 +8,7 @@ export shared class Barrier {
     count: usize;
 
     /// The current arrival count.
-    arrived: Atomic<usize>;
+    arrived: Atomic<usize> = Atomic.new(0);
 
     /// Create a barrier for `count` participants.
     constructor(count: usize) {
