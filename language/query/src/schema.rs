@@ -1,17 +1,17 @@
 use destack_serde::SchemaRegistry;
 
-use crate::{
-    QueryModule, QueryPosition, QueryRange, QueryRequest, QueryResponse, QueryTarget, QueryText,
-};
+use crate::{Module, Position, QueryRequest, QueryResponse, Range, Target, Text};
 
-/// Include public query schema roots.
+/// Register public query schema roots.
 pub fn schema(registry: &mut SchemaRegistry) {
-    registry.register::<QueryModule>();
-    registry.register::<QueryPosition>();
-    registry.register::<QueryRange>();
-    registry.register::<QueryTarget>();
-    registry.register::<QueryText>();
+    // register target shapes
+    registry.register::<Module>();
+    registry.register::<Position>();
+    registry.register::<Range>();
+    registry.register::<Target>();
+    registry.register::<Text>();
 
+    // register request envelopes
     registry.register::<QueryRequest>();
     registry.register::<QueryResponse>();
 }
