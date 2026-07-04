@@ -1,21 +1,25 @@
 pub mod assist;
-mod core;
-mod dir;
+pub mod completion;
+mod context;
+mod cursor;
 pub mod format;
+mod index;
+mod lookup;
 pub mod navigation;
+mod protocol;
 pub mod refactor;
 mod schema;
 mod source;
 
 pub use assist::*;
-pub use core::{
-    ModuleQueryContext, Query, QueryCategory, QueryMethod, QueryMethodId, QueryModule,
-    QueryPosition, QueryRange, QueryRequest, QueryRequestParseError, QueryResponse, QueryTarget,
-    QueryText, WorkspaceQueryContext, module_query_context, module_query_context_from_checked,
-    parse_query_request, query_method, query_methods, workspace_query_context,
-};
-pub use dir::SymbolKind;
+pub use completion::*;
+pub use context::*;
+pub(crate) use context::{ProgramQueryProfile, provide_module_query_context};
+pub(crate) use cursor::*;
 pub use format::*;
+pub use index::*;
+pub(crate) use lookup::*;
 pub use navigation::*;
+pub use protocol::*;
 pub use refactor::*;
 pub use schema::*;
