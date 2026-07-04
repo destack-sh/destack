@@ -202,6 +202,17 @@ pub enum Projection {
         /// The projected pointee type.
         ty: GlobalTypeId,
     },
+    /// Duplicate one copyable value out of a place or view.
+    ///
+    /// Examples:
+    /// ```ds
+    /// takeHandle(view.handle) // copies the handle out of the view
+    /// value as float64        // copies the scalar it converts
+    /// ```
+    Copy {
+        /// The duplicated value type.
+        ty: GlobalTypeId,
+    },
 }
 
 impl Projection {
@@ -221,7 +232,8 @@ impl Projection {
             | Self::NewtypePayload { ty, .. }
             | Self::Borrow { ty, .. }
             | Self::Move { ty, .. }
-            | Self::Dereference { ty, .. } => *ty,
+            | Self::Dereference { ty, .. }
+            | Self::Copy { ty } => *ty,
         }
     }
 
@@ -271,7 +283,7 @@ impl Projection {
                 }
                 *ty = map(*ty);
             }
-            Self::Borrow { ty, .. } | Self::Move { ty, .. } => *ty = map(*ty),
+            Self::Borrow { ty, .. } | Self::Move { ty, .. } | Self::Copy { ty } => *ty = map(*ty),
             Self::Dereference { read, ty } => {
                 read.map_type_ids(map);
                 *ty = map(*ty);
