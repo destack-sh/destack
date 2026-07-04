@@ -1,8 +1,8 @@
 use destack_dir::{
     Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType, FunctionDeclaration,
     FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType, Key, Name, Parameter,
-    Property, ScalarLiteral, TemplateLiteral, TokenType, TreeAttribute, TreeAttributeValue,
-    TreeChild, TypeExpression, TypeLiteral,
+    Property, ScalarAlias, ScalarLiteral, TemplateLiteral, TokenType, TreeAttribute,
+    TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -484,7 +484,7 @@ fn test_parse_type_literal() {
     ));
     assert!(matches!(
         parser.eat_type_literal(None).unwrap(),
-        TypeLiteral::Float(FloatType::Float)
+        TypeLiteral::Alias(ScalarAlias::Float)
     ));
     assert!(matches!(
         parser.eat_type_literal(None).unwrap(),
