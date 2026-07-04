@@ -119,8 +119,6 @@ enum CompilerPhase {
     Export,
     /// Check declared and exported DIR.
     Check,
-    /// Elaborate analyzed DIR.
-    Elaborate,
     /// Materialize checked DIR.
     Materialize,
     /// Lower DIR into MIR.
