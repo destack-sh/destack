@@ -2,9 +2,10 @@ import { todo } from "destack:error";
 import { Add, Divide, Multiply, Negate, Subtract } from "destack:ops";
 
 import { sqrt } from "./float.ds";
+import { Numeric } from "./scalar.ds";
 
 /// Two-dimensional vector.
-export struct Vector2<T: int | float> {
+export struct Vector2<T: Numeric> {
     /// The x component.
     x: T;
 
@@ -13,7 +14,7 @@ export struct Vector2<T: int | float> {
 }
 
 /// Three-dimensional vector.
-export struct Vector3<T: int | float> {
+export struct Vector3<T: Numeric> {
     /// The x component.
     x: T;
 
@@ -25,7 +26,7 @@ export struct Vector3<T: int | float> {
 }
 
 /// Four-dimensional vector.
-export struct Vector4<T: int | float> {
+export struct Vector4<T: Numeric> {
     /// The x component.
     x: T;
 
@@ -66,7 +67,7 @@ export type Vector3i = Vector3<int32>;
 /// Four-dimensional signed integer vector.
 export type Vector4i = Vector4<int32>;
 
-export extension<T: int | float> of Vector2<T>
+export extension<T: Numeric> of Vector2<T>
     implements
         Add<Vector2<T>>,
         Subtract<Vector2<T>>,
@@ -152,7 +153,7 @@ export extension<T: int | float> of Vector2<T>
     }
 }
 
-export extension<T: float> of Vector2<T> {
+export extension<T: Float> of Vector2<T> {
     /// Return the Euclidean length.
     length(): T {
         sqrt(this.lengthSquared())
@@ -221,7 +222,7 @@ export extension<T: float> of Vector2<T> {
     }
 }
 
-export extension<T: int | float> of Vector3<T>
+export extension<T: Numeric> of Vector3<T>
     implements
         Add<Vector3<T>>,
         Subtract<Vector3<T>>,
@@ -316,7 +317,7 @@ export extension<T: int | float> of Vector3<T>
     }
 }
 
-export extension<T: float> of Vector3<T> {
+export extension<T: Float> of Vector3<T> {
     /// Return the Euclidean length.
     length(): T {
         sqrt(this.lengthSquared())
@@ -390,7 +391,7 @@ export extension<T: float> of Vector3<T> {
     }
 }
 
-export extension<T: int | float> of Vector4<T>
+export extension<T: Numeric> of Vector4<T>
     implements
         Add<Vector4<T>>,
         Subtract<Vector4<T>>,
@@ -496,7 +497,7 @@ export extension<T: int | float> of Vector4<T>
     }
 }
 
-export extension<T: float> of Vector4<T> {
+export extension<T: Float> of Vector4<T> {
     /// Return the Euclidean length.
     length(): T {
         sqrt(this.lengthSquared())

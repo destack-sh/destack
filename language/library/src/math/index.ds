@@ -22,6 +22,7 @@ export {
 } from "./bits.ds";
 export * from "./bigint.ds";
 export * from "./number.ds";
+export { Float, Integer, Numeric } from "./scalar.ds";
 export * from "./math.ds";
 
 export {

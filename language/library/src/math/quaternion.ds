@@ -2,11 +2,12 @@ import { todo } from "destack:error";
 import { Multiply } from "destack:ops";
 
 import { sqrt } from "./float.ds";
+import { Float } from "./scalar.ds";
 import { Vector3 } from "./linear.ds";
 import { Matrix3 } from "./matrix.ds";
 
 /// Quaternion rotation value.
-export struct Quaternion<T: float> {
+export struct Quaternion<T: Float> {
     /// The vector x component.
     x: T;
 
@@ -26,7 +27,7 @@ export type Quaternionf = Quaternion<float32>;
 /// Double-precision quaternion.
 export type Quaterniond = Quaternion<float64>;
 
-export extension<T: float> of Quaternion<T> implements Multiply<Quaternion<T>> {
+export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     /// The arithmetic result type.
     type Output = Quaternion<T>;
 

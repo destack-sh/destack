@@ -1,6 +1,7 @@
 import { Slice } from "destack:collections";
 import { Buffer, Device, Mesh } from "destack:compute";
 import { todo } from "destack:error";
+import { Numeric } from "destack:math";
 import { Access, WithAccess } from "destack:memory";
 import {
     Add,
@@ -120,7 +121,7 @@ export extension<T, comptime Rank: int, F: TensorFormat, comptime ...Axes: Shard
     get mesh(): Mesh;
 }
 
-export extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+export extension<T: Numeric, comptime Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P> {
     /// Allocate a tensor filled with zero.
     static zeros(
@@ -139,7 +140,7 @@ export extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placeme
     }
 }
 
-export extension<T: int | float, comptime Rank: int, F: TensorFormat, P: Placement> of
+export extension<T: Numeric, comptime Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P>
     implements
         Add<Tensor<T, Rank, F, P>>,

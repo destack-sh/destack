@@ -1,168 +1,169 @@
 import { todo } from "destack:error";
+import { Float } from "./scalar.ds";
 
 /// Square root.
 @intrinsic("math.float.sqrt")
-export declare function sqrt<T: float>(x: T): T;
+export declare function sqrt<T: Float>(x: T): T;
 
 /// Cube root.
-export function cbrt<T: float>(x: T): T {
+export function cbrt<T: Float>(x: T): T {
     todo("cbrt")
 }
 
 /// Absolute value.
 @intrinsic("math.float.abs")
-export declare function abs<T: float>(x: T): T;
+export declare function abs<T: Float>(x: T): T;
 
 /// Sine.
 @intrinsic("math.float.sin")
-export declare function sin<T: float>(x: T): T;
+export declare function sin<T: Float>(x: T): T;
 
 /// Cosine.
 @intrinsic("math.float.cos")
-export declare function cos<T: float>(x: T): T;
+export declare function cos<T: Float>(x: T): T;
 
 /// Tangent.
 @intrinsic("math.float.tan")
-export declare function tan<T: float>(x: T): T;
+export declare function tan<T: Float>(x: T): T;
 
 /// Hyperbolic sine.
-export function sinh<T: float>(x: T): T {
+export function sinh<T: Float>(x: T): T {
     (exp(x) - exp(-x)) / 2
 }
 
 /// Hyperbolic cosine.
-export function cosh<T: float>(x: T): T {
+export function cosh<T: Float>(x: T): T {
     (exp(x) + exp(-x)) / 2
 }
 
 /// Hyperbolic tangent.
-export function tanh<T: float>(x: T): T {
+export function tanh<T: Float>(x: T): T {
     sinh(x) / cosh(x)
 }
 
 /// Arc sine.
 @intrinsic("math.float.asin")
-export declare function asin<T: float>(x: T): T;
+export declare function asin<T: Float>(x: T): T;
 
 /// Arc cosine.
 @intrinsic("math.float.acos")
-export declare function acos<T: float>(x: T): T;
+export declare function acos<T: Float>(x: T): T;
 
 /// Arc tangent.
 @intrinsic("math.float.atan")
-export declare function atan<T: float>(x: T): T;
+export declare function atan<T: Float>(x: T): T;
 
 /// Inverse hyperbolic sine.
-export function asinh<T: float>(x: T): T {
+export function asinh<T: Float>(x: T): T {
     log(x + sqrt(x * x + 1))
 }
 
 /// Inverse hyperbolic cosine.
-export function acosh<T: float>(x: T): T {
+export function acosh<T: Float>(x: T): T {
     log(x + sqrt(x * x - 1))
 }
 
 /// Inverse hyperbolic tangent.
-export function atanh<T: float>(x: T): T {
+export function atanh<T: Float>(x: T): T {
     log((1 + x) / (1 - x)) / 2
 }
 
 /// Natural exponential.
 @intrinsic("math.float.exp")
-export declare function exp<T: float>(x: T): T;
+export declare function exp<T: Float>(x: T): T;
 
 /// Natural exponential minus one.
-export function expm1<T: float>(x: T): T {
+export function expm1<T: Float>(x: T): T {
     exp(x) - 1
 }
 
 /// Base-2 exponential.
 @intrinsic("math.float.exp2")
-export declare function exp2<T: float>(x: T): T;
+export declare function exp2<T: Float>(x: T): T;
 
 /// Natural logarithm.
 @intrinsic("math.float.log")
-export declare function log<T: float>(x: T): T;
+export declare function log<T: Float>(x: T): T;
 
 /// Natural logarithm of one plus `x`.
-export function log1p<T: float>(x: T): T {
+export function log1p<T: Float>(x: T): T {
     log(1 + x)
 }
 
 /// Base-2 logarithm.
 @intrinsic("math.float.log2")
-export declare function log2<T: float>(x: T): T;
+export declare function log2<T: Float>(x: T): T;
 
 /// Base-10 logarithm.
 @intrinsic("math.float.log10")
-export declare function log10<T: float>(x: T): T;
+export declare function log10<T: Float>(x: T): T;
 
 /// Round toward negative infinity.
 @intrinsic("math.float.floor")
-export declare function floor<T: float>(x: T): T;
+export declare function floor<T: Float>(x: T): T;
 
 /// Round toward positive infinity.
 @intrinsic("math.float.ceil")
-export declare function ceil<T: float>(x: T): T;
+export declare function ceil<T: Float>(x: T): T;
 
 /// Round toward zero.
 @intrinsic("math.float.trunc")
-export declare function trunc<T: float>(x: T): T;
+export declare function trunc<T: Float>(x: T): T;
 
 /// Round to nearest integer, ties to even.
 @intrinsic("math.float.round")
-export declare function round<T: float>(x: T): T;
+export declare function round<T: Float>(x: T): T;
 
 /// Arc tangent of y/x.
 @intrinsic("math.float.atan2")
-export declare function atan2<T: float>(y: T, x: T): T;
+export declare function atan2<T: Float>(y: T, x: T): T;
 
 /// Power.
 @intrinsic("math.float.pow")
-export declare function pow<T: float>(base: T, exponent: T): T;
+export declare function pow<T: Float>(base: T, exponent: T): T;
 
 /// Copy sign.
 @intrinsic("math.float.copySign")
-export declare function copySign<T: float>(magnitude: T, sign: T): T;
+export declare function copySign<T: Float>(magnitude: T, sign: T): T;
 
 /// Minimum of two floats.
 @intrinsic("math.float.min")
-export declare function min<T: float>(a: T, b: T): T;
+export declare function min<T: Float>(a: T, b: T): T;
 
 /// Maximum of two floats.
 @intrinsic("math.float.max")
-export declare function max<T: float>(a: T, b: T): T;
+export declare function max<T: Float>(a: T, b: T): T;
 
 /// Fused multiply-add.
 @intrinsic("math.float.fma")
-export declare function fma<T: float>(a: T, b: T, c: T): T;
+export declare function fma<T: Float>(a: T, b: T, c: T): T;
 
 /// Return whether `x` is finite.
-export function isFinite<T: float>(x: T): boolean {
+export function isFinite<T: Float>(x: T): boolean {
     todo("isFinite")
 }
 
 /// Return whether `x` is NaN.
-export function isNaN<T: float>(x: T): boolean {
+export function isNaN<T: Float>(x: T): boolean {
     x != x
 }
 
 /// Return whether `x` is infinite.
-export function isInfinite<T: float>(x: T): boolean {
+export function isInfinite<T: Float>(x: T): boolean {
     todo("isInfinite")
 }
 
 /// Return whether `x` is subnormal.
-export function isSubnormal<T: float>(x: T): boolean {
+export function isSubnormal<T: Float>(x: T): boolean {
     todo("isSubnormal")
 }
 
 /// Return whether `x` has a negative sign bit.
-export function isSignNegative<T: float>(x: T): boolean {
+export function isSignNegative<T: Float>(x: T): boolean {
     todo("isSignNegative")
 }
 
 /// Return whether `x` has a positive sign bit.
-export function isSignPositive<T: float>(x: T): boolean {
+export function isSignPositive<T: Float>(x: T): boolean {
     todo("isSignPositive")
 }

@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { Float } from "destack:math";
 
 import { TensorOutputOptions, TensorReduceOptions } from "./options.ds";
 import { AxisSet } from "./shape.ds";
@@ -56,7 +57,7 @@ export function trace<T>(matrix: Tensor<T, 2>, options?: TensorOutputOptions<T, 
 }
 
 /// Return the determinant of a matrix.
-export function det<T: float>(
+export function det<T: Float>(
     matrix: Tensor<T, 2>,
     options?: TensorOutputOptions<T, 0>,
 ): Tensor<T, 0> {
@@ -64,7 +65,7 @@ export function det<T: float>(
 }
 
 /// Return the inverse of a matrix.
-export function inverse<T: float>(
+export function inverse<T: Float>(
     matrix: Tensor<T, 2>,
     options?: TensorOutputOptions<T, 2>,
 ): Tensor<T, 2> {
@@ -72,7 +73,7 @@ export function inverse<T: float>(
 }
 
 /// Solve a linear system.
-export function solve<T: float, comptime RightRank: int>(
+export function solve<T: Float, comptime RightRank: int>(
     matrix: Tensor<T, 2>,
     right: Tensor<T, RightRank>,
     options?: TensorOutputOptions<T, RightRank>,
@@ -81,7 +82,7 @@ export function solve<T: float, comptime RightRank: int>(
 }
 
 /// Return the Cholesky factorization.
-export function cholesky<T: float>(
+export function cholesky<T: Float>(
     matrix: Tensor<T, 2>,
     options?: TensorOutputOptions<T, 2>,
 ): Tensor<T, 2> {
@@ -89,7 +90,7 @@ export function cholesky<T: float>(
 }
 
 /// Return the QR factorization.
-export function qr<T: float>(
+export function qr<T: Float>(
     matrix: Tensor<T, 2>,
     options?: FactorizationOptions<T, 2>,
 ): [Tensor<T, 2>, Tensor<T, 2>] {
@@ -97,7 +98,7 @@ export function qr<T: float>(
 }
 
 /// Return the singular value decomposition.
-export function svd<T: float>(
+export function svd<T: Float>(
     matrix: Tensor<T, 2>,
     options?: FactorizationOptions<T, 2>,
 ): [Tensor<T, 2>, Tensor<T, 1>, Tensor<T, 2>] {
@@ -106,7 +107,7 @@ export function svd<T: float>(
 
 /// Return vector or matrix norm along `axes`.
 export function norm<
-    T: float,
+    T: Float,
     comptime Rank: int,
     comptime AxisCount: int,
     comptime OutRank: int = Rank - AxisCount,
