@@ -49,32 +49,40 @@ impl ModuleIndex {
     ) -> ArtifactProjectionFingerprint {
         match projection {
             ModuleIndexProjection::Symbols => {
-                ArtifactProjectionFingerprint::new(&dir::SymbolPostings::new(&[&self.symbols]))
+                ArtifactProjectionFingerprint::new(&dir::SymbolPostings::build(&[&self.symbols]))
             }
             ModuleIndexProjection::Exports => {
-                ArtifactProjectionFingerprint::new(&dir::ExportPostings::new(&[&self.exports]))
+                ArtifactProjectionFingerprint::new(&dir::ExportPostings::build(&[&self.exports]))
             }
             ModuleIndexProjection::Members => {
-                ArtifactProjectionFingerprint::new(&dir::MemberPostings::new(&[&self.members]))
+                ArtifactProjectionFingerprint::new(&dir::MemberPostings::build(&[&self.members]))
             }
-            ModuleIndexProjection::References => ArtifactProjectionFingerprint::new(
-                &dir::ReferencePostings::new(&[&self.references]),
-            ),
+            ModuleIndexProjection::References => {
+                ArtifactProjectionFingerprint::new(&dir::ReferencePostings::build(&[
+                    &self.references
+                ]))
+            }
             ModuleIndexProjection::Calls => {
-                ArtifactProjectionFingerprint::new(&dir::CallPostings::new(&[&self.calls]))
+                ArtifactProjectionFingerprint::new(&dir::CallPostings::build(&[&self.calls]))
             }
             ModuleIndexProjection::Heritage => {
-                ArtifactProjectionFingerprint::new(&dir::HeritagePostings::new(&[&self.heritage]))
+                ArtifactProjectionFingerprint::new(&dir::HeritagePostings::build(&[&self.heritage]))
             }
-            ModuleIndexProjection::Extensions => ArtifactProjectionFingerprint::new(
-                &dir::ExtensionPostings::new(&[&self.extensions]),
-            ),
-            ModuleIndexProjection::Specifiers => ArtifactProjectionFingerprint::new(
-                &dir::SpecifierPostings::new(&[&self.specifiers]),
-            ),
-            ModuleIndexProjection::Decorators => ArtifactProjectionFingerprint::new(
-                &dir::DecoratorPostings::new(&[&self.decorators]),
-            ),
+            ModuleIndexProjection::Extensions => {
+                ArtifactProjectionFingerprint::new(&dir::ExtensionPostings::build(&[
+                    &self.extensions
+                ]))
+            }
+            ModuleIndexProjection::Specifiers => {
+                ArtifactProjectionFingerprint::new(&dir::SpecifierPostings::build(&[
+                    &self.specifiers
+                ]))
+            }
+            ModuleIndexProjection::Decorators => {
+                ArtifactProjectionFingerprint::new(&dir::DecoratorPostings::build(&[
+                    &self.decorators
+                ]))
+            }
         }
     }
 }
@@ -83,7 +91,7 @@ impl ModuleIndex {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ProgramIndex {
     /// The indexed modules in stable ordinal order.
-    pub modules: Vec<IndexedModule>,
+    pub modules: Vec<ModuleId>,
     /// Symbol postings.
     pub symbols: dir::SymbolPostings,
     /// Export postings.
@@ -102,13 +110,6 @@ pub struct ProgramIndex {
     pub specifiers: dir::SpecifierPostings,
     /// Decorator postings.
     pub decorators: dir::DecoratorPostings,
-}
-
-/// One module segment in a program index.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct IndexedModule {
-    /// The module id.
-    pub module: ModuleId,
 }
 
 /// One observable projection of a module index artifact.
