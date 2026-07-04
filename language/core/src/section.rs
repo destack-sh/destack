@@ -511,6 +511,11 @@ impl<T> EntryStore<T> {
 /// Implementors must have stable fixed-width layout, no process-local ownership, and no invalid
 /// bit patterns in the section image format.
 /// Their alignment must not exceed the section table alignment.
+///
+/// # Safety
+///
+/// Implementors must remain valid when copied to and from a section byte image without running any
+/// constructors, destructors, pointer relocation, or validity repair.
 pub unsafe trait SectionEntry: Copy + 'static {}
 
 // SAFETY: primitive integers and string ids are fixed-width entry scalars.
