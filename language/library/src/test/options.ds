@@ -34,7 +34,7 @@ export enum Isolation {
 }
 
 /// Test scheduling policy.
-export struct Schedule {
+export type Schedule = {
     /// Concurrency mode.
     concurrency?: Concurrency;
 
@@ -43,10 +43,10 @@ export struct Schedule {
 
     /// Retry count after failures.
     retries?: uint32;
-}
+};
 
 /// Test registration options.
-export struct Options {
+export type Options = {
     /// Run only matching tests.
     only?: boolean;
 
@@ -61,4 +61,4 @@ export struct Options {
 
     /// Scheduling policy for this registration.
     schedule?: Schedule;
-}
+};
