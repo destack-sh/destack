@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
-use destack_query::Query;
+use destack_query::Indexer;
 use destack_repository::{Repository, Trace};
 use parking_lot::Mutex;
 
@@ -21,8 +21,8 @@ pub(crate) struct SessionState {
     compiler: Arc<Compiler>,
     /// Linter for this root.
     linter: Arc<Linter>,
-    /// Query provider for this root.
-    query: Arc<Query>,
+    /// Indexer for this root.
+    indexer: Arc<Indexer>,
     /// Optional outer session event handler.
     event_handler: Option<SessionEventHandler>,
     /// Monotonic ids for session runs.
@@ -39,7 +39,7 @@ impl std::fmt::Debug for SessionState {
             .field("repository", &self.repository)
             .field("compiler", &self.compiler)
             .field("linter", &self.linter)
-            .field("query", &self.query)
+            .field("indexer", &self.indexer)
             .field("event_handler", &self.event_handler.is_some())
             .finish_non_exhaustive()
     }
@@ -51,14 +51,14 @@ impl SessionState {
         repository: Arc<Repository>,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
-        query: Arc<Query>,
+        indexer: Arc<Indexer>,
         event_handler: Option<SessionEventHandler>,
     ) -> Self {
         Self {
             repository,
             compiler,
             linter,
-            query,
+            indexer,
             event_handler,
             next_run_id: AtomicU32::new(1),
             last_trace: Mutex::new(None),
@@ -90,9 +90,9 @@ impl SessionState {
         self.linter.clone()
     }
 
-    /// Return the query provider for this session.
-    pub(crate) fn query(&self) -> Arc<Query> {
-        self.query.clone()
+    /// Return the indexer for this session.
+    pub(crate) fn indexer(&self) -> Arc<Indexer> {
+        self.indexer.clone()
     }
 
     /// Emit one outer session event when a handler is installed.

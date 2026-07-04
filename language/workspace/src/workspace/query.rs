@@ -214,44 +214,40 @@ impl LocalWorkspace {
                     destack_query::SemanticTokensResponse { tokens },
                 )
             }
-            destack_query::QueryRequest::DocumentSymbols(params) => {
+            destack_query::QueryRequest::Outline(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let symbols = context.document_symbols();
+                let symbols = context.outline();
 
-                destack_query::QueryResponse::DocumentSymbols(
-                    destack_query::DocumentSymbolsResponse { symbols },
-                )
+                destack_query::QueryResponse::Outline(destack_query::OutlineResponse { symbols })
             }
-            destack_query::QueryRequest::WorkspaceSymbols(params) => {
+            destack_query::QueryRequest::SymbolSearch(params) => {
                 let context =
                     self.program_query_context(session, repository, revision, &params.profile_ids)?;
-                let symbols = context.workspace_symbols(&params.query, params.max_results as usize);
-                destack_query::QueryResponse::WorkspaceSymbols(
-                    destack_query::WorkspaceSymbolsResponse { symbols },
-                )
-            }
-            destack_query::QueryRequest::DocumentLinks(params) => {
-                let context =
-                    self.module_query_context(session, repository, revision, params.module)?;
-                let links = context.document_links();
-
-                destack_query::QueryResponse::DocumentLinks(destack_query::DocumentLinksResponse {
-                    links,
+                let symbols = context.search_symbols(&params.query, params.max_results as usize);
+                destack_query::QueryResponse::SymbolSearch(destack_query::SymbolSearchResponse {
+                    symbols,
                 })
             }
-            destack_query::QueryRequest::DocumentHighlight(params) => {
+            destack_query::QueryRequest::Links(params) => {
+                let context =
+                    self.module_query_context(session, repository, revision, params.module)?;
+                let links = context.links();
+
+                destack_query::QueryResponse::Links(destack_query::LinksResponse { links })
+            }
+            destack_query::QueryRequest::Highlight(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
                     revision,
                     params.position.module,
                 )?;
-                let highlights = context.document_highlights(params.position.offset);
+                let highlights = context.highlights(params.position.offset);
 
-                destack_query::QueryResponse::DocumentHighlight(
-                    destack_query::DocumentHighlightResponse { highlights },
-                )
+                destack_query::QueryResponse::Highlight(destack_query::HighlightResponse {
+                    highlights,
+                })
             }
             destack_query::QueryRequest::SelectionRanges(params) => {
                 let context =
@@ -343,20 +339,18 @@ impl LocalWorkspace {
                     destack_query::FindReferencesResponse { references },
                 )
             }
-            destack_query::QueryRequest::CallHierarchyItem(params) => {
+            destack_query::QueryRequest::CallItem(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
                     revision,
                     params.position.module,
                 )?;
-                let item = context.call_hierarchy_item(params.position.offset);
+                let item = context.call_item(params.position.offset);
 
-                destack_query::QueryResponse::CallHierarchyItem(
-                    destack_query::CallHierarchyItemResponse { item },
-                )
+                destack_query::QueryResponse::CallItem(destack_query::CallItemResponse { item })
             }
-            destack_query::QueryRequest::CallHierarchyIncoming(params) => {
+            destack_query::QueryRequest::IncomingCalls(params) => {
                 let context = self.program_query_context(
                     session,
                     repository,
@@ -364,11 +358,11 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let calls = context.incoming_calls(&params.item);
-                destack_query::QueryResponse::CallHierarchyIncoming(
-                    destack_query::CallHierarchyIncomingResponse { calls },
-                )
+                destack_query::QueryResponse::IncomingCalls(destack_query::IncomingCallsResponse {
+                    calls,
+                })
             }
-            destack_query::QueryRequest::CallHierarchyOutgoing(params) => {
+            destack_query::QueryRequest::OutgoingCalls(params) => {
                 let context = self.program_query_context(
                     session,
                     repository,
@@ -376,24 +370,22 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let calls = context.outgoing_calls(&params.item);
-                destack_query::QueryResponse::CallHierarchyOutgoing(
-                    destack_query::CallHierarchyOutgoingResponse { calls },
-                )
+                destack_query::QueryResponse::OutgoingCalls(destack_query::OutgoingCallsResponse {
+                    calls,
+                })
             }
-            destack_query::QueryRequest::TypeHierarchyItem(params) => {
+            destack_query::QueryRequest::TypeItem(params) => {
                 let context = self.module_query_context(
                     session,
                     repository,
                     revision,
                     params.position.module,
                 )?;
-                let item = context.type_hierarchy_item(params.position.offset);
+                let item = context.type_item(params.position.offset);
 
-                destack_query::QueryResponse::TypeHierarchyItem(
-                    destack_query::TypeHierarchyItemResponse { item },
-                )
+                destack_query::QueryResponse::TypeItem(destack_query::TypeItemResponse { item })
             }
-            destack_query::QueryRequest::TypeHierarchySupertypes(params) => {
+            destack_query::QueryRequest::Supertypes(params) => {
                 let context = self.program_query_context(
                     session,
                     repository,
@@ -401,11 +393,11 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let items = context.supertypes(&params.item);
-                destack_query::QueryResponse::TypeHierarchySupertypes(
-                    destack_query::TypeHierarchySupertypesResponse { items },
-                )
+                destack_query::QueryResponse::Supertypes(destack_query::SupertypesResponse {
+                    items,
+                })
             }
-            destack_query::QueryRequest::TypeHierarchySubtypes(params) => {
+            destack_query::QueryRequest::Subtypes(params) => {
                 let context = self.program_query_context(
                     session,
                     repository,
@@ -413,9 +405,7 @@ impl LocalWorkspace {
                     &[params.item.target.module.profile_id],
                 )?;
                 let items = context.subtypes(&params.item);
-                destack_query::QueryResponse::TypeHierarchySubtypes(
-                    destack_query::TypeHierarchySubtypesResponse { items },
-                )
+                destack_query::QueryResponse::Subtypes(destack_query::SubtypesResponse { items })
             }
             destack_query::QueryRequest::RenameTarget(params) => {
                 let context = self.module_query_context(
@@ -555,13 +545,13 @@ impl LocalWorkspace {
         Ok(response)
     }
 
-    /// Return the module query context for one query module.
+    /// Return the module query context for one module.
     fn module_query_context<'a>(
         &self,
         session: &Session,
         repository: &'a Repository,
         revision: Revision,
-        module: destack_query::QueryModule,
+        module: destack_query::Module,
     ) -> Result<destack_query::ModuleQueryContext<'a>, Error> {
         let key = ArtifactKey::dir_checked(module.module_id, module.profile_id);
         let checked_version = session

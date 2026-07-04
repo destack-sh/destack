@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_query::QueryModule;
+use destack_query::Module;
 use destack_repository::{FormatterOptions, Repository, Revision, RevisionPin};
 use destack_serde::Reflect;
 use destack_session::{Session, SessionError};
@@ -209,7 +209,7 @@ impl LocalWorkspace {
                     })?;
             let profile_ids =
                 self.package_profiles(revision, module.package_id, request.target.as_deref())?;
-            profile_ids.first().copied().map(|profile_id| QueryModule {
+            profile_ids.first().copied().map(|profile_id| Module {
                 module_id,
                 profile_id,
             })

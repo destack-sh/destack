@@ -2,11 +2,10 @@ use destack_serde::Reflect;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{ModuleQueryContext, QueryPosition};
-use crate::dir::SymbolReferenceSearch;
 use crate::source::sort_and_dedup_spans;
+use crate::{ModuleQueryContext, Position, ReferenceFilter};
 
-/// Kind of document highlight.
+/// Kind of highlight.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum HighlightKind {
     /// A textual occurrence.
@@ -18,16 +17,16 @@ pub enum HighlightKind {
     Write,
 }
 
-/// A highlighted range in a document.
+/// A highlighted range in a module.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct DocumentHighlight {
+pub struct Highlight {
     /// The highlighted range.
     pub range: Span,
     /// The kind of highlight.
     pub kind: HighlightKind,
 }
 
-impl DocumentHighlight {
+impl Highlight {
     /// Create a text highlight.
     pub fn text(range: Span) -> Self {
         Self {
@@ -55,23 +54,23 @@ impl DocumentHighlight {
 
 /// Request highlights at a cursor position.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct DocumentHighlightRequest {
+pub struct HighlightRequest {
     /// The queried position.
-    pub position: QueryPosition,
+    pub position: Position,
 }
 
-/// Response payload for document highlight queries.
+/// Response payload for highlight queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct DocumentHighlightResponse {
-    /// Document highlights.
-    pub highlights: Vec<DocumentHighlight>,
+pub struct HighlightResponse {
+    /// Highlights.
+    pub highlights: Vec<Highlight>,
 }
 
 impl ModuleQueryContext<'_> {
-    /// Highlight all occurrences of the symbol at the given position in the document.
+    /// Highlight all occurrences of the symbol at the given position in the module.
     ///
     /// Only highlights within the same file (for cross file, use find_references).
-    pub fn document_highlights(&self, offset: u32) -> Vec<DocumentHighlight> {
+    pub fn highlights(&self, offset: u32) -> Vec<Highlight> {
         let Some(symbol_at) = self.find_symbol_at_offset(offset) else {
             return Vec::new();
         };
@@ -80,29 +79,28 @@ impl ModuleQueryContext<'_> {
         let mut highlights = Vec::new();
 
         // add definition highlight when it belongs to this file
-        if let Some(definition_span) = self.symbol_definition_span(canonical_id)
-            && definition_span.file == self.file_id()
-        {
-            highlights.push(DocumentHighlight::write(definition_span));
+        if let Some(definition_span) = self.symbol_definition_span(canonical_id) {
+            if definition_span.file == self.file_id() {
+                highlights.push(Highlight::write(definition_span));
+            }
         }
 
         // collect reference highlights inside the current file
-        let reference_search = SymbolReferenceSearch {
+        let reference_search = ReferenceFilter {
             include_expressions: true,
             include_members: true,
             include_dependency_items: true,
             include_namespace_receivers: false,
             skip_dependency_aliases: false,
-            use_dependency_name_spans: true,
             target_name: None,
-            require_target_name_match: false,
+            requires_target_name_match: false,
             limit_file: Some(self.file_id()),
         };
-        let mut reference_spans = self.dir().symbol_references(canonical_id, reference_search);
+        let mut reference_spans = self.symbol_references(canonical_id, reference_search);
         sort_and_dedup_spans(&mut reference_spans);
 
         for span in reference_spans {
-            highlights.push(DocumentHighlight::read(span));
+            highlights.push(Highlight::read(span));
         }
 
         highlights

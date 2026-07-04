@@ -1,17 +1,10 @@
-mod call;
-mod completion;
-mod context;
 mod folding;
 mod hover;
-mod import;
 mod inlay;
 mod lens;
-mod member;
 mod semantic;
 mod signature;
 
-pub use completion::*;
-pub(crate) use context::*;
 pub use folding::*;
 pub use hover::*;
 pub use inlay::*;

@@ -1,4 +1,5 @@
-use destack_query::{TypeHierarchyItem, TypeHierarchyKind};
+use destack_dir as dir;
+use destack_query::TypeItem;
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -36,7 +37,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // prepare type hierarchy item
     let ctx = session.module_context(file_id);
     let program = session.program_context();
-    let Some(item) = ctx.type_hierarchy_item(offset) else {
+    let Some(item) = ctx.type_item(offset) else {
         return CaseResult::Failed {
             message: format!("type_hierarchy at '{}' returned None", exp.target),
         };
@@ -144,7 +145,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
 /// Decide whether an expectation is a structured snapshot.
 /// Format type hierarchy items into a protocol shaped snapshot.
-fn snapshot_items(session: &QueryTestSession, items: &[TypeHierarchyItem]) -> String {
+fn snapshot_items(session: &QueryTestSession, items: &[TypeItem]) -> String {
     // format each item into a single snapshot line
     items
         .iter()
@@ -154,7 +155,7 @@ fn snapshot_items(session: &QueryTestSession, items: &[TypeHierarchyItem]) -> St
 }
 
 /// Format a single type hierarchy item snapshot line.
-fn format_item_line(session: &QueryTestSession, item: &TypeHierarchyItem) -> String {
+fn format_item_line(session: &QueryTestSession, item: &TypeItem) -> String {
     let range = item_range(item);
     let selection = item_selection_range(item);
     let range = format_span_for_session(session, range);
@@ -176,32 +177,35 @@ fn format_item_line(session: &QueryTestSession, item: &TypeHierarchyItem) -> Str
 }
 
 /// Convert a type hierarchy kind into a snapshot friendly name.
-fn type_hierarchy_kind_name(kind: TypeHierarchyKind) -> &'static str {
+fn type_hierarchy_kind_name(kind: dir::SymbolKind) -> &'static str {
     match kind {
-        TypeHierarchyKind::Class => "class",
-        TypeHierarchyKind::Interface => "interface",
-        TypeHierarchyKind::Struct => "struct",
-        TypeHierarchyKind::Enum => "enum",
-        TypeHierarchyKind::TypeAlias => "type_alias",
+        dir::SymbolKind::Class => "class",
+        dir::SymbolKind::Enum => "enum",
+        dir::SymbolKind::Interface => "interface",
+        dir::SymbolKind::Newtype => "newtype",
+        dir::SymbolKind::NewtypeInterface => "newtype_interface",
+        dir::SymbolKind::Struct => "struct",
+        dir::SymbolKind::TypeAlias => "type_alias",
+        _ => "type",
     }
 }
 
 /// Rank type hierarchy kinds for stable ordering checks.
-fn type_hierarchy_kind_rank(kind: TypeHierarchyKind) -> u8 {
+fn type_hierarchy_kind_rank(kind: dir::SymbolKind) -> u8 {
     match kind {
-        TypeHierarchyKind::Class => 0,
-        TypeHierarchyKind::Interface => 1,
-        TypeHierarchyKind::Struct => 2,
-        TypeHierarchyKind::Enum => 3,
-        TypeHierarchyKind::TypeAlias => 4,
+        dir::SymbolKind::Class => 0,
+        dir::SymbolKind::Enum => 1,
+        dir::SymbolKind::Interface => 2,
+        dir::SymbolKind::Newtype => 3,
+        dir::SymbolKind::NewtypeInterface => 4,
+        dir::SymbolKind::Struct => 5,
+        dir::SymbolKind::TypeAlias => 6,
+        _ => 7,
     }
 }
 
 /// Validate a single type hierarchy item.
-fn validate_item_invariants(
-    session: &QueryTestSession,
-    item: &TypeHierarchyItem,
-) -> Result<(), String> {
+fn validate_item_invariants(session: &QueryTestSession, item: &TypeItem) -> Result<(), String> {
     let mut errors = Vec::new();
 
     // validate the item spans against the source bounds
@@ -221,7 +225,7 @@ fn validate_item_invariants(
 /// Validate a list of type hierarchy items and their ordering.
 fn validate_items_invariants(
     session: &QueryTestSession,
-    items: &[TypeHierarchyItem],
+    items: &[TypeItem],
     label: &str,
 ) -> Result<(), String> {
     let mut errors = Vec::new();
@@ -266,7 +270,7 @@ fn validate_items_invariants(
 /// Validate item spans and containment, collecting errors.
 fn validate_item_collect_errors(
     session: &QueryTestSession,
-    item: &TypeHierarchyItem,
+    item: &TypeItem,
     errors: &mut Vec<String>,
 ) {
     let range = item_range(item);
@@ -315,7 +319,7 @@ fn validate_span_bounds(
 }
 
 /// Build a stable ordering key for a type hierarchy item.
-fn item_key(item: &TypeHierarchyItem) -> (u128, u32, u32, u32, u32, u8, String) {
+fn item_key(item: &TypeItem) -> (u128, u32, u32, u32, u32, u8, String) {
     let range = item_range(item);
     let selection = item_selection_range(item);
 
@@ -331,11 +335,11 @@ fn item_key(item: &TypeHierarchyItem) -> (u128, u32, u32, u32, u32, u8, String) 
 }
 
 /// Return the full source range for a type hierarchy item.
-fn item_range(item: &TypeHierarchyItem) -> Span {
+fn item_range(item: &TypeItem) -> Span {
     item.target.span
 }
 
 /// Return the primary selection range for a type hierarchy item.
-fn item_selection_range(item: &TypeHierarchyItem) -> Span {
+fn item_selection_range(item: &TypeItem) -> Span {
     item.target.selection_span.unwrap_or(item.target.span)
 }

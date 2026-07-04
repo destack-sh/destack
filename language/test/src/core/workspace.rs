@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use destack_artifact::{ArtifactKey, MemoryBlobStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
-use destack_query::Query;
+use destack_query::Indexer;
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, Host, LinterOptions,
     Ref, Repository, Revision, Settings,
@@ -358,7 +358,7 @@ pub fn provide_workspace_artifacts(
     let root = repository.path().to_path_buf();
     let head = Ref::for_root(&root);
     let linter = Arc::new(Linter::new(repository.clone()));
-    let query = Arc::new(Query::new(repository.clone()));
+    let indexer = Arc::new(Indexer::new(repository.clone()));
     let session = Session::new(
         root.clone(),
         root,
@@ -366,7 +366,7 @@ pub fn provide_workspace_artifacts(
         head,
         compiler,
         linter,
-        query,
+        indexer,
         1,
         None,
     )
@@ -389,7 +389,7 @@ fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
     let head = Ref::for_root(root);
     let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
-    let query = Arc::new(Query::new(repository.clone()));
+    let indexer = Arc::new(Indexer::new(repository.clone()));
     let session = Session::new(
         root.to_path_buf(),
         root.to_path_buf(),
@@ -397,7 +397,7 @@ fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
         head,
         compiler,
         linter,
-        query,
+        indexer,
         1,
         None,
     )
