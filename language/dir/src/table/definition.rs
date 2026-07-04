@@ -556,7 +556,9 @@ pub struct NewtypeDefinition {
 }
 
 /// How an extension declaration relates to its target type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
 pub enum ExtensionForm {
     /// Extension visible only inside its declaring module.
     ///

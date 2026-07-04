@@ -56,7 +56,7 @@ impl ExportKey {
 
 /// One local export from a symbol declared in the current module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct LocalExportEntry {
+pub struct LocalExport {
     /// The exported name.
     pub key: ExportKey,
     /// The local symbol exposed by the export.
@@ -90,7 +90,7 @@ impl ExportSelector {
 
 /// One named re-export from another module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct IndirectExportEntry {
+pub struct IndirectExport {
     /// The exported name in the current module.
     pub key: ExportKey,
     /// The dependency item that declared the export.
@@ -103,14 +103,14 @@ pub struct IndirectExportEntry {
 
 /// One named export entry.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum ExportEntry {
+pub enum NamedExport {
     /// A local export.
-    Local(LocalExportEntry),
+    Local(LocalExport),
     /// A re-export from another module.
-    Indirect(IndirectExportEntry),
+    Indirect(IndirectExport),
 }
 
-impl ExportEntry {
+impl NamedExport {
     /// Return the exported key.
     #[inline]
     pub fn key(self) -> ExportKey {
@@ -123,7 +123,7 @@ impl ExportEntry {
 
 /// One `export * from` edge.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct StarExportEntry {
+pub struct StarExport {
     /// The dependency item that declared the star export.
     pub item: LocalNodeId<DependencyItem>,
     /// The target module selected by the export.

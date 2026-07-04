@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{ExportEntry, ExportKey, StarExportEntry};
+use crate::{ExportKey, NamedExport, StarExport};
 
 /// Resolved module exports for one module.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -11,9 +11,9 @@ pub struct ExportTable {
     /// The module id of the export table.
     pub module_id: ModuleId,
     /// Local and indirect exports keyed by exported name.
-    pub export_by_key: IndexMap<ExportKey, ExportEntry>,
+    pub export_by_key: IndexMap<ExportKey, NamedExport>,
     /// Star exports declared by the module.
-    pub star_exports: Vec<StarExportEntry>,
+    pub star_exports: Vec<StarExport>,
 }
 
 impl ExportTable {
@@ -32,22 +32,22 @@ impl ExportTable {
     }
 
     /// Insert one named export.
-    pub fn insert(&mut self, export: ExportEntry) -> Option<ExportEntry> {
+    pub fn insert(&mut self, export: NamedExport) -> Option<NamedExport> {
         self.export_by_key.insert(export.key(), export)
     }
 
     /// Push one star export.
-    pub fn push_star(&mut self, export: StarExportEntry) {
+    pub fn push_star(&mut self, export: StarExport) {
         self.star_exports.push(export);
     }
 
     /// Iterate named exports in declaration order.
-    pub fn exports(&self) -> impl Iterator<Item = (&ExportKey, &ExportEntry)> {
+    pub fn exports(&self) -> impl Iterator<Item = (&ExportKey, &NamedExport)> {
         self.export_by_key.iter()
     }
 
     /// Iterate star exports in declaration order.
-    pub fn star_exports(&self) -> impl Iterator<Item = &StarExportEntry> {
+    pub fn star_exports(&self) -> impl Iterator<Item = &StarExport> {
         self.star_exports.iter()
     }
 
@@ -56,8 +56,8 @@ impl ExportTable {
         self.export_by_key
             .values()
             .filter_map(|export| match export {
-                ExportEntry::Local(_) => None,
-                ExportEntry::Indirect(export) => export.target,
+                NamedExport::Local(_) => None,
+                NamedExport::Indirect(export) => export.target,
             })
             .chain(self.star_exports.iter().filter_map(|export| export.target))
     }
