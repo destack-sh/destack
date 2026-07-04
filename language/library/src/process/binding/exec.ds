@@ -10,7 +10,7 @@ export newtype ExecFlags = uint32;
 export const EXEC_EMPTY_PATH: ExecFlags = ExecFlags(0x1);
 
 /// Exec binding family.
-export interface ProcessExec {
+export interface ProcessExecBinding {
     /// Replace the current process image with a command path.
     @binding("destack.process.exec.path", {
         effect: "external",

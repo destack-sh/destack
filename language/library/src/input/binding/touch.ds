@@ -49,7 +49,7 @@ export struct TouchState {
 }
 
 /// Touch binding family.
-export interface InputTouch {
+export interface InputTouchBinding {
     /// Read one touch state snapshot.
     @binding("destack.input.touch.state.read", {
         effect: "external",

@@ -1,32 +1,32 @@
-import { GpuAdapter } from "./adapter.ds";
-import { GpuBind } from "./bind.ds";
-import { GpuCommand } from "./command.ds";
-import { GpuDebug } from "./debug.ds";
-import { GpuDevice } from "./device.ds";
-import { GpuPipeline } from "./pipeline.ds";
-import { GpuPresent } from "./present.ds";
-import { GpuResource } from "./resource.ds";
-import { GpuSync } from "./sync.ds";
+import { GpuAdapterBinding } from "./adapter.ds";
+import { GpuBindBinding } from "./bind.ds";
+import { GpuCommandBinding } from "./command.ds";
+import { GpuDebugBinding } from "./debug.ds";
+import { GpuDeviceBinding } from "./device.ds";
+import { GpuPipelineBinding } from "./pipeline.ds";
+import { GpuPresentBinding } from "./present.ds";
+import { GpuResourceBinding } from "./resource.ds";
+import { GpuSyncBinding } from "./sync.ds";
 
 /// GPU binding family.
-@languageItem("gpu.Gpu")
-export interface Gpu {
+@languageItem("gpu.GpuBinding")
+export interface GpuBinding {
     /// Adapter bindings.
-    readonly adapter: GpuAdapter;
+    readonly adapter: GpuAdapterBinding;
     /// Bind group bindings.
-    readonly bind: GpuBind;
+    readonly bind: GpuBindBinding;
     /// Command bindings.
-    readonly command: GpuCommand;
+    readonly command: GpuCommandBinding;
     /// Debug bindings.
-    readonly debug: GpuDebug;
+    readonly debug: GpuDebugBinding;
     /// Device bindings.
-    readonly device: GpuDevice;
+    readonly device: GpuDeviceBinding;
     /// Pipeline bindings.
-    readonly pipeline: GpuPipeline;
+    readonly pipeline: GpuPipelineBinding;
     /// Presentation bindings.
-    readonly present: GpuPresent;
+    readonly present: GpuPresentBinding;
     /// Resource bindings.
-    readonly resource: GpuResource;
+    readonly resource: GpuResourceBinding;
     /// Synchronization bindings.
-    readonly sync: GpuSync;
+    readonly sync: GpuSyncBinding;
 }

@@ -22,7 +22,7 @@ export struct AccessibilityTreeUpdate {
 }
 
 /// Tree binding family.
-export interface AccessibilityTree {
+export interface AccessibilityTreeBinding {
     /// Apply one accessibility tree update.
     @binding("destack.accessibility.tree.apply", {
         effect: "external",

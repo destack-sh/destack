@@ -57,7 +57,7 @@ export struct TlsContextOptions {
 }
 
 /// Context binding family.
-export interface TlsContext {
+export interface TlsContextBinding {
     /// Open one TLS context.
     @binding("destack.tls.context.open", {
         effect: "external",

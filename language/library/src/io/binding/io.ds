@@ -1,17 +1,17 @@
-import { IoCompletion } from "./completion.ds";
-import { IoControl } from "./control.ds";
-import { IoPoll } from "./poll.ds";
-import { IoUring } from "./uring.ds";
+import { IoCompletionBinding } from "./completion.ds";
+import { IoControlBinding } from "./control.ds";
+import { IoPollBinding } from "./poll.ds";
+import { IoUringBinding } from "./uring.ds";
 
 /// IO binding family.
-@languageItem("io.Io")
-export interface Io {
+@languageItem("io.IoBinding")
+export interface IoBinding {
     /// Completion bindings.
-    readonly completion: IoCompletion;
+    readonly completion: IoCompletionBinding;
     /// Control bindings.
-    readonly control: IoControl;
+    readonly control: IoControlBinding;
     /// Poll bindings.
-    readonly poll: IoPoll;
+    readonly poll: IoPollBinding;
     /// io_uring bindings.
-    readonly uring: IoUring;
+    readonly uring: IoUringBinding;
 }

@@ -736,7 +736,7 @@ export struct GpuTextureState {
 }
 
 /// Resource binding family.
-export interface GpuResource {
+export interface GpuResourceBinding {
     /// Create a GPU buffer.
     @binding("destack.gpu.resource.buffer.create", {
         effect: "external",

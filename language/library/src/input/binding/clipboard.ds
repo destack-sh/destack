@@ -98,7 +98,7 @@ export struct ClipboardWriteItem {
 }
 
 /// Clipboard binding family.
-export interface InputClipboard {
+export interface InputClipboardBinding {
     /// Query whether text clipboard payload exists.
     @binding("destack.input.clipboard.text.has", {
         effect: "external",

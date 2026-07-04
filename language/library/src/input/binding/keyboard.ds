@@ -81,7 +81,7 @@ export struct KeyboardState {
 }
 
 /// Keyboard binding family.
-export interface InputKeyboard {
+export interface InputKeyboardBinding {
     /// Read one keyboard state snapshot.
     @binding("destack.input.keyboard.state.read", {
         effect: "external",

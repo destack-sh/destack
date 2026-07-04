@@ -235,7 +235,7 @@ export struct GpuPresentationSubscription {
 }
 
 /// Present binding family.
-export interface GpuPresent {
+export interface GpuPresentBinding {
     /// Open one present surface for a window.
     @binding("destack.gpu.present.surface.open", {
         effect: "external",

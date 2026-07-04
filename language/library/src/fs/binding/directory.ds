@@ -49,7 +49,7 @@ export struct DirectoryBatch {
 }
 
 /// Filesystem directory binding family.
-export interface FsDirectory {
+export interface FsDirectoryBinding {
     /// Create one directory entry.
     @binding("destack.fs.directory.create", {
         effect: "external",

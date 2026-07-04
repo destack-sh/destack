@@ -20,7 +20,7 @@ export const FILE_ACCESS_WRITE: FileAccessMask = FileAccessMask(0x2);
 export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
 
 /// Filesystem attribute binding family.
-export interface FsAttribute {
+export interface FsAttributeBinding {
     /// Check access to a filesystem entry.
     @binding("destack.fs.attribute.checkAccess", {
         effect: "external",

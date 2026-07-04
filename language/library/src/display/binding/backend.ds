@@ -84,7 +84,7 @@ export struct DisplayBackend {
 }
 
 /// Backend binding family.
-export interface DisplayBackend {
+export interface DisplayBackendBinding {
     /// List host display backends.
     @binding("destack.display.backend.list", {
         effect: "external",

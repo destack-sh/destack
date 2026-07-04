@@ -397,7 +397,7 @@ export newtype AccessibilityAction =
     | AccessibilityActionCustom;
 
 /// Action binding family.
-export interface AccessibilityAction {
+export interface AccessibilityActionBinding {
     /// Open one inbound accessibility action stream.
     @binding("destack.accessibility.action.open", {
         effect: "external",

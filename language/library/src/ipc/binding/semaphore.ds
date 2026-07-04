@@ -21,7 +21,7 @@ export struct SemaphoreOptions {
 }
 
 /// Semaphore binding family.
-export interface IpcSemaphore {
+export interface IpcSemaphoreBinding {
     /// Create one named semaphore.
     @binding("destack.ipc.semaphore.create", {
         effect: "external",

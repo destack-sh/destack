@@ -90,7 +90,7 @@ export struct GpuQuerySetState {
 }
 
 /// Sync binding family.
-export interface GpuSync {
+export interface GpuSyncBinding {
     /// Create a synchronization fence.
     @binding("destack.gpu.sync.fence.create", {
         effect: "external",

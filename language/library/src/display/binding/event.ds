@@ -401,7 +401,7 @@ export newtype DisplayEvent =
     | DisplayEventOverflow;
 
 /// Event binding family.
-export interface DisplayEvent {
+export interface DisplayEventBinding {
     /// Open one display event subscription.
     @binding("destack.display.event.open", {
         effect: "external",

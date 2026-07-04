@@ -120,7 +120,7 @@ export struct GpuCapturedError {
 }
 
 /// Device binding family.
-export interface GpuDevice {
+export interface GpuDeviceBinding {
     /// Open a logical GPU device.
     @binding("destack.gpu.device.open", {
         effect: "external",

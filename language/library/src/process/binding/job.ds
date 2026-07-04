@@ -40,7 +40,7 @@ export struct JobLimit {
 }
 
 /// Job binding family.
-export interface ProcessJob {
+export interface ProcessJobBinding {
     /// Create one Windows job object.
     @binding("destack.process.job.create", {
         effect: "external",

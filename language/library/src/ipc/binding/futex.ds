@@ -2,7 +2,7 @@ import { HostError } from "destack:error/host";
 import { SharedMemoryHandle } from "destack:ipc/binding";
 
 /// Futex binding family.
-export interface IpcFutex {
+export interface IpcFutexBinding {
     /// Wait on one shared-memory futex word.
     @binding("destack.ipc.futex.wait", {
         effect: "external",

@@ -1,8 +1,8 @@
-import { RandomEntropy } from "./entropy.ds";
+import { RandomEntropyBinding } from "./entropy.ds";
 
 /// Random binding family.
-@languageItem("random.Random")
-export interface Random {
+@languageItem("random.RandomBinding")
+export interface RandomBinding {
     /// Entropy bindings.
-    readonly entropy: RandomEntropy;
+    readonly entropy: RandomEntropyBinding;
 }

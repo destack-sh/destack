@@ -1,59 +1,59 @@
-import { ProcessArgument } from "./argument.ds";
-import { ProcessCgroup } from "./cgroup.ds";
-import { ProcessEnvironment } from "./environment.ds";
-import { ProcessExec } from "./exec.ds";
-import { ProcessExit } from "./exit.ds";
-import { ProcessHandle } from "./handle.ds";
-import { ProcessIdentity } from "./identity.ds";
-import { ProcessIsolation } from "./isolation.ds";
-import { ProcessJob } from "./job.ds";
-import { ProcessLimit } from "./limit.ds";
-import { ProcessSchedule } from "./schedule.ds";
-import { ProcessSession } from "./session.ds";
-import { ProcessSignal } from "./signal.ds";
-import { ProcessSpawn } from "./spawn.ds";
-import { ProcessStdio } from "./stdio.ds";
-import { ProcessUmask } from "./umask.ds";
-import { ProcessWait } from "./wait.ds";
-import { ProcessWorkdir } from "./workdir.ds";
+import { ProcessArgumentBinding } from "./argument.ds";
+import { ProcessCgroupBinding } from "./cgroup.ds";
+import { ProcessEnvironmentBinding } from "./environment.ds";
+import { ProcessExecBinding } from "./exec.ds";
+import { ProcessExitBinding } from "./exit.ds";
+import { ProcessHandleBinding } from "./handle.ds";
+import { ProcessIdentityBinding } from "./identity.ds";
+import { ProcessIsolationBinding } from "./isolation.ds";
+import { ProcessJobBinding } from "./job.ds";
+import { ProcessLimitBinding } from "./limit.ds";
+import { ProcessScheduleBinding } from "./schedule.ds";
+import { ProcessSessionBinding } from "./session.ds";
+import { ProcessSignalBinding } from "./signal.ds";
+import { ProcessSpawnBinding } from "./spawn.ds";
+import { ProcessStdioBinding } from "./stdio.ds";
+import { ProcessUmaskBinding } from "./umask.ds";
+import { ProcessWaitBinding } from "./wait.ds";
+import { ProcessWorkdirBinding } from "./workdir.ds";
 
-/// Process binding family.
-@languageItem("process.Process")
-export interface Process {
+/// ProcessBinding binding family.
+@languageItem("process.ProcessBinding")
+export interface ProcessBinding {
     /// Argument bindings.
-    readonly argument: ProcessArgument;
+    readonly argument: ProcessArgumentBinding;
     /// Cgroup bindings.
-    readonly cgroup: ProcessCgroup;
+    readonly cgroup: ProcessCgroupBinding;
     /// Environment bindings.
-    readonly environment: ProcessEnvironment;
+    readonly environment: ProcessEnvironmentBinding;
     /// Exec bindings.
-    readonly exec: ProcessExec;
+    readonly exec: ProcessExecBinding;
     /// Exit bindings.
-    readonly exit: ProcessExit;
+    readonly exit: ProcessExitBinding;
     /// Handle bindings.
-    readonly handle: ProcessHandle;
+    readonly handle: ProcessHandleBinding;
     /// Identity bindings.
-    readonly identity: ProcessIdentity;
+    readonly identity: ProcessIdentityBinding;
     /// Isolation bindings.
-    readonly isolation: ProcessIsolation;
+    readonly isolation: ProcessIsolationBinding;
     /// Job bindings.
-    readonly job: ProcessJob;
+    readonly job: ProcessJobBinding;
     /// Limit bindings.
-    readonly limit: ProcessLimit;
+    readonly limit: ProcessLimitBinding;
     /// Schedule bindings.
-    readonly schedule: ProcessSchedule;
+    readonly schedule: ProcessScheduleBinding;
     /// Session bindings.
-    readonly session: ProcessSession;
+    readonly session: ProcessSessionBinding;
     /// Signal bindings.
-    readonly signal: ProcessSignal;
+    readonly signal: ProcessSignalBinding;
     /// Spawn bindings.
-    readonly spawn: ProcessSpawn;
+    readonly spawn: ProcessSpawnBinding;
     /// Stdio bindings.
-    readonly stdio: ProcessStdio;
+    readonly stdio: ProcessStdioBinding;
     /// Umask bindings.
-    readonly umask: ProcessUmask;
+    readonly umask: ProcessUmaskBinding;
     /// Wait bindings.
-    readonly wait: ProcessWait;
+    readonly wait: ProcessWaitBinding;
     /// Workdir bindings.
-    readonly workdir: ProcessWorkdir;
+    readonly workdir: ProcessWorkdirBinding;
 }

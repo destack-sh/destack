@@ -90,7 +90,7 @@ export newtype MulticastOptionValue =
     | MulticastOptionInterface;
 
 /// UDP binding family.
-export interface NetUdp {
+export interface NetUdpBinding {
     /// Join one multicast group.
     @binding("destack.net.udp.joinMulticast", {
         effect: "external",

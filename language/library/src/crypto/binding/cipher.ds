@@ -39,7 +39,7 @@ export struct CryptoCipherOutput {
 }
 
 /// Cipher binding family.
-export interface CryptoCipher {
+export interface CryptoCipherBinding {
     /// Encrypt one payload in one shot.
     @binding("destack.crypto.cipher.encrypt", {
         effect: "external",

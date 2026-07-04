@@ -59,7 +59,7 @@ export struct AccessibilityNotification {
 }
 
 /// Notification binding family.
-export interface AccessibilityNotification {
+export interface AccessibilityNotificationBinding {
     /// Post one accessibility notification.
     @binding("destack.accessibility.notification.post", {
         effect: "external",

@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 
 /// Entropy binding family.
-export interface RandomEntropy {
+export interface RandomEntropyBinding {
     /// Fill one buffer with host-provided random bytes.
     @binding("destack.random.bytes.fill", {
         effect: "external",

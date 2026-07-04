@@ -119,7 +119,7 @@ export newtype AudioEvent =
     | AudioEventOverflow;
 
 /// Event binding family.
-export interface AudioEvent {
+export interface AudioEventBinding {
     /// Open one audio event subscription.
     @binding("destack.audio.event.open", {
         effect: "external",

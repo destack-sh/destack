@@ -15,7 +15,7 @@ export enum Clock {
 }
 
 /// Clock binding family.
-export interface TimeClock {
+export interface TimeClockBinding {
     /// Read one host-provided clock.
     @binding("destack.time.clock.now", {
         effect: "external",

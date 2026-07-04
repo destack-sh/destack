@@ -134,7 +134,7 @@ export struct AudioStreamSupport {
 }
 
 /// Stream binding family.
-export interface AudioStream {
+export interface AudioStreamBinding {
     /// Check whether one audio stream can be opened.
     @binding("destack.audio.stream.support", {
         effect: "external",

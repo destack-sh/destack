@@ -57,7 +57,7 @@ export struct FileVolumeStatus {
 }
 
 /// Filesystem volume binding family.
-export interface FsVolume {
+export interface FsVolumeBinding {
     /// Read status for the volume containing an entry.
     @binding("destack.fs.volume.entry", {
         effect: "external",

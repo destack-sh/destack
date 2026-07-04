@@ -2,7 +2,7 @@ import { HostError } from "destack:error/host";
 import { FileHandle } from "destack:fs/binding";
 
 /// Stdio binding family.
-export interface ProcessStdio {
+export interface ProcessStdioBinding {
     /// Open the current process standard input stream.
     @binding("destack.process.stdio.input", {
         effect: "external",

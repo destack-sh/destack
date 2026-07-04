@@ -1,29 +1,29 @@
-import { CryptoAgreement } from "./agreement.ds";
-import { CryptoCertificate } from "./certificate.ds";
-import { CryptoCipher } from "./cipher.ds";
-import { CryptoDigest } from "./digest.ds";
-import { CryptoKdf } from "./kdf.ds";
-import { CryptoKey } from "./key.ds";
-import { CryptoMac } from "./mac.ds";
-import { CryptoStore } from "./store.ds";
+import { CryptoAgreementBinding } from "./agreement.ds";
+import { CryptoCertificateBinding } from "./certificate.ds";
+import { CryptoCipherBinding } from "./cipher.ds";
+import { CryptoDigestBinding } from "./digest.ds";
+import { CryptoKdfBinding } from "./kdf.ds";
+import { CryptoKeyBinding } from "./key.ds";
+import { CryptoMacBinding } from "./mac.ds";
+import { CryptoStoreBinding } from "./store.ds";
 
-/// Crypto binding family.
-@languageItem("crypto.Crypto")
-export interface Crypto {
+/// CryptoBinding binding family.
+@languageItem("crypto.CryptoBinding")
+export interface CryptoBinding {
     /// Agreement bindings.
-    readonly agreement: CryptoAgreement;
+    readonly agreement: CryptoAgreementBinding;
     /// Certificate bindings.
-    readonly certificate: CryptoCertificate;
+    readonly certificate: CryptoCertificateBinding;
     /// Cipher bindings.
-    readonly cipher: CryptoCipher;
+    readonly cipher: CryptoCipherBinding;
     /// Digest bindings.
-    readonly digest: CryptoDigest;
+    readonly digest: CryptoDigestBinding;
     /// Kdf bindings.
-    readonly kdf: CryptoKdf;
+    readonly kdf: CryptoKdfBinding;
     /// Key bindings.
-    readonly key: CryptoKey;
+    readonly key: CryptoKeyBinding;
     /// Mac bindings.
-    readonly mac: CryptoMac;
+    readonly mac: CryptoMacBinding;
     /// Store bindings.
-    readonly store: CryptoStore;
+    readonly store: CryptoStoreBinding;
 }

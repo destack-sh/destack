@@ -26,7 +26,7 @@ export enum TlsResumptionState {
 }
 
 /// Connection binding family.
-export interface TlsConnection {
+export interface TlsConnectionBinding {
     /// Open one socket backed TLS connection.
     @binding("destack.tls.connection.open", {
         effect: "external",

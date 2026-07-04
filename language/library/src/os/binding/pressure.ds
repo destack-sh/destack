@@ -19,7 +19,7 @@ export struct OsPressure {
 }
 
 /// Pressure binding family.
-export interface OsPressure {
+export interface OsPressureBinding {
     /// Read operating-system pressure.
     @binding("destack.os.pressure.read", {
         effect: "external",

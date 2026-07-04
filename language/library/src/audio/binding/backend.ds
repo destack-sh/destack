@@ -90,7 +90,7 @@ export struct AudioBackend {
 }
 
 /// Backend binding family.
-export interface AudioBackend {
+export interface AudioBackendBinding {
     /// List host audio backends.
     @binding("destack.audio.backend.list", {
         effect: "external",

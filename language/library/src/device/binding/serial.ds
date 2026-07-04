@@ -289,7 +289,7 @@ export newtype SerialEvent =
     | SerialEventOverflow;
 
 /// Serial binding family.
-export interface DeviceSerial {
+export interface DeviceSerialBinding {
     /// List serial ports.
     @binding("destack.device.serial.list", {
         effect: "external",

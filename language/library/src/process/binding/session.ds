@@ -3,7 +3,7 @@ import { HostError } from "destack:error/host";
 import { ProcessId } from "./identity.ds";
 
 /// Session binding family.
-export interface ProcessSession {
+export interface ProcessSessionBinding {
     /// Create a new Unix session and return the session leader id.
     @binding("destack.process.session.create", {
         effect: "external",

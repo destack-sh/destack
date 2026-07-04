@@ -16,7 +16,7 @@ export struct FileMount {
 }
 
 /// Filesystem mount binding family.
-export interface FsMount {
+export interface FsMountBinding {
     /// List filesystem mounts.
     @binding("destack.fs.mount.list", {
         effect: "external",

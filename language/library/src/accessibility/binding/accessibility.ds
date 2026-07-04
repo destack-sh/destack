@@ -1,17 +1,17 @@
-import { AccessibilityAction } from "./action.ds";
-import { AccessibilityNotification } from "./notification.ds";
-import { AccessibilityText } from "./text.ds";
-import { AccessibilityTree } from "./tree.ds";
+import { AccessibilityActionBinding } from "./action.ds";
+import { AccessibilityNotificationBinding } from "./notification.ds";
+import { AccessibilityTextBinding } from "./text.ds";
+import { AccessibilityTreeBinding } from "./tree.ds";
 
-/// Accessibility binding family.
-@languageItem("accessibility.Accessibility")
-export interface Accessibility {
+/// AccessibilityBinding binding family.
+@languageItem("accessibility.AccessibilityBinding")
+export interface AccessibilityBinding {
     /// Action bindings.
-    readonly action: AccessibilityAction;
+    readonly action: AccessibilityActionBinding;
     /// Notification bindings.
-    readonly notification: AccessibilityNotification;
+    readonly notification: AccessibilityNotificationBinding;
     /// Text bindings.
-    readonly text: AccessibilityText;
+    readonly text: AccessibilityTextBinding;
     /// Tree bindings.
-    readonly tree: AccessibilityTree;
+    readonly tree: AccessibilityTreeBinding;
 }

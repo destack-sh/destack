@@ -28,7 +28,7 @@ export struct SharedMemoryMap {
 }
 
 /// Memory binding family.
-export interface IpcMemory {
+export interface IpcMemoryBinding {
     /// Create one named shared memory object.
     @binding("destack.ipc.memory.create", {
         effect: "external",

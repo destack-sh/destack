@@ -170,7 +170,7 @@ define_language_items! {
         /// `destack:accessibility/binding`.
         binding {
             /// Accessibility binding family.
-            AccessibilityBinding => (Interface, "accessibility/binding/accessibility", "Accessibility"),
+            AccessibilityBinding => (Interface, "accessibility/binding/accessibility", "AccessibilityBinding"),
         }
     }
 
@@ -256,7 +256,7 @@ define_language_items! {
         /// `destack:audio/binding`.
         binding {
             /// Audio binding family.
-            AudioBinding => (Interface, "audio/binding/audio", "Audio"),
+            AudioBinding => (Interface, "audio/binding/audio", "AudioBinding"),
         }
     }
 
@@ -426,7 +426,7 @@ define_language_items! {
         /// `destack:crypto/binding`.
         binding {
             /// Crypto binding family.
-            CryptoBinding => (Interface, "crypto/binding/crypto", "Crypto"),
+            CryptoBinding => (Interface, "crypto/binding/crypto", "CryptoBinding"),
         }
     }
 
@@ -585,7 +585,7 @@ define_language_items! {
         /// `destack:device/binding`.
         binding {
             /// Device binding family.
-            DeviceBinding => (Interface, "device/binding/device", "Device"),
+            DeviceBinding => (Interface, "device/binding/device", "DeviceBinding"),
         }
     }
 
@@ -594,7 +594,7 @@ define_language_items! {
         /// `destack:display/binding`.
         binding {
             /// Display binding family.
-            DisplayBinding => (Interface, "display/binding/display", "Display"),
+            DisplayBinding => (Interface, "display/binding/display", "DisplayBinding"),
         }
     }
 
@@ -652,7 +652,7 @@ define_language_items! {
         /// `destack:fs/binding`.
         binding {
             /// Filesystem binding family.
-            FsBinding => (Interface, "fs/binding/fs", "Fs"),
+            FsBinding => (Interface, "fs/binding/fs", "FsBinding"),
         }
     }
 
@@ -661,7 +661,7 @@ define_language_items! {
         /// `destack:gpu/binding`.
         binding {
             /// GPU binding family.
-            GpuBinding => (Interface, "gpu/binding/gpu", "Gpu"),
+            GpuBinding => (Interface, "gpu/binding/gpu", "GpuBinding"),
         }
     }
 
@@ -670,7 +670,7 @@ define_language_items! {
         /// `destack:input/binding`.
         binding {
             /// Input binding family.
-            InputBinding => (Interface, "input/binding/input", "Input"),
+            InputBinding => (Interface, "input/binding/input", "InputBinding"),
         }
     }
 
@@ -679,7 +679,7 @@ define_language_items! {
         /// `destack:io/binding`.
         binding {
             /// IO binding family.
-            IoBinding => (Interface, "io/binding/io", "Io"),
+            IoBinding => (Interface, "io/binding/io", "IoBinding"),
         }
     }
 
@@ -688,7 +688,7 @@ define_language_items! {
         /// `destack:ipc/binding`.
         binding {
             /// IPC binding family.
-            IpcBinding => (Interface, "ipc/binding/ipc", "Ipc"),
+            IpcBinding => (Interface, "ipc/binding/ipc", "IpcBinding"),
         }
     }
 
@@ -769,6 +769,15 @@ define_language_items! {
             Number => (Class, "math/number", "Number"),
         }
 
+        /// `destack:math/scalar`.
+        scalar {
+            /// Builtin integer marker.
+            Integer => (NewtypeInterface, "math/scalar", "Integer"),
+
+            /// Builtin float marker.
+            Float => (NewtypeInterface, "math/scalar", "Float"),
+        }
+
         /// `destack:math/vector`.
         vector {
             /// Vector type.
@@ -799,7 +808,7 @@ define_language_items! {
         /// `destack:memory/binding`.
         binding {
             /// Memory binding family.
-            MemoryBinding => (Interface, "memory/binding/memory", "Memory"),
+            MemoryBinding => (Interface, "memory/binding/memory", "MemoryBinding"),
         }
 
         /// `destack:memory/arc`.
@@ -1057,7 +1066,7 @@ define_language_items! {
         /// `destack:net/binding`.
         binding {
             /// Network binding family.
-            NetBinding => (Interface, "net/binding/net", "Net"),
+            NetBinding => (Interface, "net/binding/net", "NetBinding"),
         }
     }
 
@@ -1210,7 +1219,7 @@ define_language_items! {
         /// `destack:os/binding`.
         binding {
             /// Operating system binding family.
-            OsBinding => (Interface, "os/binding/os", "Os"),
+            OsBinding => (Interface, "os/binding/os", "OsBinding"),
         }
     }
 
@@ -1219,7 +1228,7 @@ define_language_items! {
         /// `destack:process/binding`.
         binding {
             /// Process binding family.
-            ProcessBinding => (Interface, "process/binding/process", "Process"),
+            ProcessBinding => (Interface, "process/binding/process", "ProcessBinding"),
         }
     }
 
@@ -1228,7 +1237,7 @@ define_language_items! {
         /// `destack:random/binding`.
         binding {
             /// Random binding family.
-            RandomBinding => (Interface, "random/binding/random", "Random"),
+            RandomBinding => (Interface, "random/binding/random", "RandomBinding"),
         }
     }
 
@@ -1432,7 +1441,7 @@ define_language_items! {
         /// `destack:time/binding`.
         binding {
             /// Time binding family.
-            TimeBinding => (Interface, "time/binding/time", "Time"),
+            TimeBinding => (Interface, "time/binding/time", "TimeBinding"),
         }
     }
 
@@ -1441,7 +1450,7 @@ define_language_items! {
         /// `destack:topology/binding`.
         binding {
             /// Topology binding family.
-            TopologyBinding => (Interface, "topology/binding/topology", "Topology"),
+            TopologyBinding => (Interface, "topology/binding/topology", "TopologyBinding"),
         }
     }
 
@@ -1450,7 +1459,7 @@ define_language_items! {
         /// `destack:tls/binding`.
         binding {
             /// TLS binding family.
-            TlsBinding => (Interface, "tls/binding/tls", "Tls"),
+            TlsBinding => (Interface, "tls/binding/tls", "TlsBinding"),
         }
     }
 
@@ -1459,7 +1468,7 @@ define_language_items! {
         /// `destack:tty/binding`.
         binding {
             /// TTY binding family.
-            TtyBinding => (Interface, "tty/binding/tty", "Tty"),
+            TtyBinding => (Interface, "tty/binding/tty", "TtyBinding"),
         }
     }
 

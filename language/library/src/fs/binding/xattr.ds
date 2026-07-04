@@ -34,7 +34,7 @@ export struct XattrTargetFile {
 export newtype XattrTarget = XattrTargetEntry | XattrTargetFile;
 
 /// Filesystem extended attribute binding family.
-export interface FsXattr {
+export interface FsXattrBinding {
     /// Read one extended attribute into an output buffer.
     @binding("destack.fs.xattr.read", {
         effect: "external",

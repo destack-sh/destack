@@ -35,7 +35,7 @@ export struct HapticParameters {
 }
 
 /// Haptics binding family.
-export interface InputHaptics {
+export interface InputHapticsBinding {
     /// List supported haptic effects.
     @binding("destack.input.haptics.effects.list", {
         effect: "external",

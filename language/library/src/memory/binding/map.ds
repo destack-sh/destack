@@ -39,7 +39,7 @@ export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags = MappedMemory
 export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFlags(0x4);
 
 /// Map binding family.
-export interface MemoryMap {
+export interface MemoryMapBinding {
     /// Map a file backed memory range.
     @binding("destack.memory.map.file", {
         effect: "external",

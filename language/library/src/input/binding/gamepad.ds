@@ -163,7 +163,7 @@ export struct GamepadState {
 }
 
 /// Gamepad binding family.
-export interface InputGamepad {
+export interface InputGamepadBinding {
     /// Read one gamepad state snapshot.
     @binding("destack.input.gamepad.state.read", {
         effect: "external",

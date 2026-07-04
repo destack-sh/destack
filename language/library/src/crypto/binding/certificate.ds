@@ -190,7 +190,7 @@ export struct CryptoCertificateVerifyResult {
 }
 
 /// Certificate binding family.
-export interface CryptoCertificate {
+export interface CryptoCertificateBinding {
     /// Import one certificate into one store.
     @binding("destack.crypto.certificate.import", {
         effect: "external",

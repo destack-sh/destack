@@ -272,7 +272,7 @@ export newtype TextSessionEvent =
     | TextSessionEventClipboard;
 
 /// Text binding family.
-export interface InputText {
+export interface InputTextBinding {
     /// Open one text input session.
     @binding("destack.input.text.open", {
         effect: "external",

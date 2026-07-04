@@ -28,7 +28,7 @@ export struct UnixSocketMessage {
 }
 
 /// Unix binding family.
-export interface IpcUnix {
+export interface IpcUnixBinding {
     /// Send one Unix-domain socket message with transferred handles.
     @binding("destack.ipc.unix.send", {
         effect: "external",

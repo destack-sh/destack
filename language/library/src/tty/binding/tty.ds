@@ -1,14 +1,14 @@
-import { TtyPty } from "./pty.ds";
-import { TtyTerminal } from "./terminal.ds";
-import { TtyTermios } from "./termios.ds";
+import { TtyPtyBinding } from "./pty.ds";
+import { TtyTerminalBinding } from "./terminal.ds";
+import { TtyTermiosBinding } from "./termios.ds";
 
 /// TTY binding family.
-@languageItem("tty.Tty")
-export interface Tty {
+@languageItem("tty.TtyBinding")
+export interface TtyBinding {
     /// PTY bindings.
-    readonly pty: TtyPty;
+    readonly pty: TtyPtyBinding;
     /// Terminal bindings.
-    readonly terminal: TtyTerminal;
+    readonly terminal: TtyTerminalBinding;
     /// termios bindings.
-    readonly termios: TtyTermios;
+    readonly termios: TtyTermiosBinding;
 }

@@ -1,20 +1,20 @@
-import { AudioBackend } from "./backend.ds";
-import { AudioClock } from "./clock.ds";
-import { AudioDevice } from "./device.ds";
-import { AudioEvent } from "./event.ds";
-import { AudioStream } from "./stream.ds";
+import { AudioBackendBinding } from "./backend.ds";
+import { AudioClockBinding } from "./clock.ds";
+import { AudioDeviceBinding } from "./device.ds";
+import { AudioEventBinding } from "./event.ds";
+import { AudioStreamBinding } from "./stream.ds";
 
-/// Audio binding family.
-@languageItem("audio.Audio")
-export interface Audio {
+/// AudioBinding binding family.
+@languageItem("audio.AudioBinding")
+export interface AudioBinding {
     /// Backend bindings.
-    readonly backend: AudioBackend;
+    readonly backend: AudioBackendBinding;
     /// Clock bindings.
-    readonly clock: AudioClock;
+    readonly clock: AudioClockBinding;
     /// Device bindings.
-    readonly device: AudioDevice;
+    readonly device: AudioDeviceBinding;
     /// Event bindings.
-    readonly event: AudioEvent;
+    readonly event: AudioEventBinding;
     /// Stream bindings.
-    readonly stream: AudioStream;
+    readonly stream: AudioStreamBinding;
 }

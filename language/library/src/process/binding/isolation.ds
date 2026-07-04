@@ -30,7 +30,7 @@ export enum ProcessNamespaceKind {
 }
 
 /// Isolation binding family.
-export interface ProcessIsolation {
+export interface ProcessIsolationBinding {
     /// Enter one namespace owned by another process.
     @binding("destack.process.isolation.enterNamespace", {
         effect: "external",

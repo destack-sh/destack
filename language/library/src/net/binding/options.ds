@@ -213,7 +213,7 @@ export struct RawSocketOption {
 }
 
 /// Socket option binding family.
-export interface NetOptions {
+export interface NetOptionsBinding {
     /// Set one normalized socket option.
     @binding("destack.net.options.set", {
         effect: "external",

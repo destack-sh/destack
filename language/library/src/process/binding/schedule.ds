@@ -20,7 +20,7 @@ export struct ProcessAffinity {
 }
 
 /// Schedule binding family.
-export interface ProcessSchedule {
+export interface ProcessScheduleBinding {
     /// Read one process priority.
     @binding("destack.process.schedule.priority.read", {
         effect: "external",

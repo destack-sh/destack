@@ -393,7 +393,7 @@ export newtype InputEvent =
     | InputEventComposition;
 
 /// Event binding family.
-export interface InputEvent {
+export interface InputEventBinding {
     /// Open an input event subscription.
     @binding("destack.input.event.open", {
         effect: "external",

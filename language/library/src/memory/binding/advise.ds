@@ -17,7 +17,7 @@ export enum MemoryAdvice {
 }
 
 /// Advise binding family.
-export interface MemoryAdvise {
+export interface MemoryAdviseBinding {
     /// Apply memory access advice.
     @binding("destack.memory.advise", {
         effect: "external",

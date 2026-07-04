@@ -145,7 +145,7 @@ export struct DisplayDragRequest {
 }
 
 /// Drag binding family.
-export interface DisplayDrag {
+export interface DisplayDragBinding {
     /// Read one drag text item.
     @binding("destack.display.drag.text.read", {
         effect: "external",

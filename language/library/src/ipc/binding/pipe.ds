@@ -22,7 +22,7 @@ export struct PipePair {
 }
 
 /// Pipe binding family.
-export interface IpcPipe {
+export interface IpcPipeBinding {
     /// Create one anonymous pipe pair.
     @binding("destack.ipc.pipe.create", {
         effect: "external",

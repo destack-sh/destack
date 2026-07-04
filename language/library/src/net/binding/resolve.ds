@@ -278,7 +278,7 @@ export struct ReverseAddressLookupResult {
 }
 
 /// Name resolution binding family.
-export interface NetResolve {
+export interface NetResolveBinding {
     /// Resolve a host and service through host address lookup.
     @binding("destack.net.resolve.lookup", {
         effect: "external",

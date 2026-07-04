@@ -3,7 +3,7 @@ import { HostError } from "destack:error/host";
 import { VirtualMemoryRange } from "./virtual.ds";
 
 /// Lock binding family.
-export interface MemoryLock {
+export interface MemoryLockBinding {
     /// Lock one memory range into physical memory.
     @binding("destack.memory.lock", {
         effect: "external",
