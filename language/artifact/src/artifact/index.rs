@@ -8,11 +8,11 @@ use crate::ArtifactProjectionFingerprint;
 /// Indexed checked DIR facts for one module profile.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ModuleIndex {
-    /// Indexed declarations.
-    pub declarations: dir::DeclarationIndex,
+    /// Indexed declared symbols.
+    pub symbols: dir::SymbolIndex,
     /// Indexed exports.
     pub exports: dir::ExportIndex,
-    /// Indexed member declarations.
+    /// Indexed checked members.
     pub members: dir::MemberIndex,
     /// Indexed reference memberships.
     pub references: dir::ReferenceIndex,
@@ -20,18 +20,18 @@ pub struct ModuleIndex {
     pub calls: dir::CallIndex,
     /// Indexed nominal heritage edges.
     pub heritage: dir::HeritageIndex,
-    /// Indexed extension declarations.
+    /// Indexed checked extensions.
     pub extensions: dir::ExtensionIndex,
     /// Indexed module specifiers.
     pub specifiers: dir::SpecifierIndex,
-    /// Indexed decorator applications.
-    pub decorations: dir::DecorationIndex,
+    /// Indexed decorators.
+    pub decorators: dir::DecoratorIndex,
 }
 
 impl ModuleIndex {
     /// Sort and deduplicate all index sections.
     pub fn finish(&mut self) {
-        self.declarations.finish();
+        self.symbols.finish();
         self.exports.finish();
         self.members.finish();
         self.references.finish();
@@ -39,7 +39,7 @@ impl ModuleIndex {
         self.heritage.finish();
         self.extensions.finish();
         self.specifiers.finish();
-        self.decorations.finish();
+        self.decorators.finish();
     }
 
     /// Return the stable fingerprint of one module index projection.
@@ -48,10 +48,8 @@ impl ModuleIndex {
         projection: ModuleIndexProjection,
     ) -> ArtifactProjectionFingerprint {
         match projection {
-            ModuleIndexProjection::Declarations => {
-                ArtifactProjectionFingerprint::new(&dir::DeclarationPostings::new(&[
-                    &self.declarations
-                ]))
+            ModuleIndexProjection::Symbols => {
+                ArtifactProjectionFingerprint::new(&dir::SymbolPostings::new(&[&self.symbols]))
             }
             ModuleIndexProjection::Exports => {
                 ArtifactProjectionFingerprint::new(&dir::ExportPostings::new(&[&self.exports]))
@@ -74,11 +72,9 @@ impl ModuleIndex {
             ModuleIndexProjection::Specifiers => ArtifactProjectionFingerprint::new(
                 &dir::SpecifierPostings::new(&[&self.specifiers]),
             ),
-            ModuleIndexProjection::Decorations => {
-                ArtifactProjectionFingerprint::new(&dir::DecorationPostings::new(&[
-                    &self.decorations
-                ]))
-            }
+            ModuleIndexProjection::Decorators => ArtifactProjectionFingerprint::new(
+                &dir::DecoratorPostings::new(&[&self.decorators]),
+            ),
         }
     }
 }
@@ -88,8 +84,8 @@ impl ModuleIndex {
 pub struct ProgramIndex {
     /// The indexed modules in stable ordinal order.
     pub modules: Vec<IndexedModule>,
-    /// Declaration postings.
-    pub declarations: dir::DeclarationPostings,
+    /// Symbol postings.
+    pub symbols: dir::SymbolPostings,
     /// Export postings.
     pub exports: dir::ExportPostings,
     /// Member postings.
@@ -104,8 +100,8 @@ pub struct ProgramIndex {
     pub extensions: dir::ExtensionPostings,
     /// Module specifier postings.
     pub specifiers: dir::SpecifierPostings,
-    /// Decoration postings.
-    pub decorations: dir::DecorationPostings,
+    /// Decorator postings.
+    pub decorators: dir::DecoratorPostings,
 }
 
 /// One module segment in a program index.
@@ -120,8 +116,8 @@ pub struct IndexedModule {
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum ModuleIndexProjection {
-    /// Declaration postings.
-    Declarations,
+    /// Symbol postings.
+    Symbols,
     /// Export postings.
     Exports,
     /// Member postings.
@@ -136,14 +132,14 @@ pub enum ModuleIndexProjection {
     Extensions,
     /// Specifier postings.
     Specifiers,
-    /// Decoration postings.
-    Decorations,
+    /// Decorator postings.
+    Decorators,
 }
 
 impl ModuleIndexProjection {
     /// All module index projections in stable order.
     pub const ALL: [Self; 9] = [
-        Self::Declarations,
+        Self::Symbols,
         Self::Exports,
         Self::Members,
         Self::References,
@@ -151,6 +147,6 @@ impl ModuleIndexProjection {
         Self::Heritage,
         Self::Extensions,
         Self::Specifiers,
-        Self::Decorations,
+        Self::Decorators,
     ];
 }

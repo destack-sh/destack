@@ -167,7 +167,7 @@ pub struct DirExpanded {
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
     pub statics: Arc<dir::StaticSegment>,
-    /// Expanded macro invocations.
+    /// Expanded macro applications.
     pub macros: dir::MacroTable,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
@@ -254,8 +254,8 @@ pub struct DirCheckedComponentEntry {
 pub struct DirCheckedModule {
     /// Checked binding segment.
     pub bindings: Arc<dir::BindingSegment>,
-    /// New annotation invocations.
-    pub annotations: Arc<dir::AnnotationSegment>,
+    /// New decorator applications.
+    pub decorators: Arc<dir::DecoratorSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
@@ -295,9 +295,9 @@ impl DirCheckedModule {
         ])
     }
 
-    /// Return the cumulative annotation table for checked DIR.
-    pub fn annotation_table(&self) -> dir::AnnotationTable<'static> {
-        dir::AnnotationTable::from_segment(self.annotations.clone())
+    /// Return the cumulative decorator table for checked DIR.
+    pub fn decorator_table(&self) -> dir::DecoratorTable<'static> {
+        dir::DecoratorTable::from_segment(self.decorators.clone())
     }
 
     /// Return the cumulative type table for checked DIR.
