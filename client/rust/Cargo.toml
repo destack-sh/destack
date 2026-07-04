@@ -25,7 +25,6 @@ destack_heap.workspace = true
 destack_js.workspace = true
 destack_mir.workspace = true
 destack_program.workspace = true
-destack_qir.workspace = true
 destack_query.workspace = true
 destack_repository.workspace = true
 destack_source.workspace = true
