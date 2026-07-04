@@ -307,6 +307,8 @@ global {
         Matrix4d,
         Matrix4f,
         Matrix4i,
+        Infinity,
+        NaN,
         Number,
         Quaternion,
         Quaterniond,
