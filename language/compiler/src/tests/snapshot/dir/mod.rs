@@ -1,8 +1,8 @@
-mod annotation;
 mod binding;
 mod builder;
 mod capture;
 mod coercion;
+mod decorator;
 mod definition;
 mod event;
 mod export;

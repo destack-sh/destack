@@ -57,8 +57,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) coercions: dir::CoercionSegment,
     /// Checked captures.
     pub(in crate::check) capture_segment: dir::CaptureSegment,
-    /// Checked annotations.
-    pub(in crate::check) annotations: dir::AnnotationSegment,
+    /// Checked decorators.
+    pub(in crate::check) decorators: dir::DecoratorSegment,
     /// Inferred static symbol values, materialized to statics during write.
     pub(in crate::check) static_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
@@ -103,7 +103,7 @@ impl CheckModuleState {
         let resolutions = dir::ResolutionSegment::new(module.id);
         let coercions = dir::CoercionSegment::new(module.id);
         let capture_segment = dir::CaptureSegment::new(module.id);
-        let annotations = dir::AnnotationSegment::new(module.id);
+        let decorators = dir::DecoratorSegment::new(module.id);
 
         Self {
             module,
@@ -123,7 +123,7 @@ impl CheckModuleState {
             resolutions,
             coercions,
             capture_segment,
-            annotations,
+            decorators,
             static_values: IndexMap::new(),
             static_presence: IndexMap::new(),
             absent_symbols: IndexSet::new(),

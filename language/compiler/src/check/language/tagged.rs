@@ -16,12 +16,12 @@ impl CheckState<'_> {
             return false;
         };
 
-        // inspect attached derive invocations
-        let invocations = self.decorator_invocations(symbol.module_id, declaration.local_id);
-        invocations.iter().any(|invocation| {
-            self.decorator_language_item(symbol.module_id, invocation)
+        // inspect attached derive applications
+        let applications = self.decorator_applications(symbol.module_id, declaration.local_id);
+        applications.iter().any(|application| {
+            self.decorator_language_item(symbol.module_id, application)
                 == Some(dir::LanguageItem::Derive)
-                && invocation.arguments.iter().any(|argument| {
+                && application.arguments.iter().any(|argument| {
                     self.decorator_argument_language_item(symbol.module_id, *argument)
                         == Some(dir::LanguageItem::Tagged)
                 })

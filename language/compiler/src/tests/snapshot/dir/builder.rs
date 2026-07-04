@@ -271,8 +271,8 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.types.as_ref());
         }
 
-        if selection.annotations {
-            self.add_table(checked.annotations.as_ref());
+        if selection.decorators {
+            self.add_table(checked.decorators.as_ref());
         }
 
         if selection.statics {

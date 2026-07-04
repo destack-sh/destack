@@ -15,8 +15,8 @@ pub(crate) struct DirRows {
     pub(super) binding_nodes: bool,
     /// Whether to render type table rows.
     pub(super) types: bool,
-    /// Whether to render annotation table rows.
-    pub(super) annotations: bool,
+    /// Whether to render decorator table rows.
+    pub(super) decorators: bool,
     /// Whether to render expression node type rows.
     pub(super) type_nodes: bool,
     /// Whether to render identifier type rows.
@@ -57,7 +57,7 @@ impl DirRows {
             binding: false,
             binding_nodes: false,
             types: false,
-            annotations: false,
+            decorators: false,
             type_nodes: false,
             type_references: false,
             statics: false,
@@ -148,9 +148,9 @@ impl DirRows {
         self
     }
 
-    /// Include annotation table rows.
-    pub(crate) const fn with_annotations(mut self) -> Self {
-        self.annotations = true;
+    /// Include decorator table rows.
+    pub(crate) const fn with_decorators(mut self) -> Self {
+        self.decorators = true;
         self
     }
 
@@ -293,7 +293,7 @@ impl DirRows {
     /// Return whether selected rows need semantic type labels.
     pub(crate) const fn uses_type_labels(self) -> bool {
         self.types
-            || self.annotations
+            || self.decorators
             || self.statics
             || self.resolution
             || self.generics
