@@ -1,5 +1,6 @@
 import * as assert from "destack:assert";
 import { Iterable } from "destack:iter";
+import { Numeric } from "destack:math";
 import { Equal } from "destack:ops";
 
 /// A value assertion chain.
@@ -103,7 +104,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value is greater than `expected`.
-    toBeGreaterThan(&readonly this, expected: number): void {
+    toBeGreaterThan<N: Numeric>(this: &readonly Expect<N>, expected: number): void {
         this.check(
             (this.value as number) > expected,
             "expected value to be greater",
@@ -112,7 +113,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value is less than `expected`.
-    toBeLessThan(&readonly this, expected: number): void {
+    toBeLessThan<N: Numeric>(this: &readonly Expect<N>, expected: number): void {
         this.check(
             (this.value as number) < expected,
             "expected value to be less",
