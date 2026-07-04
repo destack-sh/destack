@@ -49,7 +49,7 @@ impl MemberIndex {
     }
 
     /// Iterate members declared on one owner symbol.
-    pub fn for_owner(&self, owner: GlobalSymbolId) -> impl Iterator<Item = &MemberEntry> {
+    pub fn owner_entries(&self, owner: GlobalSymbolId) -> impl Iterator<Item = &MemberEntry> {
         let range = self.owner_range(owner);
 
         self.by_owner[range]
@@ -58,7 +58,10 @@ impl MemberIndex {
     }
 
     /// Iterate members contained in one declaring symbol.
-    pub fn for_declaring(&self, declaring: GlobalSymbolId) -> impl Iterator<Item = &MemberEntry> {
+    pub fn declaring_entries(
+        &self,
+        declaring: GlobalSymbolId,
+    ) -> impl Iterator<Item = &MemberEntry> {
         let range = self.declaring_range(declaring);
 
         self.by_declaring[range]
@@ -66,8 +69,8 @@ impl MemberIndex {
             .map(|index| &self.entries[*index])
     }
 
-    /// Return the indexed member for one member symbol.
-    pub fn for_symbol(&self, symbol: GlobalSymbolId) -> Option<&MemberEntry> {
+    /// Return the indexed member with one member symbol.
+    pub fn symbol_entry(&self, symbol: GlobalSymbolId) -> Option<&MemberEntry> {
         let start = self.by_symbol.partition_point(|index| {
             self.entries[*index]
                 .symbol
@@ -88,6 +91,8 @@ impl MemberIndex {
     fn rebuild_views(&mut self) {
         self.by_owner = (0..self.entries.len()).collect();
         self.by_owner
+            .retain(|index| self.entries[*index].owner.is_some());
+        self.by_owner
             .sort_by(|left, right| self.entries[*left].compare_by_owner(&self.entries[*right]));
 
         self.by_declaring = (0..self.entries.len()).collect();
@@ -105,9 +110,9 @@ impl MemberIndex {
     fn owner_range(&self, owner: GlobalSymbolId) -> std::ops::Range<usize> {
         let start = self
             .by_owner
-            .partition_point(|index| self.entries[*index].owner < owner);
+            .partition_point(|index| self.entries[*index].owner < Some(owner));
         let end = self.by_owner[start..]
-            .partition_point(|index| self.entries[*index].owner == owner)
+            .partition_point(|index| self.entries[*index].owner == Some(owner))
             + start;
 
         start..end
@@ -143,7 +148,7 @@ impl MemberPostings {
             indexes[ordinal]
                 .entries()
                 .iter()
-                .map(move |entry| (entry.owner, module))
+                .filter_map(move |entry| entry.owner.map(|owner| (owner, module)))
         }));
         let declaring = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
@@ -170,7 +175,7 @@ pub struct MemberEntry {
     /// The member kind.
     pub kind: MemberKind,
     /// The symbol whose member surface receives this member.
-    pub owner: GlobalSymbolId,
+    pub owner: Option<GlobalSymbolId>,
     /// The symbol whose definition declares this member.
     pub declaring: GlobalSymbolId,
     /// The member symbol when this member declares one.
@@ -279,7 +284,7 @@ impl MemberEntry {
     /// Compare two members in stable member-symbol order.
     fn compare_by_symbol(&self, other: &Self) -> std::cmp::Ordering {
         let left = (
-            self.symbol.unwrap_or(self.declaring),
+            self.symbol,
             self.declaring,
             self.owner,
             self.source.module_id,
@@ -288,7 +293,7 @@ impl MemberEntry {
             self.span.end,
         );
         let right = (
-            other.symbol.unwrap_or(other.declaring),
+            other.symbol,
             other.declaring,
             other.owner,
             other.source.module_id,

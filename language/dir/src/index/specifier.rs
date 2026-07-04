@@ -1,8 +1,8 @@
-use destack_serde::Reflect;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::{GlobalNodeIdAny, Postings};
+use destack_serde::Reflect;
 use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 

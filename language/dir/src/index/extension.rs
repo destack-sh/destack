@@ -35,7 +35,7 @@ impl ExtensionIndex {
     }
 
     /// Iterate extensions rooted at one symbol.
-    pub fn for_root(&self, root: GlobalSymbolId) -> impl Iterator<Item = &ExtensionEntry> {
+    pub fn root_entries(&self, root: GlobalSymbolId) -> impl Iterator<Item = &ExtensionEntry> {
         let range = self.root_range(root);
 
         self.by_root[range].iter()

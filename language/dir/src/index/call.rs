@@ -43,14 +43,14 @@ impl CallIndex {
     }
 
     /// Iterate calls that target one callee symbol.
-    pub fn for_callee(&self, callee: GlobalSymbolId) -> impl Iterator<Item = &CallEntry> {
+    pub fn callee_entries(&self, callee: GlobalSymbolId) -> impl Iterator<Item = &CallEntry> {
         let range = self.callee_range(callee);
 
         self.by_callee[range].iter()
     }
 
     /// Iterate calls that originate from one caller symbol.
-    pub fn for_caller(&self, caller: GlobalSymbolId) -> impl Iterator<Item = &CallEntry> {
+    pub fn caller_entries(&self, caller: GlobalSymbolId) -> impl Iterator<Item = &CallEntry> {
         let range = self.caller_range(caller);
 
         self.by_caller[range].iter()
