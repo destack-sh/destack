@@ -1,29 +1,29 @@
-import { NetConnectivity } from "./connectivity.ds";
-import { NetInterface } from "./interface.ds";
-import { NetOptions } from "./options.ds";
-import { NetRaw } from "./raw.ds";
-import { NetResolve } from "./resolve.ds";
-import { NetRoute } from "./route.ds";
-import { NetSocket } from "./socket.ds";
-import { NetUdp } from "./udp.ds";
+import { NetConnectivityBinding } from "./connectivity.ds";
+import { NetInterfaceBinding } from "./interface.ds";
+import { NetOptionsBinding } from "./options.ds";
+import { NetRawBinding } from "./raw.ds";
+import { NetResolveBinding } from "./resolve.ds";
+import { NetRouteBinding } from "./route.ds";
+import { NetSocketBinding } from "./socket.ds";
+import { NetUdpBinding } from "./udp.ds";
 
 /// Network binding family.
-@languageItem("net.Net")
-export interface Net {
+@languageItem("net.NetBinding")
+export interface NetBinding {
     /// Connectivity bindings.
-    readonly connectivity: NetConnectivity;
+    readonly connectivity: NetConnectivityBinding;
     /// Network interface bindings.
-    readonly interface: NetInterface;
+    readonly interface: NetInterfaceBinding;
     /// Socket option bindings.
-    readonly options: NetOptions;
+    readonly options: NetOptionsBinding;
     /// Raw socket and packet bindings.
-    readonly raw: NetRaw;
+    readonly raw: NetRawBinding;
     /// Name resolution bindings.
-    readonly resolve: NetResolve;
+    readonly resolve: NetResolveBinding;
     /// Route table bindings.
-    readonly route: NetRoute;
+    readonly route: NetRouteBinding;
     /// Socket bindings.
-    readonly socket: NetSocket;
+    readonly socket: NetSocketBinding;
     /// UDP multicast bindings.
-    readonly udp: NetUdp;
+    readonly udp: NetUdpBinding;
 }

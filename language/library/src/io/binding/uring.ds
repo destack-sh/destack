@@ -37,7 +37,7 @@ export struct UringBuffer {
 }
 
 /// Uring binding family.
-export interface IoUring {
+export interface IoUringBinding {
     /// Open an io_uring ring.
     @binding("destack.io.uring.open", {
         effect: "external",

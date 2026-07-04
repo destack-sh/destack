@@ -42,7 +42,7 @@ export struct NetworkRouteEntry {
 }
 
 /// Network route binding family.
-export interface NetRoute {
+export interface NetRouteBinding {
     /// List route table entries.
     @binding("destack.net.route.list", {
         effect: "external",

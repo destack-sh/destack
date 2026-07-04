@@ -407,7 +407,7 @@ export struct BluetoothGattValueEvent {
 }
 
 /// Bluetooth binding family.
-export interface DeviceBluetooth {
+export interface DeviceBluetoothBinding {
     /// List Bluetooth adapters.
     @binding("destack.device.bluetooth.adapter.list", {
         effect: "external",

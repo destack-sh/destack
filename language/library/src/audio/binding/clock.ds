@@ -30,7 +30,7 @@ export struct AudioClockSample {
 }
 
 /// Clock binding family.
-export interface AudioClock {
+export interface AudioClockBinding {
     /// Read one stream clock sample.
     @binding("destack.audio.clock.stream", {
         effect: "external",

@@ -1,32 +1,32 @@
-import { FsAttribute } from "./attribute.ds";
-import { FsDirectory } from "./directory.ds";
-import { FsFile } from "./file.ds";
-import { FsMount } from "./mount.ds";
-import { FsNamespace } from "./namespace.ds";
-import { FsStatus } from "./status.ds";
-import { FsVolume } from "./volume.ds";
-import { FsWatch } from "./watch.ds";
-import { FsXattr } from "./xattr.ds";
+import { FsAttributeBinding } from "./attribute.ds";
+import { FsDirectoryBinding } from "./directory.ds";
+import { FsFileBinding } from "./file.ds";
+import { FsMountBinding } from "./mount.ds";
+import { FsNamespaceBinding } from "./namespace.ds";
+import { FsStatusBinding } from "./status.ds";
+import { FsVolumeBinding } from "./volume.ds";
+import { FsWatchBinding } from "./watch.ds";
+import { FsXattrBinding } from "./xattr.ds";
 
 /// Filesystem binding family.
-@languageItem("fs.Fs")
-export interface Fs {
+@languageItem("fs.FsBinding")
+export interface FsBinding {
     /// File attribute bindings.
-    readonly attribute: FsAttribute;
+    readonly attribute: FsAttributeBinding;
     /// Directory bindings.
-    readonly directory: FsDirectory;
+    readonly directory: FsDirectoryBinding;
     /// File descriptor bindings.
-    readonly file: FsFile;
+    readonly file: FsFileBinding;
     /// Mount table bindings.
-    readonly mount: FsMount;
+    readonly mount: FsMountBinding;
     /// Namespace bindings.
-    readonly namespace: FsNamespace;
+    readonly namespace: FsNamespaceBinding;
     /// Status bindings.
-    readonly status: FsStatus;
+    readonly status: FsStatusBinding;
     /// Volume bindings.
-    readonly volume: FsVolume;
+    readonly volume: FsVolumeBinding;
     /// Watch bindings.
-    readonly watch: FsWatch;
+    readonly watch: FsWatchBinding;
     /// Extended attribute bindings.
-    readonly xattr: FsXattr;
+    readonly xattr: FsXattrBinding;
 }

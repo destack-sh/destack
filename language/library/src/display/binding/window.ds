@@ -296,7 +296,7 @@ export struct WindowState {
 }
 
 /// Window binding family.
-export interface DisplayWindow {
+export interface DisplayWindowBinding {
     /// Open one window.
     @binding("destack.display.window.open", {
         effect: "external",

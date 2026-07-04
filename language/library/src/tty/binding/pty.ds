@@ -22,7 +22,7 @@ export struct PtyPair {
 }
 
 /// Pty binding family.
-export interface TtyPty {
+export interface TtyPtyBinding {
     /// Open one pseudo terminal pair.
     @binding("destack.tty.pty.open", {
         effect: "external",

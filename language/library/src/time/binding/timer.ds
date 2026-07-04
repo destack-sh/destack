@@ -42,7 +42,7 @@ export struct TimerSchedule {
 }
 
 /// Timer binding family.
-export interface TimeTimer {
+export interface TimeTimerBinding {
     /// Open one timer resource.
     @binding("destack.time.timer.open", {
         effect: "external",

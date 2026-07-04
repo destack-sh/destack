@@ -155,7 +155,7 @@ export struct CryptoCertificateListPage {
 }
 
 /// Store binding family.
-export interface CryptoStore {
+export interface CryptoStoreBinding {
     /// Read crypto provider capabilities.
     @binding("destack.crypto.capability.read", {
         effect: "external",

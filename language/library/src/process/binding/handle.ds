@@ -19,7 +19,7 @@ export const PROCESS_OPEN_WAIT: ProcessOpenFlags = ProcessOpenFlags(0x2);
 export const PROCESS_OPEN_SIGNAL: ProcessOpenFlags = ProcessOpenFlags(0x4);
 
 /// Handle binding family.
-export interface ProcessHandle {
+export interface ProcessHandleBinding {
     /// Open one process handle for an existing process id.
     @binding("destack.process.handle.open", {
         effect: "external",

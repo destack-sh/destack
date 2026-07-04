@@ -396,7 +396,7 @@ export newtype AccessibilityTextResponse =
     | AccessibilityTextResponseObjects;
 
 /// Text binding family.
-export interface AccessibilityText {
+export interface AccessibilityTextBinding {
     /// Open one inbound accessibility text query stream.
     @binding("destack.accessibility.text.open", {
         effect: "external",

@@ -204,7 +204,7 @@ export struct FileStatus {
 }
 
 /// Filesystem status binding family.
-export interface FsStatus {
+export interface FsStatusBinding {
     /// Read status for a filesystem entry.
     @binding("destack.fs.status.entry", {
         effect: "external",

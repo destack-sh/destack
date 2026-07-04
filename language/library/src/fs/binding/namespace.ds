@@ -44,7 +44,7 @@ export struct FilesystemNodeOptions {
 }
 
 /// Filesystem namespace binding family.
-export interface FsNamespace {
+export interface FsNamespaceBinding {
     /// Rename or exchange one filesystem entry.
     @binding("destack.fs.namespace.rename", {
         effect: "external",

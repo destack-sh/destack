@@ -39,7 +39,7 @@ export const VIRTUAL_MEMORY_RESERVE_NO_RESERVE: VirtualMemoryReserveFlags =
     VirtualMemoryReserveFlags(0x2);
 
 /// Virtual binding family.
-export interface MemoryVirtual {
+export interface MemoryVirtualBinding {
     /// Reserve one virtual memory range.
     @binding("destack.memory.virtual.reserve", {
         effect: "external",

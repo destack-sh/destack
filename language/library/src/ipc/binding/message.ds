@@ -31,7 +31,7 @@ export struct MessageQueueMessage {
 }
 
 /// Message binding family.
-export interface IpcMessage {
+export interface IpcMessageBinding {
     /// Open or create one POSIX message queue.
     @binding("destack.ipc.message.open", {
         effect: "external",

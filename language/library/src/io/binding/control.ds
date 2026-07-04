@@ -23,7 +23,7 @@ export struct IoControlResult {
 }
 
 /// Control binding family.
-export interface IoControl {
+export interface IoControlBinding {
     /// Execute one resource control request.
     @binding("destack.io.control", {
         effect: "external",

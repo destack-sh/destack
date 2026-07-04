@@ -149,7 +149,7 @@ export enum PointerGrabMode {
 }
 
 /// Pointer binding family.
-export interface InputPointer {
+export interface InputPointerBinding {
     /// Read one pointer state snapshot.
     @binding("destack.input.pointer.state.read", {
         effect: "external",

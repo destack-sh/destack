@@ -151,7 +151,7 @@ export struct MonitorQuery {
 }
 
 /// Monitor binding family.
-export interface DisplayMonitor {
+export interface DisplayMonitorBinding {
     /// List monitors.
     @binding("destack.display.monitor.list", {
         effect: "external",

@@ -18,7 +18,7 @@ export struct RawEnvironmentVariable {
 }
 
 /// Environment binding family.
-export interface ProcessEnvironment {
+export interface ProcessEnvironmentBinding {
     /// Read an environment variable.
     @binding("destack.process.environment.get", {
         effect: "external",

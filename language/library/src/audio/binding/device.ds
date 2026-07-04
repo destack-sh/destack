@@ -154,7 +154,7 @@ export struct AudioDevice {
 }
 
 /// Device binding family.
-export interface AudioDevice {
+export interface AudioDeviceBinding {
     /// List audio devices.
     @binding("destack.audio.device.list", {
         effect: "external",

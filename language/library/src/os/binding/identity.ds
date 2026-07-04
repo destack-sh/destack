@@ -13,7 +13,7 @@ export struct OsIdentity {
 }
 
 /// Identity binding family.
-export interface OsIdentity {
+export interface OsIdentityBinding {
     /// Read operating-system identity.
     @binding("destack.os.identity.read", {
         effect: "external",

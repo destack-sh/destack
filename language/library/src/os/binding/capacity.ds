@@ -11,7 +11,7 @@ export struct OsCapacity {
 }
 
 /// Capacity binding family.
-export interface OsCapacity {
+export interface OsCapacityBinding {
     /// Read operating-system capacity.
     @binding("destack.os.capacity.read", {
         effect: "external",

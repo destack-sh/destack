@@ -79,7 +79,7 @@ export struct CryptoAgreementBits {
 }
 
 /// Agreement binding family.
-export interface CryptoAgreement {
+export interface CryptoAgreementBinding {
     /// Derive one shared secret from one local private key and one peer public key.
     @binding("destack.crypto.agreement.deriveSharedSecret", {
         effect: "external",

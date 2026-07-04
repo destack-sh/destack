@@ -11,7 +11,7 @@ export enum OsPowerSource {
 }
 
 /// Power binding family.
-export interface OsPower {
+export interface OsPowerBinding {
     /// Read operating-system power source.
     @binding("destack.os.powerSource.read", {
         effect: "external",

@@ -514,7 +514,7 @@ export struct GpuRenderPipelineDescriptor {
 }
 
 /// Pipeline binding family.
-export interface GpuPipeline {
+export interface GpuPipelineBinding {
     /// Create a shader module.
     @binding("destack.gpu.pipeline.shader.create", {
         effect: "external",

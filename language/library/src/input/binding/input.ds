@@ -1,35 +1,35 @@
-import { InputClipboard } from "./clipboard.ds";
-import { InputDevice } from "./device.ds";
-import { InputEvent } from "./event.ds";
-import { InputGamepad } from "./gamepad.ds";
-import { InputHaptics } from "./haptics.ds";
-import { InputKeyboard } from "./keyboard.ds";
-import { InputPointer } from "./pointer.ds";
-import { InputSensor } from "./sensor.ds";
-import { InputText } from "./text.ds";
-import { InputTouch } from "./touch.ds";
+import { InputClipboardBinding } from "./clipboard.ds";
+import { InputDeviceBinding } from "./device.ds";
+import { InputEventBinding } from "./event.ds";
+import { InputGamepadBinding } from "./gamepad.ds";
+import { InputHapticsBinding } from "./haptics.ds";
+import { InputKeyboardBinding } from "./keyboard.ds";
+import { InputPointerBinding } from "./pointer.ds";
+import { InputSensorBinding } from "./sensor.ds";
+import { InputTextBinding } from "./text.ds";
+import { InputTouchBinding } from "./touch.ds";
 
-/// Input binding family.
-@languageItem("input.Input")
-export interface Input {
+/// InputBinding binding family.
+@languageItem("input.InputBinding")
+export interface InputBinding {
     /// Clipboard bindings.
-    readonly clipboard: InputClipboard;
+    readonly clipboard: InputClipboardBinding;
     /// Device bindings.
-    readonly device: InputDevice;
+    readonly device: InputDeviceBinding;
     /// Event bindings.
-    readonly event: InputEvent;
+    readonly event: InputEventBinding;
     /// Gamepad bindings.
-    readonly gamepad: InputGamepad;
+    readonly gamepad: InputGamepadBinding;
     /// Haptics bindings.
-    readonly haptics: InputHaptics;
+    readonly haptics: InputHapticsBinding;
     /// Keyboard bindings.
-    readonly keyboard: InputKeyboard;
+    readonly keyboard: InputKeyboardBinding;
     /// Pointer bindings.
-    readonly pointer: InputPointer;
+    readonly pointer: InputPointerBinding;
     /// Sensor bindings.
-    readonly sensor: InputSensor;
+    readonly sensor: InputSensorBinding;
     /// Text bindings.
-    readonly text: InputText;
+    readonly text: InputTextBinding;
     /// Touch bindings.
-    readonly touch: InputTouch;
+    readonly touch: InputTouchBinding;
 }

@@ -89,7 +89,7 @@ export struct SensorStreamState {
 }
 
 /// Sensor binding family.
-export interface InputSensor {
+export interface InputSensorBinding {
     /// List supported sensors for one input device.
     @binding("destack.input.sensor.list", {
         effect: "external",

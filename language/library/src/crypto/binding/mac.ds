@@ -19,7 +19,7 @@ export struct CryptoMacParameters {
 }
 
 /// Mac binding family.
-export interface CryptoMac {
+export interface CryptoMacBinding {
     /// Compute one message authentication code in one shot.
     @binding("destack.crypto.mac.compute", {
         effect: "external",

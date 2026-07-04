@@ -265,7 +265,7 @@ export newtype CameraWatchEvent =
     | CameraWatchEventOverflow;
 
 /// Camera binding family.
-export interface DeviceCamera {
+export interface DeviceCameraBinding {
     /// List camera devices.
     @binding("destack.device.camera.list", {
         effect: "external",

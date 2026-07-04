@@ -96,7 +96,7 @@ export struct HidReport {
 }
 
 /// Hid binding family.
-export interface DeviceHid {
+export interface DeviceHidBinding {
     /// List HID devices.
     @binding("destack.device.hid.list", {
         effect: "external",

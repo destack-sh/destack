@@ -31,7 +31,7 @@ export struct ProcessGroupIds {
 }
 
 /// Identity binding family.
-export interface ProcessIdentity {
+export interface ProcessIdentityBinding {
     /// Return the current process id.
     @binding("destack.process.identity.pid", {
         effect: "external",

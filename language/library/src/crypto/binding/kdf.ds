@@ -154,7 +154,7 @@ export struct CryptoKdfBits {
 }
 
 /// Kdf binding family.
-export interface CryptoKdf {
+export interface CryptoKdfBinding {
     /// Derive raw bytes.
     @binding("destack.crypto.kdf.deriveBits", {
         effect: "external",

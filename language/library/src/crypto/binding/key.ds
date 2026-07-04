@@ -190,7 +190,7 @@ export struct CryptoKeyWrapParameters {
 }
 
 /// Key binding family.
-export interface CryptoKey {
+export interface CryptoKeyBinding {
     /// Generate one secret key.
     @binding("destack.crypto.key.secret.generate", {
         effect: "external",

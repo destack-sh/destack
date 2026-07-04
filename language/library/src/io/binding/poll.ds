@@ -45,7 +45,7 @@ export struct IoPollEvent {
 }
 
 /// Poll binding family.
-export interface IoPoll {
+export interface IoPollBinding {
     /// Open a readiness poller.
     @binding("destack.io.poll.open", {
         effect: "external",

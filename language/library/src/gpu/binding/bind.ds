@@ -214,7 +214,7 @@ export struct GpuBindGroupDescriptor {
 }
 
 /// Bind binding family.
-export interface GpuBind {
+export interface GpuBindBinding {
     /// Create a bind group layout.
     @binding("destack.gpu.bind.group.layout.create", {
         effect: "external",

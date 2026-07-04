@@ -201,7 +201,7 @@ export struct GpuBufferCopy {
 }
 
 /// Command binding family.
-export interface GpuCommand {
+export interface GpuCommandBinding {
     /// Create a command encoder.
     @binding("destack.gpu.command.encoder.create", {
         effect: "external",

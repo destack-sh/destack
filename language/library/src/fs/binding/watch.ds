@@ -121,7 +121,7 @@ export struct FileWatchBatch {
 }
 
 /// Filesystem watch binding family.
-export interface FsWatch {
+export interface FsWatchBinding {
     /// Start watching one filesystem entry.
     @binding("destack.fs.watch.open", {
         effect: "external",

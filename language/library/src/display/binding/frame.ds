@@ -48,7 +48,7 @@ export struct DisplayFrameSubscription {
 }
 
 /// Frame binding family.
-export interface DisplayFrame {
+export interface DisplayFrameBinding {
     /// Open one display frame timing stream.
     @binding("destack.display.frame.open", {
         effect: "external",

@@ -1,26 +1,26 @@
-import { IpcEvent } from "./event.ds";
-import { IpcFutex } from "./futex.ds";
-import { IpcMemory } from "./memory.ds";
-import { IpcMessage } from "./message.ds";
-import { IpcPipe } from "./pipe.ds";
-import { IpcSemaphore } from "./semaphore.ds";
-import { IpcUnix } from "./unix.ds";
+import { IpcEventBinding } from "./event.ds";
+import { IpcFutexBinding } from "./futex.ds";
+import { IpcMemoryBinding } from "./memory.ds";
+import { IpcMessageBinding } from "./message.ds";
+import { IpcPipeBinding } from "./pipe.ds";
+import { IpcSemaphoreBinding } from "./semaphore.ds";
+import { IpcUnixBinding } from "./unix.ds";
 
 /// IPC binding family.
-@languageItem("ipc.Ipc")
-export interface Ipc {
+@languageItem("ipc.IpcBinding")
+export interface IpcBinding {
     /// Event bindings.
-    readonly event: IpcEvent;
+    readonly event: IpcEventBinding;
     /// Futex bindings.
-    readonly futex: IpcFutex;
+    readonly futex: IpcFutexBinding;
     /// Memory bindings.
-    readonly memory: IpcMemory;
+    readonly memory: IpcMemoryBinding;
     /// Message bindings.
-    readonly message: IpcMessage;
+    readonly message: IpcMessageBinding;
     /// Pipe bindings.
-    readonly pipe: IpcPipe;
+    readonly pipe: IpcPipeBinding;
     /// Semaphore bindings.
-    readonly semaphore: IpcSemaphore;
+    readonly semaphore: IpcSemaphoreBinding;
     /// Unix socket bindings.
-    readonly unix: IpcUnix;
+    readonly unix: IpcUnixBinding;
 }

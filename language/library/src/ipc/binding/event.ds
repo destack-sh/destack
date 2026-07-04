@@ -14,7 +14,7 @@ export const EVENT_COUNTER_NONBLOCK: EventCounterFlags = EventCounterFlags(0x1);
 export const EVENT_COUNTER_CLOEXEC: EventCounterFlags = EventCounterFlags(0x2);
 
 /// Event binding family.
-export interface IpcEvent {
+export interface IpcEventBinding {
     /// Create one Linux event counter.
     @binding("destack.ipc.eventCounter.create", {
         effect: "external",

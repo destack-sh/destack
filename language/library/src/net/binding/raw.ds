@@ -150,7 +150,7 @@ export struct NetworkPacketRingOptions {
 }
 
 /// Raw socket and packet binding family.
-export interface NetRaw {
+export interface NetRawBinding {
     /// List host packet backends.
     @binding("destack.net.raw.packetBackends", {
         effect: "external",

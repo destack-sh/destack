@@ -201,7 +201,7 @@ export struct FileLockOptions {
 }
 
 /// Filesystem file binding family.
-export interface FsFile {
+export interface FsFileBinding {
     /// Open one filesystem entry as a file handle.
     @binding("destack.fs.file.open", {
         effect: "external",

@@ -30,7 +30,7 @@ export struct TtySize {
 }
 
 /// Terminal binding family.
-export interface TtyTerminal {
+export interface TtyTerminalBinding {
     /// Open one standard input terminal handle.
     @binding("destack.tty.standardInput.open", {
         effect: "external",

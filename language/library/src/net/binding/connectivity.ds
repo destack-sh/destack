@@ -71,7 +71,7 @@ export struct NetworkConnectivityEvent {
 }
 
 /// Network connectivity binding family.
-export interface NetConnectivity {
+export interface NetConnectivityBinding {
     /// Read network connectivity.
     @binding("destack.net.connectivity.read", {
         effect: "external",

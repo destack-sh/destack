@@ -123,7 +123,7 @@ export struct ProcessSpawnOptions {
 }
 
 /// Spawn binding family.
-export interface ProcessSpawn {
+export interface ProcessSpawnBinding {
     /// Spawn a child process.
     @binding("destack.process.spawn", {
         effect: "external",

@@ -311,7 +311,7 @@ export struct MidiOutputRecord {
 }
 
 /// Midi binding family.
-export interface DeviceMidi {
+export interface DeviceMidiBinding {
     /// List MIDI backends.
     @binding("destack.device.midi.backend.list", {
         effect: "external",

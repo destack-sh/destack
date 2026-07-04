@@ -53,7 +53,7 @@ export struct TermiosAttributes {
 }
 
 /// Termios binding family.
-export interface TtyTermios {
+export interface TtyTermiosBinding {
     /// Read full POSIX termios attributes.
     @binding("destack.tty.termios.attributes.read", {
         effect: "external",

@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 
 /// Exit binding family.
-export interface ProcessExit {
+export interface ProcessExitBinding {
     /// Exit the current process with the given code.
     @binding("destack.process.exit", {
         effect: "external",

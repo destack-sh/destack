@@ -33,7 +33,7 @@ export struct ProcessLimit {
 }
 
 /// Limit binding family.
-export interface ProcessLimit {
+export interface ProcessLimitBinding {
     /// Read a process resource limit.
     @binding("destack.process.limit.get", {
         effect: "external",

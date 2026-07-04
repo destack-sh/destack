@@ -2,7 +2,7 @@ import { HostError } from "destack:error/host";
 import { Path } from "destack:fs/binding";
 
 /// Workdir binding family.
-export interface ProcessWorkdir {
+export interface ProcessWorkdirBinding {
     /// Return the current working directory.
     @binding("destack.process.workdir.get", {
         effect: "external",

@@ -244,7 +244,7 @@ export newtype UsbWatchEvent =
     | UsbWatchEventOverflow;
 
 /// Usb binding family.
-export interface DeviceUsb {
+export interface DeviceUsbBinding {
     /// List USB devices.
     @binding("destack.device.usb.list", {
         effect: "external",

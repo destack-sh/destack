@@ -2,7 +2,7 @@ import { Array } from "destack:collections";
 import { HostError } from "destack:error/host";
 
 /// Argument binding family.
-export interface ProcessArgument {
+export interface ProcessArgumentBinding {
     /// Return the process argument vector.
     @binding("destack.process.argument.list", {
         effect: "external",

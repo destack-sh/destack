@@ -73,7 +73,7 @@ export newtype ProcessWaitStatus =
     | ProcessWaitContinuedStatus;
 
 /// Wait binding family.
-export interface ProcessWait {
+export interface ProcessWaitBinding {
     /// Wait for a child process handle.
     @binding("destack.process.wait.handle", {
         effect: "external",

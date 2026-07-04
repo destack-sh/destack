@@ -8,7 +8,7 @@ import { CryptoDigestAlgorithm } from "./algorithm.ds";
 export newtype CryptoDigestHandle = ResourceId;
 
 /// Digest binding family.
-export interface CryptoDigest {
+export interface CryptoDigestBinding {
     /// Compute one digest in one shot.
     @binding("destack.crypto.digest.compute", {
         effect: "external",

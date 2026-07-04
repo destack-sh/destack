@@ -1,7 +1,7 @@
 import { HostError } from "destack:error/host";
 
 /// Umask binding family.
-export interface ProcessUmask {
+export interface ProcessUmaskBinding {
     /// Set process file-creation umask and return the previous value.
     @binding("destack.process.umask", {
         effect: "external",

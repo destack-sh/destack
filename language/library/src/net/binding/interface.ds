@@ -46,7 +46,7 @@ export struct NetworkInterface {
 }
 
 /// Network interface binding family.
-export interface NetInterface {
+export interface NetInterfaceBinding {
     /// List network interfaces.
     @binding("destack.net.interface.list", {
         effect: "external",

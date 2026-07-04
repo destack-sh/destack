@@ -2,7 +2,7 @@ import { HostError } from "destack:error/host";
 import { ResourceId } from "destack:runtime/resource";
 
 /// Debug binding family.
-export interface GpuDebug {
+export interface GpuDebugBinding {
     /// Set a debug label on a GPU resource object.
     @binding("destack.gpu.debug.label.set", {
         effect: "external",
