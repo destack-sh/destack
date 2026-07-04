@@ -91,6 +91,21 @@ impl Span {
         position >= self.start && position < self.end
     }
 
+    /// Check whether this Span owns one cursor position.
+    #[inline]
+    pub fn owns_cursor(self, position: u32) -> bool {
+        if self.contains(position) {
+            return true;
+        }
+
+        let previous_position = position.saturating_sub(1);
+        if self.contains(previous_position) {
+            return true;
+        }
+
+        self.start == position && self.end == position
+    }
+
     /// Check whether this Span fully contains another Span from the same file.
     #[inline]
     pub fn contains_span(self, other: Self) -> bool {

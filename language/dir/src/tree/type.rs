@@ -212,6 +212,22 @@ pub enum MappedTypeModifier {
     None,
 }
 
+impl MappedTypeModifier {
+    /// Return the explicit sign text for this mapped type modifier.
+    pub fn sign(self) -> &'static str {
+        match self {
+            Self::Present | Self::None => "",
+            Self::Add => "+",
+            Self::Remove => "-",
+        }
+    }
+
+    /// Return whether this mapped type modifier emits its target token.
+    pub fn is_present(self) -> bool {
+        !matches!(self, Self::None)
+    }
+}
+
 /// One function type expression in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionTypeExpression {

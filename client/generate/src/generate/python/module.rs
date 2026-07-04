@@ -74,9 +74,8 @@ fn render_implementation_imports(schema: &Schema, module: &SchemaModule) -> Stri
     let owners = implementation_owners(module)
         .into_iter()
         .filter(|owner| {
-            !implementation_item(schema, module, owner)
-                .scalar_newtype()
-                .is_some()
+            implementation_item(schema, module, owner)
+                .is_some_and(|item| item.scalar_newtype().is_none())
         })
         .collect::<Vec<_>>();
 
@@ -104,13 +103,12 @@ fn implementation_item<'schema>(
     schema: &'schema Schema,
     module: &SchemaModule,
     owner: &crate::generate::implementation::ImplementationOwner,
-) -> &'schema Item {
+) -> Option<&'schema Item> {
     module
         .keys
         .iter()
         .map(|key| schema.item(key))
         .find(|item| owner.matches(item))
-        .expect("implementation owner should match one module item")
 }
 
 /// Render Python runtime imports needed by one generated module.

@@ -702,6 +702,16 @@ pub enum StringMapping {
 }
 
 impl StringMapping {
+    /// Return the source name for this string mapping.
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Uppercase => "Uppercase",
+            Self::Lowercase => "Lowercase",
+            Self::Capitalize => "Capitalize",
+            Self::Uncapitalize => "Uncapitalize",
+        }
+    }
+
     /// Apply this mapping to one string.
     pub fn apply(self, text: &str) -> String {
         match self {
@@ -945,6 +955,34 @@ pub enum StaticBinaryOperator {
 }
 
 impl StaticBinaryOperator {
+    /// Return the source text for this static binary operator.
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Add => "+",
+            Self::Subtract => "-",
+            Self::Multiply => "*",
+            Self::Divide => "/",
+            Self::Remainder => "%",
+            Self::Exponent => "**",
+            Self::ShiftLeft => "<<",
+            Self::ShiftRight => ">>",
+            Self::UnsignedShiftRight => ">>>",
+            Self::BitwiseAnd => "&",
+            Self::BitwiseXor => "^",
+            Self::BitwiseOr => "|",
+            Self::Equal => "==",
+            Self::EqualStrict => "===",
+            Self::NotEqual => "!=",
+            Self::NotEqualStrict => "!==",
+            Self::LessThan => "<",
+            Self::LessThanOrEqual => "<=",
+            Self::GreaterThan => ">",
+            Self::GreaterThanOrEqual => ">=",
+            Self::And => "&&",
+            Self::Or => "||",
+        }
+    }
+
     /// Evaluate this operator over two scalar literals.
     pub fn apply(
         self,
@@ -1162,6 +1200,17 @@ pub enum StaticUnaryOperator {
     Negate,
     /// `~target`.
     BitwiseNot,
+}
+
+impl StaticUnaryOperator {
+    /// Return the source text for this static unary operator.
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Not => "!",
+            Self::Negate => "-",
+            Self::BitwiseNot => "~",
+        }
+    }
 }
 
 impl TryFrom<UnaryOperator> for StaticUnaryOperator {
