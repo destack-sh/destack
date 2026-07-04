@@ -465,6 +465,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::String => write!(f, [token("string")]),
             TypeLiteral::Bigint => write!(f, [token("bigint")]),
             TypeLiteral::Number => write!(f, [token("number")]),
+            TypeLiteral::Alias(alias) => write!(f, [token(alias.as_str())]),
             TypeLiteral::Integer(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
@@ -478,13 +479,6 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
 impl<'ast> Format<DestackFormatContext<'ast>> for IntegerType {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         match self {
-            IntegerType::Integer { is_signed } => {
-                if *is_signed {
-                    write!(f, [token("int")])
-                } else {
-                    write!(f, [token("uint")])
-                }
-            }
             IntegerType::Fixed { width, is_signed } => {
                 if *is_signed {
                     write!(f, [token("int"), text(&width.to_string())])
