@@ -453,14 +453,27 @@ pub enum TypeLiteral {
     Bigint,
     /// `number`, the `float64` source alias.
     Number,
-    /// Integer type.
+    /// A widthless source alias for a sized scalar, like `int` for `int64`.
+    Alias(ScalarAlias),
+    /// Width-spelled integer type, like `int32` or `usize`.
     Integer(IntegerType),
-    /// Floating-point type.
+    /// Width-spelled floating-point type, like `float32`.
     Float(FloatType),
     /// Symbol type.
     Symbol,
     /// Unique symbol type.
     UniqueSymbol,
+}
+
+/// One width-less scalar source alias.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ScalarAlias {
+    /// `int`, the `int64` source alias.
+    Int,
+    /// `uint`, the `uint64` source alias.
+    Uint,
+    /// `float`, the `float64` source alias.
+    Float,
 }
 
 impl From<PrimitiveType> for TypeLiteral {
