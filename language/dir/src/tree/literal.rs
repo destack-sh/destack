@@ -7,7 +7,7 @@ use destack_core::StringPool;
 
 use crate::{
     Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeType,
-    PrimitiveType, RangeType, StringId, Type,
+    PrimitiveType, RangeType, ScalarAlias, StringId, Type,
 };
 
 /// One scalar type family.
@@ -463,17 +463,6 @@ pub enum TypeLiteral {
     Symbol,
     /// Unique symbol type.
     UniqueSymbol,
-}
-
-/// One width-less scalar source alias.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ScalarAlias {
-    /// `int`, the `int64` source alias.
-    Int,
-    /// `uint`, the `uint64` source alias.
-    Uint,
-    /// `float`, the `float64` source alias.
-    Float,
 }
 
 impl From<PrimitiveType> for TypeLiteral {

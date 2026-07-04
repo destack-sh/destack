@@ -25,7 +25,7 @@ use crate::{
 /// ^value                // Move
 /// *box                  // Dereference
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Projection {
     /// Extract one static layout field from an aggregate value.
     ///
@@ -281,7 +281,7 @@ impl Projection {
 }
 
 /// One source field used to materialize an object rest value.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ObjectRestField {
     /// The materialized field key.
     pub key: StaticKey,

@@ -283,6 +283,8 @@ impl MemberTarget {
 pub struct MemberCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: GlobalTypeId,
+    /// The projection steps.
+    pub adjustments: Vec<Projection>,
     /// The declaration that exposed this member.
     pub owner: GlobalSymbolId,
     /// The selected member symbol.
@@ -298,6 +300,9 @@ impl MemberCandidate {
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.receiver = map(self.receiver);
         self.ty = map(self.ty);
+        for adjustment in &mut self.adjustments {
+            adjustment.map_type_ids(map);
+        }
         for argument in &mut self.generic_arguments {
             argument.map_type_ids(map);
         }
@@ -686,6 +691,8 @@ pub enum BuiltinCall {
 pub struct CallCandidate {
     /// The receiver type that selects this candidate.
     pub receiver: Option<GlobalTypeId>,
+    /// The projection steps.
+    pub adjustments: Vec<Projection>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
     /// The selected generic argument bindings needed by this call candidate.
@@ -697,6 +704,9 @@ impl CallCandidate {
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         if let Some(receiver) = &mut self.receiver {
             *receiver = map(*receiver);
+        }
+        for adjustment in &mut self.adjustments {
+            adjustment.map_type_ids(map);
         }
         for argument in &mut self.generic_arguments {
             argument.map_type_ids(map);

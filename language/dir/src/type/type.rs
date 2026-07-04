@@ -108,6 +108,7 @@ impl From<TypeLiteral> for Type {
             TypeLiteral::String => Self::Primitive(PrimitiveType::String),
             TypeLiteral::Bigint => Self::Primitive(PrimitiveType::Bigint),
             TypeLiteral::Number => Self::Primitive(PrimitiveType::Float(FloatType::Float64)),
+            TypeLiteral::Alias(alias) => Self::Primitive(alias.primitive()),
             TypeLiteral::Integer(integer) => Self::Primitive(PrimitiveType::Integer(integer)),
             TypeLiteral::Float(float) => Self::Primitive(PrimitiveType::Float(float)),
             TypeLiteral::Symbol => Self::Primitive(PrimitiveType::Symbol),
@@ -983,6 +984,26 @@ impl StaticBinaryOperator {
         }
     }
 
+    /// Return whether this operator yields a boolean result.
+    ///
+    /// Comparisons and logical operators yield booleans; arithmetic,
+    /// shift, and bitwise operators stay within their operand type.
+    pub fn yields_boolean(self) -> bool {
+        matches!(
+            self,
+            Self::Equal
+                | Self::EqualStrict
+                | Self::NotEqual
+                | Self::NotEqualStrict
+                | Self::LessThan
+                | Self::LessThanOrEqual
+                | Self::GreaterThan
+                | Self::GreaterThanOrEqual
+                | Self::And
+                | Self::Or
+        )
+    }
+
     /// Evaluate this operator over two scalar literals.
     pub fn apply(
         self,
@@ -1210,6 +1231,11 @@ impl StaticUnaryOperator {
             Self::Negate => "-",
             Self::BitwiseNot => "~",
         }
+    }
+
+    /// Return whether this operator yields a boolean result.
+    pub fn yields_boolean(self) -> bool {
+        matches!(self, Self::Not)
     }
 }
 

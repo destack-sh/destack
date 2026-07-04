@@ -64,6 +64,43 @@ impl PrimitiveType {
     }
 }
 
+/// One width-less scalar source alias.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ScalarAlias {
+    /// `int`, the `int64` source alias.
+    Int,
+    /// `uint`, the `uint64` source alias.
+    Uint,
+    /// `float`, the `float64` source alias.
+    Float,
+}
+
+impl ScalarAlias {
+    /// Return the sized primitive this alias lowers to.
+    pub fn primitive(self) -> PrimitiveType {
+        match self {
+            Self::Int => PrimitiveType::Integer(IntegerType::Fixed {
+                width: 64,
+                is_signed: true,
+            }),
+            Self::Uint => PrimitiveType::Integer(IntegerType::Fixed {
+                width: 64,
+                is_signed: false,
+            }),
+            Self::Float => PrimitiveType::Float(FloatType::Float64),
+        }
+    }
+
+    /// Return the written source spelling.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Int => "int",
+            Self::Uint => "uint",
+            Self::Float => "float",
+        }
+    }
+}
+
 /// The backing representation of an enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum EnumBackingType {
@@ -85,8 +122,6 @@ pub enum EnumFieldValue {
 /// An integer type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum IntegerType {
-    /// The signed or unsigned integer family, `int` or `uint`.
-    Integer { is_signed: bool },
     /// A fixed-width signed or unsigned integer, like `int32` or `uint8`.
     Fixed { width: u16, is_signed: bool },
     /// A pointer-sized signed or unsigned integer, `isize` or `usize`.
@@ -97,8 +132,6 @@ impl IntegerType {
     /// Return whether this integer type widens losslessly into another.
     pub fn widens_to(self, target: IntegerType) -> bool {
         match (self, target) {
-            // the arbitrary signed integer type holds every integer
-            (_, IntegerType::Integer { is_signed: true }) => true,
             (
                 IntegerType::Fixed {
                     width: source_width,
@@ -139,7 +172,7 @@ impl IntegerType {
 
                 magnitude <= mantissa
             }
-            IntegerType::Integer { .. } | IntegerType::Pointer { .. } => false,
+            IntegerType::Pointer { .. } => false,
         }
     }
 
@@ -148,9 +181,7 @@ impl IntegerType {
         let value = i128::from(value);
 
         match self {
-            IntegerType::Integer { is_signed } | IntegerType::Pointer { is_signed } => {
-                is_signed || value >= 0
-            }
+            IntegerType::Pointer { is_signed } => is_signed || value >= 0,
             IntegerType::Fixed { width, is_signed } => {
                 if width == 0 {
                     return false;
@@ -191,7 +222,7 @@ impl IntegerType {
                 let limit = 1_i64.checked_shl(u32::from(width))?;
                 (0, limit - 1)
             }
-            Self::Integer { .. } | Self::Fixed { .. } | Self::Pointer { .. } => return None,
+            Self::Fixed { .. } | Self::Pointer { .. } => return None,
         };
 
         Some(RangeType {
@@ -204,7 +235,6 @@ impl IntegerType {
     /// Return the fixed bit width, if known without target layout.
     pub fn width(&self) -> Option<u16> {
         match self {
-            IntegerType::Integer { .. } => None,
             IntegerType::Fixed { width, .. } => Some(*width),
             IntegerType::Pointer { .. } => None,
         }
@@ -213,8 +243,7 @@ impl IntegerType {
     /// Whether the integer type is signed.
     pub fn is_signed(&self) -> bool {
         match self {
-            IntegerType::Integer { is_signed }
-            | IntegerType::Fixed {
+            IntegerType::Fixed {
                 width: _,
                 is_signed,
             }
@@ -226,13 +255,6 @@ impl IntegerType {
     #[inline]
     pub fn as_str(self) -> String {
         match self {
-            IntegerType::Integer { is_signed } => {
-                if is_signed {
-                    "int".to_string()
-                } else {
-                    "uint".to_string()
-                }
-            }
             IntegerType::Fixed { width, is_signed } => {
                 if is_signed {
                     format!("int{width}")
@@ -254,8 +276,6 @@ impl IntegerType {
 /// A floating-point type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FloatType {
-    /// The floating-point family `float`.
-    Float,
     /// 16-bit IEEE-754 binary16 float `float16`.
     Float16,
     /// 16-bit bfloat format `bfloat16`.
@@ -273,7 +293,7 @@ impl FloatType {
             FloatType::Float16 => (11, 5),
             FloatType::Bfloat16 => (8, 8),
             FloatType::Float32 => (24, 8),
-            FloatType::Float | FloatType::Float64 => (53, 11),
+            FloatType::Float64 => (53, 11),
         }
     }
 
@@ -294,7 +314,6 @@ impl FloatType {
     /// Return the concrete bit width, if known without target layout.
     pub fn width(&self) -> Option<u16> {
         match self {
-            FloatType::Float => None,
             FloatType::Float16 | FloatType::Bfloat16 => Some(16),
             FloatType::Float32 => Some(32),
             FloatType::Float64 => Some(64),
@@ -305,7 +324,6 @@ impl FloatType {
     #[inline]
     pub fn as_str(self) -> &'static str {
         match self {
-            FloatType::Float => "float",
             FloatType::Float16 => "float16",
             FloatType::Bfloat16 => "bfloat16",
             FloatType::Float32 => "float32",
@@ -316,7 +334,7 @@ impl FloatType {
     /// Round one `f64` value to this float type and back.
     pub fn roundtrip_f64(self, value: f64) -> Option<f64> {
         let format = match self {
-            FloatType::Float | FloatType::Float64 => FloatFormat::Float64,
+            FloatType::Float64 => FloatFormat::Float64,
             FloatType::Float16 => FloatFormat::Float16,
             FloatType::Bfloat16 => FloatFormat::Bfloat16,
             FloatType::Float32 => FloatFormat::Float32,
