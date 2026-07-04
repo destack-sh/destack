@@ -272,7 +272,7 @@ impl TestProvider {
 
                 self.compiler.collect(&context)
             }
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+            ArtifactProvider::Linter | ArtifactProvider::Index => Err(ProviderError::internal(
                 format!("unsupported test artifact key: {key:?}"),
             )
             .into()),
@@ -322,7 +322,7 @@ impl TestProvider {
                 .into()),
             },
             ArtifactProvider::Compiler => self.compiler.provide(context),
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+            ArtifactProvider::Linter | ArtifactProvider::Index => Err(ProviderError::internal(
                 format!("unsupported test artifact key: {key:?}"),
             )
             .into()),

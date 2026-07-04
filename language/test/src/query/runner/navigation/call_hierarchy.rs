@@ -51,7 +51,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // prepare call hierarchy item
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
+    let program = session.program_context();
     let item = ctx.call_hierarchy_item(offset);
 
     // allow "<none>" to assert that no hierarchy item exists at all
@@ -73,8 +73,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // dispatch by direction
     match direction {
-        "incoming" => run_incoming_expectation(session, &workspace, &item, expected, &exp.target),
-        "outgoing" => run_outgoing_expectation(session, &workspace, &item, expected, &exp.target),
+        "incoming" => run_incoming_expectation(session, &program, &item, expected, &exp.target),
+        "outgoing" => run_outgoing_expectation(session, &program, &item, expected, &exp.target),
         _ => CaseResult::Failed {
             message: format!(
                 "call_hierarchy direction '{direction}' is invalid, expected incoming or outgoing"
@@ -86,13 +86,13 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 /// Run incoming call hierarchy expectations.
 fn run_incoming_expectation(
     session: &QueryTestSession,
-    workspace: &query::WorkspaceQueryContext<'_>,
+    program: &query::ProgramQueryContext<'_>,
     item: &CallHierarchyItem,
     expected: &str,
     target: &str,
 ) -> CaseResult {
     // run the incoming calls query
-    let calls = workspace.incoming_calls(item);
+    let calls = program.incoming_calls(item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_incoming_invariants(session, &calls) {
@@ -163,13 +163,13 @@ fn run_incoming_expectation(
 /// Run outgoing call hierarchy expectations.
 fn run_outgoing_expectation(
     session: &QueryTestSession,
-    workspace: &query::WorkspaceQueryContext<'_>,
+    program: &query::ProgramQueryContext<'_>,
     item: &CallHierarchyItem,
     expected: &str,
     target: &str,
 ) -> CaseResult {
     // run the outgoing calls query
-    let calls = workspace.outgoing_calls(item);
+    let calls = program.outgoing_calls(item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_outgoing_invariants(session, item, &calls) {

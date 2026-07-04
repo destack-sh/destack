@@ -115,14 +115,14 @@ impl LocalWorkspace {
                     revision,
                     params.position.module,
                 )?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.position.module.profile_id],
                 )?;
                 let mut items =
-                    context.completions(&workspace, params.position.offset, params.trigger);
+                    context.completions(&program, params.position.offset, params.trigger);
 
                 if !params.include_imports {
                     items.retain(|item| item.additional_text_edits.is_empty());
@@ -169,13 +169,13 @@ impl LocalWorkspace {
             destack_query::QueryRequest::CodeLenses(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.module.profile_id],
                 )?;
-                let lenses = context.code_lenses(&workspace);
+                let lenses = context.code_lenses(&program);
 
                 destack_query::QueryResponse::CodeLenses(destack_query::CodeLensesResponse {
                     lenses,
@@ -224,12 +224,8 @@ impl LocalWorkspace {
                 )
             }
             destack_query::QueryRequest::WorkspaceSymbols(params) => {
-                let context = self.workspace_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &params.profile_ids,
-                )?;
+                let context =
+                    self.program_query_context(session, repository, revision, &params.profile_ids)?;
                 let symbols = context.workspace_symbols(&params.query, params.max_results as usize);
                 destack_query::QueryResponse::WorkspaceSymbols(
                     destack_query::WorkspaceSymbolsResponse { symbols },
@@ -312,13 +308,13 @@ impl LocalWorkspace {
                     revision,
                     params.position.module,
                 )?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let targets = context.goto_implementation(&workspace, params.position.offset);
+                let targets = context.goto_implementation(&program, params.position.offset);
 
                 destack_query::QueryResponse::GotoImplementation(
                     destack_query::GotoImplementationResponse { targets },
@@ -331,14 +327,14 @@ impl LocalWorkspace {
                     revision,
                     params.position.module,
                 )?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.position.module.profile_id],
                 )?;
                 let references = context.find_references(
-                    &workspace,
+                    &program,
                     params.position.offset,
                     params.include_declaration,
                 );
@@ -361,7 +357,7 @@ impl LocalWorkspace {
                 )
             }
             destack_query::QueryRequest::CallHierarchyIncoming(params) => {
-                let context = self.workspace_query_context(
+                let context = self.program_query_context(
                     session,
                     repository,
                     revision,
@@ -373,7 +369,7 @@ impl LocalWorkspace {
                 )
             }
             destack_query::QueryRequest::CallHierarchyOutgoing(params) => {
-                let context = self.workspace_query_context(
+                let context = self.program_query_context(
                     session,
                     repository,
                     revision,
@@ -398,7 +394,7 @@ impl LocalWorkspace {
                 )
             }
             destack_query::QueryRequest::TypeHierarchySupertypes(params) => {
-                let context = self.workspace_query_context(
+                let context = self.program_query_context(
                     session,
                     repository,
                     revision,
@@ -410,7 +406,7 @@ impl LocalWorkspace {
                 )
             }
             destack_query::QueryRequest::TypeHierarchySubtypes(params) => {
-                let context = self.workspace_query_context(
+                let context = self.program_query_context(
                     session,
                     repository,
                     revision,
@@ -441,23 +437,19 @@ impl LocalWorkspace {
                     revision,
                     params.position.module,
                 )?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let edit = context.rename(&workspace, params.position.offset, &params.new_name);
+                let edit = context.rename(&program, params.position.offset, &params.new_name);
 
                 destack_query::QueryResponse::Rename(destack_query::RenameResponse { edit })
             }
             destack_query::QueryRequest::RenameFiles(params) => {
-                let context = self.workspace_query_context(
-                    session,
-                    repository,
-                    revision,
-                    &params.profile_ids,
-                )?;
+                let context =
+                    self.program_query_context(session, repository, revision, &params.profile_ids)?;
                 let edit = context.rename_files(&params.renames);
                 destack_query::QueryResponse::RenameFiles(destack_query::RenameFilesResponse {
                     edit,
@@ -488,13 +480,13 @@ impl LocalWorkspace {
                     revision,
                     params.position.module,
                 )?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let edit = context.inline_symbol(&workspace, params.position.offset);
+                let edit = context.inline_symbol(&program, params.position.offset);
 
                 destack_query::QueryResponse::Inline(destack_query::InlineResponse { edit })
             }
@@ -505,14 +497,14 @@ impl LocalWorkspace {
                     revision,
                     params.position.module,
                 )?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
                     &[params.position.module.profile_id],
                 )?;
                 let edit = context.change_signature(
-                    &workspace,
+                    &program,
                     params.position.offset,
                     &params.new_parameters,
                     &params.new_arguments,
@@ -525,7 +517,7 @@ impl LocalWorkspace {
             destack_query::QueryRequest::CodeActions(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
-                let workspace = self.workspace_query_context(
+                let program = self.program_query_context(
                     session,
                     repository,
                     revision,
@@ -535,7 +527,7 @@ impl LocalWorkspace {
                     .remove(&params.range.span.file)
                     .unwrap_or_default();
                 let actions = context.code_actions(
-                    &workspace,
+                    &program,
                     params.range.span,
                     &diagnostics,
                     &params.context,
@@ -545,19 +537,17 @@ impl LocalWorkspace {
                     actions,
                 })
             }
-            destack_query::QueryRequest::Annotations(params) => {
+            destack_query::QueryRequest::Decorators(params) => {
                 let profile_ids = match &params.scope {
-                    destack_query::AnnotationScope::Module(module) => vec![module.profile_id],
-                    destack_query::AnnotationScope::Workspace { profile_ids } => {
-                        profile_ids.clone()
-                    }
+                    destack_query::DecoratorScope::Module(module) => vec![module.profile_id],
+                    destack_query::DecoratorScope::Program { profile_ids } => profile_ids.clone(),
                 };
                 let context =
-                    self.workspace_query_context(session, repository, revision, &profile_ids)?;
-                let annotations = context.annotations(&params.scope, params.name.as_deref());
+                    self.program_query_context(session, repository, revision, &profile_ids)?;
+                let decorators = context.decorators(&params.scope, params.name.as_deref());
 
-                destack_query::QueryResponse::Annotations(destack_query::AnnotationsResponse {
-                    annotations,
+                destack_query::QueryResponse::Decorators(destack_query::DecoratorsResponse {
+                    decorators,
                 })
             }
         };
@@ -593,55 +583,50 @@ impl LocalWorkspace {
                     ),
                 })?;
 
-        destack_query::module_query_context_from_checked(
+        let context = destack_query::module_query_context_exact(
             repository,
             revision,
             module.module_id,
             module.profile_id,
             checked_version,
             global_environment_version,
-        )
-        .ok_or_else(|| Error::Internal {
-            detail: format!("missing query artifacts for module {}", module.module_id),
-        })
+        );
+
+        Ok(context)
     }
 
-    /// Return a workspace query context for explicit profiles.
-    fn workspace_query_context<'a>(
+    /// Return a program query context for explicit profiles.
+    fn program_query_context<'a>(
         &self,
         session: &Session,
         repository: &'a Repository,
         revision: Revision,
         profile_ids: &[ProfileId],
-    ) -> Result<destack_query::WorkspaceQueryContext<'a>, Error> {
+    ) -> Result<destack_query::ProgramQueryContext<'a>, Error> {
         let mut indexes = Vec::with_capacity(profile_ids.len());
 
         for profile_id in profile_ids {
-            let key = ArtifactKey::workspace_query_index(*profile_id);
-            let version = session.require(revision, key).map_err(|error| {
-                Error::Internal {
+            let key = ArtifactKey::program_index(*profile_id);
+            let version = session
+                .require(revision, key)
+                .map_err(|error| Error::Internal {
                     detail: format!(
-                        "failed to require workspace query index for profile {profile_id:?}: {error}"
+                        "failed to require program index for profile {profile_id:?}: {error}"
                     ),
-                }
-            })?;
+                })?;
 
             let index = repository
                 .artifact_table()
-                .workspace_query_index(&version)
+                .program_index(&version)
                 .ok_or_else(|| Error::Internal {
-                    detail: format!(
-                        "workspace query index payload is missing for profile {profile_id:?}"
-                    ),
+                    detail: format!("program index payload is missing for profile {profile_id:?}"),
                 })?;
 
             indexes.push((*profile_id, index));
         }
 
-        destack_query::workspace_query_context(repository, revision, indexes).ok_or_else(|| {
-            Error::Internal {
-                detail: "workspace query index references missing module indexes".to_string(),
-            }
-        })
+        Ok(destack_query::program_query_context(
+            repository, revision, indexes,
+        ))
     }
 }

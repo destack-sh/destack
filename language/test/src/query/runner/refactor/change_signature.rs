@@ -26,8 +26,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let new_arguments = exp.args.get(1).map(|value| value.as_str()).unwrap_or("");
 
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
-    let result = ctx.change_signature(&workspace, offset, new_parameters, new_arguments);
+    let program = session.program_context();
+    let result = ctx.change_signature(&program, offset, new_parameters, new_arguments);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();

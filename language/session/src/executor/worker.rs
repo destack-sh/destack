@@ -42,7 +42,7 @@ impl SessionState {
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
             ArtifactProvider::Compiler => self.compiler().collect(&attempt),
             ArtifactProvider::Linter => self.linter().collect(&attempt),
-            ArtifactProvider::Query => self.query().collect(&attempt),
+            ArtifactProvider::Index => self.query().collect(&attempt),
         }
     }
 }
@@ -488,7 +488,7 @@ impl Worker {
                 .map_err(|error| ProviderError::internal(error.to_string()).into()),
             ArtifactProvider::Compiler => self.session.compiler().provide(attempt),
             ArtifactProvider::Linter => self.session.linter().provide(attempt),
-            ArtifactProvider::Query => self.session.query().provide(attempt),
+            ArtifactProvider::Index => self.session.query().provide(attempt),
         }
     }
 }

@@ -48,8 +48,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let context = parsed_expectation.context;
     let diagnostics = diagnostics_for_file(session, range.file);
     let ctx = session.module_context(range.file);
-    let workspace = session.workspace_context();
-    let actions = ctx.code_actions(&workspace, range, &diagnostics, &context);
+    let program = session.program_context();
+    let actions = ctx.code_actions(&program, range, &diagnostics, &context);
 
     // validate invariants before comparing against expectations
     if let Err(message) = validate_code_action_invariants(session, &actions) {

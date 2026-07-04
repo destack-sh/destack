@@ -23,8 +23,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
-    let result = ctx.inline_symbol(&workspace, offset);
+    let program = session.program_context();
+    let result = ctx.inline_symbol(&program, offset);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();
