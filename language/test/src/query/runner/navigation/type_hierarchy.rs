@@ -35,7 +35,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // prepare type hierarchy item
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
+    let program = session.program_context();
     let Some(item) = ctx.type_hierarchy_item(offset) else {
         return CaseResult::Failed {
             message: format!("type_hierarchy at '{}' returned None", exp.target),
@@ -49,8 +49,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // compute hierarchy items for the requested direction
     let (items, label) = match direction {
-        "supertypes" | "super" => (workspace.supertypes(&item), "supertypes"),
-        "subtypes" | "sub" => (workspace.subtypes(&item), "subtypes"),
+        "supertypes" | "super" => (program.supertypes(&item), "supertypes"),
+        "subtypes" | "sub" => (program.subtypes(&item), "subtypes"),
         _ => {
             return CaseResult::Failed {
                 message: format!(

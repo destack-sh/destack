@@ -22,8 +22,8 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // run the query
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
-    let targets = ctx.goto_implementation(&workspace, offset);
+    let program = session.program_context();
+    let targets = ctx.goto_implementation(&program, offset);
     let locations = targets
         .iter()
         .map(|target| target.target.span)

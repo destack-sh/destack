@@ -35,9 +35,9 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // allow explicit failure expectations
     let content = exp.content.trim();
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
+    let program = session.program_context();
     if content == "<none>" {
-        let result = ctx.rename(&workspace, offset, new_name);
+        let result = ctx.rename(&program, offset, new_name);
         return match result {
             None => CaseResult::Passed,
             Some(rename_result) => CaseResult::Failed {
@@ -60,7 +60,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // then do the actual rename
-    let result = ctx.rename(&workspace, offset, new_name);
+    let result = ctx.rename(&program, offset, new_name);
 
     // empty expectation means we just verify the rename works (produces any edits)
     if content.is_empty() {

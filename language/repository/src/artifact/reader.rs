@@ -5,8 +5,8 @@ use destack_artifact::{
     ArtifactTable, ArtifactVersion, Asset, Build, Bundle, ComponentGraph, Data, DirBound,
     DirCheckedComponent, DirCheckedModule, DirElaborated, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, GlobalEnvironment, MirAnalyzed, MirLowered,
-    MirOptimized, MirVerified, ModuleLinted, ModuleQueryIndex, Object, PackageIndex, PackageLinted,
-    Product, ProgramAnalysis, Script, WorkspaceLinted, WorkspaceQueryIndex,
+    MirOptimized, MirVerified, ModuleIndex, ModuleLinted, Object, PackageIndex, PackageLinted,
+    Product, ProgramAnalysis, ProgramIndex, Script, WorkspaceLinted,
 };
 use destack_program::Program;
 use destack_source::{ComponentId, ModuleId, PackageId, ProductId, ProfileId, TargetId};
@@ -335,26 +335,23 @@ impl<'a> ArtifactReader<'a> {
         )
     }
 
-    /// Read one module query index artifact.
-    pub fn module_query_index(
+    /// Read one module index artifact.
+    pub fn module_index(
         &self,
         module: ModuleId,
         profile: ProfileId,
-    ) -> Result<Arc<ModuleQueryIndex>, ProviderError> {
+    ) -> Result<Arc<ModuleIndex>, ProviderError> {
         self.read(
-            ArtifactKey::module_query_index(module, profile),
-            ArtifactTable::module_query_index,
+            ArtifactKey::module_index(module, profile),
+            ArtifactTable::module_index,
         )
     }
 
-    /// Read one workspace query index artifact.
-    pub fn workspace_query_index(
-        &self,
-        profile: ProfileId,
-    ) -> Result<Arc<WorkspaceQueryIndex>, ProviderError> {
+    /// Read one program index artifact.
+    pub fn program_index(&self, profile: ProfileId) -> Result<Arc<ProgramIndex>, ProviderError> {
         self.read(
-            ArtifactKey::workspace_query_index(profile),
-            ArtifactTable::workspace_query_index,
+            ArtifactKey::program_index(profile),
+            ArtifactTable::program_index,
         )
     }
 

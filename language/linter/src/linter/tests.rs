@@ -628,7 +628,7 @@ impl TestProgram {
 
                 self.compiler.collect(&context)
             }
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+            ArtifactProvider::Linter | ArtifactProvider::Index => Err(ProviderError::internal(
                 format!("unsupported linter test artifact key: {key:?}"),
             )
             .into()),
@@ -740,7 +740,7 @@ impl TestProgram {
                 Ok(provide_loader_artifact(self.compiler.as_ref(), context))
             }
             ArtifactProvider::Compiler => self.compiler.provide(context),
-            ArtifactProvider::Linter | ArtifactProvider::Query => Err(ProviderError::internal(
+            ArtifactProvider::Linter | ArtifactProvider::Index => Err(ProviderError::internal(
                 format!("unsupported linter test artifact key: {key:?}"),
             )
             .into()),

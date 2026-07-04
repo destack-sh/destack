@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
-use destack_query::{self as query, ModuleQueryContext, WorkspaceQueryContext};
+use destack_query::{self as query, ModuleQueryContext, ProgramQueryContext};
 use destack_repository::{ProfileId, Ref, Repository, Revision};
 use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
 
@@ -204,29 +204,28 @@ impl QueryTestSession {
             .expect("missing query profile for module")
     }
 
-    /// Return the workspace query context for this session.
-    pub fn workspace_context(&self) -> WorkspaceQueryContext<'_> {
+    /// Return the program query context for this session.
+    pub fn program_context(&self) -> ProgramQueryContext<'_> {
         let mut indexes = Vec::with_capacity(self.profile_ids.len());
 
         for profile_id in &self.profile_ids {
-            let key = ArtifactKey::workspace_query_index(*profile_id);
+            let key = ArtifactKey::program_index(*profile_id);
             self.require_artifact(key);
             let version = self
                 .repository
                 .artifact_version(self.revision, &key)
-                .expect("failed to resolve workspace query index version")
-                .expect("missing workspace query index version");
+                .expect("failed to resolve program index version")
+                .expect("missing program index version");
             let index = self
                 .repository
                 .artifact_table()
-                .workspace_query_index(&version)
-                .expect("missing workspace query index payload");
+                .program_index(&version)
+                .expect("missing program index payload");
 
             indexes.push((*profile_id, index));
         }
 
-        query::workspace_query_context(self.repository.as_ref(), self.revision, indexes)
-            .expect("missing workspace query context")
+        query::program_query_context(self.repository.as_ref(), self.revision, indexes)
     }
 
     /// Require one artifact in this session revision.
@@ -640,8 +639,8 @@ function main() {
 
         // request completions at the member access cursor
         let context = session.primary_module_context();
-        let workspace = session.workspace_context();
-        let completions = context.completions(&workspace, cursor, CompletionTrigger::Invoked);
+        let program = session.program_context();
+        let completions = context.completions(&program, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())
@@ -673,8 +672,8 @@ $0
 
         // request completions at the statement cursor
         let context = session.primary_module_context();
-        let workspace = session.workspace_context();
-        let completions = context.completions(&workspace, cursor, CompletionTrigger::Invoked);
+        let program = session.program_context();
+        let completions = context.completions(&program, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())
@@ -730,8 +729,8 @@ $0
 
         // request completions through the shared-session path
         let context = session.primary_module_context();
-        let workspace = session.workspace_context();
-        let completions = context.completions(&workspace, cursor, CompletionTrigger::Invoked);
+        let program = session.program_context();
+        let completions = context.completions(&program, cursor, CompletionTrigger::Invoked);
         let labels: Vec<_> = completions
             .iter()
             .map(|completion| completion.label.clone())

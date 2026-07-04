@@ -32,7 +32,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let file_id = source_marker.span.file;
     let offset = source_marker.span.start;
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
+    let program = session.program_context();
     let declaration_span = ctx
         .goto_definition(offset)
         .first()
@@ -42,7 +42,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // empty expectation is an error
     if content.is_empty() {
-        let result = ctx.find_references(&workspace, offset, true);
+        let result = ctx.find_references(&program, offset, true);
         return CaseResult::Failed {
             message: format!(
                 "find_references expectation is empty at '{}', got: {:?}",
@@ -54,7 +54,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // none marker means we expect no results
     if content == "<none>" {
-        let refs = ctx.find_references(&workspace, offset, true);
+        let refs = ctx.find_references(&program, offset, true);
         let spans = reference_spans(&refs);
         if let Err(message) = validate_reference_invariants(session, &spans, declaration_span) {
             return CaseResult::Failed { message };
@@ -73,7 +73,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         };
     }
 
-    let refs = ctx.find_references(&workspace, offset, true);
+    let refs = ctx.find_references(&program, offset, true);
     if refs.is_empty() {
         return CaseResult::Failed {
             message: format!("find_references at '{}' returned no references", exp.target),

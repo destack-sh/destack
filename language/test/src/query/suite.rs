@@ -332,8 +332,8 @@ fn run_rename_expected_files(
 
     // run rename
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
-    let result = ctx.rename(&workspace, offset, new_name);
+    let program = session.program_context();
+    let result = ctx.rename(&program, offset, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: format!("rename at '{}' returned None", expectation.target),
@@ -366,8 +366,8 @@ fn run_file_rename_expected_files(
     };
 
     // run file rename edits
-    let workspace = session.workspace_context();
-    let result = workspace.rename_files(&renames);
+    let program = session.program_context();
+    let result = program.rename_files(&renames);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "file_rename returned no edits".to_string(),
@@ -482,8 +482,8 @@ fn run_inline_expected_files(
 
     // run inline edits
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
-    let result = ctx.inline_symbol(&workspace, offset);
+    let program = session.program_context();
+    let result = ctx.inline_symbol(&program, offset);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "inline returned no edits".to_string(),
@@ -529,8 +529,8 @@ fn run_change_signature_expected_files(
 
     // run change signature edits
     let ctx = session.module_context(file_id);
-    let workspace = session.workspace_context();
-    let result = ctx.change_signature(&workspace, offset, new_parameters, new_arguments);
+    let program = session.program_context();
+    let result = ctx.change_signature(&program, offset, new_parameters, new_arguments);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "change_signature returned no edits".to_string(),
