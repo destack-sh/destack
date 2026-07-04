@@ -66,7 +66,7 @@ impl ReferenceIndex {
 
 impl ReferencePostings {
     /// Build reference postings from module index sections.
-    pub fn new(indexes: &[&ReferenceIndex]) -> Self {
+    pub fn build(indexes: &[&ReferenceIndex]) -> Self {
         let targets = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
 

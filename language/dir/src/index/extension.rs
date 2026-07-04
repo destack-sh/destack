@@ -64,7 +64,7 @@ impl ExtensionIndex {
 
 impl ExtensionPostings {
     /// Build extension postings from module index sections.
-    pub fn new(indexes: &[&ExtensionIndex]) -> Self {
+    pub fn build(indexes: &[&ExtensionIndex]) -> Self {
         let roots = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
 

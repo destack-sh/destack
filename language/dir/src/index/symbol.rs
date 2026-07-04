@@ -69,7 +69,7 @@ impl SymbolIndex {
 
 impl SymbolPostings {
     /// Build symbol postings from module index sections.
-    pub fn new(indexes: &[&SymbolIndex]) -> Self {
+    pub fn build(indexes: &[&SymbolIndex]) -> Self {
         let names = Postings::from_pairs((0..indexes.len()).flat_map(|ordinal| {
             let module = ordinal as u32;
 
