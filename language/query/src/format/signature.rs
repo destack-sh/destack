@@ -1,12 +1,7 @@
-#![allow(clippy::too_many_arguments)]
-
-use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use super::types::format_global_type;
-use crate::core::ModuleQueryContext;
-use crate::dir::declaration_display_name;
+use crate::{ModuleQueryContext, declaration_display_name};
 
 /// Formatted declaration signature.
 #[derive(Debug, Clone)]
@@ -26,114 +21,299 @@ pub struct FormattedCallSignature {
     pub parameters: Vec<String>,
 }
 
+/// Formatter for declaration and call signatures in one checked module.
+struct SignatureFormatter<'module, 'repo> {
+    /// The checked module being formatted.
+    module: &'module ModuleQueryContext<'repo>,
+}
+
+/// The signature position that owns one checked type.
+#[derive(Debug, Clone, Copy)]
+enum SignatureTypeRole {
+    /// A function return type.
+    Return,
+    /// A function parameter type.
+    Parameter,
+}
+
+impl SignatureTypeRole {
+    /// Return the diagnostic label for this type role.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Return => "return",
+            Self::Parameter => "parameter",
+        }
+    }
+}
+
+impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
+    /// Create a signature formatter for one checked module.
+    fn new(module: &'module ModuleQueryContext<'repo>) -> Self {
+        Self { module }
+    }
+
+    /// Format one declaration signature.
+    fn declaration_signature(&self, declaration: &dir::Declaration) -> Option<FormattedSignature> {
+        let kind = declaration.kind_name();
+        let name = declaration_display_name(self.module.strings(), declaration)?;
+        let text = self.declaration_text(declaration, &name);
+
+        Some(FormattedSignature { text, kind })
+    }
+
+    /// Format one declaration signature body.
+    fn declaration_text(&self, declaration: &dir::Declaration, name: &str) -> String {
+        let declaration_prefix = format_declaration_prefix(declaration);
+
+        match declaration {
+            dir::Declaration::Function(declaration) => {
+                self.function_text(name, &declaration.signature, &declaration_prefix)
+            }
+            dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
+            dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
+            dir::Declaration::Struct(declaration) => {
+                let generics_text = self.generics(&declaration.generic_parameters);
+                format!("{declaration_prefix}struct {name}{generics_text}")
+            }
+            dir::Declaration::Class(declaration) => {
+                let generics_text = self.generics(&declaration.generic_parameters);
+                format!("{declaration_prefix}class {name}{generics_text}")
+            }
+            dir::Declaration::Interface(declaration) => {
+                let generics_text = self.generics(&declaration.generic_parameters);
+                format!("{declaration_prefix}interface {name}{generics_text}")
+            }
+            dir::Declaration::Enum(_) => {
+                format!("{declaration_prefix}enum {name}")
+            }
+            dir::Declaration::Type(_) => {
+                format!("{declaration_prefix}type {name}")
+            }
+            dir::Declaration::Extension(_) => {
+                format!("{declaration_prefix}extension {name}")
+            }
+        }
+    }
+
+    /// Format a function signature with parameters and return type.
+    fn function_text(
+        &self,
+        name: &str,
+        signature: &dir::FunctionSignature,
+        declaration_prefix: &str,
+    ) -> String {
+        let phase_prefix = format_function_phase_prefix(signature.phase);
+
+        let async_prefix = match signature.asynchrony {
+            dir::Asynchrony::Async => "async ",
+            dir::Asynchrony::Sync => "",
+        };
+
+        let generics_text = self.generics(&signature.generic_parameters);
+        let parameters_text = self.parameters(signature.this_parameter, &signature.parameters);
+        let return_text = self.return_type(signature.return_type);
+
+        format!(
+            "{declaration_prefix}{phase_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
+        )
+    }
+
+    /// Format a function or method call signature without declaration keywords.
+    fn call_signature(
+        &self,
+        name: &str,
+        signature: &dir::FunctionSignature,
+        include_this: bool,
+    ) -> FormattedCallSignature {
+        let phase_prefix = format_function_phase_prefix(signature.phase);
+
+        let async_prefix = match signature.asynchrony {
+            dir::Asynchrony::Async => "async ",
+            dir::Asynchrony::Sync => "",
+        };
+
+        let generics_text = self.generics(&signature.generic_parameters);
+
+        let this_parameter = if include_this {
+            signature.this_parameter
+        } else {
+            None
+        };
+
+        let parameter_labels = self.parameter_labels(this_parameter, &signature.parameters);
+        let parameters_text = parameter_labels.join(", ");
+
+        let return_text = self.return_type(signature.return_type);
+
+        let label = format!(
+            "{phase_prefix}{async_prefix}{name}{generics_text}({parameters_text}){return_text}"
+        );
+
+        FormattedCallSignature {
+            label,
+            parameters: parameter_labels,
+        }
+    }
+
+    /// Format one optional return type suffix.
+    fn return_type(&self, return_type: Option<dir::LocalNodeId<dir::TypeExpression>>) -> String {
+        let Some(return_node) = return_type else {
+            return String::new();
+        };
+
+        let node_id = return_node.into_global_any(self.module.module_id());
+        let type_text = self.type_text(node_id, SignatureTypeRole::Return);
+
+        format!(": {type_text}")
+    }
+
+    /// Format generic type parameters.
+    fn generics(&self, generics: &[dir::LocalNodeId<dir::GenericParameter>]) -> String {
+        if generics.is_empty() {
+            return String::new();
+        }
+
+        let formatted: Vec<_> = generics
+            .iter()
+            .map(|parameter_id| self.generic_parameter(*parameter_id))
+            .collect();
+
+        format!("<{}>", formatted.join(", "))
+    }
+
+    /// Format one generic parameter.
+    fn generic_parameter(&self, parameter_id: dir::LocalNodeId<dir::GenericParameter>) -> String {
+        let parameter = self
+            .module
+            .view()
+            .get::<dir::GenericParameter>(parameter_id);
+        let strings = self.module.strings();
+
+        match parameter {
+            dir::GenericParameter::Type {
+                name,
+                is_const,
+                variance,
+                ..
+            } => {
+                let prefix = format_type_generic_parameter_prefix(*is_const, *variance, false);
+
+                format!("{prefix}{}", strings.get(*name))
+            }
+            dir::GenericParameter::VariadicType {
+                name,
+                is_const,
+                variance,
+                ..
+            } => {
+                let prefix = format_type_generic_parameter_prefix(*is_const, *variance, true);
+
+                format!("{prefix}{}", strings.get(*name))
+            }
+            dir::GenericParameter::Value {
+                name, is_comptime, ..
+            } => {
+                let prefix = format_value_generic_parameter_prefix(*is_comptime, false);
+
+                format!("{prefix}{}", strings.get(*name))
+            }
+            dir::GenericParameter::VariadicValue {
+                name, is_comptime, ..
+            } => {
+                let prefix = format_value_generic_parameter_prefix(*is_comptime, true);
+
+                format!("{prefix}{}", strings.get(*name))
+            }
+            dir::GenericParameter::Error => {
+                panic!("error generic parameter reached signature formatting")
+            }
+        }
+    }
+
+    /// Format function parameters with their types.
+    fn parameters(
+        &self,
+        this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
+        parameters: &[dir::LocalNodeId<dir::Parameter>],
+    ) -> String {
+        let formatted = self.parameter_labels(this_parameter, parameters);
+
+        formatted.join(", ")
+    }
+
+    /// Format parameter labels in declared order.
+    fn parameter_labels(
+        &self,
+        this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
+        parameters: &[dir::LocalNodeId<dir::Parameter>],
+    ) -> Vec<String> {
+        let mut formatted: Vec<String> = Vec::new();
+
+        if let Some(this_parameter) = this_parameter {
+            let this_text = self.parameter(this_parameter);
+            formatted.push(format!("this: {this_text}"));
+        }
+
+        formatted.extend(
+            parameters
+                .iter()
+                .map(|parameter_id| self.parameter(*parameter_id)),
+        );
+
+        formatted
+    }
+
+    /// Format one parameter with its type annotation.
+    fn parameter(&self, parameter_id: dir::LocalNodeId<dir::Parameter>) -> String {
+        let parameter = self.module.view().get::<dir::Parameter>(parameter_id);
+        let name = self.parameter_name(parameter);
+        let node_id = parameter_id.into_global_any(self.module.module_id());
+        let type_text = self.type_text(node_id, SignatureTypeRole::Parameter);
+
+        format!("{name}: {type_text}")
+    }
+
+    /// Format one parameter label with its phase prefix.
+    fn parameter_name(&self, parameter: &dir::Parameter) -> String {
+        let strings = self.module.strings();
+        let name = match parameter {
+            dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
+            dir::Parameter::Pattern { .. } => "_".to_string(),
+            dir::Parameter::VariadicNamed { name, .. } => {
+                let name = strings.get(*name);
+                format!("...{name}")
+            }
+            dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
+            dir::Parameter::Error => panic!("error parameter reached signature formatting"),
+        };
+
+        if parameter.is_comptime() {
+            format!("comptime {name}")
+        } else {
+            name
+        }
+    }
+
+    /// Format one checked node type.
+    fn type_text(&self, node_id: dir::GlobalNodeIdAny, role: SignatureTypeRole) -> String {
+        let role = role.label();
+        let type_id = self
+            .module
+            .types()
+            .get_node_type_id(node_id)
+            .unwrap_or_else(|| panic!("missing checked {role} type for node {node_id:?}"));
+
+        format_global_type(type_id, self.module)
+            .unwrap_or_else(|| panic!("unable to format checked {role} type {type_id:?}"))
+    }
+}
+
 /// Format a declaration's signature with full type information.
 pub fn format_declaration_signature(
     declaration: &dir::Declaration,
-    ctx: &ModuleQueryContext<'_>,
-) -> FormattedSignature {
-    // resolve dir data for formatting
-    let dir_tree = ctx.dir().view();
-    let types = ctx.dir().types();
-    let module_id = ctx.module_id();
-    let strings = ctx.dir().strings();
-
-    // resolve declaration metadata
-    let kind = declaration.kind_name();
-    let name = declaration_display_name(strings, declaration);
-
-    // resolve the declaration prefix
-    let declaration_prefix = format_declaration_prefix(declaration);
-
-    // format the signature text by declaration kind
-    let text = match declaration {
-        dir::Declaration::Function(declaration) => format_function(
-            &name,
-            &declaration.signature,
-            &declaration_prefix,
-            module_id,
-            dir_tree,
-            types,
-            ctx,
-        ),
-        dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
-        dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
-        dir::Declaration::Struct(declaration) => {
-            let generics_text = format_generics(&declaration.generic_parameters, dir_tree, strings);
-            format!("{declaration_prefix}struct {name}{generics_text}")
-        }
-        dir::Declaration::Class(declaration) => {
-            let generics_text = format_generics(&declaration.generic_parameters, dir_tree, strings);
-            format!("{declaration_prefix}class {name}{generics_text}")
-        }
-        dir::Declaration::Interface(declaration) => {
-            let generics_text = format_generics(&declaration.generic_parameters, dir_tree, strings);
-            format!("{declaration_prefix}interface {name}{generics_text}")
-        }
-        dir::Declaration::Enum(_) => {
-            format!("{declaration_prefix}enum {name}")
-        }
-        dir::Declaration::Type(_) => {
-            format!("{declaration_prefix}type {name}")
-        }
-        dir::Declaration::Extension(_) => {
-            format!("{declaration_prefix}extension {name}")
-        }
-    };
-
-    // return the formatted signature
-    FormattedSignature { text, kind }
-}
-
-/// Format a function signature with parameters and return type.
-fn format_function(
-    name: &str,
-    signature: &dir::FunctionSignature,
-    declaration_prefix: &str,
-    module_id: ModuleId,
-    dir_tree: dir::View<'_>,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    // resolve the phase prefix
-    let phase_prefix = format_function_phase_prefix(signature.phase);
-
-    // resolve the async prefix
-    let async_prefix = match signature.asynchrony {
-        dir::Asynchrony::Async => "async ",
-        dir::Asynchrony::Sync => "",
-    };
-
-    // format generic parameters
-    let generics_text =
-        format_generics(&signature.generic_parameters, dir_tree, ctx.dir().strings());
-
-    // format parameters
-    let parameters_text = format_parameters(
-        signature.this_parameter,
-        &signature.parameters,
-        module_id,
-        dir_tree,
-        types,
-        ctx,
-    );
-
-    // format return type
-    let return_text = signature
-        .return_type
-        .and_then(|return_node| {
-            let node_id = dir::GlobalNodeIdAny {
-                module_id,
-                local_id: return_node.into(),
-            };
-            types.get_node_type_id(node_id)
-        })
-        .map(|type_id| format!(": {}", format_global_type(type_id, ctx)))
-        .unwrap_or_default();
-
-    // return the formatted function signature
-    format!(
-        "{declaration_prefix}{phase_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
-    )
+    module: &ModuleQueryContext<'_>,
+) -> Option<FormattedSignature> {
+    SignatureFormatter::new(module).declaration_signature(declaration)
 }
 
 /// Format the phase prefix for one function.
@@ -171,134 +351,10 @@ fn format_declaration_prefix(declaration: &dir::Declaration) -> String {
 pub fn format_call_signature(
     name: &str,
     signature: &dir::FunctionSignature,
-    module_id: ModuleId,
-    dir_tree: dir::View<'_>,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
+    module: &ModuleQueryContext<'_>,
     include_this: bool,
 ) -> FormattedCallSignature {
-    // resolve the phase prefix
-    let phase_prefix = format_function_phase_prefix(signature.phase);
-
-    // resolve the async prefix
-    let async_prefix = match signature.asynchrony {
-        dir::Asynchrony::Async => "async ",
-        dir::Asynchrony::Sync => "",
-    };
-
-    // format generic parameters
-    let generics_text =
-        format_generics(&signature.generic_parameters, dir_tree, ctx.dir().strings());
-
-    // choose parameters
-    let this_parameter = if include_this {
-        signature.this_parameter
-    } else {
-        None
-    };
-
-    // format parameter labels
-    let parameter_labels = format_parameter_labels(
-        this_parameter,
-        &signature.parameters,
-        module_id,
-        dir_tree,
-        types,
-        ctx,
-    );
-    let parameters_text = parameter_labels.join(", ");
-
-    // format return type
-    let return_text = signature
-        .return_type
-        .and_then(|return_node| {
-            let node_id = dir::GlobalNodeIdAny {
-                module_id,
-                local_id: return_node.into(),
-            };
-            types.get_node_type_id(node_id)
-        })
-        .map(|type_id| format!(": {}", format_global_type(type_id, ctx)))
-        .unwrap_or_default();
-
-    // build the call signature label
-    let label = format!(
-        "{phase_prefix}{async_prefix}{name}{generics_text}({parameters_text}){return_text}"
-    );
-
-    // return the call signature details
-    FormattedCallSignature {
-        label,
-        parameters: parameter_labels,
-    }
-}
-
-/// Format generic type parameters.
-fn format_generics(
-    generics: &[dir::LocalNodeId<dir::GenericParameter>],
-    dir_tree: dir::View<'_>,
-    strings: &StringPool,
-) -> String {
-    // skip empty generic lists
-    if generics.is_empty() {
-        return String::new();
-    }
-
-    // format each generic parameter
-    let formatted: Vec<_> = generics
-        .iter()
-        .map(|parameter_id| format_generic_parameter(*parameter_id, dir_tree, strings))
-        .collect();
-
-    // return the formatted generics list
-    format!("<{}>", formatted.join(", "))
-}
-
-/// Format a single generic parameter.
-fn format_generic_parameter(
-    parameter_id: dir::LocalNodeId<dir::GenericParameter>,
-    dir_tree: dir::View<'_>,
-    strings: &StringPool,
-) -> String {
-    let parameter = dir_tree.get::<dir::GenericParameter>(parameter_id);
-
-    match parameter {
-        dir::GenericParameter::Type {
-            name,
-            is_const,
-            variance,
-            ..
-        } => {
-            let prefix = format_type_generic_parameter_prefix(*is_const, *variance, false);
-
-            format!("{prefix}{}", strings.get(*name))
-        }
-        dir::GenericParameter::VariadicType {
-            name,
-            is_const,
-            variance,
-            ..
-        } => {
-            let prefix = format_type_generic_parameter_prefix(*is_const, *variance, true);
-
-            format!("{prefix}{}", strings.get(*name))
-        }
-        dir::GenericParameter::Value {
-            name, is_comptime, ..
-        } => {
-            let prefix = format_value_generic_parameter_prefix(*is_comptime, false);
-
-            format!("{prefix}{}", strings.get(*name))
-        }
-        dir::GenericParameter::VariadicValue {
-            name, is_comptime, ..
-        } => {
-            let prefix = format_value_generic_parameter_prefix(*is_comptime, true);
-
-            format!("{prefix}{}", strings.get(*name))
-        }
-        dir::GenericParameter::Error => "<error>".to_string(),
-    }
+    SignatureFormatter::new(module).call_signature(name, signature, include_this)
 }
 
 /// Format the prefix for one type generic parameter.
@@ -342,163 +398,28 @@ fn format_value_generic_parameter_prefix(is_comptime: bool, is_variadic: bool) -
     prefix
 }
 
-/// Format function parameters with their types.
-fn format_parameters(
-    this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
-    parameters: &[dir::LocalNodeId<dir::Parameter>],
-    module_id: ModuleId,
-    dir_tree: dir::View<'_>,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    // format labels for parameters
-    let formatted =
-        format_parameter_labels(this_parameter, parameters, module_id, dir_tree, types, ctx);
-
-    // return the joined parameter labels
-    formatted.join(", ")
-}
-
-/// Format parameter labels in declared order.
-fn format_parameter_labels(
-    this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
-    parameters: &[dir::LocalNodeId<dir::Parameter>],
-    module_id: ModuleId,
-    dir_tree: dir::View<'_>,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> Vec<String> {
-    // collect formatted parameter labels
-    let mut formatted: Vec<String> = Vec::new();
-
-    // add the explicit this parameter when present
-    if let Some(this_parameter) = this_parameter {
-        let this_text = format_parameter(this_parameter, module_id, dir_tree, types, ctx);
-        formatted.push(format!("this: {this_text}"));
-    }
-
-    // add remaining parameters in order
-    formatted.extend(
-        parameters
-            .iter()
-            .map(|parameter_id| format_parameter(*parameter_id, module_id, dir_tree, types, ctx)),
-    );
-
-    // return the formatted labels
-    formatted
-}
-
-/// Format a single parameter with its type annotation.
-fn format_parameter(
-    parameter_id: dir::LocalNodeId<dir::Parameter>,
-    module_id: ModuleId,
-    dir_tree: dir::View<'_>,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let strings = ctx.dir().strings();
-
-    // read the parameter node
-    let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
-
-    // resolve the parameter name
-    let name = match parameter {
-        dir::Parameter::Named { name, .. } => {
-            format_parameter_name(strings.get(*name), parameter.is_comptime())
-        }
-        dir::Parameter::Pattern { .. } => format_parameter_name("_", parameter.is_comptime()),
-        dir::Parameter::VariadicNamed { name, .. } => {
-            let name = format!("...{}", strings.get(*name));
-            format_parameter_name(&name, parameter.is_comptime())
-        }
-        dir::Parameter::VariadicPattern { .. } => {
-            format_parameter_name("...<pattern>", parameter.is_comptime())
-        }
-        dir::Parameter::Error => "<error>".to_string(),
-    };
-
-    // try to get the inferred type for this parameter
-    let node_id = dir::GlobalNodeIdAny {
-        module_id,
-        local_id: parameter_id.into(),
-    };
-
-    if let Some(type_id) = types.get_node_type_id(node_id) {
-        let type_text = format_global_type(type_id, ctx);
-        format!("{name}: {type_text}")
-    } else {
-        name
-    }
-}
-
-/// Format one parameter label with its phase prefix.
-fn format_parameter_name(name: &str, is_comptime: bool) -> String {
-    if is_comptime {
-        format!("comptime {name}")
-    } else {
-        name.to_string()
-    }
-}
-
 /// Format a symbol's signature for hover display.
 pub fn format_symbol_signature(
-    root_ctx: &ModuleQueryContext<'_>,
+    root_module: &ModuleQueryContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<FormattedSignature> {
-    // resolve module dir data
-    let ctx = root_ctx.module_context(symbol_id.module_id)?;
+    // resolve owning module
+    let module = root_module.module_context(symbol_id.module_id);
     let declaration_ref = {
-        let symbols = ctx.dir().symbols();
+        let symbols = module.symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
         symbol.declaration?
     };
 
     // read the declaration from the tree
-    let dir_tree = ctx.dir().view();
-    let declaration_id = declaration_ref.local_id.try_into().ok()?;
-    let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+    let view = module.view();
+    let declaration_id = declaration_ref.local_id.try_into().unwrap_or_else(|_| {
+        panic!(
+            "signature declaration has incompatible node id: {:?}",
+            declaration_ref.local_id
+        )
+    });
+    let declaration = view.get::<dir::Declaration>(declaration_id);
 
-    // resolve type table and metadata
-    let types = ctx.dir().types();
-    let kind = declaration.kind_name();
-    let strings = ctx.dir().strings();
-    let name = declaration_display_name(strings, declaration);
-
-    // resolve the declaration prefix
-    let declaration_prefix = format_declaration_prefix(declaration);
-
-    // resolve the module id for global ids
-    let module_id = ctx.module_id();
-    // format the signature text by declaration kind
-    let text = match declaration {
-        dir::Declaration::Function(declaration) => format_function(
-            &name,
-            &declaration.signature,
-            &declaration_prefix,
-            module_id,
-            dir_tree,
-            types,
-            &ctx,
-        ),
-        dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
-        dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
-        dir::Declaration::Struct(declaration) => {
-            let generics_text = format_generics(&declaration.generic_parameters, dir_tree, strings);
-            format!("{declaration_prefix}struct {name}{generics_text}")
-        }
-        dir::Declaration::Class(declaration) => {
-            let generics_text = format_generics(&declaration.generic_parameters, dir_tree, strings);
-            format!("{declaration_prefix}class {name}{generics_text}")
-        }
-        dir::Declaration::Interface(declaration) => {
-            let generics_text = format_generics(&declaration.generic_parameters, dir_tree, strings);
-            format!("{declaration_prefix}interface {name}{generics_text}")
-        }
-        dir::Declaration::Enum(_) => format!("{declaration_prefix}enum {name}"),
-        dir::Declaration::Type(_) => format!("{declaration_prefix}type {name}"),
-        dir::Declaration::Extension(_) => format!("{declaration_prefix}extension {name}"),
-    };
-
-    // return the formatted signature
-    Some(FormattedSignature { text, kind })
+    SignatureFormatter::new(&module).declaration_signature(declaration)
 }

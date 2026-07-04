@@ -1,6 +1,7 @@
 use destack_dir as dir;
 
-use crate::core::{DirQueryContext, ModuleQueryContext};
+use super::lexical::is_trivia_token;
+use crate::ModuleQueryContext;
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -18,7 +19,7 @@ impl ModuleQueryContext<'_> {
         let token_text = self.token_text_at_offset(offset)?;
 
         // require an identifier token
-        let token = self.dir().token_span_at_offset(offset)?;
+        let token = self.token_span_at_offset(offset)?;
         if token.token.ty() != dir::TokenType::Identifier {
             return None;
         }
@@ -28,29 +29,23 @@ impl ModuleQueryContext<'_> {
 
     /// Extract the non-trivia token text at one offset.
     pub(crate) fn token_text_at_offset(&self, offset: u32) -> Option<String> {
-        let token = self.dir().token_span_at_offset(offset)?;
+        let token = self.token_span_at_offset(offset)?;
 
         // read source text for the token span
-        let file = self
-            .repository()
-            .file(self.revision(), self.file_id())
-            .ok()
-            .flatten()?;
+        let file = self.source_file();
         let content = file.text();
-        if content.is_empty() {
-            return None;
-        }
-
         let span = token.span;
-        let text = content.get(span.start as usize..span.end as usize)?;
+        let text = content
+            .get(span.start as usize..span.end as usize)
+            .unwrap_or_else(|| panic!("invalid token source range: {span:?}"));
 
         Some(text.to_string())
     }
 }
 
-impl DirQueryContext<'_> {
+impl ModuleQueryContext<'_> {
     /// Find the non-trivia token span that contains the offset.
-    pub(crate) fn token_span_at_offset(self, offset: u32) -> Option<dir::TokenSpan> {
+    pub(crate) fn token_span_at_offset(&self, offset: u32) -> Option<dir::TokenSpan> {
         let mut candidate = None;
 
         // walk tokens in order to find the containing span
@@ -81,20 +76,6 @@ impl DirQueryContext<'_> {
 
         None
     }
-}
-
-/// Check whether a token type is trivia.
-fn is_trivia_token(token: dir::TokenType) -> bool {
-    matches!(
-        token,
-        dir::TokenType::Whitespace
-            | dir::TokenType::Newline
-            | dir::TokenType::LineComment
-            | dir::TokenType::BlockComment
-            | dir::TokenType::DocLineComment
-            | dir::TokenType::DocBlockComment
-            | dir::TokenType::End
-    )
 }
 
 /// Check if a string is a simple identifier.

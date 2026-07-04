@@ -19,7 +19,7 @@ pub(super) struct QueryFile {
     /// The exact revision used for the query.
     pub(super) revision: Revision,
     /// The query module.
-    pub(super) module: query::QueryModule,
+    pub(super) module: query::Module,
     /// The source file id.
     pub(super) file_id: FileId,
     /// The coherent file contents.
@@ -78,12 +78,8 @@ impl FileMap {
 }
 
 /// Build one query position from an LSP file callback.
-pub(super) fn position(
-    module: query::QueryModule,
-    file_id: FileId,
-    offset: u32,
-) -> query::QueryPosition {
-    query::QueryPosition {
+pub(super) fn position(module: query::Module, file_id: FileId, offset: u32) -> query::Position {
+    query::Position {
         module,
         file_id,
         offset,
@@ -91,16 +87,11 @@ pub(super) fn position(
 }
 
 /// Build one query range from an LSP file callback.
-pub(super) fn range(
-    module: query::QueryModule,
-    file_id: FileId,
-    start: u32,
-    end: u32,
-) -> query::QueryRange {
+pub(super) fn range(module: query::Module, file_id: FileId, start: u32, end: u32) -> query::Range {
     let range_start = start.min(end);
     let range_end = start.max(end);
 
-    query::QueryRange {
+    query::Range {
         module,
         span: Span::new(file_id, range_start, range_end),
     }

@@ -29,11 +29,10 @@ use crate::server::diagnostic::{
 use crate::server::edit::patch_set_to_workspace_edit;
 use crate::server::format::{file_edit, range_edit};
 use crate::server::navigation::{
-    call_hierarchy_item_to_lsp, call_hierarchy_query_item_from_lsp, document_highlight_to_lsp,
-    document_link_to_lsp, document_symbol_to_lsp, incoming_call_to_lsp,
-    navigation_target_to_location, navigation_targets_to_locations, outgoing_call_to_lsp,
-    selection_range_to_lsp, type_hierarchy_item_to_lsp, type_hierarchy_query_item_from_lsp,
-    workspace_symbol_to_lsp,
+    call_item_from_lsp, call_item_to_lsp, document_highlight_to_lsp, document_link_to_lsp,
+    document_symbol_to_lsp, incoming_call_to_lsp, navigation_target_to_location,
+    navigation_targets_to_locations, outgoing_call_to_lsp, selection_range_to_lsp,
+    type_item_from_lsp, type_item_to_lsp, workspace_symbol_to_lsp,
 };
 use crate::server::position::{byte_span_to_range, position_to_byte, span_to_location};
 use crate::server::progress::WorkDoneProgressTracker;
@@ -1684,13 +1683,13 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
             return Ok(None);
         };
-        let request = query::QueryRequest::DocumentSymbols(query::DocumentSymbolsRequest {
+        let request = query::QueryRequest::Outline(query::OutlineRequest {
             module: query_file.module,
         });
         let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
-        let query::QueryResponse::DocumentSymbols(response) = response.response else {
+        let query::QueryResponse::Outline(response) = response.response else {
             return Ok(None);
         };
         let symbols = response.symbols;
@@ -1721,7 +1720,7 @@ impl LanguageServer for DestackLanguageServer {
                     self.publish_partial_result(
                         token,
                         std::mem::take(&mut partial_symbols),
-                        "document_symbol",
+                        "symbol",
                     )
                     .await;
                 }
@@ -1741,12 +1740,8 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         if let Some(token) = partial_token.as_ref() {
-            self.publish_partial_result(
-                token,
-                std::mem::take(&mut partial_symbols),
-                "document_symbol",
-            )
-            .await;
+            self.publish_partial_result(token, std::mem::take(&mut partial_symbols), "symbol")
+                .await;
         }
 
         progress
@@ -1765,7 +1760,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::WorkspaceSymbolParams,
     ) -> jsonrpc::Result<Option<lsp::OneOf<Vec<lsp::SymbolInformation>, Vec<lsp::WorkspaceSymbol>>>>
     {
-        // query workspace symbols
+        // query symbol search
         let Some(root) = self.workspace()?.roots().into_iter().next() else {
             return Ok(None);
         };
@@ -1775,7 +1770,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(profile_id) = self.query_profile(&root) else {
             return Ok(None);
         };
-        let request = query::QueryRequest::WorkspaceSymbols(query::WorkspaceSymbolsRequest {
+        let request = query::QueryRequest::SymbolSearch(query::SymbolSearchRequest {
             query: params.query.clone(),
             profile_ids: vec![profile_id],
             max_results: 100,
@@ -1784,7 +1779,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let revision = response.revision;
-        let query::QueryResponse::WorkspaceSymbols(response) = response.response else {
+        let query::QueryResponse::SymbolSearch(response) = response.response else {
             return Ok(None);
         };
         let symbols = response.symbols;
@@ -1792,7 +1787,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut progress = WorkDoneProgressTracker::start(
             self,
             params.work_done_progress_params.work_done_token,
-            "Workspace symbols",
+            "Symbol search",
             "building symbols",
         )
         .await;
@@ -1869,12 +1864,11 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let position = super::query::position(query_file.module, query_file.file_id, offset);
-        let request =
-            query::QueryRequest::DocumentHighlight(query::DocumentHighlightRequest { position });
+        let request = query::QueryRequest::Highlight(query::HighlightRequest { position });
         let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
-        let query::QueryResponse::DocumentHighlight(response) = response.response else {
+        let query::QueryResponse::Highlight(response) = response.response else {
             return Ok(None);
         };
         let highlights = response.highlights;
@@ -1905,7 +1899,7 @@ impl LanguageServer for DestackLanguageServer {
                     self.publish_partial_result(
                         token,
                         std::mem::take(&mut partial_highlights),
-                        "document_highlight",
+                        "highlight",
                     )
                     .await;
                 }
@@ -1928,7 +1922,7 @@ impl LanguageServer for DestackLanguageServer {
             self.publish_partial_result(
                 token,
                 std::mem::take(&mut partial_highlights),
-                "document_highlight",
+                "highlight",
             )
             .await;
         }
@@ -2620,13 +2614,13 @@ impl LanguageServer for DestackLanguageServer {
         let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
             return Ok(None);
         };
-        let request = query::QueryRequest::DocumentLinks(query::DocumentLinksRequest {
+        let request = query::QueryRequest::Links(query::LinksRequest {
             module: query_file.module,
         });
         let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
-        let query::QueryResponse::DocumentLinks(response) = response.response else {
+        let query::QueryResponse::Links(response) = response.response else {
             return Ok(None);
         };
         let links = response.links;
@@ -2654,12 +2648,8 @@ impl LanguageServer for DestackLanguageServer {
             if let Some(token) = partial_token.as_ref() {
                 partial_links.push(lsp_link.clone());
                 if partial_links.len() >= PARTIAL_RESULT_CHUNK_SIZE {
-                    self.publish_partial_result(
-                        token,
-                        std::mem::take(&mut partial_links),
-                        "document_link",
-                    )
-                    .await;
+                    self.publish_partial_result(token, std::mem::take(&mut partial_links), "link")
+                        .await;
                 }
             }
             lsp_links.push(lsp_link);
@@ -2677,7 +2667,7 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         if let Some(token) = partial_token.as_ref() {
-            self.publish_partial_result(token, std::mem::take(&mut partial_links), "document_link")
+            self.publish_partial_result(token, std::mem::take(&mut partial_links), "link")
                 .await;
         }
 
@@ -3086,13 +3076,12 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let position = super::query::position(query_file.module, query_file.file_id, offset);
-        let request =
-            query::QueryRequest::CallHierarchyItem(query::CallHierarchyItemRequest { position });
+        let request = query::QueryRequest::CallItem(query::CallItemRequest { position });
         let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
-        let query::QueryResponse::CallHierarchyItem(response) = response.response else {
+        let query::QueryResponse::CallItem(response) = response.response else {
             return Ok(None);
         };
         let Some(item) = response.item else {
@@ -3101,8 +3090,7 @@ impl LanguageServer for DestackLanguageServer {
 
         // convert to LSP
         let mut files = self.file_map(&query_file.path, revision)?;
-        let Some(lsp_item) =
-            call_hierarchy_item_to_lsp(revision, &item, &mut |file_id| files.file(file_id))
+        let Some(lsp_item) = call_item_to_lsp(revision, &item, &mut |file_id| files.file(file_id))
         else {
             return Ok(None);
         };
@@ -3115,7 +3103,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::CallHierarchyIncomingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
         // extract query item from lsp data
-        let Some((revision, item)) = call_hierarchy_query_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = call_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
         let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
@@ -3123,15 +3111,12 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // query incoming calls
-        let request =
-            query::QueryRequest::CallHierarchyIncoming(query::CallHierarchyIncomingRequest {
-                item,
-            });
+        let request = query::QueryRequest::IncomingCalls(query::IncomingCallsRequest { item });
         let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
-        let query::QueryResponse::CallHierarchyIncoming(response) = response.response else {
+        let query::QueryResponse::IncomingCalls(response) = response.response else {
             return Ok(Some(vec![]));
         };
         let calls = response.calls;
@@ -3151,7 +3136,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::CallHierarchyOutgoingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
         // extract query item from lsp data
-        let Some((revision, item)) = call_hierarchy_query_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = call_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
         let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
@@ -3159,15 +3144,12 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // query outgoing calls
-        let request =
-            query::QueryRequest::CallHierarchyOutgoing(query::CallHierarchyOutgoingRequest {
-                item,
-            });
+        let request = query::QueryRequest::OutgoingCalls(query::OutgoingCallsRequest { item });
         let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
-        let query::QueryResponse::CallHierarchyOutgoing(response) = response.response else {
+        let query::QueryResponse::OutgoingCalls(response) = response.response else {
             return Ok(Some(vec![]));
         };
         let calls = response.calls;
@@ -3201,13 +3183,12 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
         let position = super::query::position(query_file.module, query_file.file_id, offset);
-        let request =
-            query::QueryRequest::TypeHierarchyItem(query::TypeHierarchyItemRequest { position });
+        let request = query::QueryRequest::TypeItem(query::TypeItemRequest { position });
         let Some(response) = self.query_file(&query_file, request) else {
             return Ok(None);
         };
         let revision = response.revision;
-        let query::QueryResponse::TypeHierarchyItem(response) = response.response else {
+        let query::QueryResponse::TypeItem(response) = response.response else {
             return Ok(None);
         };
         let Some(item) = response.item else {
@@ -3215,8 +3196,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let mut files = self.file_map(&query_file.path, revision)?;
-        let Some(lsp_item) =
-            type_hierarchy_item_to_lsp(revision, &item, &mut |file_id| files.file(file_id))
+        let Some(lsp_item) = type_item_to_lsp(revision, &item, &mut |file_id| files.file(file_id))
         else {
             return Ok(None);
         };
@@ -3229,7 +3209,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::TypeHierarchySupertypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract query item from lsp data
-        let Some((revision, item)) = type_hierarchy_query_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = type_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
         let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
@@ -3237,15 +3217,12 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // query supertypes
-        let request =
-            query::QueryRequest::TypeHierarchySupertypes(query::TypeHierarchySupertypesRequest {
-                item,
-            });
+        let request = query::QueryRequest::Supertypes(query::SupertypesRequest { item });
         let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
-        let query::QueryResponse::TypeHierarchySupertypes(response) = response.response else {
+        let query::QueryResponse::Supertypes(response) = response.response else {
             return Ok(Some(vec![]));
         };
         let supertypes = response.items;
@@ -3254,9 +3231,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut files = self.file_map(&path, revision)?;
         let lsp_items: Vec<lsp::TypeHierarchyItem> = supertypes
             .iter()
-            .filter_map(|t| {
-                type_hierarchy_item_to_lsp(revision, t, &mut |file_id| files.file(file_id))
-            })
+            .filter_map(|t| type_item_to_lsp(revision, t, &mut |file_id| files.file(file_id)))
             .collect();
 
         Ok(Some(lsp_items))
@@ -3267,7 +3242,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::TypeHierarchySubtypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract query item from lsp data
-        let Some((revision, item)) = type_hierarchy_query_item_from_lsp(&params.item) else {
+        let Some((revision, item)) = type_item_from_lsp(&params.item) else {
             return Ok(Some(vec![]));
         };
         let Some(path) = params.item.uri.to_file_path().map(|path| path.into_owned()) else {
@@ -3275,15 +3250,12 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // query subtypes
-        let request =
-            query::QueryRequest::TypeHierarchySubtypes(query::TypeHierarchySubtypesRequest {
-                item,
-            });
+        let request = query::QueryRequest::Subtypes(query::SubtypesRequest { item });
         let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
-        let query::QueryResponse::TypeHierarchySubtypes(response) = response.response else {
+        let query::QueryResponse::Subtypes(response) = response.response else {
             return Ok(Some(vec![]));
         };
         let subtypes = response.items;
@@ -3292,9 +3264,7 @@ impl LanguageServer for DestackLanguageServer {
         let mut files = self.file_map(&path, revision)?;
         let lsp_items: Vec<lsp::TypeHierarchyItem> = subtypes
             .iter()
-            .filter_map(|t| {
-                type_hierarchy_item_to_lsp(revision, t, &mut |file_id| files.file(file_id))
-            })
+            .filter_map(|t| type_item_to_lsp(revision, t, &mut |file_id| files.file(file_id)))
             .collect();
 
         Ok(Some(lsp_items))

@@ -260,7 +260,7 @@ impl LocalWorkspace {
             revision_ref,
             self.compiler.clone(),
             self.linter.clone(),
-            self.query.clone(),
+            self.indexer.clone(),
             self.worker_limit,
             self.event_handler.clone(),
         )?)

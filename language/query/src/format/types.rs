@@ -1,723 +1,589 @@
 use std::collections::HashSet;
 
-use destack_core::StringPool;
+use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_repository::{Module, Package};
 
-use crate::core::ModuleQueryContext;
+use crate::ModuleQueryContext;
 
-const DEFAULT_INT_DISPLAY: &str = "int32";
-const DEFAULT_FLOAT_DISPLAY: &str = "float64";
-const DEFAULT_BOOLEAN_DISPLAY: &str = "boolean";
-const DEFAULT_STRING_DISPLAY: &str = "string";
-const DEFAULT_BIGINT_DISPLAY: &str = "bigint";
-const DEFAULT_CHARACTER_DISPLAY: &str = "character";
-
-/// Format a global type id as a human-readable string.
-pub fn format_global_type(ty_id: dir::GlobalTypeId, ctx: &ModuleQueryContext<'_>) -> String {
-    ctx.with_global_type(ty_id, format_type)
-        .unwrap_or_else(|| "<missing>".to_string())
+/// Formatter for checked DIR types.
+struct TypeFormatter<'module, 'query> {
+    /// The module that owns list ids read by this formatter.
+    module: &'module ModuleQueryContext<'query>,
 }
 
-/// Format a global type id for an inlay hint.
-pub fn format_global_inlay_type(ty_id: dir::GlobalTypeId, ctx: &ModuleQueryContext<'_>) -> String {
-    ctx.with_global_type(ty_id, format_inlay_type)
-        .unwrap_or_else(|| "<missing>".to_string())
+impl<'module, 'query> TypeFormatter<'module, 'query> {
+    /// Create a formatter for one checked module.
+    fn new(module: &'module ModuleQueryContext<'query>) -> Self {
+        Self { module }
+    }
+
+    /// Format one global type id.
+    fn global(&self, ty_id: dir::GlobalTypeId) -> Option<String> {
+        self.module
+            .read_global_type(ty_id, |ty, owner| TypeFormatter::new(owner).ty(ty))
+    }
+
+    /// Format one checked type owned by this formatter's module.
+    fn ty(&self, ty: &dir::Type) -> Option<String> {
+        let text = match ty {
+            dir::Type::Error => panic!("error type reached type formatting"),
+            dir::Type::Never => "never".to_string(),
+            dir::Type::Any => "any".to_string(),
+            dir::Type::Unknown => "unknown".to_string(),
+            dir::Type::Void => "void".to_string(),
+            dir::Type::Null => "null".to_string(),
+            dir::Type::Undefined => "undefined".to_string(),
+            dir::Type::Object => "object".to_string(),
+            dir::Type::Primitive(primitive) => self.primitive(*primitive),
+            dir::Type::Literal(literal) => self.literal(*literal),
+            dir::Type::Reference(reference) => return self.symbol(reference.symbol),
+            dir::Type::Instance(instance) => return self.instance(*instance),
+            dir::Type::Parameter(parameter) => return self.generic_parameter(*parameter),
+            dir::Type::Member(member) => return self.member(*member),
+            dir::Type::EnumMember(member) => return self.symbol(member.member),
+            dir::Type::Form(form) => return self.form(*form),
+            dir::Type::Dynamic(dynamic) => format!("Dynamic<{}>", self.global(dynamic.constraint)?),
+            dir::Type::Array(array) => format!("{}[]", self.global(array.element)?),
+            dir::Type::FixedArray(array) => {
+                let element = self.global(array.element)?;
+                let count = self.global(array.count)?;
+
+                format!("[{element}; {count}]")
+            }
+            dir::Type::Range(range) => return self.range(*range),
+            dir::Type::Slice(slice) => format!("[{}]", self.global(slice.element)?),
+            dir::Type::Tuple(tuple) => return self.tuple(*tuple),
+            dir::Type::Shape(shape) => return self.shape(*shape),
+            dir::Type::FunctionSignature(function) => return self.function(function),
+            dir::Type::Function(function) => return self.global(function.signature),
+            dir::Type::FunctionPointer(function) => return self.global(function.signature),
+            dir::Type::Union(union) => return self.type_list(union.elements, " | "),
+            dir::Type::Intersection(intersection) => {
+                return self.type_list(intersection.elements, " & ");
+            }
+            dir::Type::This => "this".to_string(),
+            dir::Type::Operation(operation) => return self.operation(operation),
+            dir::Type::Key(key) => return self.static_key(*key),
+            dir::Type::Variable(_)
+            | dir::Type::Memory(_)
+            | dir::Type::Static(_)
+            | dir::Type::Intrinsic => return None,
+        };
+
+        Some(text)
+    }
+
+    /// Format one primitive type.
+    fn primitive(&self, primitive: dir::PrimitiveType) -> String {
+        match primitive {
+            dir::PrimitiveType::Boolean => "boolean".to_string(),
+            dir::PrimitiveType::Character => "char".to_string(),
+            dir::PrimitiveType::String => "string".to_string(),
+            dir::PrimitiveType::Bigint => "bigint".to_string(),
+            dir::PrimitiveType::Integer(integer) => self.integer(integer),
+            dir::PrimitiveType::Float(float) => float.as_str().to_string(),
+            dir::PrimitiveType::Symbol => "symbol".to_string(),
+            dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
+        }
+    }
+
+    /// Format one integer type.
+    fn integer(&self, integer: dir::IntegerType) -> String {
+        match integer {
+            dir::IntegerType::Integer { is_signed: true } => "int".to_string(),
+            dir::IntegerType::Integer { is_signed: false } => "uint".to_string(),
+            dir::IntegerType::Fixed {
+                width,
+                is_signed: true,
+            } => format!("int{width}"),
+            dir::IntegerType::Fixed {
+                width,
+                is_signed: false,
+            } => format!("uint{width}"),
+            dir::IntegerType::Pointer { is_signed: true } => "isize".to_string(),
+            dir::IntegerType::Pointer { is_signed: false } => "usize".to_string(),
+        }
+    }
+
+    /// Format one scalar literal.
+    fn literal(&self, literal: dir::ScalarLiteral) -> String {
+        match literal {
+            dir::ScalarLiteral::Null => "null".to_string(),
+            dir::ScalarLiteral::Undefined => "undefined".to_string(),
+            dir::ScalarLiteral::Boolean(value) => value.to_string(),
+            dir::ScalarLiteral::Integer(value) => value.to_string(),
+            dir::ScalarLiteral::Bigint(value) => format!("{value}n"),
+            dir::ScalarLiteral::Float(value) => value.to_string(),
+            dir::ScalarLiteral::Character(value) => {
+                let value = value.escape_default();
+
+                format!("'{value}'")
+            }
+            dir::ScalarLiteral::String(value) => quoted_string(value, self.module.strings()),
+            dir::ScalarLiteral::RegexString { content, flags } => {
+                let content = self.module.strings().get(content);
+                let flags = match flags {
+                    Some(flags) => self.module.strings().get(flags),
+                    None => "",
+                };
+
+                format!("/{content}/{flags}")
+            }
+        }
+    }
+
+    /// Format one generic instance.
+    fn instance(&self, instance: dir::GenericInstance) -> Option<String> {
+        let symbol = self.symbol(instance.symbol)?;
+        let arguments = self.module.types().type_ids(instance.arguments);
+
+        if arguments.is_empty() {
+            return Some(symbol);
+        }
+
+        Some(format!("{symbol}<{}>", self.join_types(arguments, ", ")?))
+    }
+
+    /// Format one generic parameter.
+    fn generic_parameter(&self, parameter: dir::GlobalGenericParameterId) -> Option<String> {
+        let parameter_module = self.module.module_context(parameter.module_id);
+        let parameter = parameter_module
+            .generics()
+            .get_parameter(parameter.local_id);
+
+        match parameter.key {
+            dir::GenericParameterKey::Symbol(symbol) => {
+                TypeFormatter::new(&parameter_module).symbol(symbol)
+            }
+            dir::GenericParameterKey::Generated(name) => {
+                Some(parameter_module.strings().get(name).to_string())
+            }
+        }
+    }
+
+    /// Format one member type.
+    fn member(&self, member: dir::MemberType) -> Option<String> {
+        let owner = self.global(member.owner)?;
+        let key = self.static_key(member.key)?;
+        let arguments = self.module.types().type_ids(member.arguments);
+
+        if arguments.is_empty() {
+            return Some(format!("{owner}.{key}"));
+        }
+
+        Some(format!(
+            "{owner}.{key}<{}>",
+            self.join_types(arguments, ", ")?
+        ))
+    }
+
+    /// Format one canonical form type.
+    fn form(&self, form: dir::FormType) -> Option<String> {
+        let value = self.global(form.value)?;
+        let text = match form.form {
+            dir::Form::Managed => value,
+            dir::Form::Owned => format!("^{value}"),
+            dir::Form::Borrowed { .. } => format!("&{value}"),
+            dir::Form::Raw => format!("*{value}"),
+            dir::Form::Placed { .. } => format!("placed {value}"),
+            dir::Form::Readonly => format!("readonly {value}"),
+        };
+
+        Some(text)
+    }
+
+    /// Format one scalar interval type.
+    fn range(&self, range: dir::RangeType) -> Option<String> {
+        let start = match range.start {
+            Some(literal) => self.literal(literal),
+            None => String::new(),
+        };
+        let end = match range.end {
+            Some(literal) => self.literal(literal),
+            None => String::new(),
+        };
+        let operator = if range.is_inclusive { "..=" } else { ".." };
+
+        Some(format!("{start}{operator}{end}"))
+    }
+
+    /// Format one tuple type.
+    fn tuple(&self, tuple: dir::TupleType) -> Option<String> {
+        let elements = self.module.types().elements(tuple.elements);
+        let elements = elements
+            .iter()
+            .map(|element| self.tuple_element(element))
+            .collect::<Option<Vec<_>>>()?
+            .join(", ");
+
+        let text = match tuple.form {
+            dir::TupleForm::Tuple => format!("({elements})"),
+            dir::TupleForm::Array => format!("[{elements}]"),
+        };
+
+        Some(text)
+    }
+
+    /// Format one tuple element.
+    fn tuple_element(&self, element: &dir::TypeElement) -> Option<String> {
+        let mut text = String::new();
+
+        if element.is_readonly {
+            text.push_str("readonly ");
+        }
+        if element.is_rest {
+            text.push_str("...");
+        }
+        if let Some(label) = element.label {
+            text.push_str(self.module.strings().get(label));
+            if element.is_optional {
+                text.push('?');
+            }
+            text.push_str(": ");
+        }
+        text.push_str(&self.global(element.ty)?);
+
+        Some(text)
+    }
+
+    /// Format one structural shape type.
+    fn shape(&self, shape: dir::ShapeType) -> Option<String> {
+        let mut parts = Vec::new();
+
+        parts.extend(
+            self.module
+                .types()
+                .fields(shape.fields)
+                .iter()
+                .map(|field| self.field(field))
+                .collect::<Option<Vec<_>>>()?,
+        );
+        parts.extend(
+            self.module
+                .types()
+                .index_signatures(shape.index_signatures)
+                .iter()
+                .map(|signature| self.index_signature(signature))
+                .collect::<Option<Vec<_>>>()?,
+        );
+
+        Some(format!("{{ {} }}", parts.join("; ")))
+    }
+
+    /// Format one structural field.
+    fn field(&self, field: &dir::TypeField) -> Option<String> {
+        let readonly = if field.is_readonly { "readonly " } else { "" };
+        let optional = if field.is_optional { "?" } else { "" };
+        let key = self.static_key(field.key)?;
+        let ty = self.global(field.ty)?;
+
+        Some(format!("{readonly}{key}{optional}: {ty}"))
+    }
+
+    /// Format one index signature.
+    fn index_signature(&self, signature: &dir::TypeIndexSignature) -> Option<String> {
+        let readonly = if signature.is_readonly {
+            "readonly "
+        } else {
+            ""
+        };
+        let optional = if signature.is_optional { "?" } else { "" };
+        let name = self.module.strings().get(signature.name);
+        let key_type = self.global(signature.key_type)?;
+        let value_type = self.global(signature.value_type)?;
+
+        Some(format!(
+            "{readonly}[{name}: {key_type}]{optional}: {value_type}"
+        ))
+    }
+
+    /// Format one function signature type.
+    fn function(&self, function: &dir::FunctionSignatureType) -> Option<String> {
+        let parameters = self.module.types().parameters(function.parameters);
+        let parameters = parameters
+            .iter()
+            .map(|parameter| self.parameter(parameter))
+            .collect::<Option<Vec<_>>>()?
+            .join(", ");
+        let return_type = match function.return_type {
+            Some(ty) => self.global(ty)?,
+            None => "void".to_string(),
+        };
+        let prefix = match function.asynchrony {
+            dir::Asynchrony::Sync => "",
+            dir::Asynchrony::Async => "async ",
+        };
+
+        Some(format!("{prefix}({parameters}) => {return_type}"))
+    }
+
+    /// Format one function parameter.
+    fn parameter(&self, parameter: &dir::FunctionParameterType) -> Option<String> {
+        let rest = if parameter.is_rest { "..." } else { "" };
+        let optional = if parameter.is_optional { "?" } else { "" };
+        let ty = self.global(parameter.ty)?;
+
+        Some(format!("{rest}arg{optional}: {ty}"))
+    }
+
+    /// Format one type operation.
+    fn operation(&self, operation: &dir::TypeOperation) -> Option<String> {
+        match operation {
+            dir::TypeOperation::StringMapping { mapping, target } => {
+                Some(format!("{}<{}>", mapping.text(), self.global(*target)?))
+            }
+            dir::TypeOperation::Conditional(conditional) => {
+                self.conditional_operation(*conditional)
+            }
+            dir::TypeOperation::Narrow(narrow) => self.narrow_operation(*narrow),
+            dir::TypeOperation::Mapped(mapped) => self.mapped_operation(*mapped),
+            dir::TypeOperation::Index(index) => Some(format!(
+                "{}[{}]",
+                self.global(index.left)?,
+                self.global(index.index)?
+            )),
+            dir::TypeOperation::Infer(infer) => self.infer_operation(*infer),
+            dir::TypeOperation::TypeOf(query) => {
+                Some(format!("typeof {}", self.type_query_text(query.value)?))
+            }
+            dir::TypeOperation::KeyOf(target) => {
+                Some(format!("keyof {}", self.global(target.target)?))
+            }
+            dir::TypeOperation::NoInfer(target) => {
+                Some(format!("NoInfer<{}>", self.global(target.target)?))
+            }
+            dir::TypeOperation::Awaited(target) => {
+                Some(format!("Awaited<{}>", self.global(target.target)?))
+            }
+            dir::TypeOperation::TryOutput { value } => Some(format!("{}?", self.global(*value)?)),
+            dir::TypeOperation::TryResidual { value } => {
+                Some(format!("residual {}", self.global(*value)?))
+            }
+            dir::TypeOperation::StaticBinary(binary) => self.static_binary_operation(*binary),
+            dir::TypeOperation::StaticUnary(unary) => self.static_unary_operation(*unary),
+            dir::TypeOperation::TemplateLiteral(_) => None,
+        }
+    }
+
+    /// Format one static key.
+    fn static_key(&self, key: dir::StaticKey) -> Option<String> {
+        let text = match key {
+            dir::StaticKey::Name(name) => self.module.strings().get(name).to_string(),
+            dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol)) => {
+                format_unique_symbol_qualified_name(symbol, self.module)?
+            }
+            dir::StaticKey::Symbol(dir::SymbolKey::Registry(name)) => {
+                let name = quoted_string(name, self.module.strings());
+
+                format!("Symbol.for({name})")
+            }
+        };
+
+        Some(text)
+    }
+
+    /// Format one symbol path.
+    fn symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        format_symbol_path(symbol_id, self.module)
+    }
+
+    /// Format one list of type ids.
+    fn type_list(&self, list: dir::TypeListId, separator: &str) -> Option<String> {
+        self.join_types(self.module.types().type_ids(list), separator)
+    }
+
+    /// Format and join global type ids.
+    fn join_types(&self, types: &[dir::GlobalTypeId], separator: &str) -> Option<String> {
+        let types = types
+            .iter()
+            .map(|ty| self.global(*ty))
+            .collect::<Option<Vec<_>>>()?;
+
+        Some(types.join(separator))
+    }
+
+    /// Format one conditional type operation.
+    fn conditional_operation(&self, conditional: dir::ConditionalType) -> Option<String> {
+        let left = self.global(conditional.left)?;
+        let right = self.global(conditional.right)?;
+        let then_type = self.global(conditional.then_type)?;
+        let else_type = self.global(conditional.else_type)?;
+
+        Some(format!(
+            "{left} extends {right} ? {then_type} : {else_type}"
+        ))
+    }
+
+    /// Format one runtime guard narrowing type operation.
+    fn narrow_operation(&self, narrow: dir::NarrowType) -> Option<String> {
+        let source = self.global(narrow.source)?;
+        let target = self.global(narrow.target)?;
+        let operator = if narrow.is_positive { "is" } else { "is not" };
+
+        Some(format!("{source} {operator} {target}"))
+    }
+
+    /// Format one mapped type operation.
+    fn mapped_operation(&self, mapped: dir::MappedType) -> Option<String> {
+        let parameter = self.module.strings().get(mapped.parameter.name);
+        let constraint = self.global(mapped.parameter.constraint)?;
+        let value = self.global(mapped.value)?;
+        let remap = match mapped.parameter.key_remap {
+            Some(key_remap) => format!(" as {}", self.global(key_remap)?),
+            None => String::new(),
+        };
+        let readonly = mapped_modifier_text(mapped.modifiers.readonly, "readonly ");
+        let optional = mapped_modifier_text(mapped.modifiers.optional, "?");
+
+        Some(format!(
+            "{{ {readonly}[{parameter} in {constraint}{remap}]{optional}: {value} }}"
+        ))
+    }
+
+    /// Format one infer type operation.
+    fn infer_operation(&self, infer: dir::InferType) -> Option<String> {
+        let name = match (infer.name, infer.symbol) {
+            (Some(name), _) => self.module.strings().get(name).to_string(),
+            (None, Some(symbol)) => self.symbol(symbol)?,
+            (None, None) => return None,
+        };
+        let constraint = match infer.constraint {
+            Some(constraint) => format!(" extends {}", self.global(constraint)?),
+            None => String::new(),
+        };
+
+        Some(format!("infer {name}{constraint}"))
+    }
+
+    /// Format one static binary type operation.
+    fn static_binary_operation(&self, binary: dir::StaticBinaryType) -> Option<String> {
+        let left = self.global(binary.left)?;
+        let right = self.global(binary.right)?;
+        let operator = binary.operator.text();
+
+        Some(format!("{left} {operator} {right}"))
+    }
+
+    /// Format one static unary type operation.
+    fn static_unary_operation(&self, unary: dir::StaticUnaryType) -> Option<String> {
+        let target = self.global(unary.target)?;
+        let operator = unary.operator.text();
+
+        Some(format!("{operator}{target}"))
+    }
+
+    /// Return one type query operand text.
+    fn type_query_text(&self, value: dir::GlobalNodeIdAny) -> Option<String> {
+        if value.local_id.ty != dir::NodeType::Expression {
+            return None;
+        }
+        if value.module_id != self.module.module_id() {
+            return None;
+        }
+
+        let id = value.into_typed::<dir::Expression>().local_id;
+        let path = self.module.tree().reference_path(id)?;
+
+        Some(
+            path.segments
+                .iter()
+                .map(|segment| self.module.strings().get(*segment))
+                .collect::<Vec<_>>()
+                .join("."),
+        )
+    }
+}
+
+/// Format a global type id as a human-readable string.
+pub fn format_global_type(
+    ty_id: dir::GlobalTypeId,
+    module: &ModuleQueryContext<'_>,
+) -> Option<String> {
+    TypeFormatter::new(module).global(ty_id)
 }
 
 /// Format a type as a human-readable string.
-pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
-    let strings = ctx.dir().strings();
-
-    match ty {
-        dir::Type::Error => "<error>".to_string(),
-        dir::Type::Never => "never".to_string(),
-        dir::Type::Any => "any".to_string(),
-        dir::Type::Unknown => "unknown".to_string(),
-        dir::Type::Void => "void".to_string(),
-        dir::Type::Null => "null".to_string(),
-        dir::Type::Undefined => "undefined".to_string(),
-        dir::Type::Object => "object".to_string(),
-        dir::Type::Primitive(primitive) => format_primitive_type(primitive),
-        dir::Type::Literal(literal) => format_scalar_literal(literal, strings),
-        dir::Type::Key(key) => format_key_type(key, strings),
-        dir::Type::Intrinsic => "intrinsic".to_string(),
-        dir::Type::Operation(operation) => format_type_operation(operation, ctx),
-        dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
-        dir::Type::This => "this".to_string(),
-        dir::Type::Reference(reference) => format_type_reference(reference.symbol, &[], ctx),
-        dir::Type::Instance(instance) => {
-            let arguments = ctx.dir_types().type_ids(instance.arguments);
-            format_type_reference(instance.symbol, arguments, ctx)
-        }
-        dir::Type::Variable(variable) => format!("?{}", variable.0),
-        dir::Type::Memory(memory) => format_memory_literal(memory, ctx),
-        dir::Type::Static(static_id) => format_global_static(*static_id, ctx),
-        dir::Type::Member(member) => {
-            let owner = format_global_type(member.owner, ctx);
-            let key = format_static_key(&member.key, strings);
-            if member.arguments.is_empty() {
-                format!("{owner}.{key}")
-            } else {
-                let arguments = ctx
-                    .dir_types()
-                    .type_ids(member.arguments)
-                    .iter()
-                    .map(|argument| format_global_type(*argument, ctx))
-                    .collect::<Vec<_>>();
-
-                format!("{owner}.{key}<{}>", arguments.join(", "))
-            }
-        }
-        dir::Type::EnumMember(member) => {
-            format_symbol_path(member.member, ctx).unwrap_or_else(|| "<unknown>".to_string())
-        }
-        dir::Type::Form(form) => format_form_type(form, ctx),
-        dir::Type::Dynamic(dynamic) => {
-            let constraint = format_global_type(dynamic.constraint, ctx);
-            format!("Dynamic<{constraint}>")
-        }
-        dir::Type::FixedArray(array) => {
-            let element = format_global_type(array.element, ctx);
-            let count = format_global_type(array.count, ctx);
-
-            format!("[{element}; {count}]")
-        }
-        dir::Type::Array(array) => {
-            let element = format_global_type(array.element, ctx);
-            let needs_parens = ctx
-                .with_global_type(array.element, |ty, _| matches!(ty, dir::Type::Union(_)))
-                .unwrap_or(false);
-            if needs_parens {
-                format!("({element})[]")
-            } else {
-                format!("{element}[]")
-            }
-        }
-        dir::Type::Range(range) => format_range_type(range, strings),
-        dir::Type::Slice(slice) => {
-            let element = slice.element;
-            let element = format_global_type(element, ctx);
-            let needs_parens = ctx
-                .with_global_type(slice.element, |ty, _| matches!(ty, dir::Type::Union(_)))
-                .unwrap_or(false);
-            if needs_parens {
-                format!("({element})[]")
-            } else {
-                format!("{element}[]")
-            }
-        }
-        dir::Type::Tuple(tuple) => {
-            let elements: Vec<_> = ctx
-                .dir_types()
-                .elements(tuple.elements)
-                .iter()
-                .map(|element| format_type_tuple_element(element, ctx))
-                .collect();
-            format!("({})", elements.join(", "))
-        }
-        dir::Type::Shape(object) => {
-            let mut items: Vec<String> = Vec::new();
-
-            for field in ctx.dir_types().fields(object.fields) {
-                let key = format_static_key(&field.key, strings);
-                let ty = format_global_type(field.ty, ctx);
-                let opt = if field.is_optional { "?" } else { "" };
-                let readonly = if field.is_readonly { "readonly " } else { "" };
-                items.push(format!("{readonly}{key}{opt}: {ty}"));
-            }
-
-            for signature in ctx.dir_types().type_ids(object.call_signatures) {
-                let signature = format_global_type(*signature, ctx);
-                items.push(signature);
-            }
-
-            for signature in ctx.dir_types().type_ids(object.construct_signatures) {
-                let signature = format_global_type(*signature, ctx);
-                items.push(format!("new {signature}"));
-            }
-
-            for signature in ctx.dir_types().index_signatures(object.index_signatures) {
-                let name = strings.get(signature.name).to_string();
-                let key_type = format_global_type(signature.key_type, ctx);
-                let value_type = format_global_type(signature.value_type, ctx);
-                let readonly = if signature.is_readonly {
-                    "readonly "
-                } else {
-                    ""
-                };
-                items.push(format!("{readonly}[{name}: {key_type}]: {value_type}"));
-            }
-
-            if items.is_empty() {
-                "{}".to_string()
-            } else {
-                format!("{{ {} }}", items.join(", "))
-            }
-        }
-        dir::Type::FunctionSignature(function) => format_function_signature_type(function, ctx),
-        dir::Type::Function(function) => format_callable_type("Function", function.signature, ctx),
-        dir::Type::FunctionPointer(function) => {
-            format_callable_type("FunctionPointer", function.signature, ctx)
-        }
-        dir::Type::Union(union) => {
-            let mut seen = HashSet::new();
-            let mut formatted = Vec::new();
-            for element_id in ctx.dir_types().type_ids(union.elements) {
-                if !seen.insert(*element_id) {
-                    continue;
-                }
-                formatted.push(format_global_type(*element_id, ctx));
-            }
-            formatted.join(" | ")
-        }
-        dir::Type::Intersection(intersection) => {
-            let mut seen = HashSet::new();
-            let mut formatted = Vec::new();
-            for element_id in ctx.dir_types().type_ids(intersection.elements) {
-                if !seen.insert(*element_id) {
-                    continue;
-                }
-                formatted.push(format_global_type(*element_id, ctx));
-            }
-            formatted.join(" & ")
-        }
-    }
+pub fn format_type(ty: &dir::Type, module: &ModuleQueryContext<'_>) -> Option<String> {
+    TypeFormatter::new(module).ty(ty)
 }
 
-/// Format one exact property key type.
-fn format_key_type(key: &dir::StaticKey, strings: &StringPool) -> String {
-    match key {
-        dir::StaticKey::Name(name) => format!("\"{}\"", strings.get(*name)),
-        dir::StaticKey::Index(index) => index.to_string(),
-        dir::StaticKey::Symbol(symbol) => format_symbol_key(symbol, strings),
-    }
-}
-
-/// Format one source-facing function signature type.
-fn format_function_signature_type(
-    function: &dir::FunctionSignatureType,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let async_str = if function.asynchrony == dir::Asynchrony::Async {
-        "async "
-    } else {
-        ""
-    };
-    let static_params_str = format_function_static_parameters(function, ctx);
-    let parameters = format_function_signature_parameters(function, ctx).join(", ");
-    let return_type = match format_function_return_type(function, ctx) {
-        Some(return_type) => format!(": {return_type}"),
-        None => String::new(),
-    };
-
-    format!("{async_str}{static_params_str}({parameters}){return_type}")
-}
-
-/// Format one callable representation type.
-fn format_callable_type(
-    name: &'static str,
-    signature: dir::GlobalTypeId,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let Some(arguments) = format_callable_arguments(signature, ctx) else {
-        let signature = format_global_type(signature, ctx);
-
-        return format!("{name}<{signature}>");
-    };
-
-    format!("{name}<{arguments}>")
-}
-
-/// Format one callable representation type's generic arguments.
-fn format_callable_arguments(
-    signature: dir::GlobalTypeId,
-    ctx: &ModuleQueryContext<'_>,
-) -> Option<String> {
-    ctx.with_global_type(signature, |ty, ctx| {
-        let dir::Type::FunctionSignature(function) = ty else {
-            return None;
-        };
-
-        let parameters = format_callable_parameter_tuple(function, ctx);
-        let return_type =
-            format_function_return_type(function, ctx).unwrap_or_else(|| "void".to_string());
-
-        Some(format!("{parameters}, {return_type}"))
-    })?
-}
-
-/// Format one function signature's static parameter list.
-fn format_function_static_parameters(
-    function: &dir::FunctionSignatureType,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let Some(template) = function.template else {
-        return String::new();
-    };
-    if template.module_id != ctx.dir().module_id() {
-        return String::new();
-    }
-    let template = ctx.dir().generics().get_template(template.local_id);
-    if template.parameters.is_empty() {
-        return String::new();
-    }
-
-    let parameters = template
-        .parameters
-        .iter()
-        .map(|parameter| parameter.into_global(ctx.dir().module_id()))
-        .map(|parameter| format_parameter_type(&parameter, ctx))
-        .collect::<Vec<_>>();
-
-    format!("<{}>", parameters.join(", "))
-}
-
-/// Format one function signature's full source parameter list.
-fn format_function_signature_parameters(
-    function: &dir::FunctionSignatureType,
-    ctx: &ModuleQueryContext<'_>,
-) -> Vec<String> {
-    let mut parameters = Vec::new();
-    if let Some(this_parameter) = function.this_parameter {
-        let this_type = format_global_type(this_parameter, ctx);
-        parameters.push(format!("this: {this_type}"));
-    }
-
-    parameters.extend(
-        ctx.dir_types()
-            .parameters(function.parameters)
-            .iter()
-            .map(|parameter| format_function_parameter(parameter, ctx)),
-    );
-
-    parameters
-}
-
-/// Format one callable representation type's parameter tuple argument.
-fn format_callable_parameter_tuple(
-    function: &dir::FunctionSignatureType,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let mut parameters = ctx
-        .dir_types()
-        .parameters(function.parameters)
-        .iter()
-        .map(|parameter| format_function_parameter(parameter, ctx))
-        .collect::<Vec<_>>()
-        .join(", ");
-    if function.parameters.len() == 1 {
-        parameters.push(',');
-    }
-
-    format!("({parameters})")
-}
-
-/// Format one function signature's return type.
-fn format_function_return_type(
-    function: &dir::FunctionSignatureType,
-    ctx: &ModuleQueryContext<'_>,
-) -> Option<String> {
-    function
-        .return_type
-        .map(|return_type| format_global_type(return_type, ctx))
-}
-
-/// Format a type-level operation.
-pub fn format_type_operation(
-    operation: &dir::TypeOperation,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let strings = ctx.dir().strings();
-
-    match operation {
-        dir::TypeOperation::StringMapping { mapping, target } => {
-            let target = format_global_type(*target, ctx);
-            let mapping = format_string_mapping(mapping);
-
-            format!("{mapping}<{target}>")
-        }
-        dir::TypeOperation::Conditional(conditional) => {
-            let left = format_global_type(conditional.left, ctx);
-            let right = format_global_type(conditional.right, ctx);
-            let then_type = format_global_type(conditional.then_type, ctx);
-            let else_type = format_global_type(conditional.else_type, ctx);
-            format!("{left} extends {right} ? {then_type} : {else_type}")
-        }
-        dir::TypeOperation::Narrow(narrow) => {
-            let source = format_global_type(narrow.source, ctx);
-            let target = format_global_type(narrow.target, ctx);
-            if narrow.is_positive {
-                format!("Narrow<{source}, {target}>")
-            } else {
-                format!("Narrow<{source}, !{target}>")
-            }
-        }
-        dir::TypeOperation::Mapped(mapped) => {
-            let name = strings.get(mapped.parameter.name).to_string();
-            let constraint = format_global_type(mapped.parameter.constraint, ctx);
-            let key_remap = mapped
-                .parameter
-                .key_remap
-                .map(|key_remap| format!(" as {}", format_global_type(key_remap, ctx)))
-                .unwrap_or_default();
-            let readonly = format_type_mapped_modifier_prefix(mapped.modifiers.readonly);
-            let optional = format_type_mapped_modifier_suffix(mapped.modifiers.optional);
-            let value = format_global_type(mapped.value, ctx);
-            format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
-        }
-        dir::TypeOperation::Index(index_type) => {
-            let left = format_global_type(index_type.left, ctx);
-            let index = format_global_type(index_type.index, ctx);
-            format!("{left}[{index}]")
-        }
-        dir::TypeOperation::TypeOf(query) => {
-            let value = format_type_query(query.value, ctx);
-            format!("typeof {value}")
-        }
-        dir::TypeOperation::TemplateLiteral(template) => {
-            let mut result = String::from("`");
-            let template_strings = ctx.dir_types().strings(template.strings);
-            let template_spans = ctx.dir_types().type_ids(template.spans);
-            for (index, string_id) in template_strings.iter().enumerate() {
-                result.push_str(strings.get(*string_id));
-                if let Some(span_id) = template_spans.get(index) {
-                    let span = format_global_type(*span_id, ctx);
-                    result.push_str("${");
-                    result.push_str(&span);
-                    result.push('}');
-                }
-            }
-            result.push('`');
-
-            result
-        }
-        dir::TypeOperation::Infer(infer) => {
-            let name = infer.name.map(|name| strings.get(name)).unwrap_or("_");
-            let constraint = infer
-                .constraint
-                .map(|constraint| format!(" extends {}", format_global_type(constraint, ctx)));
-            format!("infer {name}{}", constraint.unwrap_or_default())
-        }
-        dir::TypeOperation::KeyOf(unary) => {
-            let target_type = format_global_type(unary.target, ctx);
-            format!("keyof {target_type}")
-        }
-        dir::TypeOperation::NoInfer(unary) => {
-            let target_type = format_global_type(unary.target, ctx);
-            format!("NoInfer<{target_type}>")
-        }
-        dir::TypeOperation::Awaited(unary) => {
-            let target_type = format_global_type(unary.target, ctx);
-            format!("Awaited<{target_type}>")
-        }
-        dir::TypeOperation::TryOutput { value } => {
-            let value = format_global_type(*value, ctx);
-            format!("TryOutput<{value}>")
-        }
-        dir::TypeOperation::TryResidual { value } => {
-            let value = format_global_type(*value, ctx);
-            format!("TryResidual<{value}>")
-        }
-        dir::TypeOperation::StaticBinary(binary) => {
-            let left = format_global_type(binary.left, ctx);
-            let right = format_global_type(binary.right, ctx);
-            let operator = match binary.operator {
-                dir::StaticBinaryOperator::Add => "+",
-                dir::StaticBinaryOperator::Subtract => "-",
-                dir::StaticBinaryOperator::Multiply => "*",
-                dir::StaticBinaryOperator::Divide => "/",
-                dir::StaticBinaryOperator::Remainder => "%",
-                dir::StaticBinaryOperator::Exponent => "**",
-                dir::StaticBinaryOperator::ShiftLeft => "<<",
-                dir::StaticBinaryOperator::ShiftRight => ">>",
-                dir::StaticBinaryOperator::UnsignedShiftRight => ">>>",
-                dir::StaticBinaryOperator::BitwiseAnd => "&",
-                dir::StaticBinaryOperator::BitwiseXor => "^",
-                dir::StaticBinaryOperator::BitwiseOr => "|",
-                dir::StaticBinaryOperator::Equal => "==",
-                dir::StaticBinaryOperator::EqualStrict => "===",
-                dir::StaticBinaryOperator::NotEqual => "!=",
-                dir::StaticBinaryOperator::NotEqualStrict => "!==",
-                dir::StaticBinaryOperator::LessThan => "<",
-                dir::StaticBinaryOperator::LessThanOrEqual => "<=",
-                dir::StaticBinaryOperator::GreaterThan => ">",
-                dir::StaticBinaryOperator::GreaterThanOrEqual => ">=",
-                dir::StaticBinaryOperator::And => "&&",
-                dir::StaticBinaryOperator::Or => "||",
-            };
-            format!("{left} {operator} {right}")
-        }
-        dir::TypeOperation::StaticUnary(unary) => {
-            let target = format_global_type(unary.target, ctx);
-            let operator = match unary.operator {
-                dir::StaticUnaryOperator::Not => "!",
-                dir::StaticUnaryOperator::Negate => "-",
-                dir::StaticUnaryOperator::BitwiseNot => "~",
-            };
-            format!("{operator}{target}")
-        }
-    }
-}
-
-/// Format one type query operand.
-fn format_type_query(value: dir::GlobalNodeIdAny, ctx: &ModuleQueryContext<'_>) -> String {
-    if value.local_id.ty != dir::NodeType::Expression {
-        return format!("{value:?}");
-    }
-    if value.module_id != ctx.dir().module_id() {
-        return format!("{value:?}");
-    }
-
-    let id = value.into_typed::<dir::Expression>().local_id;
-    let strings = ctx.dir().strings();
-    let Some(path) = ctx.dir().tree().reference_path(id) else {
-        return format!("{value:?}");
-    };
-
-    path.segments
-        .iter()
-        .map(|segment| strings.get(*segment))
-        .collect::<Vec<_>>()
-        .join(".")
-}
-
-/// Format a PrimitiveType.
-pub fn format_primitive_type(prim: &dir::PrimitiveType) -> String {
-    match prim {
-        dir::PrimitiveType::Boolean => "boolean".to_string(),
-        dir::PrimitiveType::Character => "char".to_string(),
-        dir::PrimitiveType::String => "string".to_string(),
-        dir::PrimitiveType::Bigint => "bigint".to_string(),
-        dir::PrimitiveType::Integer(int_type) => int_type.as_str(),
-        dir::PrimitiveType::Float(float_type) => float_type.as_str().to_string(),
-        dir::PrimitiveType::Symbol => "symbol".to_string(),
-        dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
-    }
-}
-
-/// Format a compact scalar interval type.
-pub fn format_range_type(range: &dir::RangeType, strings: &StringPool) -> String {
-    let start = range
-        .start
-        .as_ref()
-        .map(|start| format_scalar_literal(start, strings))
-        .unwrap_or_default();
-    let end = range
-        .end
-        .as_ref()
-        .map(|end| format_scalar_literal(end, strings))
-        .unwrap_or_default();
-    let separator = if range.is_inclusive { "..=" } else { ".." };
-
-    format!("{start}{separator}{end}")
-}
-
-/// Format a canonical memory or access form.
-pub fn format_form_type(form: &dir::FormType, ctx: &ModuleQueryContext<'_>) -> String {
-    let value = format_global_type(form.value, ctx);
-
-    match &form.form {
-        dir::Form::Managed => format!("Managed<{value}>"),
-        dir::Form::Owned => format!("Owned<{value}>"),
-        dir::Form::Raw => format!("Raw<{value}>"),
-        dir::Form::Readonly => format!("Readonly<{value}>"),
-        dir::Form::Placed { place } => {
-            let place = format_global_type(*place, ctx);
-            format!("Placed<{value}, {place}>")
-        }
-        dir::Form::Borrowed { lifetime, access } => {
-            let lifetime = format_global_type(*lifetime, ctx);
-            let access = format_global_type(*access, ctx);
-            format!("Borrowed<{value}, {lifetime}, {access}>")
-        }
-    }
-}
-
-/// Format a scalar literal.
-pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) -> String {
-    match scalar {
-        dir::ScalarLiteral::Null => "null".to_string(),
-        dir::ScalarLiteral::Undefined => "undefined".to_string(),
-        dir::ScalarLiteral::Boolean(b) => b.to_string(),
-        dir::ScalarLiteral::Integer(i) => i.to_string(),
-        dir::ScalarLiteral::Bigint(i) => format!("{i}n"),
-        dir::ScalarLiteral::Float(f) => {
-            // ensure float has decimal point for clarity
-            let s = f.to_string();
-            if s.contains('.') || s.contains('e') || s.contains('E') {
-                s
-            } else {
-                format!("{s}.0")
-            }
-        }
-        dir::ScalarLiteral::Character(c) => format!("'{c}'"),
-        dir::ScalarLiteral::String(string_id) => {
-            let s = strings.get(*string_id);
-            format!("\"{s}\"")
-        }
-        dir::ScalarLiteral::RegexString { content, flags } => {
-            let content_str = strings.get(*content).to_string();
-            if let Some(flags_id) = flags {
-                let flags_str = strings.get(*flags_id).to_string();
-                format!("/{content_str}/{flags_str}")
-            } else {
-                format!("/{content_str}/")
-            }
-        }
-    }
-}
-
-/// Format a type for inlay hints.
-pub fn format_inlay_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
-    // widen scalar literal types to their default primitive display types
-    if let dir::Type::Literal(value) = ty {
-        let widened = widened_scalar_literal_name(value);
-        return widened.to_string();
-    }
-
-    // otherwise, format the type as usual
-    format_type(ty, ctx)
-}
-
-/// Map a scalar literal type to its default primitive display name.
-pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
-    match value {
-        dir::ScalarLiteral::Null => "null",
-        dir::ScalarLiteral::Undefined => "undefined",
-        dir::ScalarLiteral::Boolean(_) => DEFAULT_BOOLEAN_DISPLAY,
-        dir::ScalarLiteral::String(_) | dir::ScalarLiteral::RegexString { .. } => {
-            DEFAULT_STRING_DISPLAY
-        }
-        dir::ScalarLiteral::Integer(_) => DEFAULT_INT_DISPLAY,
-        dir::ScalarLiteral::Float(_) => DEFAULT_FLOAT_DISPLAY,
-        dir::ScalarLiteral::Bigint(_) => DEFAULT_BIGINT_DISPLAY,
-        dir::ScalarLiteral::Character(_) => DEFAULT_CHARACTER_DISPLAY,
-    }
-}
-
-/// Format a type reference (symbol with optional generic arguments).
-pub fn format_type_reference(
-    symbol: dir::GlobalSymbolId,
-    generic_arguments: &[dir::GlobalTypeId],
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let name = format_symbol_name(symbol, ctx);
-    if generic_arguments.is_empty() {
-        name
-    } else {
-        let argument_strs: Vec<_> = generic_arguments
-            .iter()
-            .map(|argument| format_global_type(*argument, ctx))
-            .collect();
-        format!("{name}<{}>", argument_strs.join(", "))
-    }
-}
-
-/// Format one generic parameter reference.
-pub fn format_parameter_type(
-    parameter: &dir::GlobalGenericParameterId,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let Some(ctx) = ctx.module_context(parameter.module_id) else {
-        return "<unknown>".to_string();
-    };
-    let dir = ctx.dir();
-    let generic = dir.generics().get_parameter(parameter.local_id);
-
-    match generic.key {
-        dir::GenericParameterKey::Symbol(symbol) => format_symbol_name(symbol, &ctx),
-        dir::GenericParameterKey::Generated(name) => ctx.dir().strings().get(name).to_string(),
-    }
-}
-
-/// Get the name of a symbol from any module.
-pub fn format_symbol_name(symbol_id: dir::GlobalSymbolId, ctx: &ModuleQueryContext<'_>) -> String {
-    let Some(ctx) = ctx.module_context(symbol_id.module_id) else {
-        return "<unknown>".to_string();
-    };
-    let dir = ctx.dir();
-    let symbols = dir.symbols();
-    let symbol = symbols.get_symbol(symbol_id.into_local());
-    if let Some(name_id) = symbol.name() {
-        dir.strings().get(name_id).to_string()
-    } else {
-        "<anonymous>".to_string()
-    }
-}
-
-/// Get the symbol path for a symbol within its module.
+/// Format the symbol path for a symbol within its module.
 pub fn format_symbol_path(
     symbol_id: dir::GlobalSymbolId,
-    ctx: &ModuleQueryContext<'_>,
+    root_module: &ModuleQueryContext<'_>,
 ) -> Option<String> {
-    // load the module symbols
-    let ctx = ctx.module_context(symbol_id.module_id)?;
-    let dir = ctx.dir();
-    let symbols = dir.symbols();
-
-    // seed with the symbol name
+    let module = root_module.module_context(symbol_id.module_id);
+    let symbols = module.symbols();
     let symbol = symbols.get_symbol(symbol_id.into_local());
-    let symbol_name = static_key_segment(symbol.key, dir.strings())?;
+    let symbol_name = static_key_segment(symbol.key, module.strings())?;
     let mut segments = vec![symbol_name];
 
-    // walk owner scopes for namespaces and types
     let mut scope_id = symbol.scope.id;
     let mut seen_scopes = HashSet::new();
     loop {
-        // avoid cycles in scope ownership
         if !seen_scopes.insert(scope_id) {
-            break;
+            panic!("cyclic symbol scope chain at {scope_id:?}");
         }
 
-        // collect named owners into the path
         let scope = symbols.get_scope_by_id(scope_id);
-        if let Some(owner_id) = scope.owner
-            && owner_id != symbol_id.into_local()
-        {
-            let owner = symbols.get_symbol(owner_id);
-            let owner_name = static_key_segment(owner.key, dir.strings())?;
-            segments.push(owner_name);
+        if let Some(owner_id) = scope.owner {
+            if owner_id != symbol_id.into_local() {
+                let owner = symbols.get_symbol(owner_id);
+                let owner_name = static_key_segment(owner.key, module.strings())?;
+                segments.push(owner_name);
+            }
         }
 
-        // climb to the parent scope
         let Some(parent) = scope.parent else {
             break;
         };
         scope_id = parent.id;
     }
 
-    // reverse for root to leaf order
     segments.reverse();
+
     Some(segments.join("."))
 }
 
-/// Get the qualified name of a symbol with module prefix.
+/// Format the qualified name of a symbol with module prefix.
 pub fn format_symbol_qualified_name(
     symbol_id: dir::GlobalSymbolId,
-    ctx: &ModuleQueryContext<'_>,
+    root_module: &ModuleQueryContext<'_>,
 ) -> Option<String> {
-    // resolve the owning module and package
-    let module = ctx
+    let source_module = root_module
         .repository()
-        .module(ctx.revision(), symbol_id.module_id)
-        .ok()
-        .flatten()?;
-    let package = ctx
+        .module(root_module.revision(), symbol_id.module_id)
+        .unwrap_or_else(|error| {
+            panic!(
+                "failed to read qualified symbol module {:?}: {error}",
+                symbol_id.module_id
+            )
+        })
+        .unwrap_or_else(|| panic!("missing qualified symbol module {:?}", symbol_id.module_id));
+    let package = root_module
         .repository()
-        .package(ctx.revision(), module.package_id)
-        .ok()
-        .flatten()?;
+        .package(root_module.revision(), source_module.package_id)
+        .unwrap_or_else(|error| {
+            panic!(
+                "failed to read qualified symbol package {:?}: {error}",
+                source_module.package_id
+            )
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "missing qualified symbol package {:?}",
+                source_module.package_id
+            )
+        });
 
-    // resolve package and module path
     let package_name = package.name.as_ref()?;
     if package_name.is_empty() {
         return None;
     }
-    let module_path = module_path_without_extension(module.as_ref(), package.as_ref())?;
-
-    // resolve symbol path
-    let symbol_path = format_symbol_path(symbol_id, ctx)?;
+    let module_path = module_path_without_extension(source_module.as_ref(), package.as_ref());
+    let symbol_path = format_symbol_path(symbol_id, root_module)?;
     let module_prefix = if module_path.is_empty() {
         package_name.to_string()
     } else {
@@ -727,18 +593,18 @@ pub fn format_symbol_qualified_name(
     Some(format!("{module_prefix}:{symbol_path}"))
 }
 
-/// Get the qualified name of a unique symbol.
+/// Format the qualified name of a unique symbol.
 pub fn format_unique_symbol_qualified_name(
     symbol_id: dir::GlobalSymbolId,
-    ctx: &ModuleQueryContext<'_>,
+    module: &ModuleQueryContext<'_>,
 ) -> Option<String> {
-    let name = format_symbol_qualified_name(symbol_id, ctx)?;
+    let name = format_symbol_qualified_name(symbol_id, module)?;
+
     Some(format!("{name}#unique"))
 }
 
 /// Resolve the package relative module path without extension.
-fn module_path_without_extension(module: &Module, package: &Package) -> Option<String> {
-    // prefer package relative paths when available
+fn module_path_without_extension(module: &Module, package: &Package) -> String {
     let module_path = if let Some(path) = &module.path {
         let relative = package
             .path
@@ -750,14 +616,14 @@ fn module_path_without_extension(module: &Module, package: &Package) -> Option<S
         module.uri.to_string()
     };
 
-    // normalize separators and drop extension
     let module_path = normalize_path_separators(&module_path);
-    Some(strip_extension_from_path(&module_path))
+    strip_extension_from_path(&module_path)
 }
 
 /// Normalize a module path to use forward slashes.
 fn normalize_path_separators(path: &str) -> String {
     let normalized = path.replace('\\', "/");
+
     normalized.trim_start_matches('/').to_string()
 }
 
@@ -772,199 +638,28 @@ fn strip_extension_from_path(path: &str) -> String {
     }
 }
 
+/// Quote one pooled string as source text.
+fn quoted_string(string_id: StringId, strings: &StringPool) -> String {
+    let escaped = strings.get(string_id).escape_default().to_string();
+
+    format!("\"{escaped}\"")
+}
+
+/// Return the textual prefix for one mapped type modifier.
+fn mapped_modifier_text(modifier: dir::MappedTypeModifier, token: &str) -> String {
+    if modifier.is_present() {
+        format!("{}{token}", modifier.sign())
+    } else {
+        String::new()
+    }
+}
+
 /// Convert a static key into a symbol path segment.
 fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Option<String> {
     let key = key?;
     match key {
-        dir::StaticKey::Name(name_id) => Some(strings.get(name_id).to_string()),
+        dir::StaticKey::Name(name) => Some(strings.get(name).to_string()),
         dir::StaticKey::Index(index) => Some(index.to_string()),
         dir::StaticKey::Symbol(_) => None,
     }
-}
-
-/// Format a static key.
-pub fn format_static_key(key: &dir::StaticKey, strings: &StringPool) -> String {
-    match key {
-        dir::StaticKey::Name(name_id) => strings.get(*name_id).to_string(),
-        dir::StaticKey::Index(index) => index.to_string(),
-        dir::StaticKey::Symbol(symbol) => format_symbol_key(symbol, strings),
-    }
-}
-
-/// Format a SymbolKey.
-pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
-    match key {
-        dir::SymbolKey::Unique(_) => "<unique symbol>".to_string(),
-        dir::SymbolKey::Registry(name_id) => {
-            let name = strings.get(*name_id);
-            format!("[Symbol.for(\"{name}\")]")
-        }
-    }
-}
-
-/// Format a global static value by its id.
-pub fn format_global_static(
-    static_id: dir::GlobalStaticId,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    ctx.with_global_static(static_id, format_static_term)
-        .unwrap_or_else(|| "<missing>".to_string())
-}
-
-/// Format a StaticTerm.
-pub fn format_static_term(term: &dir::StaticTerm, ctx: &ModuleQueryContext<'_>) -> String {
-    let strings = ctx.dir().strings();
-
-    match term {
-        dir::StaticTerm::ScalarLiteral { value } => format_scalar_literal(value, strings),
-        dir::StaticTerm::Type { ty } => format_global_type(*ty, ctx),
-        dir::StaticTerm::Array { elements } => {
-            let elements: Vec<_> = elements
-                .iter()
-                .map(|e| format_static_term(e, ctx))
-                .collect();
-            format!("[{}]", elements.join(", "))
-        }
-        dir::StaticTerm::FixedArray { value, length } => {
-            let value = format_static_term(value, ctx);
-            format!("[{value}; {length}]")
-        }
-        dir::StaticTerm::Tuple { elements } => {
-            let elements: Vec<_> = elements
-                .iter()
-                .map(|e| format_static_term(e, ctx))
-                .collect();
-            format!("({})", elements.join(", "))
-        }
-        dir::StaticTerm::Object { properties } => {
-            let properties = format_static_properties(properties, ctx);
-            format!("{{{properties}}}")
-        }
-        dir::StaticTerm::Struct { ty, properties } => {
-            let ty = format_global_type(*ty, ctx);
-            let properties = format_static_properties(properties, ctx);
-            format!("{ty} {{{properties}}}")
-        }
-    }
-}
-
-/// Format a memory singleton type.
-fn format_memory_literal(memory: &dir::MemoryLiteral, ctx: &ModuleQueryContext<'_>) -> String {
-    match memory {
-        dir::MemoryLiteral::Access(access) => format!("{access:?}").to_lowercase(),
-        dir::MemoryLiteral::Space(space) => format!("{space:?}").to_lowercase(),
-        dir::MemoryLiteral::Place(dir::Place::Ambient) => "ambient".to_string(),
-        dir::MemoryLiteral::Place(dir::Place::Space(space)) => format!("{space:?}").to_lowercase(),
-        dir::MemoryLiteral::Lifetime(lifetime) => format_lifetime(lifetime, ctx),
-    }
-}
-
-/// Format a normalized lifetime value.
-fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> String {
-    match lifetime {
-        dir::Lifetime::Static => "static".to_string(),
-        dir::Lifetime::Symbol(symbol) => format_symbol_name(*symbol, ctx),
-        dir::Lifetime::Frame => "frame".to_string(),
-    }
-}
-
-/// Format static object properties.
-fn format_static_properties(
-    properties: &[dir::StaticProperty],
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    properties
-        .iter()
-        .map(|property| format_static_property(property, ctx))
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-/// Format one static object property.
-fn format_static_property(property: &dir::StaticProperty, ctx: &ModuleQueryContext<'_>) -> String {
-    let strings = ctx.dir().strings();
-
-    match property {
-        dir::StaticProperty::Field { key, value } => {
-            let key = format_static_key(key, strings);
-            let value = format_static_term(value, ctx);
-            format!("{key}: {value}")
-        }
-        dir::StaticProperty::Method { key, .. } => {
-            let key = key
-                .map(|key| format_static_key(&key, strings))
-                .unwrap_or_else(|| "<call>".to_string());
-            format!("{key}()")
-        }
-        dir::StaticProperty::Spread { value } => {
-            let value = format_static_term(value, ctx);
-            format!("...{value}")
-        }
-    }
-}
-
-fn format_string_mapping(function: &dir::StringMapping) -> String {
-    match function {
-        dir::StringMapping::Uppercase => "Uppercase".to_string(),
-        dir::StringMapping::Lowercase => "Lowercase".to_string(),
-        dir::StringMapping::Capitalize => "Capitalize".to_string(),
-        dir::StringMapping::Uncapitalize => "Uncapitalize".to_string(),
-    }
-}
-
-fn format_type_mapped_modifier_prefix(modifier: dir::MappedTypeModifier) -> &'static str {
-    match modifier {
-        dir::MappedTypeModifier::Present => "readonly ",
-        dir::MappedTypeModifier::Add => "+readonly ",
-        dir::MappedTypeModifier::Remove => "-readonly ",
-        dir::MappedTypeModifier::None => "",
-    }
-}
-
-fn format_type_mapped_modifier_suffix(modifier: dir::MappedTypeModifier) -> &'static str {
-    match modifier {
-        dir::MappedTypeModifier::Present => "?",
-        dir::MappedTypeModifier::Add => "+?",
-        dir::MappedTypeModifier::Remove => "-?",
-        dir::MappedTypeModifier::None => "",
-    }
-}
-
-fn format_type_tuple_element(element: &dir::TypeElement, ctx: &ModuleQueryContext<'_>) -> String {
-    let strings = ctx.dir().strings();
-
-    let mut result = String::new();
-    if element.is_readonly {
-        result.push_str("readonly ");
-    }
-    if element.is_rest {
-        result.push_str("...");
-    }
-    if let Some(label) = element.label {
-        let name = strings.get(label);
-        let ty = format_global_type(element.ty, ctx);
-        result.push_str(&format!("{name}: {ty}"));
-    } else {
-        result.push_str(&format_global_type(element.ty, ctx));
-    }
-    if element.is_optional {
-        result.push('?');
-    }
-    result
-}
-
-fn format_function_parameter(
-    parameter: &dir::FunctionParameterType,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let mut result = String::new();
-    if parameter.is_rest {
-        result.push_str("...");
-    }
-    result.push_str(&format_global_type(parameter.ty, ctx));
-    if parameter.is_optional {
-        result.push('?');
-    }
-
-    result
 }

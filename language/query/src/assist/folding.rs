@@ -1,9 +1,9 @@
-use crate::core::QueryModule;
 use destack_dir as dir;
 use destack_serde::Reflect;
+use destack_source::File;
 use serde::{Deserialize, Serialize};
 
-use crate::core::ModuleQueryContext;
+use crate::{Module, ModuleQueryContext};
 
 /// Kind of folding range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -12,16 +12,16 @@ pub enum FoldingRangeKind {
     Comment,
     /// An import section.
     Imports,
-    /// A region (explicit fold marker).
+    /// A region.
     Region,
 }
 
 /// A foldable range in source code.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRange {
-    /// Start line (0-indexed).
+    /// Start line.
     pub start_line: u32,
-    /// End line (0-indexed).
+    /// End line.
     pub end_line: u32,
     /// Optional start character.
     pub start_character: Option<u32>,
@@ -46,16 +46,87 @@ impl FoldingRange {
         }
     }
 
-    /// Set the kind.
-    pub fn with_kind(mut self, kind: FoldingRangeKind) -> Self {
-        self.kind = Some(kind);
-        self
+    /// Create a comment folding range.
+    pub fn comment(start_line: u32, end_line: u32) -> Self {
+        let mut range = Self::new(start_line, end_line);
+        range.kind = Some(FoldingRangeKind::Comment);
+
+        range
+    }
+}
+
+/// One contiguous line-comment block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LineCommentBlock {
+    /// The first line in the block.
+    start_line: u32,
+    /// The last line in the block.
+    end_line: u32,
+}
+
+impl LineCommentBlock {
+    /// Create a one-line comment block.
+    fn new(line: u32) -> Self {
+        Self {
+            start_line: line,
+            end_line: line,
+        }
     }
 
-    /// Set the collapsed text.
-    pub fn with_collapsed_text(mut self, text: impl Into<String>) -> Self {
-        self.collapsed_text = Some(text.into());
-        self
+    /// Return whether this block contains multiple lines.
+    fn is_foldable(&self) -> bool {
+        self.end_line > self.start_line
+    }
+
+    /// Extend this block if the line is contiguous.
+    fn extend(&mut self, line: u32) -> bool {
+        let is_next_line = line == self.end_line.saturating_add(1);
+        if is_next_line {
+            self.end_line = line;
+        }
+
+        is_next_line
+    }
+
+    /// Return this block as a folding range.
+    fn folding_range(&self) -> Option<FoldingRange> {
+        if !self.is_foldable() {
+            return None;
+        }
+
+        Some(FoldingRange::comment(self.start_line, self.end_line))
+    }
+}
+
+/// Pending line-comment folding state.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct LineCommentBlocks {
+    /// The current line-comment block.
+    current: Option<LineCommentBlock>,
+}
+
+impl LineCommentBlocks {
+    /// Insert one line comment.
+    fn insert(&mut self, line: u32, ranges: &mut Vec<FoldingRange>) {
+        if let Some(block) = &mut self.current {
+            if block.extend(line) {
+                return;
+            }
+        }
+
+        self.flush(ranges);
+        self.current = Some(LineCommentBlock::new(line));
+    }
+
+    /// Flush the current block into the folding ranges.
+    fn flush(&mut self, ranges: &mut Vec<FoldingRange>) {
+        let Some(block) = self.current.take() else {
+            return;
+        };
+
+        if let Some(range) = block.folding_range() {
+            ranges.push(range);
+        }
     }
 }
 
@@ -63,7 +134,7 @@ impl FoldingRange {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FoldingRangesRequest {
     /// The queried module.
-    pub module: QueryModule,
+    pub module: Module,
 }
 
 /// Response payload for folding ranges queries.
@@ -74,37 +145,36 @@ pub struct FoldingRangesResponse {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Get folding ranges for a file.
+    /// Return folding ranges for a file.
     pub fn folding_ranges(&self) -> Vec<FoldingRange> {
-        let Some(source_file) = self
-            .repository()
-            .file(self.revision(), self.file_id())
-            .ok()
-            .flatten()
-        else {
-            return Vec::new();
-        };
-        let dir_tree = self.dir().view();
         let mut ranges = Vec::new();
 
-        // collect declaration body ranges
-        for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
-            let should_fold = matches!(
-                declaration,
-                dir::Declaration::Function { .. }
-                    | dir::Declaration::Class { .. }
-                    | dir::Declaration::Struct { .. }
-                    | dir::Declaration::Interface { .. }
-                    | dir::Declaration::Enum { .. }
-                    | dir::Declaration::Global { .. }
-                    | dir::Declaration::Extension { .. }
-            );
-            if !should_fold {
+        // collect declaration and comment folds
+        self.collect_declaration_folding_ranges(&mut ranges);
+        self.collect_comment_folding_ranges(&mut ranges);
+
+        // order and deduplicate ranges
+        ranges.sort_by_key(|range| (range.start_line, range.end_line));
+        ranges.dedup_by(|left, right| {
+            left.start_line == right.start_line && left.end_line == right.end_line
+        });
+
+        ranges
+    }
+
+    /// Collect declaration folding ranges.
+    fn collect_declaration_folding_ranges(&self, ranges: &mut Vec<FoldingRange>) {
+        let source_file = self.source_file();
+        let view = self.view();
+
+        // collect one foldable range per declaration body
+        for (declaration_id, declaration) in view.iter_nodes_of_type::<dir::Declaration>() {
+            if !Self::declaration_is_foldable(declaration) {
                 continue;
             }
 
-            let source_node_id = dir_tree.get_source(declaration_id);
-            let span = self.dir().tree().source_index.get(source_node_id);
+            let source_node_id = view.get_source(declaration_id);
+            let span = self.tree().source_index.get(source_node_id);
             let Some((start_line, _)) = source_file.get_position(span.start) else {
                 continue;
             };
@@ -116,97 +186,82 @@ impl ModuleQueryContext<'_> {
                 ranges.push(FoldingRange::new(start_line, end_line));
             }
         }
-
-        // collect comment block ranges
-        add_comment_folding_ranges(&mut ranges, self.dir().side_tokens(), &source_file);
-
-        // order and deduplicate ranges
-        ranges.sort_by_key(|range| (range.start_line, range.end_line));
-        ranges.dedup_by(|left, right| {
-            left.start_line == right.start_line && left.end_line == right.end_line
-        });
-
-        ranges
     }
-}
 
-/// Add comment folding ranges for the given token stream.
-fn add_comment_folding_ranges(
-    ranges: &mut Vec<FoldingRange>,
-    tokens: &[dir::TokenSpan],
-    source_file: &destack_source::File,
-) {
-    // track line comment runs
-    let mut line_comment_block: Option<(u32, u32)> = None;
-    for token in tokens {
-        let span = token.span;
-        if span.file != source_file.id {
-            continue;
+    /// Return whether a declaration can produce a folding range.
+    fn declaration_is_foldable(declaration: &dir::Declaration) -> bool {
+        matches!(
+            declaration,
+            dir::Declaration::Function { .. }
+                | dir::Declaration::Class { .. }
+                | dir::Declaration::Struct { .. }
+                | dir::Declaration::Interface { .. }
+                | dir::Declaration::Enum { .. }
+                | dir::Declaration::Global { .. }
+                | dir::Declaration::Extension { .. }
+        )
+    }
+
+    /// Collect comment folding ranges.
+    fn collect_comment_folding_ranges(&self, ranges: &mut Vec<FoldingRange>) {
+        let source_file = self.source_file();
+        let mut line_comment_blocks = LineCommentBlocks::default();
+
+        // scan side tokens in source order
+        for token in self.side_tokens() {
+            if token.span.file != source_file.id {
+                continue;
+            }
+
+            self.collect_token_folding_range(ranges, &mut line_comment_blocks, token, &source_file);
         }
 
+        line_comment_blocks.flush(ranges);
+    }
+
+    /// Collect the folding range for one side token.
+    fn collect_token_folding_range(
+        &self,
+        ranges: &mut Vec<FoldingRange>,
+        line_comment_blocks: &mut LineCommentBlocks,
+        token: &dir::TokenSpan,
+        source_file: &File,
+    ) {
         match token.token.ty() {
             dir::TokenType::LineComment | dir::TokenType::DocLineComment => {
-                let Some((start_line, _)) = source_file.get_position(span.start) else {
-                    continue;
+                let Some((start_line, _)) = source_file.get_position(token.span.start) else {
+                    return;
                 };
-                match line_comment_block {
-                    Some((block_start, block_end)) => {
-                        if start_line == block_end.saturating_add(1) {
-                            line_comment_block = Some((block_start, start_line));
-                        } else {
-                            if block_end > block_start {
-                                ranges.push(
-                                    FoldingRange::new(block_start, block_end)
-                                        .with_kind(FoldingRangeKind::Comment),
-                                );
-                            }
-                            line_comment_block = Some((start_line, start_line));
-                        }
-                    }
-                    None => {
-                        line_comment_block = Some((start_line, start_line));
-                    }
-                }
+
+                line_comment_blocks.insert(start_line, ranges);
             }
             dir::TokenType::BlockComment | dir::TokenType::DocBlockComment => {
-                if let Some((block_start, block_end)) =
-                    line_comment_block.take().filter(|(start, end)| end > start)
-                {
-                    ranges.push(
-                        FoldingRange::new(block_start, block_end)
-                            .with_kind(FoldingRangeKind::Comment),
-                    );
-                }
-                let Some((start_line, _)) = source_file.get_position(span.start) else {
-                    continue;
-                };
-                let Some((end_line, _)) = source_file.get_position(span.end) else {
-                    continue;
-                };
-                if end_line > start_line {
-                    ranges.push(
-                        FoldingRange::new(start_line, end_line)
-                            .with_kind(FoldingRangeKind::Comment),
-                    );
-                }
+                line_comment_blocks.flush(ranges);
+                self.collect_block_comment_folding_range(ranges, token, source_file);
             }
             dir::TokenType::Whitespace | dir::TokenType::Newline => {}
             _ => {
-                if let Some((block_start, block_end)) =
-                    line_comment_block.take().filter(|(start, end)| end > start)
-                {
-                    ranges.push(
-                        FoldingRange::new(block_start, block_end)
-                            .with_kind(FoldingRangeKind::Comment),
-                    );
-                }
+                line_comment_blocks.flush(ranges);
             }
         }
     }
 
-    if let Some((block_start, block_end)) =
-        line_comment_block.take().filter(|(start, end)| end > start)
-    {
-        ranges.push(FoldingRange::new(block_start, block_end).with_kind(FoldingRangeKind::Comment));
+    /// Collect the folding range for one block comment.
+    fn collect_block_comment_folding_range(
+        &self,
+        ranges: &mut Vec<FoldingRange>,
+        token: &dir::TokenSpan,
+        source_file: &File,
+    ) {
+        let Some((start_line, _)) = source_file.get_position(token.span.start) else {
+            return;
+        };
+        let Some((end_line, _)) = source_file.get_position(token.span.end) else {
+            return;
+        };
+
+        if end_line > start_line {
+            ranges.push(FoldingRange::comment(start_line, end_line));
+        }
     }
 }

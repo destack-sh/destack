@@ -4,7 +4,7 @@ use std::thread;
 
 use destack_compiler::Compiler;
 use destack_linter::Linter;
-use destack_query::Query;
+use destack_query::Indexer;
 use destack_repository::{FileSystemSource, Ref, Repository, Revision, Trace};
 use destack_source::{FileId, ModuleId};
 
@@ -61,7 +61,7 @@ impl Session {
         revision: Revision,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
-        query: Arc<Query>,
+        indexer: Arc<Indexer>,
         worker_count: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
@@ -77,7 +77,7 @@ impl Session {
             head,
             compiler,
             linter,
-            query,
+            indexer,
             worker_count,
             event_handler,
         )
@@ -91,7 +91,7 @@ impl Session {
         head: Ref,
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
-        query: Arc<Query>,
+        indexer: Arc<Indexer>,
         worker_count: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
@@ -99,7 +99,7 @@ impl Session {
             repository,
             compiler,
             linter,
-            query,
+            indexer,
             event_handler,
         ));
 
@@ -202,9 +202,9 @@ impl Session {
         self.state.linter()
     }
 
-    /// Return the query provider for this session.
-    pub fn query(&self) -> Arc<Query> {
-        self.state.query()
+    /// Return the indexer for this session.
+    pub fn indexer(&self) -> Arc<Indexer> {
+        self.state.indexer()
     }
 
     /// Load one filesystem module path into one ref when needed.

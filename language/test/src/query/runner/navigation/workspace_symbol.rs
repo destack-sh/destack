@@ -1,4 +1,5 @@
-use destack_query::{SymbolKind, WorkspaceSymbol};
+use destack_dir as dir;
+use destack_query::SymbolMatch;
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -26,7 +27,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let query_str = query_str.trim_matches('"');
 
     let program = session.program_context();
-    let symbols = program.workspace_symbols(query_str, 1000);
+    let symbols = program.search_symbols(query_str, 1000);
     let source_symbols = symbols.as_slice();
 
     let expected = exp.content.trim();
@@ -92,7 +93,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 /// Validate basic workspace symbol invariants.
 fn validate_workspace_symbol_invariants(
     session: &QueryTestSession,
-    symbols: &[WorkspaceSymbol],
+    symbols: &[SymbolMatch],
 ) -> Result<(), String> {
     // collect invariant violations
     let mut errors = Vec::new();
@@ -153,7 +154,7 @@ fn validate_workspace_symbol_invariants(
 /// Format workspace symbols into a protocol shaped snapshot.
 fn format_workspace_symbol_snapshot(
     session: &QueryTestSession,
-    symbols: &[WorkspaceSymbol],
+    symbols: &[SymbolMatch],
 ) -> Vec<String> {
     // build snapshot lines for each symbol
     let mut lines = Vec::new();
@@ -165,7 +166,7 @@ fn format_workspace_symbol_snapshot(
 }
 
 /// Format a single workspace symbol line.
-fn format_workspace_symbol_line(session: &QueryTestSession, symbol: &WorkspaceSymbol) -> String {
+fn format_workspace_symbol_line(session: &QueryTestSession, symbol: &SymbolMatch) -> String {
     // resolve the symbol kind and file name for the snapshot line
     let kind = symbol_kind_name(symbol.kind);
     let file_name = file_for(session, symbol.target.span.file)
@@ -193,34 +194,24 @@ fn format_span(session: &QueryTestSession, span: Span) -> String {
 }
 
 /// Format a symbol kind as a lowercase name.
-fn symbol_kind_name(kind: SymbolKind) -> &'static str {
-    // map symbol kinds to names
+fn symbol_kind_name(kind: dir::SymbolKind) -> &'static str {
     match kind {
-        SymbolKind::File => "file",
-        SymbolKind::Module => "module",
-        SymbolKind::Namespace => "namespace",
-        SymbolKind::Package => "package",
-        SymbolKind::Class => "class",
-        SymbolKind::Method => "method",
-        SymbolKind::Property => "property",
-        SymbolKind::Field => "field",
-        SymbolKind::Constructor => "constructor",
-        SymbolKind::Enum => "enum",
-        SymbolKind::Interface => "interface",
-        SymbolKind::Function => "function",
-        SymbolKind::Variable => "variable",
-        SymbolKind::Constant => "constant",
-        SymbolKind::String => "string",
-        SymbolKind::Number => "number",
-        SymbolKind::Boolean => "boolean",
-        SymbolKind::Array => "array",
-        SymbolKind::Object => "object",
-        SymbolKind::Key => "key",
-        SymbolKind::Null => "null",
-        SymbolKind::EnumMember => "enum_member",
-        SymbolKind::Struct => "struct",
-        SymbolKind::Event => "event",
-        SymbolKind::Operator => "operator",
-        SymbolKind::TypeParameter => "type_parameter",
+        dir::SymbolKind::AssociatedConst => "associated_const",
+        dir::SymbolKind::AssociatedType => "associated_type",
+        dir::SymbolKind::Class => "class",
+        dir::SymbolKind::Enum => "enum",
+        dir::SymbolKind::EnumField => "enum_field",
+        dir::SymbolKind::Extension => "extension",
+        dir::SymbolKind::Function => "function",
+        dir::SymbolKind::GenericTypeParameter => "generic_type_parameter",
+        dir::SymbolKind::GenericValueParameter => "generic_value_parameter",
+        dir::SymbolKind::Import => "import",
+        dir::SymbolKind::Interface => "interface",
+        dir::SymbolKind::Label => "label",
+        dir::SymbolKind::Newtype => "newtype",
+        dir::SymbolKind::NewtypeInterface => "newtype_interface",
+        dir::SymbolKind::Struct => "struct",
+        dir::SymbolKind::TypeAlias => "type_alias",
+        dir::SymbolKind::Variable => "variable",
     }
 }

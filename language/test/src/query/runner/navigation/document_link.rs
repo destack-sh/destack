@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_query::{DocumentLink, DocumentLinkTarget};
+use destack_query::{Link, LinkTarget};
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -18,7 +18,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // run the query for the current file
     let ctx = session.primary_module_context();
-    let links = ctx.document_links();
+    let links = ctx.links();
 
     // require nonempty expectations so failures are explicit
     let expected_content = exp.content.trim();
@@ -62,7 +62,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 /// Run a structured snapshot expectation for document links.
 fn run_snapshot_expectation(
     session: &QueryTestSession,
-    links: &[DocumentLink],
+    links: &[Link],
     expected: &str,
 ) -> CaseResult {
     compare_snapshot(
@@ -73,10 +73,7 @@ fn run_snapshot_expectation(
 }
 
 /// Validate common invariants for document links.
-fn validate_link_invariants(
-    session: &QueryTestSession,
-    links: &[DocumentLink],
-) -> Result<(), String> {
+fn validate_link_invariants(session: &QueryTestSession, links: &[Link]) -> Result<(), String> {
     // resolve the source so we can check range bounds
     let source = source_for_file(session, session.file_id);
     let source_len = u32::try_from(source.len()).unwrap_or(u32::MAX);
@@ -124,19 +121,19 @@ fn validate_link_range(
 }
 
 /// Validate a document link target.
-fn validate_link_target(target: &DocumentLinkTarget, errors: &mut Vec<String>) {
+fn validate_link_target(target: &LinkTarget, errors: &mut Vec<String>) {
     match target {
-        DocumentLinkTarget::File { path } => {
+        LinkTarget::File { path } => {
             if path.trim().is_empty() {
                 errors.push("file target path is empty".to_string());
             }
         }
-        DocumentLinkTarget::Url { url } => {
+        LinkTarget::Url { url } => {
             if url.trim().is_empty() {
                 errors.push("url target is empty".to_string());
             }
         }
-        DocumentLinkTarget::Position { path, .. } => {
+        LinkTarget::Position { path, .. } => {
             if path.trim().is_empty() {
                 errors.push("position target path is empty".to_string());
             }
@@ -145,10 +142,7 @@ fn validate_link_target(target: &DocumentLinkTarget, errors: &mut Vec<String>) {
 }
 
 /// Format document links into a protocol shaped snapshot.
-fn format_document_link_snapshot(
-    session: &QueryTestSession,
-    links: &[DocumentLink],
-) -> Vec<String> {
+fn format_document_link_snapshot(session: &QueryTestSession, links: &[Link]) -> Vec<String> {
     // sort links into a stable order for snapshots
     let mut sorted = links.to_vec();
     sorted.sort_by_cached_key(link_snapshot_key);
@@ -162,13 +156,13 @@ fn format_document_link_snapshot(
 }
 
 /// Build a stable sort key for snapshot ordering.
-fn link_snapshot_key(link: &DocumentLink) -> (u32, u32, u8, String) {
+fn link_snapshot_key(link: &Link) -> (u32, u32, u8, String) {
     let (target_rank, target_key) = link_target_key(&link.target);
     (link.range.start, link.range.end, target_rank, target_key)
 }
 
 /// Format a single document link snapshot line.
-fn format_document_link_line(session: &QueryTestSession, link: &DocumentLink) -> String {
+fn format_document_link_line(session: &QueryTestSession, link: &Link) -> String {
     // format the link range using shared span formatting
     let range = format_span_for_session(session, link.range);
 
@@ -183,14 +177,14 @@ fn format_document_link_line(session: &QueryTestSession, link: &DocumentLink) ->
 }
 
 /// Format a document link target for snapshot output.
-fn format_link_target(session: &QueryTestSession, target: &DocumentLinkTarget) -> String {
+fn format_link_target(session: &QueryTestSession, target: &LinkTarget) -> String {
     match target {
-        DocumentLinkTarget::File { path } => {
+        LinkTarget::File { path } => {
             let normalized = normalize_link_path(session, path);
             format!("file:{normalized}")
         }
-        DocumentLinkTarget::Url { url } => format!("url:{url}"),
-        DocumentLinkTarget::Position { path, line, column } => {
+        LinkTarget::Url { url } => format!("url:{url}"),
+        LinkTarget::Position { path, line, column } => {
             let line = line.saturating_add(1);
             let column = column.saturating_add(1);
             let normalized = normalize_link_path(session, path);
@@ -213,12 +207,10 @@ fn normalize_link_path(session: &QueryTestSession, path: &str) -> String {
 }
 
 /// Provide a sortable key for a document link target.
-fn link_target_key(target: &DocumentLinkTarget) -> (u8, String) {
+fn link_target_key(target: &LinkTarget) -> (u8, String) {
     match target {
-        DocumentLinkTarget::File { path } => (0, path.clone()),
-        DocumentLinkTarget::Url { url } => (1, url.clone()),
-        DocumentLinkTarget::Position { path, line, column } => {
-            (2, format!("{path}:{line}:{column}"))
-        }
+        LinkTarget::File { path } => (0, path.clone()),
+        LinkTarget::Url { url } => (1, url.clone()),
+        LinkTarget::Position { path, line, column } => (2, format!("{path}:{line}:{column}")),
     }
 }

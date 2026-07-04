@@ -1,4 +1,4 @@
-use destack_query::{DocumentHighlight, HighlightKind};
+use destack_query::{Highlight, HighlightKind};
 use destack_source::{FileId, Span};
 
 use crate::core::CaseResult;
@@ -50,7 +50,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let content = exp.content.trim();
     let ctx = session.module_context(file_id);
     if content.is_empty() {
-        let highlights = ctx.document_highlights(offset);
+        let highlights = ctx.highlights(offset);
         return CaseResult::Failed {
             message: format!(
                 "document_highlight expectation is empty at '{}', got {} highlights",
@@ -61,7 +61,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // run the highlight query once for all expectation modes
-    let highlights = ctx.document_highlights(offset);
+    let highlights = ctx.highlights(offset);
 
     // validate invariants before any comparisons
     if let Err(message) = validate_highlight_invariants(session, file_id, &highlights) {
@@ -100,7 +100,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 /// Run a structured snapshot expectation for document highlights.
 fn run_snapshot_expectation(
     session: &QueryTestSession,
-    highlights: &[DocumentHighlight],
+    highlights: &[Highlight],
     expected: &str,
 ) -> CaseResult {
     // format the highlight results into deterministic snapshot lines
@@ -112,7 +112,7 @@ fn run_snapshot_expectation(
 fn validate_highlight_invariants(
     session: &QueryTestSession,
     file_id: FileId,
-    highlights: &[DocumentHighlight],
+    highlights: &[Highlight],
 ) -> Result<(), String> {
     // resolve the source so we can check range bounds
     let source = source_for_file(session, file_id);
@@ -165,10 +165,7 @@ fn validate_highlight_range(
 }
 
 /// Format highlights into a protocol shaped snapshot.
-fn format_highlight_snapshot(
-    session: &QueryTestSession,
-    highlights: &[DocumentHighlight],
-) -> Vec<String> {
+fn format_highlight_snapshot(session: &QueryTestSession, highlights: &[Highlight]) -> Vec<String> {
     // normalize highlight ordering and drop duplicates
     let highlights = normalized_highlights(highlights);
 
@@ -181,7 +178,7 @@ fn format_highlight_snapshot(
 }
 
 /// Normalize highlights into a stable sorted order.
-fn normalized_highlights(highlights: &[DocumentHighlight]) -> Vec<DocumentHighlight> {
+fn normalized_highlights(highlights: &[Highlight]) -> Vec<Highlight> {
     // copy highlights so we can sort and deduplicate them
     let mut highlights = highlights.to_vec();
 
@@ -195,7 +192,7 @@ fn normalized_highlights(highlights: &[DocumentHighlight]) -> Vec<DocumentHighli
 }
 
 /// Build a stable sort key for highlight snapshots.
-fn highlight_snapshot_key(highlight: &DocumentHighlight) -> (u32, u32, u8) {
+fn highlight_snapshot_key(highlight: &Highlight) -> (u32, u32, u8) {
     (
         highlight.range.start,
         highlight.range.end,
@@ -204,7 +201,7 @@ fn highlight_snapshot_key(highlight: &DocumentHighlight) -> (u32, u32, u8) {
 }
 
 /// Format a single highlight snapshot line.
-fn format_highlight_line(session: &QueryTestSession, highlight: &DocumentHighlight) -> String {
+fn format_highlight_line(session: &QueryTestSession, highlight: &Highlight) -> String {
     // format the range using shared span formatting helpers
     let range = format_span_for_session(session, highlight.range);
 

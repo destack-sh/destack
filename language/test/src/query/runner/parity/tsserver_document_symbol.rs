@@ -3,7 +3,8 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use destack_query::{DocumentSymbol, SymbolKind};
+use destack_dir as dir;
+use destack_query::Symbol;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +29,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // compute the destack snapshot for the primary file
     let ctx = session.primary_module_context();
-    let symbols = ctx.document_symbols();
+    let symbols = ctx.outline();
     let source = source_for_file(session, session.file_id);
     let snapshot = format_symbols_snapshot(&symbols, source, 0).join("\n");
 
@@ -120,7 +121,7 @@ fn run_external_parity(path: &Path, request: &ParityRequest) -> Result<ParityRes
 }
 
 /// Format a document symbol tree into a protocol shaped snapshot.
-fn format_symbols_snapshot(symbols: &[DocumentSymbol], source: &str, indent: usize) -> Vec<String> {
+fn format_symbols_snapshot(symbols: &[Symbol], source: &str, indent: usize) -> Vec<String> {
     // compute line starts once for consistent span formatting
     let line_starts = compute_line_starts(source);
 
@@ -154,33 +155,24 @@ fn format_span(line_starts: &[u32], span: Span) -> String {
 }
 
 /// Format a symbol kind as a lowercase name.
-fn symbol_kind_name(kind: SymbolKind) -> &'static str {
+fn symbol_kind_name(kind: dir::SymbolKind) -> &'static str {
     match kind {
-        SymbolKind::File => "file",
-        SymbolKind::Module => "module",
-        SymbolKind::Namespace => "namespace",
-        SymbolKind::Package => "package",
-        SymbolKind::Class => "class",
-        SymbolKind::Method => "method",
-        SymbolKind::Property => "property",
-        SymbolKind::Field => "field",
-        SymbolKind::Constructor => "constructor",
-        SymbolKind::Enum => "enum",
-        SymbolKind::Interface => "interface",
-        SymbolKind::Function => "function",
-        SymbolKind::Variable => "variable",
-        SymbolKind::Constant => "constant",
-        SymbolKind::String => "string",
-        SymbolKind::Number => "number",
-        SymbolKind::Boolean => "boolean",
-        SymbolKind::Array => "array",
-        SymbolKind::Object => "object",
-        SymbolKind::Key => "key",
-        SymbolKind::Null => "null",
-        SymbolKind::EnumMember => "enum_member",
-        SymbolKind::Struct => "struct",
-        SymbolKind::Event => "event",
-        SymbolKind::Operator => "operator",
-        SymbolKind::TypeParameter => "type_parameter",
+        dir::SymbolKind::AssociatedConst => "associated_const",
+        dir::SymbolKind::AssociatedType => "associated_type",
+        dir::SymbolKind::Class => "class",
+        dir::SymbolKind::Enum => "enum",
+        dir::SymbolKind::EnumField => "enum_field",
+        dir::SymbolKind::Extension => "extension",
+        dir::SymbolKind::Function => "function",
+        dir::SymbolKind::GenericTypeParameter => "generic_type_parameter",
+        dir::SymbolKind::GenericValueParameter => "generic_value_parameter",
+        dir::SymbolKind::Import => "import",
+        dir::SymbolKind::Interface => "interface",
+        dir::SymbolKind::Label => "label",
+        dir::SymbolKind::Newtype => "newtype",
+        dir::SymbolKind::NewtypeInterface => "newtype_interface",
+        dir::SymbolKind::Struct => "struct",
+        dir::SymbolKind::TypeAlias => "type_alias",
+        dir::SymbolKind::Variable => "variable",
     }
 }

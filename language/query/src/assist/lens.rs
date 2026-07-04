@@ -3,10 +3,7 @@ use destack_serde::Reflect;
 use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::core::{
-    DirQueryContext, ModuleQueryContext, NominalRelation, QueryModule, WorkspaceQueryContext,
-};
-use crate::dir::SymbolReferenceSearch;
+use crate::{Module, ModuleQueryContext, ProgramQueryContext, ReferenceFilter};
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -55,7 +52,7 @@ pub enum CodeLensAction {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CodeLensesRequest {
     /// The queried module.
-    pub module: QueryModule,
+    pub module: Module,
 }
 
 /// Request to resolve a code lens.
@@ -106,6 +103,11 @@ impl CodeLens {
         }
     }
 
+    /// Resolve this code lens.
+    pub fn resolve(&self) -> Self {
+        self.clone()
+    }
+
     /// Get the display title for this lens.
     pub fn title(&self) -> String {
         match &self.action {
@@ -123,32 +125,143 @@ impl CodeLens {
                     format!("{count} implementations")
                 }
             }
-            CodeLensAction::RunTest { test_name } => format!("▶ Run {test_name}"),
-            CodeLensAction::DebugTest { test_name } => format!("🐛 Debug {test_name}"),
+            CodeLensAction::RunTest { test_name } => format!("Run {test_name}"),
+            CodeLensAction::DebugTest { test_name } => format!("Debug {test_name}"),
             CodeLensAction::Custom { title, .. } => title.clone(),
+        }
+    }
+
+    /// Return the stable protocol ordering for this lens.
+    fn order(&self) -> CodeLensOrder {
+        CodeLensOrder {
+            start: self.range.start,
+            end: self.range.end,
+            action: self.action.kind(),
+            title: self.title(),
         }
     }
 }
 
-/// Build a stable ordering key for a code lens.
-fn code_lens_key(lens: &CodeLens) -> (u32, u32, u8, String) {
-    let title = lens.title();
-    (
-        lens.range.start,
-        lens.range.end,
-        code_lens_kind_rank(&lens.action),
-        title,
-    )
+impl CodeLensAction {
+    /// Return the stable action family for protocol ordering.
+    fn kind(&self) -> CodeLensActionKind {
+        match self {
+            CodeLensAction::References { .. } => CodeLensActionKind::References,
+            CodeLensAction::Implementations { .. } => CodeLensActionKind::Implementations,
+            CodeLensAction::RunTest { .. } => CodeLensActionKind::RunTest,
+            CodeLensAction::DebugTest { .. } => CodeLensActionKind::DebugTest,
+            CodeLensAction::Custom { .. } => CodeLensActionKind::Custom,
+        }
+    }
 }
 
-/// Rank code lens kinds for stable ordering.
-fn code_lens_kind_rank(action: &CodeLensAction) -> u8 {
-    match action {
-        CodeLensAction::References { .. } => 0,
-        CodeLensAction::Implementations { .. } => 1,
-        CodeLensAction::RunTest { .. } => 2,
-        CodeLensAction::DebugTest { .. } => 3,
-        CodeLensAction::Custom { .. } => 4,
+/// Stable protocol ordering for one code lens.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct CodeLensOrder {
+    /// The lens start offset.
+    start: u32,
+    /// The lens end offset.
+    end: u32,
+    /// The action family.
+    action: CodeLensActionKind,
+    /// The rendered title.
+    title: String,
+}
+
+/// Stable code lens action family order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum CodeLensActionKind {
+    /// Reference count lenses.
+    References,
+    /// Implementation count lenses.
+    Implementations,
+    /// Run test lenses.
+    RunTest,
+    /// Debug test lenses.
+    DebugTest,
+    /// Custom command lenses.
+    Custom,
+}
+
+/// Declaration facts needed to emit code lenses.
+#[derive(Debug, Clone, PartialEq)]
+struct CodeLensDeclaration {
+    /// The declaration symbol.
+    symbol_id: dir::GlobalSymbolId,
+    /// The declaration name.
+    name: Option<String>,
+    /// The declaration kind.
+    symbol_kind: dir::SymbolKind,
+    /// The declaration main span.
+    span: Span,
+    /// Whether this is a function declaration.
+    is_function: bool,
+    /// Whether this declaration is marked as a test.
+    is_test: bool,
+}
+
+impl CodeLensDeclaration {
+    /// Build declaration facts for code lens emission.
+    fn new(
+        module: &ModuleQueryContext<'_>,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::Declaration,
+    ) -> Option<Self> {
+        let view = module.view();
+        let symbols = module.symbols();
+        let local_symbol_id = module.node_symbol(declaration_id.into())?;
+        let symbol_id = dir::GlobalSymbolId::new(module.module_id(), local_symbol_id);
+        let source_node_id = view.get_source(declaration_id);
+        let span = module
+            .tree()
+            .get_side_span_by_id(source_node_id, NodeSpanType::Main)?;
+
+        Some(Self {
+            symbol_id,
+            name: module.symbol_name(symbol_id),
+            symbol_kind: symbols.get_symbol(local_symbol_id).kind,
+            span,
+            is_function: matches!(declaration, dir::Declaration::Function { .. }),
+            is_test: module.has_decorator_named(source_node_id, "test"),
+        })
+    }
+
+    /// Collect code lenses for this declaration.
+    fn collect_lenses(
+        &self,
+        module: &ModuleQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
+        lenses: &mut Vec<CodeLens>,
+    ) {
+        // collect function lenses
+        if self.is_function {
+            let reference_count = module.count_references(program, self.symbol_id);
+            if reference_count > 0 {
+                lenses.push(CodeLens::references(self.span, reference_count));
+            }
+
+            if self.is_test {
+                if let Some(function_name) = &self.name {
+                    lenses.push(CodeLens::run_test(self.span, function_name.clone()));
+                }
+            }
+        }
+
+        // collect interface implementation lenses
+        if self.symbol_kind == dir::SymbolKind::Interface {
+            let implementation_count = module.count_implementations(program, self.symbol_id);
+            if implementation_count > 0 {
+                lenses.push(CodeLens::implementations(self.span, implementation_count));
+            }
+        }
+
+        // collect class subclass lenses
+        if self.symbol_kind == dir::SymbolKind::Class {
+            let subclass_count = module.count_subclasses(program, self.symbol_id);
+            if subclass_count > 0 {
+                lenses.push(CodeLens::implementations(self.span, subclass_count));
+            }
+        }
     }
 }
 
@@ -156,19 +269,21 @@ fn code_lens_kind_rank(action: &CodeLensAction) -> u8 {
 ///
 /// Some lenses defer computation until the user hovers/clicks.
 pub fn resolve_code_lens(lens: &CodeLens) -> CodeLens {
-    // lenses are resolved eagerly
-    lens.clone()
+    lens.resolve()
 }
 
-impl DirQueryContext<'_> {
+impl ModuleQueryContext<'_> {
     /// Check whether a node has a decorator with the given name.
-    fn has_decorator_named(self, node_id: u32, name: &str) -> bool {
-        // scan annotations attached to the node
+    fn has_decorator_named(&self, node_id: u32, name: &str) -> bool {
+        // scan decorations attached to the node
         if self.decorator_on_node(node_id, name) {
             return true;
         }
 
-        let span = self.source_index().get_main_or_enclosing(node_id);
+        let span = self
+            .source_index()
+            .get_main(node_id)
+            .unwrap_or_else(|| panic!("missing main source span for decorator target {node_id}"));
         let mut enclosing = self.source_index().get_enclosing_spans(
             self.file_id(),
             span.start,
@@ -176,7 +291,7 @@ impl DirQueryContext<'_> {
         );
         enclosing.sort_by_key(|entry| entry.length);
 
-        // use enclosing nodes for annotations attached higher up
+        // use enclosing nodes for decorations attached higher up
         for entry in enclosing {
             if entry.source_id == node_id {
                 continue;
@@ -190,13 +305,13 @@ impl DirQueryContext<'_> {
     }
 
     /// Check whether a decorator is attached directly to a node.
-    fn decorator_on_node(self, node_id: u32, name: &str) -> bool {
+    fn decorator_on_node(&self, node_id: u32, name: &str) -> bool {
         let decorators = self.tree().get_decorators(node_id);
 
         // scan decorators attached to the node
         for decorator_id in decorators {
             let decorator = self.tree().get::<dir::Decorator>(decorator_id);
-            let Some(decorator_name_id) = self.decorator_name_id(decorator) else {
+            let Some(decorator_name_id) = self.decorator_leaf_name_id(decorator) else {
                 continue;
             };
 
@@ -211,93 +326,39 @@ impl DirQueryContext<'_> {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Get code lenses for a file.
+    /// Return code lenses for a file.
     ///
-    /// Code lenses appear as inline annotations above functions, classes, etc.
+    /// Code lenses appear as inline decorations above functions, classes, etc.
     /// Common uses: reference counts, "Run Test" buttons, implementation counts.
-    pub fn code_lenses(&self, workspace: &WorkspaceQueryContext<'_>) -> Vec<CodeLens> {
-        let ctx = self;
-        let dir = ctx.dir();
-        let module_id = dir.module_id();
+    pub fn code_lenses(&self, program: &ProgramQueryContext<'_>) -> Vec<CodeLens> {
         let mut lenses = Vec::new();
 
-        // collect declarations and their info
+        // collect declaration facts
         let declarations: Vec<_> = {
-            let dir_tree = dir.view();
-            let symbols = dir.symbols();
+            let view = self.view();
 
-            dir_tree
-                .iter_nodes_of_type::<dir::Declaration>()
+            view.iter_nodes_of_type::<dir::Declaration>()
                 .into_iter()
                 .filter_map(
-                    |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
-                        let symbol_id = dir.symbol_for_node(decl_id.into())?;
-                        let global_symbol_id = dir::GlobalSymbolId {
-                            module_id,
-                            local_id: symbol_id,
-                        };
-                        let source_node_id = dir_tree.get_source(decl_id);
-                        let main_span = dir
-                            .tree()
-                            .get_side_span_by_id(source_node_id, NodeSpanType::Main);
-                        let name = dir.symbol_name(global_symbol_id);
-                        let is_test = dir.has_decorator_named(source_node_id, "test");
-                        let symbol_kind = symbols.get_symbol(symbol_id).kind;
-                        Some((
-                            decl.clone(),
-                            global_symbol_id,
-                            main_span,
-                            is_test,
-                            name,
-                            symbol_kind,
-                        ))
+                    |(declaration_id, declaration): (
+                        dir::LocalNodeId<dir::Declaration>,
+                        &dir::Declaration,
+                    )| {
+                        CodeLensDeclaration::new(self, declaration_id, declaration)
                     },
                 )
                 .collect()
         };
 
-        for (declaration, global_symbol_id, main_span, is_test, name, symbol_kind) in declarations {
-            let Some(span) = main_span else {
-                continue;
-            };
-
-            // count references for functions/methods
-            if matches!(declaration, dir::Declaration::Function { .. }) {
-                let ref_count = ctx.count_references(workspace, global_symbol_id);
-                if ref_count > 0 {
-                    lenses.push(CodeLens::references(span, ref_count));
-                }
-
-                // check if it's a test function
-                if let Some(ref fn_name) = name
-                    && is_test
-                {
-                    lenses.push(CodeLens::run_test(span, fn_name.clone()));
-                }
-            }
-
-            // count implementations for interfaces
-            if symbol_kind == dir::SymbolKind::Interface {
-                let impl_count = ctx.count_implementations(workspace, global_symbol_id);
-                if impl_count > 0 {
-                    lenses.push(CodeLens::implementations(span, impl_count));
-                }
-            }
-
-            // count subclasses for classes
-            if symbol_kind == dir::SymbolKind::Class {
-                let subclass_count = ctx.count_subclasses(workspace, global_symbol_id);
-                if subclass_count > 0 {
-                    lenses.push(CodeLens::implementations(span, subclass_count));
-                }
-            }
+        for declaration in declarations {
+            declaration.collect_lenses(self, program, &mut lenses);
         }
 
         // sort lenses deterministically by range, kind, and title
-        lenses.sort_by_cached_key(code_lens_key);
+        lenses.sort_by_cached_key(CodeLens::order);
 
         // drop identical lenses after sorting
-        lenses.dedup_by(|left, right| code_lens_key(left) == code_lens_key(right));
+        lenses.dedup_by(|left, right| left.order() == right.order());
 
         lenses
     }
@@ -305,69 +366,54 @@ impl ModuleQueryContext<'_> {
     /// Count references to a symbol across all modules.
     fn count_references(
         &self,
-        workspace: &WorkspaceQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> usize {
-        let ctx = self;
-        let canonical_id = ctx.canonical_symbol(symbol_id);
-        let reference_name = ctx.symbol_name(canonical_id);
+        let canonical_id = self.canonical_symbol(symbol_id);
+        let reference_name = self.symbol_name(canonical_id);
 
-        let reference_search = SymbolReferenceSearch {
+        let reference_search = ReferenceFilter {
             include_expressions: true,
             include_members: true,
             include_dependency_items: true,
             include_namespace_receivers: true,
             skip_dependency_aliases: false,
-            use_dependency_name_spans: true,
             target_name: reference_name.as_deref(),
-            require_target_name_match: false,
+            requires_target_name_match: false,
             limit_file: None,
         };
 
-        let mut count = 0;
-        for module_id in workspace.modules_referencing_symbol(canonical_id) {
-            let Some(module_ctx) = ctx.module_context(module_id) else {
-                continue;
-            };
-
-            let spans = module_ctx
-                .dir()
-                .symbol_references(canonical_id, reference_search);
-            count += spans.len();
-        }
-
-        count
+        self.program_symbol_references(program, canonical_id, reference_search)
+            .len()
     }
 
     /// Count implementations of an interface across all modules.
     fn count_implementations(
         &self,
-        workspace: &WorkspaceQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> usize {
-        let ctx = self;
-        let canonical_id = ctx.canonical_symbol(symbol_id);
+        let canonical_id = self.canonical_symbol(symbol_id);
 
-        workspace
-            .nominal_relations_for_target(canonical_id)
+        program
+            .base_heritage(canonical_id)
             .into_iter()
-            .filter(|entry| entry.relation == NominalRelation::Implements)
+            .filter(|entry| entry.kind == dir::HeritageKind::Implements)
             .count()
     }
 
     /// Count subclasses of a class across all modules.
     fn count_subclasses(
         &self,
-        workspace: &WorkspaceQueryContext<'_>,
+        program: &ProgramQueryContext<'_>,
         symbol_id: dir::GlobalSymbolId,
     ) -> usize {
-        let ctx = self;
-        let canonical_id = ctx.canonical_symbol(symbol_id);
+        let canonical_id = self.canonical_symbol(symbol_id);
 
-        workspace
-            .nominal_relations_for_target(canonical_id)
+        program
+            .base_heritage(canonical_id)
             .into_iter()
-            .filter(|entry| entry.relation == NominalRelation::Extends)
+            .filter(|entry| entry.kind == dir::HeritageKind::Extends)
             .count()
     }
 }

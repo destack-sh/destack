@@ -1,7 +1,5 @@
 use destack_query as query;
-use destack_query::{
-    CallHierarchyIncomingCall, CallHierarchyItem, CallHierarchyKind, CallHierarchyOutgoingCall,
-};
+use destack_query::{CallItem, CallItemKind, IncomingCall, OutgoingCall};
 use destack_source::{FileId, Span};
 
 use crate::core::CaseResult;
@@ -52,7 +50,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // prepare call hierarchy item
     let ctx = session.module_context(file_id);
     let program = session.program_context();
-    let item = ctx.call_hierarchy_item(offset);
+    let item = ctx.call_item(offset);
 
     // allow "<none>" to assert that no hierarchy item exists at all
     if expected == "<none>" && item.is_none() {
@@ -87,7 +85,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 fn run_incoming_expectation(
     session: &QueryTestSession,
     program: &query::ProgramQueryContext<'_>,
-    item: &CallHierarchyItem,
+    item: &CallItem,
     expected: &str,
     target: &str,
 ) -> CaseResult {
@@ -164,7 +162,7 @@ fn run_incoming_expectation(
 fn run_outgoing_expectation(
     session: &QueryTestSession,
     program: &query::ProgramQueryContext<'_>,
-    item: &CallHierarchyItem,
+    item: &CallItem,
     expected: &str,
     target: &str,
 ) -> CaseResult {
@@ -238,7 +236,7 @@ fn run_outgoing_expectation(
 }
 
 /// Format incoming calls into a protocol shaped snapshot.
-fn snapshot_incoming(session: &QueryTestSession, calls: &[CallHierarchyIncomingCall]) -> String {
+fn snapshot_incoming(session: &QueryTestSession, calls: &[IncomingCall]) -> String {
     // format each incoming call into a single snapshot line
     calls
         .iter()
@@ -248,7 +246,7 @@ fn snapshot_incoming(session: &QueryTestSession, calls: &[CallHierarchyIncomingC
 }
 
 /// Format outgoing calls into a protocol shaped snapshot.
-fn snapshot_outgoing(session: &QueryTestSession, calls: &[CallHierarchyOutgoingCall]) -> String {
+fn snapshot_outgoing(session: &QueryTestSession, calls: &[OutgoingCall]) -> String {
     // format each outgoing call into a single snapshot line
     calls
         .iter()
@@ -258,11 +256,7 @@ fn snapshot_outgoing(session: &QueryTestSession, calls: &[CallHierarchyOutgoingC
 }
 
 /// Format a single call hierarchy line.
-fn format_call_line(
-    session: &QueryTestSession,
-    item: &CallHierarchyItem,
-    ranges: &[Span],
-) -> String {
+fn format_call_line(session: &QueryTestSession, item: &CallItem, ranges: &[Span]) -> String {
     let range = item_range(item);
     let selection = item_selection_range(item);
     let range = format_span_for_session(session, range);
@@ -287,28 +281,25 @@ fn format_call_ranges(session: &QueryTestSession, ranges: &[Span]) -> String {
 }
 
 /// Convert a call hierarchy kind into a snapshot friendly name.
-fn call_kind_name(kind: CallHierarchyKind) -> &'static str {
+fn call_kind_name(kind: CallItemKind) -> &'static str {
     match kind {
-        CallHierarchyKind::Function => "function",
-        CallHierarchyKind::Method => "method",
-        CallHierarchyKind::Constructor => "constructor",
+        CallItemKind::Function => "function",
+        CallItemKind::Method => "method",
+        CallItemKind::Constructor => "constructor",
     }
 }
 
 /// Rank call hierarchy kinds for stable ordering checks.
-fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
+fn call_kind_rank(kind: CallItemKind) -> u8 {
     match kind {
-        CallHierarchyKind::Function => 0,
-        CallHierarchyKind::Method => 1,
-        CallHierarchyKind::Constructor => 2,
+        CallItemKind::Function => 0,
+        CallItemKind::Method => 1,
+        CallItemKind::Constructor => 2,
     }
 }
 
 /// Validate the prepared call hierarchy item.
-fn validate_item_invariants(
-    session: &QueryTestSession,
-    item: &CallHierarchyItem,
-) -> Result<(), String> {
+fn validate_item_invariants(session: &QueryTestSession, item: &CallItem) -> Result<(), String> {
     let mut errors = Vec::new();
 
     // validate the item spans against the source bounds
@@ -328,7 +319,7 @@ fn validate_item_invariants(
 /// Validate incoming call invariants.
 fn validate_incoming_invariants(
     session: &QueryTestSession,
-    calls: &[CallHierarchyIncomingCall],
+    calls: &[IncomingCall],
 ) -> Result<(), String> {
     let mut errors = Vec::new();
 
@@ -360,8 +351,8 @@ fn validate_incoming_invariants(
 /// Validate outgoing call invariants.
 fn validate_outgoing_invariants(
     session: &QueryTestSession,
-    item: &CallHierarchyItem,
-    calls: &[CallHierarchyOutgoingCall],
+    item: &CallItem,
+    calls: &[OutgoingCall],
 ) -> Result<(), String> {
     let mut errors = Vec::new();
 
@@ -393,7 +384,7 @@ fn validate_outgoing_invariants(
 /// Validate item spans and containment, collecting errors.
 fn validate_item_collect_errors(
     session: &QueryTestSession,
-    item: &CallHierarchyItem,
+    item: &CallItem,
     errors: &mut Vec<String>,
 ) {
     let range = item_range(item);
@@ -456,10 +447,7 @@ fn validate_call_ranges(
 }
 
 /// Validate ordering and duplicates for call hierarchy items.
-fn validate_call_ordering<'a>(
-    items: impl Iterator<Item = &'a CallHierarchyItem>,
-    errors: &mut Vec<String>,
-) {
+fn validate_call_ordering<'a>(items: impl Iterator<Item = &'a CallItem>, errors: &mut Vec<String>) {
     let mut previous: Option<(u128, u32, u32, u32, u32, u8, String)> = None;
 
     // compare each item key against the previous one
@@ -509,7 +497,7 @@ fn validate_span_bounds(
 }
 
 /// Build a stable ordering key for a call hierarchy item.
-fn item_key(item: &CallHierarchyItem) -> (u128, u32, u32, u32, u32, u8, String) {
+fn item_key(item: &CallItem) -> (u128, u32, u32, u32, u32, u8, String) {
     let range = item_range(item);
     let selection = item_selection_range(item);
 
@@ -525,12 +513,12 @@ fn item_key(item: &CallHierarchyItem) -> (u128, u32, u32, u32, u32, u8, String) 
 }
 
 /// Return the full source range for a call hierarchy item.
-fn item_range(item: &CallHierarchyItem) -> Span {
+fn item_range(item: &CallItem) -> Span {
     item.target.span
 }
 
 /// Return the primary selection range for a call hierarchy item.
-fn item_selection_range(item: &CallHierarchyItem) -> Span {
+fn item_selection_range(item: &CallItem) -> Span {
     item.target.selection_span.unwrap_or(item.target.span)
 }
 

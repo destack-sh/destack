@@ -32,7 +32,7 @@ pub(super) fn navigation_targets_to_locations(
 /// Convert a document highlight to an LSP document highlight.
 pub(super) fn document_highlight_to_lsp(
     file: &File,
-    highlight: &query::DocumentHighlight,
+    highlight: &query::Highlight,
 ) -> Option<lsp::DocumentHighlight> {
     let range = byte_span_to_range(file, highlight.range);
     let kind = match highlight.kind {
@@ -47,7 +47,7 @@ pub(super) fn document_highlight_to_lsp(
 #[allow(deprecated)]
 pub(super) fn document_symbol_to_lsp(
     file: &File,
-    symbol: &query::DocumentSymbol,
+    symbol: &query::Symbol,
 ) -> Option<lsp::DocumentSymbol> {
     let range = byte_span_to_range(file, symbol.range);
     let selection_range = byte_span_to_range(file, symbol.selection_range);
@@ -97,15 +97,12 @@ pub(super) fn selection_range_to_lsp(
 }
 
 /// Convert a document link to an LSP document link.
-pub(super) fn document_link_to_lsp(
-    file: &File,
-    link: &query::DocumentLink,
-) -> Option<lsp::DocumentLink> {
+pub(super) fn document_link_to_lsp(file: &File, link: &query::Link) -> Option<lsp::DocumentLink> {
     let range = byte_span_to_range(file, link.range);
     let target = match &link.target {
-        query::DocumentLinkTarget::File { path } => lsp_uri_for_path(path),
-        query::DocumentLinkTarget::Url { url } => url.parse::<lsp::Uri>().ok(),
-        query::DocumentLinkTarget::Position { path, line, column } => {
+        query::LinkTarget::File { path } => lsp_uri_for_path(path),
+        query::LinkTarget::Url { url } => url.parse::<lsp::Uri>().ok(),
+        query::LinkTarget::Position { path, line, column } => {
             // encode position in fragment, e.g. file:///path#L10,5
             file_position_uri_from_path_string(path, *line, *column)
         }
@@ -125,10 +122,10 @@ fn file_position_uri_from_path_string(path: &str, line: u32, column: u32) -> Opt
     uri.parse::<lsp::Uri>().ok()
 }
 
-/// Convert a call hierarchy item to an LSP call hierarchy item.
-pub(super) fn call_hierarchy_item_to_lsp(
+/// Convert a call item to an LSP call item.
+pub(super) fn call_item_to_lsp(
     revision: Revision,
-    item: &query::CallHierarchyItem,
+    item: &query::CallItem,
     file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CallHierarchyItem> {
     let file = file_for_id(item.target.span.file)?;
@@ -137,9 +134,9 @@ pub(super) fn call_hierarchy_item_to_lsp(
     let selection_span = item.target.selection_span.unwrap_or(item.target.span);
     let selection_range = byte_span_to_range(&file, selection_span);
     let kind = match item.kind {
-        query::CallHierarchyKind::Function => lsp::SymbolKind::FUNCTION,
-        query::CallHierarchyKind::Method => lsp::SymbolKind::METHOD,
-        query::CallHierarchyKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
+        query::CallItemKind::Function => lsp::SymbolKind::FUNCTION,
+        query::CallItemKind::Method => lsp::SymbolKind::METHOD,
+        query::CallItemKind::Constructor => lsp::SymbolKind::CONSTRUCTOR,
     };
 
     let query_item = to_value(item).ok()?;
@@ -160,10 +157,10 @@ pub(super) fn call_hierarchy_item_to_lsp(
     })
 }
 
-/// Extract a query call hierarchy item and revision from lsp item data.
-pub(super) fn call_hierarchy_query_item_from_lsp(
+/// Extract a query call item and revision from lsp item data.
+pub(super) fn call_item_from_lsp(
     item: &lsp::CallHierarchyItem,
-) -> Option<(Revision, query::CallHierarchyItem)> {
+) -> Option<(Revision, query::CallItem)> {
     let data = item.data.as_ref()?;
     let revision = data.get("revision")?.clone();
     let revision = from_value(revision).ok()?;
@@ -176,10 +173,10 @@ pub(super) fn call_hierarchy_query_item_from_lsp(
 /// Convert an incoming call to LSP format.
 pub(super) fn incoming_call_to_lsp(
     revision: Revision,
-    call: &query::CallHierarchyIncomingCall,
+    call: &query::IncomingCall,
     file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CallHierarchyIncomingCall> {
-    let from = call_hierarchy_item_to_lsp(revision, &call.from, file_for_id)?;
+    let from = call_item_to_lsp(revision, &call.from, file_for_id)?;
     let file = file_for_id(call.from.target.span.file)?;
     let from_ranges = call
         .from_ranges
@@ -193,10 +190,10 @@ pub(super) fn incoming_call_to_lsp(
 /// Convert an outgoing call to LSP format.
 pub(super) fn outgoing_call_to_lsp(
     revision: Revision,
-    call: &query::CallHierarchyOutgoingCall,
+    call: &query::OutgoingCall,
     file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::CallHierarchyOutgoingCall> {
-    let to = call_hierarchy_item_to_lsp(revision, &call.to, file_for_id)?;
+    let to = call_item_to_lsp(revision, &call.to, file_for_id)?;
 
     let from_ranges = call
         .from_ranges
@@ -207,10 +204,10 @@ pub(super) fn outgoing_call_to_lsp(
     Some(lsp::CallHierarchyOutgoingCall { to, from_ranges })
 }
 
-/// Convert a type hierarchy item to an LSP type hierarchy item.
-pub(super) fn type_hierarchy_item_to_lsp(
+/// Convert a type item to an LSP type hierarchy item.
+pub(super) fn type_item_to_lsp(
     revision: Revision,
-    item: &query::TypeHierarchyItem,
+    item: &query::TypeItem,
     file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::TypeHierarchyItem> {
     let file = file_for_id(item.target.span.file)?;
@@ -218,13 +215,7 @@ pub(super) fn type_hierarchy_item_to_lsp(
     let range = byte_span_to_range(&file, item.target.span);
     let selection_span = item.target.selection_span.unwrap_or(item.target.span);
     let selection_range = byte_span_to_range(&file, selection_span);
-    let kind = match item.kind {
-        query::TypeHierarchyKind::Class => lsp::SymbolKind::CLASS,
-        query::TypeHierarchyKind::Interface => lsp::SymbolKind::INTERFACE,
-        query::TypeHierarchyKind::Enum => lsp::SymbolKind::ENUM,
-        query::TypeHierarchyKind::Struct => lsp::SymbolKind::STRUCT,
-        query::TypeHierarchyKind::TypeAlias => lsp::SymbolKind::TYPE_PARAMETER,
-    };
+    let kind = symbol_kind_to_lsp(item.kind);
 
     let query_item = to_value(item).ok()?;
     let data = Some(json!({
@@ -244,10 +235,10 @@ pub(super) fn type_hierarchy_item_to_lsp(
     })
 }
 
-/// Extract a query type hierarchy item and revision from lsp item data.
-pub(super) fn type_hierarchy_query_item_from_lsp(
+/// Extract a query type item and revision from lsp item data.
+pub(super) fn type_item_from_lsp(
     item: &lsp::TypeHierarchyItem,
-) -> Option<(Revision, query::TypeHierarchyItem)> {
+) -> Option<(Revision, query::TypeItem)> {
     let data = item.data.as_ref()?;
     let revision = data.get("revision")?.clone();
     let revision = from_value(revision).ok()?;
@@ -257,10 +248,10 @@ pub(super) fn type_hierarchy_query_item_from_lsp(
     Some((revision, query_item))
 }
 
-/// Convert a workspace symbol to an LSP workspace symbol.
+/// Convert a symbol search to an LSP symbol search.
 #[allow(deprecated)]
 pub(super) fn workspace_symbol_to_lsp(
-    symbol: &query::WorkspaceSymbol,
+    symbol: &query::SymbolMatch,
     file_for_id: &mut impl FnMut(FileId) -> Option<Arc<File>>,
 ) -> Option<lsp::SymbolInformation> {
     let file = file_for_id(symbol.target.span.file)?;

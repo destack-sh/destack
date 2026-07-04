@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use destack_query::{QueryModule, QueryRequest, QueryResponse};
+use destack_query::{Module, QueryRequest, QueryResponse};
 use destack_repository::{FormatterOptions, Revision};
 use destack_source::{Diagnostic, FileId, ProfileId, Uri};
 
@@ -35,8 +35,8 @@ pub struct FileSnapshot {
     pub revision: Revision,
     /// The source file id.
     pub file_id: FileId,
-    /// Query module for the requested target.
-    pub module: Option<QueryModule>,
+    /// module for the requested target.
+    pub module: Option<Module>,
     /// Formatter options selected for the file.
     pub formatter: FormatterOptions,
     /// File image used for range conversion.
@@ -296,7 +296,7 @@ pub enum WorkspaceQueryResponse {
 mod tests {
     use super::*;
 
-    use destack_query::{HoverResponse, QueryRequest, QueryResponse, WorkspaceSymbolsRequest};
+    use destack_query::{HoverResponse, QueryRequest, QueryResponse, SymbolSearchRequest};
 
     /// Preserves query requests across payload encoding and decoding.
     #[test]
@@ -304,7 +304,7 @@ mod tests {
         // build a representative query request
         let request = QueryRequestBody {
             expected_revision: Some(Revision::from_test_value(7)),
-            request: QueryRequest::WorkspaceSymbols(WorkspaceSymbolsRequest {
+            request: QueryRequest::SymbolSearch(SymbolSearchRequest {
                 profile_ids: Vec::new(),
                 query: "main".to_string(),
                 max_results: 16,

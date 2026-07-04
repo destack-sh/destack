@@ -1,4 +1,5 @@
-use destack_query::{DocumentSymbol, SymbolKind};
+use destack_dir as dir;
+use destack_query::Symbol;
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -21,7 +22,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // empty expectation is an error: must specify expected symbols
     if expected.is_empty() {
         let ctx = session.primary_module_context();
-        let symbols = ctx.document_symbols();
+        let symbols = ctx.outline();
         let actual_names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
         return CaseResult::Failed {
             message: format!(
@@ -32,7 +33,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // run the document symbols query once
     let ctx = session.primary_module_context();
-    let symbols = ctx.document_symbols();
+    let symbols = ctx.outline();
 
     // allow explicit empty snapshots
     if expected == "<none>" {
@@ -76,7 +77,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 }
 
 /// Format symbols hierarchically with indentation.
-fn format_symbols_hierarchical(symbols: &[DocumentSymbol], indent: usize) -> Vec<String> {
+fn format_symbols_hierarchical(symbols: &[Symbol], indent: usize) -> Vec<String> {
     let mut result = Vec::new();
 
     // walk the symbol tree depth first and accumulate indentation
@@ -90,7 +91,7 @@ fn format_symbols_hierarchical(symbols: &[DocumentSymbol], indent: usize) -> Vec
 
 /// Run a protocol shaped document symbol expectation.
 fn run_protocol_symbols_expectation(
-    symbols: &[DocumentSymbol],
+    symbols: &[Symbol],
     source: &str,
     expected: &str,
 ) -> CaseResult {
@@ -119,7 +120,7 @@ fn run_protocol_symbols_expectation(
 }
 
 /// Validate basic document symbol invariants.
-fn validate_symbol_invariants(symbols: &[DocumentSymbol], source: &str) -> Result<(), String> {
+fn validate_symbol_invariants(symbols: &[Symbol], source: &str) -> Result<(), String> {
     let source_len = u32::try_from(source.len()).unwrap_or(u32::MAX);
     let mut errors = Vec::new();
 
@@ -140,8 +141,8 @@ fn validate_symbol_invariants(symbols: &[DocumentSymbol], source: &str) -> Resul
 
 /// Validate a single symbol and its children.
 fn validate_symbol(
-    symbol: &DocumentSymbol,
-    parent: Option<&DocumentSymbol>,
+    symbol: &Symbol,
+    parent: Option<&Symbol>,
     source_len: u32,
     errors: &mut Vec<String>,
 ) {
@@ -193,7 +194,7 @@ fn validate_span_bounds(
 }
 
 /// Validate that selection_range is contained within range.
-fn validate_selection_within_range(symbol: &DocumentSymbol, errors: &mut Vec<String>) {
+fn validate_selection_within_range(symbol: &Symbol, errors: &mut Vec<String>) {
     // ensure the selection range stays within the full symbol range
     if symbol.selection_range.start < symbol.range.start
         || symbol.selection_range.end > symbol.range.end
@@ -206,11 +207,7 @@ fn validate_selection_within_range(symbol: &DocumentSymbol, errors: &mut Vec<Str
 }
 
 /// Validate that a child range is contained within the parent range.
-fn validate_child_within_parent(
-    parent: &DocumentSymbol,
-    child: &DocumentSymbol,
-    errors: &mut Vec<String>,
-) {
+fn validate_child_within_parent(parent: &Symbol, child: &Symbol, errors: &mut Vec<String>) {
     // ensure the child range stays within the parent range
     if child.range.start < parent.range.start || child.range.end > parent.range.end {
         errors.push(format!(
@@ -230,7 +227,7 @@ fn is_protocol_symbols_expectation(expected: &str) -> bool {
 }
 
 /// Format a document symbol tree into a protocol shaped snapshot.
-fn format_symbols_snapshot(symbols: &[DocumentSymbol], source: &str, indent: usize) -> Vec<String> {
+fn format_symbols_snapshot(symbols: &[Symbol], source: &str, indent: usize) -> Vec<String> {
     // compute line starts once for consistent span formatting
     let line_starts = compute_line_starts(source);
 
@@ -264,33 +261,24 @@ fn format_span(line_starts: &[u32], span: Span) -> String {
 }
 
 /// Format a symbol kind as a lowercase name.
-fn symbol_kind_name(kind: SymbolKind) -> &'static str {
+fn symbol_kind_name(kind: dir::SymbolKind) -> &'static str {
     match kind {
-        SymbolKind::File => "file",
-        SymbolKind::Module => "module",
-        SymbolKind::Namespace => "namespace",
-        SymbolKind::Package => "package",
-        SymbolKind::Class => "class",
-        SymbolKind::Method => "method",
-        SymbolKind::Property => "property",
-        SymbolKind::Field => "field",
-        SymbolKind::Constructor => "constructor",
-        SymbolKind::Enum => "enum",
-        SymbolKind::Interface => "interface",
-        SymbolKind::Function => "function",
-        SymbolKind::Variable => "variable",
-        SymbolKind::Constant => "constant",
-        SymbolKind::String => "string",
-        SymbolKind::Number => "number",
-        SymbolKind::Boolean => "boolean",
-        SymbolKind::Array => "array",
-        SymbolKind::Object => "object",
-        SymbolKind::Key => "key",
-        SymbolKind::Null => "null",
-        SymbolKind::EnumMember => "enum_member",
-        SymbolKind::Struct => "struct",
-        SymbolKind::Event => "event",
-        SymbolKind::Operator => "operator",
-        SymbolKind::TypeParameter => "type_parameter",
+        dir::SymbolKind::AssociatedConst => "associated_const",
+        dir::SymbolKind::AssociatedType => "associated_type",
+        dir::SymbolKind::Class => "class",
+        dir::SymbolKind::Enum => "enum",
+        dir::SymbolKind::EnumField => "enum_field",
+        dir::SymbolKind::Extension => "extension",
+        dir::SymbolKind::Function => "function",
+        dir::SymbolKind::GenericTypeParameter => "generic_type_parameter",
+        dir::SymbolKind::GenericValueParameter => "generic_value_parameter",
+        dir::SymbolKind::Import => "import",
+        dir::SymbolKind::Interface => "interface",
+        dir::SymbolKind::Label => "label",
+        dir::SymbolKind::Newtype => "newtype",
+        dir::SymbolKind::NewtypeInterface => "newtype_interface",
+        dir::SymbolKind::Struct => "struct",
+        dir::SymbolKind::TypeAlias => "type_alias",
+        dir::SymbolKind::Variable => "variable",
     }
 }

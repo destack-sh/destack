@@ -1,4 +1,6 @@
 use std::cmp::Ordering;
+use std::iter::Peekable;
+use std::str::Chars;
 
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -21,10 +23,10 @@ impl ImportGroup {
     /// Categorize one import target path into a group.
     pub fn from_path(path: &str) -> Self {
         // builtin protocols: "protocol:module" but not urls
-        if let Some(colon_position) = path.find(':')
-            && !path[colon_position..].starts_with("://")
-        {
-            return Self::Builtin;
+        if let Some(colon_position) = path.find(':') {
+            if !path[colon_position..].starts_with("://") {
+                return Self::Builtin;
+            }
         }
 
         // relative imports
@@ -62,19 +64,22 @@ pub fn sort_dependency_items(
             _ => {}
         }
 
-        // alias key first when present, then item name
-        let left_key = left_item
+        // alias name first when present, then item name
+        let left_name = left_item
             .local_string_key()
-            .map(|string_id| strings.get(string_id))
-            .unwrap_or("");
-        let right_key = right_item
+            .map(|string_id| strings.get(string_id));
+        let right_name = right_item
             .local_string_key()
-            .map(|string_id| strings.get(string_id))
-            .unwrap_or("");
+            .map(|string_id| strings.get(string_id));
 
-        match sort_order {
-            ImportSortOrder::Natural => natural_cmp(left_key, right_key),
-            ImportSortOrder::Alphabetical => left_key.cmp(right_key),
+        match (left_name, right_name) {
+            (None, None) => Ordering::Equal,
+            (None, Some(_)) => Ordering::Less,
+            (Some(_), None) => Ordering::Greater,
+            (Some(left_name), Some(right_name)) => match sort_order {
+                ImportSortOrder::Natural => compare_natural(left_name, right_name),
+                ImportSortOrder::Alphabetical => left_name.cmp(right_name),
+            },
         }
     });
 
@@ -87,7 +92,7 @@ fn is_alias_specifier(specifier: &str) -> bool {
 }
 
 /// Compare two strings using natural sort order.
-fn natural_cmp(left: &str, right: &str) -> Ordering {
+fn compare_natural(left: &str, right: &str) -> Ordering {
     let mut left_chars = left.chars().peekable();
     let mut right_chars = right.chars().peekable();
 
@@ -97,29 +102,12 @@ fn natural_cmp(left: &str, right: &str) -> Ordering {
             (None, Some(_)) => return Ordering::Less,
             (Some(_), None) => return Ordering::Greater,
             (Some(left_char), Some(right_char)) => {
-                // compare numeric runs as integers
+                // compare numeric runs without bounded integer parsing
                 if left_char.is_ascii_digit() && right_char.is_ascii_digit() {
-                    let mut left_number: u64 = 0;
-                    while let Some(&character) = left_chars.peek()
-                        && character.is_ascii_digit()
-                    {
-                        left_number = left_number
-                            .saturating_mul(10)
-                            .saturating_add((character as u64) - ('0' as u64));
-                        left_chars.next();
-                    }
+                    let left_digits = take_ascii_digits(&mut left_chars);
+                    let right_digits = take_ascii_digits(&mut right_chars);
 
-                    let mut right_number: u64 = 0;
-                    while let Some(&character) = right_chars.peek()
-                        && character.is_ascii_digit()
-                    {
-                        right_number = right_number
-                            .saturating_mul(10)
-                            .saturating_add((character as u64) - ('0' as u64));
-                        right_chars.next();
-                    }
-
-                    match left_number.cmp(&right_number) {
+                    match compare_ascii_digits(&left_digits, &right_digits) {
                         Ordering::Equal => continue,
                         ordering => return ordering,
                     }
@@ -140,5 +128,44 @@ fn natural_cmp(left: &str, right: &str) -> Ordering {
                 }
             }
         }
+    }
+}
+
+/// Take one ASCII digit run from a character iterator.
+fn take_ascii_digits(chars: &mut Peekable<Chars<'_>>) -> String {
+    let mut digits = String::new();
+
+    while let Some(&character) = chars.peek() {
+        if !character.is_ascii_digit() {
+            break;
+        }
+
+        digits.push(character);
+        chars.next();
+    }
+
+    digits
+}
+
+/// Compare two ASCII digit runs as natural-sort numbers.
+fn compare_ascii_digits(left: &str, right: &str) -> Ordering {
+    let left_significant = significant_digits(left);
+    let right_significant = significant_digits(right);
+
+    left_significant
+        .len()
+        .cmp(&right_significant.len())
+        .then_with(|| left_significant.cmp(right_significant))
+        .then_with(|| left.len().cmp(&right.len()))
+}
+
+/// Return the significant portion of one ASCII digit run.
+fn significant_digits(digits: &str) -> &str {
+    let significant = digits.trim_start_matches('0');
+
+    if significant.is_empty() {
+        "0"
+    } else {
+        significant
     }
 }

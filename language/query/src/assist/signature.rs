@@ -1,17 +1,15 @@
-use crate::core::QueryPosition;
 use destack_dir as dir;
-use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, Member, NodeType};
 use destack_serde::Reflect;
+use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
-use crate::core::ModuleQueryContext;
-use crate::dir::ParameterList;
 use crate::format::format_call_signature;
+use crate::{ModuleQueryContext, ParameterList, Position};
 
 /// A parameter in a signature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureParameter {
-    /// The parameter label (e.g., "name: string").
+    /// The parameter label.
     pub label: String,
     /// Documentation for this parameter.
     pub documentation: Option<String>,
@@ -19,22 +17,30 @@ pub struct SignatureParameter {
 
 impl SignatureParameter {
     /// Create a signature parameter.
-    pub fn new(label: impl Into<String>) -> Self {
-        // build a signature parameter with defaults
+    pub fn new(label: impl Into<String>, documentation: Option<String>) -> Self {
         Self {
             label: label.into(),
-            documentation: None,
+            documentation,
         }
     }
 
-    /// Add documentation.
-    pub fn with_documentation(mut self, doc: impl Into<String>) -> Self {
-        self.documentation = Some(doc.into());
-        self
+    /// Build signature parameters from formatted labels.
+    fn list(labels: &[String], data: Option<&ParameterList>) -> Vec<Self> {
+        labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                let documentation = data
+                    .and_then(|data| data.names.get(index).and_then(|name| data.docs.get(name)))
+                    .cloned();
+
+                Self::new(label.clone(), documentation)
+            })
+            .collect()
     }
 }
 
-/// A single signature (for overloaded functions, there may be multiple).
+/// A single callable signature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureItem {
     /// The full signature label.
@@ -47,25 +53,16 @@ pub struct SignatureItem {
 
 impl SignatureItem {
     /// Create a signature item.
-    pub fn new(label: impl Into<String>) -> Self {
-        // build a signature item with defaults
+    pub fn new(
+        label: impl Into<String>,
+        documentation: Option<String>,
+        parameters: Vec<SignatureParameter>,
+    ) -> Self {
         Self {
             label: label.into(),
-            documentation: None,
-            parameters: Vec::new(),
+            documentation,
+            parameters,
         }
-    }
-
-    /// Add documentation.
-    pub fn with_documentation(mut self, doc: impl Into<String>) -> Self {
-        self.documentation = Some(doc.into());
-        self
-    }
-
-    /// Add a parameter.
-    pub fn with_parameter(mut self, param: SignatureParameter) -> Self {
-        self.parameters.push(param);
-        self
     }
 }
 
@@ -74,16 +71,15 @@ impl SignatureItem {
 pub struct SignatureHelp {
     /// Available signatures.
     pub signatures: Vec<SignatureItem>,
-    /// The active signature (index into signatures).
+    /// The active signature.
     pub active_signature: usize,
-    /// The active parameter (index into parameters).
+    /// The active parameter.
     pub active_parameter: usize,
 }
 
 impl SignatureHelp {
     /// Create signature help with a single signature.
     pub fn single(signature: SignatureItem, active_parameter: usize) -> Self {
-        // build a single signature response
         Self {
             signatures: vec![signature],
             active_signature: 0,
@@ -96,7 +92,7 @@ impl SignatureHelp {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SignatureHelpRequest {
     /// The queried position.
-    pub position: QueryPosition,
+    pub position: Position,
 }
 
 /// Response payload for signature help queries.
@@ -106,81 +102,54 @@ pub struct SignatureHelpResponse {
     pub help: Option<SignatureHelp>,
 }
 
-/// Build signature parameters from shared parameter list.
-fn signature_parameters_from_list(
-    labels: &[String],
-    data: &ParameterList,
-) -> Vec<SignatureParameter> {
-    // map parameter labels to infos and attach docs by position
-    labels
-        .iter()
-        .enumerate()
-        .map(|(idx, label)| {
-            // build the signature parameter
-            let mut info = SignatureParameter::new(label.clone());
-            let name = data.names.get(idx);
-            if let Some(name) = name {
-                let doc = data.docs.get(name);
-                if let Some(doc) = doc {
-                    info = info.with_documentation(doc.clone());
-                }
-            }
-            info
-        })
-        .collect()
-}
-
 impl ModuleQueryContext<'_> {
-    /// Get signature help at the given position (inside a function call).
+    /// Return signature help at the given position.
     pub fn signature_help(&self, offset: u32) -> Option<SignatureHelp> {
-        let ctx = self;
-        let dir_tree = ctx.dir().view();
-        let source_file = ctx
-            .repository()
-            .file(ctx.revision(), ctx.file_id())
-            .ok()
-            .flatten()?;
+        let view = self.view();
+        let source_file = self.source_file();
         let source = source_file.text();
         let enclosing =
-            ctx.dir()
-                .tree()
+            self.tree()
                 .source_index
-                .get_enclosing_spans(ctx.file_id(), offset, offset);
+                .get_enclosing_spans(self.file_id(), offset, offset);
 
         // scan enclosing calls at the cursor
         for enclosing_span in &enclosing {
-            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.source_id)
-            else {
+            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            if dir_node_id.ty != NodeType::Expression {
+            if node_id.ty != dir::NodeType::Expression {
                 continue;
             }
 
-            let expression_id = dir_node_id.try_into().ok()?;
-            let Expression::Call {
+            let expression_id = node_id.try_into().unwrap_or_else(|_| {
+                panic!("signature enclosing node is not an expression: {node_id:?}")
+            });
+            let dir::Expression::Call {
                 left, arguments, ..
-            } = dir_tree.get::<Expression>(expression_id)
+            } = view.get::<dir::Expression>(expression_id)
             else {
                 continue;
             };
 
-            let call_target = ctx.dir().call_target(*left);
-            let function_name = call_target.name.unwrap_or_else(|| "<function>".to_string());
-            let Some(symbol_id) = call_target.symbol else {
+            let call_target = self.signature_target(*left);
+            let Some(function_name) = call_target.name else {
                 continue;
             };
-            let Some(signature) = ctx.signature_info_for_symbol(symbol_id, &function_name) else {
+            let Some(symbol_id) = call_target.symbol_id else {
+                continue;
+            };
+            let Some(signature) = self.symbol_signature(symbol_id, &function_name) else {
                 continue;
             };
 
-            let mut active_parameter =
-                ctx.determine_active_parameter(dir_tree, expression_id, arguments, offset, source);
-            if signature.parameters.is_empty() {
-                active_parameter = 0;
-            } else if active_parameter >= signature.parameters.len() {
-                active_parameter = signature.parameters.len().saturating_sub(1);
-            }
+            let active_parameter =
+                self.active_signature_parameter(view, expression_id, arguments, offset, source);
+            let active_parameter = if signature.parameters.is_empty() {
+                0
+            } else {
+                active_parameter.min(signature.parameters.len().saturating_sub(1))
+            };
 
             return Some(SignatureHelp::single(signature, active_parameter));
         }
@@ -188,160 +157,149 @@ impl ModuleQueryContext<'_> {
         None
     }
 
-    /// Format signature item from a resolved symbol.
-    fn signature_info_for_symbol(
+    /// Format a signature item from a resolved symbol.
+    fn symbol_signature(
         &self,
-        symbol_id: GlobalSymbolId,
+        symbol_id: dir::GlobalSymbolId,
         function_name: &str,
     ) -> Option<SignatureItem> {
-        let root_ctx = self;
-        let _ctx = self;
-        // read the symbol's module and query context
-        let ctx = root_ctx.module_context(symbol_id.module_id)?;
+        let symbol_module = self.module_context(symbol_id.module_id);
+        let source_file = symbol_module.source_file();
+        let source = source_file.text();
+        let view = symbol_module.view();
 
-        // read the symbol declaration
-        let declaration_ref = {
-            let symbols = ctx.dir().symbols();
+        // read the symbol declaration from checked symbol data
+        let declaration = {
+            let symbols = symbol_module.symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             symbol.declaration?
         };
 
-        // resolve the source text for doc parsing
-        let source_file = ctx
-            .repository()
-            .file(ctx.revision(), ctx.file_id())
-            .ok()
-            .flatten()?;
-        let source = source_file.text();
-
-        // resolve the function signature from the declaration or member
-        let dir_tree = ctx.dir().view();
-        let (signature, doc_text) = match declaration_ref.local_id.ty {
-            // handle function declarations
-            NodeType::Declaration => {
-                let declaration_id = declaration_ref.local_id.try_into_typed().ok()?;
-                let declaration = dir_tree.get::<Declaration>(declaration_id);
-                let Declaration::Function(declaration) = declaration else {
+        // resolve the callable signature and documentation
+        let (signature, documentation) = match declaration.local_id.ty {
+            dir::NodeType::Declaration => {
+                let declaration_id = declaration.local_id.try_into_typed().unwrap_or_else(|_| {
+                    panic!(
+                        "signature target is not a declaration: {:?}",
+                        declaration.local_id
+                    )
+                });
+                let declaration = view.get::<dir::Declaration>(declaration_id);
+                let dir::Declaration::Function(declaration) = declaration else {
                     return None;
                 };
-                let source_node_id = dir_tree.get_source(declaration_id);
-                let doc_text = ctx.dir().doc_text_for_node_without_tags(
+
+                let source_node_id = view.get_source(declaration_id);
+                let documentation = symbol_module.node_doc_text_without_tags(
                     source,
                     source_node_id,
                     &["@param", "@return", "@returns"],
                 );
-                (&declaration.signature, doc_text)
+
+                (&declaration.signature, documentation)
             }
-            // handle method members
-            NodeType::Member => {
-                let member_id = declaration_ref.local_id.try_into_typed().ok()?;
-                let member = dir_tree.get::<Member>(member_id);
+            dir::NodeType::Member => {
+                let member_id = declaration.local_id.try_into_typed().unwrap_or_else(|_| {
+                    panic!(
+                        "signature target is not a member: {:?}",
+                        declaration.local_id
+                    )
+                });
+                let member = view.get::<dir::Member>(member_id);
                 let signature = member.signature()?;
-                let source_node_id = dir_tree.get_source(member_id);
-                let doc_text = ctx.dir().doc_text_for_node_without_tags(
+                let source_node_id = view.get_source(member_id);
+                let documentation = symbol_module.node_doc_text_without_tags(
                     source,
                     source_node_id,
                     &["@param", "@return", "@returns"],
                 );
-                (signature, doc_text)
+
+                (signature, documentation)
             }
             _ => return None,
         };
 
-        // format the signature label for display
-        let types = ctx.dir().types();
-        let formatted = format_call_signature(
-            function_name,
-            signature,
-            ctx.module_id(),
-            dir_tree,
-            types,
-            &ctx,
-            false,
-        );
+        // format the signature label and parameter labels
+        let formatted = format_call_signature(function_name, signature, &symbol_module, false);
+        let parameter_data = symbol_module.symbol_parameters(symbol_id);
+        let parameters =
+            SignatureParameter::list(formatted.parameters.as_slice(), parameter_data.as_ref());
 
-        // resolve parameter documentation when available
-        let params = if let Some(data) = ctx.parameter_list_for_symbol(symbol_id) {
-            signature_parameters_from_list(formatted.parameters.as_slice(), &data)
-        } else {
-            formatted
-                .parameters
-                .iter()
-                .map(|label| SignatureParameter::new(label.clone()))
-                .collect()
-        };
-
-        // assemble the signature item
-        let mut signature = SignatureItem::new(formatted.label);
-        if let Some(doc_text) = doc_text {
-            signature = signature.with_documentation(doc_text);
-        }
-        for param in params {
-            signature = signature.with_parameter(param);
-        }
-
-        // return the formatted signature
-        Some(signature)
+        Some(SignatureItem::new(
+            formatted.label,
+            documentation,
+            parameters,
+        ))
     }
 
-    /// Determine which parameter is active based on cursor position.
-    ///
-    /// Counts how many arguments come before the cursor position.
-    fn determine_active_parameter(
+    /// Return the active parameter at a cursor position.
+    fn active_signature_parameter(
         &self,
-        dir_tree: dir::View<'_>,
-        call_expression_id: dir::LocalNodeId<Expression>,
-        arguments: &[dir::LocalNodeId<Argument>],
+        view: dir::View<'_>,
+        call_expression_id: dir::LocalNodeId<dir::Expression>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
         cursor_offset: u32,
         source: &str,
     ) -> usize {
-        let ctx = self;
-        // if no arguments, we're on parameter 0
         if arguments.is_empty() {
             return 0;
         }
 
-        // find which argument the cursor is in or after
-        let mut active_param = 0;
-        let mut lsource_span_end = None;
+        let mut active_parameter = 0;
+        let mut last_argument_end = None;
 
-        for (idx, arg_id) in arguments.iter().enumerate() {
-            // get the argument's source span
-            let arg_node_id: dir::LocalNodeIdAny = (*arg_id).into();
-            let span = ctx.dir().span_for_dir_node(dir_tree, arg_node_id);
-            lsource_span_end = Some(span.end);
+        // find the argument containing or preceding the cursor
+        for (index, argument_id) in arguments.iter().enumerate() {
+            let argument_node_id: dir::LocalNodeIdAny = (*argument_id).into();
+            let span = self.get_span(view, argument_node_id);
+            last_argument_end = Some(span.end);
 
-            // if cursor is before this argument's start, we're on the previous parameter
             if cursor_offset < span.start {
                 break;
             }
 
-            // cursor is in or after this argument
-            active_param = idx;
-
-            // if cursor is within this argument, stop here
+            active_parameter = index;
             if cursor_offset <= span.end {
                 break;
             }
         }
 
-        // allow an extra parameter when cursor sits after a trailing comma
-        if let Some(lsource_span_end) = lsource_span_end {
-            // detect trailing comma usage for the call expression
-            let call_span = ctx
-                .dir()
-                .span_for_dir_node(dir_tree, call_expression_id.into());
-            if cursor_offset > lsource_span_end && cursor_offset <= call_span.end {
-                let slice_start = lsource_span_end.min(call_span.end) as usize;
-                let slice_end = cursor_offset.min(call_span.end) as usize;
-                let slice = source.get(slice_start..slice_end).unwrap_or("");
-                if slice.contains(',') {
-                    return arguments.len();
-                }
+        // allow an extra parameter after a trailing comma
+        if let Some(last_argument_end) = last_argument_end {
+            let call_span = self.get_span(view, call_expression_id.into());
+            if self.cursor_is_after_trailing_argument_comma(
+                source,
+                call_span,
+                last_argument_end,
+                cursor_offset,
+            ) {
+                return arguments.len();
             }
         }
 
-        // return the determined parameter index
-        active_param
+        active_parameter
+    }
+
+    /// Return whether the cursor follows a trailing comma in a call expression.
+    fn cursor_is_after_trailing_argument_comma(
+        &self,
+        source: &str,
+        call_span: Span,
+        last_argument_end: u32,
+        cursor_offset: u32,
+    ) -> bool {
+        // require the cursor to sit after the final argument and inside the call
+        if cursor_offset <= last_argument_end || cursor_offset > call_span.end {
+            return false;
+        }
+
+        // inspect the source slice between the argument and cursor
+        let slice_start = last_argument_end.min(call_span.end) as usize;
+        let slice_end = cursor_offset.min(call_span.end) as usize;
+        let slice = source.get(slice_start..slice_end).unwrap_or_else(|| {
+            panic!("signature source slice is out of bounds: {slice_start}..{slice_end}")
+        });
+
+        slice.contains(',')
     }
 }
