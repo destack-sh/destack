@@ -1,5 +1,6 @@
 #![feature(default_field_values)]
 
+pub mod index;
 mod schema;
 mod source;
 mod symbol;
@@ -7,6 +8,7 @@ mod table;
 mod tree;
 mod r#type;
 
+pub use index::*;
 pub use schema::*;
 pub use source::*;
 pub use symbol::*;
