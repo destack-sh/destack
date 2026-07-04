@@ -1,0 +1,10 @@
+/// Marker for the builtin integer types of any width.
+@languageItem("math.Integer")
+export newtype interface Integer {}
+
+/// Marker for the builtin float formats of any width.
+@languageItem("math.Float")
+export newtype interface Float {}
+
+/// Any sized machine scalar, excluding `bigint`.
+export type Numeric = Integer | Float;

@@ -1,18 +1,20 @@
+import { Float, Integer } from "./scalar.ds";
+
 /// Method surface for explicit lossy integer conversions.
 ///
 /// `as` between numeric types is lossless-only; these methods pick the lossy behavior explicitly.
-export extension Cast<T: int> of T {
+export extension Cast<T: Integer> of T {
     /// Convert to `U`, keeping the low bits.
     @intrinsic("math.cast.int.truncate")
-    truncate<U: int>(): U;
+    truncate<U: Integer>(): U;
 
     /// Convert to `U`, clamping into the destination range.
     @intrinsic("math.cast.int.saturate")
-    saturate<U: int>(): U;
+    saturate<U: Integer>(): U;
 
     /// Convert to `U` when the value is representable, or return `undefined`.
     @intrinsic("math.cast.int.tryInto")
-    tryInto<U: int>(): U | undefined;
+    tryInto<U: Integer>(): U | undefined;
 }
 
 // saturating conversions: clamp to bounds and map NaN to zero
@@ -21,10 +23,10 @@ export extension Cast<T: int> of T {
 ///
 /// NaN converts to 0 and out of range values clamp to bounds.
 @intrinsic("math.cast.floatToSignedInt.saturating")
-export declare function floatToSignedIntSaturating<T: int, F: float>(value: F): T;
+export declare function floatToSignedIntSaturating<T: Integer, F: Float>(value: F): T;
 
 /// Saturating float to unsigned integer conversion.
 ///
 /// NaN converts to 0 and out of range values clamp to bounds.
 @intrinsic("math.cast.floatToUnsignedInt.saturating")
-export declare function floatToUnsignedIntSaturating<T: int, F: float>(value: F): T;
+export declare function floatToUnsignedIntSaturating<T: Integer, F: Float>(value: F): T;

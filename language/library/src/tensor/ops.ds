@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { Float, Numeric } from "destack:math";
 
 import { ConvolutionAxes, DotAxes, GatherAxes, ScatterAxes } from "./axes.ds";
 import { TensorViewFormat } from "./layout.ds";
@@ -111,56 +112,56 @@ export declare function select<T, comptime Rank: int>(
 
 /// Return elementwise negation.
 @intrinsic("tensor.neg")
-export declare function negative<T: int | float, comptime Rank: int>(
+export declare function negative<T: Numeric, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise absolute value.
 @intrinsic("tensor.abs")
-export declare function absolute<T: int | float, comptime Rank: int>(
+export declare function absolute<T: Numeric, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise square root.
 @intrinsic("tensor.sqrt")
-export declare function sqrt<T: float, comptime Rank: int>(
+export declare function sqrt<T: Float, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise exponential.
 @intrinsic("tensor.exp")
-export declare function exp<T: float, comptime Rank: int>(
+export declare function exp<T: Float, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise natural logarithm.
 @intrinsic("tensor.log")
-export declare function log<T: float, comptime Rank: int>(
+export declare function log<T: Float, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise sine.
 @intrinsic("tensor.sin")
-export declare function sin<T: float, comptime Rank: int>(
+export declare function sin<T: Float, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise cosine.
 @intrinsic("tensor.cos")
-export declare function cos<T: float, comptime Rank: int>(
+export declare function cos<T: Float, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
 
 /// Return elementwise tangent.
 @intrinsic("tensor.tan")
-export declare function tan<T: float, comptime Rank: int>(
+export declare function tan<T: Float, comptime Rank: int>(
     tensor: Tensor<T, Rank>,
     options?: TensorOutputOptions<T, Rank>,
 ): Tensor<T, Rank>;
@@ -229,7 +230,7 @@ export declare function sum<
 /// Return the mean of `tensor` along the axes in `axisSet`.
 @intrinsic("tensor.reduce.mean")
 export declare function mean<
-    T: float,
+    T: Float,
     comptime Rank: int,
     comptime AxisCount: int,
     comptime OutRank: int = Rank - AxisCount,
@@ -279,7 +280,7 @@ export declare function any<
 /// Return bitwise AND along the axes in `axisSet`.
 @intrinsic("tensor.reduce.and")
 export declare function bitAnd<
-    T: int,
+    T: Integer,
     comptime Rank: int,
     comptime AxisCount: int,
     comptime OutRank: int = Rank - AxisCount,
@@ -292,7 +293,7 @@ export declare function bitAnd<
 /// Return bitwise OR along the axes in `axisSet`.
 @intrinsic("tensor.reduce.or")
 export declare function bitOr<
-    T: int,
+    T: Integer,
     comptime Rank: int,
     comptime AxisCount: int,
     comptime OutRank: int = Rank - AxisCount,
@@ -305,7 +306,7 @@ export declare function bitOr<
 /// Return bitwise XOR along the axes in `axisSet`.
 @intrinsic("tensor.reduce.xor")
 export declare function bitXor<
-    T: int,
+    T: Integer,
     comptime Rank: int,
     comptime AxisCount: int,
     comptime OutRank: int = Rank - AxisCount,

@@ -1,5 +1,6 @@
 import { Slice } from "destack:collections";
 import { todo } from "destack:error";
+import { Integer } from "./scalar.ds";
 
 /// Fixed-width vector type.
 @languageItem("math.Vector")
@@ -123,12 +124,12 @@ export declare function reduceMax<T, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise AND of all lanes.
 @intrinsic("math.vector.reduce.and")
-export declare function reduceAnd<T: int, comptime N: int>(v: Vector<T, N>): T;
+export declare function reduceAnd<T: Integer, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise OR of all lanes.
 @intrinsic("math.vector.reduce.or")
-export declare function reduceOr<T: int, comptime N: int>(v: Vector<T, N>): T;
+export declare function reduceOr<T: Integer, comptime N: int>(v: Vector<T, N>): T;
 
 /// Horizontal reduction: bitwise XOR of all lanes.
 @intrinsic("math.vector.reduce.xor")
-export declare function reduceXor<T: int, comptime N: int>(v: Vector<T, N>): T;
+export declare function reduceXor<T: Integer, comptime N: int>(v: Vector<T, N>): T;

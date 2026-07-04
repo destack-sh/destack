@@ -2,10 +2,11 @@ import { todo } from "destack:error";
 import { Add, Divide, Equal, Multiply, Negate, Power, Subtract } from "destack:ops";
 
 import { atan2, cos, sin, sqrt } from "./float.ds";
+import { Float } from "./scalar.ds";
 
 /// Complex number with floating-point components.
 @languageItem("math.Complex")
-export struct Complex<T: float> {
+export struct Complex<T: Float> {
     /// The real component.
     real: T;
 
@@ -19,7 +20,7 @@ export type Complexf = Complex<float32>;
 /// Double-precision complex number.
 export type Complexd = Complex<float64>;
 
-export extension<T: float> of Complex<T>
+export extension<T: Float> of Complex<T>
     implements
         Add<Complex<T>>,
         Subtract<Complex<T>>,
