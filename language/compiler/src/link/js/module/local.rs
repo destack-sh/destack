@@ -571,7 +571,7 @@ impl JsLinker<'_> {
             let Some(static_key) = key.named_key() else {
                 continue;
             };
-            let dir::ExportEntry::Local(export) = export else {
+            let dir::NamedExport::Local(export) = export else {
                 continue;
             };
             if !seen_keys.insert(static_key) {

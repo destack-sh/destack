@@ -97,7 +97,7 @@ impl Compiler {
         &self,
         state: &mut ExportState<'_>,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
-    ) -> ExportResult<Option<dir::ExportEntry>> {
+    ) -> ExportResult<Option<dir::NamedExport>> {
         let item = state.view.get(item_id);
 
         match item {
@@ -136,17 +136,17 @@ impl Compiler {
 
                 // preserve namespace aliases as module exports
                 if let Some(target) = state.namespace_import_target(source) {
-                    let export = dir::IndirectExportEntry {
+                    let export = dir::IndirectExport {
                         key,
                         item: item_id,
                         target: Some(target),
                         imported: dir::ExportSelector::Namespace,
                     };
 
-                    return Ok(Some(dir::ExportEntry::Indirect(export)));
+                    return Ok(Some(dir::NamedExport::Indirect(export)));
                 }
 
-                Ok(Some(dir::ExportEntry::Local(dir::LocalExportEntry {
+                Ok(Some(dir::NamedExport::Local(dir::LocalExport {
                     key,
                     source,
                     item: Some(item_id),
@@ -195,12 +195,12 @@ impl Compiler {
 
             match export {
                 // publish a local global symbol
-                dir::ExportEntry::Local(export) => {
+                dir::NamedExport::Local(export) => {
                     state.globals.push_local(key, export.source);
                 }
 
                 // publish an indirect global export
-                dir::ExportEntry::Indirect(export) => {
+                dir::NamedExport::Indirect(export) => {
                     state.globals.push_indirect(dir::IndirectGlobalEntry {
                         key,
                         item: export.item,
@@ -313,7 +313,7 @@ impl Compiler {
         state: &ExportState<'_>,
         item_id: dir::LocalNodeId<dir::DependencyItem>,
         target: Option<ModuleId>,
-    ) -> ExportResult<Option<dir::ExportEntry>> {
+    ) -> ExportResult<Option<dir::NamedExport>> {
         let item = state.view.get(item_id);
 
         match item {
@@ -340,7 +340,7 @@ impl Compiler {
                     }),
                 }?;
 
-                Ok(Some(dir::ExportEntry::Indirect(dir::IndirectExportEntry {
+                Ok(Some(dir::NamedExport::Indirect(dir::IndirectExport {
                     key,
                     item: item_id,
                     target,
@@ -371,7 +371,7 @@ impl Compiler {
 
                 // append star re-export
                 _ if item.is_star_export() => {
-                    let star_export = dir::StarExportEntry {
+                    let star_export = dir::StarExport {
                         item: *item_id,
                         target,
                     };

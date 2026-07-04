@@ -7,7 +7,7 @@ impl SnapshotTable for dir::ExportTable {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         for export in self.export_by_key.values() {
             match export {
-                dir::ExportEntry::Local(export) => {
+                dir::NamedExport::Local(export) => {
                     let symbol_id = export.source.into_global(builder.tree.module_id);
                     let anchor = if let Some(item) = export.item {
                         let node_id = item.into_global(builder.tree.module_id).into_any();
@@ -20,7 +20,7 @@ impl SnapshotTable for dir::ExportTable {
                         .field("source", builder.local_symbol_label(export.source));
                     builder.push(row);
                 }
-                dir::ExportEntry::Indirect(export) => {
+                dir::NamedExport::Indirect(export) => {
                     let node_id = export.item.into_global(builder.tree.module_id).into_any();
                     let row = SnapshotRow::new(builder.anchor_node(node_id), "export", "indirect")
                         .field("key", builder.export_key_label(export.key))
