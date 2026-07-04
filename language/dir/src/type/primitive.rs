@@ -308,7 +308,7 @@ impl FloatType {
     /// Return whether one float literal fits this float type exactly.
     pub fn fits_literal(self, value: f64) -> bool {
         self.roundtrip_f64(value)
-            .is_some_and(|rounded| rounded == value)
+            .is_some_and(|rounded| rounded == value || (rounded.is_nan() && value.is_nan()))
     }
 
     /// Return the concrete bit width, if known without target layout.
