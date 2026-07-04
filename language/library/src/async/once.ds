@@ -19,7 +19,7 @@ export local class AsyncOnce {
 /// One-time async initialized cell.
 export local class AsyncOnceCell<T> {
     /// The stored value.
-    value: MaybeUninit<T>;
+    value: MaybeUninit<T> = MaybeUninit.uninit();
 
     /// Get the initialized value.
     get(): &readonly T | undefined {

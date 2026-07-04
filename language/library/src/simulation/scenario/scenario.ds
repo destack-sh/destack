@@ -30,6 +30,7 @@ export class Scenario {
     readonly labels?: LabelSet;
     /// Create a scenario.
     constructor(options?: ScenarioOptions) {
+        this.id = todo("simulation.Scenario.constructor");
         todo("simulation.Scenario.constructor");
     }
 

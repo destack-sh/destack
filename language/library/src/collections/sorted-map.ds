@@ -58,7 +58,7 @@ export class SortedMap<K, V> {
     root: SortedMapNodeKey | undefined = undefined;
 
     /// The node storage.
-    nodes: Array<SortedMapNode<K, V>>;
+    nodes: Array<SortedMapNode<K, V>> = Array.new();
 
     /// The first free node key.
     firstFree: SortedMapNodeKey | undefined = undefined;

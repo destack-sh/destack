@@ -7,7 +7,7 @@ import { Atomic } from "./atomic.ds";
 /// Mutual exclusion lock.
 export shared class Mutex<T> {
     /// The lock state.
-    state: Atomic<uint32>;
+    state: Atomic<uint32> = Atomic.new(0);
 
     /// The protected value.
     value: T;

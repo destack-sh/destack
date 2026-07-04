@@ -10,7 +10,7 @@ import { Map } from "./map.ds";
 @languageItem("collections.Set")
 export class Set<T> {
     /// The backing map.
-    map: Map<T, void>;
+    map: Map<T, void> = Map.new();
 }
 
 export extension<T> of Set<T> {

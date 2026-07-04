@@ -37,10 +37,10 @@ struct MapSlot<K, V> {
 @languageItem("collections.Map")
 export class Map<K, V> {
     /// The entry storage.
-    entries: Unique<[MaybeUninit<MapSlot<K, V>>]>;
+    entries: Unique<[MaybeUninit<MapSlot<K, V>>]> = Unique.empty();
 
     /// The hash index.
-    index: Unique<[uint32]>;
+    index: Unique<[uint32]> = Unique.empty();
 
     /// The number of live entries.
     count: usize = 0;
