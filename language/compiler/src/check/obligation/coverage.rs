@@ -1,12 +1,12 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckError, CheckState, Decision, Dependency, Origin, Relation, answer,
+    Answer, CheckState, Decision, Dependency, ObligationCheck, ObligationFailure, Origin, Relation,
+    UncoveredValue, answer,
 };
-use crate::{CompilerResult, DiagnosticAnchor};
 
 /// Scalar interval coverage represented by one pattern.
 #[derive(Debug, Clone, PartialEq)]
@@ -41,24 +41,21 @@ impl CheckState<'_> {
     pub(in crate::check) fn check_irrefutable_pattern(
         &mut self,
         origin: Origin,
+        source: dir::GlobalNodeIdAny,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
-        diagnostic: impl FnOnce(DiagnosticAnchor, ModuleId, String) -> DiagnosticBuilder<CheckError>,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        failure: impl FnOnce(dir::GlobalNodeIdAny, UncoveredValue) -> ObligationFailure,
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let decision = self.decide_pattern_covers(origin, pattern, value)?;
-        let diagnostic = if answer!(decision) {
-            None
+        let check = if answer!(decision) {
+            ObligationCheck::holds()
         } else {
-            let missing = self.uncovered_witness(origin, &[pattern], value)?;
-            let source = self.origin_source(origin)?;
-            let (module, anchor) = self.source_anchor(source);
+            let missing = self.uncovered_value(origin, &[pattern], value)?;
 
-            let error = diagnostic(anchor, module, missing);
-
-            Some(error)
+            ObligationCheck::fail(failure(source, missing))
         };
 
-        Ok(Answer::Ready(diagnostic))
+        Ok(Answer::Ready(check))
     }
 
     /// Decide whether any pattern alternative covers one value type.
@@ -69,6 +66,14 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let value = answer!(self.reduce_type_head(origin, value)?);
+
+        // untagged newtypes match through their backing, like the
+        // narrowing family they belong to
+        if answer!(self.tagged_discriminant_domain(origin, value)?).is_none()
+            && let Some(backing) = answer!(self.newtype_backing(origin, value)?)
+        {
+            return self.decide_patterns_cover(origin, patterns, backing);
+        }
 
         // cover unions arm by arm
         if let dir::Type::Union(union) = self.ty(value)? {
@@ -89,11 +94,8 @@ impl CheckState<'_> {
         if let Some(domain) = answer!(self.tagged_discriminant_domain(origin, value)?) {
             let mut decision = Answer::Ready(true);
             for discriminant in domain {
-                decision = decision.and(self.decide_patterns_cover_tagged_case(
-                    origin,
-                    patterns,
-                    discriminant,
-                )?);
+                decision =
+                    decision.and(self.decide_patterns_cover_tagged_case(patterns, discriminant)?);
                 if decision.is_ready_false() {
                     return Ok(decision);
                 }
@@ -104,7 +106,6 @@ impl CheckState<'_> {
 
         // cover finite scalar domains value by value
         if let Some(domain) = self.finite_scalar_domain(value)? {
-            let source = self.origin_source_node(origin)?;
             let mut decision = Answer::Ready(true);
             for literal in domain {
                 let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
@@ -135,18 +136,28 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Return one uncovered value written form for a failed coverage check.
-    /// Mirrors the union and finite domain splits to find one witness.
-    pub(in crate::check) fn uncovered_witness(
+    /// Return one uncovered value for a failed coverage check.
+    pub(in crate::check) fn uncovered_value(
         &mut self,
         origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         value: dir::GlobalTypeId,
-    ) -> CompilerResult<String> {
+    ) -> CompilerResult<UncoveredValue> {
         let value = match self.reduce_type_head(origin, value)? {
             Answer::Ready(value) => value,
-            Answer::Pending(_) => return Ok(self.format_type(value)),
+            Answer::Pending(_) => return Ok(UncoveredValue::Type(value)),
         };
+
+        // untagged newtypes witness through their backing
+        if let Answer::Ready(None) = self.tagged_discriminant_domain(origin, value)?
+            && let dir::Type::Instance(instance) = self.ty(value)?
+            && self
+                .resolve_symbol_alias(instance.symbol)
+                .is_ok_and(|resolved| self.definition(resolved).is_some())
+            && let Answer::Ready(Some(backing)) = self.newtype_backing(origin, value)?
+        {
+            return self.uncovered_value(origin, patterns, backing);
+        }
 
         // descend into the first uncovered union element
         if let dir::Type::Union(union) = self.ty(value)? {
@@ -157,11 +168,11 @@ impl CheckState<'_> {
                     .decide_patterns_cover(origin, patterns, element)?
                     .is_ready_false()
                 {
-                    return self.uncovered_witness(origin, patterns, element);
+                    return self.uncovered_value(origin, patterns, element);
                 }
             }
 
-            return Ok(self.format_type(value));
+            return Ok(UncoveredValue::Type(value));
         }
 
         // name the first uncovered tagged case
@@ -170,35 +181,33 @@ impl CheckState<'_> {
             Answer::Pending(_) => None,
         };
         if let Some(domain) = tagged_domain {
-            let source = self.origin_source_node(origin)?;
             for discriminant in domain {
                 if self
-                    .decide_patterns_cover_tagged_case(origin, patterns, discriminant)?
+                    .decide_patterns_cover_tagged_case(patterns, discriminant)?
                     .is_ready_false()
                 {
                     if let Some(key) =
                         self.tagged_case_key_from_discriminant(origin.module(), discriminant)
                     {
-                        return Ok(self.format_variant_case(value, key));
+                        return Ok(UncoveredValue::TaggedCase { ty: value, key });
                     }
 
                     let literal =
                         self.intern_type(origin.module(), dir::Type::Literal(discriminant))?;
-                    return Ok(self.format_type(literal));
+                    return Ok(UncoveredValue::Type(literal));
                 }
             }
         }
 
         // name the first uncovered finite scalar value
         if let Some(domain) = self.finite_scalar_domain(value)? {
-            let source = self.origin_source_node(origin)?;
             for literal in domain {
                 let element = self.intern_type(origin.module(), dir::Type::Literal(literal))?;
                 if self
                     .decide_patterns_cover(origin, patterns, element)?
                     .is_ready_false()
                 {
-                    return Ok(self.format_type(element));
+                    return Ok(UncoveredValue::Type(element));
                 }
             }
         }
@@ -207,21 +216,20 @@ impl CheckState<'_> {
         if let dir::Type::Range(domain) = self.ty(value)? {
             match self.uncovered_range(origin, patterns, &domain)? {
                 Answer::Ready(Some(range)) => {
-                    let source = self.origin_source_node(origin)?;
                     let ty = match range.singleton_literal() {
                         Some(literal) => dir::Type::Literal(literal),
                         None => dir::Type::Range(range),
                     };
                     let range = self.intern_type(origin.module(), ty)?;
 
-                    return Ok(self.format_type(range));
+                    return Ok(UncoveredValue::Type(range));
                 }
                 Answer::Ready(None) => {}
-                Answer::Pending(_) => return Ok(self.format_type(value)),
+                Answer::Pending(_) => return Ok(UncoveredValue::Type(value)),
             }
         }
 
-        Ok(self.format_type(value))
+        Ok(UncoveredValue::Type(value))
     }
 
     /// Decide whether one pattern covers every value in one type.
@@ -237,17 +245,12 @@ impl CheckState<'_> {
     /// Decide whether any pattern alternative covers one tagged discriminant.
     fn decide_patterns_cover_tagged_case(
         &self,
-        origin: Origin,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
         let mut decision = Answer::Ready(false);
         for pattern in patterns {
-            decision = decision.or(self.decide_pattern_covers_tagged_case(
-                origin,
-                *pattern,
-                discriminant,
-            )?);
+            decision = decision.or(self.decide_pattern_covers_tagged_case(*pattern, discriminant)?);
             if decision.is_ready_true() {
                 return Ok(decision);
             }
@@ -260,7 +263,6 @@ impl CheckState<'_> {
     /// Undecided patterns park on their decision instead of denying coverage.
     fn decide_pattern_covers_tagged_case(
         &self,
-        origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
@@ -291,7 +293,7 @@ impl CheckState<'_> {
             Decision::Pattern(dir::PatternResolution::Default(resolution)) => {
                 let inner = resolution.pattern.into_typed();
 
-                answer!(self.decide_pattern_covers_tagged_case(origin, inner, discriminant)?)
+                answer!(self.decide_pattern_covers_tagged_case(inner, discriminant)?)
             }
 
             // or patterns cover when any branch covers
@@ -299,11 +301,7 @@ impl CheckState<'_> {
                 let mut covered = false;
                 for branch in &or.patterns {
                     let branch = branch.into_typed();
-                    if answer!(self.decide_pattern_covers_tagged_case(
-                        origin,
-                        branch,
-                        discriminant
-                    )?) {
+                    if answer!(self.decide_pattern_covers_tagged_case(branch, discriminant)?) {
                         covered = true;
 
                         break;
@@ -532,7 +530,6 @@ impl CheckState<'_> {
                         }
                         None => {
                             if is_defaulted {
-                                let source = self.origin_source_node(origin)?;
                                 let undefined = self.intern_type(module, dir::Type::Undefined)?;
 
                                 self.decide_pattern_covers(

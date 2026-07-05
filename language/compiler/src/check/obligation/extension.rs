@@ -1,10 +1,12 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, TypeSubstitution, answer};
-use crate::{CheckError, CompilerResult};
+use crate::CompilerResult;
+use crate::check::{
+    Answer, CheckState, Dependency, ObligationCheck, ObligationFailure, Origin, TypeSubstitution,
+    answer,
+};
 
 impl CheckState<'_> {
     /// Check one extension's implemented interfaces.
@@ -12,10 +14,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         let members = extension.members.clone();
         let implements = extension
@@ -24,22 +26,20 @@ impl CheckState<'_> {
             .cloned()
             .collect::<SmallVec<[_; 2]>>();
         if implements.is_empty() {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
-        let module = source.module_id;
 
         // require each declared implementation to satisfy its interface
-        let conformance = self.check_extension_members(
+        let failures = answer!(self.check_extension_members(
             origin,
             source,
             extension.target.r#type(),
             &members,
             &implements,
-        )?;
-        let diagnostics = answer!(conformance);
-        self.module_mut(module).diagnostics.extend(diagnostics);
+        )?);
+        let check = ObligationCheck::from_failures(failures);
 
-        Ok(Answer::Ready(None))
+        Ok(Answer::Ready(check))
     }
 
     /// Check one extension's implementation coherence.
@@ -47,10 +47,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         let target = extension.target;
         let form = extension.form;
@@ -62,12 +62,18 @@ impl CheckState<'_> {
 
         // reject anonymous exported extensions on nonlocal targets
         let module = source.module_id;
+        let mut failures = Vec::new();
         if self.is_unnamed_exported_nonlocal_extension(module, symbol, form, target) {
-            self.report_unnamed_exported_nonlocal_extension(source, target.r#type());
+            failures.push(ObligationFailure::UnnamedExportedNonlocalExtension {
+                source,
+                target: target.r#type(),
+            });
         }
 
         if implements.is_empty() {
-            return Ok(Answer::Ready(None));
+            let check = ObligationCheck::from_failures(failures);
+
+            return Ok(Answer::Ready(check));
         }
         let package = module.package_id;
 
@@ -77,11 +83,15 @@ impl CheckState<'_> {
                 let foreign_target = root.module_id.package_id != package;
                 for interface in implements.iter().map(|heritage| heritage.symbol) {
                     if foreign_target && interface.module_id.package_id != package {
-                        self.report_non_local_implementation(source, interface, root);
+                        failures.push(ObligationFailure::NonLocalImplementation {
+                            source,
+                            interface,
+                            ty: root,
+                        });
                     }
                 }
 
-                let coherence = self.check_conflicting_implementations(
+                let conflicts = answer!(self.check_conflicting_implementations(
                     origin,
                     module,
                     source,
@@ -89,20 +99,25 @@ impl CheckState<'_> {
                     root,
                     ty,
                     &implements,
-                )?;
-                answer!(coherence);
+                )?);
+                failures.extend(conflicts);
             }
             _ => {
                 // require open implementations beside their interface
                 for interface in implements.iter().map(|heritage| heritage.symbol) {
                     if interface.module_id.package_id != package {
-                        self.report_foreign_blanket_implementation(source, interface);
+                        failures.push(ObligationFailure::ForeignBlanketImplementation {
+                            source,
+                            interface,
+                        });
                     }
                 }
             }
         }
 
-        Ok(Answer::Ready(None))
+        let check = ObligationCheck::from_failures(failures);
+
+        Ok(Answer::Ready(check))
     }
 
     /// Return whether an exported extension needs a source-level name.
@@ -114,6 +129,11 @@ impl CheckState<'_> {
         target: dir::ExtensionTarget,
     ) -> bool {
         if form != dir::ExtensionForm::Exported {
+            return false;
+        }
+
+        // blanket extensions are anchored by their bound interface
+        if matches!(self.ty(target.r#type()), Ok(dir::Type::Parameter(_))) {
             return false;
         }
 
@@ -136,8 +156,8 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         implements: &[dir::NominalHeritage],
-    ) -> CompilerResult<Answer<Vec<DiagnosticBuilder<CheckError>>>> {
-        let mut diagnostics = Vec::new();
+    ) -> CompilerResult<Answer<Vec<ObligationFailure>>> {
+        let mut failures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
         // check each implemented interface independently
@@ -157,15 +177,15 @@ impl CheckState<'_> {
             )?;
 
             match result {
-                Answer::Ready(Some(diagnostic)) => diagnostics.push(diagnostic),
-                Answer::Ready(None) => {}
+                Answer::Ready(ObligationCheck::Fails(result)) => failures.extend(result),
+                Answer::Ready(ObligationCheck::Holds) => {}
                 Answer::Pending(pending) => blockers.extend(pending),
             }
         }
 
         let blockers = self.live_blockers(blockers);
 
-        Ok(Answer::ready_unless_blocked(diagnostics, blockers))
+        Ok(Answer::ready_unless_blocked(failures, blockers))
     }
 
     /// Check one extension's declared members against one implemented interface.
@@ -177,12 +197,12 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         interface: &dir::GenericInstance,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let Some(definition) = self.definition(interface.symbol) else {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         if !matches!(definition, dir::Definition::Interface(_)) {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
         let required =
@@ -209,11 +229,13 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                return Ok(Answer::Ready(Some(self.extension_interface_error(
-                    anchor_source,
-                    target,
-                    interface.symbol,
-                ))));
+                let failure = ObligationFailure::InterfaceNotImplemented {
+                    source: anchor_source,
+                    ty: target,
+                    interface: interface.symbol,
+                };
+
+                return Ok(Answer::Ready(ObligationCheck::fail(failure)));
             }
 
             // associated types without values only need presence
@@ -239,36 +261,20 @@ impl CheckState<'_> {
             }
 
             if !satisfied {
-                return Ok(Answer::Ready(Some(self.extension_interface_error(
-                    anchor_source,
-                    target,
-                    interface.symbol,
-                ))));
+                let failure = ObligationFailure::InterfaceNotImplemented {
+                    source: anchor_source,
+                    ty: target,
+                    interface: interface.symbol,
+                };
+
+                return Ok(Answer::Ready(ObligationCheck::fail(failure)));
             }
         }
 
-        Ok(Answer::Ready(None))
+        Ok(Answer::Ready(ObligationCheck::holds()))
     }
 
-    /// Return one extension interface diagnostic.
-    fn extension_interface_error(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        target: dir::GlobalTypeId,
-        interface: dir::GlobalSymbolId,
-    ) -> DiagnosticBuilder<CheckError> {
-        let (module, anchor) = self.source_anchor(source);
-        let error = CheckError::InterfaceNotImplemented {
-            anchor,
-            module,
-            source: self.format_type(target),
-            target: self.format_symbol(interface),
-        };
-
-        error.into()
-    }
-
-    /// Report visible implementations conflicting with one new extension.
+    /// Check visible implementations conflicting with one new extension.
     #[allow(clippy::too_many_arguments)]
     fn check_conflicting_implementations(
         &mut self,
@@ -279,10 +285,18 @@ impl CheckState<'_> {
         root: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
         implements: &[dir::NominalHeritage],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<Vec<ObligationFailure>>> {
+        let mut failures = Vec::new();
+
         // collect comparable implementations before overlap checks
-        let mut candidates =
-            SmallVec::<[(dir::GlobalSymbolId, dir::GlobalTypeId, dir::GlobalSymbolId); 2]>::new();
+        let mut candidates = SmallVec::<
+            [(
+                dir::GlobalSymbolId,
+                dir::GlobalTypeId,
+                dir::NominalHeritage,
+                dir::NominalHeritage,
+            ); 2],
+        >::new();
         for other in self.visible_extensions(module, root) {
             if other == symbol {
                 continue;
@@ -303,30 +317,49 @@ impl CheckState<'_> {
             if other_root != root {
                 continue;
             }
-            let shared = extension
-                .implements
-                .iter()
-                .map(|heritage| heritage.symbol)
-                .find(|interface| {
-                    implements
-                        .iter()
-                        .any(|heritage| heritage.symbol == *interface)
-                });
-            if let Some(interface) = shared {
-                candidates.push((other, other_ty, interface));
+            for other_heritage in &extension.implements {
+                let shared = implements
+                    .iter()
+                    .find(|heritage| heritage.symbol == other_heritage.symbol);
+                if let Some(heritage) = shared {
+                    candidates.push((other, other_ty, heritage.clone(), other_heritage.clone()));
+                }
             }
         }
 
-        // reject overlapping receivers for the same interface
-        for (other, other_ty, interface) in candidates {
+        // reject overlapping receivers for one unifiable interface
+        // instantiation: distinct interface arguments never conflict
+        for (other, other_ty, heritage, other_heritage) in candidates {
             if !answer!(self.types_may_overlap(origin, ty, other_ty)?) {
                 continue;
             }
+            if heritage.arguments.len() == other_heritage.arguments.len() {
+                let mut distinct = false;
+                for (left, right) in heritage
+                    .arguments
+                    .iter()
+                    .copied()
+                    .zip(other_heritage.arguments.iter().copied())
+                {
+                    if !answer!(self.types_may_overlap(origin, left, right)?) {
+                        distinct = true;
+                        break;
+                    }
+                }
+                if distinct {
+                    continue;
+                }
+            }
 
-            self.report_conflicting_implementation(source, other, interface, ty)?;
+            failures.push(ObligationFailure::ConflictingImplementation {
+                source,
+                conflict: other,
+                interface: heritage.symbol,
+                ty,
+            });
         }
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(failures))
     }
 
     /// Return whether `source` is later than one other local definition.

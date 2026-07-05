@@ -1,11 +1,10 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AssignedPlace, CheckError, CheckState, ClassInitializationObligation, Dependency,
-    Origin, Relation,
+    Answer, AssignedPlace, CheckState, ClassInitializationObligation, Dependency, ObligationCheck,
+    ObligationFailure, Origin, Relation,
 };
 
 impl CheckState<'_> {
@@ -14,9 +13,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &ClassInitializationObligation,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let fields = self.class_initialization_fields(obligation.symbol);
-        let mut errors = Vec::new();
+        let mut failures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
         // check each required field against every constructor completion branch
@@ -34,7 +33,10 @@ impl CheckState<'_> {
                 continue;
             }
 
-            errors.push(self.field_initialization_error(&field));
+            failures.push(ObligationFailure::FieldNotDefinitelyInitialized {
+                source: field.source,
+                field: field.symbol,
+            });
         }
 
         // wait until every field type decision has closed
@@ -42,10 +44,9 @@ impl CheckState<'_> {
             return Ok(Answer::Pending(blockers));
         }
 
-        Ok(Answer::Ready(self.report_class_initialization_errors(
-            obligation.source,
-            errors,
-        )))
+        let check = ObligationCheck::from_failures(failures);
+
+        Ok(Answer::Ready(check))
     }
 
     /// Return fields that need class initialization checking.
@@ -57,7 +58,8 @@ impl CheckState<'_> {
             return Vec::new();
         };
 
-        // collect instance fields without direct initializers
+        // collect instance fields without direct initializers,
+        // skipping definite assignment assertions like `handle!: T`
         class
             .members
             .iter()
@@ -65,6 +67,7 @@ impl CheckState<'_> {
                 dir::DefinitionMember::Field(field)
                     if field.space == dir::MemberSpace::Instance
                         && field.initializer.is_none()
+                        && !field.is_definite
                         && !field.is_abstract =>
                 {
                     Some(field.clone())
@@ -107,36 +110,5 @@ impl CheckState<'_> {
             .constructor_branches
             .iter()
             .all(|branch| branch.assigns(place))
-    }
-
-    /// Return one field initialization diagnostic.
-    fn field_initialization_error(
-        &self,
-        field: &dir::FieldDefinition,
-    ) -> DiagnosticBuilder<CheckError> {
-        let (module, anchor) = self.source_anchor(field.source);
-        let field = self.format_symbol(field.symbol);
-        let error = CheckError::FieldNotDefinitelyInitialized {
-            anchor,
-            module,
-            field,
-        };
-
-        error.into()
-    }
-
-    /// Report every class initialization error except the returned first error.
-    fn report_class_initialization_errors(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        errors: Vec<DiagnosticBuilder<CheckError>>,
-    ) -> Option<DiagnosticBuilder<CheckError>> {
-        let mut errors = errors.into_iter();
-        let first = errors.next();
-        for error in errors {
-            self.module_mut(source.module_id).diagnostics.push(error);
-        }
-
-        first
     }
 }

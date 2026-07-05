@@ -1,12 +1,11 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckError, CheckState, Dependency, MemberRole, Origin, Relation, TypeSubstitution,
-    answer,
+    Answer, CheckState, Dependency, MemberRole, ObligationCheck, ObligationFailure, Origin,
+    Relation, TypeSubstitution, answer,
 };
 
 /// One class instance member that participates in heritage checks.
@@ -87,38 +86,28 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let instance = self.declaration_instance(source.module_id, symbol)?;
         let closure = answer!(self.heritage_closure(origin, source.module_id, &instance)?);
 
         // report graph errors before class member rules
-        let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
+        let mut failures = Vec::new();
         for conflict in closure.conflicts {
-            let (module, anchor) = self.source_anchor(conflict.source);
-            errors.push(
-                CheckError::ConflictingHeritage {
-                    anchor,
-                    module,
-                    source: self.format_symbol(symbol),
-                    target: self.format_symbol(conflict.current.symbol),
-                }
-                .into(),
-            );
+            failures.push(ObligationFailure::ConflictingHeritage {
+                source: conflict.source,
+                symbol,
+                target: conflict.current.symbol,
+            });
         }
         for cycle in closure.cycles {
-            let (module, anchor) = self.source_anchor(cycle.source);
-            errors.push(
-                CheckError::CircularHeritage {
-                    anchor,
-                    module,
-                    source: self.format_symbol(symbol),
-                }
-                .into(),
-            );
+            failures.push(ObligationFailure::CircularHeritage {
+                source: cycle.source,
+                symbol,
+            });
         }
-        if !errors.is_empty() {
-            return Ok(Answer::Ready(self.report_heritage_errors(source, errors)));
+        if !failures.is_empty() {
+            return Ok(Answer::Ready(ObligationCheck::from_failures(failures)));
         }
 
         self.check_class_member_heritage(origin, symbol)
@@ -129,10 +118,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let Some(dir::Definition::Class(class)) = self.definition(symbol) else {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         let is_abstract = class.is_abstract;
         let extends = class.extends.clone();
@@ -151,39 +140,28 @@ impl CheckState<'_> {
 
         // decide every rule before reporting anything
         // (so pending re-runs never duplicate diagnostics)
-        let mut errors = Vec::<DiagnosticBuilder<CheckError>>::new();
+        let mut failures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for member in &own {
             let base = heritage
                 .members
                 .iter()
                 .find(|inherited| inherited.key == member.key);
-            let name = self.format_static_key(&member.key);
-            let (member_module, anchor) = self.source_anchor(member.source);
-
             match (member.is_override, base) {
                 // overrides need an inherited member to override
                 (true, None) => {
-                    errors.push(
-                        CheckError::InvalidOverride {
-                            anchor,
-                            module: member_module,
-                            member: name,
-                        }
-                        .into(),
-                    );
+                    failures.push(ObligationFailure::InvalidOverride {
+                        source: member.source,
+                        member: member.key,
+                    });
                 }
                 (true, Some(base)) => {
                     // overrides need virtual or abstract inherited members
                     if !base.is_overridable {
-                        errors.push(
-                            CheckError::OverrideNotVirtual {
-                                anchor,
-                                module: member_module,
-                                member: name,
-                            }
-                            .help("declare the inherited member 'virtual' or 'abstract'"),
-                        );
+                        failures.push(ObligationFailure::OverrideNotVirtual {
+                            source: member.source,
+                            member: member.key,
+                        });
                     } else {
                         // overrides must remain assignable to the base member
                         let assignment = if member.role == MemberRole::Method
@@ -196,16 +174,12 @@ impl CheckState<'_> {
                         match assignment {
                             Answer::Ready(true) => {}
                             Answer::Ready(false) => {
-                                errors.push(
-                                    CheckError::IncompatibleOverride {
-                                        anchor,
-                                        module: member_module,
-                                        member: name,
-                                        source: self.format_type(member.ty),
-                                        target: self.format_type(base.ty),
-                                    }
-                                    .into(),
-                                );
+                                failures.push(ObligationFailure::IncompatibleOverride {
+                                    source: member.source,
+                                    member: member.key,
+                                    source_ty: member.ty,
+                                    target_ty: base.ty,
+                                });
                             }
                             Answer::Pending(pending) => blockers.extend(pending),
                         }
@@ -213,29 +187,20 @@ impl CheckState<'_> {
                 }
                 // shadows need the override modifier
                 (false, Some(_)) => {
-                    errors.push(
-                        CheckError::MissingOverride {
-                            anchor,
-                            module: member_module,
-                            member: name,
-                        }
-                        .help("add the 'override' modifier"),
-                    );
+                    failures.push(ObligationFailure::MissingOverride {
+                        source: member.source,
+                        member: member.key,
+                    });
                 }
                 (false, None) => {}
             }
 
             // abstract members need an abstract class
             if member.is_abstract && !is_abstract {
-                let name = self.format_static_key(&member.key);
-                errors.push(
-                    CheckError::AbstractMemberInConcreteClass {
-                        anchor: self.source_anchor(member.source).1,
-                        module: member_module,
-                        member: name,
-                    }
-                    .into(),
-                );
+                failures.push(ObligationFailure::AbstractMemberInConcreteClass {
+                    source: member.source,
+                    member: member.key,
+                });
             }
         }
 
@@ -258,30 +223,17 @@ impl CheckState<'_> {
                     .iter()
                     .any(|member| member.key == key && !member.is_abstract);
                 if !provided {
-                    let (class_module, anchor) = self.source_anchor(source);
-                    errors.push(
-                        CheckError::UnimplementedAbstractMember {
-                            anchor,
-                            module: class_module,
-                            member: self.format_static_key(&key),
-                        }
-                        .help("implement the member or declare the class 'abstract'"),
-                    );
+                    failures.push(ObligationFailure::UnimplementedAbstractMember {
+                        source,
+                        member: key,
+                    });
                 }
             }
         }
 
         // final base classes reject the extension
         if let Some(base) = heritage.final_base {
-            let (class_module, anchor) = self.source_anchor(source);
-            errors.push(
-                CheckError::FinalClassExtended {
-                    anchor,
-                    module: class_module,
-                    ty: self.format_symbol(base),
-                }
-                .into(),
-            );
+            failures.push(ObligationFailure::FinalClassExtended { source, base });
         }
 
         // park until every override decision closes
@@ -289,7 +241,9 @@ impl CheckState<'_> {
             return Ok(Answer::Pending(blockers));
         }
 
-        Ok(Answer::Ready(self.report_heritage_errors(source, errors)))
+        let check = ObligationCheck::from_failures(failures);
+
+        Ok(Answer::Ready(check))
     }
 
     /// Return the inherited class member view.
