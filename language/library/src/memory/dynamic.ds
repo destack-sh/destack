@@ -9,7 +9,7 @@ import { DynamicSafe } from "./capability.ds";
 @languageItem("memory.Dynamic")
 export newtype Dynamic<T: DynamicSafe> = intrinsic;
 
-export extension<T> of Dynamic<T> {
+export extension<T: DynamicSafe> of Dynamic<T> {
     /// Return the runtime type carried by this erased value.
     @intrinsic("memory.dynamic.type")
     get type(): Type<unknown>;
