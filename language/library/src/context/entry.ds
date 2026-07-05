@@ -9,7 +9,7 @@ export struct ContextEntry<T> {
     value: T;
 }
 
-export extension<T> of ContextKey<T> {
+export extension ContextKeyEntry<T> of ContextKey<T> {
     /// Create a context entry for this key.
     entry(value: T): ContextEntry<T> {
         return ContextEntry { key: this, value };
