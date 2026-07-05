@@ -204,6 +204,7 @@ fn add_member_resolution_row(
         dir::MemberTarget::Symbol(candidate) => row
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
+            .optional_field("adjustments", adjustments_label(&candidate.adjustments))
             .optional_field(
                 "instance",
                 generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
@@ -465,6 +466,9 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
                 builder.global_type_label(*ty)
             )
         }
+        dir::Projection::Copy { ty } => {
+            format!("copy({})", builder.global_type_label(*ty))
+        }
     }
 }
 
@@ -704,8 +708,6 @@ fn primitive_label(primitive: dir::PrimitiveType) -> String {
 /// Return the canonical label for one integer predicate.
 fn integer_label(integer: dir::IntegerType) -> String {
     match integer {
-        dir::IntegerType::Integer { is_signed: true } => "int".to_string(),
-        dir::IntegerType::Integer { is_signed: false } => "uint".to_string(),
         dir::IntegerType::Fixed {
             width,
             is_signed: true,
@@ -722,7 +724,6 @@ fn integer_label(integer: dir::IntegerType) -> String {
 /// Return the canonical label for one float predicate.
 fn float_label(float: dir::FloatType) -> String {
     match float {
-        dir::FloatType::Float => "float".to_string(),
         dir::FloatType::Float16 => "float16".to_string(),
         dir::FloatType::Bfloat16 => "bfloat16".to_string(),
         dir::FloatType::Float32 => "float32".to_string(),
@@ -1084,10 +1085,30 @@ fn add_call_candidate_fields(
             "receiver",
             candidate.receiver.map(|ty| builder.global_type_label(ty)),
         )
+        .optional_field("adjustments", adjustments_label(&candidate.adjustments))
         .optional_field(
             "instance",
             generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
         )
+}
+
+/// Render one receiver projection step list, or none when empty.
+fn adjustments_label(adjustments: &[dir::Projection]) -> Option<String> {
+    if adjustments.is_empty() {
+        return None;
+    }
+
+    let labels = adjustments
+        .iter()
+        .map(|projection| match projection {
+            dir::Projection::Dereference { .. } => "dereference",
+            dir::Projection::NewtypePayload { .. } => "backing",
+            dir::Projection::Borrow { .. } => "borrow",
+            other => panic!("receiver adjustments never project {other:?}"),
+        })
+        .collect::<Vec<_>>();
+
+    Some(format!("({})", labels.join(", ")))
 }
 
 /// Add direct class construct candidate fields.
