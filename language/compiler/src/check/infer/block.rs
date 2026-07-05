@@ -18,7 +18,11 @@ impl CheckState<'_> {
                 let tail_site = self.node_site(tail.into_global_any(module))?;
                 answer!(self.infer_node_type(tail_site, PlaceUse::Read)?)
             }
-            None => self.intern_type(module, dir::Type::Void)?,
+            // walk already typed blocks that cannot reach their end as never
+            None => match self.committed_node_type_maybe(block.into_global_any(module)) {
+                Some(committed) => committed,
+                None => self.intern_type(module, dir::Type::Void)?,
+            },
         };
         self.commit_node_type(node, ty)?;
 
@@ -45,8 +49,13 @@ impl CheckState<'_> {
                 self.commit_node_type(site.node, value_type)?;
             }
             None => {
-                let void = self.intern_type(module, dir::Type::Void)?;
-                self.commit_node_type(site.node, void)?;
+                // walk already typed blocks that cannot reach their end as never
+                let verdict = self.committed_node_type_maybe(block.into_global_any(module));
+                let value = match verdict {
+                    Some(committed) => committed,
+                    None => self.intern_type(module, dir::Type::Void)?,
+                };
+                self.commit_node_type(site.node, value)?;
                 let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
             }
         }

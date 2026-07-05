@@ -111,7 +111,7 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        match self.check_value_constraint(origin, relation, value_use, left, right)? {
+        match self.check_value_constraint(origin, relation, left, right)? {
             Answer::Ready(ConstraintCheck::Holds) => Ok(Answer::Ready(())),
             Answer::Ready(ConstraintCheck::Fails(failure)) => {
                 self.report_constraint_failure(origin, relation, value_use, left, right, failure)?;
@@ -127,17 +127,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        value_use: Option<ValueUse>,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<ConstraintCheck>> {
-        let holds = match (relation, value_use) {
-            // argument flows may insert an implicit borrow
-            (Relation::Assignable, Some(ValueUse::Argument)) => {
-                answer!(self.constrain_argument(origin, left, right)?)
-            }
-            _ => answer!(self.constrain(origin, relation, left, right)?),
-        };
+        let holds = answer!(self.constrain(origin, relation, left, right)?);
 
         let check = self.complete_constraint_check(origin, relation, left, right, holds)?;
 
@@ -154,7 +147,7 @@ impl CheckState<'_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<ConstraintCheck>> {
         let Some(subject) = subject else {
-            return self.check_value_constraint(origin, relation, None, left, right);
+            return self.check_value_constraint(origin, relation, left, right);
         };
 
         let holds = match subject {
@@ -337,6 +330,13 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // memory forms own placement and readonly views
+        if relation == Relation::Assignable
+            && let Some(decision) = self.constrain_form_assignable(origin, left, right)?
+        {
+            return Ok(Some(decision));
+        }
+
         // same-symbol applications constrain arguments by variance
         let same_symbol = match (self.ty(left)?, self.ty(right)?) {
             (dir::Type::Instance(left_instance), dir::Type::Instance(right_instance))
@@ -506,15 +506,6 @@ impl CheckState<'_> {
                     pairs.push((Relation::Equal, left_place, right_place));
                 }
                 pairs.push((relation, left.value, right.value));
-            }
-            // owning sources materialize against unqualified targets:
-            // managed values flow as themselves and owned values move
-            // their ownership into the managed default
-            (dir::Type::Form(left_form), _)
-                if relation == Relation::Assignable
-                    && matches!(left_form.form, dir::Form::Managed | dir::Form::Owned) =>
-            {
-                pairs.push((relation, left_form.value, right));
             }
             // union targets accept when any member accepts
             (_, dir::Type::Union(elements)) if relation == Relation::Assignable => {

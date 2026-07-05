@@ -4,6 +4,109 @@ use crate::CompilerResult;
 use crate::check::{Answer, BoundMode, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
+    /// Constrain assignability involving memory forms.
+    pub(in crate::check) fn constrain_form_assignable(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Answer<bool>>> {
+        let source = match self.reduce_type_head(origin, source)? {
+            Answer::Ready(source) => source,
+            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+        };
+        let target = match self.reduce_type_head(origin, target)? {
+            Answer::Ready(target) => target,
+            Answer::Pending(blockers) => return Ok(Some(Answer::Pending(blockers))),
+        };
+
+        match (self.ty(source)?, self.ty(target)?) {
+            // readonly forms relate through their readable payloads
+            (dir::Type::Form(source_form), dir::Type::Form(target_form))
+                if source_form.form == dir::Form::Readonly
+                    && target_form.form == dir::Form::Readonly =>
+            {
+                Ok(Some(self.constrain(
+                    origin,
+                    Relation::Assignable,
+                    source_form.value,
+                    target_form.value,
+                )?))
+            }
+
+            // copyable readonly views read out as their payload value
+            (dir::Type::Form(source_form), _) if source_form.form == dir::Form::Readonly => {
+                match self.satisfies_auto_interface(
+                    origin,
+                    source_form.value,
+                    dir::AutoInterface::Copy,
+                )? {
+                    Answer::Ready(true) => Ok(Some(self.constrain(
+                        origin,
+                        Relation::Assignable,
+                        source_form.value,
+                        target,
+                    )?)),
+                    Answer::Ready(false) => Ok(Some(Answer::Ready(false))),
+                    Answer::Pending(blockers) => Ok(Some(Answer::Pending(blockers))),
+                }
+            }
+
+            // values can flow into readonly forms by dropping write access
+            (_, dir::Type::Form(target_form)) if target_form.form == dir::Form::Readonly => Ok(
+                Some(self.decide_readonly_assignable(origin, source, target_form.value)?),
+            ),
+
+            // memory forms check constructor then payload
+            (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
+                let constructor =
+                    self.decide_form_assignable(origin, source_form.form, target_form.form)?;
+                if !constructor.is_ready_true() {
+                    return Ok(Some(constructor));
+                }
+
+                Ok(Some(self.constrain(
+                    origin,
+                    Relation::Assignable,
+                    source_form.value,
+                    target_form.value,
+                )?))
+            }
+
+            // values materialize into concrete storage
+            (_, dir::Type::Form(target_form))
+                if matches!(
+                    target_form.form,
+                    dir::Form::Owned | dir::Form::Placed { .. }
+                ) =>
+            {
+                Ok(Some(self.constrain(
+                    origin,
+                    Relation::Assignable,
+                    source,
+                    target_form.value,
+                )?))
+            }
+
+            // concrete storage reads back as its payload
+            (dir::Type::Form(source_form), _)
+                if matches!(
+                    source_form.form,
+                    dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. }
+                ) =>
+            {
+                Ok(Some(self.constrain(
+                    origin,
+                    Relation::Assignable,
+                    source_form.value,
+                    target,
+                )?))
+            }
+
+            _ => Ok(None),
+        }
+    }
+
     /// Decide equality of two memory form constructors.
     pub(in crate::check) fn decide_form_equal(
         &mut self,

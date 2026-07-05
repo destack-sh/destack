@@ -156,6 +156,16 @@ impl CheckState<'_> {
                 origin,
                 use_,
             ),
+            dir::Expression::New { .. } => {
+                let form = match self.ty(target_head)? {
+                    dir::Type::Form(form) if form.form == dir::Form::Owned => form,
+                    _ => return Ok(Answer::Ready(false)),
+                };
+                let () = answer!(self.check_expression(site, form.value, relation, origin, use_)?);
+
+                Ok(Answer::Ready(true))
+            }
+
             _ => Ok(Answer::Ready(false)),
         }
     }
