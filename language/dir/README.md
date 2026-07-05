@@ -30,7 +30,6 @@ Run these from the repository root.
 ```sh
 # focused local loop
 cargo test -p destack_dir
-just language/test-specification
 
 # clean check
 just language/check-quick

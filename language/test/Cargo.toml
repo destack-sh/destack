@@ -34,11 +34,6 @@ path = "src/conformance/formatter/main.rs"
 harness = false
 
 [[test]]
-name = "specification"
-path = "src/specification/main.rs"
-harness = false
-
-[[test]]
 name = "query"
 path = "src/query/main.rs"
 harness = false

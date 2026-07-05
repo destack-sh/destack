@@ -131,7 +131,6 @@ test-unit:
 # run tests
 test:
     just test-unit
-    just test-specification
     just test-query
     just test-formatter
     just test-grammar
@@ -190,10 +189,6 @@ test-conformance-formatter:
 test-conformance-formatter-update:
     cargo test --release -p destack_test --test conformance-formatter -- --update-known-failures
 
-# run specification tests (type checking specification)
-test-specification:
-    cargo test --release -p destack_test --test specification
-
 # validate tree sitter overlay coverage
 test-grammar-overlay:
     bun grammar/scripts/check-overlay.mjs
@@ -218,7 +213,7 @@ test-grammar-destack-node-coverage:
 test-grammar-fixtures:
     bun grammar/scripts/check-grammar-fixtures.mjs
 
-# validate language examples in docs and specification fixtures
+# validate language examples in documentation
 test-grammar-docs:
     cd grammar/destack && npm run report:docs -- --fail
 

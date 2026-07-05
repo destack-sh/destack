@@ -33,7 +33,6 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_compiler
 cargo test -p destack_test --test smoke -- --compiler
-just language/test-specification
 just language/test-query
 
 # clean check
