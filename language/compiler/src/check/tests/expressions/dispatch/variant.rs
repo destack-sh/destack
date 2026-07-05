@@ -82,3 +82,81 @@ function open(): Edge {
         r#""#,
     );
 }
+
+#[test]
+fn test_await_unwraps_the_newtype_backing() {
+    let session = TestSession::single(
+        r#"
+import { Promise } from "destack:async";
+
+newtype Wrapper<T> = Promise<T>;
+
+extension<T> of Wrapper<T> {
+    async take(): Promise<T> {
+        const value = await this;
+        value
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Promise } from "destack:async";
+
+newtype Wrapper<T> = Promise<T>;
+
+extension<T> of Wrapper<T> {
+    async take(): Promise<T> {
+        const value: T = await this;
+        value
+    }
+}
+
+=== checked ===
+import { Promise } from "destack:async";
+
+newtype Wrapper<T> = Promise<T>;
+/// @generic.template symbol=Wrapper parameters=(T#1)
+/// @type.symbol symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" type=Wrapper
+/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" template=(T#1) value=Promise<T#1>
+/// @type.symbol symbol=Wrapper.T source=T type=T#1
+/// @resolution.name source=Promise target=async.promise.Promise
+/// @resolution.name source=T target=Wrapper.T
+
+extension<T> of Wrapper<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Wrapper<T#2>
+/// @definition.method symbol=take slot=take type=async (this: Wrapper<T#2>) => Promise<T#2>
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Wrapper target=Wrapper
+/// @resolution.name source=T target=T
+
+    async take(): Promise<T> {
+    /// @type.symbol symbol=take type=async (this: Wrapper<T#2>) => Promise<T#2>
+    /// @resolution.name source=Promise target=async.promise.Promise
+    /// @resolution.name source=T target=T
+
+        const value = await this;
+        /// @type.symbol symbol=take.value source=value type=T#2
+        /// @type.node source="await this" type=T#2
+        /// @type.node source=this type=Wrapper<T#2>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Wrapper<T#2>
+        /// @generic.instance source=this id=Wrapper<T#2>
+
+        value
+        /// @type.node source=value type=T#2
+        /// @resolution.name source=value target=take.value
+
+    }
+}
+
+/// @generic.instance id=Promise<T#2> template=async.promise.Promise arguments=(T#2)
+/// @generic.instance id=Wrapper<T#2> template=Wrapper arguments=(T#2)
+"#,
+        r#""#,
+    );
+}
