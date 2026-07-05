@@ -181,8 +181,6 @@ let owned: ^Point = borrow;
 
 #[test]
 fn test_construction_materializes_at_an_owned_target() {
-    // constructions are births: a new expression materializes at an
-    // owned target while the same class value stays managed elsewhere
     let session = TestSession::single(
         r#"
 class User {}
@@ -219,8 +217,6 @@ let owned: ^User = new User();
 
 #[test]
 fn test_copyable_value_copies_into_an_owned_target() {
-    // copies are births: a copyable value assigns into an owned
-    // target as its own fresh copy
     let session = TestSession::single(
         r#"
 struct Point {
