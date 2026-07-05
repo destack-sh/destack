@@ -9,12 +9,87 @@ import { Json } from "./value.ds";
 export class JsonSerializer implements Serializer {
     /// The encoding error type.
     type Error = JsonError;
+
+    /// Serialize a null value.
+    serializeNull(&exclusive this): Result<void, JsonError> {
+        todo("JsonSerializer.serializeNull")
+    }
+
+    /// Serialize an undefined value.
+    serializeUndefined(&exclusive this): Result<void, JsonError> {
+        todo("JsonSerializer.serializeUndefined")
+    }
+
+    /// Serialize a boolean value.
+    serializeBoolean(&exclusive this, value: boolean): Result<void, JsonError> {
+        todo("JsonSerializer.serializeBoolean")
+    }
+
+    /// Serialize a number value.
+    serializeNumber(&exclusive this, value: number): Result<void, JsonError> {
+        todo("JsonSerializer.serializeNumber")
+    }
+
+    /// Serialize a string value.
+    serializeString(&exclusive this, value: string): Result<void, JsonError> {
+        todo("JsonSerializer.serializeString")
+    }
+
+    /// Serialize an array value.
+    serializeArray<T: Serialize<this>>(
+        &exclusive this,
+        value: readonly T[],
+    ): Result<void, JsonError> {
+        todo("JsonSerializer.serializeArray")
+    }
+
+    /// Serialize an object field.
+    serializeField<T: Serialize<this>>(
+        &exclusive this,
+        key: string,
+        value: &readonly T,
+    ): Result<void, JsonError> {
+        todo("JsonSerializer.serializeField")
+    }
 }
 
 /// JSON decoder.
 export class JsonDeserializer implements Deserializer {
     /// The decoding error type.
     type Error = JsonError;
+
+    /// Deserialize a null value.
+    deserializeNull(&exclusive this): Result<void, JsonError> {
+        todo("JsonDeserializer.deserializeNull")
+    }
+
+    /// Deserialize a boolean value.
+    deserializeBoolean(&exclusive this): Result<boolean, JsonError> {
+        todo("JsonDeserializer.deserializeBoolean")
+    }
+
+    /// Deserialize a number value.
+    deserializeNumber(&exclusive this): Result<number, JsonError> {
+        todo("JsonDeserializer.deserializeNumber")
+    }
+
+    /// Deserialize a string value.
+    deserializeString(&exclusive this): Result<^string, JsonError> {
+        todo("JsonDeserializer.deserializeString")
+    }
+
+    /// Deserialize an array value.
+    deserializeArray<T: Deserialize<this>>(&exclusive this): Result<^T[], JsonError> {
+        todo("JsonDeserializer.deserializeArray")
+    }
+
+    /// Deserialize an object field.
+    deserializeField<T: Deserialize<this>>(
+        &exclusive this,
+        key: string,
+    ): Result<T | undefined, JsonError> {
+        todo("JsonDeserializer.deserializeField")
+    }
 }
 
 /// Value that can encode itself as JSON.
