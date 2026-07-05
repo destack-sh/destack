@@ -1,4 +1,5 @@
 import { SourceLocation, todo } from "destack:error";
+import { Borrowed } from "destack:memory";
 import { Label } from "destack:runtime";
 
 import { Case } from "./case.ds";
@@ -81,7 +82,7 @@ export class Registry {
 }
 
 /// Return the active module registry.
-export function currentRegistry(): &exclusive Registry {
+export function currentRegistry(): Borrowed<Registry, "static", "exclusive"> {
     todo("test.currentRegistry")
 }
 
