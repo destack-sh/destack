@@ -861,6 +861,32 @@ pub enum CheckError {
         member: String,
     },
 
+    /// Call receiver does not satisfy the method's declared `this` parameter.
+    ///
+    /// ```ds
+    /// extension of Buffer {
+    ///     grow(this: &exclusive Buffer): void {}
+    ///
+    ///     peek(this: &readonly Buffer): void {
+    ///         this.grow();
+    ///     }
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC322",
+        message = "receiver type '{source}' is not assignable to the method's 'this' type '{target}'"
+    )]
+    ReceiverNotAssignable {
+        /// Report the call expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The supplied receiver type.
+        source: String,
+        /// The declared `this` parameter type.
+        target: String,
+    },
+
     // -------------------------------------------------------------------------
     // 4xx: expressions
     // -------------------------------------------------------------------------

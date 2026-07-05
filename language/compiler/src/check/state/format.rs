@@ -771,8 +771,6 @@ fn format_primitive(primitive: &dir::PrimitiveType) -> String {
         dir::PrimitiveType::Symbol => "symbol".to_string(),
         dir::PrimitiveType::UniqueSymbol => "unique symbol".to_string(),
         dir::PrimitiveType::Integer(integer) => match integer {
-            dir::IntegerType::Integer { is_signed: true } => "int".to_string(),
-            dir::IntegerType::Integer { is_signed: false } => "uint".to_string(),
             dir::IntegerType::Pointer { is_signed: true } => "isize".to_string(),
             dir::IntegerType::Pointer { is_signed: false } => "usize".to_string(),
             dir::IntegerType::Fixed { width, is_signed } => {
@@ -786,7 +784,6 @@ fn format_primitive(primitive: &dir::PrimitiveType) -> String {
             dir::FloatType::Bfloat16 => "bfloat16".to_string(),
             dir::FloatType::Float32 => "float32".to_string(),
             dir::FloatType::Float64 => "float64".to_string(),
-            dir::FloatType::Float => "number".to_string(),
         },
     }
 }

@@ -8,8 +8,8 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex, Origin,
-    Solver, VarianceEntry,
+    CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex,
+    GenericScope, GenericTemplateId, Origin, Solver, VarianceEntry,
 };
 use crate::{CheckError, Compiler, CompilerError, CompilerResult};
 
@@ -44,7 +44,7 @@ pub(in crate::check) struct CheckState<'a> {
     /// Checked component artifact containing each external module.
     pub(in crate::check) external_components: IndexMap<ModuleId, CheckComponentKey>,
 
-    // checked symbol state
+    // checked state
     /// Stable declaration symbol types.
     pub(in crate::check) declaration_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Body-owned binding symbol types.
@@ -54,33 +54,25 @@ pub(in crate::check) struct CheckState<'a> {
     /// Stable source node decisions.
     pub(in crate::check) decisions: DecisionTable,
 
+    // generic state
+    /// Generic instances, argument variables, and induction bookkeeping.
+    pub(in crate::check) generics: GenericIndex,
+    /// Flattened generic scopes computed once per template.
+    pub(in crate::check) scopes: IndexMap<GenericTemplateId, Arc<GenericScope>>,
+    /// Generic parameter variance derivations.
+    pub(in crate::check) variances: IndexMap<dir::GlobalGenericParameterId, VarianceEntry>,
+
+    // reduction state
+    /// Memoized closed reduced types keyed by source type.
+    /// Entries are recorded outside probes only, and parameter reductions key by their assuming scope.
+    pub(in crate::check) reduced_types:
+        IndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
+
     // solver state
     /// Active component solver state.
     pub(in crate::check) solver: Solver,
 
-    // memoized closed reductions, valid across rejected probes
-    /// Memoized closed reduced types keyed by source type.
-    /// Parameter reductions key by their assuming scope, so scope-dependent answers never leak across declarations.
-    pub(in crate::check) reduced_types:
-        IndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
-    /// Opened method sources keyed by conformance pair and assuming scope.
-    /// Re-polled conformance decisions reuse their opened inference variables, so the solver can settle them.
-    pub(in crate::check) opened_signatures: IndexMap<
-        (
-            dir::GlobalTypeId,
-            dir::GlobalTypeId,
-            Option<dir::GlobalGenericTemplateId>,
-        ),
-        dir::GlobalTypeId,
-    >,
-    /// Generic instances, argument variables, and induction bookkeeping.
-    pub(in crate::check) generics: GenericIndex,
-    /// Generic parameter variance derivations.
-    pub(in crate::check) variances: IndexMap<dir::GlobalGenericParameterId, VarianceEntry>,
-
     // tracing
-    /// The active deep-reduction nesting depth.
-    pub(in crate::check) reduce_depth: usize,
     /// Trace events recorded while checking.
     pub(in crate::check) events: Vec<CheckEvent>,
     /// Whether check events should print as they are recorded in debug builds.
@@ -111,12 +103,11 @@ impl<'a> CheckState<'a> {
             binding_types: IndexMap::new(),
             node_types: IndexMap::new(),
             decisions: DecisionTable::new(),
-            solver: Solver::new(),
-            reduced_types: IndexMap::new(),
-            opened_signatures: IndexMap::new(),
             generics: GenericIndex::new(),
+            scopes: IndexMap::new(),
             variances: IndexMap::new(),
-            reduce_depth: 0,
+            reduced_types: IndexMap::new(),
+            solver: Solver::new(),
             events: Vec::new(),
             emit_events,
         }

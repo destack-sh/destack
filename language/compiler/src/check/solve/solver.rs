@@ -6,8 +6,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, ObligationEntry,
-    ObligationId, ObligationTable, Origin, RelationCache, RelationCacheSnapshot, Task, TaskKey,
-    VariableState, VariableTable, Widening, WorkMark, WorkQueue,
+    ObligationId, ObligationTable, Opening, Origin, RelationCache, RelationCacheSnapshot, Task,
+    TaskKey, TypeSubstitution, VariableState, VariableTable, Widening, WorkMark, WorkQueue,
 };
 
 /// Solver state for one checked component.
@@ -30,10 +30,14 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) relations: RelationCache,
     /// Obligations collected for this component.
     pub(in crate::check) obligations: ObligationTable,
+    /// Generic substitutions opened by source sites across solver polls.
+    pub(in crate::check) opened_substitutions: IndexMap<Opening, TypeSubstitution>,
 
     /// Tasks parked on unresolved dependencies.
     waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Completed source node task keys.
+    /// Variables whose weak solutions wait until the regular queue drains.
+    weak_solves: IndexSet<dir::TypeVariableId>,
+    /// Completed source typing task keys.
     completed_keys: IndexSet<TaskKey>,
     /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
@@ -80,7 +84,14 @@ enum Undo {
         /// The previous waiter list.
         previous: Option<SmallVec<[Task; 2]>>,
     },
-    /// Undo one completed source node task key.
+    /// Undo one opened substitution mutation.
+    OpenedSubstitution {
+        /// The changed opening.
+        opening: Opening,
+        /// The previous substitution.
+        previous: Option<TypeSubstitution>,
+    },
+    /// Undo one completed source typing task key.
     CompletedKey {
         /// The completed task key.
         key: TaskKey,
@@ -99,11 +110,23 @@ impl Solver {
             queue: WorkQueue::new(),
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
+            opened_substitutions: IndexMap::new(),
             waiters: IndexMap::new(),
+            weak_solves: IndexSet::new(),
             completed_keys: IndexSet::new(),
             undo: Vec::new(),
             snapshot_depth: 0,
         }
+    }
+
+    /// Defer one variable's weak solution until the regular queue drains.
+    pub(in crate::check) fn defer_weak_solve(&mut self, variable: dir::TypeVariableId) {
+        self.weak_solves.insert(variable);
+    }
+
+    /// Take the next variable whose weak solution can run after the regular queue drains.
+    pub(in crate::check) fn pop_weak_solve(&mut self) -> Option<dir::TypeVariableId> {
+        self.weak_solves.shift_remove_index(0)
     }
 
     /// Snapshot the solver before one probe.
@@ -217,8 +240,26 @@ impl Solver {
         id
     }
 
+    /// Return one substitution opened by a source site.
+    pub(in crate::check) fn opened_substitution(
+        &self,
+        opening: Opening,
+    ) -> Option<&TypeSubstitution> {
+        self.opened_substitutions.get(&opening)
+    }
+
+    /// Insert one substitution opened by a source site.
+    pub(in crate::check) fn insert_opened_substitution(
+        &mut self,
+        opening: Opening,
+        substitution: TypeSubstitution,
+    ) {
+        self.record_opened_substitution(opening);
+        self.opened_substitutions.insert(opening, substitution);
+    }
+
     /// Return the representative for one variable.
-    pub(in crate::check) fn representative(
+    pub(super) fn representative(
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<dir::TypeVariableId> {
@@ -358,6 +399,16 @@ impl Solver {
         }
     }
 
+    /// Record one opened substitution if a snapshot is active.
+    fn record_opened_substitution(&mut self, opening: Opening) {
+        if self.snapshot_depth > 0 {
+            self.undo.push(Undo::OpenedSubstitution {
+                opening,
+                previous: self.opened_substitutions.get(&opening).cloned(),
+            });
+        }
+    }
+
     /// Apply one undo entry.
     fn rollback_undo(&mut self, undo: Undo) {
         match undo {
@@ -378,6 +429,14 @@ impl Solver {
                 }
                 None => {
                     self.waiters.swap_remove(&dependency);
+                }
+            },
+            Undo::OpenedSubstitution { opening, previous } => match previous {
+                Some(previous) => {
+                    self.opened_substitutions.insert(opening, previous);
+                }
+                None => {
+                    self.opened_substitutions.swap_remove(&opening);
                 }
             },
             Undo::CompletedKey { key } => {

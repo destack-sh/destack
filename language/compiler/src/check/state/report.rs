@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexSet;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin, Relation, SignatureRejection, ValueUse};
+use crate::check::{Answer, CheckState, Origin, Relation, SignatureRejection, ValueUse};
 use crate::{
     CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor,
     diagnostic_suggestion_distance,
@@ -403,7 +403,7 @@ impl CheckState<'_> {
 
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         if self.modules.contains_key(&module) && reported.insert((module, anchor.clone())) {
-            let error = CheckError::MissingTypeAnnotation { anchor, module };
+            let error = CheckError::CannotInferType { anchor, module };
             self.module_mut(module).diagnostics.push(error.into());
         }
 
@@ -626,6 +626,18 @@ impl CheckState<'_> {
                 let (module, anchor) =
                     self.origin_diagnostic_anchor(self.origin_at(origin, source_node))?;
                 let error = CheckError::ConstraintNotSatisfied {
+                    anchor,
+                    module,
+                    source,
+                    target,
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+
+            // report receiver mismatch on the call itself
+            SignatureRejection::Receiver { source, target } => {
+                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+                let error = CheckError::ReceiverNotAssignable {
                     anchor,
                     module,
                     source,
@@ -1699,7 +1711,33 @@ impl CheckState<'_> {
             )),
             dir::Type::Instance(instance) => match self.definition(instance.symbol) {
                 Some(dir::Definition::Struct(_)) => {
-                    Ok(Some(self.nominal_field_keys(instance.symbol)))
+                    // name only fields the literal cannot omit
+                    let mut required = SmallVec::new();
+                    for (key, has_initializer) in self.nominal_instance_fields(instance.symbol) {
+                        let lookup = self.lookup_member(
+                            origin,
+                            origin.module(),
+                            target,
+                            dir::MemberSpace::Instance,
+                            key,
+                        )?;
+                        let declared = match lookup {
+                            Answer::Ready(lookup) => lookup.field_type(),
+                            Answer::Pending(_) => None,
+                        };
+                        let omittable = match declared {
+                            Some(declared) => self
+                                .field_may_be_omitted(origin, declared, has_initializer)?
+                                .ready()
+                                .unwrap_or(false),
+                            None => has_initializer,
+                        };
+                        if !omittable {
+                            required.push(key);
+                        }
+                    }
+
+                    Ok(Some(required))
                 }
                 _ => Ok(None),
             },

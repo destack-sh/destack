@@ -2,9 +2,9 @@ use destack_dir as dir;
 
 use crate::check::{
     Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintId, Dependency, ExpectedType,
-    Origin, PlaceUse, Task, Widening, answer,
+    Origin, PlaceUse, SolveMode, Task, Widening, answer,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CheckError, CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
@@ -15,28 +15,37 @@ impl CheckState<'_> {
         });
 
         let mut steps = 0usize;
-        while let Some(task) = self.solver.pop_task() {
-            if self.solver.is_task_complete(&task) {
-                continue;
+        loop {
+            while let Some(task) = self.solver.pop_task() {
+                if self.solver.is_task_complete(&task) {
+                    continue;
+                }
+
+                let answer = self.run_task(&task)?;
+
+                // park pending tasks on their blockers
+                if let Answer::Pending(blockers) = answer {
+                    self.park_task(&task, &blockers)?;
+                }
+                // mark source node work complete after it reaches a ready answer
+                else {
+                    self.solver.complete_task(&task);
+                }
+
+                self.record_event(CheckEvent::TaskRan { step: steps, task });
+                steps += 1;
             }
 
-            let answer = self.run_task(&task)?;
-
-            // park pending tasks on their blockers
-            if let Answer::Pending(blockers) = answer {
-                self.park_task(&task, &blockers)?;
-            }
-            // mark source node work complete after it reaches a ready answer
-            else {
-                self.solver.complete_task(&task);
-            }
-
-            self.record_event(CheckEvent::TaskRan { step: steps, task });
-            steps += 1;
+            // after the regular queue drains, apply one weak solution
+            // and let any strong work it wakes run before the next
+            let Some(variable) = self.solver.pop_weak_solve() else {
+                break;
+            };
+            self.solve_variable(variable, SolveMode::Weak)?;
         }
 
         // sweep tasks still parked after the queue drains: stuck work is
-        // an inference cycle and every origin reports a missing annotation
+        // an inference cycle and each live origin reports unresolved inference
         self.sweep_parked_tasks()?;
 
         self.record_event(CheckEvent::SolveFinished {
@@ -121,8 +130,9 @@ impl CheckState<'_> {
             if expression && declared.contains(&origin.module()) {
                 continue;
             }
-            let source = self.origin_source_node(origin)?;
-            self.report_missing_type_annotation(origin.module(), source);
+            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+            let diagnostic = CheckError::CannotInferType { anchor, module };
+            self.module_mut(module).diagnostics.push(diagnostic.into());
         }
 
         Ok(())

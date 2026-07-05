@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
@@ -10,6 +12,15 @@ pub(in crate::check) type GenericParameterId = dir::GlobalGenericParameterId;
 
 /// Stable id for one generic binding site.
 pub(in crate::check) type GenericTemplateId = dir::GlobalGenericTemplateId;
+
+/// Generic parameters and predicates visible from one template.
+#[derive(Debug, Default)]
+pub(in crate::check) struct GenericScope {
+    /// Every parameter the scope declares or encloses.
+    pub(in crate::check) parameters: SmallVec<[GenericParameterId; 8]>,
+    /// Every where predicate the scope assumes, own and enclosing.
+    pub(in crate::check) predicates: SmallVec<[dir::WherePredicate; 4]>,
+}
 
 /// One declaration operand scanned for induced template generics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -209,6 +220,46 @@ impl CheckState<'_> {
             .iter()
             .map(|parameter| parameter.into_global(id.module_id))
             .collect()
+    }
+
+    /// Return the owner parameters enclosing one member template.
+    pub(in crate::check) fn owner_template_parameters(
+        &self,
+        id: GenericTemplateId,
+    ) -> SmallVec<[GenericParameterId; 4]> {
+        let mut parameters = SmallVec::new();
+        let mut current = self
+            .generic_template(id)
+            .and_then(|template| template.parent)
+            .map(|parent| parent.into_global(id.module_id));
+
+        // collect enclosing owner parameters outermost last
+        while let Some(id) = current {
+            let template = self.generic_template(id);
+            let symbol = template.and_then(|template| template.symbol);
+            let is_owner = symbol.is_some_and(|symbol| {
+                matches!(
+                    self.definition(symbol),
+                    Some(
+                        dir::Definition::Extension(_)
+                            | dir::Definition::Class(_)
+                            | dir::Definition::Struct(_)
+                            | dir::Definition::Enum(_)
+                            | dir::Definition::Interface(_)
+                            | dir::Definition::Newtype(_)
+                    )
+                )
+            });
+            if is_owner {
+                parameters.extend(self.generic_template_parameters(id));
+            }
+            current = self
+                .generic_template(id)
+                .and_then(|template| template.parent)
+                .map(|parent| parent.into_global(id.module_id));
+        }
+
+        parameters
     }
 
     /// Return the generic parameters owned by one callable signature.
@@ -454,7 +505,7 @@ impl CheckState<'_> {
 
     /// Collect one parameter's declared constraint and assumed bounds.
     pub(in crate::check) fn parameter_bounds(
-        &self,
+        &mut self,
         origin: Origin,
         parameter: GenericParameterId,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
@@ -473,7 +524,7 @@ impl CheckState<'_> {
     /// The scope chain walks enclosing templates, so a method assumes
     /// its own predicates and those of its enclosing declarations.
     pub(in crate::check) fn assumed_parameter_bounds(
-        &self,
+        &mut self,
         origin: Origin,
         parameter: GenericParameterId,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
@@ -484,35 +535,63 @@ impl CheckState<'_> {
     }
 
     /// Collect the assumed bounds whose predicate subject matches.
-    ///
-    /// The scope chain walks enclosing templates, so work assumes its
-    /// own predicates and those of its enclosing declarations.
     pub(in crate::check) fn assumed_bounds(
-        &self,
+        &mut self,
         origin: Origin,
         subject: impl Fn(&dir::Type) -> bool,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
-        let mut bounds = SmallVec::new();
-        let mut scope = self.origin_scope(origin);
+        let scope = self.origin_scope(origin);
+        let scope = self.generic_scope(scope);
 
+        // keep the bounds whose predicate subject matches
+        let mut bounds = SmallVec::new();
+        for predicate in scope.predicates.iter() {
+            let left = self.ty(predicate.left)?;
+            if subject(&left) {
+                bounds.push(predicate.right);
+            }
+        }
+
+        Ok(bounds)
+    }
+
+    /// Return one template's flattened generic scope, computing it once.
+    pub(in crate::check) fn generic_scope(
+        &mut self,
+        scope: Option<GenericTemplateId>,
+    ) -> Arc<GenericScope> {
+        let Some(root) = scope else {
+            return Arc::new(GenericScope::default());
+        };
+        if let Some(scope) = self.scopes.get(&root) {
+            return scope.clone();
+        }
+
+        // flatten the scope chain once, innermost first
+        let mut environment = GenericScope::default();
+        let mut scope = Some(root);
         while let Some(id) = scope {
             let Some(template) = self.generic_template(id) else {
                 break;
             };
-            for predicate in &template.predicates {
-                let Ok(left) = self.ty(predicate.left) else {
-                    continue;
-                };
-                if subject(&left) {
-                    bounds.push(predicate.right);
-                }
-            }
+            environment.parameters.extend(
+                template
+                    .parameters
+                    .iter()
+                    .map(|local| local.into_global(id.module_id)),
+            );
+            environment
+                .predicates
+                .extend(template.predicates.iter().cloned());
 
             scope = template
                 .parent
                 .map(|parent| parent.into_global(id.module_id));
         }
 
-        Ok(bounds)
+        let environment = Arc::new(environment);
+        self.scopes.insert(root, environment.clone());
+
+        environment
     }
 }

@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation, Task, TypeBound,
-    VariableBounds, Widening, answer,
+    Answer, BoundMode, CheckEvent, CheckState, Constraint, Dependency, GenericInductionParameter,
+    Origin, Relation, SolveMode, Task, TypeBound, VariableBounds, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -20,6 +20,57 @@ impl CheckState<'_> {
         self.record_event(CheckEvent::VariableAllocated { variable, widening });
 
         variable
+    }
+
+    /// Return one canonical open variable, or none when the variable is solved.
+    pub(in crate::check) fn open_variable(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Option<dir::TypeVariableId>> {
+        let variable = self.solver.representative(variable)?;
+        let state = self.solver.variable(variable)?;
+
+        Ok(state.solution.is_none().then_some(variable))
+    }
+
+    /// Return the dependency that wakes when one variable closes.
+    pub(in crate::check) fn variable_dependency(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Dependency> {
+        let variable = self.solver.representative(variable)?;
+
+        Ok(Dependency::Variable(variable))
+    }
+
+    /// Return the generated parameter attached to one open variable.
+    pub(in crate::check) fn variable_induction(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Option<GenericInductionParameter>> {
+        let Some(variable) = self.open_variable(variable)? else {
+            return Ok(None);
+        };
+
+        Ok(self.generics.induction(variable))
+    }
+
+    /// Return the first source occurrence that flowed into one variable.
+    pub(in crate::check) fn variable_lower_bound_source(
+        &self,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<Option<dir::GlobalNodeIdAny>> {
+        let Some(variable) = self.open_variable(variable)? else {
+            return Ok(None);
+        };
+        let source = self
+            .solver
+            .variable(variable)?
+            .lower
+            .first()
+            .map(|bound| bound.source);
+
+        Ok(source)
     }
 
     /// Set one variable's default solution.
@@ -51,7 +102,7 @@ impl CheckState<'_> {
         &mut self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Answer<()>> {
-        match self.solve_variable(variable)? {
+        match self.solve_variable(variable, SolveMode::Strong)? {
             Answer::Ready(_) => Ok(Answer::Ready(())),
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
@@ -61,7 +112,9 @@ impl CheckState<'_> {
     pub(in crate::check) fn solve_variable(
         &mut self,
         variable: dir::TypeVariableId,
+        mode: SolveMode,
     ) -> CompilerResult<Answer<bool>> {
+        let can_use_weak = mode.allows_weak();
         let representative = self.solver.representative(variable)?;
 
         // skip solved variables
@@ -83,6 +136,8 @@ impl CheckState<'_> {
             .iter()
             .map(|bound| bound.ty)
             .collect::<SmallVec<[_; 2]>>();
+        let lower_candidates = Self::candidate_bound_types(&lower, mode);
+        let upper_candidates = Self::candidate_bound_types(&upper, mode);
 
         // propagate errors before waiting on contextual holes
         for bound in &lower_types {
@@ -108,23 +163,40 @@ impl CheckState<'_> {
             return Ok(Answer::Pending(blockers));
         }
 
+        // weak bounds and defaults wait until regular work drains
+        if !can_use_weak
+            && !self.solver.is_probing()
+            && lower_candidates.is_empty()
+            && (Self::has_weak_bounds(&lower, &upper) || default.is_some())
+        {
+            self.solver.defer_weak_solve(representative);
+
+            return Ok(Answer::Ready(true));
+        }
+
+        let candidates = self.upper_solution_candidates(representative, &upper_candidates)?;
+
+        // solutions derived from every upper bound need no re-check;
+        // dropped recursive bounds still verify against the solution
+        let verify_uppers = candidates.len() != upper_types.len();
+
         // solve from lower bounds, falling back to contextual upper bounds
         let origin = self.solver.variable(representative)?.origin;
-        let (solution, check_upper) = if !lower_types.is_empty() {
-            let joined = self.best_common(representative, &lower_types)?;
+        let (solution, check_upper) = if !lower_candidates.is_empty() {
+            let joined = self.best_common(representative, &lower_candidates)?;
             let widened = self.widen_solution(joined, widening)?;
             let solution =
                 answer!(self.fit_widened_solution(origin, joined, widened, &upper_types)?);
 
             (Some(solution), true)
-        } else if let Some(default) = default {
-            (Some(default), true)
-        } else if let [bound] = upper_types.as_slice() {
-            (Some(*bound), false)
-        } else if !upper_types.is_empty() {
+        } else if can_use_weak && default.is_some() {
+            (default, true)
+        } else if let [bound] = candidates.as_slice() {
+            (Some(*bound), verify_uppers)
+        } else if !candidates.is_empty() {
             (
-                Some(self.intersect_bounds(representative, &upper_types)?),
-                false,
+                Some(self.intersect_bounds(representative, &candidates)?),
+                verify_uppers,
             )
         } else {
             (None, false)
@@ -145,6 +217,23 @@ impl CheckState<'_> {
         };
         let solution = answer!(self.reduce_type_head(origin, solution)?);
         let mut bounds_hold = true;
+
+        // check ignored weak lower bounds against a strong solution
+        if !can_use_weak {
+            for bound in lower.iter().filter(|bound| bound.mode == BoundMode::Weak) {
+                match self.constrain(origin, Relation::Assignable, bound.ty, solution)? {
+                    Answer::Ready(true) => {}
+                    Answer::Ready(false) | Answer::Pending(_) => {
+                        self.push_constraint(Constraint::check(
+                            Relation::Assignable,
+                            bound.ty,
+                            solution,
+                            origin,
+                        ));
+                    }
+                }
+            }
+        }
 
         // check inferred solutions against their contextual upper bounds,
         // queueing unfinished checks as ordinary check constraints
@@ -179,6 +268,50 @@ impl CheckState<'_> {
         Ok(Answer::Ready(bounds_hold))
     }
 
+    /// Return bound types that may choose a solution in one solve mode.
+    fn candidate_bound_types(
+        bounds: &[TypeBound],
+        mode: SolveMode,
+    ) -> SmallVec<[dir::GlobalTypeId; 2]> {
+        bounds
+            .iter()
+            .filter(|bound| mode.allows_weak() || bound.mode == BoundMode::Strong)
+            .map(|bound| bound.ty)
+            .collect()
+    }
+
+    /// Return whether any bound is weak.
+    fn has_weak_bounds(lower: &[TypeBound], upper: &[TypeBound]) -> bool {
+        lower
+            .iter()
+            .chain(upper)
+            .any(|bound| bound.mode == BoundMode::Weak)
+    }
+
+    /// Return upper bounds that can directly choose one solution.
+    fn upper_solution_candidates(
+        &mut self,
+        variable: dir::TypeVariableId,
+        upper: &[dir::GlobalTypeId],
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let mut candidates = SmallVec::new();
+        for bound in upper {
+            let mut recursive = false;
+            for inner in self.type_variables(*bound)? {
+                if self.solver.representative(inner)? == variable {
+                    recursive = true;
+
+                    break;
+                }
+            }
+            if !recursive {
+                candidates.push(*bound);
+            }
+        }
+
+        Ok(candidates)
+    }
+
     /// Keep literal widening only when every exact upper bound still accepts it.
     fn fit_widened_solution(
         &mut self,
@@ -205,11 +338,6 @@ impl CheckState<'_> {
     }
 
     /// Return open variables that block one variable's solution.
-    ///
-    /// Lower bounds and defaults are inference inputs, so their open
-    /// variables block.
-    /// Upper bounds check after solutions and never block, which lets
-    /// F-bounded parameters solve.
     pub(in crate::check) fn bound_blockers(
         &self,
         lower: &[dir::GlobalTypeId],
@@ -236,20 +364,27 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // variable-rooted solutions are aliases in disguise: storing
-        // them would let resolution chains cycle through solutions
         let solution = self.settled_root(solution)?;
-        if let Some(target) = self.root_variable(solution)? {
-            let representative = self.solver.representative(variable)?;
-            if target != representative {
-                return self.alias_variables(representative, target);
-            }
 
-            // self-solutions stay open for their other bounds
+        // variable solutions are aliases, not stored solutions
+        if self.commit_variable_solution(variable, solution)? {
             return Ok(());
         }
 
         let representative = self.solver.representative(variable)?;
+
+        // circular solutions poison the variable with an error type
+        if self.solution_mentions_variable(representative, solution)? {
+            let origin = self.solver.variable(representative)?.origin;
+            let error = self.circular_type_error(origin)?;
+            self.module_mut(origin.module())
+                .diagnostics
+                .push(error.into());
+            let poisoned = self.intern_type(origin.module(), dir::Type::Error)?;
+
+            return self.commit_solution(representative, poisoned);
+        }
+
         let state = self.solver.variable_mut(representative)?;
 
         // require exactly one solution per variable
@@ -285,6 +420,43 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Commit a variable-rooted solution as an alias.
+    fn commit_variable_solution(
+        &mut self,
+        variable: dir::TypeVariableId,
+        solution: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let Some(target) = self.root_variable(solution)? else {
+            return Ok(false);
+        };
+
+        let representative = self.solver.representative(variable)?;
+        if target != representative {
+            self.alias_variables(representative, target)?;
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether a solution mentions the variable it solves.
+    fn solution_mentions_variable(
+        &self,
+        variable: dir::TypeVariableId,
+        solution: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        if !self.type_flags(solution)?.has_variable() {
+            return Ok(false);
+        }
+
+        for inner in self.type_variables(solution)? {
+            if self.solver.representative(inner)? == variable {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
     /// Alias one open variable to another, merging bounds.
     pub(in crate::check) fn alias_variables(
         &mut self,
@@ -307,10 +479,10 @@ impl CheckState<'_> {
 
         // push moved bounds through the checked paths
         for bound in lower {
-            self.push_lower_bound(target, bound.source, bound.ty)?;
+            self.push_lower_bound(target, bound.source, bound.ty, bound.mode)?;
         }
         for bound in upper {
-            self.push_upper_bound(target, bound.source, bound.ty)?;
+            self.push_upper_bound(target, bound.source, bound.ty, bound.mode)?;
         }
 
         // move tasks parked on the old representative
@@ -336,6 +508,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         source: dir::GlobalNodeIdAny,
         bound: dir::GlobalTypeId,
+        mode: BoundMode,
     ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
         if self.root_variable(bound)? == Some(representative) {
@@ -355,7 +528,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let bound = TypeBound::new(bound, source);
+        let bound = TypeBound::new(bound, source, mode);
         let pushed = {
             let state = self.solver.variable_mut(representative)?;
             if state.lower.contains(&bound) {
@@ -379,6 +552,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         source: dir::GlobalNodeIdAny,
         bound: dir::GlobalTypeId,
+        mode: BoundMode,
     ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
         if self.root_variable(bound)? == Some(representative) {
@@ -403,7 +577,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        let bound = TypeBound::new(bound, source);
+        let bound = TypeBound::new(bound, source, mode);
         let pushed = {
             let state = self.solver.variable_mut(representative)?;
             if state.upper.contains(&bound) {

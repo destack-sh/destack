@@ -5,6 +5,31 @@ use smallvec::SmallVec;
 use crate::check::Origin;
 use crate::{CompilerError, CompilerResult};
 
+/// When one bound may choose an inference variable's solution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum BoundMode {
+    /// Bound may solve the variable during regular solver work.
+    Strong,
+    /// Bound may solve the variable only after regular work drains.
+    Weak,
+}
+
+/// Evidence allowed during one variable solve.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum SolveMode {
+    /// Solve from strong evidence only.
+    Strong,
+    /// Solve from strong and weak evidence.
+    Weak,
+}
+
+impl SolveMode {
+    /// Return whether weak evidence may choose a solution.
+    pub(in crate::check) fn allows_weak(self) -> bool {
+        matches!(self, Self::Weak)
+    }
+}
+
 /// One bound collected for an inference variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct TypeBound {
@@ -12,12 +37,18 @@ pub(in crate::check) struct TypeBound {
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The source occurrence that produced the bound.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// When this bound may choose the variable's solution.
+    pub(in crate::check) mode: BoundMode,
 }
 
 impl TypeBound {
     /// Return one type bound from a source occurrence.
-    pub(in crate::check) fn new(ty: dir::GlobalTypeId, source: dir::GlobalNodeIdAny) -> Self {
-        Self { ty, source }
+    pub(in crate::check) fn new(
+        ty: dir::GlobalTypeId,
+        source: dir::GlobalNodeIdAny,
+        mode: BoundMode,
+    ) -> Self {
+        Self { ty, source, mode }
     }
 }
 
