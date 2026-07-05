@@ -181,6 +181,7 @@ impl ModuleLowerer<'_> {
             }
             dir::TypeLiteral::Bigint => js::TypeLiteral::Primitive(js::PrimitiveType::Bigint),
             dir::TypeLiteral::Number
+            | dir::TypeLiteral::Alias(_)
             | dir::TypeLiteral::Integer(_)
             | dir::TypeLiteral::Float(_) => js::TypeLiteral::Primitive(js::PrimitiveType::Number),
             dir::TypeLiteral::Symbol => js::TypeLiteral::Primitive(js::PrimitiveType::Symbol),
