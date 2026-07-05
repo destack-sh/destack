@@ -211,6 +211,42 @@ impl ScalarLiteral {
         range.contains_literal(*self)
     }
 
+    /// Return whether this literal inhabits every member of one scalar domain.
+    pub fn widens_to_domain(&self, domain: ScalarDomain) -> bool {
+        const FLOATS: [FloatType; 4] = [
+            FloatType::Float16,
+            FloatType::Bfloat16,
+            FloatType::Float32,
+            FloatType::Float64,
+        ];
+
+        match (self, domain) {
+            (Self::Integer(value), ScalarDomain::Integer) => {
+                let signed = IntegerType::Fixed {
+                    width: 8,
+                    is_signed: true,
+                };
+                let unsigned = IntegerType::Fixed {
+                    width: 8,
+                    is_signed: false,
+                };
+
+                signed.fits_literal(*value) && unsigned.fits_literal(*value)
+            }
+            (Self::Integer(value), ScalarDomain::Float) => FLOATS
+                .iter()
+                .all(|float| float.fits_integer_literal(*value)),
+            (Self::Float(value), ScalarDomain::Float) => {
+                FLOATS.iter().all(|float| float.fits_literal(*value))
+            }
+            (Self::String(_), ScalarDomain::String) => true,
+            (Self::Character(_), ScalarDomain::Character) => true,
+            (Self::Boolean(_), ScalarDomain::Boolean) => true,
+            (Self::Bigint(_), ScalarDomain::Bigint) => true,
+            _ => false,
+        }
+    }
+
     /// Return the language item owning this literal's members.
     pub fn owner_item(&self) -> Option<LanguageItem> {
         match self {
