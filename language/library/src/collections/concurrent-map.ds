@@ -146,7 +146,7 @@ export extension<K: Hash, V> of ConcurrentMapEntry<K, V> implements Dispose {
     }
 }
 
-export extension<K, V> of ConcurrentMap<K, V> {
+export extension<K, V> of ConcurrentMap<K, V> implements Default {
     /// Create an empty concurrent map.
     static new(): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.new")
@@ -160,13 +160,6 @@ export extension<K, V> of ConcurrentMap<K, V> {
     /// Create the default concurrent map.
     static default(): ^ConcurrentMap<K, V> {
         ConcurrentMap.new()
-    }
-}
-
-export extension<K, V> of ^ConcurrentMap<K, V> implements Default {
-    /// Create the default owned concurrent map.
-    static default(): ^ConcurrentMap<K, V> {
-        ConcurrentMap.default()
     }
 }
 

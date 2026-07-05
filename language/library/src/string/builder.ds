@@ -16,7 +16,7 @@ export class StringBuilder {
     capacity: usize = 0;
 }
 
-export extension of StringBuilder {
+export extension of StringBuilder implements Default {
     /// Create an empty string builder.
     static new(): ^StringBuilder {
         todo("StringBuilder.new")
@@ -88,12 +88,7 @@ export extension of StringBuilder {
     }
 }
 
-export extension of ^StringBuilder implements Default, From<string>, From<&readonly StringSlice> {
-    /// Create the default owned string builder.
-    static default(): ^StringBuilder {
-        StringBuilder.default()
-    }
-
+export extension of ^StringBuilder implements From<string>, From<&readonly StringSlice> {
     /// Create an owned string builder from owned text.
     static from(value: string): ^StringBuilder {
         StringBuilder.from(value)

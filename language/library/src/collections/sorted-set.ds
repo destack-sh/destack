@@ -13,7 +13,7 @@ export class SortedSet<T> {
     map: SortedMap<T, void> = SortedMap.new();
 }
 
-export extension<T> of SortedSet<T> {
+export extension<T> of SortedSet<T> implements Default {
     /// Create an empty sorted set.
     static new(): ^SortedSet<T> {
         todo("SortedSet.new")
@@ -27,13 +27,6 @@ export extension<T> of SortedSet<T> {
     /// Create the default sorted set.
     static default(): ^SortedSet<T> {
         SortedSet.new()
-    }
-}
-
-export extension<T> of ^SortedSet<T> implements Default {
-    /// Create the default owned sorted set.
-    static default(): ^SortedSet<T> {
-        SortedSet.default()
     }
 }
 

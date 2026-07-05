@@ -30,7 +30,7 @@ export class String {
     bytes: Unique<[uint8]> = Unique.empty();
 }
 
-export extension of String {
+export extension of String implements Default {
     /// Create an empty string.
     static new(): ^string {
         todo("String.new")
@@ -270,12 +270,7 @@ export extension of string implements Equal<string>, Hash {
     }
 }
 
-export extension of ^string implements Default, From<&readonly StringSlice>, From<^StringBuilder> {
-    /// Create the default owned string.
-    static default(): ^string {
-        String.default()
-    }
-
+export extension of ^string implements From<&readonly StringSlice>, From<^StringBuilder> {
     /// Create an owned string from borrowed text.
     static from(value: &readonly StringSlice): ^string {
         String.from(value)

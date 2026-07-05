@@ -38,7 +38,7 @@ export extension<T: Hash> of ConcurrentSetRead<T> implements Dispose, Dereferenc
     }
 }
 
-export extension<T> of ConcurrentSet<T> {
+export extension<T> of ConcurrentSet<T> implements Default {
     /// Create an empty concurrent set.
     static new(): ^ConcurrentSet<T> {
         todo("ConcurrentSet.new")
@@ -52,13 +52,6 @@ export extension<T> of ConcurrentSet<T> {
     /// Create the default concurrent set.
     static default(): ^ConcurrentSet<T> {
         ConcurrentSet.new()
-    }
-}
-
-export extension<T> of ^ConcurrentSet<T> implements Default {
-    /// Create the default owned concurrent set.
-    static default(): ^ConcurrentSet<T> {
-        ConcurrentSet.default()
     }
 }
 

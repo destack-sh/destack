@@ -47,7 +47,7 @@ export local class AsyncRwLock<T> {
 
 export extension<T: Default> of AsyncRwLock<T> implements Default {
     /// Create the default async reader-writer lock.
-    static default(): AsyncRwLock<T> {
+    static default(): ^AsyncRwLock<T> {
         new AsyncRwLock(T.default())
     }
 }

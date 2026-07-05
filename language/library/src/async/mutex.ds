@@ -37,7 +37,7 @@ export local class AsyncMutex<T> {
 
 export extension<T: Default> of AsyncMutex<T> implements Default {
     /// Create the default async mutex.
-    static default(): AsyncMutex<T> {
+    static default(): ^AsyncMutex<T> {
         new AsyncMutex(T.default())
     }
 }

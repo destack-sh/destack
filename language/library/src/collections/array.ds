@@ -182,6 +182,7 @@ export class Array<T> {
 
 export extension<T> of Array<T>
     implements
+        Default,
         Sequence<T>,
         Index<usize>,
         IndexSet<usize, T>,
@@ -590,7 +591,7 @@ export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly">
     }
 }
 
-export extension<T> of Slice<T> implements ToOwned where T: Clone {
+export extension SliceToOwned<T> of Slice<T> implements ToOwned where T: Clone {
     /// The owned value type.
     type Owned = ^Array<T>;
 
@@ -600,12 +601,7 @@ export extension<T> of Slice<T> implements ToOwned where T: Clone {
     }
 }
 
-export extension<T> of ^Array<T> implements Default, From<Iterable<T>>, FromIterator<T> {
-    /// Create the default owned array.
-    static default(): ^Array<T> {
-        Array.default()
-    }
-
+export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     /// Create an owned array from `values`.
     static from(values: Iterable<T>): ^Array<T> {
         Array.from(values)

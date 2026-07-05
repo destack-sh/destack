@@ -40,7 +40,7 @@ export shared class Mutex<T> {
 
 export extension<T: Default> of Mutex<T> implements Default {
     /// Create the default mutex.
-    static default(): Mutex<T> {
+    static default(): ^Mutex<T> {
         new Mutex(T.default())
     }
 }

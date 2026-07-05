@@ -86,7 +86,7 @@ export extension<K: Hash, V> of MapEntryHandle<K, V> where K: Equal<K> {
     }
 }
 
-export extension<K, V> of Map<K, V> {
+export extension<K, V> of Map<K, V> implements Default {
     /// Create an empty map.
     static new(): ^Map<K, V> {
         todo("Map.new")
@@ -100,13 +100,6 @@ export extension<K, V> of Map<K, V> {
     /// Create the default map.
     static default(): ^Map<K, V> {
         Map.new()
-    }
-}
-
-export extension<K, V> of ^Map<K, V> implements Default {
-    /// Create the default owned map.
-    static default(): ^Map<K, V> {
-        Map.default()
     }
 }
 

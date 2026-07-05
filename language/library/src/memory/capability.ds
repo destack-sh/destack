@@ -18,12 +18,12 @@ export newtype interface OverwriteStable {}
 @languageItem("memory.Clone")
 export newtype interface Clone {
     /// Clone this value.
-    clone(): this;
+    clone(): ^this;
 }
 
 export extension<T> of T implements Clone where T: Copy {
     /// Clone this copyable value.
-    clone(): T {
+    clone(): ^T {
         this
     }
 }
@@ -40,7 +40,7 @@ export newtype interface Zeroable {}
 @languageItem("memory.Default")
 export newtype interface Default {
     /// Create the default value.
-    static default(): this;
+    static default(): ^this;
 }
 
 /// Mark a type as safe to send across Workers.
