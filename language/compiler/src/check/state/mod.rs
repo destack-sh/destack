@@ -5,7 +5,6 @@ mod format;
 mod generic;
 mod module;
 mod origin;
-mod report;
 mod trace;
 
 pub(in crate::check) use capture::*;

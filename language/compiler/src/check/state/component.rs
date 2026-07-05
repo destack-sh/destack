@@ -11,7 +11,7 @@ use crate::check::{
     CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex,
     GenericScope, GenericTemplateId, Origin, Solver, VarianceEntry,
 };
-use crate::{CheckError, Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult};
 
 /// Artifact coordinates for one checked component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -629,15 +629,7 @@ impl CheckState<'_> {
             let is_overloadable = member.is_overloadable();
             if let Some(previous_is_overloadable) = seen.get(&entry) {
                 if !*previous_is_overloadable || !is_overloadable {
-                    let (module, anchor) = self.source_anchor(member.source());
-                    let member = self.format_static_key(&key);
-                    let error = CheckError::DuplicateMember {
-                        anchor,
-                        module,
-                        member,
-                    };
-
-                    self.module_mut(module).diagnostics.push(error.into());
+                    self.report_duplicate_definition_member(member.source(), &key);
                 }
             } else {
                 seen.insert(entry, is_overloadable);

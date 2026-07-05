@@ -583,14 +583,12 @@ impl CheckState<'_> {
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<SignatureRejection> {
-        if let Some((source, key, value)) =
-            self.writable_index_signature_rejection(origin, argument, bound)?
-        {
+        if let Some(signature) = self.first_writable_index_signature(origin, bound)? {
             return Ok(SignatureRejection::WritableIndex {
                 source_node,
-                source,
-                key,
-                value,
+                source: self.format_type(argument),
+                key: self.format_type(signature.key_type),
+                value: self.format_type(signature.value_type),
             });
         }
 

@@ -115,6 +115,47 @@ pub(in crate::check) enum ValueUse {
     Condition,
 }
 
+/// Reason one closed constraint did not hold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ConstraintFailure {
+    /// The relation itself did not hold.
+    Relation,
+    /// Direct property literal missed one required key.
+    MissingRequiredProperty {
+        /// The missing key.
+        key: dir::StaticKey,
+    },
+    /// Direct property literal supplied one unknown key.
+    ExcessProperty {
+        /// The excess key.
+        key: dir::StaticKey,
+    },
+    /// Source type cannot satisfy one writable index signature target.
+    WritableIndexRequiresIndexSet {
+        /// The required writable index signature.
+        signature: dir::TypeIndexSignature,
+    },
+}
+
+/// Result of checking one closed constraint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ConstraintCheck {
+    /// The constraint holds.
+    Holds,
+    /// The constraint failed for one known reason.
+    Fails(ConstraintFailure),
+}
+
+impl ConstraintCheck {
+    /// Return the stored state for this completed check.
+    pub(in crate::check) fn state(self) -> ConstraintState {
+        match self {
+            Self::Holds => ConstraintState::Holds,
+            Self::Fails(_) => ConstraintState::Fails,
+        }
+    }
+}
+
 impl Constraint {
     /// Create a pure type relation.
     pub(in crate::check) fn check(
