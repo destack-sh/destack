@@ -80,6 +80,11 @@ export extension<T, comptime N: number> of SmallArray<T, N>
         todo("SmallArray.fromFixedArray")
     }
 
+    /// Move this small array into owned array storage.
+    toArray(this): ^Array<T> {
+        todo("SmallArray.toArray")
+    }
+
     /// Return the number of elements.
     get length(): usize {
         this.count
@@ -326,12 +331,5 @@ export extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, 
     /// Copy `source` into the selected range.
     indexSet(&exclusive this, range: R, source: &readonly [T]): void {
         todo("SmallArray.indexSetRange");
-    }
-}
-
-export extension ArrayFromSmallArray<T, comptime N: number> of ^Array<T> implements From<SmallArray<T, N>> {
-    /// Create an array from a small array.
-    static from(value: SmallArray<T, N>): ^Array<T> {
-        todo("Array.fromSmallArray")
     }
 }
