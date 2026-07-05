@@ -7,6 +7,14 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
+/// Operands displayed for a rejected operator.
+pub(in crate::check) enum OperatorOperands<'a> {
+    /// Type operands.
+    Types(&'a [dir::GlobalTypeId]),
+    /// Required place operand.
+    Place,
+}
+
 impl CheckState<'_> {
     /// Select one binary operator application.
     pub(in crate::check) fn select_binary_operator(
@@ -59,9 +67,12 @@ impl CheckState<'_> {
             _ => false,
         };
         let builtin = match operator {
-            // strict identity always produces a boolean
+            // strict identity always produces a boolean; equality
+            // reads values, so views compare their pointees
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
-                if !answer!(self.types_may_overlap(origin, left, right)?) {
+                let left_value = answer!(self.value_beneath_forms(origin, left)?);
+                let right_value = answer!(self.value_beneath_forms(origin, right)?);
+                if !answer!(self.types_may_overlap(origin, left_value, right_value)?) {
                     self.report_invalid_strict_equality(origin, left, right)?;
                 }
 
@@ -157,7 +168,7 @@ impl CheckState<'_> {
                 self.report_no_matching_operator(
                     origin,
                     operator.text().to_string(),
-                    "place".into(),
+                    OperatorOperands::Place,
                 )?;
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
@@ -213,11 +224,25 @@ impl CheckState<'_> {
             return self.commit_builtin_unary_operator(node, operator, result);
         }
 
-        // dereferences need readonly for reads and mutable access for writes
+        // dereferences select either a direct projection or protocol call
         let access = match use_ {
             PlaceUse::Read => dir::Access::Readonly,
             PlaceUse::Write | PlaceUse::Update => dir::Access::Mutable,
         };
+        if operator == dir::UnaryOperator::Dereference {
+            let Some(selection) = answer!(self.select_dereference(origin, operand, access)?) else {
+                return self.reject_operator(node, origin, operator.text().to_string(), &[operand]);
+            };
+
+            return match selection.operation {
+                dir::DereferenceOperation::Direct => {
+                    self.commit_builtin_unary_operator(node, operator, selection.ty)
+                }
+                dir::DereferenceOperation::Call(call) => {
+                    self.commit_protocol_operator(origin, node, call, selection.ty, None)
+                }
+            };
+        }
 
         // dispatch through the operator protocol interfaces
         let protocols = unary_operator_protocols(operator, access);
@@ -289,6 +314,31 @@ impl CheckState<'_> {
             && answer!(self.operand_is_integral(origin, right)?);
         let module = origin.module();
 
+        // literal operands are static operations: the comptime
+        // reduction folds them exactly and reports overflow, so the
+        // result flows by representability like any written literal
+        if numeric
+            && matches!(
+                (self.ty(left)?, self.ty(right)?),
+                (dir::Type::Literal(_), dir::Type::Literal(_))
+            )
+            && let Ok(static_operator) = dir::StaticBinaryOperator::try_from(operator)
+            && !static_operator.yields_boolean()
+        {
+            let operation = self.intern_type(
+                module,
+                dir::Type::Operation(dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
+                    operator: static_operator,
+                    left,
+                    right,
+                })),
+            )?;
+            let folded = answer!(self.reduce_type_head(origin, operation)?);
+            if matches!(self.ty(folded)?, dir::Type::Literal(_)) {
+                return Ok(Answer::Ready(Some((folded, folded))));
+            }
+        }
+
         match operator {
             // shifts move bits through integers, keeping the left type
             dir::BinaryOperator::ShiftLeft
@@ -297,14 +347,17 @@ impl CheckState<'_> {
                 if integral =>
             {
                 let result = match self.ty(left)? {
-                    // literal shifts stay integral, so they widen to int
+                    // typed shifts keep the left operand's integer type
                     dir::Type::Literal(dir::ScalarLiteral::Bigint(_)) => {
                         self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Bigint))?
                     }
                     dir::Type::Literal(_) => self.intern_type(
                         module,
                         dir::Type::Primitive(dir::PrimitiveType::Integer(
-                            dir::IntegerType::Integer { is_signed: true },
+                            dir::IntegerType::Fixed {
+                                width: 64,
+                                is_signed: true,
+                            },
                         )),
                     )?,
                     _ => left,
@@ -449,7 +502,8 @@ impl CheckState<'_> {
             _ => vec![bound],
         };
         for element in elements {
-            if !answer!(self.decide_relation(origin, Relation::Assignable, literal, element)?) {
+            // bound elements are constraints, so markers hold under satisfies
+            if !answer!(self.decide_relation(origin, Relation::Satisfies, literal, element)?) {
                 return Ok(Answer::Ready(false));
             }
         }
@@ -592,12 +646,7 @@ impl CheckState<'_> {
                 .is_ok_and(|flags| flags.has_error())
         });
         if !tainted {
-            let operands = operands
-                .iter()
-                .map(|operand| format!("'{}'", self.format_type(*operand)))
-                .collect::<Vec<_>>()
-                .join(" and ");
-            self.report_no_matching_operator(origin, operator, operands)?;
+            self.report_no_matching_operator(origin, operator, OperatorOperands::Types(operands))?;
         }
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;

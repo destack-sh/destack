@@ -51,6 +51,18 @@ impl CheckState<'_> {
                 )
             }
             None => {
+                // bare owner.case member paths select payload-less variants
+                if let Some(head) = answer!(self.tagged_expression_head(origin, module, value)?) {
+                    return self.select_tagged_variant_pattern(
+                        node,
+                        origin,
+                        flow,
+                        scope,
+                        head,
+                        &[],
+                    );
+                }
+
                 self.report_expression_pattern_not_literal(module, node.local_id.into_any());
 
                 self.commit_pattern(node, dir::PatternResolution::Ignore)

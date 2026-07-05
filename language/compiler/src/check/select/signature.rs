@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, GenericPosition, Origin, Relation, TypeSubstitution, answer,
+    Answer, CheckState, GenericPosition, Opening, Origin, ReceiverSteps, Relation,
+    TypeSubstitution, answer,
 };
 
 /// Callable signature accepted for an invocation.
@@ -17,6 +18,8 @@ pub(in crate::check) struct SignatureSelection {
     pub(in crate::check) return_type: dir::GlobalTypeId,
     /// The solved generic argument bindings.
     pub(in crate::check) generic_arguments: Vec<dir::GenericArgumentBinding>,
+    /// The projection steps when the declared this adjusted the receiver.
+    pub(in crate::check) receiver_steps: Option<ReceiverSteps>,
 }
 
 /// Reason one callable signature rejected an invocation.
@@ -40,29 +43,36 @@ pub(in crate::check) enum SignatureRejection {
         /// Argument index in source order.
         index: usize,
         /// Supplied argument type.
-        source: String,
+        source: dir::GlobalTypeId,
         /// Parameter type.
-        target: String,
+        target: dir::GlobalTypeId,
     },
     /// Generic argument does not satisfy its parameter bound.
     Bound {
         /// Source occurrence that induced or supplied the argument.
         source_node: dir::GlobalNodeIdAny,
         /// Applied argument type.
-        source: String,
+        source: dir::GlobalTypeId,
         /// Required parameter bound.
-        target: String,
+        target: dir::GlobalTypeId,
+    },
+    /// Receiver type not assignable to the declared this parameter.
+    Receiver {
+        /// Supplied receiver type.
+        source: dir::GlobalTypeId,
+        /// Declared this parameter type.
+        target: dir::GlobalTypeId,
     },
     /// Generic argument lacks writable index support required by its bound.
     WritableIndex {
         /// Source occurrence that induced or supplied the argument.
         source_node: dir::GlobalNodeIdAny,
         /// Applied argument type.
-        source: String,
+        source: dir::GlobalTypeId,
         /// Required index key type.
-        key: String,
+        key: dir::GlobalTypeId,
         /// Required index value type.
-        value: String,
+        value: dir::GlobalTypeId,
     },
 }
 
@@ -152,6 +162,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         function_type: dir::GlobalTypeId,
+        owner: Option<dir::GlobalSymbolId>,
         receiver: Option<dir::GlobalTypeId>,
         carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
@@ -171,6 +182,7 @@ impl CheckState<'_> {
                 return self.attempt_callable(
                     origin,
                     function,
+                    owner,
                     receiver,
                     carried,
                     type_arguments,
@@ -184,6 +196,7 @@ impl CheckState<'_> {
                 return self.attempt_callable(
                     origin,
                     function,
+                    owner,
                     receiver,
                     carried,
                     type_arguments,
@@ -204,6 +217,7 @@ impl CheckState<'_> {
             function_type.module_id,
             source,
             &generic_parameters,
+            owner,
             carried,
             type_arguments,
             &function,
@@ -222,6 +236,7 @@ impl CheckState<'_> {
         signature_module: ModuleId,
         source: dir::LocalNodeIdAny,
         generic_parameters: &[dir::GlobalGenericParameterId],
+        owner: Option<dir::GlobalSymbolId>,
         carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
         function: &dir::FunctionSignatureType,
@@ -237,6 +252,7 @@ impl CheckState<'_> {
             signature_module,
             source,
             generic_parameters,
+            owner,
             carried,
             type_arguments,
             function,
@@ -280,6 +296,7 @@ impl CheckState<'_> {
         signature_module: ModuleId,
         source: dir::LocalNodeIdAny,
         generic_parameters: &[dir::GlobalGenericParameterId],
+        owner: Option<dir::GlobalSymbolId>,
         carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
         function: &dir::FunctionSignatureType,
@@ -332,6 +349,36 @@ impl CheckState<'_> {
             }
         };
 
+        // open the owner-chain parameters the selection left free:
+        // carried bindings record what the receiver match determined,
+        // and absent parameters are the call site's to infer
+        let mut substitution = substitution;
+        let mut unbound = SmallVec::<[dir::GlobalGenericParameterId; 2]>::new();
+        if let Some(owner) = owner
+            && let Some(template) = self.symbol_template(owner)
+        {
+            let mut parameters = self.generic_template_parameters(template);
+            parameters.extend(self.owner_template_parameters(template));
+            for parameter in parameters {
+                let determined = carried.iter().any(|binding| binding.parameter == parameter);
+                if !determined {
+                    unbound.push(parameter);
+                }
+            }
+        }
+        if !unbound.is_empty() {
+            let opening = Opening {
+                site: source.into_global(module),
+                parameter: unbound[0],
+            };
+            let opened = self.instantiate_at_opening(origin, opening, &unbound, &[])?;
+            let Some(opened) = opened else {
+                return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
+            };
+            substitution.parameters.extend(opened.parameters);
+            substitution.arguments.extend(opened.arguments);
+        }
+
         // check written arguments against their declared bounds
         if !generic_parameters.is_empty() {
             for (parameter, argument) in generic_parameters
@@ -382,18 +429,25 @@ impl CheckState<'_> {
         }
 
         // relate the implicit receiver before explicit arguments
+        let mut receiver_steps = None;
         if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
             let this_parameter =
                 self.substitute_type(origin.module(), this_parameter, &substitution)?;
-            if !answer!(self.constrain_receiver_argument(
+            let Some(steps) = answer!(self.constrain_receiver_argument(
                 origin,
                 module,
                 source,
                 receiver,
                 this_parameter,
-            )?) {
-                return Ok(Answer::Ready(Err(SignatureRejection::Inapplicable)));
-            }
+            )?) else {
+                let rejection = SignatureRejection::Receiver {
+                    source: receiver,
+                    target: this_parameter,
+                };
+
+                return Ok(Answer::Ready(Err(rejection)));
+            };
+            receiver_steps = Some(steps);
         }
 
         // relate inference-bearing arguments first
@@ -436,8 +490,8 @@ impl CheckState<'_> {
             )?) {
                 let rejection = SignatureRejection::Argument {
                     index,
-                    source: self.format_type(*argument),
-                    target: self.format_type(parameter_type),
+                    source: *argument,
+                    target: parameter_type,
                 };
 
                 return Ok(Answer::Ready(Err(rejection)));
@@ -478,8 +532,8 @@ impl CheckState<'_> {
             )?) {
                 let rejection = SignatureRejection::Argument {
                     index,
-                    source: self.format_type(argument),
-                    target: self.format_type(parameter_type),
+                    source: argument,
+                    target: parameter_type,
                 };
 
                 return Ok(Answer::Ready(Err(rejection)));
@@ -513,13 +567,27 @@ impl CheckState<'_> {
                 })
             })
             .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
-        let raw_arguments = substitution
-            .arguments
+        let raw_arguments = substitution.arguments[..generic_parameters.len()]
             .iter()
             .copied()
             .map(|argument| self.resolve_type_variables(origin.module(), argument))
             .collect::<CompilerResult<SmallVec<[_; 4]>>>()?;
-        let arguments = self.generic_argument_bindings(generic_parameters, &raw_arguments)?;
+        let mut arguments = self.generic_argument_bindings(generic_parameters, &raw_arguments)?;
+
+        // record solved carried parameters beside the member's own
+        for (parameter, argument) in substitution
+            .parameters
+            .iter()
+            .copied()
+            .zip(substitution.arguments.iter().copied())
+            .skip(generic_parameters.len())
+        {
+            let argument = self.resolve_type_variables(origin.module(), argument)?;
+            arguments.push(dir::GenericArgumentBinding {
+                parameter,
+                argument,
+            });
+        }
         let function_type = self.instantiate_signature_type(
             signature_module,
             module,
@@ -533,6 +601,7 @@ impl CheckState<'_> {
             parameters,
             return_type,
             generic_arguments: arguments,
+            receiver_steps,
         })))
     }
 
@@ -586,16 +655,16 @@ impl CheckState<'_> {
         if let Some(signature) = self.first_writable_index_signature(origin, bound)? {
             return Ok(SignatureRejection::WritableIndex {
                 source_node,
-                source: self.format_type(argument),
-                key: self.format_type(signature.key_type),
-                value: self.format_type(signature.value_type),
+                source: argument,
+                key: signature.key_type,
+                value: signature.value_type,
             });
         }
 
         Ok(SignatureRejection::Bound {
             source_node,
-            source: self.format_type(argument),
-            target: self.format_type(bound),
+            source: argument,
+            target: bound,
         })
     }
 
@@ -608,13 +677,8 @@ impl CheckState<'_> {
         let Some(variable) = self.root_variable(argument)? else {
             return Ok(source_node);
         };
-        let variable = self.solver.representative(variable)?;
         let source = self
-            .solver
-            .variable(variable)?
-            .lower
-            .first()
-            .map(|bound| bound.source)
+            .variable_lower_bound_source(variable)?
             .unwrap_or(source_node);
 
         Ok(source)

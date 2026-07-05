@@ -244,6 +244,7 @@ impl CheckState<'_> {
                 function_type.module_id,
                 source,
                 &parameters,
+                None,
                 &[],
                 &[],
                 &function,
@@ -273,6 +274,7 @@ impl CheckState<'_> {
             function_type.module_id,
             source,
             &[],
+            None,
             &carried,
             &[],
             &function,
@@ -362,6 +364,7 @@ impl CheckState<'_> {
             module,
             source,
             &generic_parameters,
+            None,
             &[],
             type_arguments,
             &function,
@@ -456,7 +459,7 @@ impl CheckState<'_> {
     }
 
     /// Reject one construction whose arguments fit no constructor.
-    fn reject_construct(
+    pub(in crate::check) fn reject_construct(
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,

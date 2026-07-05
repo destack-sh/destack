@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowSite, Obligation, Origin, PlaceUse, Relation,
-    RuntimePredicateObligation, answer, membership_operator_protocol,
+    Answer, CheckState, Decision, Dependency, FlowSite, Obligation, OperatorOperands, Origin,
+    PlaceUse, Relation, RuntimePredicateObligation, answer, membership_operator_protocol,
 };
 
 impl CheckState<'_> {
@@ -137,21 +137,19 @@ impl CheckState<'_> {
         let key_type = answer!(self.predicate_operand_type(origin, key_site)?);
         let receiver_type = answer!(self.predicate_operand_type(origin, receiver_site)?);
         let key = self.module(module).view().get(key).static_key();
-        let nominal_receiver = answer!(self.nominal_membership_receiver(origin, receiver_type)?);
+        let is_nominal_receiver =
+            answer!(self.is_nominal_membership_receiver(origin, receiver_type)?);
 
         // select protocol membership for nominal receivers
-        let predicate = if nominal_receiver.is_some() {
+        let predicate = if is_nominal_receiver {
             let Some(resolution) =
                 answer!(self.select_has_operator(origin, receiver_type, key_type, key_node)?)
             else {
+                let operands = [key_type, receiver_type];
                 self.report_no_matching_operator(
                     origin,
                     "in".to_string(),
-                    format!(
-                        "'{}' and '{}'",
-                        self.format_type(key_type),
-                        self.format_type(receiver_type)
-                    ),
+                    OperatorOperands::Types(&operands),
                 )?;
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
@@ -211,20 +209,20 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the nominal declaration behind one membership receiver.
-    fn nominal_membership_receiver(
+    /// Return whether one membership receiver requires `Has`.
+    fn is_nominal_membership_receiver(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+    ) -> CompilerResult<Answer<bool>> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
 
         let result = match self.ty(receiver)? {
-            dir::Type::Instance(_) => Some(receiver),
+            dir::Type::Instance(_) => true,
             dir::Type::Form(form) => {
-                answer!(self.nominal_membership_receiver(origin, form.value)?)
+                answer!(self.is_nominal_membership_receiver(origin, form.value)?)
             }
-            _ => None,
+            _ => false,
         };
 
         Ok(Answer::Ready(result))
@@ -482,9 +480,8 @@ impl CheckState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = origin.module();
-        let source = self.origin_source_node(origin)?;
         let unknown = self.intern_type(module, dir::Type::Unknown)?;
-        let target = self.member_shape_type(module, key, unknown, source)?;
+        let target = self.member_shape_type(module, key, unknown)?;
         let operation = dir::TypeOperation::Narrow(dir::NarrowType {
             source: receiver,
             target,

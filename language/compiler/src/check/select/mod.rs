@@ -25,5 +25,7 @@ mod template;
 mod tuple;
 
 pub(in crate::check) use member::*;
+pub(in crate::check) use operator::OperatorOperands;
 pub(in crate::check) use protocol::*;
+pub(in crate::check) use receiver::ReceiverSteps;
 pub(in crate::check) use signature::{SignatureRejection, SignatureSelection};

@@ -1,7 +1,8 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Decision, FlowPointId, Origin, answer};
+use crate::check::{Answer, CheckState, Decision, FlowPointId, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Select one newtype pattern, unwrapping the substituted backing.
@@ -92,6 +93,11 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(()));
         }
 
+        // select tagged owner.case patterns before nominal fields
+        if let Some(head) = answer!(self.tagged_pattern_head(origin, module, ty)?) {
+            return self.select_tagged_variant_pattern(node, origin, flow, scope, head, fields);
+        }
+
         // reduce the written nominal tag
         let tag_node = ty.into_global_any(module);
         let tag = answer!(self.committed_node_type(tag_node)?);
@@ -100,6 +106,30 @@ impl CheckState<'_> {
             dir::Type::Instance(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
         };
+
+        // bind the pattern instantiation from the matched input: the
+        // scrutinee arm with the pattern's head determines its holes
+        let input = answer!(self.committed_node_type(node.into_any())?);
+        let input = answer!(self.value_beneath_forms(origin, input)?);
+        let mut matched = input;
+        if let Some(backing) = answer!(self.newtype_backing(origin, input)?) {
+            matched = answer!(self.reduce_type_head(origin, backing)?);
+        }
+        let arms: SmallVec<[dir::GlobalTypeId; 4]> = match self.ty(matched)? {
+            dir::Type::Union(union) => {
+                SmallVec::from_slice(self.type_ids(matched.module_id, union.elements)?)
+            }
+            _ => SmallVec::from_slice(&[matched]),
+        };
+        for arm in arms {
+            let arm = answer!(self.reduce_type_head(origin, arm)?);
+            if let dir::Type::Instance(arm_instance) = self.ty(arm)?
+                && arm_instance.symbol == instance.symbol
+            {
+                answer!(self.constrain(origin, Relation::Equal, arm, tag)?);
+                break;
+            }
+        }
 
         // project declared fields off the matched declaration
         let (fields, rest) =

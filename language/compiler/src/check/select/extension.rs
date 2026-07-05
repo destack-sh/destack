@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     Answer, CheckState, DeclaredMember, Dependency, GenericTemplateId, MemberCandidate,
-    MemberLookup, Origin, Relation, TypeSubstitution, answer,
+    MemberLookup, Origin, ReceiverSteps, Relation, TypeSubstitution, answer,
 };
 
 impl CheckState<'_> {
@@ -372,8 +372,6 @@ impl CheckState<'_> {
         extension_symbol: dir::GlobalSymbolId,
         members: &[DeclaredMember],
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let arguments = self.extension_parameter_arguments(origin, extension_symbol)?;
-
         // expose matching static members for later call inference
         let mut candidates = Vec::new();
         for member in members {
@@ -382,9 +380,6 @@ impl CheckState<'_> {
             };
             let ty = member.value_type(self, ty)?;
             let written = member.symbol.and_then(|symbol| self.static_value(symbol));
-
-            let generic_arguments =
-                self.symbol_generic_argument_bindings(extension_symbol, &arguments)?;
             let ty = self.resolve_type_variables(origin.module(), ty)?;
             let ty = answer!(self.projected_member_type(origin, None, member.role, ty)?);
 
@@ -393,32 +388,14 @@ impl CheckState<'_> {
                 owner: extension_symbol,
                 role: member.role,
                 ty,
-                generic_arguments,
+                generic_arguments: Vec::new(),
                 value: member.value,
                 value_type: written,
+                steps: ReceiverSteps::new(),
             });
         }
 
         Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
-    }
-
-    /// Return generic parameter placeholder arguments for one extension head.
-    fn extension_parameter_arguments(
-        &mut self,
-        origin: Origin,
-        extension_symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let Some(template) = self.symbol_template(extension_symbol) else {
-            return Ok(Vec::new());
-        };
-        let module = origin.module();
-
-        let mut arguments = Vec::new();
-        for parameter in self.generic_template_parameters(template) {
-            arguments.push(self.intern_type(module, dir::Type::Parameter(parameter))?);
-        }
-
-        Ok(arguments)
     }
 
     /// Match one extension target against a receiver under an active probe.
@@ -514,6 +491,7 @@ impl CheckState<'_> {
                 generic_arguments,
                 value: member.value,
                 value_type: written,
+                steps: ReceiverSteps::new(),
             });
         }
 

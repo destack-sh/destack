@@ -2,7 +2,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, Relation, answer};
+use crate::check::{
+    Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, ReceiverSteps, Relation, answer,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// Result of looking up one member on a receiver type.
@@ -164,6 +166,8 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) value: Option<dir::GlobalStaticId>,
     /// The substituted static value of the member, when it has one.
     pub(in crate::check) value_type: Option<dir::GlobalTypeId>,
+    /// The projection steps lookup applied to the use site receiver.
+    pub(in crate::check) steps: ReceiverSteps,
 }
 
 impl MemberCandidate {
@@ -172,8 +176,16 @@ impl MemberCandidate {
         &self,
         receiver: dir::GlobalTypeId,
     ) -> Option<dir::MemberCandidate> {
+        // dereferenced members expect the receiver their steps reach
+        let receiver = self
+            .steps
+            .last()
+            .map(dir::Projection::ty)
+            .unwrap_or(receiver);
+
         Some(dir::MemberCandidate {
             receiver,
+            adjustments: self.steps.to_vec(),
             owner: self.owner,
             symbol: self.symbol?,
             ty: self.ty,
@@ -286,8 +298,22 @@ impl CheckState<'_> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
 
         // choose static or instance member space from the receiver expression
-        let space = self.member_receiver_space(receiver_node, receiver)?;
-        let lookup = answer!(self.lookup_member(origin, module, receiver, space, key)?);
+        let mut space = self.member_receiver_space(receiver_node, receiver)?;
+
+        // static access names a declaration: alias-named receivers
+        // dispatch by their resolved name, not their expanded body
+        let mut lookup_receiver = receiver;
+        if let Some(Decision::Name(resolution)) = self.decision(receiver_node)
+            && let [symbol] = resolution.symbols()
+        {
+            let symbol = self.resolve_symbol_alias(*symbol)?;
+            if self.symbol_kind(symbol).is_type_alias() {
+                space = dir::MemberSpace::Static;
+                lookup_receiver =
+                    self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
+            }
+        }
+        let lookup = answer!(self.lookup_member(origin, module, lookup_receiver, space, key)?);
 
         match lookup {
             MemberLookup::Field(ty) => self.commit_field_member(node, receiver, key, ty),
@@ -314,6 +340,7 @@ impl CheckState<'_> {
         let target = dir::MemberTarget::Field(key);
         let resolution = dir::MemberResolution::new(receiver, target);
         self.commit_decision(node, Decision::Member(resolution))?;
+        let ty = answer!(self.flow_type_at(self.node_site(node)?, ty)?);
         self.commit_node_type(node, ty)?;
 
         Ok(Answer::Ready(()))
@@ -346,7 +373,8 @@ impl CheckState<'_> {
             [candidate] if candidate.role.is_readable() => {
                 let resolution = candidate.resolution(receiver, key);
                 self.commit_decision(node, Decision::Member(resolution))?;
-                self.commit_node_type(node, candidate.ty)?;
+                let ty = answer!(self.flow_type_at(self.node_site(node)?, candidate.ty)?);
+                self.commit_node_type(node, ty)?;
 
                 Ok(Answer::Ready(()))
             }
@@ -427,6 +455,7 @@ impl CheckState<'_> {
         let ty = self.normalized_union_type(module, types)?;
         let resolution = dir::MemberResolution::new(receiver, target);
         self.commit_decision(node, Decision::Member(resolution))?;
+        let ty = answer!(self.flow_type_at(self.node_site(node)?, ty)?);
         self.commit_node_type(node, ty)?;
 
         Ok(Answer::Ready(()))
@@ -473,7 +502,7 @@ impl CheckState<'_> {
         };
         let ty = answer!(self.project_member_place(origin, receiver, ty)?);
 
-        // readonly receiver views project readonly stored fields
+        // readonly receivers project readonly stored field values
         if !answer!(self.receiver_projects_readonly(origin, receiver)?) {
             return Ok(Answer::Ready(ty));
         }
@@ -481,7 +510,7 @@ impl CheckState<'_> {
         if matches!(self.ty(ty)?, dir::Type::Form(form) if form.form == dir::Form::Readonly) {
             return Ok(Answer::Ready(ty));
         }
-        if !self.type_projects_readonly(ty)? {
+        if !answer!(self.type_projects_readonly(origin, ty)?) {
             return Ok(Answer::Ready(ty));
         }
 
@@ -756,7 +785,16 @@ impl CheckState<'_> {
     }
 
     /// Return whether one projected value should retain a readonly view.
-    fn type_projects_readonly(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    fn type_projects_readonly(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let ty = answer!(self.reduce_type_head(origin, ty)?);
+        if answer!(self.satisfies_auto_interface(origin, ty, dir::AutoInterface::Copy)?) {
+            return Ok(Answer::Ready(false));
+        }
+
         let result = match self.ty(ty)? {
             dir::Type::Error
             | dir::Type::Never
@@ -795,11 +833,11 @@ impl CheckState<'_> {
             | dir::Type::Intersection(_) => true,
         };
 
-        Ok(result)
+        Ok(Answer::Ready(result))
     }
 
     /// Return whether one memory access component is readonly.
-    fn access_is_readonly(
+    pub(in crate::check) fn access_is_readonly(
         &mut self,
         origin: Origin,
         access: dir::GlobalTypeId,

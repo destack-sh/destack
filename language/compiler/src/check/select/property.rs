@@ -5,7 +5,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowSite, Origin, PlaceUse, Relation, answer,
+    Answer, CheckState, Constraint, Decision, Dependency, FlowSite, Origin, PlaceUse, Relation,
+    answer,
 };
 
 /// One literal property entry collected for merging.
@@ -124,8 +125,10 @@ impl CheckState<'_> {
                 if self.type_flags(target)?.has_variable() {
                     answer!(self.constrain_struct_construction(origin, &field_list, target)?);
                 }
-                let () = answer!(self.relate(origin, Relation::Writable, None, shape, target)?);
+
+                // commit the literal before the writable obligation
                 self.commit_node_type(node.into_any(), target)?;
+                self.push_constraint(Constraint::check(Relation::Writable, shape, target, origin));
 
                 Ok(Answer::Ready(()))
             }
