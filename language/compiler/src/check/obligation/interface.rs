@@ -1,8 +1,7 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, AutoInterface, CheckError, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, ObligationCheck, ObligationFailure, Origin, answer};
 
 impl CheckState<'_> {
     /// Check whether one type satisfies one compiler-known auto interface.
@@ -10,30 +9,20 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-        interface: AutoInterface,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
         if answer!(self.satisfies_auto_interface(origin, ty, interface)?) {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
         let source = self.origin_source(origin)?;
-        let (module, anchor) = self.source_anchor(source);
-        let diagnostic = match interface {
-            AutoInterface::DynamicSafe => {
-                let ty = self.format_type(ty);
-                let error = CheckError::DynamicSafetyNotSatisfied { anchor, module, ty };
-
-                error.into()
-            }
-            AutoInterface::OverwriteStable => {
-                let ty = self.format_type(ty);
-                let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
-
-                error.into()
-            }
+        let failure = ObligationFailure::AutoInterfaceNotSatisfied {
+            source,
+            ty,
+            interface,
         };
 
-        Ok(Answer::Ready(Some(diagnostic)))
+        Ok(Answer::Ready(ObligationCheck::fail(failure)))
     }
 }

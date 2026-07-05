@@ -1,13 +1,11 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
-use destack_source::ModuleId;
 use indexmap::IndexMap;
 
-use crate::{CheckError, CompilerError, CompilerResult, DiagnosticAnchor};
+use crate::{CompilerError, CompilerResult};
 
 use crate::check::{
-    Answer, AutoInterface, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId,
-    Origin, Task, WriteTarget, answer,
+    Answer, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId, Origin, Task,
+    WriteTarget, answer,
 };
 
 /// Component-global id of one collected obligation.
@@ -94,6 +92,277 @@ impl Obligation {
             Self::ClassInitialization(obligation) => obligation.source,
         }
     }
+}
+
+/// Result of checking one obligation.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum ObligationCheck {
+    /// The obligation holds.
+    Holds,
+    /// The obligation failed for one or more known reasons.
+    Fails(Vec<ObligationFailure>),
+}
+
+impl ObligationCheck {
+    /// Return a successful obligation check.
+    pub(in crate::check) fn holds() -> Self {
+        Self::Holds
+    }
+
+    /// Return one failed obligation check.
+    pub(in crate::check) fn fail(failure: ObligationFailure) -> Self {
+        Self::Fails(vec![failure])
+    }
+
+    /// Return an obligation check from collected failures.
+    pub(in crate::check) fn from_failures(failures: Vec<ObligationFailure>) -> Self {
+        if failures.is_empty() {
+            Self::Holds
+        } else {
+            Self::Fails(failures)
+        }
+    }
+
+    /// Return the failed reasons.
+    pub(in crate::check) fn into_failures(self) -> Vec<ObligationFailure> {
+        match self {
+            Self::Holds => Vec::new(),
+            Self::Fails(failures) => failures,
+        }
+    }
+}
+
+/// Reason one completed obligation failed.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum ObligationFailure {
+    /// A match expression did not cover one remaining value.
+    NonExhaustivePattern {
+        /// The expression or pattern-bearing source.
+        source: dir::GlobalNodeIdAny,
+        /// A representative uncovered value.
+        missing: UncoveredValue,
+    },
+    /// A non-matching binding pattern can reject one remaining value.
+    RefutablePattern {
+        /// The pattern-bearing source.
+        source: dir::GlobalNodeIdAny,
+        /// A representative uncovered value.
+        missing: UncoveredValue,
+    },
+    /// A catch binding pattern can reject one remaining failure value.
+    RefutableCatchPattern {
+        /// The pattern-bearing source.
+        source: dir::GlobalNodeIdAny,
+        /// A representative uncovered value.
+        missing: UncoveredValue,
+    },
+    /// A for-in source does not expose object keys.
+    ForInSourceNotObjectShaped {
+        /// The for-in expression.
+        source: dir::GlobalNodeIdAny,
+    },
+    /// A type predicate can never hold.
+    ImpossibleIs {
+        /// The predicate expression.
+        source: dir::GlobalNodeIdAny,
+        /// The checked value type.
+        value: dir::GlobalTypeId,
+        /// The tested target type.
+        target: dir::GlobalTypeId,
+    },
+    /// An instanceof predicate can never hold.
+    ImpossibleInstanceOf {
+        /// The predicate expression.
+        source: dir::GlobalNodeIdAny,
+        /// The checked value type.
+        value: dir::GlobalTypeId,
+        /// The tested class symbol.
+        target: dir::GlobalSymbolId,
+    },
+    /// An in predicate has no executable implementation.
+    InvalidInPredicate {
+        /// The predicate expression.
+        source: dir::GlobalNodeIdAny,
+        /// The key type.
+        key: dir::GlobalTypeId,
+        /// The receiver type.
+        receiver: dir::GlobalTypeId,
+    },
+    /// A value cannot be assigned to an imported binding.
+    CannotAssignImportedBinding {
+        /// The assignment target expression.
+        source: dir::GlobalNodeIdAny,
+        /// The imported binding symbol.
+        symbol: dir::GlobalSymbolId,
+    },
+    /// A value cannot be assigned to an immutable binding.
+    CannotAssignImmutableBinding {
+        /// The assignment target expression.
+        source: dir::GlobalNodeIdAny,
+        /// The immutable binding symbol.
+        symbol: dir::GlobalSymbolId,
+    },
+    /// A value cannot be written through a readonly member.
+    CannotAssignReadonlyMember {
+        /// The assignment target expression.
+        source: dir::GlobalNodeIdAny,
+        /// The selected member.
+        member: dir::ProjectionField,
+    },
+    /// A non-exclusive overwrite requires overwrite-stable values.
+    OverwriteStabilityNotSatisfied {
+        /// The assignment target expression.
+        source: dir::GlobalNodeIdAny,
+        /// The overwritten value type.
+        ty: dir::GlobalTypeId,
+    },
+    /// A type does not have finite by-value storage.
+    CircularType {
+        /// The source exposing the cycle.
+        source: dir::GlobalNodeIdAny,
+    },
+    /// A type does not satisfy a compiler-known interface.
+    AutoInterfaceNotSatisfied {
+        /// The source requiring the interface.
+        source: dir::GlobalNodeIdAny,
+        /// The checked type.
+        ty: dir::GlobalTypeId,
+        /// The required interface.
+        interface: dir::AutoInterface,
+    },
+    /// An extension does not implement one declared interface.
+    InterfaceNotImplemented {
+        /// The implementation clause source.
+        source: dir::GlobalNodeIdAny,
+        /// The implementing type.
+        ty: dir::GlobalTypeId,
+        /// The required interface.
+        interface: dir::GlobalSymbolId,
+    },
+    /// An implementation pair is outside both relevant packages.
+    NonLocalImplementation {
+        /// The extension declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The implemented interface.
+        interface: dir::GlobalSymbolId,
+        /// The implemented type symbol.
+        ty: dir::GlobalSymbolId,
+    },
+    /// A blanket implementation is outside the interface package.
+    ForeignBlanketImplementation {
+        /// The extension declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The implemented interface.
+        interface: dir::GlobalSymbolId,
+    },
+    /// An exported nonlocal extension has no source-level name.
+    UnnamedExportedNonlocalExtension {
+        /// The extension declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The extension target type.
+        target: dir::GlobalTypeId,
+    },
+    /// An implementation overlaps another visible implementation.
+    ConflictingImplementation {
+        /// The extension declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The conflicting extension symbol.
+        conflict: dir::GlobalSymbolId,
+        /// The implemented interface.
+        interface: dir::GlobalSymbolId,
+        /// The implemented type.
+        ty: dir::GlobalTypeId,
+    },
+    /// Heritage reaches the same declaration with incompatible arguments.
+    ConflictingHeritage {
+        /// The conflicting heritage clause source.
+        source: dir::GlobalNodeIdAny,
+        /// The declaration whose heritage is invalid.
+        symbol: dir::GlobalSymbolId,
+        /// The repeated heritage target.
+        target: dir::GlobalSymbolId,
+    },
+    /// Heritage reaches its own declaration again.
+    CircularHeritage {
+        /// The heritage clause exposing the cycle.
+        source: dir::GlobalNodeIdAny,
+        /// The declaration whose heritage is circular.
+        symbol: dir::GlobalSymbolId,
+    },
+    /// Override modifier appears without an inherited member.
+    InvalidOverride {
+        /// The member declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+    },
+    /// Override target is not virtual or abstract.
+    OverrideNotVirtual {
+        /// The member declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+    },
+    /// Override type is not assignable to the inherited member type.
+    IncompatibleOverride {
+        /// The member declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+        /// The overriding member type.
+        source_ty: dir::GlobalTypeId,
+        /// The inherited member type.
+        target_ty: dir::GlobalTypeId,
+    },
+    /// Inherited member is shadowed without override.
+    MissingOverride {
+        /// The member declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+    },
+    /// Concrete class declares an abstract member.
+    AbstractMemberInConcreteClass {
+        /// The member declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+    },
+    /// Concrete class does not implement one inherited abstract member.
+    UnimplementedAbstractMember {
+        /// The class declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The member key.
+        member: dir::StaticKey,
+    },
+    /// Class extends a final base class.
+    FinalClassExtended {
+        /// The class declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The final base symbol.
+        base: dir::GlobalSymbolId,
+    },
+    /// Class field is not definitely initialized.
+    FieldNotDefinitelyInitialized {
+        /// The field declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The field symbol.
+        field: dir::GlobalSymbolId,
+    },
+}
+
+/// Representative value left uncovered by pattern coverage.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) enum UncoveredValue {
+    /// A type-shaped uncovered value.
+    Type(dir::GlobalTypeId),
+    /// A tagged case uncovered value.
+    TaggedCase {
+        /// The matched tagged type.
+        ty: dir::GlobalTypeId,
+        /// The uncovered case key.
+        key: dir::StaticKey,
+    },
 }
 
 /// Obliges a pattern-bearing site to cover the matched value space.
@@ -204,7 +473,7 @@ pub(in crate::check) struct AutoInterfaceObligation {
     /// The type that must satisfy the interface.
     pub(in crate::check) ty: dir::GlobalTypeId,
     /// The required auto interface.
-    pub(in crate::check) interface: AutoInterface,
+    pub(in crate::check) interface: dir::AutoInterface,
 }
 
 /// Obliges a runtime predicate to be executable.
@@ -336,14 +605,12 @@ impl CheckState<'_> {
         let entry = self.solver.obligations.get(id)?.clone();
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
         let obligation = entry.obligation;
-        let decision = self.check_obligation(origin, &obligation)?;
+        let check = self.check_obligation(origin, &obligation)?;
 
-        match decision {
-            Answer::Ready(diagnostic) => {
-                if let Some(diagnostic) = diagnostic {
-                    self.module_mut(obligation.source().module_id)
-                        .diagnostics
-                        .push(diagnostic);
+        match check {
+            Answer::Ready(check) => {
+                for failure in check.into_failures() {
+                    self.report_obligation_failure(failure)?;
                 }
                 self.record_event(CheckEvent::ObligationChecked {
                     obligation: id,
@@ -368,7 +635,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &Obligation,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         match obligation {
             Obligation::PatternCoverage(obligation) => {
                 self.check_pattern_coverage(origin, obligation)
@@ -404,7 +671,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &PatternCoverageObligation,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let value = answer!(self.resolve_expected_type(&obligation.value)?);
 
         match &obligation.coverage {
@@ -413,29 +680,17 @@ impl CheckState<'_> {
             }
             PatternCoverage::Binding { pattern } => self.check_irrefutable_pattern(
                 origin,
+                obligation.source,
                 *pattern,
                 value,
-                |anchor, module, missing| {
-                    CheckError::RefutablePattern {
-                        anchor,
-                        module,
-                        missing,
-                    }
-                    .help("handle the uncovered values with 'if let' or 'match'")
-                },
+                |source, missing| ObligationFailure::RefutablePattern { source, missing },
             ),
             PatternCoverage::Catch { pattern } => self.check_irrefutable_pattern(
                 origin,
+                obligation.source,
                 *pattern,
                 value,
-                |anchor, module, missing| {
-                    CheckError::RefutableCatchPattern {
-                        anchor,
-                        module,
-                        missing,
-                    }
-                    .help("catch bindings must handle every failure value")
-                },
+                |source, missing| ObligationFailure::RefutableCatchPattern { source, missing },
             ),
         }
     }
@@ -445,25 +700,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &ForInSourceObligation,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         if answer!(self.is_keyed_type(origin, obligation.ty)?) {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        let (module, anchor) = self.source_anchor(obligation.source);
-        let error = CheckError::ForInSourceNotObjectShaped { anchor, module };
+        let failure = ObligationFailure::ForInSourceNotObjectShaped {
+            source: obligation.source,
+        };
 
-        Ok(Answer::Ready(Some(error.into())))
-    }
-
-    /// Return the diagnostic anchor for one source node.
-    pub(in crate::check) fn source_anchor(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> (ModuleId, DiagnosticAnchor) {
-        let module = source.module_id;
-        let anchor = self.diagnostic_anchor(module, source.local_id);
-
-        (module, anchor)
+        Ok(Answer::Ready(ObligationCheck::fail(failure)))
     }
 }

@@ -1,11 +1,10 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Origin, answer};
-use crate::{CheckError, CompilerResult};
+use crate::CompilerResult;
+use crate::check::{Answer, CheckState, ObligationCheck, ObligationFailure, Origin, answer};
 
 impl CheckState<'_> {
     /// Check that one stored type does not contain itself by value.
@@ -13,18 +12,18 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
         let mut active = IndexSet::new();
         let mut circular = None;
 
         if answer!(self.decide_finite_storage(origin, ty, source, &mut active, &mut circular)?) {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
-        let anchor = circular.unwrap_or(source);
-        let error = self.circular_type_error(self.origin_at(origin, anchor))?;
+        let source = circular.unwrap_or(source);
+        let failure = ObligationFailure::CircularType { source };
 
-        Ok(Answer::Ready(Some(error.into())))
+        Ok(Answer::Ready(ObligationCheck::fail(failure)))
     }
 
     /// Decide whether one type's by-value storage is finite.

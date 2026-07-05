@@ -1,8 +1,8 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, CheckError, CheckState, Decision, Dependency, MatchCase, Origin, answer,
+    Answer, CheckState, Decision, Dependency, MatchCase, ObligationCheck, ObligationFailure,
+    Origin, UncoveredValue, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -14,19 +14,19 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         cases: &[MatchCase],
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         // collect unguarded patterns with valid pattern decisions
         let mut patterns = Vec::new();
         for case in cases {
             match case {
-                MatchCase::Default => return Ok(Answer::Ready(None)),
+                MatchCase::Default => return Ok(Answer::Ready(ObligationCheck::holds())),
                 MatchCase::Pattern {
                     pattern,
                     is_guarded: false,
                 } => match self.decision(pattern.into_any()) {
                     Some(Decision::Pattern(_)) => patterns.push(*pattern),
                     Some(Decision::Rejected) => {
-                        return Ok(Answer::Ready(None));
+                        return Ok(Answer::Ready(ObligationCheck::holds()));
                     }
                     Some(decision) => {
                         return Err(CompilerError::Internal {
@@ -46,35 +46,23 @@ impl CheckState<'_> {
 
         // reject empty active case sets
         if patterns.is_empty() {
-            let missing = self.format_type(value);
-            let (module, anchor) = self.source_anchor(source);
-
-            let error = CheckError::NonExhaustivePattern {
-                anchor,
-                module,
-                missing,
+            let failure = ObligationFailure::NonExhaustivePattern {
+                source,
+                missing: UncoveredValue::Type(value),
             };
 
-            return Ok(Answer::Ready(Some(
-                error.help("cover the remaining values or add a wildcard '_' arm"),
-            )));
+            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
         }
 
         // accept any covering pattern alternative
-        let diagnostic = if answer!(self.decide_patterns_cover(origin, &patterns, value)?) {
-            None
+        let check = if answer!(self.decide_patterns_cover(origin, &patterns, value)?) {
+            ObligationCheck::holds()
         } else {
-            let missing = self.uncovered_witness(origin, &patterns, value)?;
-            let (module, anchor) = self.source_anchor(source);
-            let error = CheckError::NonExhaustivePattern {
-                anchor,
-                module,
-                missing,
-            };
+            let missing = self.uncovered_value(origin, &patterns, value)?;
 
-            Some(error.help("cover the remaining values or add a wildcard '_' arm"))
+            ObligationCheck::fail(ObligationFailure::NonExhaustivePattern { source, missing })
         };
 
-        Ok(Answer::Ready(diagnostic))
+        Ok(Answer::Ready(check))
     }
 }

@@ -1,10 +1,8 @@
-use destack_artifact::DiagnosticBuilder;
 use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, CheckError, CheckState, Dependency, Origin, WritablePlaceObligation,
-    answer,
+    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, WritablePlaceObligation, answer,
 };
 
 /// Writable storage selected by a source expression.
@@ -85,57 +83,54 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         obligation: &WritablePlaceObligation,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let target = &obligation.place;
-        let diagnostic = match &target.storage {
+        let check = match &target.storage {
             dir::Storage::Binding { symbol } => {
-                self.writable_binding_error(target.source, *symbol)?
+                self.check_writable_binding(target.source, *symbol)?
             }
-            dir::Storage::Field { receiver, field } => match field {
-                dir::ProjectionField::Key(_) => {
-                    self.writable_field_error(origin, target.source, *receiver, *field)?
-                }
-                dir::ProjectionField::Member(_) => {
-                    self.writable_field_error(origin, target.source, *receiver, *field)?
-                }
-            },
+            dir::Storage::Field { receiver, field } => {
+                self.check_writable_field(origin, target.source, *receiver, *field)?
+            }
             dir::Storage::Property { .. }
             | dir::Storage::Subscript { .. }
-            | dir::Storage::Dereference { .. } => Answer::Ready(None),
+            | dir::Storage::Dereference { .. } => Answer::Ready(ObligationCheck::holds()),
         };
-        match diagnostic {
-            Answer::Ready(Some(_)) | Answer::Pending(_) => Ok(diagnostic),
-            Answer::Ready(None) => match target.mode {
-                WriteMode::Direct => Ok(Answer::Ready(None)),
+        match check {
+            Answer::Ready(ObligationCheck::Fails(_)) | Answer::Pending(_) => Ok(check),
+            Answer::Ready(ObligationCheck::Holds) => match target.mode {
+                WriteMode::Direct => Ok(Answer::Ready(ObligationCheck::holds())),
                 WriteMode::StableOverwrite { receiver } => {
-                    self.stable_overwrite_error(origin, target.source, receiver, obligation.ty)
+                    self.check_stable_overwrite(origin, target.source, receiver, obligation.ty)
                 }
             },
         }
     }
 
-    /// Return the diagnostic for one non-exclusive overwrite.
-    fn stable_overwrite_error(
+    /// Check one non-exclusive overwrite.
+    fn check_stable_overwrite(
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         if answer!(self.is_exclusive_receiver(origin, receiver)?) {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
         let ty = answer!(self.reduce_type_head(origin, ty)?);
-        if answer!(self.satisfies_auto_interface(origin, ty, AutoInterface::OverwriteStable)?) {
-            return Ok(Answer::Ready(None));
+        if answer!(self.satisfies_auto_interface(
+            origin,
+            ty,
+            dir::AutoInterface::OverwriteStable,
+        )?) {
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        let (module, anchor) = self.source_anchor(source);
-        let ty = self.format_type(ty);
-        let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
+        let failure = ObligationFailure::OverwriteStabilityNotSatisfied { source, ty };
 
-        Ok(Answer::Ready(Some(error.into())))
+        Ok(Answer::Ready(ObligationCheck::fail(failure)))
     }
 
     /// Return whether one receiver carries exclusive access.
@@ -147,9 +142,7 @@ impl CheckState<'_> {
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let access = match self.ty(receiver)? {
             dir::Type::Variable(variable) => {
-                let representative = self.solver.representative(variable)?;
-
-                return Ok(Answer::pending([Dependency::Variable(representative)]));
+                return Ok(Answer::pending([self.variable_dependency(variable)?]));
             }
             dir::Type::Form(form) => match form.form {
                 dir::Form::Borrowed { access, .. } => Some(access),
@@ -169,25 +162,17 @@ impl CheckState<'_> {
         Ok(Answer::Ready(is_exclusive))
     }
 
-    /// Return the diagnostic for one binding that rejects writes.
-    fn writable_binding_error(
+    /// Check one binding write.
+    fn check_writable_binding(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
-        let (module, anchor) = self.source_anchor(source);
-        let name = self.format_assignment_binding(source, symbol);
-
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         // cross module symbols are imported into this module
         if symbol.module_id != source.module_id {
-            let error = CheckError::CannotAssignImportedBinding {
-                anchor,
-                module,
-                name,
-            };
-            let diagnostic = DiagnosticBuilder::new(error);
+            let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };
 
-            return Ok(Answer::Ready(Some(diagnostic)));
+            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
         }
 
         let input = self.module(symbol.module_id);
@@ -199,7 +184,7 @@ impl CheckState<'_> {
             .declaration
             .is_some_and(|declaration| declaration.local_id.ty == dir::NodeType::Parameter)
         {
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
         // imported aliases never accept writes
@@ -209,14 +194,9 @@ impl CheckState<'_> {
             .symbol_target(symbol.local_id)
             .is_some()
         {
-            let error = CheckError::CannotAssignImportedBinding {
-                anchor,
-                module,
-                name,
-            };
-            let diagnostic = self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+            let failure = ObligationFailure::CannotAssignImportedBinding { source, symbol };
 
-            return Ok(Answer::Ready(Some(diagnostic)));
+            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
         }
 
         // immutable bindings reject writes
@@ -227,44 +207,32 @@ impl CheckState<'_> {
             )
         });
         if !is_mutable {
-            let error = CheckError::CannotAssignImmutableBinding {
-                anchor,
-                module,
-                name,
-            };
-            let diagnostic = self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+            let failure = ObligationFailure::CannotAssignImmutableBinding { source, symbol };
 
-            return Ok(Answer::Ready(Some(diagnostic)));
+            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
         }
 
-        Ok(Answer::Ready(None))
+        Ok(Answer::Ready(ObligationCheck::holds()))
     }
 
-    /// Return the diagnostic for one field that rejects writes.
-    fn writable_field_error(
+    /// Check one field write.
+    fn check_writable_field(
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalTypeId,
         field: dir::ProjectionField,
-    ) -> CompilerResult<Answer<Option<DiagnosticBuilder<CheckError>>>> {
+    ) -> CompilerResult<Answer<ObligationCheck>> {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
-        let member = match field {
-            dir::ProjectionField::Key(key) => self.format_static_key(&key),
-            dir::ProjectionField::Member(symbol) => self.format_symbol(symbol),
-        };
 
         // readonly receiver views reject stored field writes
         if answer!(self.receiver_projects_readonly(origin, owner)?) {
-            let (module, anchor) = self.source_anchor(source);
-            let error = CheckError::CannotAssignReadonlyMember {
-                anchor,
-                module,
-                member,
+            let failure = ObligationFailure::CannotAssignReadonlyMember {
+                source,
+                member: field,
             };
-            let diagnostic = DiagnosticBuilder::new(error);
 
-            return Ok(Answer::Ready(Some(diagnostic)));
+            return Ok(Answer::Ready(ObligationCheck::fail(failure)));
         }
 
         // structural fields carry their write access directly
@@ -279,44 +247,20 @@ impl CheckState<'_> {
 
             if let Some(field) = field {
                 if field.is_readonly {
-                    let (module, anchor) = self.source_anchor(source);
-                    let error = CheckError::CannotAssignReadonlyMember {
-                        anchor,
-                        module,
-                        member,
+                    let failure = ObligationFailure::CannotAssignReadonlyMember {
+                        source,
+                        member: dir::ProjectionField::Key(key),
                     };
-                    let diagnostic = DiagnosticBuilder::new(error);
 
-                    return Ok(Answer::Ready(Some(diagnostic)));
+                    return Ok(Answer::Ready(ObligationCheck::fail(failure)));
                 }
 
-                return Ok(Answer::Ready(None));
+                return Ok(Answer::Ready(ObligationCheck::holds()));
             }
 
-            return Ok(Answer::Ready(None));
+            return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        Ok(Answer::Ready(None))
-    }
-
-    /// Add a declaration label to a binding diagnostic when the declaration is local.
-    fn label_binding_declaration(
-        &self,
-        diagnostic: DiagnosticBuilder<CheckError>,
-        symbol: dir::GlobalSymbolId,
-    ) -> DiagnosticBuilder<CheckError> {
-        let declaration = self
-            .binding_table(symbol.module_id)
-            .get_symbol_maybe(symbol.local_id)
-            .and_then(|binding| binding.declaration)
-            .filter(|declaration| declaration.module_id == symbol.module_id);
-
-        if let Some(declaration) = declaration {
-            let anchor = self.diagnostic_anchor(symbol.module_id, declaration.local_id);
-
-            diagnostic.label(anchor, "declared here")
-        } else {
-            diagnostic
-        }
+        Ok(Answer::Ready(ObligationCheck::holds()))
     }
 }
