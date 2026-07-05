@@ -35,7 +35,7 @@ impl CheckState<'_> {
         // borrows over one payload join their lifetimes: relations
         // never judge lifetimes, so absorption would otherwise keep
         // one branch's lifetime arbitrarily
-        let resolved = self.join_borrow_bounds(variable, origin, &resolved)?;
+        let resolved = self.join_borrow_bounds(origin, &resolved)?;
 
         // drop bounds absorbed by another bound
         let mut survivors = SmallVec::<[dir::GlobalTypeId; 4]>::new();
@@ -122,7 +122,6 @@ impl CheckState<'_> {
     /// lifetime is the union of the branch lifetimes.
     fn join_borrow_bounds(
         &mut self,
-        variable: dir::TypeVariableId,
         origin: Origin,
         bounds: &SmallVec<[dir::GlobalTypeId; 4]>,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 4]>> {

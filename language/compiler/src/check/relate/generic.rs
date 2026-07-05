@@ -118,7 +118,37 @@ impl CheckState<'_> {
         }
 
         let source = self.origin_source_node(origin)?;
-        let substitution = self.generic_match_substitution(origin, generic)?;
+        let substitution = self.generic_match_substitution(generic)?;
+        if !answer!(self.check_generic_substitution_bounds(
+            origin,
+            source.into_global(origin.module()),
+            &substitution,
+        )?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(substitution)))
+    }
+
+    /// Match one parameter list over positional pattern/actual pairs.
+    ///
+    /// Parameters the pairs leave free self-bind and stay rigid, and
+    /// bound arguments must satisfy their declared constraints.
+    pub(in crate::check) fn match_generic_pairs(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
+    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+        let mut generic = GenericMatch::new(parameters.iter().copied().collect());
+        for (pattern, actual) in pairs.iter().copied() {
+            if !answer!(self.match_generic_type(origin, &mut generic, pattern, actual)?) {
+                return Ok(Answer::Ready(None));
+            }
+        }
+
+        let source = self.origin_source_node(origin)?;
+        let substitution = self.generic_match_substitution(generic)?;
         if !answer!(self.check_generic_substitution_bounds(
             origin,
             source.into_global(origin.module()),
@@ -151,46 +181,35 @@ impl CheckState<'_> {
             return generic.bind(self, origin, parameter, actual);
         }
 
-        if pattern == actual {
+        // identical types still decompose while the pattern mentions
+        // bindable parameters, so identity matches record their bindings
+        if pattern == actual && !self.type_flags(pattern)?.has_parameter() {
             return Ok(Answer::Ready(true));
         }
 
-        self.match_generic_type_inner(
-            origin,
-            generic,
-            pattern.module_id,
-            pattern_type,
-            actual.module_id,
-            actual_type,
-        )
+        // decompose fixed slots beneath one shared constructor
+        let pairs = self.decompose_type_pair(pattern, actual)?;
+        if let Some(pairs) = pairs {
+            return self.match_generic_arguments(origin, generic, &pairs);
+        }
+
+        // childless constructors must agree exactly
+        Ok(Answer::Ready(pattern_type == actual_type))
     }
 
     /// Return the substitution captured by one direct generic match.
     fn generic_match_substitution(
         &mut self,
-        origin: Origin,
         generic: GenericMatch,
     ) -> CompilerResult<TypeSubstitution> {
         let mut parameters = SmallVec::<[GenericParameterId; 4]>::new();
         let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
 
-        // collect matched parameters and closed defaults
+        // collect matched parameters; parameters the pattern leaves
+        // free stay absent, so callers may still open them later
         for (index, parameter) in generic.parameters.iter().copied().enumerate() {
-            let argument = match generic.arguments[index] {
-                Some(argument) => argument,
-                None => {
-                    let Some(default) = self.generic_parameter_default(
-                        origin.module(),
-                        parameter,
-                        &parameters,
-                        &arguments,
-                    )?
-                    else {
-                        continue;
-                    };
-
-                    default
-                }
+            let Some(argument) = generic.arguments[index] else {
+                continue;
             };
 
             parameters.push(parameter);
@@ -258,84 +277,15 @@ impl CheckState<'_> {
         })
     }
 
-    /// Match two type constructors after roots have been reduced.
-    fn match_generic_type_inner(
-        &mut self,
-        origin: Origin,
-        generic: &mut GenericMatch,
-        pattern_module: destack_source::ModuleId,
-        pattern: dir::Type,
-        actual_module: destack_source::ModuleId,
-        actual: dir::Type,
-    ) -> CompilerResult<Answer<bool>> {
-        match (pattern, actual) {
-            // nominal applications match by declaration and argument position
-            (dir::Type::Instance(pattern), dir::Type::Instance(actual))
-                if pattern.symbol == actual.symbol =>
-            {
-                let pattern_arguments = self.type_ids(pattern_module, pattern.arguments)?.to_vec();
-                let actual_arguments = self.type_ids(actual_module, actual.arguments)?.to_vec();
-
-                self.match_generic_arguments(origin, generic, &pattern_arguments, &actual_arguments)
-            }
-
-            // value containers match by their contained type
-            (dir::Type::Array(pattern), dir::Type::Array(actual)) => {
-                self.match_generic_type(origin, generic, pattern.element, actual.element)
-            }
-            (dir::Type::Slice(pattern), dir::Type::Slice(actual)) => {
-                self.match_generic_type(origin, generic, pattern.element, actual.element)
-            }
-            (dir::Type::FixedArray(pattern), dir::Type::FixedArray(actual)) => {
-                let pattern = [pattern.element, pattern.count];
-                let actual = [actual.element, actual.count];
-
-                self.match_generic_arguments(origin, generic, &pattern, &actual)
-            }
-
-            // tuples match element by element
-            (dir::Type::Tuple(pattern), dir::Type::Tuple(actual))
-                if pattern.elements.len() == actual.elements.len() =>
-            {
-                let pattern = self
-                    .tuple_elements(pattern_module, pattern.elements)?
-                    .iter()
-                    .map(|element| element.ty)
-                    .collect::<SmallVec<[_; 4]>>();
-                let actual = self
-                    .tuple_elements(actual_module, actual.elements)?
-                    .iter()
-                    .map(|element| element.ty)
-                    .collect::<SmallVec<[_; 4]>>();
-
-                self.match_generic_arguments(origin, generic, &pattern, &actual)
-            }
-
-            // memory forms match by form and payload
-            (dir::Type::Form(pattern), dir::Type::Form(actual)) if pattern.form == actual.form => {
-                self.match_generic_type(origin, generic, pattern.value, actual.value)
-            }
-
-            // non-generic leaves must match exactly
-            (pattern, actual) if pattern == actual => Ok(Answer::Ready(true)),
-            _ => Ok(Answer::Ready(false)),
-        }
-    }
-
-    /// Match positional type arguments.
+    /// Match fixed positional type pairs.
     fn match_generic_arguments(
         &mut self,
         origin: Origin,
         generic: &mut GenericMatch,
-        pattern: &[dir::GlobalTypeId],
-        actual: &[dir::GlobalTypeId],
+        pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Answer<bool>> {
-        if pattern.len() != actual.len() {
-            return Ok(Answer::Ready(false));
-        }
-
         let mut decision = Answer::Ready(true);
-        for (pattern, actual) in pattern.iter().copied().zip(actual.iter().copied()) {
+        for (pattern, actual) in pairs.iter().copied() {
             decision = decision.and(self.match_generic_type(origin, generic, pattern, actual)?);
             if decision.is_ready_false() {
                 return Ok(decision);

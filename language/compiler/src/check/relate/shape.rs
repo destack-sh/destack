@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, GenericPosition, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
@@ -86,46 +86,6 @@ impl CheckState<'_> {
         };
 
         Ok(Answer::Ready(result))
-    }
-
-    /// Decide exact equality of two tuple types.
-    pub(in crate::check) fn decide_tuple_equal(
-        &mut self,
-        origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        // compare element shapes and collect type pairs in one pure pass
-        let pairs = {
-            let (dir::Type::Tuple(left_tuple), dir::Type::Tuple(right_tuple)) =
-                (self.ty(left)?, self.ty(right)?)
-            else {
-                return Ok(Answer::Ready(false));
-            };
-            if left_tuple.form != right_tuple.form
-                || left_tuple.elements.len() != right_tuple.elements.len()
-            {
-                return Ok(Answer::Ready(false));
-            }
-
-            let left_elements = self.tuple_elements(left.module_id, left_tuple.elements)?;
-            let right_elements = self.tuple_elements(right.module_id, right_tuple.elements)?;
-            let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
-            for (left, right) in left_elements.iter().zip(right_elements) {
-                if left.label != right.label
-                    || left.is_optional != right.is_optional
-                    || left.is_readonly != right.is_readonly
-                    || left.is_rest != right.is_rest
-                {
-                    return Ok(Answer::Ready(false));
-                }
-                pairs.push((left.ty, right.ty));
-            }
-
-            pairs
-        };
-
-        self.decide_each(origin, Relation::Equal, &pairs)
     }
 
     /// Decide assignability of two tuple types.
@@ -573,71 +533,6 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Decide exact equality of two function types.
-    pub(in crate::check) fn decide_function_equal(
-        &mut self,
-        origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        // compare signature shapes and collect type pairs in one pure pass
-        let pairs = {
-            let (
-                dir::Type::FunctionSignature(left_signature),
-                dir::Type::FunctionSignature(right_signature),
-            ) = (self.ty(left)?, self.ty(right)?)
-            else {
-                return Ok(Answer::Ready(false));
-            };
-
-            // equal functions share asynchrony, generator shape, and arity
-            let left_generics = self.signature_generic_parameters(&left_signature)?;
-            let right_generics = self.signature_generic_parameters(&right_signature)?;
-            if left_signature.asynchrony != right_signature.asynchrony
-                || left_signature.is_generator != right_signature.is_generator
-                || left_generics.len() != right_generics.len()
-                || left_signature.parameters.len() != right_signature.parameters.len()
-            {
-                return Ok(Answer::Ready(false));
-            }
-
-            let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-
-            // compare receivers exactly
-            match (
-                left_signature.this_parameter,
-                right_signature.this_parameter,
-            ) {
-                (Some(left), Some(right)) => pairs.push((left, right)),
-                (None, None) => {}
-                _ => return Ok(Answer::Ready(false)),
-            }
-
-            // compare parameters exactly
-            let left_parameters =
-                self.signature_parameters(left.module_id, left_signature.parameters)?;
-            let right_parameters =
-                self.signature_parameters(right.module_id, right_signature.parameters)?;
-            for (left, right) in left_parameters.iter().zip(right_parameters) {
-                if left.is_optional != right.is_optional || left.is_rest != right.is_rest {
-                    return Ok(Answer::Ready(false));
-                }
-                pairs.push((left.ty, right.ty));
-            }
-
-            // compare returns exactly
-            match (left_signature.return_type, right_signature.return_type) {
-                (Some(left), Some(right)) => pairs.push((left, right)),
-                (None, None) => {}
-                _ => return Ok(Answer::Ready(false)),
-            }
-
-            pairs
-        };
-
-        self.decide_each(origin, Relation::Equal, &pairs)
-    }
-
     /// Decide assignability of two function types by signature variance.
     pub(in crate::check) fn decide_function_assignable(
         &mut self,
@@ -668,10 +563,10 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        // open the source's own generics against the target's, so
-        // generalized implementations serve every allowed invocation;
-        // explicit parameters map onto the target's own parameters and
-        // induced ones open; polls reuse the opened source to settle
+        // conformance quantifies universally: the found signature's own
+        // generics bind by structurally matching the required signature,
+        // so both sides compare over the same rigid parameters and
+        // bound arguments must satisfy their declared constraints
         let mut source = answer!(self.reduce_type_head(origin, source)?);
         if !matches!(
             (self.ty(source)?, self.ty(target)?),
@@ -685,27 +580,15 @@ impl CheckState<'_> {
         if let dir::Type::FunctionSignature(signature) = self.ty(source)? {
             let parameters = self.signature_generic_parameters(&signature)?;
             if !parameters.is_empty() {
-                let scope = self.origin_scope(origin);
-                if let Some(opened) = self.opened_signatures.get(&(source, target, scope)) {
-                    source = *opened;
-                } else {
-                    let written = self.target_parameter_arguments(origin, target)?;
-                    let substitution = self.instantiate_generic_parameters(
-                        origin,
-                        &parameters,
-                        &written,
-                        GenericPosition::Inference,
-                    )?;
-                    if let Some(substitution) = substitution {
-                        let opened =
-                            self.substitute_type(origin.module(), source, &substitution)?;
-                        if !self.solver.is_probing() {
-                            self.opened_signatures
-                                .insert((source, target, scope), opened);
-                        }
-                        source = opened;
-                    }
-                }
+                let Some(pairs) = self.signature_match_pairs(source, target)? else {
+                    return Ok(Answer::Ready(false));
+                };
+                let substitution =
+                    answer!(self.match_generic_pairs(origin, &parameters, &pairs)?);
+                let Some(substitution) = substitution else {
+                    return Ok(Answer::Ready(false));
+                };
+                source = self.substitute_type(origin.module(), source, &substitution)?;
             }
         }
 
@@ -722,29 +605,43 @@ impl CheckState<'_> {
         self.decide_each(origin, Relation::Assignable, &pairs)
     }
 
-    /// Return the target signature's explicit parameters as arguments.
+    /// Return positional signature pairs for generic parameter matching.
     ///
-    /// Conformance maps the found generics onto the required ones, so both sides quantify over the same rigid parameters.
-    fn target_parameter_arguments(
-        &mut self,
-        origin: Origin,
+    /// The pairs orient the found signature as the pattern: parameters
+    /// and results pair positionally without variance, and the receiver
+    /// stays out because method receivers relate separately.
+    fn signature_match_pairs(
+        &self,
+        source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let dir::Type::FunctionSignature(required) = self.ty(target)? else {
-            return Ok(Vec::new());
+    ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>>> {
+        let (
+            dir::Type::FunctionSignature(source_signature),
+            dir::Type::FunctionSignature(target_signature),
+        ) = (self.ty(source)?, self.ty(target)?)
+        else {
+            return Ok(None);
         };
-        let parameters = self.signature_generic_parameters(&required)?;
-        let mut written = Vec::new();
-        for parameter in parameters {
-            let is_explicit = self.generic_parameter(parameter).is_some_and(|binding| {
-                matches!(binding.origin, dir::GenericParameterOrigin::Explicit)
-            });
-            if is_explicit {
-                written.push(self.intern_type(origin.module(), dir::Type::Parameter(parameter))?);
-            }
+
+        let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
+        let source_parameters =
+            self.signature_parameters(source.module_id, source_signature.parameters)?;
+        let target_parameters =
+            self.signature_parameters(target.module_id, target_signature.parameters)?;
+        let shared = source_parameters.len().min(target_parameters.len());
+        for (source, target) in source_parameters[..shared]
+            .iter()
+            .zip(&target_parameters[..shared])
+        {
+            pairs.push((source.ty, target.ty));
+        }
+        if let (Some(source), Some(target)) =
+            (source_signature.return_type, target_signature.return_type)
+        {
+            pairs.push((source, target));
         }
 
-        Ok(written)
+        Ok(Some(pairs))
     }
 
     /// Return directed function assignment pairs, or none when the shapes cannot relate.

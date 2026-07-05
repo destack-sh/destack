@@ -65,12 +65,45 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        // unwrap memory forms around their runtime payload
-        if let dir::Type::Form(form) = left_type {
-            return self.types_may_overlap(origin, form.value, right);
-        }
-        if let dir::Type::Form(form) = right_type {
-            return self.types_may_overlap(origin, left, form.value);
+        // owning forms materialize to their payload; views only share
+        // inhabitants with other views over an overlapping payload
+        match (&left_type, &right_type) {
+            (dir::Type::Form(left_form), dir::Type::Form(right_form)) => {
+                let left_is_view = matches!(
+                    left_form.form,
+                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
+                );
+                let right_is_view = matches!(
+                    right_form.form,
+                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
+                );
+                if left_is_view != right_is_view {
+                    return Ok(Answer::Ready(false));
+                }
+
+                return self.types_may_overlap(origin, left_form.value, right_form.value);
+            }
+            (dir::Type::Form(form), _) => {
+                if matches!(
+                    form.form,
+                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
+                ) {
+                    return Ok(Answer::Ready(false));
+                }
+
+                return self.types_may_overlap(origin, form.value, right);
+            }
+            (_, dir::Type::Form(form)) => {
+                if matches!(
+                    form.form,
+                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
+                ) {
+                    return Ok(Answer::Ready(false));
+                }
+
+                return self.types_may_overlap(origin, left, form.value);
+            }
+            _ => {}
         }
 
         // compare exact scalar inhabitant shapes

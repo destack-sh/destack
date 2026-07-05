@@ -413,7 +413,15 @@ impl CheckState<'_> {
             };
 
             let answer = match variance {
-                Variance::Bivariant => Answer::Ready(true),
+                Variance::Bivariant => {
+                    if self.root_variable(*source)?.is_some()
+                        || self.root_variable(*target)?.is_some()
+                    {
+                        self.constrain(origin, Relation::Equal, *source, *target)?
+                    } else {
+                        Answer::Ready(true)
+                    }
+                }
                 Variance::Covariant => {
                     self.constrain(origin, Relation::Assignable, *source, *target)?
                 }
