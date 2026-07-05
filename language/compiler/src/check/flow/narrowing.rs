@@ -99,12 +99,7 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = match self.committed_node_type(site.node)? {
-            Answer::Ready(ty) => ty,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-
-        self.flow_type_at(site, ty)
+        self.committed_node_type(site.node)
     }
 
     /// Return one type as viewed at one flow point.
@@ -140,6 +135,8 @@ impl CheckState<'_> {
         let flows = &module.flows;
         let mut current = Some(site.flow);
 
+        // collect every narrowing of the path back to its last clear
+        let mut narrowings = Vec::new();
         while let Some(point) = current {
             let Some(flow) = flows.get(point.index()) else {
                 return Err(CompilerError::Internal {
@@ -153,10 +150,10 @@ impl CheckState<'_> {
                     path: narrowed,
                     narrowing,
                 } if narrowed.as_ref() == path => {
-                    return self.resolve_flow_narrowing(site.node, source, *narrowing);
+                    narrowings.push(*narrowing);
                 }
                 FlowPointChange::Clear { path: cleared } if path.starts_with(cleared) => {
-                    return Ok(Answer::Ready(None));
+                    break;
                 }
                 FlowPointChange::Narrow { .. } | FlowPointChange::Clear { .. } => {}
             }
@@ -164,7 +161,21 @@ impl CheckState<'_> {
             current = flow.parent;
         }
 
-        Ok(Answer::Ready(None))
+        if narrowings.is_empty() {
+            return Ok(Answer::Ready(None));
+        }
+
+        // apply oldest first, so each later test refines the earlier result
+        let mut narrowed = source;
+        for narrowing in narrowings.into_iter().rev() {
+            match self.resolve_flow_narrowing(site.node, narrowed, narrowing)? {
+                Answer::Ready(Some(next)) => narrowed = next,
+                Answer::Ready(None) => {}
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
+        }
+
+        Ok(Answer::Ready(Some(narrowed)))
     }
 
     /// Return the type named by one flow narrowing.
@@ -320,7 +331,6 @@ impl CheckState<'_> {
         module: ModuleId,
         key: dir::StaticKey,
         ty: dir::GlobalTypeId,
-        source_node: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let field = dir::TypeField {
             key,
@@ -358,7 +368,6 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn narrow_flow_path_by(
         &mut self,
         path: FlowPath,
-        source_node: dir::LocalNodeIdAny,
         predicate: NarrowPredicate,
     ) -> CompilerResult<()> {
         let narrowing = match predicate {
@@ -377,10 +386,10 @@ impl WalkState<'_, '_> {
             // keep objects with the requested key
             NarrowPredicate::Has(key) => {
                 let unknown = self.intern_type(dir::Type::Unknown)?;
-                let target = self.member_shape_type(key, unknown, source_node)?;
+                let target = self.member_shape_type(key, unknown)?;
                 let predicate = NarrowPredicate::Is(target);
 
-                return self.narrow_flow_path_by(path, source_node, predicate);
+                return self.narrow_flow_path_by(path, predicate);
             }
         };
         self.narrow_flow_path(path, narrowing);
@@ -392,21 +401,20 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn narrow_base_flow_path_by_member(
         &mut self,
         path: FlowPath,
-        source_node: dir::LocalNodeIdAny,
         key: dir::StaticKey,
         predicate: NarrowPredicate,
     ) -> CompilerResult<()> {
         let predicate = match predicate {
             // keep parent values with a matching member type
             NarrowPredicate::Is(ty) => {
-                let target = self.member_shape_type(key, ty, source_node)?;
+                let target = self.member_shape_type(key, ty)?;
 
                 NarrowPredicate::Is(target)
             }
 
             // keep parent values without a matching member type
             NarrowPredicate::IsNot(ty) => {
-                let target = self.member_shape_type(key, ty, source_node)?;
+                let target = self.member_shape_type(key, ty)?;
 
                 NarrowPredicate::IsNot(target)
             }
@@ -414,14 +422,14 @@ impl WalkState<'_, '_> {
             // keep parent values with a member that has the nested key
             NarrowPredicate::Has(member_key) => {
                 let unknown = self.intern_type(dir::Type::Unknown)?;
-                let member = self.member_shape_type(member_key, unknown, source_node)?;
-                let target = self.member_shape_type(key, member, source_node)?;
+                let member = self.member_shape_type(member_key, unknown)?;
+                let target = self.member_shape_type(key, member)?;
 
                 NarrowPredicate::Is(target)
             }
         };
 
-        self.narrow_flow_path_by(path, source_node, predicate)
+        self.narrow_flow_path_by(path, predicate)
     }
 
     /// Return one single-field structural shape type.
@@ -429,10 +437,8 @@ impl WalkState<'_, '_> {
         &mut self,
         key: dir::StaticKey,
         ty: dir::GlobalTypeId,
-        source_node: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check
-            .member_shape_type(self.module, key, ty, source_node)
+        self.check.member_shape_type(self.module, key, ty)
     }
 
     /// Clear flow narrowings invalidated by mutating an expression.
