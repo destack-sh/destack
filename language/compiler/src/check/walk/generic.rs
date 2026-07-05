@@ -162,13 +162,13 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
         position: GenericInductionPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if !self.induces_generic_parameter(ty, position)? {
+        let node = source.into_global(self.module);
+        let origin = Origin::Node(node, self.flow().template_scope());
+        if !self.induces_generic_parameter(origin, ty)? {
             return Ok(ty);
         }
 
         // open the inducible hole bounded by its interface
-        let node = source.into_global(self.module);
-        let origin = Origin::Node(node, self.flow().template_scope());
         let variable = self
             .check
             .allocate_variable(self.module, origin, Widening::Preserve);
@@ -186,33 +186,31 @@ impl WalkState<'_, '_> {
     }
 
     /// Return whether one written type induces a generic parameter.
+    ///
+    /// An annotation induces when the type it names is an interface,
+    /// which has no value representation of its own; the reduction
+    /// resolves transparent aliases to the named head.
     fn induces_generic_parameter(
         &mut self,
+        origin: Origin,
         ty: dir::GlobalTypeId,
-        position: GenericInductionPosition,
     ) -> CompilerResult<bool> {
-        let symbol = match self.check.ty(ty)? {
+        let head =
+            self.check
+                .require_reduced_type_head(origin, ty, "generic parameter induction")?;
+        let symbol = match self.check.ty(head)? {
             dir::Type::Instance(instance) => instance.symbol,
             _ => return Ok(false),
         };
-        if self.check.is_transparent_intrinsic_alias(symbol)? {
-            return Ok(false);
-        }
 
-        let kind = self.check.symbol_kind(symbol);
-
-        let induces = match (position, kind) {
-            // transparent aliases are constraints at call sites
-            (GenericInductionPosition::Parameter, dir::SymbolKind::TypeAlias) => true,
-            // interfaces are always incomplete until implemented
-            (_, dir::SymbolKind::AssociatedType)
-            | (_, dir::SymbolKind::Interface)
-            | (_, dir::SymbolKind::NewtypeInterface) => true,
-            // concrete declarations already have a representation
-            _ => false,
-        };
-
-        Ok(induces)
+        // interfaces are always incomplete until implemented;
+        // concrete declarations already have a representation
+        Ok(matches!(
+            self.check.symbol_kind(symbol),
+            dir::SymbolKind::AssociatedType
+                | dir::SymbolKind::Interface
+                | dir::SymbolKind::NewtypeInterface
+        ))
     }
 }
 
@@ -229,12 +227,11 @@ impl CheckState<'_> {
         let mut induced = IndexMap::new();
         for site in sites {
             for variable in self.type_variables(site.ty)? {
-                let representative = self.solver.representative(variable)?;
-                let Some(parameter) = self.generics.induction(representative) else {
+                let Some(parameter) = self.variable_induction(variable)? else {
                     continue;
                 };
 
-                induced.entry(representative).or_insert((
+                induced.entry(variable).or_insert((
                     site.declaration,
                     site.parent,
                     site.symbol,

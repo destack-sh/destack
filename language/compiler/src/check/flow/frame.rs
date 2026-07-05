@@ -37,8 +37,8 @@ pub(in crate::check) struct FunctionFrame {
 pub(in crate::check) struct ControlTarget {
     /// The optional source label.
     pub(in crate::check::flow) label: Option<dir::StringId>,
-    /// Whether `continue` may target this control frame.
-    pub(in crate::check::flow) allows_continue: bool,
+    /// The source form that introduced this target.
+    pub(in crate::check::flow) form: ControlTargetForm,
     /// Break values collected while walking the control body.
     pub(in crate::check::flow) break_values: Vec<dir::GlobalTypeId>,
     /// Flow branches collected at break sites.
@@ -47,6 +47,22 @@ pub(in crate::check) struct ControlTarget {
     pub(in crate::check::flow) continue_branches: Vec<FlowBranch>,
     /// The flow position before entering the control body.
     pub(in crate::check::flow) checkpoint: FlowCheckpoint,
+}
+
+/// A source control form that accepts `break`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ControlTargetForm {
+    /// A labeled block accepts `break`.
+    Block,
+    /// A loop accepts `break` and `continue`.
+    Loop,
+}
+
+impl ControlTargetForm {
+    /// Return whether `continue` may target this form.
+    pub(in crate::check) fn accepts_continue(self) -> bool {
+        matches!(self, Self::Loop)
+    }
 }
 
 /// A `try` body that can receive propagated failures.

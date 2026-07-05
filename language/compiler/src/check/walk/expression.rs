@@ -3,9 +3,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    AssignedPlace, ConditionBranch, Expectation, ExpectedType, FlowBranch, FlowCheckpoint,
-    Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, ValueUse,
-    WalkState, Widening,
+    AssignedPlace, ConditionBranch, ControlTargetForm, Expectation, ExpectedType, FlowBranch,
+    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
+    Relation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -688,7 +688,7 @@ impl WalkState<'_, '_> {
             }
             // labeled blocks accept labeled breaks
             _ => {
-                self.enter_control_target(Some(label), false, id);
+                self.enter_control_target(Some(label), ControlTargetForm::Block);
                 self.walk_expression(body, self.tree.get(body))?;
                 let fallthrough = Some(self.output_value_type(id.into_any(), body)?);
                 let (result, _) = self.leave_control_target(fallthrough)?;
@@ -861,7 +861,7 @@ impl WalkState<'_, '_> {
         self.queue_node_check(condition, expectation)?;
 
         // enter loop control target
-        self.enter_control_target(label, true, id);
+        self.enter_control_target(label, ControlTargetForm::Loop);
 
         // walk body under true condition flow
         let before_body = self.fork_flow();
@@ -891,7 +891,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_for_each_expression(
         &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
+        _id: dir::LocalNodeId<dir::Expression>,
         label: Option<dir::StringId>,
         _operator: dir::ForEachOperator,
         binding: &dir::ForEachBinding,
@@ -907,7 +907,7 @@ impl WalkState<'_, '_> {
         self.walk_expression(iterator, self.tree.get(iterator))?;
 
         // enter loop control target
-        self.enter_control_target(label, true, id);
+        self.enter_control_target(label, ControlTargetForm::Loop);
 
         // walk body with iteration binding assigned
         let before_body = self.fork_flow();
@@ -955,7 +955,7 @@ impl WalkState<'_, '_> {
         }
 
         // enter loop control target
-        self.enter_control_target(label, true, id);
+        self.enter_control_target(label, ControlTargetForm::Loop);
 
         // walk body under true condition flow
         let before_body = self.fork_flow();
@@ -1041,7 +1041,7 @@ impl WalkState<'_, '_> {
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
         // enter loop control target
-        self.enter_control_target(label, true, id);
+        self.enter_control_target(label, ControlTargetForm::Loop);
 
         // walk body with isolated flow
         let before_body = self.fork_flow();

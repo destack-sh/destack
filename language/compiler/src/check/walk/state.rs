@@ -25,7 +25,6 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     flow: FlowState,
     /// Entry flow point for each source node occurrence walked in this module.
     node_flows: IndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
-    /// Innermost generic template scoping each walked source node.
     /// Capture directive waiting for an immediate function value initializer.
     capture_directive: Option<dir::CaptureDirective>,
 }
@@ -184,14 +183,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(false)
     }
 
-    /// Return one work origin for a walked node under the current scope.
-    pub(in crate::check) fn node_origin<T: dir::Node>(&self, id: dir::LocalNodeId<T>) -> Origin {
-        Origin::Node(
-            id.into_global_any(self.module),
-            self.flow().template_scope(),
-        )
-    }
-
     /// Enter one source node occurrence at the current flow point.
     pub(in crate::check) fn enter_node<T: dir::Node>(
         &mut self,
@@ -253,6 +244,22 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let previous = self.borrow_lifetime_elision;
         self.borrow_lifetime_elision = BorrowLifetimeElision::Frame;
         let result = self.walk_type_expression(id);
+        self.borrow_lifetime_elision = previous;
+
+        result
+    }
+
+    /// Return one induced lifetime for a rung-3 receiver borrow.
+    ///
+    /// The synthesis runs outside type-expression walks, so the
+    /// induction mode is forced for its duration.
+    pub(in crate::check) fn induced_receiver_borrow_lifetime(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let previous = self.borrow_lifetime_elision;
+        self.borrow_lifetime_elision = BorrowLifetimeElision::Induce;
+        let result = self.elided_borrow_lifetime(source);
         self.borrow_lifetime_elision = previous;
 
         result

@@ -4,8 +4,9 @@ use destack_source::ModuleId;
 use crate::check::{
     CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
     ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericInductionDeclaration,
-    GenericTemplateId, ImplementationCoherenceObligation, Obligation, Origin, Receiver,
-    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, WalkState, Widening,
+    GenericInductionPosition, GenericTemplateId, ImplementationCoherenceObligation, Obligation,
+    Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution,
+    WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -115,6 +116,7 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
+                    false,
                     pass,
                 )?;
             }
@@ -124,6 +126,7 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
+                    !declaration.implements_types.is_empty(),
                     pass,
                 )?;
             }
@@ -133,6 +136,7 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
+                    !declaration.implements_types.is_empty(),
                     pass,
                 )?;
             }
@@ -142,6 +146,7 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
+                    !declaration.implements_types.is_empty(),
                     pass,
                 )?;
             }
@@ -151,6 +156,7 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
+                    true,
                     pass,
                 )?;
             }
@@ -160,6 +166,7 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
+                    false,
                     pass,
                 )?;
             }
@@ -185,6 +192,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
         where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
+        assumes: bool,
         pass: TemplatePass,
     ) -> CompilerResult<()> {
         let Some(symbol) = self
@@ -196,9 +204,15 @@ impl WalkState<'_, '_> {
         };
         let source = id.into_global_any(self.module);
 
-        // declare identities first so bounds may reference any template
+        // declare identities first so bounds may reference any template;
+        // declarations without parameters still own a template when
+        // they home assumptions like heritage or where clauses
         if pass == TemplatePass::Declare {
-            self.open_generic_template(source, None, Some(symbol), parameters)?;
+            let template = self.open_generic_template(source, None, Some(symbol), parameters)?;
+            if template.is_none() && (assumes || !where_clauses.is_empty()) {
+                self.check
+                    .open_generic_template(source, None, Some(symbol))?;
+            }
 
             return Ok(());
         }
@@ -218,6 +232,24 @@ impl WalkState<'_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Assume `this` satisfies one implemented heritage application.
+    fn push_this_heritage_predicate(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        template: GenericTemplateId,
+        heritage: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let left = self.intern_type(dir::Type::This)?;
+        let predicate = dir::WherePredicate {
+            source,
+            relation: dir::WhereRelation::Satisfies,
+            left,
+            right: heritage,
+        };
+
+        self.check.push_template_predicate(template, predicate)
     }
 
     /// Assume `this` satisfies one interface's own application.
@@ -477,6 +509,11 @@ impl WalkState<'_, '_> {
                         receiver.ty,
                         ty,
                     );
+
+                    // members assume this satisfies the implemented interface
+                    if let Some(template) = template {
+                        self.push_this_heritage_predicate(source, template, ty)?;
+                    }
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
@@ -617,6 +654,11 @@ impl WalkState<'_, '_> {
                         receiver.ty,
                         ty,
                     );
+
+                    // members assume this satisfies the implemented interface
+                    if let Some(template) = template {
+                        self.push_this_heritage_predicate(source, template, ty)?;
+                    }
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
@@ -823,6 +865,11 @@ impl WalkState<'_, '_> {
                         receiver.ty,
                         ty,
                     );
+
+                    // members assume this satisfies the implemented interface
+                    if let Some(template) = template {
+                        self.push_this_heritage_predicate(source, template, ty)?;
+                    }
                     implements.push(dir::NominalHeritage {
                         source,
                         symbol: instance.symbol,
@@ -1447,14 +1494,17 @@ impl WalkState<'_, '_> {
             });
         }
 
-        // walk receiver and runtime parameters
+        // walk receiver and runtime parameters; declared callables
+        // generalize interface-typed parameters, lambdas never do
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
+        let induction = is_annotation_required.then_some(GenericInductionPosition::Parameter);
         let this_parameter = if let Some(parameter) = signature.this_parameter {
             self.walk_parameter(
                 template,
                 parameter,
                 self.tree.get(parameter),
                 is_annotation_required,
+                induction,
             )?
             .map(|ty| ty.argument)
         } else {
@@ -1468,6 +1518,7 @@ impl WalkState<'_, '_> {
                 *parameter,
                 self.tree.get(*parameter),
                 is_annotation_required,
+                induction,
             )?
             else {
                 continue;
