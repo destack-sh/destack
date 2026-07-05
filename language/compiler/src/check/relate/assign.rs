@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, AutoInterface, CheckState, Origin, Relation, ScalarFamily, answer};
+use crate::check::{Answer, CheckState, Origin, Relation, ScalarFamily, answer};
 
 impl CheckState<'_> {
     /// Decide assignability from one reduced source to one reduced target.
@@ -319,7 +319,11 @@ impl CheckState<'_> {
             _ => source,
         };
 
-        if !answer!(self.satisfies_auto_interface(origin, source, AutoInterface::DynamicSafe,)?) {
+        if !answer!(self.satisfies_auto_interface(
+            origin,
+            source,
+            dir::AutoInterface::DynamicSafe,
+        )?) {
             return Ok(Answer::Ready(false));
         }
 

@@ -11,6 +11,8 @@ pub(in crate::check) struct CheckedModuleSegments {
     pub(super) bindings: dir::BindingSegment,
     /// Checked decorator segment.
     pub(super) decorators: dir::DecoratorSegment,
+    /// Checked auto implementation segment.
+    pub(super) auto: dir::AutoSegment,
     /// Checked type segment.
     pub(super) types: dir::TypeSegment,
     /// Checked static value segment.
@@ -33,6 +35,7 @@ impl CheckedModuleSegments {
         Self {
             bindings: state.bindings_tail,
             decorators: state.decorators,
+            auto: state.auto,
             types: state.types_tail,
             statics: state.statics,
             resolutions: state.resolutions,
@@ -50,6 +53,7 @@ impl From<CheckedModuleSegments> for DirCheckedModule {
         DirCheckedModule {
             bindings: Arc::new(segments.bindings),
             decorators: Arc::new(segments.decorators),
+            auto: Arc::new(segments.auto),
             types: Arc::new(segments.types),
             statics: Arc::new(segments.statics),
             resolutions: Arc::new(segments.resolutions),

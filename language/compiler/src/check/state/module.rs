@@ -47,6 +47,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) types_tail: dir::TypeSegment,
     /// Checked declaration definitions.
     pub(in crate::check) definitions: dir::DefinitionSegment,
+    /// Auto-derived implementations.
+    pub(in crate::check) auto: dir::AutoSegment,
     /// Induced generic templates and parameters.
     pub(in crate::check) generics: dir::GenericSegment,
     /// Checked static values.
@@ -98,6 +100,7 @@ impl CheckModuleState {
         let types = expanded.type_table(&bound);
         let types_tail = dir::TypeSegment::from_base(&expanded.types);
         let definitions = dir::DefinitionSegment::new(module.id);
+        let auto = dir::AutoSegment::new(module.id);
         let generics = dir::GenericSegment::new(module.id);
         let statics = dir::StaticSegment::from_base(&expanded.statics);
         let resolutions = dir::ResolutionSegment::new(module.id);
@@ -118,6 +121,7 @@ impl CheckModuleState {
             types,
             types_tail,
             definitions,
+            auto,
             generics,
             statics,
             resolutions,

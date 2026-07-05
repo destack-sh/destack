@@ -1,3 +1,4 @@
+mod auto;
 mod decorator;
 mod diagnostic;
 mod dump;

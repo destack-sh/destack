@@ -3,8 +3,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, AutoInterfaceObligation, BoundMode, CheckState, ConstraintCheck,
-    ConstraintFailure,
+    Answer, AutoInterfaceObligation, BoundMode, CheckState, ConstraintCheck, ConstraintFailure,
     ConstraintSubject, Dependency, Obligation, Origin, Relation, RepresentationObligation,
     ValueUse, answer,
 };
@@ -67,7 +66,10 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(true))
             }
-            Some(item) if let Some(interface) = AutoInterface::from_language_item(item) => {
+            Some(item)
+                if let Some(interface) = dir::AutoInterface::from_language_item(item)
+                    && interface.has_auto_conformance() =>
+            {
                 let scope = self.origin_scope(origin);
                 self.push_obligation(
                     Obligation::AutoInterface(AutoInterfaceObligation {
