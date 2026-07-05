@@ -12,14 +12,12 @@ impl WalkState<'_, '_> {
         &mut self,
         label: Option<dir::StringId>,
         allows_continue: bool,
-        source: dir::LocalNodeId<dir::Expression>,
     ) {
         // capture flow state before the control body
         let checkpoint = self.flow().fork();
         let target = ControlTarget {
             label,
             allows_continue,
-            source: source.into_global_any(self.module),
             break_values: Vec::new(),
             break_branches: Vec::new(),
             continue_branches: Vec::new(),
