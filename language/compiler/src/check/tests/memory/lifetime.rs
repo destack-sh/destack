@@ -305,7 +305,7 @@ struct Cell {
 
 extension of Cell {
     peek(&readonly this): Borrowed<int32, L0, "readonly"> {
-        todo("peek")
+        todo("peek" as string | undefined)
     }
 }
 
@@ -334,7 +334,7 @@ extension of Cell {
 
         todo("peek")
         /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"peek\")" parameters=(string) arguments=(provided("peek") as string) return=never kind=symbol target=error.panic.todo
+        /// @resolution.call source="todo(\"peek\")" parameters=(string | undefined) arguments=(provided("peek") as string | undefined) return=never kind=symbol target=error.panic.todo
 
     }
 }
@@ -392,7 +392,7 @@ extension of Buffer implements Viewing {
     view<comptime A: Access = "readonly">(
         this: WithAccess<&Buffer, A>,
     ): WithAccess<Borrowed<int32, L1, "mutable">, A> {
-        todo("view")
+        todo("view" as string | undefined)
     }
 }
 
@@ -401,15 +401,16 @@ import { todo } from "destack:error";
 import { WithAccess, Access } from "destack:memory";
 
 interface Viewing {
+/// @generic.template symbol=Viewing parameters=()
 /// @type.symbol symbol=Viewing type=Viewing
-/// @definition.interface symbol=Viewing
+/// @definition.interface symbol=Viewing template=()
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
 /// @definition.method symbol=Viewing.view slot=view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Viewing) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1>
 
     type View;
 
     view<comptime A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
-    /// @generic.template symbol=Viewing.view parameters=(comptime A#1: memory.access.Access = "readonly", comptime L1: Lifetime)
+    /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A#1: memory.access.Access = "readonly", comptime L1: Lifetime)
     /// @type.symbol symbol=Viewing.view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Viewing) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1> reduced=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Viewing) => Borrowed<this.View, Viewing.view.L1, A#1>
     /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A#1
     /// @resolution.name source=Access target=memory.access.Access
@@ -456,7 +457,7 @@ extension of Buffer implements Viewing {
 
         todo("view")
         /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"view\")" parameters=(string) arguments=(provided("view") as string) return=never kind=symbol target=error.panic.todo
+        /// @resolution.call source="todo(\"view\")" parameters=(string | undefined) arguments=(provided("view") as string | undefined) return=never kind=symbol target=error.panic.todo
 
     }
 }

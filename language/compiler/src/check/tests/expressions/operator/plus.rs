@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_builtin_plus_selects_numeric_operator() {
+fn test_builtin_plus_folds_literal_operands() {
     let session = TestSession::single(
         r#"
 const value = 1 + 2;
@@ -13,14 +13,14 @@ const value = 1 + 2;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const value: float64 = 1 + 2;
+const value: 3 = 1 + 2;
 
 === checked ===
 const value = 1 + 2;
-/// @type.symbol symbol=value source=value type=float64
-/// @type.node source="1 + 2" type=float64
+/// @type.symbol symbol=value source=value type=3
+/// @type.node source="1 + 2" type=3
 /// @type.node source=1 type=1
-/// @resolution.call source="1 + 2" parameters=() return=float64 kind=builtin builtin=binary.add
+/// @resolution.call source="1 + 2" parameters=() return=3 kind=builtin builtin=binary.add
 /// @type.node source=2 type=2
 "#,
     );
@@ -95,7 +95,7 @@ struct Vector {
 }
 
 extension of Vector implements Add<Vector> {
-/// @definition.extension symbol=<module>#2 form=inherent target=Vector
+/// @definition.extension symbol=<module>#2 form=local target=Vector
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=ops.plus.Add arguments=(Vector)
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
 /// @definition.method symbol=add slot=add type=(this: Vector, Vector) => Vector
@@ -109,7 +109,7 @@ extension of Vector implements Add<Vector> {
 
     add(other: Vector): Vector {
     /// @type.symbol symbol=add type=(this: Vector, Vector) => Vector
-    /// @type.symbol symbol=other source="other: Vector" type=Vector
+    /// @type.symbol symbol=add.other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
     /// @resolution.name source=Vector target=Vector
 
@@ -126,7 +126,7 @@ extension of Vector implements Add<Vector> {
             /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.x type=int32
-            /// @resolution.name source=other target=other
+            /// @resolution.name source=other target=add.other
             /// @resolution.member source=other.x receiver=Vector kind=symbol target=Vector.x
 
             y: this.y + other.y,
@@ -138,7 +138,7 @@ extension of Vector implements Add<Vector> {
             /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Vector
             /// @type.node source=other type=Vector
             /// @type.node source=other.y type=int32
-            /// @resolution.name source=other target=other
+            /// @resolution.name source=other target=add.other
             /// @resolution.member source=other.y receiver=Vector kind=symbol target=Vector.y
 
         };

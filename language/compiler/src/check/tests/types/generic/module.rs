@@ -325,7 +325,7 @@ interface Iter<T, R = unknown> {
 }
 
 declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
-const value: boolean = probe<never>(todo("iter"));
+const value: boolean = probe<never>(todo("iter" as string | undefined));
 
 === checked ===
 interface Iter<T, R = unknown> {
@@ -355,7 +355,7 @@ const value = probe(todo("iter"));
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
 /// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
 /// @resolution.name source=todo target=error.panic.todo
-/// @resolution.call source="todo(\"iter\")" parameters=(string) arguments=(provided("iter") as string) return=never kind=symbol target=error.panic.todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
 /// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
 /// @generic.instance id=probe<never> template=probe arguments=(never)
@@ -430,7 +430,7 @@ export { Iter } from "./inner.ds";
 import { Iter } from "./lib.ds";
 
 declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
-const value: boolean = probe<never>(todo("iter"));
+const value: boolean = probe<never>(todo("iter" as string | undefined));
 
 === checked ===
 import { Iter } from "./lib.ds";
@@ -447,7 +447,7 @@ const value = probe(todo("iter"));
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
 /// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
 /// @resolution.name source=todo target=error.panic.todo
-/// @resolution.call source="todo(\"iter\")" parameters=(string) arguments=(provided("iter") as string) return=never kind=symbol target=error.panic.todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
 /// @generic.instance id=probe<never> template=probe arguments=(never)
 "#);
@@ -493,14 +493,15 @@ export interface Marker {
 }
 
 declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
-const value: boolean = probe<never>(todo("iter"));
+const value: boolean = probe<never>(todo("iter" as string | undefined));
 
 === checked ===
 import { Iter } from "./b.ds";
 
 export interface Marker {
+/// @generic.template symbol=Marker parameters=()
 /// @type.symbol symbol=Marker type=Marker
-/// @definition.interface symbol=Marker
+/// @definition.interface symbol=Marker template=()
 /// @definition.field symbol=Marker.marked source="marked: boolean" key=marked type=boolean
 
     marked: boolean;
@@ -520,7 +521,7 @@ const value = probe(todo("iter"));
 /// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
 /// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
 /// @resolution.name source=todo target=error.panic.todo
-/// @resolution.call source="todo(\"iter\")" parameters=(string) arguments=(provided("iter") as string) return=never kind=symbol target=error.panic.todo
+/// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
 /// @generic.instance id=probe<never> template=probe arguments=(never)
 

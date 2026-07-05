@@ -180,3 +180,62 @@ const value = map(() => 1);
 "#,
     );
 }
+
+#[test]
+fn test_defaulted_parameter_may_be_omitted_at_the_call() {
+    // a parameter with a default value is optional at the call site
+    // while keeping its exact type inside the body
+    let session = TestSession::single(
+        r#"
+function greet(name: string = "world"): string {
+    name
+}
+
+let short = greet();
+let long = greet("compiler");
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+function greet(name: string = "world"): string {
+    name
+}
+
+let short: string = greet();
+let long: string = greet("compiler");
+
+=== checked ===
+function greet(name: string = "world"): string {
+/// @type.symbol symbol=greet type=(string) => string
+/// @type.symbol symbol=greet.name source="name: string = \"world\"" type=string
+/// @type.node source="\"world\"" type="world"
+
+    name
+    /// @type.node source=name type=string
+    /// @resolution.name source=name target=greet.name
+
+}
+
+let short = greet();
+/// @type.symbol symbol=short source=short type=string
+/// @type.node source=greet type=(string) => string
+/// @type.node source=greet() type=string
+/// @resolution.name source=greet target=greet
+/// @resolution.call source=greet() parameters=(string) arguments=(omitted as string) return=string kind=symbol target=greet
+
+let long = greet("compiler");
+/// @type.symbol symbol=long source=long type=string
+/// @type.node source="greet(\"compiler\")" type=string
+/// @type.node source=greet type=(string) => string
+/// @resolution.name source=greet target=greet
+/// @resolution.call source="greet(\"compiler\")" parameters=(string) arguments=(provided("compiler") as string) return=string kind=symbol target=greet
+/// @type.node source="\"compiler\"" type="compiler"
+
+"#,
+        r#""#,
+    );
+}

@@ -265,7 +265,7 @@ function pending(): int32 {
 import { todo } from "destack:error";
 
 function pending(): int32 {
-    let value: never = todo("later");
+    let value: never = todo("later" as string | undefined);
     return value.field;
 }
 
@@ -278,7 +278,7 @@ function pending(): int32 {
     let value = todo("later");
     /// @type.symbol symbol=pending.value source=value type=never
     /// @resolution.name source=todo target=error.panic.todo
-    /// @resolution.call source="todo(\"later\")" parameters=(string) arguments=(provided("later") as string) return=never kind=symbol target=error.panic.todo
+    /// @resolution.call source="todo(\"later\")" parameters=(string | undefined) arguments=(provided("later") as string | undefined) return=never kind=symbol target=error.panic.todo
 
     return value.field;
     /// @resolution.name source=value target=pending.value

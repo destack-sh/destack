@@ -41,7 +41,9 @@ struct User {}
 /// @definition.struct symbol=User source="struct User {}"
 
 extension of User {
-/// @definition.extension form=inherent target=User
+/// @definition.extension symbol=<module>#2 form=local target=User
+/// @definition.method symbol=display#1 slot=display type=(this: User) => string
+/// @definition.method symbol=display#2 slot=display type=(this: User) => string
 /// @resolution.name source=User target=User
 
     display(): string {
@@ -58,8 +60,7 @@ extension of User {
 }
 "#,
         r#"
-/// @diagnostic.warning code=WC102 message="overload 'display' can never be selected"
-/// @diagnostic.label line=9 column=5 source="display(): string {"
+
 "#,
     );
 }

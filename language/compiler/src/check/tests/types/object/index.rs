@@ -26,7 +26,7 @@ x satisfies int32 | undefined;
 === annotated ===
 type Bag = { readonly [key: string]: int32 };
 
-function read<T0: Bag>(bag: T0): int32 | undefined {
+function read(bag: Bag): int32 | undefined {
     const x: int32 | undefined = bag["x"];
     const missing: int32 | undefined = bag["missing"];
     missing satisfies int32 | undefined;
@@ -34,7 +34,7 @@ function read<T0: Bag>(bag: T0): int32 | undefined {
 }
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
-const x: int32 | undefined = read<{ x: int32; y: int32 }>(point);
+const x: int32 | undefined = read(point);
 x satisfies int32 | undefined;
 
 === checked ===
@@ -43,20 +43,19 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 function read(bag: Bag): int32 | undefined {
-/// @generic.template symbol=read parameters=(T0: Bag)
-/// @type.symbol symbol=read type=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
+/// @type.symbol symbol=read type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ readonly [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
     const x = bag["x"];
     /// @type.symbol symbol=read.x source=x type=int32 | undefined
     /// @resolution.name source=bag target=read.bag
-    /// @resolution.member source="bag[\"x\"]" receiver=read.T0 kind=index key=string
+    /// @resolution.member source="bag[\"x\"]" receiver={ readonly [key: string]: int32 } kind=index key=string
 
     const missing = bag["missing"];
     /// @type.symbol symbol=read.missing source=missing type=int32 | undefined
     /// @resolution.name source=bag target=read.bag
-    /// @resolution.member source="bag[\"missing\"]" receiver=read.T0 kind=index key=string
+    /// @resolution.member source="bag[\"missing\"]" receiver={ readonly [key: string]: int32 } kind=index key=string
 
     missing satisfies int32 | undefined;
     /// @resolution.name source=missing target=read.missing
@@ -72,14 +71,11 @@ const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 const x = read(point);
 /// @type.symbol symbol=x#2 source=x type=int32 | undefined
 /// @resolution.name source=read target=read
-/// @resolution.call source=read(point) parameters=({ x: int32; y: int32 }) arguments=(provided(point) as { x: int32; y: int32 }) return=int32 | undefined kind=symbol target=read instance="read<{ x: int32; y: int32 }>"
-/// @generic.instance source=read(point) id="read<{ x: int32; y: int32 }>"
+/// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
 
 x satisfies int32 | undefined;
 /// @resolution.name source=x target=x#2
-
-/// @generic.instance id="read<{ x: int32; y: int32 }>" template=read arguments=({ x: int32; y: int32 })
 "#,
     );
 }
@@ -104,7 +100,7 @@ const value = read(mixed);
 === annotated ===
 type Bag = { readonly [key: string]: int32 };
 
-declare function read<T0: Bag>(bag: T0): int32 | undefined;
+declare function read(bag: Bag): int32 | undefined;
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
 const value = read(mixed);
@@ -115,9 +111,8 @@ type Bag = { readonly [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
 
 declare function read(bag: Bag): int32 | undefined;
-/// @generic.template symbol=read parameters=(T0: Bag)
-/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
+/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ readonly [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const mixed: { x: int32; y: string } = { x: 1, y: "two" };
@@ -129,8 +124,8 @@ const value = read(mixed);
 /// @resolution.name source=mixed target=mixed
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type '{ x: int32; y: string }' does not satisfy 'Bag'"
-/// @diagnostic.label line=7 column=15 span="read(mixed)" line_source="const value = read(mixed);"
+/// @diagnostic.error code=EC209 message="argument of type '{ x: int32; y: string }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.label line=7 column=20 span="mixed" line_source="const value = read(mixed);"
 "#,
     );
 }
@@ -196,7 +191,7 @@ const bad = write(point);
 === annotated ===
 type Bag = { [key: string]: int32 };
 
-declare function write<T0: Bag>(bag: T0): int32 | undefined;
+declare function write(bag: Bag): int32 | undefined;
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 const bad = write(point);
@@ -207,9 +202,8 @@ type Bag = { [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { [key: string]: int32 }" value={ [key: string]: int32 }
 
 declare function write(bag: Bag): int32 | undefined;
-/// @generic.template symbol=write parameters=(T0: Bag)
-/// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=<write.T0: Bag>(write.T0) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type=write.T0
+/// @type.symbol symbol=write source="declare function write(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag reduced={ [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
@@ -221,8 +215,8 @@ const bad = write(point);
 /// @resolution.name source=point target=point
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32; y: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
-/// @diagnostic.label line=7 column=13 span="write(point)" line_source="const bad = write(point);"
+/// @diagnostic.error code=EC209 message="argument of type '{ x: int32; y: int32 }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.label line=7 column=19 span="point" line_source="const bad = write(point);"
 "#,
     );
 }
@@ -252,13 +246,13 @@ value satisfies int32 | undefined;
 === annotated ===
 type Bag = { [key: string]: int32 };
 
-function write<T0: Bag>(bag: T0): int32 | undefined {
+function write(bag: Bag): int32 | undefined {
     bag["x"] = 1;
     return bag["x"];
 }
 
 declare const map: Map<string, int32>;
-const value: int32 | undefined = write<Map<string, int32>>(map);
+const value: int32 | undefined = write(map);
 
 value satisfies int32 | undefined;
 
@@ -268,9 +262,8 @@ type Bag = { [key: string]: int32 };
 /// @definition.type symbol=Bag source="type Bag = { [key: string]: int32 }" value={ [key: string]: int32 }
 
 function write(bag: Bag): int32 | undefined {
-/// @generic.template symbol=write parameters=(T0: Bag)
-/// @type.symbol symbol=write type=<write.T0: Bag>(write.T0) => int32 | undefined
-/// @type.symbol symbol=write.bag source="bag: Bag" type=write.T0
+/// @type.symbol symbol=write type=(Bag) => int32 | undefined
+/// @type.symbol symbol=write.bag source="bag: Bag" type=Bag reduced={ [key: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
     bag["x"] = 1;
@@ -279,7 +272,7 @@ function write(bag: Bag): int32 | undefined {
 
     return bag["x"];
     /// @resolution.name source=bag target=write.bag
-    /// @resolution.member source="bag[\"x\"]" receiver=write.T0 kind=index key=string
+    /// @resolution.member source="bag[\"x\"]" receiver={ [key: string]: int32 } kind=index key=string
 
 }
 
@@ -290,15 +283,13 @@ declare const map: Map<string, int32>;
 const value = write(map);
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.name source=write target=write
-/// @resolution.call source=write(map) parameters=(Map<string, int32>) arguments=(provided(map) as Map<string, int32>) return=int32 | undefined kind=symbol target=write instance="write<Map<string, int32>>"
-/// @generic.instance source=write(map) id="write<Map<string, int32>>"
+/// @resolution.call source=write(map) parameters=(Bag) arguments=(provided(map) as Bag) return=int32 | undefined kind=symbol target=write
 /// @resolution.name source=map target=map
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
 
 /// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-/// @generic.instance id="write<Map<string, int32>>" template=write arguments=(Map<string, int32>)
 "#,
     );
 }
@@ -475,7 +466,7 @@ const bad = read(point);
 === annotated ===
 type Bag = Record<string, int32>;
 
-declare function read<T0: Bag>(bag: T0): int32 | undefined;
+declare function read(bag: Bag): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
 const bad = read(point);
@@ -487,9 +478,8 @@ type Bag = Record<string, int32>;
 /// @resolution.name source=Record target=types.object.Record
 
 declare function read(bag: Bag): int32 | undefined;
-/// @generic.template symbol=read parameters=(T0: Bag)
-/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
+/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ [P: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
@@ -503,8 +493,8 @@ const bad = read(point);
 /// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
-/// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
-/// @diagnostic.label line=7 column=13 span="read(point)" line_source="const bad = read(point);"
+/// @diagnostic.error code=EC209 message="argument of type '{ x: int32 }' is not assignable to parameter of type 'Bag'"
+/// @diagnostic.label line=7 column=18 span="point" line_source="const bad = read(point);"
 "#,
     );
 }

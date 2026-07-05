@@ -54,8 +54,9 @@ class Document extends Drawable {}
 
 === checked ===
 interface Drawable {}
+/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable source="interface Drawable {}" type=Drawable
-/// @definition.interface symbol=Drawable source="interface Drawable {}"
+/// @definition.interface symbol=Drawable source="interface Drawable {}" template=()
 
 class Document extends Drawable {}
 /// @type.symbol symbol=Document source="class Document extends Drawable {}" type=Document
@@ -184,8 +185,9 @@ class Document implements Printable {
 
 === checked ===
 interface Printable {
+/// @generic.template symbol=Printable parameters=()
 /// @type.symbol symbol=Printable type=Printable
-/// @definition.interface symbol=Printable
+/// @definition.interface symbol=Printable template=()
 /// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
 
     print(): void;
@@ -194,8 +196,10 @@ interface Printable {
 }
 
 class Document implements Printable {
+/// @generic.template symbol=Document parameters=()
 /// @type.symbol symbol=Document type=Document
-/// @definition.class symbol=Document
+/// @definition.class symbol=Document template=()
+/// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
 /// @resolution.name source=Printable target=Printable
@@ -239,8 +243,9 @@ class Document implements Alias {
 
 === checked ===
 interface Printable {
+/// @generic.template symbol=Printable parameters=()
 /// @type.symbol symbol=Printable type=Printable
-/// @definition.interface symbol=Printable
+/// @definition.interface symbol=Printable template=()
 /// @definition.method symbol=Printable.print source="print(): void" slot=print type=(this: Printable) => void
 
     print(): void;
@@ -253,8 +258,9 @@ type Alias = Printable;
 /// @resolution.name source=Printable target=Printable
 
 class Document implements Alias {
+/// @generic.template symbol=Document parameters=()
 /// @type.symbol symbol=Document type=Document
-/// @definition.class symbol=Document
+/// @definition.class symbol=Document template=()
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
 /// @resolution.name source=Alias target=Alias
 
@@ -299,8 +305,9 @@ class Point implements Drawable {
 
 === checked ===
 interface Drawable {
+/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=()
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 
     draw(): void;
@@ -309,8 +316,10 @@ interface Drawable {
 }
 
 class Point implements Drawable {
+/// @generic.template symbol=Point parameters=()
 /// @type.symbol symbol=Point type=Point
-/// @definition.class symbol=Point
+/// @definition.class symbol=Point template=()
+/// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
 /// @definition.field symbol=Point.x source="x: int32 = 0" key=x type=int32
 /// @resolution.name source=Drawable target=Drawable
@@ -364,8 +373,9 @@ class Point implements Drawable {
 
 === checked ===
 interface Named {
+/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=()
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
 
     name(): string;
@@ -374,8 +384,9 @@ interface Named {
 }
 
 interface Drawable extends Named {
+/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=()
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 /// @resolution.name source=Named target=Named
@@ -386,8 +397,10 @@ interface Drawable extends Named {
 }
 
 class Point implements Drawable {
+/// @generic.template symbol=Point parameters=()
 /// @type.symbol symbol=Point type=Point
-/// @definition.class symbol=Point
+/// @definition.class symbol=Point template=()
+/// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
 /// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=(this: Point) => void
 /// @resolution.name source=Drawable target=Drawable
