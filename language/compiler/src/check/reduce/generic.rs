@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, GenericInductionParameter, GenericParameterId, GenericTemplateId, Origin,
-    TypeSubstitution, Widening,
+    BoundMode, CheckState, GenericInductionParameter, GenericParameterId, GenericTemplateId,
+    Origin, TypeSubstitution, Widening,
 };
 
 /// Position of one written generic application.
@@ -15,6 +15,15 @@ pub(in crate::check) enum GenericPosition {
     Annotation,
     /// An inference site: omitted parameters open as variables.
     Inference,
+}
+
+/// One generic instantiation opened at a source site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) struct Opening {
+    /// The source site that opened the variables.
+    pub(in crate::check) site: dir::GlobalNodeIdAny,
+    /// The leading opened parameter, distinguishing lists at one site.
+    pub(in crate::check) parameter: dir::GlobalGenericParameterId,
 }
 
 impl CheckState<'_> {
@@ -75,6 +84,34 @@ impl CheckState<'_> {
             written,
             GenericPosition::Inference,
         )
+    }
+
+    /// Instantiate one parameter list through a solver-stable opening.
+    pub(in crate::check) fn instantiate_at_opening(
+        &mut self,
+        origin: Origin,
+        opening: Opening,
+        parameters: &[GenericParameterId],
+        written: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<TypeSubstitution>> {
+        // reuse variables opened by an earlier poll
+        if let Some(existing) = self.solver.opened_substitution(opening) {
+            return Ok(Some(existing.clone()));
+        }
+
+        // open omitted parameters once
+        let substitution = self.instantiate_generic_parameters(
+            origin,
+            parameters,
+            written,
+            GenericPosition::Inference,
+        )?;
+        if let Some(substitution) = &substitution {
+            self.solver
+                .insert_opened_substitution(opening, substitution.clone());
+        }
+
+        Ok(substitution)
     }
 
     /// Instantiate one parameter list from written arguments.
@@ -154,10 +191,10 @@ impl CheckState<'_> {
                 .map(|constraint| self.substitute_type(origin.module(), constraint, &substitution))
                 .transpose()?;
             if let Some(constraint) = constraint {
-                self.push_upper_bound(variable, source_node, constraint)?;
+                self.push_upper_bound(variable, source_node, constraint, BoundMode::Strong)?;
             }
 
-            // bind inference defaults as solver fallbacks
+            // record defaults as weak solve bounds
             if let Some(default) = self.generic_parameter_default(
                 origin.module(),
                 parameter,

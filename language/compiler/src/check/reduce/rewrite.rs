@@ -166,15 +166,14 @@ impl CheckState<'_> {
             }
             let ty = self.ty(id)?;
 
-            // record open variables through their representative
+            // follow solved variables and collect open variables once
             if let dir::Type::Variable(variable) = ty {
-                let representative = self.solver.representative(variable)?;
-                let state = self.solver.variable(representative)?;
-
-                if state.solution.is_none() && !variables.contains(&representative) {
-                    variables.push(representative);
-                } else if let Some(solution) = state.solution {
+                if let Some(solution) = self.solver.solution(variable)? {
                     pending.push(solution);
+                } else if let Some(variable) = self.open_variable(variable)?
+                    && !variables.contains(&variable)
+                {
+                    variables.push(variable);
                 }
 
                 continue;
