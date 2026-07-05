@@ -301,14 +301,14 @@ impl FloatType {
     pub fn fits_integer_literal(self, value: i64) -> bool {
         let value = value as f64;
 
-        self.roundtrip_f64(value)
-            .is_some_and(|rounded| rounded == value)
+        self.roundtrip_f64(value) == value
     }
 
     /// Return whether one float literal fits this float type exactly.
     pub fn fits_literal(self, value: f64) -> bool {
-        self.roundtrip_f64(value)
-            .is_some_and(|rounded| rounded == value || (rounded.is_nan() && value.is_nan()))
+        let rounded = self.roundtrip_f64(value);
+
+        rounded == value || (rounded.is_nan() && value.is_nan())
     }
 
     /// Return the concrete bit width, if known without target layout.
@@ -332,7 +332,7 @@ impl FloatType {
     }
 
     /// Round one `f64` value to this float type and back.
-    pub fn roundtrip_f64(self, value: f64) -> Option<f64> {
+    pub fn roundtrip_f64(self, value: f64) -> f64 {
         let format = match self {
             FloatType::Float64 => FloatFormat::Float64,
             FloatType::Float16 => FloatFormat::Float16,

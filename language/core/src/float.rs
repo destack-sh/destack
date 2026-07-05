@@ -43,12 +43,8 @@ pub fn float_from_bits(format: FloatFormat, bits: u64) -> f64 {
 }
 
 /// Round one `f64` through a concrete float format.
-pub fn roundtrip_float(format: FloatFormat, value: f64) -> Option<f64> {
-    if !value.is_finite() {
-        return None;
-    }
-
-    Some(float_from_bits(format, float_to_bits(format, value)))
+pub fn roundtrip_float(format: FloatFormat, value: f64) -> f64 {
+    float_from_bits(format, float_to_bits(format, value))
 }
 
 /// Round one `f32` to IEEE-754 binary16 bits.
