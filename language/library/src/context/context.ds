@@ -36,7 +36,7 @@ export class Context {
 
     /// Run `body` with scoped context overrides.
     static with<T>(patch: ContextPatch, body: () => T): T {
-        const token = pushContext(patch);
+        const token = pushContext(&readonly patch);
         const result = body();
 
         popContext(token);
@@ -46,7 +46,7 @@ export class Context {
 
     /// Run async `body` with scoped context overrides.
     static async withAsync<T>(patch: ContextPatch, body: () => Promise<T>): Promise<T> {
-        const token = pushContext(patch);
+        const token = pushContext(&readonly patch);
         const result = await body();
 
         popContext(token);
