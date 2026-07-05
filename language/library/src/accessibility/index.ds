@@ -1,2 +1,2 @@
-export { Accessibility } from "./binding/accessibility.ds";
+export { AccessibilityBinding } from "./binding/accessibility.ds";
 export * as binding from "./binding";

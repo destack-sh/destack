@@ -1,4 +1,4 @@
-export { Time } from "./binding/time.ds";
+export { TimeBinding } from "./binding/time.ds";
 export * from "./duration.ds";
 export * from "./instant.ds";
 export * from "./option.ds";

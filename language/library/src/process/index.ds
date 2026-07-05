@@ -1,3 +1,3 @@
-export { Process } from "./binding/process.ds";
+export { ProcessBinding } from "./binding/process.ds";
 export * from "./process.ds";
 export * as binding from "./binding";
