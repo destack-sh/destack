@@ -72,7 +72,7 @@ impl CheckState<'_> {
     fn seal_output_segments(
         &mut self,
         module: ModuleId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<()> {
         let mut result = Ok(());
 
@@ -107,7 +107,7 @@ impl CheckState<'_> {
     fn seal_or_record(
         &mut self,
         id: dir::GlobalTypeId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
         result: &mut CompilerResult<()>,
     ) -> dir::GlobalTypeId {
         match self.seal_type(id, sealed) {
@@ -126,7 +126,7 @@ impl CheckState<'_> {
     fn resolved_node_types(
         &mut self,
         module: ModuleId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
         let node_types = self
@@ -185,7 +185,7 @@ impl CheckState<'_> {
     fn resolved_symbol_types(
         &mut self,
         module: ModuleId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let mut symbol_types = Vec::new();
@@ -329,7 +329,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn seal_type(
         &mut self,
         id: dir::GlobalTypeId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // keep variable-free types as they are
         if !self.type_flags(id)?.has_variable() {
@@ -338,8 +338,18 @@ impl CheckState<'_> {
 
         // reuse an already sealed type
         if let Some(existing) = sealed.get(&id) {
+            let Some(existing) = existing else {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "check sealed a cyclic solution graph at {}",
+                        self.format_type(id)
+                    ),
+                });
+            };
+
             return Ok(*existing);
         }
+        sealed.insert(id, None);
 
         // seal a variable through its solved root, or error when unsolved
         let ty = self.ty(id)?;
@@ -364,7 +374,7 @@ impl CheckState<'_> {
             self.intern_type(id.module_id, rebuilt)?
         };
 
-        sealed.insert(id, result);
+        sealed.insert(id, Some(result));
 
         Ok(result)
     }
