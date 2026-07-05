@@ -91,8 +91,6 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
     /// Format one integer type.
     fn integer(&self, integer: dir::IntegerType) -> String {
         match integer {
-            dir::IntegerType::Integer { is_signed: true } => "int".to_string(),
-            dir::IntegerType::Integer { is_signed: false } => "uint".to_string(),
             dir::IntegerType::Fixed {
                 width,
                 is_signed: true,
