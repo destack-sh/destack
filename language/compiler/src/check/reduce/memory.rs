@@ -27,6 +27,44 @@ pub(in crate::check) struct ImplicitBorrow {
 }
 
 impl CheckState<'_> {
+    /// Return the value beneath one type's memory forms.
+    pub(in crate::check) fn value_beneath_forms(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut value = answer!(self.reduce_type_head(origin, id)?);
+        while let dir::Type::Form(form) = self.ty(value)? {
+            value = answer!(self.reduce_type_head(origin, form.value)?);
+        }
+
+        Ok(Answer::Ready(value))
+    }
+
+    /// Replace the value beneath one type's memory forms.
+    pub(in crate::check) fn replace_beneath_forms(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let head = answer!(self.reduce_type_head(origin, ty)?);
+        let dir::Type::Form(form) = self.ty(head)? else {
+            return Ok(Answer::Ready(value));
+        };
+
+        let inner = answer!(self.replace_beneath_forms(origin, form.value, value)?);
+        let rebuilt = self.intern_type(
+            origin.module(),
+            dir::Type::Form(dir::FormType {
+                form: form.form,
+                value: inner,
+            }),
+        )?;
+
+        Ok(Answer::Ready(rebuilt))
+    }
+
     /// Normalize one static value against a memory-domain language item.
     pub(in crate::check) fn normalize_memory_domain_value(
         &mut self,

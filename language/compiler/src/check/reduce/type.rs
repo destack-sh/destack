@@ -18,11 +18,8 @@ impl CheckState<'_> {
 
         // fold the root, then normalize children with aliases kept symbolic
         let id = answer!(self.reduce_type_head(origin, id)?);
-        self.reduce_depth += 1;
-        let reduced = self.reduce_type_graph(origin, id, &mut memo, &mut active);
-        self.reduce_depth -= 1;
 
-        reduced
+        self.reduce_type_graph(origin, id, &mut memo, &mut active)
     }
 
     /// Reduce the head of one type to its simplest available form.
@@ -47,12 +44,10 @@ impl CheckState<'_> {
         let mut expanding = IndexSet::new();
         let answer = self.reduce_type_chain(origin, id, &mut expanding)?;
 
-        // memoize changed closed reductions outside probes, except alias
-        // expansions, which deep reduction must keep symbolic
+        // memoize changed closed reductions outside probes
         if let Answer::Ready(reduced) = answer
             && reduced != id
             && !self.solver.is_probing()
-            && !self.is_alias_instance(id)?
             && self.type_variables(id)?.is_empty()
             && self.type_variables(reduced)?.is_empty()
         {
@@ -110,9 +105,7 @@ impl CheckState<'_> {
         match self.ty(id)? {
             // open variables wait for their solutions
             dir::Type::Variable(variable) => {
-                let representative = self.solver.representative(variable)?;
-
-                Ok(Answer::pending([Dependency::Variable(representative)]))
+                Ok(Answer::pending([self.variable_dependency(variable)?]))
             }
 
             // transparent alias references expand to their substituted bodies
@@ -122,11 +115,6 @@ impl CheckState<'_> {
                     answer!(self.reduce_intrinsic_reference(origin, id.module_id, &instance)?)
                 {
                     return self.reduce_type_head(origin, reduced);
-                }
-
-                // keep nested aliases symbolic in deep normal forms
-                if self.reduce_depth > 0 {
-                    return Ok(Answer::Ready(id));
                 }
 
                 match answer!(self.type_alias_body(origin, id.module_id, &instance)?) {
@@ -142,10 +130,7 @@ impl CheckState<'_> {
             // member projections resolve through their owners
             dir::Type::Member(member) => {
                 // members live beneath memory forms, so owners shed them
-                let mut owner = answer!(self.reduce_type_head(origin, member.owner)?);
-                while let dir::Type::Form(form) = self.ty(owner)? {
-                    owner = answer!(self.reduce_type_head(origin, form.value)?);
-                }
+                let owner = answer!(self.value_beneath_forms(origin, member.owner)?);
                 // parameter owners qualify through their unique bound
                 let mut qualifier = member.qualifier;
                 if qualifier.is_none()
@@ -321,7 +306,13 @@ impl CheckState<'_> {
         }
 
         let original = id;
-        let id = answer!(self.reduce_type_head(origin, id)?);
+
+        // keep transparent alias references symbolic in child positions
+        let id = self.settled_root(id)?;
+        let id = match self.is_alias_instance(id)? {
+            true => id,
+            false => answer!(self.reduce_type_head(origin, id)?),
+        };
         if let Some(done) = memo.get(&id).copied() {
             memo.insert(original, done);
 
@@ -376,15 +367,19 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type is a transparent alias application.
-    fn is_alias_instance(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+    /// Compiler-recognized language items reduce intrinsically instead.
+    fn is_alias_instance(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
         let dir::Type::Instance(instance) = self.ty(id)? else {
             return Ok(false);
         };
-
-        Ok(matches!(
+        if !matches!(
             self.definition(instance.symbol),
             Some(dir::Definition::TypeAlias(_))
-        ))
+        ) {
+            return Ok(false);
+        }
+
+        Ok(self.language_item(instance.symbol)?.is_none())
     }
 
     /// Return the substituted body of one transparent type alias application.

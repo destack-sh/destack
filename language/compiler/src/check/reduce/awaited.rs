@@ -81,16 +81,27 @@ impl CheckState<'_> {
             }
             _ => None,
         };
-        let Some(inner) = inner else {
+        if let Some(inner) = inner {
+            let awaited = self.reduce_awaited_guarded(origin, inner, active)?;
             active.swap_remove(&target);
 
-            return Ok(Answer::Ready(Some(target)));
-        };
+            return Ok(awaited);
+        }
 
-        let awaited = self.reduce_awaited_guarded(origin, inner, active)?;
+        // newtypes await through their backing
+        if let Some(backing) = answer!(self.newtype_backing(origin, target)?) {
+            let backing = answer!(self.reduce_type_head(origin, backing)?);
+            let awaited = answer!(self.reduce_awaited_guarded(origin, backing, active)?);
+            active.swap_remove(&target);
+
+            return match awaited {
+                Some(awaited) if awaited != backing => Ok(Answer::Ready(Some(awaited))),
+                _ => Ok(Answer::Ready(Some(target))),
+            };
+        }
 
         active.swap_remove(&target);
 
-        Ok(awaited)
+        Ok(Answer::Ready(Some(target)))
     }
 }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
 
 impl CheckState<'_> {
     /// Evaluate one runtime guard narrowing.
@@ -14,12 +14,62 @@ impl CheckState<'_> {
         let source = answer!(self.reduce_type_head(origin, narrow.source)?);
         let target = answer!(self.reduce_type_head(origin, narrow.target)?);
 
+        // narrow newtypes through their backing representation
+        let mut source = source;
+        if matches!(self.ty(source)?, dir::Type::Instance(_))
+            && let Some(backing) = answer!(self.newtype_backing(origin, source)?)
+        {
+            source = answer!(self.reduce_type_head(origin, backing)?);
+        }
+
+        // narrow parameters through their first declared bound
+        if let dir::Type::Parameter(parameter) = self.ty(source)?
+            && let Some(bound) = self.parameter_bounds(origin, parameter)?.first().copied()
+        {
+            source = answer!(self.reduce_type_head(origin, bound)?);
+        }
+
+        // narrow the payload beneath memory forms, then rebuild the forms
+        if matches!(self.ty(source)?, dir::Type::Form(_)) {
+            let value = answer!(self.value_beneath_forms(origin, source)?);
+            let target_value = answer!(self.value_beneath_forms(origin, target)?);
+            let operation = self.intern_type(
+                origin.module(),
+                dir::Type::Operation(dir::TypeOperation::Narrow(dir::NarrowType {
+                    source: value,
+                    target: target_value,
+                    is_positive: narrow.is_positive,
+                })),
+            )?;
+            let narrowed = answer!(self.reduce_type_head(origin, operation)?);
+            if matches!(self.ty(narrowed)?, dir::Type::Operation(_)) {
+                return Ok(Answer::Ready(None));
+            }
+            if matches!(self.ty(narrowed)?, dir::Type::Never) {
+                return Ok(Answer::Ready(Some(narrowed)));
+            }
+            let rebuilt = answer!(self.replace_beneath_forms(origin, source, narrowed)?);
+
+            return Ok(Answer::Ready(Some(rebuilt)));
+        }
+
         // distribute over union-valued sources
         let elements = match self.ty(source)? {
             dir::Type::Union(union) => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
             }
             dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
+            // stuck operations wait for their blocking variables
+            dir::Type::Operation(_) => {
+                let variables = self.type_variables(source)?;
+                if variables.is_empty() {
+                    return Ok(Answer::Ready(None));
+                }
+
+                return Ok(Answer::pending(
+                    variables.into_iter().map(Dependency::Variable),
+                ));
+            }
             _ => SmallVec::from_slice(&[source]),
         };
 

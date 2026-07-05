@@ -48,6 +48,17 @@ impl CheckState<'_> {
             {
                 Some(smallvec![ScalarFamily::Enum(root)])
             }
+            // scalar markers classify as their whole domain
+            dir::Type::Instance(instance)
+                if self.language_item(instance.symbol)? == Some(dir::LanguageItem::Integer) =>
+            {
+                Some(smallvec![ScalarFamily::Domain(dir::ScalarDomain::Integer)])
+            }
+            dir::Type::Instance(instance)
+                if self.language_item(instance.symbol)? == Some(dir::LanguageItem::Float) =>
+            {
+                Some(smallvec![ScalarFamily::Domain(dir::ScalarDomain::Float)])
+            }
             // classify parameters through their scalar bound
             dir::Type::Parameter(parameter) => {
                 let Some(bound) = answer!(self.scalar_parameter_bound(origin, parameter)?) else {
@@ -56,6 +67,37 @@ impl CheckState<'_> {
 
                 return self.scalar_families(origin, bound);
             }
+            // arithmetic operations stay within their operand families
+            dir::Type::Operation(dir::TypeOperation::StaticBinary(binary)) => {
+                if binary.operator.yields_boolean() {
+                    return Ok(Answer::Ready(Some(smallvec![ScalarFamily::Domain(
+                        dir::ScalarDomain::Boolean
+                    )])));
+                }
+                let Some(mut families) = answer!(self.scalar_families(origin, binary.left)?) else {
+                    return Ok(Answer::Ready(None));
+                };
+                let Some(right) = answer!(self.scalar_families(origin, binary.right)?) else {
+                    return Ok(Answer::Ready(None));
+                };
+                for family in right {
+                    if !families.contains(&family) {
+                        families.push(family);
+                    }
+                }
+
+                Some(families)
+            }
+            dir::Type::Operation(dir::TypeOperation::StaticUnary(unary)) => {
+                if unary.operator.yields_boolean() {
+                    return Ok(Answer::Ready(Some(smallvec![ScalarFamily::Domain(
+                        dir::ScalarDomain::Boolean
+                    )])));
+                }
+
+                return self.scalar_families(origin, unary.target);
+            }
+
             // collect every distinct element family
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 4]> =
@@ -82,6 +124,93 @@ impl CheckState<'_> {
         };
 
         Ok(Answer::Ready(families))
+    }
+
+    /// Return the scalar result type of one static operation.
+    ///
+    /// Mirrors rustc's operator result typing: boolean operators yield
+    /// `boolean` and arithmetic stays within the joined operand type.
+    pub(in crate::check) fn static_operation_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let root = answer!(self.reduce_type_head(origin, ty)?);
+        match self.ty(root)? {
+            // binary operators join their operand types
+            dir::Type::Operation(dir::TypeOperation::StaticBinary(binary)) => {
+                if binary.operator.yields_boolean() {
+                    let boolean = self.intern_type(
+                        origin.module(),
+                        dir::Type::Primitive(dir::PrimitiveType::Boolean),
+                    )?;
+
+                    return Ok(Answer::Ready(Some(boolean)));
+                }
+                let left = answer!(self.scalar_operand_type(origin, binary.left)?);
+                let right = answer!(self.scalar_operand_type(origin, binary.right)?);
+
+                // literals adopt their partner operand's type
+                let joined = match (left, right) {
+                    (Some(left), Some(right)) if left == right => Some(left),
+                    (Some(left), None) => Some(left),
+                    (None, Some(right)) => Some(right),
+                    _ => None,
+                };
+
+                Ok(Answer::Ready(joined))
+            }
+
+            // unary operators keep their operand type
+            dir::Type::Operation(dir::TypeOperation::StaticUnary(unary)) => {
+                if unary.operator.yields_boolean() {
+                    let boolean = self.intern_type(
+                        origin.module(),
+                        dir::Type::Primitive(dir::PrimitiveType::Boolean),
+                    )?;
+
+                    return Ok(Answer::Ready(Some(boolean)));
+                }
+
+                self.scalar_operand_type(origin, unary.target)
+            }
+
+            _ => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Return one operand's concrete scalar type.
+    ///
+    /// Literals return none so they adopt their partner operand.
+    fn scalar_operand_type(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let root = answer!(self.reduce_type_head(origin, ty)?);
+        match self.ty(root)? {
+            // concrete scalars type themselves
+            dir::Type::Primitive(_) => Ok(Answer::Ready(Some(root))),
+
+            // literals and ranges adopt their partner operand
+            dir::Type::Literal(_) | dir::Type::Range(_) => Ok(Answer::Ready(None)),
+
+            // parameters type through their scalar bound
+            dir::Type::Parameter(parameter) => {
+                let Some(bound) = answer!(self.scalar_parameter_bound(origin, parameter)?) else {
+                    return Ok(Answer::Ready(None));
+                };
+
+                self.scalar_operand_type(origin, bound)
+            }
+
+            // nested operations type through their own result
+            dir::Type::Operation(
+                dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_),
+            ) => self.static_operation_type(origin, root),
+
+            _ => Ok(Answer::Ready(None)),
+        }
     }
 
     /// Return one parameter's first bound holding only scalars.
