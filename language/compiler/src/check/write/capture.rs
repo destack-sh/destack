@@ -1,18 +1,13 @@
-use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
-use crate::check::{CheckState, Origin};
+use crate::check::CheckState;
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Write checked captures into their DIR segment.
-    pub(in crate::check) fn write_captures(
-        &mut self,
-        module: ModuleId,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
-    ) -> CompilerResult<()> {
+    pub(in crate::check) fn write_captures(&mut self, module: ModuleId) -> CompilerResult<()> {
         let captures = std::mem::take(&mut self.module_mut(module).captures);
         if captures.is_empty() {
             return Ok(());
@@ -42,14 +37,14 @@ impl CheckState<'_> {
         // materialize one shared frame for each managed scope
         let mut frames = IndexMap::new();
         for (scope, symbols) in managed_symbols {
-            let frame = self.write_capture_frame(module, scope, &symbols, reported)?;
+            let frame = self.write_capture_frame(module, scope, &symbols)?;
 
             frames.insert(scope, frame);
         }
 
         // materialize captures for each function
         for capture in captures {
-            let capture = self.write_capture(module, capture, &frames, reported)?;
+            let capture = self.write_capture(module, capture, &frames)?;
 
             self.module_mut(module)
                 .capture_segment
@@ -65,7 +60,6 @@ impl CheckState<'_> {
         module: ModuleId,
         scope: dir::LocalScopeId,
         symbols: &IndexSet<dir::GlobalSymbolId>,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<dir::LocalCaptureFrameId> {
         let scope_bindings = &self.module(module).bindings.get_scope_by_id(scope).bindings;
         let mut frame_bindings = Vec::new();
@@ -99,7 +93,7 @@ impl CheckState<'_> {
                     message: format!("managed capture symbol {symbol:?} has no field key"),
                 });
             };
-            let ty = self.capture_symbol_type(symbol, reported)?;
+            let ty = self.capture_symbol_type(symbol)?;
 
             fields.push(dir::CaptureFrameField { symbol, ty });
             shape_fields.push(dir::TypeField {
@@ -143,7 +137,6 @@ impl CheckState<'_> {
         module: ModuleId,
         capture: crate::check::Capture,
         frames: &IndexMap<dir::LocalScopeId, dir::LocalCaptureFrameId>,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<(dir::GlobalSymbolId, dir::Capture)> {
         let function = capture.symbol;
         let mut used_frames = IndexSet::new();
@@ -152,7 +145,7 @@ impl CheckState<'_> {
         // materialize captured lexical bindings
         for symbol in &capture.symbols {
             let mode = self.capture_mode(module, capture.directive.as_ref(), *symbol)?;
-            let ty = self.capture_symbol_type(*symbol, reported)?;
+            let ty = self.capture_symbol_type(*symbol)?;
             let binding = match mode {
                 dir::CaptureMode::Manage => {
                     let scope = self
@@ -199,7 +192,6 @@ impl CheckState<'_> {
                 let mode =
                     self.capture_mode(module, capture.directive.as_ref(), receiver.symbol)?;
                 let ty = self.settled_root(receiver.receiver.ty)?;
-                self.report_unresolved_output_type(Origin::Symbol(receiver.symbol), ty, reported)?;
 
                 Some(dir::CapturedReceiver {
                     symbol: receiver.symbol,
@@ -243,7 +235,6 @@ impl CheckState<'_> {
     fn capture_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(ty) = self.symbol_type_maybe(symbol) else {
             let module = self.module(symbol.module_id);
@@ -261,7 +252,6 @@ impl CheckState<'_> {
             });
         };
         let ty = self.settled_root(ty)?;
-        self.report_unresolved_output_type(Origin::Symbol(symbol), ty, reported)?;
 
         Ok(ty)
     }

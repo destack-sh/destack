@@ -1,4 +1,3 @@
-use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
@@ -9,12 +8,10 @@ use crate::{CompilerError, CompilerResult};
 impl CheckState<'_> {
     /// Write one solved module into its checked DIR segments.
     pub(in crate::check) fn write_module(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let mut reported = IndexSet::new();
         let mut sealed = IndexMap::new();
-        let node_types = self.resolved_node_types(module, &mut sealed, &mut reported)?;
-        let symbol_types = self.resolved_symbol_types(module, &mut sealed, &mut reported)?;
-        let reduced_types =
-            self.resolved_reduced_types(module, &node_types, &symbol_types, &mut reported)?;
+        let node_types = self.resolved_node_types(module, &mut sealed)?;
+        let symbol_types = self.resolved_symbol_types(module, &mut sealed)?;
+        let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
         let symbol_literals = self.static_symbol_literals(module)?;
         let coercions = self.implicit_coercions(module)?;
 
@@ -57,7 +54,7 @@ impl CheckState<'_> {
         self.drain_decisions(module);
 
         // write closure capture frames and bindings
-        self.write_captures(module, &mut reported)?;
+        self.write_captures(module)?;
 
         // seal every type id embedded in the output segments
         self.seal_output_segments(module, &mut sealed)?;
@@ -81,6 +78,12 @@ impl CheckState<'_> {
         let mut definitions = std::mem::replace(&mut self.module_mut(module).definitions, empty);
         definitions.map_type_ids(&mut |id| self.seal_or_record(id, sealed, &mut result));
         self.module_mut(module).definitions = definitions;
+
+        // seal auto implementations
+        let empty = dir::AutoSegment::new(module);
+        let mut auto = std::mem::replace(&mut self.module_mut(module).auto, empty);
+        auto.map_type_ids(&mut |id| self.seal_or_record(id, sealed, &mut result));
+        self.module_mut(module).auto = auto;
 
         // seal decided node resolutions
         let empty = dir::ResolutionSegment::new(module);
@@ -127,7 +130,6 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
         let node_types = self
             .node_types
@@ -139,11 +141,6 @@ impl CheckState<'_> {
         for (node, ty) in node_types {
             let ty = self.settled_root(ty)?;
             let ty = self.seal_type(ty, sealed)?;
-            let origin = self
-                .node_site(node)
-                .map(FlowSite::origin)
-                .unwrap_or(Origin::Node(node, None));
-            self.report_unresolved_output_type(origin, ty, reported)?;
             resolved.push((node, ty));
         }
 
@@ -155,7 +152,6 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Option<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let ty = self.settled_root(ty)?;
         if self.type_flags(ty)?.has_variable() {
@@ -164,11 +160,7 @@ impl CheckState<'_> {
 
         match self.reduce_type(origin, ty)? {
             Answer::Ready(reduced) if reduced == ty => Ok(None),
-            Answer::Ready(reduced) => {
-                self.report_unresolved_output_type(origin, reduced, reported)?;
-
-                Ok(Some((ty, reduced)))
-            }
+            Answer::Ready(reduced) => Ok(Some((ty, reduced))),
             Answer::Pending(blockers) => {
                 let (_, anchor) = self.origin_diagnostic_anchor(origin)?;
 
@@ -186,7 +178,6 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let mut symbol_types = Vec::new();
         symbol_types.extend(
@@ -204,7 +195,6 @@ impl CheckState<'_> {
         for (symbol, ty) in symbol_types {
             let ty = self.settled_root(ty)?;
             let ty = self.seal_type(ty, sealed)?;
-            self.report_unresolved_output_type(Origin::Symbol(symbol), ty, reported)?;
             resolved.push((symbol, ty));
         }
 
@@ -217,7 +207,6 @@ impl CheckState<'_> {
         module: ModuleId,
         node_types: &[(dir::GlobalNodeIdAny, dir::GlobalTypeId)],
         symbol_types: &[(dir::GlobalSymbolId, dir::GlobalTypeId)],
-        reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<Vec<(dir::GlobalTypeId, dir::GlobalTypeId)>> {
         let mut sources = Vec::new();
         sources.extend(node_types.iter().map(|(node, ty)| {
@@ -252,7 +241,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            if let Some(reduction) = self.resolved_reduced_type(origin, ty, reported)? {
+            if let Some(reduction) = self.resolved_reduced_type(origin, ty)? {
                 resolved.push(reduction);
             }
         }
@@ -354,8 +343,7 @@ impl CheckState<'_> {
         // seal a variable through its solved root, or error when unsolved
         let ty = self.ty(id)?;
         let result = if let dir::Type::Variable(variable) = ty {
-            let representative = self.solver.representative(variable)?;
-            match self.solver.solution(representative)? {
+            match self.solver.solution(variable)? {
                 Some(solution) => {
                     let solution = self.settled_root(solution)?;
 
