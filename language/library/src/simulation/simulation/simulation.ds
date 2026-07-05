@@ -12,7 +12,7 @@ export class Simulation {
     /// Simulation world.
     readonly world: runtime.World;
     /// Simulation scenario.
-    readonly scenario: Scenario;
+    scenario: Scenario;
 
     /// Create a simulation.
     constructor(options?: Options) {
