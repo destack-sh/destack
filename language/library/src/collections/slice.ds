@@ -220,15 +220,15 @@ export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly">
     /// Return the normalized start and length for `range`.
     rangeSpan(&readonly this, range: R): (usize, usize) {
         let start = match (range.startBound()) {
-            Bound { kind: "included", value } => value
-            Bound { kind: "excluded", value } => value + 1
-            Bound { kind: "unbounded" } => 0
+            Bound.Included { value } => value
+            Bound.Excluded { value } => value + 1
+            Bound.Unbounded => 0
         };
 
         let end = match (range.endBound()) {
-            Bound { kind: "included", value } => value + 1
-            Bound { kind: "excluded", value } => value
-            Bound { kind: "unbounded" } => this.size
+            Bound.Included { value } => value + 1
+            Bound.Excluded { value } => value
+            Bound.Unbounded => this.size
         };
 
         if (start > end || end > this.size) {

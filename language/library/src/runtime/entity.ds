@@ -55,7 +55,7 @@ export type EntitySelector =
           /// Match one deterministic entity from a selector result.
           kind: "chooseOne";
           /// Source selector.
-          selector: EntitySelector;
+          selector: Managed<EntitySelector>;
       };
 
 /// Edge selector.

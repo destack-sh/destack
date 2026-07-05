@@ -131,22 +131,22 @@ export newtype interface Edge {
 
 /// Match every topology edge.
 export function anyEdge(): EdgeSelector {
-    EdgeAny { kind: "any" }
+    EdgeSelector(EdgeAny { kind: "any" })
 }
 
 /// Match one topology edge by id.
 export function edgeId(id: EdgeId): EdgeSelector {
-    EdgeById { kind: "id", id }
+    EdgeSelector(EdgeById { kind: "id", id })
 }
 
 /// Match topology edges by kind.
 export function edgeKind(kind: EdgeKind): EdgeSelector {
-    EdgeByKind { kind: "kind", edgeKind: kind }
+    EdgeSelector(EdgeByKind { kind: "kind", edgeKind: kind })
 }
 
 /// Match topology edges between two entity selectors.
 export function between(from: EntitySelector, to: EntitySelector): EdgeSelector {
-    EdgeBetween { kind: "between", from, to }
+    EdgeSelector(EdgeBetween { kind: "between", from, to })
 }
 
 /// Project one value to an edge record.

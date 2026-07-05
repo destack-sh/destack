@@ -84,7 +84,7 @@ export extension<T> of RangeFrom<T> implements RangeBounds<T> {
 
     /// Return the end bound.
     endBound(): Bound<T> {
-        Bound.Unbounded({})
+        Bound.Unbounded
     }
 }
 
@@ -98,7 +98,7 @@ export struct RangeTo<T> {
 export extension<T> of RangeTo<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
-        Bound.Unbounded({})
+        Bound.Unbounded
     }
 
     /// Return the end bound.
@@ -117,7 +117,7 @@ export struct RangeToInclusive<T> {
 export extension<T> of RangeToInclusive<T> implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
-        Bound.Unbounded({})
+        Bound.Unbounded
     }
 
     /// Return the end bound.
@@ -133,11 +133,11 @@ export struct RangeFull {}
 export extension<T> of RangeFull implements RangeBounds<T> {
     /// Return the start bound.
     startBound(): Bound<T> {
-        Bound.Unbounded({})
+        Bound.Unbounded
     }
 
     /// Return the end bound.
     endBound(): Bound<T> {
-        Bound.Unbounded({})
+        Bound.Unbounded
     }
 }
