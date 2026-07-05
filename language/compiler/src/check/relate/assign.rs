@@ -42,48 +42,9 @@ impl CheckState<'_> {
                 Answer::Ready(true)
             }
 
-            // readonly forms relate their payload elements covariantly
-            (dir::Type::Form(source), dir::Type::Form(target))
-                if source.form == dir::Form::Readonly && target.form == dir::Form::Readonly =>
-            {
-                let (source_value, target_value) = (source.value, target.value);
-
-                self.decide_readonly_assignable(origin, source_value, target_value)?
-            }
-            // values can flow into readonly forms by dropping write access
-            (_, dir::Type::Form(target)) if target.form == dir::Form::Readonly => {
-                let target_value = target.value;
-
-                self.decide_readonly_assignable(origin, source, target_value)?
-            }
-            // memory forms check constructor then payload
-            (dir::Type::Form(source), dir::Type::Form(target)) => {
-                let (source_form, target_form) = (source.form, target.form);
-                let (source_value, target_value) = (source.value, target.value);
-                let constructor = self.decide_form_assignable(origin, source_form, target_form)?;
-                if !constructor.is_ready_true() {
-                    return Ok(constructor);
-                }
-
-                self.decide_relation(origin, Relation::Assignable, source_value, target_value)?
-            }
-            // values can materialize into a concrete storage place
-            (_, dir::Type::Form(target)) if matches!(target.form, dir::Form::Placed { .. }) => {
-                let target_value = target.value;
-
-                self.decide_relation(origin, Relation::Assignable, source, target_value)?
-            }
-            // reading from a concrete storage place yields its payload value
-            (dir::Type::Form(source), _) if matches!(source.form, dir::Form::Placed { .. }) => {
-                let source_value = source.value;
-
-                self.decide_relation(origin, Relation::Assignable, source_value, target)?
-            }
-            // managed values materialize against unqualified targets
-            (dir::Type::Form(source), _) if source.form == dir::Form::Managed => {
-                let value = source.value;
-
-                self.decide_relation(origin, Relation::Assignable, value, target)?
+            // memory forms own placement and readonly views
+            _ if let Some(decision) = self.constrain_form_assignable(origin, source, target)? => {
+                decision
             }
 
             // union sources need every element assignable

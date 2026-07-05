@@ -4,8 +4,8 @@ use destack_source::ModuleId;
 use indexmap::IndexSet;
 
 use crate::check::{
-    CallRejectionNote, CheckState, ConstraintFailure, ObligationFailure, OperatorOperands, Origin,
-    Relation, SignatureRejection, UncoveredValue, ValueUse,
+    CheckState, ConstraintFailure, ObligationFailure, OperatorOperands, Origin, Relation,
+    SignatureRejection, UncoveredValue, ValueUse,
 };
 use crate::{CheckError, CheckWarning, CompilerResult, DiagnosticAnchor};
 
@@ -498,7 +498,6 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         arguments: &[dir::GlobalTypeId],
-        note: Option<CallRejectionNote>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::NoMatchingCall {
@@ -506,24 +505,9 @@ impl CheckState<'_> {
             module,
             arguments: self.format_types(arguments),
         };
-        let diagnostic = match note {
-            Some(note) => error.note(self.format_call_rejection_note(note)),
-            None => error.into(),
-        };
-        self.module_mut(module).diagnostics.push(diagnostic);
+        self.module_mut(module).diagnostics.push(error.into());
 
         Ok(())
-    }
-
-    /// Format one call rejection note.
-    fn format_call_rejection_note(&self, note: CallRejectionNote) -> String {
-        match note {
-            CallRejectionNote::UnionVariant(ty) => {
-                let ty = self.format_type(ty);
-
-                format!("every union variant must accept the call; '{ty}' does not")
-            }
-        }
     }
 
     /// Report one construction whose arguments match no constructor.
@@ -600,8 +584,8 @@ impl CheckState<'_> {
                 let error = CheckError::ArgumentNotAssignable {
                     anchor,
                     module,
-                    source,
-                    target,
+                    source: self.format_type_at(module, source),
+                    target: self.format_type_at(module, target),
                 };
                 self.module_mut(module).diagnostics.push(error.into());
             }
@@ -617,8 +601,20 @@ impl CheckState<'_> {
                 let error = CheckError::ConstraintNotSatisfied {
                     anchor,
                     module,
-                    source,
-                    target,
+                    source: self.format_type_at(module, source),
+                    target: self.format_type_at(module, target),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+
+            // report receiver mismatch on the call itself
+            SignatureRejection::Receiver { source, target } => {
+                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+                let error = CheckError::ReceiverNotAssignable {
+                    anchor,
+                    module,
+                    source: self.format_type_at(module, source),
+                    target: self.format_type_at(module, target),
                 };
                 self.module_mut(module).diagnostics.push(error.into());
             }
@@ -635,9 +631,9 @@ impl CheckState<'_> {
                 let error = CheckError::WritableIndexRequiresIndexSet {
                     anchor,
                     module,
-                    source,
-                    key,
-                    value,
+                    source: self.format_type_at(module, source),
+                    key: self.format_type_at(module, key),
+                    value: self.format_type_at(module, value),
                 };
                 self.module_mut(module).diagnostics.push(error.into());
             }

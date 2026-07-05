@@ -290,7 +290,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let module = site.node.module_id;
         let child_site = self.node_site(child.into_global_any(module))?;
-        let ty = answer!(self.infer_node_type(child_site, PlaceUse::Read)?);
+        answer!(self.infer_node(child_site, PlaceUse::Read)?);
+        // commit the raw child type: both nodes share one flow path,
+        // so the parent read overlays the narrowing itself
+        let ty = answer!(self.committed_node_type(child_site.node)?);
         self.commit_node_type(site.node, ty)?;
 
         Ok(Answer::Ready(()))

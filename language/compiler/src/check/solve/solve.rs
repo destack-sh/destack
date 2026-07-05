@@ -183,7 +183,6 @@ impl CheckState<'_> {
             Constraint::Value(constraint) => self.check_value_constraint(
                 constraint.origin,
                 constraint.relation,
-                Some(constraint.use_),
                 constraint.source,
                 constraint.target,
             )?,
