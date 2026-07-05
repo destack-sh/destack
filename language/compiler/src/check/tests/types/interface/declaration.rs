@@ -77,12 +77,13 @@ interface Serialize<S: Serializer> {
 
 === checked ===
 interface Serializer {
+/// @generic.template symbol=Serializer parameters=()
 /// @type.symbol symbol=Serializer type=Serializer
-/// @definition.interface symbol=Serializer
+/// @definition.interface symbol=Serializer template=()
 /// @definition.method symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" slot=serializeValue type=<T: Serialize<this>>(this: Serializer, T) => void
 
     serializeValue<T: Serialize<this>>(value: T): void;
-    /// @generic.template symbol=Serializer.serializeValue parameters=(T: Serialize<this>)
+    /// @generic.template symbol=Serializer.serializeValue parent=template#0 parameters=(T: Serialize<this>)
     /// @type.symbol symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" type=<T: Serialize<this>>(this: Serializer, T) => void
     /// @type.symbol symbol=Serializer.serializeValue.T source="T: Serialize<this>" type=T
     /// @resolution.name source=Serialize target=Serialize

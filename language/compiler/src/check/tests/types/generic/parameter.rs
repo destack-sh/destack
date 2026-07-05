@@ -787,8 +787,9 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 
 === checked ===
 interface Hash {
+/// @generic.template symbol=Hash parameters=()
 /// @type.symbol symbol=Hash type=Hash
-/// @definition.interface symbol=Hash
+/// @definition.interface symbol=Hash template=()
 /// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=(this: Hash) => float64
 
     hash(): float64;
@@ -907,8 +908,9 @@ function twice<T>(value: T): int32 where T: Doubling {
 
 === checked ===
 interface Doubling {
+/// @generic.template symbol=Doubling parameters=()
 /// @type.symbol symbol=Doubling type=Doubling
-/// @definition.interface symbol=Doubling
+/// @definition.interface symbol=Doubling template=()
 /// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: Doubling) => int32
 
     double(): int32;
@@ -933,4 +935,524 @@ function twice<T>(value: T): int32 where T: Doubling {
 }
 "#,
     );
+}
+
+#[test]
+fn test_exported_static_member_infers_extension_parameters() {
+    let session = TestSession::single(
+        r#"
+declare function todo(message: string): never;
+
+newtype Inner<T> = intrinsic;
+
+extension<T> of Inner<T> {
+    static new(value: T): Inner<T> {
+        todo("Inner.new")
+    }
+}
+
+export struct Cell<T> {
+    storage: Inner<T>;
+}
+
+export extension<T> of Cell<T> {
+    static new(value: T): Cell<T> {
+        Cell { storage: Inner.new(value) }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+declare function todo(message: string): never;
+
+newtype Inner<T> = intrinsic;
+
+extension<T> of Inner<T> {
+    static new(value: T): Inner<T> {
+        todo("Inner.new")
+    }
+}
+
+export struct Cell<T> {
+    storage: Inner<T>;
+}
+
+export extension<T> of Cell<T> {
+    static new(value: T): Cell<T> {
+        Cell { storage: Inner.new<T>(value) }
+    }
+}
+
+=== checked ===
+declare function todo(message: string): never;
+/// @type.symbol symbol=todo source="declare function todo(message: string): never" type=(string) => never
+/// @type.symbol symbol=todo.message source="message: string" type=string
+
+newtype Inner<T> = intrinsic;
+/// @generic.template symbol=Inner parameters=(T#1)
+/// @type.symbol symbol=Inner source="newtype Inner<T> = intrinsic" type=Inner
+/// @definition.newtype symbol=Inner source="newtype Inner<T> = intrinsic" template=(T#1) value=intrinsic
+/// @type.symbol symbol=Inner.T source=T type=T#1
+
+extension<T> of Inner<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Inner<T#2>
+/// @definition.method symbol=new#1 slot=new static=true type=(T#2) => Inner<T#2>
+/// @type.symbol symbol=T#1 source=T type=T#2
+/// @resolution.name source=Inner target=Inner
+/// @resolution.name source=T target=T#1
+
+    static new(value: T): Inner<T> {
+    /// @type.symbol symbol=new#1 type=(T#2) => Inner<T#2>
+    /// @type.symbol symbol=new.value#1 source="value: T" type=T#2
+    /// @resolution.name source=T target=T#1
+    /// @resolution.name source=Inner target=Inner
+    /// @resolution.name source=T target=T#1
+
+        todo("Inner.new")
+        /// @resolution.name source=todo target=todo
+        /// @resolution.call source="todo(\"Inner.new\")" parameters=(string) arguments=(provided("Inner.new") as string) return=never kind=symbol target=todo
+
+    }
+}
+
+export struct Cell<T> {
+/// @generic.template symbol=Cell parameters=(T#3)
+/// @type.symbol symbol=Cell type=Cell
+/// @definition.struct symbol=Cell template=(T#3)
+/// @definition.field symbol=Cell.storage source="storage: Inner<T>" key=storage type=Inner<T#3>
+/// @type.symbol symbol=Cell.T source=T type=T#3
+
+    storage: Inner<T>;
+    /// @type.symbol symbol=Cell.storage source="storage: Inner<T>" type=Inner<T#3>
+    /// @resolution.name source=Inner target=Inner
+    /// @resolution.name source=T target=Cell.T
+
+}
+
+export extension<T> of Cell<T> {
+/// @generic.template symbol=<module>#3 parameters=(T#4)
+/// @definition.extension symbol=<module>#3 form=exported target=Cell<T#4>
+/// @definition.method symbol=new#2 slot=new static=true type=(T#4) => Cell<T#4>
+/// @type.symbol symbol=T#2 source=T type=T#4
+/// @resolution.name source=Cell target=Cell
+/// @resolution.name source=T target=T#2
+
+    static new(value: T): Cell<T> {
+    /// @type.symbol symbol=new#2 type=(T#4) => Cell<T#4>
+    /// @type.symbol symbol=new.value#2 source="value: T" type=T#4
+    /// @resolution.name source=T target=T#2
+    /// @resolution.name source=Cell target=Cell
+    /// @resolution.name source=T target=T#2
+
+        Cell { storage: Inner.new(value) }
+        /// @resolution.name source=Cell target=Cell
+        /// @resolution.name source=Inner target=Inner
+        /// @resolution.member source=Inner.new receiver=Inner kind=symbol target=new#1
+        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner
+        /// @resolution.name source=value target=new.value#2
+
+    }
+}
+
+/// @generic.instance id=Cell<T#4> template=Cell arguments=(T#4)
+/// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
+/// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
+"#, r#""#);
+}
+
+#[test]
+fn test_static_member_selects_through_a_parameter_bound() {
+    let session = TestSession::single(
+        r#"
+interface Makeable {
+    static make(): this;
+}
+
+function build<T: Makeable>(): T {
+    T.make()
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Makeable {
+    static make(): this;
+}
+
+function build<T: Makeable>(): T {
+    T.make()
+}
+
+=== checked ===
+interface Makeable {
+/// @generic.template symbol=Makeable parameters=()
+/// @type.symbol symbol=Makeable type=Makeable
+/// @definition.interface symbol=Makeable template=()
+/// @definition.method symbol=Makeable.make source="static make(): this" slot=make static=true type=() => this
+
+    static make(): this;
+    /// @type.symbol symbol=Makeable.make source="static make(): this" type=() => this
+
+}
+
+function build<T: Makeable>(): T {
+/// @generic.template symbol=build parameters=(T: Makeable)
+/// @type.symbol symbol=build type=<T: Makeable>() => T
+/// @type.symbol symbol=build.T source="T: Makeable" type=T
+/// @resolution.name source=Makeable target=Makeable
+/// @resolution.name source=T target=build.T
+
+    T.make()
+    /// @resolution.name source=T target=build.T
+    /// @resolution.member source=T.make receiver=T kind=symbol target=Makeable.make
+    /// @resolution.call source=T.make() parameters=() return=T kind=symbol target=Makeable.make receiver=T
+
+}
+"#, r#""#);
+}
+
+#[test]
+fn test_static_member_infers_extension_parameters_at_calls() {
+    let session = TestSession::single(
+        r#"
+class Box<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+extension<T> of Box<T> {
+    static make(value: T): Box<T> {
+        new Box<T>(value)
+    }
+}
+
+extension<T> of Box<T> {
+    static wrap(value: T): Box<T> {
+        Box.make(value)
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Box<T> {
+    value: T;
+
+    constructor(value: T): Box<T> {
+        this.value = value;
+    }
+}
+
+extension<T> of Box<T> {
+    static make(value: T): Box<T> {
+        new Box<T>(value)
+    }
+}
+
+extension<T> of Box<T> {
+    static wrap(value: T): Box<T> {
+        Box.make<T>(value)
+    }
+}
+
+=== checked ===
+class Box<T> {
+/// @generic.template symbol=Box parameters=(T#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.class symbol=Box template=(T#1)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @definition.method symbol=Box.constructor slot=constructor role=constructor type=(T#1) => Box<T#1>
+/// @type.symbol symbol=Box.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+    constructor(value: T) {
+    /// @type.symbol symbol=Box.constructor type=(T#1) => Box<T#1>
+    /// @type.symbol symbol=Box.constructor.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+        this.value = value;
+        /// @resolution.receiver source=this kind=this declaration=Box type=Box<T#1>
+        /// @resolution.pattern.assign source=this.value kind=place place=field(Box.value) type=T#1
+        /// @resolution.name source=value target=Box.constructor.value
+
+    }
+}
+
+extension<T> of Box<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
+/// @definition.method symbol=make slot=make static=true type=(T#2) => Box<T#2>
+/// @type.symbol symbol=T#1 source=T type=T#2
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T#1
+
+    static make(value: T): Box<T> {
+    /// @type.symbol symbol=make type=(T#2) => Box<T#2>
+    /// @type.symbol symbol=make.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T#1
+    /// @resolution.name source=Box target=Box
+    /// @resolution.name source=T target=T#1
+
+        new Box<T>(value)
+        /// @resolution.construct source="new Box<T>(value)" parameters=(T#2) arguments=(provided(value) as T#2) return=Box<T#2> kind=class target=Box constructor=Box.constructor instance=Box<T#2>
+        /// @generic.instance source="new Box<T>(value)" id=Box<T#2>
+        /// @resolution.name source=Box target=Box
+        /// @resolution.name source=T target=T#1
+        /// @resolution.name source=value target=make.value
+
+    }
+}
+
+extension<T> of Box<T> {
+/// @generic.template symbol=<module>#3 parameters=(T#3)
+/// @definition.extension symbol=<module>#3 form=local target=Box<T#3>
+/// @definition.method symbol=wrap slot=wrap static=true type=(T#3) => Box<T#3>
+/// @type.symbol symbol=T#2 source=T type=T#3
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=T#2
+
+    static wrap(value: T): Box<T> {
+    /// @type.symbol symbol=wrap type=(T#3) => Box<T#3>
+    /// @type.symbol symbol=wrap.value source="value: T" type=T#3
+    /// @resolution.name source=T target=T#2
+    /// @resolution.name source=Box target=Box
+    /// @resolution.name source=T target=T#2
+
+        Box.make(value)
+        /// @resolution.name source=Box target=Box
+        /// @resolution.member source=Box.make receiver=Box kind=symbol target=make
+        /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make receiver=Box
+        /// @resolution.name source=value target=wrap.value
+
+    }
+}
+
+/// @generic.instance id=Box<T#1> template=Box arguments=(T#1)
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+/// @generic.instance id=Box<T#3> template=Box arguments=(T#3)
+"#, r#""#);
+}
+
+#[test]
+fn test_expected_field_type_drives_static_member_inference() {
+    let session = TestSession::single(
+        r#"
+struct Inner<T> {
+    value: T;
+}
+
+extension<T> of Inner<T> {
+    static new(value: T): Inner<T> {
+        Inner { value }
+    }
+}
+
+struct Outer<T> {
+    inner: Inner<T>;
+}
+
+extension<T> of Outer<T> {
+    static new(value: T): Outer<T> {
+        Outer { inner: Inner.new(value) }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Inner<T> {
+    value: T;
+}
+
+extension<T> of Inner<T> {
+    static new(value: T): Inner<T> {
+        Inner { value }
+    }
+}
+
+struct Outer<T> {
+    inner: Inner<T>;
+}
+
+extension<T> of Outer<T> {
+    static new(value: T): Outer<T> {
+        Outer { inner: Inner.new<T>(value) }
+    }
+}
+
+=== checked ===
+struct Inner<T> {
+/// @generic.template symbol=Inner parameters=(T#1)
+/// @type.symbol symbol=Inner type=Inner
+/// @definition.struct symbol=Inner template=(T#1)
+/// @definition.field symbol=Inner.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Inner.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Inner.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Inner.T
+
+}
+
+extension<T> of Inner<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=local target=Inner<T#2>
+/// @definition.method symbol=new#1 slot=new static=true type=(T#2) => Inner<T#2>
+/// @type.symbol symbol=T#1 source=T type=T#2
+/// @resolution.name source=Inner target=Inner
+/// @resolution.name source=T target=T#1
+
+    static new(value: T): Inner<T> {
+    /// @type.symbol symbol=new#1 type=(T#2) => Inner<T#2>
+    /// @type.symbol symbol=new.value#1 source="value: T" type=T#2
+    /// @resolution.name source=T target=T#1
+    /// @resolution.name source=Inner target=Inner
+    /// @resolution.name source=T target=T#1
+
+        Inner { value }
+        /// @resolution.name source=Inner target=Inner
+        /// @resolution.name source=value target=new.value#1
+
+    }
+}
+
+struct Outer<T> {
+/// @generic.template symbol=Outer parameters=(T#3)
+/// @type.symbol symbol=Outer type=Outer
+/// @definition.struct symbol=Outer template=(T#3)
+/// @definition.field symbol=Outer.inner source="inner: Inner<T>" key=inner type=Inner<T#3>
+/// @type.symbol symbol=Outer.T source=T type=T#3
+
+    inner: Inner<T>;
+    /// @type.symbol symbol=Outer.inner source="inner: Inner<T>" type=Inner<T#3>
+    /// @resolution.name source=Inner target=Inner
+    /// @resolution.name source=T target=Outer.T
+
+}
+
+extension<T> of Outer<T> {
+/// @generic.template symbol=<module>#3 parameters=(T#4)
+/// @definition.extension symbol=<module>#3 form=local target=Outer<T#4>
+/// @definition.method symbol=new#2 slot=new static=true type=(T#4) => Outer<T#4>
+/// @type.symbol symbol=T#2 source=T type=T#4
+/// @resolution.name source=Outer target=Outer
+/// @resolution.name source=T target=T#2
+
+    static new(value: T): Outer<T> {
+    /// @type.symbol symbol=new#2 type=(T#4) => Outer<T#4>
+    /// @type.symbol symbol=new.value#2 source="value: T" type=T#4
+    /// @resolution.name source=T target=T#2
+    /// @resolution.name source=Outer target=Outer
+    /// @resolution.name source=T target=T#2
+
+        Outer { inner: Inner.new(value) }
+        /// @resolution.name source=Outer target=Outer
+        /// @resolution.name source=Inner target=Inner
+        /// @resolution.member source=Inner.new receiver=Inner kind=symbol target=new#1
+        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner
+        /// @resolution.name source=value target=new.value#2
+
+    }
+}
+
+/// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
+/// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
+/// @generic.instance id=Outer<T#4> template=Outer arguments=(T#4)
+"#, r#""#);
+}
+
+#[test]
+fn test_call_result_assigns_into_a_union_result() {
+    let session = TestSession::single(
+        r#"
+function pair<T>(a: T): (T, boolean) {
+    (a, true)
+}
+
+function check<T>(a: T): T | undefined {
+    let (result, overflow) = pair(a);
+
+    if (overflow) {
+        return undefined;
+    }
+
+    result
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+function pair<T>(a: T): (T, boolean) {
+    (a, true)
+}
+
+function check<T>(a: T): T | undefined {
+    let (result, overflow) = pair<T>(a);
+
+    if (overflow) {
+        return undefined as T | undefined;
+    }
+
+    result
+} as T | undefined
+
+=== checked ===
+function pair<T>(a: T): (T, boolean) {
+/// @generic.template symbol=pair parameters=(T#1)
+/// @type.symbol symbol=pair type=<T#1>(T#1) => (T#1, boolean)
+/// @type.symbol symbol=pair.T source=T type=T#1
+/// @type.symbol symbol=pair.a source="a: T" type=T#1
+/// @resolution.name source=T target=pair.T
+/// @resolution.name source=T target=pair.T
+
+    (a, true)
+    /// @resolution.name source=a target=pair.a
+
+}
+
+function check<T>(a: T): T | undefined {
+/// @generic.template symbol=check parameters=(T#2)
+/// @type.symbol symbol=check type=<T#2>(T#2) => T#2 | undefined
+/// @type.symbol symbol=check.T source=T type=T#2
+/// @type.symbol symbol=check.a source="a: T" type=T#2
+/// @resolution.name source=T target=check.T
+/// @resolution.name source=T target=check.T
+
+    let (result, overflow) = pair(a);
+    /// @resolution.pattern source=(result, overflow) kind=tuple fields=(check.result, check.overflow)
+    /// @type.symbol symbol=check.result source=result type=T#2
+    /// @resolution.pattern source=result kind=binding target=check.result
+    /// @type.symbol symbol=check.overflow source=overflow type=boolean
+    /// @resolution.pattern source=overflow kind=binding target=check.overflow
+    /// @resolution.name source=pair target=pair
+    /// @resolution.call source=pair(a) parameters=(T#2) arguments=(provided(a) as T#2) return=(T#2, boolean) kind=symbol target=pair instance=pair<T#2>
+    /// @generic.instance source=pair(a) id=pair<T#2>
+    /// @resolution.name source=a target=check.a
+
+    if (overflow) {
+    /// @resolution.name source=overflow target=check.overflow
+
+        return undefined;
+    }
+
+    result
+    /// @resolution.name source=result target=check.result
+
+}
+
+/// @generic.instance id=pair<T#2> template=pair arguments=(T#2)
+"#, r#""#);
 }

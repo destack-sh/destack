@@ -169,7 +169,7 @@ type User = {
     readonly age: int32;
 };
 
-function get<K: keyof User, T1: User>(user: T1, key: K): User[K] {
+function get<K: keyof User>(user: User, key: K): User[K] {
     let { [key]: value } = user;
     return value;
 }
@@ -184,11 +184,11 @@ type User = {
 };
 
 function get<K: keyof User>(user: User, key: K): User[K] {
-/// @generic.template symbol=get parameters=(K: keyof User, T1: User)
-/// @type.symbol symbol=get type=<K: keyof User, get.T1: User>(get.T1, K) => User[K]
+/// @generic.template symbol=get parameters=(K: keyof User)
+/// @type.symbol symbol=get type=<K: keyof User>(User, K) => User[K]
 /// @type.symbol symbol=get.K source="K: keyof User" type=K
 /// @resolution.name source=User target=User
-/// @type.symbol symbol=get.user source="user: User" type=get.T1
+/// @type.symbol symbol=get.user source="user: User" type=User reduced={ readonly name: string; readonly age: int32 }
 /// @resolution.name source=User target=User
 /// @type.symbol symbol=get.key source="key: K" type=K
 /// @resolution.name source=K target=get.K
@@ -201,7 +201,7 @@ function get<K: keyof User>(user: User, key: K): User[K] {
     /// @resolution.name source=key target=get.key
     /// @type.symbol symbol=get.value source=value type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.pattern source=value kind=binding target=get.value
-    /// @type.node source=user type=get.T1
+    /// @type.node source=user type=User reduced={ readonly name: string; readonly age: int32 }
     /// @resolution.name source=user target=get.user
 
     return value;

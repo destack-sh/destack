@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_shift_keeps_left_operand_type() {
+fn test_shift_keeps_the_typed_left_operand_and_folds_literals() {
     let session = TestSession::single(
         r#"
 declare const flags: int32;
@@ -14,7 +14,7 @@ const literal = 1 << 5;
 === annotated ===
 declare const flags: int32;
 const shifted: int32 = flags << 5;
-const literal: int = 1 << 5;
+const literal: 32 = 1 << 5;
 
 === checked ===
 declare const flags: int32;
@@ -26,8 +26,8 @@ const shifted = flags << 5;
 /// @resolution.call source="flags << 5" parameters=() return=int32 kind=builtin builtin=binary.shift_left
 
 const literal = 1 << 5;
-/// @type.symbol symbol=literal source=literal type=int
-/// @resolution.call source="1 << 5" parameters=() return=int kind=builtin builtin=binary.shift_left
+/// @type.symbol symbol=literal source=literal type=32
+/// @resolution.call source="1 << 5" parameters=() return=32 kind=builtin builtin=binary.shift_left
 "#);
 }
 

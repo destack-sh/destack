@@ -196,3 +196,46 @@ class User {
 "#,
     );
 }
+
+#[test]
+fn test_definite_assertion_waives_constructor_initialization() {
+    let session = TestSession::single(
+        r#"
+class Connection {
+    handle!: int32;
+    count: int32;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Connection {
+    handle!: int32;
+    count: int32;
+}
+
+=== checked ===
+class Connection {
+/// @type.symbol symbol=Connection type=Connection
+/// @definition.class symbol=Connection
+/// @definition.field symbol=Connection.count source="count: int32" key=count type=int32
+/// @definition.field symbol=Connection.handle source="handle!: int32" key=handle type=int32
+
+    handle!: int32;
+    /// @type.symbol symbol=Connection.handle source="handle!: int32" type=int32
+
+    count: int32;
+    /// @type.symbol symbol=Connection.count source="count: int32" type=int32
+
+}
+"#,
+        r#"
+/// @diagnostic.error code=EC613 message="field 'count' is not initialized on every constructor path"
+/// @diagnostic.label line=4 column=5 span="count" line_source="count: int32;"
+"#,
+    );
+}

@@ -3,6 +3,7 @@ mod catch;
 mod computed;
 mod condition;
 mod default;
+mod exhaustive;
 mod field;
 mod r#let;
 mod r#loop;

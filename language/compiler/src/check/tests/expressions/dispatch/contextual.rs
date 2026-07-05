@@ -1,0 +1,267 @@
+use crate::tests::{DirRows, TestSession};
+
+#[test]
+fn test_field_initializer_instantiates_a_generic_static_from_the_declared_type() {
+    let session = TestSession::single(
+        r#"
+class Bag<T> {
+    values: T[] = Array.new();
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Bag<T> {
+    values: T[] = Array.new() as T[];
+}
+
+=== checked ===
+class Bag<T> {
+/// @generic.template symbol=Bag parameters=(T)
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.class symbol=Bag template=(T)
+/// @definition.field symbol=Bag.values source="values: T[] = Array.new()" key=values type=Array<T>
+/// @type.symbol symbol=Bag.T source=T type=T
+
+    values: T[] = Array.new();
+    /// @type.symbol symbol=Bag.values source="values: T[] = Array.new()" type=Array<T>
+    /// @resolution.name source=T target=Bag.T
+    /// @type.node source=Array type=Array
+    /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#6>>
+    /// @type.node source=Array.new() type=Owned<Array<T>>
+    /// @resolution.name source=Array target=collections.array.Array
+    /// @resolution.member source=Array.new receiver=Array kind=symbol target=collections.array.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new receiver=Array
+    /// @generic.instance source=Array.new id=Array<collections.array.T#6>
+    /// @generic.instance source=Array.new() id=Array<T>
+
+}
+
+/// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
+/// @generic.instance id=Array<collections.array.T#6> template=collections.array.Array arguments=(collections.array.T#6)
+"#,
+        r#""#,
+    );
+}
+
+#[test]
+fn test_let_initializer_instantiates_a_generic_static_from_the_annotation() {
+    let session = TestSession::single(
+        r#"
+function build(): void {
+    let values: int32[] = Array.new();
+    values;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+function build(): void {
+    let values: int32[] = Array.new() as int32[];
+    values;
+}
+
+=== checked ===
+function build(): void {
+/// @type.symbol symbol=build type=() => void
+
+    let values: int32[] = Array.new();
+    /// @type.symbol symbol=build.values source=values type=Array<int32>
+    /// @type.node source=Array type=Array
+    /// @type.node source=Array.new type=() => Owned<Array<collections.array.T#6>>
+    /// @type.node source=Array.new() type=Owned<Array<int32>>
+    /// @resolution.name source=Array target=collections.array.Array
+    /// @resolution.member source=Array.new receiver=Array kind=symbol target=collections.array.new
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new receiver=Array
+    /// @generic.instance source=Array.new id=Array<collections.array.T#6>
+    /// @generic.instance source=Array.new() id=Array<int32>
+
+    values;
+    /// @type.node source=values type=Array<int32>
+    /// @resolution.name source=values target=build.values
+
+}
+
+/// @generic.instance id=Array<collections.array.T#6> template=collections.array.Array arguments=(collections.array.T#6)
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+"#,
+        r#""#,
+    );
+}
+
+#[test]
+fn test_comptime_literal_fields_bind_the_declared_result_parameters() {
+    // the declared result instantiates the literal's template holes,
+    // and the comptime field literals prove against the rigid
+    // parameter through its scalar-family bound
+    let session = TestSession::single(
+        r#"
+import { Numeric } from "destack:math";
+
+struct Pair<T> {
+    x: T;
+    y: T;
+}
+
+export extension<T: Numeric> of Pair<T> {
+    static zero(): Pair<T> {
+        Pair { x: 0, y: 0 }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Numeric } from "destack:math";
+
+struct Pair<T> {
+    x: T;
+    y: T;
+}
+
+export extension<T: Numeric> of Pair<T> {
+    static zero(): Pair<T> {
+        Pair { x: 0, y: 0 }
+    }
+}
+
+=== checked ===
+import { Numeric } from "destack:math";
+
+struct Pair<T> {
+/// @generic.template symbol=Pair parameters=(T#1)
+/// @type.symbol symbol=Pair type=Pair
+/// @definition.struct symbol=Pair template=(T#1)
+/// @definition.field symbol=Pair.x source="x: T" key=x type=T#1
+/// @definition.field symbol=Pair.y source="y: T" key=y type=T#1
+/// @type.symbol symbol=Pair.T source=T type=T#1
+
+    x: T;
+    /// @type.symbol symbol=Pair.x source="x: T" type=T#1
+    /// @resolution.name source=T target=Pair.T
+
+    y: T;
+    /// @type.symbol symbol=Pair.y source="y: T" type=T#1
+    /// @resolution.name source=T target=Pair.T
+
+}
+
+export extension<T: Numeric> of Pair<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2: math.scalar.Numeric)
+/// @definition.extension symbol=<module>#2 form=exported target=Pair<T#2>
+/// @definition.method symbol=zero slot=zero static=true type=() => Pair<T#2>
+/// @type.symbol symbol=T source="T: Numeric" type=T#2
+/// @resolution.name source=Numeric target=math.scalar.Numeric
+/// @resolution.name source=Pair target=Pair
+/// @resolution.name source=T target=T
+
+    static zero(): Pair<T> {
+    /// @type.symbol symbol=zero type=() => Pair<T#2>
+    /// @resolution.name source=Pair target=Pair
+    /// @resolution.name source=T target=T
+
+        Pair { x: 0, y: 0 }
+        /// @type.node source="Pair { x: 0, y: 0 }" type=Pair<T#2>
+        /// @resolution.name source=Pair target=Pair
+        /// @generic.instance source="Pair { x: 0, y: 0 }" id=Pair<T#2>
+        /// @type.node source=0 type=0
+        /// @type.node source=0 type=0
+
+    }
+}
+
+/// @generic.instance id=Pair<T#2> template=Pair arguments=(T#2)
+
+"#,
+        r#""#,
+    );
+}
+
+#[test]
+fn test_phantom_parameters_instantiate_from_the_declared_result() {
+    // parameters no field mentions still take their canonical
+    // instantiation from the declared result type
+    let session = TestSession::single(
+        r#"
+struct Tag<T> {
+    name: string;
+}
+
+export extension<T> of Tag<T> {
+    static new(name: string): Tag<T> {
+        Tag { name }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Tag<T> {
+    name: string;
+}
+
+export extension<T> of Tag<T> {
+    static new(name: string): Tag<T> {
+        Tag { name }
+    }
+}
+
+=== checked ===
+struct Tag<T> {
+/// @generic.template symbol=Tag parameters=(T#1)
+/// @type.symbol symbol=Tag type=Tag
+/// @definition.struct symbol=Tag template=(T#1)
+/// @definition.field symbol=Tag.name source="name: string" key=name type=string
+/// @type.symbol symbol=Tag.T source=T type=T#1
+
+    name: string;
+    /// @type.symbol symbol=Tag.name source="name: string" type=string
+
+}
+
+export extension<T> of Tag<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @definition.extension symbol=<module>#2 form=exported target=Tag<T#2>
+/// @definition.method symbol=new slot=new static=true type=(string) => Tag<T#2>
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Tag target=Tag
+/// @resolution.name source=T target=T
+
+    static new(name: string): Tag<T> {
+    /// @type.symbol symbol=new type=(string) => Tag<T#2>
+    /// @type.symbol symbol=new.name source="name: string" type=string
+    /// @resolution.name source=Tag target=Tag
+    /// @resolution.name source=T target=T
+
+        Tag { name }
+        /// @type.node source="Tag { name }" type=Tag<T#2>
+        /// @resolution.name source=Tag target=Tag
+        /// @generic.instance source="Tag { name }" id=Tag<T#2>
+        /// @type.node source=name type=string
+        /// @resolution.name source=name target=new.name
+
+    }
+}
+
+/// @generic.instance id=Tag<T#2> template=Tag arguments=(T#2)
+
+"#,
+        r#""#,
+    );
+}

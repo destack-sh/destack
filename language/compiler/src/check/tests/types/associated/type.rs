@@ -197,8 +197,9 @@ declare const made: Made<Factory>;
 
 === checked ===
 interface Producing {
+/// @generic.template symbol=Producing parameters=()
 /// @type.symbol symbol=Producing type=Producing
-/// @definition.interface symbol=Producing
+/// @definition.interface symbol=Producing template=()
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
 /// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => this.Output
 
@@ -210,8 +211,10 @@ interface Producing {
 }
 
 class Factory implements Producing {
+/// @generic.template symbol=Factory parameters=()
 /// @type.symbol symbol=Factory type=Factory
-/// @definition.class symbol=Factory
+/// @definition.class symbol=Factory template=()
+/// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
 /// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => Factory.Output

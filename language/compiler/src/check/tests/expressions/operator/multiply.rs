@@ -125,7 +125,7 @@ extension of Meters implements Multiply<Meters> {
     type Output = float64;
 
     multiply(other: Meters): float64 {
-        todo("Meters.multiply")
+        todo("Meters.multiply" as string | undefined)
     }
 }
 
@@ -159,7 +159,7 @@ extension of Meters implements Multiply<Meters> {
 
         todo("Meters.multiply")
         /// @resolution.name source=todo target=error.panic.todo
-        /// @resolution.call source="todo(\"Meters.multiply\")" parameters=(string) arguments=(provided("Meters.multiply") as string) return=never kind=symbol target=error.panic.todo
+        /// @resolution.call source="todo(\"Meters.multiply\")" parameters=(string | undefined) arguments=(provided("Meters.multiply") as string | undefined) return=never kind=symbol target=error.panic.todo
 
     }
 }

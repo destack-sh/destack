@@ -12,6 +12,7 @@ mod newtype;
 mod object;
 mod operator;
 mod representation;
+mod scalar;
 mod r#struct;
 mod template;
 mod utility;

@@ -29,8 +29,9 @@ interface Drawable extends Named {
 
 === checked ===
 interface Named {
+/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=()
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
 
     name(): string;
@@ -39,8 +40,9 @@ interface Named {
 }
 
 interface Drawable extends Named {
+/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable
+/// @definition.interface symbol=Drawable template=()
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 /// @resolution.name source=Named target=Named
@@ -165,16 +167,19 @@ interface Drawable extends Named | DrawableBase {}
 
 === checked ===
 interface Named {}
+/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named source="interface Named {}" type=Named
-/// @definition.interface symbol=Named source="interface Named {}"
+/// @definition.interface symbol=Named source="interface Named {}" template=()
 
 interface DrawableBase {}
+/// @generic.template symbol=DrawableBase parameters=()
 /// @type.symbol symbol=DrawableBase source="interface DrawableBase {}" type=DrawableBase
-/// @definition.interface symbol=DrawableBase source="interface DrawableBase {}"
+/// @definition.interface symbol=DrawableBase source="interface DrawableBase {}" template=()
 
 interface Drawable extends Named | DrawableBase {}
+/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" type=Drawable
-/// @definition.interface symbol=Drawable source="interface Drawable extends Named | DrawableBase {}"
+/// @definition.interface symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" template=()
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=DrawableBase target=DrawableBase
 "#,
