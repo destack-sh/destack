@@ -256,6 +256,8 @@ pub struct DirCheckedModule {
     pub bindings: Arc<dir::BindingSegment>,
     /// New decorator applications.
     pub decorators: Arc<dir::DecoratorSegment>,
+    /// Auto-derived implementations.
+    pub auto: Arc<dir::AutoSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// New static values.
@@ -298,6 +300,11 @@ impl DirCheckedModule {
     /// Return the cumulative decorator table for checked DIR.
     pub fn decorator_table(&self) -> dir::DecoratorTable<'static> {
         dir::DecoratorTable::from_segment(self.decorators.clone())
+    }
+
+    /// Return the cumulative auto implementation table for checked DIR.
+    pub fn auto_table(&self) -> dir::AutoTable<'static> {
+        dir::AutoTable::from_segment(self.auto.clone())
     }
 
     /// Return the cumulative type table for checked DIR.

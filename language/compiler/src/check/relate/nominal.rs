@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, AutoInterface, CheckState, Dependency, Origin, Relation, answer};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, answer};
 
 /// One applied heritage edge in a nominal declaration closure.
 #[derive(Debug, Clone)]
@@ -218,7 +218,8 @@ impl CheckState<'_> {
                 if let Some(interface) = target_instance
                     .as_ref()
                     .and_then(|instance| self.language_item(instance.symbol).ok().flatten())
-                    .and_then(AutoInterface::from_language_item) =>
+                    .and_then(dir::AutoInterface::from_language_item)
+                    .filter(|interface| interface.has_auto_conformance()) =>
             {
                 self.satisfies_auto_interface(origin, source, interface)
             }

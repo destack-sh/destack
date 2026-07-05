@@ -1,5 +1,4 @@
 mod assign;
-mod auto;
 mod cast;
 mod closed;
 mod decompose;
@@ -15,5 +14,4 @@ mod union;
 mod variance;
 mod widen;
 
-pub(in crate::check) use auto::*;
 pub(in crate::check) use variance::*;
