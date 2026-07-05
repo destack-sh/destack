@@ -172,7 +172,7 @@ impl WalkState<'_, '_> {
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
 
-        self.narrow_flow_path_by(path, value.into_any(), predicate)
+        self.narrow_flow_path_by(path, predicate)
     }
 
     /// Narrow flow from one `"key" in value` expression.
@@ -196,7 +196,7 @@ impl WalkState<'_, '_> {
         let Some(key) = self.tree.get(key).static_key() else {
             return Ok(());
         };
-        self.narrow_flow_path_by(path, value.into_any(), NarrowPredicate::Has(key))
+        self.narrow_flow_path_by(path, NarrowPredicate::Has(key))
     }
 
     /// Narrow flow from one `value instanceof Target` expression.
@@ -222,7 +222,7 @@ impl WalkState<'_, '_> {
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
 
-        self.narrow_flow_path_by(path, value.into_any(), predicate)
+        self.narrow_flow_path_by(path, predicate)
     }
 
     /// Return the instance type named by one `instanceof` target.
@@ -283,7 +283,7 @@ impl WalkState<'_, '_> {
             ConditionBranch::True => NarrowPredicate::Is(target),
             ConditionBranch::False => NarrowPredicate::IsNot(target),
         };
-        self.narrow_flow_path_by(path, value.into_any(), predicate)?;
+        self.narrow_flow_path_by(path, predicate)?;
         self.narrow_parent_by_member_predicate(value, predicate)?;
 
         Ok(())
@@ -307,12 +307,12 @@ impl WalkState<'_, '_> {
         let Some((base_path, key)) = path.split_last() else {
             return Ok(());
         };
-        let Some(base) = self.member_base_expression(value) else {
+        if self.member_base_expression(value).is_none() {
             return Ok(());
-        };
+        }
 
         // narrow base with a structural member predicate
-        self.narrow_base_flow_path_by_member(base_path, base.into_any(), key, predicate)
+        self.narrow_base_flow_path_by_member(base_path, key, predicate)
     }
 
     /// Return the base expression for one member path expression.

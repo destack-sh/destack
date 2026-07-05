@@ -366,6 +366,7 @@ impl WalkState<'_, '_> {
                 declared_type,
                 default,
                 is_optional,
+                is_definite,
                 is_static,
                 is_abstract,
                 is_override,
@@ -373,7 +374,8 @@ impl WalkState<'_, '_> {
             } => {
                 let (key, declared_type, default, is_optional, is_static) =
                     (*key, *declared_type, *default, *is_optional, *is_static);
-                let (is_abstract, is_override) = (*is_abstract, *is_override);
+                let (is_definite, is_abstract, is_override) =
+                    (*is_definite, *is_abstract, *is_override);
                 if declared_type.is_none() && default.is_none() {
                     self.check
                         .report_missing_type_annotation(self.module, id.into_any());
@@ -464,6 +466,7 @@ impl WalkState<'_, '_> {
                         source: id.into_global_any(self.module),
                         key,
                         initializer: default.map(|default| default.into_global_any(self.module)),
+                        is_definite,
                         is_abstract,
                         is_override,
                     })),
@@ -766,6 +769,7 @@ impl WalkState<'_, '_> {
                     source,
                     key,
                     initializer: None,
+                    is_definite: false,
                     is_abstract: false,
                     is_override: false,
                 })))

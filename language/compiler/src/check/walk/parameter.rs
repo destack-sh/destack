@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Expectation, GenericInductionParameter, GenericParameterId, GenericTemplateId, Origin,
-    ParameterType, ValueUse, WalkState,
+    Expectation, GenericInductionParameter, GenericInductionPosition, GenericParameterId,
+    GenericTemplateId, Origin, ParameterType, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -175,6 +175,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
         is_annotation_required: bool,
+        induction: Option<GenericInductionPosition>,
     ) -> CompilerResult<Option<ParameterType>> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
@@ -202,7 +203,7 @@ impl WalkState<'_, '_> {
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let parameter_type = self.walk_parameter_type(id)?;
+                let parameter_type = self.walk_parameter_type(id, induction)?;
 
                 // bind the parameter name to its type
                 if let Some(symbol) = symbol {
@@ -260,7 +261,7 @@ impl WalkState<'_, '_> {
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let parameter_type = self.walk_parameter_type(id)?;
+                let parameter_type = self.walk_parameter_type(id, induction)?;
 
                 // bind the variadic parameter name to its type
                 if let Some(symbol) = symbol {
@@ -297,7 +298,7 @@ impl WalkState<'_, '_> {
 
                 // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
-                let parameter_type = self.walk_parameter_type(id)?;
+                let parameter_type = self.walk_parameter_type(id, induction)?;
                 if let Some(parameter_type) = parameter_type {
                     let expectation = Expectation::assignable(
                         parameter_type.binding,
@@ -347,7 +348,7 @@ impl WalkState<'_, '_> {
 
                 // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
-                if let Some(parameter_type) = self.walk_parameter_type(id)? {
+                if let Some(parameter_type) = self.walk_parameter_type(id, induction)? {
                     let expectation = Expectation::assignable(
                         parameter_type.binding,
                         Origin::Node(

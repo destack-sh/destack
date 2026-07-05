@@ -65,7 +65,13 @@ impl WalkState<'_, '_> {
 
         // set block value type
         if block.context == dir::BlockContext::Expression {
-            self.queue_node_task(id, PlaceUse::Read)?;
+            // blocks that cannot reach their end never produce a value
+            if !is_reachable {
+                let never = self.intern_type(dir::Type::Never)?;
+                self.commit_node_type(id, never)?;
+            } else {
+                self.queue_node_task(id, PlaceUse::Read)?;
+            }
         } else {
             let void = self.intern_type(dir::Type::Void)?;
             self.commit_node_type(id, void)?;

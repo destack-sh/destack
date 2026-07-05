@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ControlTarget, Expectation, FlowBranch, FlowSite, Origin, Relation, Task, TryPropagation,
-    TryPropagationTarget, TryTarget, ValueUse, WalkState, Widening,
+    ControlTarget, ControlTargetForm, Expectation, FlowBranch, FlowSite, Origin, Relation, Task,
+    TryPropagation, TryPropagationTarget, TryTarget, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -11,13 +11,13 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn enter_control_target(
         &mut self,
         label: Option<dir::StringId>,
-        allows_continue: bool,
+        form: ControlTargetForm,
     ) {
         // capture flow state before the control body
         let checkpoint = self.flow().fork();
         let target = ControlTarget {
             label,
-            allows_continue,
+            form,
             break_values: Vec::new(),
             break_branches: Vec::new(),
             continue_branches: Vec::new(),

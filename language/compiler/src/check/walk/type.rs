@@ -631,6 +631,7 @@ impl WalkState<'_, '_> {
                 base,
                 &path.segments[from as usize..],
                 generic_arguments,
+                position,
             ),
 
             // reject resolve conflicts in type position
@@ -896,6 +897,7 @@ impl WalkState<'_, '_> {
         base: dir::GlobalSymbolId,
         tail: &[dir::StringId],
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.capture_symbol_reference(base);
         self.check.commit_decision(
@@ -904,8 +906,7 @@ impl WalkState<'_, '_> {
         )?;
 
         // start from the resolved base symbol
-        let mut ty =
-            self.referenced_symbol_type(id.into_any(), base, &[], GenericPosition::Annotation)?;
+        let mut ty = self.referenced_symbol_type(id.into_any(), base, &[], position)?;
 
         // append each remaining path segment as a type member
         for (index, segment) in tail.iter().copied().enumerate() {

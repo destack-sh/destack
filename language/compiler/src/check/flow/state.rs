@@ -385,9 +385,9 @@ impl FlowState {
             .rev()
             .find_map(|(index, target)| {
                 if let Some(label) = label {
-                    (target.label == Some(label) && target.allows_continue).then_some(index)
+                    (target.label == Some(label) && target.form.accepts_continue()).then_some(index)
                 } else {
-                    target.allows_continue.then_some(index)
+                    target.form.accepts_continue().then_some(index)
                 }
             })
     }
