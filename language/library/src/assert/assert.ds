@@ -22,7 +22,7 @@ export struct AssertionError {
 export extension of AssertionError implements Error {
     /// Format this assertion failure for users.
     display(): MaybeOwned<string> {
-        this.message
+        MaybeOwned.borrowed(this.message)
     }
 }
 

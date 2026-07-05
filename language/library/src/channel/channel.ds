@@ -31,7 +31,7 @@ export struct SendError<T> {
 export extension<T> of SendError<T> implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
-        "channel send failed"
+        MaybeOwned.borrowed("channel send failed")
     }
 }
 
@@ -47,7 +47,7 @@ export struct ReceiveError {
 export extension of ReceiveError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
-        "channel receive failed"
+        MaybeOwned.borrowed("channel receive failed")
     }
 }
 
