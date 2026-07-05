@@ -149,6 +149,11 @@ export extension of bigint
         todo("BigInt.equal")
     }
 
+    /// Compare partially with `other`.
+    partialCompare(&readonly this, other: bigint): Ordering | null {
+        this.compare(other)
+    }
+
     /// Add this integer to `state`.
     hash(&readonly this, state: &Hasher): void {
         todo("BigInt.hash");
