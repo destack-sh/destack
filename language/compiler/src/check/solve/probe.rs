@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolverSnapshot};
+use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolveMode, SolverSnapshot};
 
 /// Check state mark before one probe.
 #[derive(Debug)]
@@ -88,7 +88,7 @@ impl CheckState<'_> {
         live
     }
 
-    /// Solve inference variables opened inside the active transaction.
+    /// Solve inference variables opened inside the active probe.
     pub(in crate::check) fn solve_probe_variables(
         &mut self,
         variables: impl IntoIterator<Item = dir::TypeVariableId>,
@@ -109,7 +109,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            match self.solve_variable(variable)? {
+            match self.solve_variable(variable, SolveMode::Weak)? {
                 Answer::Ready(holds) => all_bounds_hold &= holds,
                 Answer::Pending(blockers) => {
                     let mut blocked_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
