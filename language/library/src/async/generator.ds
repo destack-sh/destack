@@ -110,7 +110,7 @@ export local class Generator<Y, R = void, N = void> implements Drop {
 export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y, R> {
     /// Advance the generator and return the next yield or completion.
     next(): IteratorResult<Y, R> {
-        this.resume(undefined as N)
+        this.resume(undefined as unknown as N)
     }
 }
 
@@ -210,7 +210,7 @@ export local class AsyncGenerator<Y, R = void, N = void> implements Drop {
         }
 
         // resolve pending consumers
-        this.resolveQueuedRequests(undefined as R);
+        this.resolveQueuedRequests(undefined as unknown as R);
     }
 
     /// Append one consumer request.
@@ -327,7 +327,7 @@ export local class AsyncGenerator<Y, R = void, N = void> implements Drop {
 export extension<Y, R, N> of AsyncGenerator<Y, R, N> implements AsyncIterator<Y, R> {
     /// Advance and return the next yield or completion.
     next(): Promise<IteratorResult<Y, R>> {
-        this.resume(undefined as N)
+        this.resume(undefined as unknown as N)
     }
 }
 

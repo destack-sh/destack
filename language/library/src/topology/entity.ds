@@ -68,8 +68,8 @@ export struct EntityByLabels {
 export struct EntityChooseOne {
     /// Selector discriminator.
     kind: "chooseOne";
-    /// Source selector.
-    selector: EntitySelector;
+    /// Source selector, managed to break the recursive layout.
+    selector: Managed<EntitySelector>;
 }
 
 /// Topology entity selector.
@@ -99,22 +99,22 @@ export newtype interface Entity {
 
 /// Match every topology entity.
 export function anyEntity(): EntitySelector {
-    EntityAny { kind: "any" }
+    EntitySelector(EntityAny { kind: "any" })
 }
 
 /// Match one topology entity by id.
 export function entityId(id: EntityId): EntitySelector {
-    EntityById { kind: "id", id }
+    EntitySelector(EntityById { kind: "id", id })
 }
 
 /// Match topology entities by kind.
 export function entityKind(kind: EntityKind): EntitySelector {
-    EntityByKind { kind: "kind", entityKind: kind }
+    EntitySelector(EntityByKind { kind: "kind", entityKind: kind })
 }
 
 /// Match topology entities by labels.
 export function entitiesByLabels(labels: [LabelSelector]): EntitySelector {
-    EntityByLabels { kind: "labels", labels }
+    EntitySelector(EntityByLabels { kind: "labels", labels })
 }
 
 /// Project one value to an entity record.

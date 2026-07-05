@@ -1,3 +1,5 @@
+import { Borrowed } from "./borrow.ds";
+
 /// Unsafe raw pointer form for exactly `T`.
 @languageItem("memory.Raw")
 export newtype Raw<T> = intrinsic;
@@ -23,17 +25,17 @@ export declare function offsetFrom<T>(pointer: *T, origin: *T): int;
 /// Borrow the pointed-to value.
 @unsafe
 @intrinsic("memory.ptr.asReference")
-export declare function asReference<T>(pointer: *T): &T;
+export declare function asReference<T>(pointer: *T): Borrowed<T, "static">;
 
 /// Borrow the pointed-to value with readonly access.
 @unsafe
 @intrinsic("memory.ptr.asReadonlyReference")
-export declare function asReadonlyReference<T>(pointer: *T): &readonly T;
+export declare function asReadonlyReference<T>(pointer: *T): Borrowed<T, "static", "readonly">;
 
 /// Borrow the pointed-to value with exclusive access.
 @unsafe
 @intrinsic("memory.ptr.asExclusive")
-export declare function asExclusive<T>(pointer: *T): &exclusive T;
+export declare function asExclusive<T>(pointer: *T): Borrowed<T, "static", "exclusive">;
 
 /// Read a value from `source`.
 @unsafe
