@@ -1,2 +1,2 @@
-export { Display } from "./binding/display.ds";
+export { DisplayBinding } from "./binding/display.ds";
 export * as binding from "./binding";

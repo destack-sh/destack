@@ -1,3 +1,3 @@
-export { Os } from "./binding/os.ds";
+export { OsBinding } from "./binding/os.ds";
 export * from "./os.ds";
 export * as binding from "./binding";

@@ -1,2 +1,2 @@
-export { Audio } from "./binding/audio.ds";
+export { AudioBinding } from "./binding/audio.ds";
 export * as binding from "./binding";

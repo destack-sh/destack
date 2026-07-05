@@ -1,2 +1,2 @@
-export { Io } from "./binding/io.ds";
+export { IoBinding } from "./binding/io.ds";
 export * as binding from "./binding";
