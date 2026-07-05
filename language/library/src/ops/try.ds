@@ -12,6 +12,7 @@ export struct Break<B> {
 
 /// Result of branching a `Try` carrier.
 @languageItem("ops.ControlFlow")
+@derive(Tagged)
 export newtype ControlFlow<B, C> = Break<B> | Continue<C>;
 
 /// Target protocol for rebuilding a carrier from a propagated residual.
