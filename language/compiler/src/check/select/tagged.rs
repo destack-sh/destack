@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Decision, FlowPointId, Origin, Relation, answer};
+use crate::check::{
+    Answer, CheckState, Decision, FlowPointId, FlowSite, Opening, Origin, Relation, answer,
+};
 
 /// One written tagged pattern head.
 #[derive(Debug, Clone)]
@@ -90,8 +92,7 @@ impl CheckState<'_> {
 
         // require the matched input to belong to the tagged owner
         let input = answer!(self.committed_node_type(node.into_any())?);
-        let belongs =
-            answer!(self.decide_relation(origin, Relation::Assignable, input, head.owner)?);
+        let belongs = answer!(self.constrain(origin, Relation::Assignable, input, head.owner)?);
         let variant = self.format_variant_case(head.owner, head.key);
         if !belongs {
             self.report_pattern_variant_not_in_type(origin, variant, input)?;
@@ -146,6 +147,129 @@ impl CheckState<'_> {
         )
     }
 
+    /// Select one tagged variant construction call.
+    ///
+    /// Example:
+    /// ```ds
+    /// Bound.Included({ value: 1 })
+    /// ```
+    pub(in crate::check) fn select_variant_construct(
+        &mut self,
+        site: FlowSite,
+        node: dir::GlobalNodeIdAny,
+        origin: Origin,
+        member: dir::EnumMemberType,
+        argument_nodes: &[dir::LocalNodeId<dir::Argument>],
+        type_arguments: &[dir::GlobalTypeId],
+        arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<()>> {
+        let module = origin.module();
+        let source = self.origin_source_node(origin)?;
+        let argument_sources = self.argument_value_sources(module, argument_nodes);
+
+        // name the case from the variant symbol's declared key
+        let owner_head = answer!(self.reduce_type_head(origin, member.owner)?);
+        let dir::Type::Instance(owner_instance) = self.ty(owner_head)? else {
+            return self.reject_construct(node, origin, arguments);
+        };
+        let Some(key) = self.tagged_variant_key(owner_instance.symbol, member.member) else {
+            return self.reject_construct(node, origin, arguments);
+        };
+
+        // open the owner at the call site: the return expectation and
+        // the payload arguments bind its holes
+        let owner_static = answer!(self.symbol_type(owner_instance.symbol)?);
+        let Some(head) = answer!(self.tagged_pattern_head_from_owner(origin, owner_static, key)?)
+        else {
+            return self.reject_construct(node, origin, arguments);
+        };
+        let Some(case) = answer!(self.tagged_case_selection(origin, &head)?) else {
+            return self.reject_construct(node, origin, arguments);
+        };
+
+        // model the constructor: (payload) => owner
+        let parameters = if case.fields.is_empty() {
+            Vec::new()
+        } else {
+            vec![dir::FunctionParameterType {
+                ty: case.payload,
+                static_parameter: None,
+                is_optional: false,
+                is_rest: false,
+            }]
+        };
+        let parameters = self.intern_parameters(module, &parameters)?;
+        let function = dir::FunctionSignatureType {
+            asynchrony: dir::Asynchrony::Sync,
+            template: None,
+            this_parameter: None,
+            parameters,
+            return_type: Some(head.owner),
+            is_generator: false,
+        };
+        let attempt = self.attempt_signature(
+            origin,
+            module,
+            module,
+            source,
+            &[],
+            None,
+            &[],
+            type_arguments,
+            &function,
+            function.return_type,
+            None,
+            arguments,
+            &argument_sources,
+        )?;
+        let signature = match answer!(attempt) {
+            Ok(signature) => signature,
+            Err(_) => return self.reject_construct(node, origin, arguments),
+        };
+
+        // commit the selected variant construction
+        let target = dir::ConstructTarget::Variant(dir::VariantConstructCandidate {
+            case: case.case,
+            generic_arguments: case.generic_arguments,
+            discriminant: case.discriminant,
+        });
+        let resolution = dir::ConstructResolution::new(
+            target,
+            Self::parameter_types(&signature.parameters),
+            self.argument_bindings(module, argument_nodes, &signature.parameters),
+            signature.return_type,
+        );
+        answer!(self.push_argument_constraints(site, argument_nodes, &resolution.arguments)?);
+        self.commit_decision(node, Decision::Construct(resolution))?;
+        self.commit_node_type(node, signature.return_type)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Return the tagged head named by one owner.case expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// match bound { Bound.Unbounded => 0 }
+    /// ```
+    pub(in crate::check) fn tagged_expression_head(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
+        let dir::Expression::Member {
+            left,
+            name: Some(name),
+        } = self.module(module).view().get(value).clone()
+        else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let owner = answer!(self.committed_node_type(left.into_global_any(module))?);
+        self.tagged_pattern_head_from_owner(origin, owner, dir::StaticKey::Name(name))
+    }
+
     /// Return the tagged pattern head carried by one computed member type.
     fn tagged_pattern_head_from_type(
         &mut self,
@@ -172,15 +296,34 @@ impl CheckState<'_> {
         let (owner, instance) = match self.ty(owner)? {
             dir::Type::Instance(instance) => (owner, instance),
             dir::Type::Reference(reference) => {
-                if let Some(template) = self.symbol_template(reference.symbol)
+                // generic owners open inference holes: the matched
+                // input binds them through the belongs relation
+                let arguments = if let Some(template) = self.symbol_template(reference.symbol)
                     && !self.generic_template_parameters(template).is_empty()
                 {
-                    return Ok(Answer::Ready(None));
-                }
+                    // the opening owns its holes across polls
+                    let parameters = self.generic_template_parameters(template);
+                    let source = self
+                        .origin_source_node(origin)?
+                        .into_global(origin.module());
+                    let opening = Opening {
+                        site: source,
+                        parameter: parameters[0],
+                    };
+                    let Some(substitution) =
+                        self.instantiate_at_opening(origin, opening, &parameters, &[])?
+                    else {
+                        return Ok(Answer::Ready(None));
+                    };
+
+                    self.intern_type_ids(origin.module(), &substitution.arguments)?
+                } else {
+                    dir::TypeListId::EMPTY
+                };
 
                 let instance = dir::GenericInstance {
                     symbol: reference.symbol,
-                    arguments: dir::TypeListId::EMPTY,
+                    arguments,
                 };
                 let owner = self.intern_type(origin.module(), dir::Type::Instance(instance))?;
 

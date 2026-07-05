@@ -208,6 +208,7 @@ impl CheckState<'_> {
         if let Some(decision) = selection.into_decision() {
             self.commit_decision(node, decision)?;
         }
+        let ty = answer!(self.flow_type_at(self.node_site(node)?, ty)?);
         self.commit_node_type(node, ty)?;
 
         Ok(Answer::Ready(()))
@@ -574,6 +575,7 @@ impl CheckState<'_> {
         ];
         let target = dir::CallTarget::Symbol(dir::CallCandidate {
             receiver: Some(receiver),
+            adjustments: Vec::new(),
             symbol: member.symbol,
             generic_arguments: member.generic_arguments,
         });

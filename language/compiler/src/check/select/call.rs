@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     Answer, CheckState, Decision, Dependency, FlowSite, Origin, PlaceUse, SignatureRejection,
-    answer,
+    SignatureSelection, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -12,8 +12,12 @@ use crate::{CompilerError, CompilerResult};
 struct CallableCandidate {
     /// The declaring symbol, when the callee names one.
     symbol: Option<dir::GlobalSymbolId>,
+    /// The declaration that exposed the callee, when any.
+    owner: Option<dir::GlobalSymbolId>,
     /// The resolved receiver type for member callees.
     receiver: Option<dir::GlobalTypeId>,
+    /// The receiver projection steps recorded by member lookup.
+    adjustments: Vec<dir::Projection>,
     /// The callable type.
     ty: dir::GlobalTypeId,
     /// The owner generic arguments already selected by member lookup.
@@ -21,15 +25,43 @@ struct CallableCandidate {
 }
 
 impl CallableCandidate {
-    /// Return owner and signature generic arguments as one call binding list.
+    /// Return the durable symbol call candidate for this lookup candidate.
+    fn resolution_candidate(&self, signature: &SignatureSelection) -> Option<dir::CallCandidate> {
+        let generic_arguments = self.call_generic_arguments(&signature.generic_arguments);
+        let mut adjustments = self.adjustments.clone();
+        if let Some(steps) = &signature.receiver_steps {
+            adjustments.extend(steps.iter().cloned());
+        }
+
+        Some(dir::CallCandidate {
+            receiver: self.receiver,
+            adjustments,
+            symbol: self.symbol?,
+            generic_arguments,
+        })
+    }
+
+    /// Join lookup and selection bindings into one call binding list.
     fn call_generic_arguments(
         &self,
         signature_arguments: &[dir::GenericArgumentBinding],
     ) -> Vec<dir::GenericArgumentBinding> {
         let mut arguments =
             Vec::with_capacity(self.generic_arguments.len() + signature_arguments.len());
-        arguments.extend_from_slice(&self.generic_arguments);
-        arguments.extend_from_slice(signature_arguments);
+        for binding in &self.generic_arguments {
+            let solved = signature_arguments
+                .iter()
+                .find(|solved| solved.parameter == binding.parameter);
+            arguments.push(*solved.unwrap_or(binding));
+        }
+        for binding in signature_arguments {
+            if !arguments
+                .iter()
+                .any(|existing| existing.parameter == binding.parameter)
+            {
+                arguments.push(*binding);
+            }
+        }
 
         arguments
     }
@@ -124,6 +156,22 @@ impl CheckState<'_> {
             }
         }
 
+        // tagged variant members construct through call expression form
+        if let [candidate] = candidates.as_slice() {
+            let head = self.settled_root(candidate.ty)?;
+            if let dir::Type::EnumMember(member) = self.ty(head)? {
+                return self.select_variant_construct(
+                    site,
+                    node,
+                    origin,
+                    member,
+                    argument_nodes,
+                    &type_arguments,
+                    &arguments,
+                );
+            }
+        }
+
         // union receivers must hold for every variant
         if let CallCandidates::All(candidates) = &callees {
             return self.select_universal_call(
@@ -165,7 +213,7 @@ impl CheckState<'_> {
         }
 
         // no candidate matched the arguments
-        self.report_no_matching_call(origin, &arguments, None)?;
+        self.report_no_matching_call(origin, &arguments)?;
         self.commit_decision(node, Decision::Rejected)?;
         self.commit_error_node(node)?;
 
@@ -228,7 +276,9 @@ impl CheckState<'_> {
                     };
                     candidates.push(CallableCandidate {
                         symbol: Some(symbol),
+                        owner: None,
                         receiver: None,
+                        adjustments: Vec::new(),
                         ty,
                         generic_arguments: Vec::new(),
                     });
@@ -245,7 +295,9 @@ impl CheckState<'_> {
                     let mut candidates = SmallVec::new();
                     candidates.push(CallableCandidate {
                         symbol: Some(candidate.symbol),
-                        receiver: Some(resolution.receiver),
+                        owner: Some(candidate.owner),
+                        receiver: Some(candidate.receiver),
+                        adjustments: candidate.adjustments.clone(),
                         ty: candidate.ty,
                         generic_arguments: candidate.generic_arguments.clone(),
                     });
@@ -256,12 +308,13 @@ impl CheckState<'_> {
                 dir::MemberTarget::Existential(candidates)
                 | dir::MemberTarget::Universal(candidates) => {
                     let is_universal = matches!(resolution.target, dir::MemberTarget::Universal(_));
-                    let receiver = resolution.receiver;
                     let candidates = candidates
                         .iter()
                         .map(|candidate| CallableCandidate {
                             symbol: Some(candidate.symbol),
-                            receiver: Some(receiver),
+                            owner: Some(candidate.owner),
+                            receiver: Some(candidate.receiver),
+                            adjustments: candidate.adjustments.clone(),
                             ty: candidate.ty,
                             generic_arguments: candidate.generic_arguments.clone(),
                         })
@@ -302,7 +355,9 @@ impl CheckState<'_> {
             | dir::Type::FunctionPointer(_) => {
                 candidates.push(CallableCandidate {
                     symbol: None,
+                    owner: None,
                     receiver: None,
+                    adjustments: Vec::new(),
                     ty: reduced,
                     generic_arguments: Vec::new(),
                 });
@@ -310,9 +365,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(Some(CallCandidates::Any(candidates))))
             }
             dir::Type::Variable(variable) => {
-                let representative = self.solver.representative(variable)?;
-
-                Ok(Answer::pending([Dependency::Variable(representative)]))
+                Ok(Answer::pending([self.variable_dependency(variable)?]))
             }
             _ => Ok(Answer::Ready(Some(CallCandidates::Any(candidates)))),
         }
@@ -332,6 +385,7 @@ impl CheckState<'_> {
         let attempt = self.attempt_callable(
             origin,
             candidate.ty,
+            candidate.owner,
             candidate.receiver,
             &candidate.generic_arguments,
             type_arguments,
@@ -343,15 +397,10 @@ impl CheckState<'_> {
             Ok(signature) => signature,
             Err(rejection) => return Ok(Answer::Ready(Err(rejection))),
         };
-        let generic_arguments = candidate.call_generic_arguments(&signature.generic_arguments);
 
         // build accepted resolution
-        let target = match candidate.symbol {
-            Some(symbol) => dir::CallTarget::Symbol(dir::CallCandidate {
-                receiver: candidate.receiver,
-                symbol,
-                generic_arguments,
-            }),
+        let target = match candidate.resolution_candidate(&signature) {
+            Some(candidate) => dir::CallTarget::Symbol(candidate),
             None => dir::CallTarget::Expression {
                 generic_arguments: signature.generic_arguments.clone(),
             },
@@ -392,6 +441,7 @@ impl CheckState<'_> {
             let attempt = self.attempt_callable(
                 origin,
                 candidate.ty,
+                candidate.owner,
                 candidate.receiver,
                 &candidate.generic_arguments,
                 type_arguments,
@@ -400,25 +450,16 @@ impl CheckState<'_> {
             )?;
             let Ok(signature) = answer!(attempt) else {
                 // one rejecting variant rejects the whole union call
-                let variant = self.format_type(candidate.ty);
-                let note =
-                    format!("every union variant must accept the call; '{variant}' does not");
-                self.report_no_matching_call(origin, arguments, Some(note))?;
+                self.report_no_matching_call(origin, arguments)?;
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
 
                 return Ok(Answer::Ready(()));
             };
-            let generic_arguments = candidate.call_generic_arguments(&signature.generic_arguments);
-
-            let Some(symbol) = candidate.symbol else {
+            let Some(target) = candidate.resolution_candidate(&signature) else {
                 continue;
             };
-            targets.push(dir::CallCandidate {
-                receiver: candidate.receiver,
-                symbol,
-                generic_arguments,
-            });
+            targets.push(target);
 
             // collect every variant return for the normalized join below
             let return_type = self.settled_root(signature.return_type)?;

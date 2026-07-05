@@ -2,8 +2,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowSite, MemberCandidate, MemberLookup, Origin,
-    PlaceUse, WriteTarget, answer,
+    Answer, CheckState, Dependency, FlowSite, MemberCandidate, MemberLookup, Origin, PlaceUse,
+    WriteTarget, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -205,21 +205,33 @@ impl CheckState<'_> {
                 let receiver_node = right.into_global_any(module);
                 let receiver_site = self.node_site(receiver_node)?;
                 let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                let read = match (use_, self.decision(source)) {
-                    (PlaceUse::Update, Some(Decision::Call(call))) => {
-                        Some(dir::DereferenceOperation::Call(call.clone()))
+                let Some(write) = answer!(self.select_dereference(
+                    origin,
+                    receiver,
+                    dir::Access::Mutable,
+                )?) else {
+                    return Ok(Answer::Ready(None));
+                };
+                let (read, ty) = match use_ {
+                    PlaceUse::Update => {
+                        let Some(read) = answer!(self.select_dereference(
+                            origin,
+                            receiver,
+                            dir::Access::Readonly,
+                        )?) else {
+                            return Ok(Answer::Ready(None));
+                        };
+
+                        (Some(read.operation), read.ty)
                     }
-                    (PlaceUse::Update, _) => Some(dir::DereferenceOperation::Direct),
-                    _ => None,
+                    PlaceUse::Write | PlaceUse::Read => (None, write.ty),
                 };
-                let write = match self.decision(source) {
-                    Some(Decision::Call(call)) => dir::DereferenceOperation::Call(call.clone()),
-                    _ => dir::DereferenceOperation::Direct,
-                };
-                let ty = answer!(self.committed_node_type(source)?);
 
                 Ok(Answer::Ready(Some(WriteTarget::stable_overwrite(
-                    dir::Storage::Dereference { read, write },
+                    dir::Storage::Dereference {
+                        read,
+                        write: write.operation,
+                    },
                     ty,
                     source,
                     receiver,
@@ -288,11 +300,38 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
 
-        if fields.len() > 1 || setters.len() > 1 || (fields.len() == 1 && setters.len() == 1) {
+        if setters.len() > 1 || (fields.len() == 1 && setters.len() == 1) {
             let key = self.format_static_key(&key);
             self.report_ambiguous_member(origin, key)?;
 
             return Ok(Answer::Ready(None));
+        }
+
+        // universal writes target every arm's field through the key:
+        // the stored value must satisfy each arm, so the write type
+        // is the intersection of the field types
+        if fields.len() > 1 {
+            let mut types = fields.iter().map(|(_, ty)| *ty).collect::<Vec<_>>();
+            types.dedup();
+            let ty = match types.as_slice() {
+                [ty] => *ty,
+                _ => {
+                    let elements = self.intern_type_ids(source.module_id, &types)?;
+                    self.intern_type(
+                        source.module_id,
+                        dir::Type::Intersection(dir::IntersectionType { elements }),
+                    )?
+                }
+            };
+
+            return Ok(Answer::Ready(Some(WriteTarget::new(
+                dir::Storage::Field {
+                    receiver,
+                    field: dir::ProjectionField::Key(key),
+                },
+                ty,
+                source,
+            ))));
         }
 
         if let Some((field, ty)) = fields.into_iter().next() {

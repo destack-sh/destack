@@ -5,7 +5,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, MemberCandidate, MemberLookup, MemberRole, Origin, answer,
+    Answer, CheckState, Decision, MemberCandidate, MemberLookup, MemberRole, Origin, ReceiverSteps,
+    answer,
 };
 
 /// One active member lookup query.
@@ -58,7 +59,12 @@ impl CheckState<'_> {
         };
 
         let symbol = self.resolve_symbol_alias(symbol)?;
-        let space = if self.symbol_kind(symbol).is_nominal() {
+        let kind = self.symbol_kind(symbol);
+
+        // a name that spells a type reaches its static members, so
+        // parameters serve bound statics like rustc's T::default()
+        let names_type = kind.is_nominal() || matches!(kind, dir::SymbolKind::GenericTypeParameter);
+        let space = if names_type {
             dir::MemberSpace::Static
         } else {
             dir::MemberSpace::Instance
@@ -122,6 +128,17 @@ impl CheckState<'_> {
         extensions: ExtensionSearch,
         active: &mut IndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
+        // static space dispatches on the written reference: alias
+        // expansion would erase which declaration the name names
+        let root = self.settled_root(receiver)?;
+        if space == dir::MemberSpace::Static
+            && let dir::Type::Reference(reference) = self.ty(root)?
+        {
+            return self.lookup_declaration_member(
+                origin, module, reference, space, key, extensions, active,
+            );
+        }
+
         let receiver = match self.reduce_type_head(origin, receiver)? {
             Answer::Ready(receiver) => receiver,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -200,9 +217,9 @@ impl CheckState<'_> {
             }
 
             // declaration references search static members
-            dir::Type::Reference(reference) => {
-                self.lookup_declaration_member(origin, module, reference, space, key, extensions)
-            }
+            dir::Type::Reference(reference) => self.lookup_declaration_member(
+                origin, module, reference, space, key, extensions, active,
+            ),
 
             // applied declarations search their definition members
             dir::Type::Instance(_)
@@ -210,15 +227,53 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Array(_)
             | dir::Type::Slice(_)
-            | dir::Type::FixedArray(_) => self.lookup_apparent_instance_member(
-                origin,
-                module,
-                receiver,
-                lookup_type,
-                space,
-                key,
-                extensions,
-            ),
+            | dir::Type::FixedArray(_) => {
+                let lookup = answer!(self.lookup_apparent_instance_member(
+                    origin,
+                    module,
+                    receiver,
+                    lookup_type,
+                    space,
+                    key,
+                    extensions,
+                )?);
+
+                // newtypes dereference to their backing for missing members
+                if matches!(lookup, MemberLookup::Missing)
+                    && let Some(projection) =
+                        answer!(self.newtype_backing_projection(origin, lookup_type)?)
+                {
+                    let value = projection.ty();
+                    let receiver = answer!(self.replace_beneath_forms(origin, receiver, value)?);
+                    let mut lookup = answer!(self.lookup_member_query_at(
+                        origin, module, receiver, value, space, key, extensions, active,
+                    )?);
+
+                    // record the payload projection before deeper receiver steps
+                    let dir::Projection::NewtypePayload {
+                        symbol,
+                        generic_arguments,
+                        ..
+                    } = projection
+                    else {
+                        unreachable!("newtype backing projects a payload");
+                    };
+                    let projection = dir::Projection::NewtypePayload {
+                        symbol,
+                        generic_arguments,
+                        ty: receiver,
+                    };
+                    if let MemberLookup::Found(candidates) = &mut lookup {
+                        for candidate in candidates {
+                            candidate.steps.insert(0, projection.clone());
+                        }
+                    }
+
+                    return Ok(Answer::Ready(lookup));
+                }
+
+                Ok(Answer::Ready(lookup))
+            }
 
             // enum members use the owner enum's instance members
             dir::Type::EnumMember(member) => self.lookup_member_query_at(
@@ -310,7 +365,7 @@ impl CheckState<'_> {
                 self.lookup_union_member(origin, module, &elements, space, key, extensions, active)
             }
 
-            // intersections expose every part's members
+            // intersections expose each element's members
             dir::Type::Intersection(intersection) => {
                 let elements = self
                     .type_ids(lookup_type.module_id, intersection.elements)?
@@ -386,6 +441,51 @@ impl CheckState<'_> {
         )
     }
 
+    /// Return one instance's newtype backing with its arguments applied.
+    pub(in crate::check) fn newtype_backing(
+        &mut self,
+        origin: Origin,
+        lookup_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        match answer!(self.newtype_backing_projection(origin, lookup_type)?) {
+            Some(projection) => Ok(Answer::Ready(Some(projection.ty()))),
+            None => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Return the payload projection behind one newtype instance.
+    pub(in crate::check) fn newtype_backing_projection(
+        &mut self,
+        origin: Origin,
+        lookup_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<dir::Projection>>> {
+        let Some((instance_module, mut instance)) = self.apparent_instance(lookup_type)? else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // resolve the defining newtype through aliases and imports
+        instance.symbol = self.resolve_symbol_alias(instance.symbol)?;
+        if !self.is_component_module(instance.symbol.module_id) {
+            self.import_external_module(instance.symbol.module_id)?;
+        }
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol) else {
+            return Ok(Answer::Ready(None));
+        };
+        let value = definition.value;
+
+        // apply the instance arguments to the declared backing
+        let substitution = self.instance_substitution(instance_module, &instance)?;
+        let value = self.substitute_type(origin.module(), value, &substitution)?;
+
+        let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
+        Ok(Answer::Ready(Some(dir::Projection::NewtypePayload {
+            symbol: instance.symbol,
+            generic_arguments: self
+                .symbol_generic_argument_bindings(instance.symbol, &arguments)?,
+            ty: value,
+        })))
+    }
+
     /// Look up one static member on a declaration reference.
     fn lookup_declaration_member(
         &mut self,
@@ -395,32 +495,56 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
         extensions: ExtensionSearch,
+        active: &mut IndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         if space != dir::MemberSpace::Static {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
 
         // resolve aliases before reading declaration members
-        let symbol = self.resolve_symbol_alias(reference.symbol)?;
+        let mut symbol = self.resolve_symbol_alias(reference.symbol)?;
+
+        // a type alias names its body's root declaration for statics,
+        // and the body's own members serve whatever the root lacks;
+        // head reduction expands the whole alias chain in one step
+        let mut alias_body = None;
+        if let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol) {
+            let value = alias.value;
+            let head = answer!(self.reduce_type_head(origin, value)?);
+            alias_body = Some(head);
+            if let Some(named) = self.type_symbol(head)? {
+                symbol = self.resolve_symbol_alias(named)?;
+            }
+        }
         if !self.is_component_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
         }
 
         // search declaration members before extensions
-        let inherent = answer!(self.lookup_inherent_declaration_member(origin, symbol, key)?);
-        match inherent {
-            MemberLookup::Found(_) | MemberLookup::Field(_) => {
-                return Ok(Answer::Ready(inherent));
-            }
-            MemberLookup::Missing => {}
+        let mut lookup = MemberLookup::Missing;
+        if !self.symbol_kind(symbol).is_type_alias() {
+            let inherent = answer!(self.lookup_inherent_declaration_member(origin, symbol, key)?);
+            lookup = match inherent {
+                MemberLookup::Found(_) | MemberLookup::Field(_) => {
+                    return Ok(Answer::Ready(inherent));
+                }
+                MemberLookup::Missing => match extensions {
+                    ExtensionSearch::All => {
+                        answer!(self.lookup_static_extension_member(origin, module, symbol, key)?)
+                    }
+                    ExtensionSearch::Inherent => MemberLookup::Missing,
+                },
+            };
         }
 
-        match extensions {
-            ExtensionSearch::All => {
-                self.lookup_static_extension_member(origin, module, symbol, key)
-            }
-            ExtensionSearch::Inherent => Ok(Answer::Ready(MemberLookup::Missing)),
+        // aliased bodies answer whatever the root declaration lacks
+        if matches!(lookup, MemberLookup::Missing)
+            && let Some(body) = alias_body
+        {
+            return self.lookup_member_query(origin, module, body, space, key, extensions, active);
         }
+
+        Ok(Answer::Ready(lookup))
     }
 
     /// Join member lookups across union elements.
@@ -498,7 +622,24 @@ impl CheckState<'_> {
 
         match extensions {
             ExtensionSearch::All => {
-                self.lookup_extension_member(origin, module, receiver, &instance, space, key)
+                // extension targets name values, so receivers shed memory forms
+                let receiver = answer!(self.value_beneath_forms(origin, receiver)?);
+                let lookup = answer!(
+                    self.lookup_extension_member(origin, module, receiver, &instance, space, key)?
+                );
+
+                // values also match targets naming their apparent owner,
+                // so primitives reach extensions of their owning class
+                if matches!(lookup, MemberLookup::Missing) {
+                    let apparent = self.apparent_type(receiver)?;
+                    if apparent != receiver {
+                        return self.lookup_extension_member(
+                            origin, module, apparent, &instance, space, key,
+                        );
+                    }
+                }
+
+                Ok(Answer::Ready(lookup))
             }
             ExtensionSearch::Inherent => Ok(Answer::Ready(MemberLookup::Missing)),
         }
@@ -541,6 +682,7 @@ impl CheckState<'_> {
                 generic_arguments: Vec::new(),
                 value: member.value,
                 value_type: written,
+                steps: ReceiverSteps::new(),
             });
         }
 
@@ -611,6 +753,7 @@ impl CheckState<'_> {
                 generic_arguments,
                 value: member.value,
                 value_type: written,
+                steps: ReceiverSteps::new(),
             });
         }
         if !candidates.is_empty() {

@@ -623,6 +623,7 @@ impl CheckState<'_> {
         let generic_arguments = candidate.generic_arguments;
         let target = dir::MemberTarget::Symbol(dir::MemberCandidate {
             receiver,
+            adjustments: Vec::new(),
             owner: candidate.owner,
             symbol,
             ty: candidate.ty,
@@ -729,6 +730,7 @@ impl CheckState<'_> {
         let attempt = self.attempt_callable(
             origin,
             candidate.ty,
+            Some(candidate.owner),
             Some(receiver),
             &candidate.generic_arguments,
             &[],
@@ -859,6 +861,11 @@ impl CheckState<'_> {
     ) -> dir::CallResolution {
         let target = dir::CallTarget::Symbol(dir::CallCandidate {
             receiver: Some(receiver),
+            adjustments: signature
+                .receiver_steps
+                .as_ref()
+                .map(|steps| steps.to_vec())
+                .unwrap_or_default(),
             symbol,
             generic_arguments,
         });

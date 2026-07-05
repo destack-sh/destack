@@ -102,7 +102,7 @@ impl CheckState<'_> {
         Ok(Answer::Ready(true))
     }
 
-    /// Project named pattern fields off one closed input type.
+    /// Project named pattern fields from one input type.
     pub(in crate::check) fn project_named_fields(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -261,7 +261,7 @@ impl CheckState<'_> {
         Ok(Answer::Ready((projected, rest)))
     }
 
-    /// Project named assignment fields off one closed input type.
+    /// Project named assignment fields from one input type.
     fn project_assign_named_fields(
         &mut self,
         node: dir::GlobalNodeId<dir::AssignPattern>,

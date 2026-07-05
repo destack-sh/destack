@@ -63,7 +63,27 @@ impl CheckState<'_> {
         Ok(symbol.into_global(module))
     }
 
-    /// Return one generated tagged variant case.
+    /// Return the case key declared by one tagged variant symbol.
+    pub(in crate::check) fn tagged_variant_key(
+        &self,
+        owner: dir::GlobalSymbolId,
+        member: dir::GlobalSymbolId,
+    ) -> Option<dir::StaticKey> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(owner) else {
+            return None;
+        };
+
+        definition
+            .members
+            .iter()
+            .find_map(|candidate| match candidate {
+                dir::DefinitionMember::Variant(variant) if variant.symbol == member => {
+                    Some(variant.key)
+                }
+                _ => None,
+            })
+    }
+
     pub(in crate::check) fn tagged_variant_case(
         &self,
         owner: dir::GlobalSymbolId,
