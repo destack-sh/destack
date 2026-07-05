@@ -54,7 +54,6 @@ Run these from the repository root.
 ```sh
 # focused local loop
 cargo test -p destack_source
-just language/test-specification
 just language/test-query
 
 # clean check
