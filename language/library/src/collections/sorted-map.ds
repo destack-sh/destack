@@ -104,7 +104,7 @@ export extension<K: Compare<K>, V> of SortedMapEntryHandle<K, V> {
     }
 }
 
-export extension<K, V> of SortedMap<K, V> {
+export extension<K, V> of SortedMap<K, V> implements Default {
     /// Create an empty sorted map.
     static new(): ^SortedMap<K, V> {
         todo("SortedMap.new")
@@ -118,13 +118,6 @@ export extension<K, V> of SortedMap<K, V> {
     /// Create the default sorted map.
     static default(): ^SortedMap<K, V> {
         SortedMap.new()
-    }
-}
-
-export extension<K, V> of ^SortedMap<K, V> implements Default {
-    /// Create the default owned sorted map.
-    static default(): ^SortedMap<K, V> {
-        SortedMap.default()
     }
 }
 

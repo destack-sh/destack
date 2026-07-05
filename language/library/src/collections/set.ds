@@ -13,7 +13,7 @@ export class Set<T> {
     map: Map<T, void> = Map.new();
 }
 
-export extension<T> of Set<T> {
+export extension<T> of Set<T> implements Default {
     /// Create an empty set.
     static new(): ^Set<T> {
         todo("Set.new")
@@ -27,13 +27,6 @@ export extension<T> of Set<T> {
     /// Create the default set.
     static default(): ^Set<T> {
         Set.new()
-    }
-}
-
-export extension<T> of ^Set<T> implements Default {
-    /// Create the default owned set.
-    static default(): ^Set<T> {
-        Set.default()
     }
 }
 
