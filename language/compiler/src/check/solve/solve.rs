@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use indexmap::IndexSet;
 
 use crate::check::{
     Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintCheck, ConstraintId,
@@ -44,8 +45,7 @@ impl CheckState<'_> {
             self.solve_variable(variable, SolveMode::Weak)?;
         }
 
-        // sweep tasks still parked after the queue drains: stuck work is
-        // an inference cycle and each live origin reports unresolved inference
+        // report work still parked after every solve path has run
         self.sweep_parked_tasks()?;
 
         self.record_event(CheckEvent::SolveFinished {
@@ -57,18 +57,12 @@ impl CheckState<'_> {
     }
 
     /// Report every dependency still parked on after the queue drained.
-    /// The undetermined dependency anchors each report, and modules that
-    /// already reported errors stay quiet: their stuck work died of those
-    /// errors rather than of an inference cycle.
     fn sweep_parked_tasks(&mut self) -> CompilerResult<()> {
         // drain parked dependencies once
         let parked = self.solver.drain_waiters();
-        if parked.is_empty() {
-            return Ok(());
-        }
+        let mut origins = IndexSet::new();
 
         // resolve each stuck dependency to the origin it anchors at
-        let mut origins = Vec::new();
         for (dependency, _) in parked {
             let origin = match dependency {
                 Dependency::Variable(variable) => {
@@ -82,13 +76,22 @@ impl CheckState<'_> {
                 Dependency::SymbolType(symbol) => Origin::Symbol(symbol),
                 Dependency::NodeType(node) | Dependency::Decision(node) => Origin::Node(node, None),
             };
-            if !origins.contains(&origin) {
-                origins.push(origin);
-            }
+            origins.insert(origin);
         }
 
+        self.report_cannot_infer_origins(origins)
+    }
+
+    /// Report unresolved inference origins in deterministic source order.
+    fn report_cannot_infer_origins(&mut self, origins: IndexSet<Origin>) -> CompilerResult<()> {
+        if origins.is_empty() {
+            return Ok(());
+        }
+
+        let mut origins = origins.into_iter().collect::<Vec<_>>();
+
         // suppress casualties of errors reported before the sweep
-        let mut tainted = indexmap::IndexSet::new();
+        let mut tainted = IndexSet::new();
         for origin in &origins {
             let module = origin.module();
             if self.is_component_module(module) && !self.module(module).diagnostics.is_empty() {
@@ -110,7 +113,7 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
 
         // prefer declaration anchors over expression anchors per module
-        let mut declared = indexmap::IndexSet::new();
+        let mut declared = IndexSet::new();
         for origin in &origins {
             match origin {
                 Origin::Symbol(_) => {
@@ -122,7 +125,8 @@ impl CheckState<'_> {
                 Origin::Node(..) => {}
             }
         }
-        let mut reported = indexmap::IndexSet::new();
+
+        let mut reported = IndexSet::new();
         for origin in origins {
             let expression = matches!(
                 origin,
