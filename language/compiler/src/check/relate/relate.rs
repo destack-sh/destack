@@ -3,8 +3,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, AutoInterfaceObligation, CheckState, ConstraintState, ConstraintSubject,
-    Dependency, Obligation, Origin, Relation, RepresentationObligation, ValueUse, answer,
+    Answer, AutoInterface, AutoInterfaceObligation, BoundMode, CheckState, ConstraintState,
+    ConstraintSubject, Dependency, Obligation, Origin, Relation, RepresentationObligation,
+    ValueUse, answer,
 };
 
 impl CheckState<'_> {
@@ -18,7 +19,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let constraint = answer!(self.reduce_type_head(origin, constraint)?);
 
-        // check conjunction bounds element-wise, each on its own path
+        // check conjunction bounds element-wise
         if let dir::Type::Intersection(intersection) = self.ty(constraint)? {
             let elements = self
                 .type_ids(constraint.module_id, intersection.elements)?
@@ -35,7 +36,7 @@ impl CheckState<'_> {
             return Ok(decision);
         }
 
-        // normalize compiler-known static domains before checking bounds
+        // normalize compiler-known static domains before relation checking
         let item = self
             .type_symbol(constraint)?
             .map(|symbol| self.language_item(symbol))
@@ -122,9 +123,15 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<ConstraintState>> {
-        let holds = answer!(self.constrain(origin, relation, left, right)?);
+        let holds = match (relation, value_use) {
+            // argument flows may insert an implicit borrow
+            (Relation::Assignable, Some(ValueUse::Argument)) => {
+                answer!(self.constrain_argument(origin, left, right)?)
+            }
+            _ => answer!(self.constrain(origin, relation, left, right)?),
+        };
 
-        // reject extra fields only for direct property literal flows
+        // reject extra fields only for direct property literals
         if holds
             && matches!(
                 relation,
@@ -210,30 +217,30 @@ impl CheckState<'_> {
             }
             // bound one open side by the closed side
             (Some(variable), None, Relation::Equal) => {
-                self.push_lower_bound(variable, bound_source, right)?;
-                self.push_upper_bound(variable, bound_source, right)?;
+                self.push_lower_bound(variable, bound_source, right, BoundMode::Strong)?;
+                self.push_upper_bound(variable, bound_source, right, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             (None, Some(variable), Relation::Equal) => {
-                self.push_lower_bound(variable, bound_source, left)?;
-                self.push_upper_bound(variable, bound_source, left)?;
+                self.push_lower_bound(variable, bound_source, left, BoundMode::Strong)?;
+                self.push_upper_bound(variable, bound_source, left, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             // directed relations bound the open side directionally
             (Some(_), Some(variable), Relation::Assignable | Relation::Castable) => {
-                self.push_lower_bound(variable, bound_source, left)?;
+                self.push_lower_bound(variable, bound_source, left, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             (Some(variable), _, Relation::Assignable | Relation::Castable) => {
-                self.push_upper_bound(variable, bound_source, right)?;
+                self.push_upper_bound(variable, bound_source, right, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
             (None, Some(variable), Relation::Assignable | Relation::Castable) => {
-                self.push_lower_bound(variable, bound_source, left)?;
+                self.push_lower_bound(variable, bound_source, left, BoundMode::Strong)?;
 
                 Ok(Answer::Ready(true))
             }
@@ -245,14 +252,14 @@ impl CheckState<'_> {
 
                 Ok(Answer::Pending(blockers))
             }
-            // decompose open composites before full graph reduction
+            // decompose open composites before reducing the whole graph
             (None, None, _) => {
                 let structural = match relation {
                     Relation::Writable | Relation::Castable => Relation::Assignable,
                     relation => relation,
                 };
 
-                // reduce aliases and intrinsics at the root only
+                // reduce aliases and intrinsics at the root
                 let left = answer!(self.reduce_type_head(origin, left)?);
                 let right = answer!(self.reduce_type_head(origin, right)?);
 
@@ -279,7 +286,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Relate matching composites child by child, bounding open leaves.
+    /// Relate matching composites slot by slot, bounding open leaves.
     /// Returns none when the pair is not an unambiguous matching composite.
     fn constrain_structural(
         &mut self,
@@ -316,10 +323,34 @@ impl CheckState<'_> {
             ));
         }
 
+        // open composites constrain against one matching union arm only
+        if !matches!(self.ty(left)?, dir::Type::Union(_))
+            && let dir::Type::Union(union) = self.ty(right)?
+        {
+            let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
+            let mut matching = None;
+            for element in elements {
+                let Answer::Ready(element) = self.reduce_type_head(origin, element)? else {
+                    continue;
+                };
+                if self.decompose_type_pair(left, element)?.is_none() {
+                    continue;
+                }
+                if matching.is_some() {
+                    matching = None;
+                    break;
+                }
+                matching = Some(element);
+            }
+            if let Some(arm) = matching {
+                return Ok(Some(self.constrain(origin, relation, left, arm)?));
+            }
+        }
+
         let left_signature = self.callable_signature(left)?;
         let right_signature = self.callable_signature(right)?;
 
-        // collect child pairs with their child relations
+        // collect fixed slot pairs with their slot relations
         let mut pairs = SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
         match (self.ty(left)?, self.ty(right)?) {
             // mutable collections alias their elements and stay invariant
@@ -439,11 +470,14 @@ impl CheckState<'_> {
                 }
                 pairs.push((relation, left.value, right.value));
             }
-            // managed sources materialize against unqualified targets
-            (dir::Type::Form(left), _)
-                if left.form == dir::Form::Managed && relation == Relation::Assignable =>
+            // owning sources materialize against unqualified targets:
+            // managed values flow as themselves and owned values move
+            // their ownership into the managed default
+            (dir::Type::Form(left_form), _)
+                if relation == Relation::Assignable
+                    && matches!(left_form.form, dir::Form::Managed | dir::Form::Owned) =>
             {
-                pairs.push((relation, left.value, right));
+                pairs.push((relation, left_form.value, right));
             }
             // union targets accept when any member accepts
             (_, dir::Type::Union(elements)) if relation == Relation::Assignable => {
@@ -469,7 +503,7 @@ impl CheckState<'_> {
             _ => return Ok(Some(self.pending_on_open_leaves(left, right)?)),
         }
 
-        // constrain every child pair through the bounding path
+        // constrain every slot pair through the bounding path
         let mut decision = Answer::Ready(true);
         for (relation, left, right) in pairs {
             decision = decision.and(self.constrain(origin, relation, left, right)?);
@@ -573,7 +607,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeVariableId>> {
         match self.ty(id)? {
-            dir::Type::Variable(variable) => Ok(Some(self.solver.representative(variable)?)),
+            dir::Type::Variable(variable) => self.open_variable(variable),
             _ => Ok(None),
         }
     }

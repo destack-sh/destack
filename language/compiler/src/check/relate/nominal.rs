@@ -121,6 +121,47 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
+        // enum members satisfy constraints through their owner
+        if let dir::Type::EnumMember(member) = self.ty(source)? {
+            return self.decide_relation(origin, relation, member.owner, target);
+        }
+
+        // comptime scalars inhabit closed enums by member value
+        if let dir::Type::Literal(literal) = self.ty(source)?
+            && let Some(symbol) = self.type_symbol(target)?
+            && let Some(dir::Definition::Enum(definition)) = self.definition(symbol)
+        {
+            let members = definition.members.clone();
+            for member in &members {
+                let dir::DefinitionMember::Variant(variant) = member else {
+                    continue;
+                };
+                let value = self.static_value(variant.symbol);
+                let Some(value) = value else {
+                    continue;
+                };
+                if self.ty(value)? == dir::Type::Literal(literal) {
+                    return Ok(Answer::Ready(true));
+                }
+            }
+
+            return Ok(Answer::Ready(false));
+        }
+
+        // static scalar operations relate through their result type
+        if matches!(
+            self.ty(source)?,
+            dir::Type::Operation(
+                dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_)
+            )
+        ) && let Some(result) = answer!(self.static_operation_type(origin, source)?)
+        {
+            let decision = self.decide_relation(origin, relation, result, target)?;
+            if !matches!(decision, Answer::Ready(false)) {
+                return Ok(decision);
+            }
+        }
+
         // intersection targets require every element under the same relation
         if let dir::Type::Intersection(intersection) = self.ty(target)? {
             let elements = self
@@ -205,8 +246,13 @@ impl CheckState<'_> {
             // explicit implements requires the heritage relation
             (None, Relation::Implements) => Ok(Answer::Ready(false)),
 
-            // everything else satisfies through assignability
-            (None, _) => self.decide_assignable(origin, source, target),
+            // everything else satisfies through assignability,
+            // or sits inside a union target as a member
+            (None, _) => {
+                let assignable = self.decide_assignable(origin, source, target)?;
+
+                self.decide_union_membership(origin, relation, assignable, source, target)
+            }
         }
     }
 
@@ -401,7 +447,7 @@ impl CheckState<'_> {
         // require every declared instance field from the literal
         let module = origin.module();
         let mut decision = Answer::Ready(true);
-        for key in self.nominal_field_keys(target_instance.symbol) {
+        for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol) {
             let lookup = answer!(self.lookup_member(
                 origin,
                 module,
@@ -414,10 +460,17 @@ impl CheckState<'_> {
                 None => continue,
             };
 
-            // the field must be written at an assignable type
-            let Some((_, supplied)) = written.iter().find(|(written, _)| *written == key) else {
+            // omitted fields fill from their initializers or undefined
+            let supplied = written.iter().find(|(written, _)| *written == key);
+            let Some((_, supplied)) = supplied else {
+                if answer!(self.field_may_be_omitted(origin, declared, has_initializer)?) {
+                    continue;
+                }
+
                 return Ok(Answer::Ready(false));
             };
+
+            // written fields must hold an assignable type
             decision = decision.and(self.decide_relation(
                 origin,
                 Relation::Assignable,
@@ -430,6 +483,24 @@ impl CheckState<'_> {
         }
 
         Ok(decision)
+    }
+
+    /// Return whether one literal may omit one declared field.
+    ///
+    /// Fields with declared initializers fill themselves, and optional
+    /// fields admit their absence as undefined.
+    pub(in crate::check) fn field_may_be_omitted(
+        &mut self,
+        origin: Origin,
+        declared: dir::GlobalTypeId,
+        has_initializer: bool,
+    ) -> CompilerResult<Answer<bool>> {
+        if has_initializer {
+            return Ok(Answer::Ready(true));
+        }
+        let undefined = self.intern_type(origin.module(), dir::Type::Undefined)?;
+
+        self.decide_relation(origin, Relation::Assignable, undefined, declared)
     }
 
     /// Bound open construction arguments from written literal fields.
@@ -474,6 +545,18 @@ impl CheckState<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> SmallVec<[dir::StaticKey; 8]> {
+        self.nominal_instance_fields(symbol)
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect()
+    }
+
+    /// Collect one definition's instance fields with their initializer
+    /// presence through heritage.
+    pub(in crate::check) fn nominal_instance_fields(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> SmallVec<[(dir::StaticKey, bool); 8]> {
         let mut keys = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -492,7 +575,7 @@ impl CheckState<'_> {
                 if let dir::DefinitionMember::Field(field) = member
                     && field.space == dir::MemberSpace::Instance
                 {
-                    keys.push(field.key);
+                    keys.push((field.key, field.initializer.is_some()));
                 }
             }
             for heritage in definition.bases() {
@@ -613,12 +696,20 @@ impl CheckState<'_> {
         let mut active = SmallVec::<[dir::GlobalSymbolId; 8]>::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
+        // extensions implement each application independently, so
+        // same-symbol instantiations dispatch by form instead of conflicting
+        let independent = matches!(
+            self.definition(instance.symbol),
+            Some(dir::Definition::Extension(_))
+        );
+
         active.push(instance.symbol);
         self.collect_heritage(
             origin,
             instance_module,
             instance,
             None,
+            independent,
             &mut active,
             &mut closure,
             &mut blockers,
@@ -638,6 +729,7 @@ impl CheckState<'_> {
         instance_module: destack_source::ModuleId,
         instance: &dir::GenericInstance,
         branch_source: Option<dir::GlobalNodeIdAny>,
+        independent: bool,
         active: &mut SmallVec<[dir::GlobalSymbolId; 8]>,
         closure: &mut HeritageClosure,
         blockers: &mut SmallVec<[Dependency; 2]>,
@@ -676,8 +768,12 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // duplicate applications must use the same arguments
+            // duplicate applications must use the same arguments,
+            // except under declarations that implement each independently
             if let Some(previous) = closure.application(application.instance.symbol) {
+                if independent {
+                    continue;
+                }
                 match self.constrain_instance_arguments(
                     origin,
                     module,
@@ -703,6 +799,7 @@ impl CheckState<'_> {
                 module,
                 &application.instance,
                 Some(application.source),
+                independent,
                 active,
                 closure,
                 blockers,
