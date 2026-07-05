@@ -349,6 +349,207 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
+    /// Return the first excess key in a direct property literal relation.
+    pub(in crate::check) fn property_literal_excess_key(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let Some(keys) = self.property_literal_keys(origin, left)? else {
+            return Ok(None);
+        };
+
+        // compare against the target's finite property set
+        let Some(right) = self.reduce_type_head(origin, right)?.ready() else {
+            return Ok(None);
+        };
+        let Some(accepted) = self.accepted_property_keys(origin, right)? else {
+            return Ok(None);
+        };
+
+        for key in keys {
+            if !accepted.contains(&key) {
+                return Ok(Some(key));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Return the first missing key in a direct property literal relation.
+    pub(in crate::check) fn property_literal_missing_key(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let Some(source_keys) = self.property_literal_keys(origin, left)? else {
+            return Ok(None);
+        };
+
+        // compare against the target's required property set
+        let Some(required) = self.required_property_keys(origin, right)? else {
+            return Ok(None);
+        };
+
+        for key in required {
+            if source_keys.contains(&key) {
+                continue;
+            }
+
+            return Ok(Some(key));
+        }
+
+        Ok(None)
+    }
+
+    /// Return the explicit keys supplied by a direct property literal relation.
+    fn property_literal_keys(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
+        let Some(expression) = origin.expression() else {
+            return Ok(None);
+        };
+        if !self.is_property_literal_expression(expression) {
+            return Ok(None);
+        }
+
+        // collect the literal's explicit keys
+        let left = self.settled_root(left)?;
+        let left = match self.ty(left)? {
+            dir::Type::Form(form) if form.form == dir::Form::Managed => {
+                self.settled_root(form.value)?
+            }
+            _ => left,
+        };
+        let dir::Type::Shape(source) = self.ty(left)? else {
+            return Ok(None);
+        };
+
+        let keys = self
+            .shape_fields(left.module_id, source.fields)?
+            .iter()
+            .map(|field| field.key)
+            .collect::<SmallVec<[_; 8]>>();
+
+        Ok(Some(keys))
+    }
+
+    /// Return the first writable index signature required by one target type.
+    pub(in crate::check) fn first_writable_index_signature(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::TypeIndexSignature>> {
+        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
+            return Ok(None);
+        };
+        let dir::Type::Shape(shape) = self.ty(target)? else {
+            return Ok(None);
+        };
+
+        let signature = self
+            .shape_index_signatures(target.module_id, shape.index_signatures)?
+            .iter()
+            .find(|signature| !signature.is_readonly)
+            .copied();
+
+        Ok(signature)
+    }
+
+    /// Return whether one expression supplies literal properties.
+    fn is_property_literal_expression(
+        &self,
+        expression: dir::GlobalNodeId<dir::Expression>,
+    ) -> bool {
+        matches!(
+            self.module(expression.module_id)
+                .view()
+                .get(expression.local_id),
+            dir::Expression::ObjectExpression { .. } | dir::Expression::StructExpression { .. }
+        )
+    }
+
+    /// Collect the property keys one target requires, none when not statically enumerable.
+    fn required_property_keys(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
+        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
+            return Ok(None);
+        };
+
+        match self.ty(target)? {
+            dir::Type::Shape(shape) => Ok(Some(
+                self.shape_fields(target.module_id, shape.fields)?
+                    .iter()
+                    .filter(|field| !field.is_optional)
+                    .map(|field| field.key)
+                    .collect(),
+            )),
+            dir::Type::Form(form) => {
+                let value = self.settled_root(form.value)?;
+
+                self.required_property_keys(origin, value)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Collect the property keys one target accepts, none when it accepts any.
+    fn accepted_property_keys(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
+        match self.ty(target)? {
+            dir::Type::Shape(shape) => {
+                if !shape.index_signatures.is_empty() {
+                    return Ok(None);
+                }
+
+                Ok(Some(
+                    self.shape_fields(target.module_id, shape.fields)?
+                        .iter()
+                        .map(|field| field.key)
+                        .collect(),
+                ))
+            }
+            dir::Type::Instance(instance) => match self.definition(instance.symbol) {
+                Some(dir::Definition::Interface(interface)) if !interface.is_nominal => {
+                    Ok(Some(self.nominal_member_keys(instance.symbol)))
+                }
+                _ => Ok(None),
+            },
+            dir::Type::Union(union) => {
+                let elements: SmallVec<[_; 4]> =
+                    SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
+                let mut keys = SmallVec::new();
+                for element in elements {
+                    let Some(element) = self.reduce_type_head(origin, element)?.ready() else {
+                        return Ok(None);
+                    };
+                    match self.accepted_property_keys(origin, element)? {
+                        None => return Ok(None),
+                        Some(element_keys) => keys.extend(element_keys),
+                    }
+                }
+
+                Ok(Some(keys))
+            }
+            dir::Type::Form(form) => {
+                let value = self.settled_root(form.value)?;
+
+                self.accepted_property_keys(origin, value)
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Decide assignability of a static declaration reference to a shape.
     pub(in crate::check) fn decide_reference_shape_assignable(
         &mut self,

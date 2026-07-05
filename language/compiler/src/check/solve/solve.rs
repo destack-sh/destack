@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintId, Dependency, ExpectedType,
-    Origin, PlaceUse, SolveMode, Task, Widening, answer,
+    Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintCheck, ConstraintId,
+    Dependency, ExpectedType, Origin, PlaceUse, SolveMode, Task, Widening, answer,
 };
-use crate::{CheckError, CompilerError, CompilerResult};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
@@ -122,6 +122,7 @@ impl CheckState<'_> {
                 Origin::Node(..) => {}
             }
         }
+        let mut reported = indexmap::IndexSet::new();
         for origin in origins {
             let expression = matches!(
                 origin,
@@ -130,9 +131,8 @@ impl CheckState<'_> {
             if expression && declared.contains(&origin.module()) {
                 continue;
             }
-            let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-            let diagnostic = CheckError::CannotInferType { anchor, module };
-            self.module_mut(module).diagnostics.push(diagnostic.into());
+
+            self.report_cannot_infer_type(origin, &mut reported)?;
         }
 
         Ok(())
@@ -168,15 +168,15 @@ impl CheckState<'_> {
         }
 
         let constraint = self.solver.constraints.get(id)?.clone();
-        let state = match constraint {
-            Constraint::Check(constraint) => self.apply_type_constraint(
+        let check = match &constraint {
+            Constraint::Check(constraint) => self.check_type_constraint(
                 constraint.origin,
                 constraint.relation,
                 constraint.subject,
                 constraint.left,
                 constraint.right,
             )?,
-            Constraint::Value(constraint) => self.apply_relation(
+            Constraint::Value(constraint) => self.check_value_constraint(
                 constraint.origin,
                 constraint.relation,
                 Some(constraint.use_),
@@ -185,8 +185,20 @@ impl CheckState<'_> {
             )?,
         };
 
-        match state {
-            Answer::Ready(state) => {
+        match check {
+            Answer::Ready(check) => {
+                if let ConstraintCheck::Fails(failure) = check {
+                    self.report_constraint_failure(
+                        constraint.origin(),
+                        constraint.relation(),
+                        constraint.value_use(),
+                        constraint.left(),
+                        constraint.right(),
+                        failure,
+                    )?;
+                }
+
+                let state = check.state();
                 self.solver.set_constraint_state(id, state)?;
                 self.record_event(CheckEvent::RelationChecked {
                     constraint: id,

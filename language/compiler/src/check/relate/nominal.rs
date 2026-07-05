@@ -485,6 +485,97 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
+    /// Return the first declared field missing from one struct construction.
+    pub(in crate::check) fn first_missing_struct_field(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let source_fields = match self.ty(source)? {
+            dir::Type::Shape(shape) => self
+                .shape_fields(source.module_id, shape.fields)?
+                .iter()
+                .map(|field| field.key)
+                .collect::<SmallVec<[_; 8]>>(),
+            _ => return Ok(None),
+        };
+
+        let dir::Type::Instance(target_instance) = self.ty(target)? else {
+            return Ok(None);
+        };
+        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol) else {
+            return Ok(None);
+        };
+
+        // scan declared fields in construction order
+        let module = origin.module();
+        for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol) {
+            if source_fields.contains(&key) {
+                continue;
+            }
+
+            let lookup = match self.lookup_member(
+                origin,
+                module,
+                target,
+                dir::MemberSpace::Instance,
+                key,
+            )? {
+                Answer::Ready(lookup) => lookup,
+                Answer::Pending(_) => return Ok(None),
+            };
+            let Some(declared) = lookup.field_type() else {
+                continue;
+            };
+
+            let may_omit = match self.field_may_be_omitted(origin, declared, has_initializer)? {
+                Answer::Ready(may_omit) => may_omit,
+                Answer::Pending(_) => return Ok(None),
+            };
+            if may_omit {
+                continue;
+            }
+
+            return Ok(Some(key));
+        }
+
+        Ok(None)
+    }
+
+    /// Return the first undeclared field supplied to one struct construction.
+    pub(in crate::check) fn first_excess_struct_field(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let source_fields = match self.ty(source)? {
+            dir::Type::Shape(shape) => self
+                .shape_fields(source.module_id, shape.fields)?
+                .iter()
+                .map(|field| field.key)
+                .collect::<SmallVec<[_; 8]>>(),
+            _ => return Ok(None),
+        };
+
+        let dir::Type::Instance(target_instance) = self.ty(target)? else {
+            return Ok(None);
+        };
+        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol) else {
+            return Ok(None);
+        };
+
+        // compare against declared construction fields
+        let fields = self.nominal_field_keys(target_instance.symbol);
+        for key in source_fields {
+            if !fields.contains(&key) {
+                return Ok(Some(key));
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Return whether one literal may omit one declared field.
     ///
     /// Fields with declared initializers fill themselves, and optional

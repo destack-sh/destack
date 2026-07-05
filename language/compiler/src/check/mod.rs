@@ -1,4 +1,5 @@
 mod decorator;
+mod diagnostic;
 mod dump;
 mod error;
 mod flow;

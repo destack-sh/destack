@@ -2,7 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Origin, Relation, TryPropagation, TryPropagationTarget, answer,
+    Answer, CheckState, ConstraintFailure, Origin, Relation, TryPropagation, TryPropagationTarget,
+    answer,
 };
 
 impl CheckState<'_> {
@@ -20,7 +21,14 @@ impl CheckState<'_> {
                 let is_assignable =
                     answer!(self.constrain(origin, Relation::Assignable, failure, ty,)?);
                 if !is_assignable {
-                    self.report_relation_failure(origin, Relation::Assignable, None, failure, ty)?;
+                    self.report_constraint_failure(
+                        origin,
+                        Relation::Assignable,
+                        None,
+                        failure,
+                        ty,
+                        ConstraintFailure::Relation,
+                    )?;
                 }
 
                 Ok(Answer::Ready(()))

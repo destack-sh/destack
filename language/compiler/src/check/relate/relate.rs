@@ -3,7 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, AutoInterface, AutoInterfaceObligation, BoundMode, CheckState, ConstraintState,
+    Answer, AutoInterface, AutoInterfaceObligation, BoundMode, CheckState, ConstraintCheck,
+    ConstraintFailure,
     ConstraintSubject, Dependency, Obligation, Origin, Relation, RepresentationObligation,
     ValueUse, answer,
 };
@@ -108,21 +109,26 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        match self.apply_relation(origin, relation, value_use, left, right)? {
-            Answer::Ready(_) => Ok(Answer::Ready(())),
+        match self.check_value_constraint(origin, relation, value_use, left, right)? {
+            Answer::Ready(ConstraintCheck::Holds) => Ok(Answer::Ready(())),
+            Answer::Ready(ConstraintCheck::Fails(failure)) => {
+                self.report_constraint_failure(origin, relation, value_use, left, right, failure)?;
+
+                Ok(Answer::Ready(()))
+            }
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
     }
 
-    /// Apply one required relation and report failed closed checks.
-    pub(in crate::check) fn apply_relation(
+    /// Check one value constraint and return the completed result.
+    pub(in crate::check) fn check_value_constraint(
         &mut self,
         origin: Origin,
         relation: Relation,
         value_use: Option<ValueUse>,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ConstraintState>> {
+    ) -> CompilerResult<Answer<ConstraintCheck>> {
         let holds = match (relation, value_use) {
             // argument flows may insert an implicit borrow
             (Relation::Assignable, Some(ValueUse::Argument)) => {
@@ -131,42 +137,22 @@ impl CheckState<'_> {
             _ => answer!(self.constrain(origin, relation, left, right)?),
         };
 
-        // reject extra fields only for direct property literals
-        if holds
-            && matches!(
-                relation,
-                Relation::Assignable | Relation::Writable | Relation::Satisfies
-            )
-            && self
-                .property_literal_excess_property(origin, left, right)?
-                .is_some()
-        {
-            self.report_relation_failure(origin, relation, value_use, left, right)?;
+        let check = self.complete_constraint_check(origin, relation, left, right, holds)?;
 
-            return Ok(Answer::Ready(ConstraintState::Fails));
-        }
-
-        // report the ordinary failed relation
-        if !holds {
-            self.report_relation_failure(origin, relation, value_use, left, right)?;
-
-            return Ok(Answer::Ready(ConstraintState::Fails));
-        }
-
-        Ok(Answer::Ready(ConstraintState::Holds))
+        Ok(Answer::Ready(check))
     }
 
-    /// Apply one type constraint and report failed closed checks.
-    pub(in crate::check) fn apply_type_constraint(
+    /// Check one type constraint and return the completed result.
+    pub(in crate::check) fn check_type_constraint(
         &mut self,
         origin: Origin,
         relation: Relation,
         subject: Option<ConstraintSubject>,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<ConstraintState>> {
+    ) -> CompilerResult<Answer<ConstraintCheck>> {
         let Some(subject) = subject else {
-            return self.apply_relation(origin, relation, None, left, right);
+            return self.check_value_constraint(origin, relation, None, left, right);
         };
 
         let holds = match subject {
@@ -178,12 +164,61 @@ impl CheckState<'_> {
             let origin = match subject {
                 ConstraintSubject::GenericArgument { source } => Origin::Node(source, None),
             };
-            self.report_relation_failure(origin, relation, None, left, right)?;
+            let check = self.complete_constraint_check(origin, relation, left, right, false)?;
 
-            return Ok(Answer::Ready(ConstraintState::Fails));
+            return Ok(Answer::Ready(check));
         }
 
-        Ok(Answer::Ready(ConstraintState::Holds))
+        Ok(Answer::Ready(ConstraintCheck::Holds))
+    }
+
+    /// Return the completed check for one closed constraint.
+    fn complete_constraint_check(
+        &mut self,
+        origin: Origin,
+        relation: Relation,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+        holds: bool,
+    ) -> CompilerResult<ConstraintCheck> {
+        let is_property_relation = matches!(
+            relation,
+            Relation::Assignable | Relation::Writable | Relation::Satisfies
+        );
+
+        let check = match (holds, is_property_relation) {
+            // ordinary successful property relations still run object-literal exactness
+            (true, true) => match self.property_literal_excess_key(origin, left, right)? {
+                Some(key) => ConstraintCheck::Fails(ConstraintFailure::ExcessProperty { key }),
+                None => ConstraintCheck::Holds,
+            },
+            // ordinary successful non-property relations are complete
+            (true, false) => ConstraintCheck::Holds,
+            // failed non-property relations only carry the relation failure
+            (false, false) => ConstraintCheck::Fails(ConstraintFailure::Relation),
+            // failed property relations explain the same order as relation checking
+            (false, true) => {
+                if let Some(key) = self.property_literal_missing_key(origin, left, right)? {
+                    ConstraintCheck::Fails(ConstraintFailure::MissingRequiredProperty { key })
+                } else if let Some(key) = self.first_missing_struct_field(origin, left, right)? {
+                    ConstraintCheck::Fails(ConstraintFailure::MissingRequiredProperty { key })
+                } else if let Some(key) = self.property_literal_excess_key(origin, left, right)? {
+                    ConstraintCheck::Fails(ConstraintFailure::ExcessProperty { key })
+                } else if let Some(key) = self.first_excess_struct_field(left, right)? {
+                    ConstraintCheck::Fails(ConstraintFailure::ExcessProperty { key })
+                } else if let Some(signature) =
+                    self.first_writable_index_signature(origin, right)?
+                {
+                    ConstraintCheck::Fails(ConstraintFailure::WritableIndexRequiresIndexSet {
+                        signature,
+                    })
+                } else {
+                    ConstraintCheck::Fails(ConstraintFailure::Relation)
+                }
+            }
+        };
+
+        Ok(check)
     }
 
     /// Match one relation between two types, bounding open variables.

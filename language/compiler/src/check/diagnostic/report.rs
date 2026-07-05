@@ -1,15 +1,13 @@
 use destack_artifact::DiagnosticBuilder;
-use destack_core::closest_string;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
-use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Origin, Relation, SignatureRejection, ValueUse};
-use crate::{
-    CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor,
-    diagnostic_suggestion_distance,
+use crate::check::{
+    CallRejectionNote, CheckState, ConstraintFailure, ObligationFailure, OperatorOperands, Origin,
+    Relation, SignatureRejection, UncoveredValue, ValueUse,
 };
+use crate::{CheckError, CheckWarning, CompilerResult, DiagnosticAnchor};
 
 impl CheckState<'_> {
     /// Report a missing annotation at one source node.
@@ -390,17 +388,12 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
-    /// Report a final output type that still references inference variables.
-    pub(in crate::check) fn report_unresolved_output_type(
+    /// Report one source occurrence whose type could not be inferred.
+    pub(in crate::check) fn report_cannot_infer_type(
         &mut self,
         origin: Origin,
-        ty: dir::GlobalTypeId,
         reported: &mut IndexSet<(ModuleId, DiagnosticAnchor)>,
     ) -> CompilerResult<()> {
-        if self.type_variables(ty)?.is_empty() {
-            return Ok(());
-        }
-
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         if self.modules.contains_key(&module) && reported.insert((module, anchor.clone())) {
             let error = CheckError::CannotInferType { anchor, module };
@@ -408,21 +401,6 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Report every heritage error except the first returned error.
-    pub(in crate::check) fn report_heritage_errors(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        errors: Vec<DiagnosticBuilder<CheckError>>,
-    ) -> Option<DiagnosticBuilder<CheckError>> {
-        let mut errors = errors.into_iter();
-        let first = errors.next();
-        for error in errors {
-            self.module_mut(source.module_id).diagnostics.push(error);
-        }
-
-        first
     }
 
     /// Report one missing member with the closest visible suggestion.
@@ -520,7 +498,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         arguments: &[dir::GlobalTypeId],
-        note: Option<String>,
+        note: Option<CallRejectionNote>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::NoMatchingCall {
@@ -529,12 +507,23 @@ impl CheckState<'_> {
             arguments: self.format_types(arguments),
         };
         let diagnostic = match note {
-            Some(note) => error.note(note),
+            Some(note) => error.note(self.format_call_rejection_note(note)),
             None => error.into(),
         };
         self.module_mut(module).diagnostics.push(diagnostic);
 
         Ok(())
+    }
+
+    /// Format one call rejection note.
+    fn format_call_rejection_note(&self, note: CallRejectionNote) -> String {
+        match note {
+            CallRejectionNote::UnionVariant(ty) => {
+                let ty = self.format_type(ty);
+
+                format!("every union variant must accept the call; '{ty}' does not")
+            }
+        }
     }
 
     /// Report one construction whose arguments match no constructor.
@@ -626,18 +615,6 @@ impl CheckState<'_> {
                 let (module, anchor) =
                     self.origin_diagnostic_anchor(self.origin_at(origin, source_node))?;
                 let error = CheckError::ConstraintNotSatisfied {
-                    anchor,
-                    module,
-                    source,
-                    target,
-                };
-                self.module_mut(module).diagnostics.push(error.into());
-            }
-
-            // report receiver mismatch on the call itself
-            SignatureRejection::Receiver { source, target } => {
-                let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-                let error = CheckError::ReceiverNotAssignable {
                     anchor,
                     module,
                     source,
@@ -745,9 +722,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         operator: String,
-        operands: String,
+        operands: OperatorOperands<'_>,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let operands = self.format_operator_operands(operands);
         let error = CheckError::NoMatchingOperator {
             anchor,
             module,
@@ -757,6 +735,18 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(error.into());
 
         Ok(())
+    }
+
+    /// Format the operand phrase for an operator rejection.
+    fn format_operator_operands(&self, operands: OperatorOperands<'_>) -> String {
+        match operands {
+            OperatorOperands::Types(operands) => operands
+                .iter()
+                .map(|operand| format!("'{}'", self.format_type(*operand)))
+                .collect::<Vec<_>>()
+                .join(" and "),
+            OperatorOperands::Place => "place".to_string(),
+        }
     }
 
     /// Report one spread expression whose source has no fields.
@@ -923,6 +913,23 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(error.into());
     }
 
+    /// Report one repeated definition member.
+    pub(in crate::check) fn report_duplicate_definition_member(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        key: &dir::StaticKey,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let member = self.format_static_key(key);
+        let error = CheckError::DuplicateMember {
+            anchor,
+            module,
+            member,
+        };
+
+        self.module_mut(module).diagnostics.push(error.into());
+    }
+
     /// Report one computed pattern key that cannot select a field.
     pub(in crate::check) fn report_computed_pattern_key_not_valid(
         &mut self,
@@ -1045,94 +1052,450 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one failed closed relation.
-    pub(in crate::check) fn report_relation_failure(
+    /// Report one failed closed constraint.
+    pub(in crate::check) fn report_constraint_failure(
         &mut self,
         origin: Origin,
         relation: Relation,
         value_use: Option<ValueUse>,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
+        failure: ConstraintFailure,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let source = self.format_type_at(module, left);
         let target = self.format_type_at(module, right);
 
-        // label the written annotation that demanded the target type
-        let written = match self.written_type_anchor(right)? {
-            Some(written) if written != anchor => {
-                Some((written, format!("expected '{target}' from this annotation")))
+        // translate the selected failure reason
+        match failure {
+            ConstraintFailure::Relation => {
+                let error = self
+                    .constraint_relation_error(anchor, module, relation, value_use, source, target);
+                self.module_mut(module).diagnostics.push(error.into());
             }
-            _ => None,
-        };
+            ConstraintFailure::MissingRequiredProperty { key } => {
+                let error = CheckError::MissingRequiredProperty {
+                    anchor,
+                    module,
+                    key: self.format_static_key(&key),
+                    target,
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ConstraintFailure::ExcessProperty { key } => {
+                let error = CheckError::ExcessProperty {
+                    anchor,
+                    module,
+                    key: self.format_static_key(&key),
+                    target,
+                };
+                let diagnostic = DiagnosticBuilder::new(error)
+                    .note("object literals may only specify known properties");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ConstraintFailure::WritableIndexRequiresIndexSet { signature } => {
+                let error = CheckError::WritableIndexRequiresIndexSet {
+                    anchor,
+                    module,
+                    source,
+                    key: self.format_type_at(module, signature.key_type),
+                    value: self.format_type_at(module, signature.value_type),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+        }
 
-        // require write support for writable index signatures
-        if matches!(
-            relation,
-            Relation::Assignable | Relation::Writable | Relation::Satisfies
-        ) && let Some((source, key, value)) =
-            self.writable_index_signature_rejection(origin, left, right)?
-        {
-            let error = CheckError::WritableIndexRequiresIndexSet {
-                anchor,
-                module,
+        Ok(())
+    }
+
+    /// Report one failed obligation.
+    pub(in crate::check) fn report_obligation_failure(
+        &mut self,
+        failure: ObligationFailure,
+    ) -> CompilerResult<()> {
+        match failure {
+            ObligationFailure::NonExhaustivePattern { source, missing } => {
+                let (module, anchor) = self.source_anchor(source);
+                let missing = self.format_uncovered_value(missing);
+                let error = CheckError::NonExhaustivePattern {
+                    anchor,
+                    module,
+                    missing,
+                };
+                let diagnostic = error.help("cover the remaining values or add a wildcard '_' arm");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::RefutablePattern { source, missing } => {
+                let (module, anchor) = self.source_anchor(source);
+                let missing = self.format_uncovered_value(missing);
+                let error = CheckError::RefutablePattern {
+                    anchor,
+                    module,
+                    missing,
+                };
+                let diagnostic = error.help("handle the uncovered values with 'if let' or 'match'");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::RefutableCatchPattern { source, missing } => {
+                let (module, anchor) = self.source_anchor(source);
+                let missing = self.format_uncovered_value(missing);
+                let error = CheckError::RefutableCatchPattern {
+                    anchor,
+                    module,
+                    missing,
+                };
+                let diagnostic = error.help("catch bindings must handle every failure value");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::ForInSourceNotObjectShaped { source } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::ForInSourceNotObjectShaped { anchor, module };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::ImpossibleIs {
+                source,
+                value,
+                target,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::ImpossibleIs {
+                    anchor,
+                    module,
+                    source: self.format_type(value),
+                    target: self.format_type(target),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::ImpossibleInstanceOf {
+                source,
+                value,
+                target,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::ImpossibleInstanceOf {
+                    anchor,
+                    module,
+                    source: self.format_type(value),
+                    target: self.format_symbol(target),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::InvalidInPredicate {
                 source,
                 key,
-                value,
-            };
-            let mut diagnostic = DiagnosticBuilder::new(error);
-            if let Some((written, label)) = written {
-                diagnostic = diagnostic.label(written, label);
+                receiver,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let key = self.format_type(key);
+                let receiver = self.format_type(receiver);
+                let error = CheckError::NoMatchingOperator {
+                    anchor,
+                    module,
+                    operator: "in".to_string(),
+                    operands: format!("'{key}' and '{receiver}'"),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
             }
-            self.module_mut(module).diagnostics.push(diagnostic);
-
-            return Ok(());
-        }
-
-        // property literals name their missing required property directly
-        if matches!(
-            relation,
-            Relation::Assignable | Relation::Writable | Relation::Satisfies
-        ) && let Some(key) = self.property_literal_missing_property(origin, left, right)?
-        {
-            let error = CheckError::MissingRequiredProperty {
-                anchor,
-                module,
-                key,
+            ObligationFailure::CannotAssignImportedBinding { source, symbol } => {
+                let (module, anchor) = self.source_anchor(source);
+                let name = self.format_assignment_binding(source, symbol);
+                let error = CheckError::CannotAssignImportedBinding {
+                    anchor,
+                    module,
+                    name,
+                };
+                let diagnostic =
+                    self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::CannotAssignImmutableBinding { source, symbol } => {
+                let (module, anchor) = self.source_anchor(source);
+                let name = self.format_assignment_binding(source, symbol);
+                let error = CheckError::CannotAssignImmutableBinding {
+                    anchor,
+                    module,
+                    name,
+                };
+                let diagnostic =
+                    self.label_binding_declaration(DiagnosticBuilder::new(error), symbol);
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::CannotAssignReadonlyMember { source, member } => {
+                let (module, anchor) = self.source_anchor(source);
+                let member = self.format_projection_field(member);
+                let error = CheckError::CannotAssignReadonlyMember {
+                    anchor,
+                    module,
+                    member,
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::OverwriteStabilityNotSatisfied { source, ty } => {
+                let (module, anchor) = self.source_anchor(source);
+                let ty = self.format_type(ty);
+                let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::CircularType { source } => {
+                let error = self.circular_type_error(Origin::Node(source, None))?;
+                self.module_mut(source.module_id)
+                    .diagnostics
+                    .push(error.into());
+            }
+            ObligationFailure::AutoInterfaceNotSatisfied {
+                source,
+                ty,
+                interface,
+            } => {
+                self.report_auto_interface_failure(source, ty, interface);
+            }
+            ObligationFailure::InterfaceNotImplemented {
+                source,
+                ty,
+                interface,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::InterfaceNotImplemented {
+                    anchor,
+                    module,
+                    source: self.format_type(ty),
+                    target: self.format_symbol(interface),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::NonLocalImplementation {
+                source,
+                interface,
+                ty,
+            } => {
+                self.report_non_local_implementation(source, interface, ty);
+            }
+            ObligationFailure::ForeignBlanketImplementation { source, interface } => {
+                self.report_foreign_blanket_implementation(source, interface);
+            }
+            ObligationFailure::UnnamedExportedNonlocalExtension { source, target } => {
+                self.report_unnamed_exported_nonlocal_extension(source, target);
+            }
+            ObligationFailure::ConflictingImplementation {
+                source,
+                conflict,
+                interface,
+                ty,
+            } => {
+                self.report_conflicting_implementation(source, conflict, interface, ty)?;
+            }
+            ObligationFailure::ConflictingHeritage {
+                source,
+                symbol,
                 target,
-            };
-            let mut diagnostic = DiagnosticBuilder::new(error);
-            if let Some((written, label)) = written {
-                diagnostic = diagnostic.label(written, label);
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::ConflictingHeritage {
+                    anchor,
+                    module,
+                    source: self.format_symbol(symbol),
+                    target: self.format_symbol(target),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
             }
-            self.module_mut(module).diagnostics.push(diagnostic);
-
-            return Ok(());
+            ObligationFailure::CircularHeritage { source, symbol } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::CircularHeritage {
+                    anchor,
+                    module,
+                    source: self.format_symbol(symbol),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::InvalidOverride { source, member } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::InvalidOverride {
+                    anchor,
+                    module,
+                    member: self.format_static_key(&member),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::OverrideNotVirtual { source, member } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::OverrideNotVirtual {
+                    anchor,
+                    module,
+                    member: self.format_static_key(&member),
+                };
+                let diagnostic = error.help("declare the inherited member 'virtual' or 'abstract'");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::IncompatibleOverride {
+                source,
+                member,
+                source_ty,
+                target_ty,
+            } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::IncompatibleOverride {
+                    anchor,
+                    module,
+                    member: self.format_static_key(&member),
+                    source: self.format_type(source_ty),
+                    target: self.format_type(target_ty),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::MissingOverride { source, member } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::MissingOverride {
+                    anchor,
+                    module,
+                    member: self.format_static_key(&member),
+                };
+                let diagnostic = error.help("add the 'override' modifier");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::AbstractMemberInConcreteClass { source, member } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::AbstractMemberInConcreteClass {
+                    anchor,
+                    module,
+                    member: self.format_static_key(&member),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::UnimplementedAbstractMember { source, member } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::UnimplementedAbstractMember {
+                    anchor,
+                    module,
+                    member: self.format_static_key(&member),
+                };
+                let diagnostic = error.help("implement the member or declare the class 'abstract'");
+                self.module_mut(module).diagnostics.push(diagnostic);
+            }
+            ObligationFailure::FinalClassExtended { source, base } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::FinalClassExtended {
+                    anchor,
+                    module,
+                    ty: self.format_symbol(base),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
+            ObligationFailure::FieldNotDefinitelyInitialized { source, field } => {
+                let (module, anchor) = self.source_anchor(source);
+                let error = CheckError::FieldNotDefinitelyInitialized {
+                    anchor,
+                    module,
+                    field: self.format_symbol(field),
+                };
+                self.module_mut(module).diagnostics.push(error.into());
+            }
         }
 
-        // property literals name their excess property directly
-        if matches!(
-            relation,
-            Relation::Assignable | Relation::Writable | Relation::Satisfies
-        ) && let Some(key) = self.property_literal_excess_property(origin, left, right)?
-        {
-            let error = CheckError::ExcessProperty {
-                anchor,
-                module,
-                key,
-                target,
-            };
-            let mut diagnostic = DiagnosticBuilder::new(error)
-                .note("object literals may only specify known properties");
-            if let Some((written, label)) = written {
-                diagnostic = diagnostic.label(written, label);
+        Ok(())
+    }
+
+    /// Report one failed auto-interface obligation.
+    fn report_auto_interface_failure(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+        interface: dir::AutoInterface,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = match interface {
+            dir::AutoInterface::DynamicSafe => {
+                let ty = self.format_type(ty);
+                let error = CheckError::DynamicSafetyNotSatisfied { anchor, module, ty };
+
+                error.into()
             }
-            self.module_mut(module).diagnostics.push(diagnostic);
+            dir::AutoInterface::OverwriteStable => {
+                let ty = self.format_type(ty);
+                let error = CheckError::OverwriteStabilityNotSatisfied { anchor, module, ty };
 
-            return Ok(());
+                error.into()
+            }
+            dir::AutoInterface::Integer
+            | dir::AutoInterface::Float
+            | dir::AutoInterface::Concrete
+            | dir::AutoInterface::Copy
+            | dir::AutoInterface::Clone
+            | dir::AutoInterface::Debug
+            | dir::AutoInterface::Default
+            | dir::AutoInterface::Hash
+            | dir::AutoInterface::Equal
+            | dir::AutoInterface::PartialEqual
+            | dir::AutoInterface::Compare
+            | dir::AutoInterface::PartialCompare
+            | dir::AutoInterface::Serialize
+            | dir::AutoInterface::Deserialize
+            | dir::AutoInterface::Send
+            | dir::AutoInterface::Sync
+            | dir::AutoInterface::Unpin
+            | dir::AutoInterface::Zeroable => {
+                let error = CheckError::ConstraintNotSatisfied {
+                    anchor,
+                    module,
+                    source: self.format_type(ty),
+                    target: interface.name().to_string(),
+                };
+
+                error.into()
+            }
+        };
+
+        self.module_mut(module).diagnostics.push(diagnostic);
+    }
+
+    /// Return a display name for one projected field.
+    fn format_projection_field(&self, field: dir::ProjectionField) -> String {
+        match field {
+            dir::ProjectionField::Key(key) => self.format_static_key(&key),
+            dir::ProjectionField::Member(symbol) => self.format_symbol(symbol),
         }
+    }
 
-        let error = match (relation, value_use) {
+    /// Format one uncovered pattern value.
+    fn format_uncovered_value(&self, value: UncoveredValue) -> String {
+        match value {
+            UncoveredValue::Type(ty) => self.format_type(ty),
+            UncoveredValue::TaggedCase { ty, key } => self.format_variant_case(ty, key),
+        }
+    }
+
+    /// Add a declaration label to a binding diagnostic when the declaration is local.
+    fn label_binding_declaration(
+        &self,
+        diagnostic: DiagnosticBuilder<CheckError>,
+        symbol: dir::GlobalSymbolId,
+    ) -> DiagnosticBuilder<CheckError> {
+        let declaration = self
+            .binding_table(symbol.module_id)
+            .get_symbol_maybe(symbol.local_id)
+            .and_then(|binding| binding.declaration)
+            .filter(|declaration| declaration.module_id == symbol.module_id);
+
+        match declaration {
+            Some(declaration) => {
+                let anchor = self.diagnostic_anchor(symbol.module_id, declaration.local_id);
+
+                diagnostic.label(anchor, "declared here")
+            }
+            None => diagnostic,
+        }
+    }
+
+    /// Return the diagnostic for one ordinary relation failure.
+    fn constraint_relation_error(
+        &self,
+        anchor: DiagnosticAnchor,
+        module: ModuleId,
+        relation: Relation,
+        value_use: Option<ValueUse>,
+        source: String,
+        target: String,
+    ) -> CheckError {
+        match (relation, value_use) {
             // explicit casts report their own failure shape
             (Relation::Castable, _) => CheckError::InvalidCast {
                 anchor,
@@ -1183,14 +1546,7 @@ impl CheckState<'_> {
                 source,
                 target,
             },
-        };
-        let mut diagnostic = DiagnosticBuilder::new(error);
-        if let Some((written, label)) = written {
-            diagnostic = diagnostic.label(written, label);
         }
-        self.module_mut(module).diagnostics.push(diagnostic);
-
-        Ok(())
     }
 
     /// Report one failed static evaluation.
@@ -1410,486 +1766,5 @@ impl CheckState<'_> {
             target: self.format_type(target),
         };
         self.module_mut(module).diagnostics.push(error.into());
-    }
-
-    /// Return the diagnostic anchor for one source node.
-    pub(in crate::check) fn diagnostic_anchor(
-        &self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-    ) -> DiagnosticAnchor {
-        let span = match self.modules.get(&module) {
-            Some(state) => state.diagnostic_span(source),
-            None => self.external_module(module).diagnostic_span(source),
-        };
-        let span = match span {
-            Some(span) => span,
-            None => unreachable!("check node {} has no source span", source.id),
-        };
-
-        DiagnosticAnchor::from(span)
-    }
-
-    /// Return one check origin's diagnostic anchor.
-    pub(in crate::check) fn origin_diagnostic_anchor(
-        &self,
-        origin: Origin,
-    ) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
-        let module = origin.module();
-        let anchor = match origin {
-            Origin::Node(node, _) => self.diagnostic_anchor(module, node.local_id),
-            Origin::Symbol(symbol) => {
-                let source = self
-                    .module(symbol.module_id)
-                    .symbol_declaration_node(symbol.local_id)?;
-
-                self.diagnostic_anchor(module, source)
-            }
-        };
-
-        Ok((module, anchor))
-    }
-
-    /// Return one symbol's declaration node.
-    pub(in crate::check) fn symbol_source(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalNodeIdAny> {
-        let source = match self.modules.get(&symbol.module_id) {
-            Some(module) => module
-                .symbol_declaration_node(symbol.local_id)?
-                .into_global(symbol.module_id),
-            None => {
-                let external = self.external_module(symbol.module_id);
-                let binding = external.bindings.get_symbol(symbol.local_id);
-                let Some(declaration) = binding.declaration else {
-                    return Err(CompilerError::Internal {
-                        message: format!("external symbol {symbol:?} has no declaration node"),
-                    });
-                };
-
-                declaration
-            }
-        };
-
-        Ok(source)
-    }
-
-    /// Return a circular type diagnostic for one origin.
-    pub(in crate::check) fn circular_type_error(
-        &self,
-        origin: Origin,
-    ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
-
-        Ok(CheckError::CircularType { anchor, module })
-    }
-
-    /// Return the visible member key closest to one missing key.
-    fn closest_member_key(
-        &mut self,
-        receiver: dir::GlobalTypeId,
-        key: &str,
-    ) -> CompilerResult<Option<String>> {
-        let keys = self.visible_member_keys(receiver)?;
-
-        Ok(closest_string(
-            key,
-            keys,
-            diagnostic_suggestion_distance(key),
-        ))
-    }
-
-    /// Collect the member keys visible on one receiver.
-    fn visible_member_keys(&mut self, receiver: dir::GlobalTypeId) -> CompilerResult<Vec<String>> {
-        let mut current = self.settled_root(receiver)?;
-        while let dir::Type::Form(form) = self.ty(current)? {
-            current = self.settled_root(form.value)?;
-        }
-
-        let mut keys = Vec::new();
-        match self.ty(current)? {
-            dir::Type::Shape(shape) => {
-                for field in self.shape_fields(current.module_id, shape.fields)? {
-                    keys.push(self.format_static_key(&field.key));
-                }
-            }
-            dir::Type::Reference(reference) => {
-                if let Some(definition) = self.definition(reference.symbol) {
-                    for member in definition.members() {
-                        if member.space() == dir::MemberSpace::Static
-                            && let Some(key) = member.key()
-                        {
-                            keys.push(self.format_static_key(&key));
-                        }
-                    }
-                }
-            }
-            dir::Type::Instance(instance) => {
-                if let Some(definition) = self.definition(instance.symbol) {
-                    for member in definition.members() {
-                        if let Some(key) = member.key() {
-                            keys.push(self.format_static_key(&key));
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-
-        Ok(keys)
-    }
-
-    /// Return the source anchor of one type written as an annotation.
-    // NOTE #Incomplete: types are interned/hash-consed now, so a type value no
-    // longer carries the node where it was written as an annotation
-    // (`TypeSegment::get_type_source` was removed with no replacement). The
-    // caller's `origin` cannot substitute for it either: this anchor is meant
-    // to point at a *different* site than the relation's origin, and that
-    // distinct site is exactly the provenance that no longer exists. Flagged
-    // for Florian; this always returns `None` until a replacement exists.
-    fn written_type_anchor(
-        &self,
-        _id: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<DiagnosticAnchor>> {
-        Ok(None)
-    }
-
-    /// Return the first excess property one property literal supplies to one target.
-    pub(in crate::check) fn property_literal_excess_property(
-        &mut self,
-        origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<String>> {
-        let Some(expression) = origin.expression() else {
-            return Ok(None);
-        };
-        if !self.is_property_literal_expression(expression) {
-            return Ok(None);
-        }
-
-        let left = self.settled_root(left)?;
-        let left = match self.ty(left)? {
-            dir::Type::Form(form) if form.form == dir::Form::Managed => {
-                self.settled_root(form.value)?
-            }
-            _ => left,
-        };
-        let dir::Type::Shape(shape) = self.ty(left)? else {
-            return Ok(None);
-        };
-        let keys = self
-            .shape_fields(left.module_id, shape.fields)?
-            .iter()
-            .map(|field| field.key)
-            .collect::<SmallVec<[_; 8]>>();
-
-        let Some(right) = self.reduce_type_head(origin, right)?.ready() else {
-            return Ok(None);
-        };
-        let Some(accepted) = self.accepted_property_keys(origin, right)? else {
-            return Ok(None);
-        };
-
-        for key in keys {
-            if !accepted.contains(&key) {
-                return Ok(Some(self.format_static_key(&key)));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Return the writable index signature one source type cannot satisfy.
-    pub(in crate::check) fn writable_index_signature_rejection(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<(String, String, String)>> {
-        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
-            return Ok(None);
-        };
-        let dir::Type::Shape(shape) = self.ty(target)? else {
-            return Ok(None);
-        };
-
-        // find the first writable index signature
-        let Some(signature) = self
-            .shape_index_signatures(target.module_id, shape.index_signatures)?
-            .iter()
-            .find(|signature| !signature.is_readonly)
-            .copied()
-        else {
-            return Ok(None);
-        };
-
-        let module = origin.module();
-        let source = self.format_type_at(module, source);
-        let key = self.format_type_at(module, signature.key_type);
-        let value = self.format_type_at(module, signature.value_type);
-
-        Ok(Some((source, key, value)))
-    }
-
-    /// Return the first required property one property literal misses for one target.
-    pub(in crate::check) fn property_literal_missing_property(
-        &mut self,
-        origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<String>> {
-        let Some(expression) = origin.expression() else {
-            return Ok(None);
-        };
-        if !self.is_property_literal_expression(expression) {
-            return Ok(None);
-        }
-
-        let left = self.settled_root(left)?;
-        let left = match self.ty(left)? {
-            dir::Type::Form(form) if form.form == dir::Form::Managed => {
-                self.settled_root(form.value)?
-            }
-            _ => left,
-        };
-        let dir::Type::Shape(source) = self.ty(left)? else {
-            return Ok(None);
-        };
-        let source_keys = self
-            .shape_fields(left.module_id, source.fields)?
-            .iter()
-            .map(|field| field.key)
-            .collect::<SmallVec<[_; 8]>>();
-
-        let Some(required) = self.required_property_keys(origin, right)? else {
-            return Ok(None);
-        };
-
-        for key in required {
-            if source_keys.contains(&key) {
-                continue;
-            }
-
-            return Ok(Some(self.format_static_key(&key)));
-        }
-
-        Ok(None)
-    }
-
-    /// Return whether one expression supplies literal properties.
-    fn is_property_literal_expression(
-        &self,
-        expression: dir::GlobalNodeId<dir::Expression>,
-    ) -> bool {
-        matches!(
-            self.module(expression.module_id)
-                .view()
-                .get(expression.local_id),
-            dir::Expression::ObjectExpression { .. } | dir::Expression::StructExpression { .. }
-        )
-    }
-
-    /// Collect the property keys one target requires, none when not statically enumerable.
-    fn required_property_keys(
-        &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
-        let Some(target) = self.reduce_type_head(origin, target)?.ready() else {
-            return Ok(None);
-        };
-
-        match self.ty(target)? {
-            dir::Type::Shape(shape) => Ok(Some(
-                self.shape_fields(target.module_id, shape.fields)?
-                    .iter()
-                    .filter(|field| !field.is_optional)
-                    .map(|field| field.key)
-                    .collect(),
-            )),
-            dir::Type::Instance(instance) => match self.definition(instance.symbol) {
-                Some(dir::Definition::Struct(_)) => {
-                    // name only fields the literal cannot omit
-                    let mut required = SmallVec::new();
-                    for (key, has_initializer) in self.nominal_instance_fields(instance.symbol) {
-                        let lookup = self.lookup_member(
-                            origin,
-                            origin.module(),
-                            target,
-                            dir::MemberSpace::Instance,
-                            key,
-                        )?;
-                        let declared = match lookup {
-                            Answer::Ready(lookup) => lookup.field_type(),
-                            Answer::Pending(_) => None,
-                        };
-                        let omittable = match declared {
-                            Some(declared) => self
-                                .field_may_be_omitted(origin, declared, has_initializer)?
-                                .ready()
-                                .unwrap_or(false),
-                            None => has_initializer,
-                        };
-                        if !omittable {
-                            required.push(key);
-                        }
-                    }
-
-                    Ok(Some(required))
-                }
-                _ => Ok(None),
-            },
-            dir::Type::Form(form) => {
-                let value = self.settled_root(form.value)?;
-
-                self.required_property_keys(origin, value)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    /// Collect the property keys one target accepts, none when it accepts any.
-    fn accepted_property_keys(
-        &mut self,
-        origin: Origin,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<SmallVec<[dir::StaticKey; 8]>>> {
-        match self.ty(target)? {
-            dir::Type::Shape(shape) => {
-                if !shape.index_signatures.is_empty() {
-                    return Ok(None);
-                }
-
-                Ok(Some(
-                    self.shape_fields(target.module_id, shape.fields)?
-                        .iter()
-                        .map(|field| field.key)
-                        .collect(),
-                ))
-            }
-            dir::Type::Instance(instance) => match self.definition(instance.symbol) {
-                Some(dir::Definition::Interface(interface)) if !interface.is_nominal => {
-                    Ok(Some(self.nominal_member_keys(instance.symbol)))
-                }
-                Some(dir::Definition::Struct(_)) => {
-                    Ok(Some(self.nominal_field_keys(instance.symbol)))
-                }
-                _ => Ok(None),
-            },
-            dir::Type::Union(union) => {
-                let elements: SmallVec<[_; 4]> =
-                    SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
-                let mut keys = SmallVec::new();
-                for element in elements {
-                    let Some(element) = self.reduce_type_head(origin, element)?.ready() else {
-                        return Ok(None);
-                    };
-                    match self.accepted_property_keys(origin, element)? {
-                        None => return Ok(None),
-                        Some(element_keys) => keys.extend(element_keys),
-                    }
-                }
-
-                Ok(Some(keys))
-            }
-            dir::Type::Form(form) => {
-                let value = self.settled_root(form.value)?;
-
-                self.accepted_property_keys(origin, value)
-            }
-            _ => Ok(None),
-        }
-    }
-
-    /// Return a human readable path label.
-    fn path_label(&self, module: ModuleId, path: &dir::Path) -> String {
-        let mut label = String::new();
-
-        // join path segments with dot notation
-        for (index, segment) in path.segments.iter().enumerate() {
-            if index > 0 {
-                label.push('.');
-            }
-
-            label.push_str(self.module(module).strings.get(*segment));
-        }
-
-        label
-    }
-
-    /// Return the closest visible name for one unresolved single-segment path.
-    fn closest_reference_name(
-        &self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        path: &dir::Path,
-    ) -> Option<String> {
-        let [name] = path.segments.as_slice() else {
-            return None;
-        };
-        let name = self.module(module).strings.get(*name).to_string();
-
-        let bindings = self.module(module).binding_table();
-        let scope = bindings.scope_at(&self.module(module).view(), source);
-        let mut candidates = Vec::new();
-
-        // collect lexical names visible at the source node
-        self.collect_reference_names(module, &bindings, scope, &mut candidates);
-
-        // collect profile-provided globals visible to unresolved references
-        for key in self
-            .module(module)
-            .resolved
-            .imports
-            .global_target_by_key
-            .keys()
-        {
-            if let Some(candidate) = self.reference_key_text(module, key) {
-                candidates.push(candidate);
-            }
-        }
-
-        closest_string(&name, candidates, diagnostic_suggestion_distance(&name))
-    }
-
-    /// Collect named lexical bindings visible from one scope cursor.
-    fn collect_reference_names(
-        &self,
-        module: ModuleId,
-        bindings: &dir::BindingTable<'_>,
-        mut scope: dir::LocalScope,
-        candidates: &mut Vec<String>,
-    ) {
-        loop {
-            let current = bindings.get_scope(scope);
-
-            // collect names declared before the visible scope mark
-            for (key, symbol) in current.named_symbols_up_to(scope.mark) {
-                let kind = bindings.get_symbol(symbol).kind;
-                if !kind.is_visible_in(dir::SymbolSpace::Declaration) {
-                    continue;
-                }
-
-                if let Some(candidate) = self.reference_key_text(module, &key) {
-                    candidates.push(candidate);
-                }
-            }
-
-            let Some(parent) = current.parent else {
-                return;
-            };
-
-            scope = parent;
-        }
-    }
-
-    /// Return source text for an ordinary reference key.
-    fn reference_key_text(&self, module: ModuleId, key: &dir::StaticKey) -> Option<String> {
-        match key {
-            dir::StaticKey::Name(name) => Some(self.module(module).strings.get(*name).to_string()),
-            dir::StaticKey::Index(_) | dir::StaticKey::Symbol(_) => None,
-        }
     }
 }
