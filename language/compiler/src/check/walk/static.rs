@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Decision, StaticIfCondition, WalkState, Widening};
+use crate::check::{Decision, GenericPosition, StaticIfCondition, WalkState, Widening};
 use crate::r#static::{StaticContext, StaticError};
 
 /// Source presence decided by closed static gates.
@@ -270,7 +270,7 @@ impl WalkState<'_, '_> {
                     let ty = self.open_type_hole((*value).into_any(), Widening::Preserve)?;
                     self.commit_node_type(*value, ty)?
                 } else {
-                    self.walk_type_expression(*value)?
+                    self.walk_type_expression(*value, GenericPosition::Annotation)?
                 };
 
                 self.bind_static_term(expression, ty)
@@ -310,10 +310,11 @@ impl WalkState<'_, '_> {
                     | None => None,
                 };
                 let Some(symbol) = symbol else {
-                    self.check.report_invalid_static_guard(self.module, source);
+                    self.check
+                        .report_undecidable_static_value(self.module, source);
+                    let ty = self.intern_type(dir::Type::Error)?;
 
-                    return self
-                        .intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)));
+                    return self.bind_static_term(expression, ty);
                 };
 
                 // record the name edge for checked output
@@ -351,9 +352,9 @@ impl WalkState<'_, '_> {
                 right,
             } => {
                 let Ok(operator) = dir::StaticBinaryOperator::try_from(*operator) else {
-                    self.check.report_invalid_static_guard(self.module, source);
-                    let ty =
-                        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
+                    self.check
+                        .report_undecidable_static_value(self.module, source);
+                    let ty = self.intern_type(dir::Type::Error)?;
 
                     return self.bind_static_term(expression, ty);
                 };
@@ -371,9 +372,9 @@ impl WalkState<'_, '_> {
             // !C
             dir::Expression::Unary { operator, right } => {
                 let Ok(operator) = dir::StaticUnaryOperator::try_from(*operator) else {
-                    self.check.report_invalid_static_guard(self.module, source);
-                    let ty =
-                        self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
+                    self.check
+                        .report_undecidable_static_value(self.module, source);
+                    let ty = self.intern_type(dir::Type::Error)?;
 
                     return self.bind_static_term(expression, ty);
                 };
@@ -401,9 +402,9 @@ impl WalkState<'_, '_> {
                 self.bind_static_term(expression, ty)
             }
             _ => {
-                self.check.report_invalid_static_guard(self.module, source);
-                let ty =
-                    self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(false)))?;
+                self.check
+                    .report_undecidable_static_value(self.module, source);
+                let ty = self.intern_type(dir::Type::Error)?;
 
                 self.bind_static_term(expression, ty)
             }

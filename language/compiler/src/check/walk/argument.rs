@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::WalkState;
+use crate::check::{GenericPosition, WalkState};
 
 /// One generic argument after walking its type or static value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,12 +52,13 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_generic_arguments(
         &mut self,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        position: GenericPosition,
     ) -> CompilerResult<SmallVec<[GenericArgument; 2]>> {
         let mut applied = SmallVec::new();
 
         // preserve generic argument order
         for argument in arguments {
-            applied.push(self.walk_generic_argument(*argument)?);
+            applied.push(self.walk_generic_argument(*argument, position)?);
         }
 
         Ok(applied)
@@ -73,18 +74,19 @@ impl WalkState<'_, '_> {
     fn walk_generic_argument(
         &mut self,
         id: dir::LocalNodeId<dir::GenericArgument>,
+        position: GenericPosition,
     ) -> CompilerResult<GenericArgument> {
         let (name, ty, source) = match self.tree.get(id) {
             // <T> and <...T>
             dir::GenericArgument::Type { value } | dir::GenericArgument::SpreadType { value } => (
                 None,
-                self.walk_type_expression(*value)?,
+                self.walk_type_expression(*value, position)?,
                 value.into_global_any(self.module),
             ),
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => (
                 Some(*name),
-                self.walk_type_expression(*value)?,
+                self.walk_type_expression(*value, position)?,
                 value.into_global_any(self.module),
             ),
             // <C> and <...C>

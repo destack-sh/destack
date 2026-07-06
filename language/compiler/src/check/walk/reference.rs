@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Decision, PlaceUse, WalkState};
+use crate::check::{Decision, GenericPosition, PlaceUse, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -189,7 +189,10 @@ impl WalkState<'_, '_> {
 
         // collect written argument types for instantiation selection
         for argument in generic_arguments {
-            self.walk_generic_arguments(std::slice::from_ref(argument))?;
+            self.walk_generic_arguments(
+                std::slice::from_ref(argument),
+                GenericPosition::Annotation,
+            )?;
         }
         self.queue_node_task(id, PlaceUse::Read)?;
 

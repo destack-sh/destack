@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::check::{
     Expectation, GenericInductionParameter, GenericInductionPosition, GenericParameterId,
-    GenericTemplateId, Origin, ParameterType, ValueUse, WalkState,
+    GenericPosition, GenericTemplateId, Origin, ParameterType, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -100,10 +100,12 @@ impl WalkState<'_, '_> {
             } => {
                 let (constraint, default) = (*constraint, *default);
                 let constraint = constraint
-                    .map(|constraint| self.walk_type_expression(constraint))
+                    .map(|constraint| {
+                        self.walk_type_expression(constraint, GenericPosition::Annotation)
+                    })
                     .transpose()?;
                 let default = default
-                    .map(|default| self.walk_type_expression(default))
+                    .map(|default| self.walk_type_expression(default, GenericPosition::Annotation))
                     .transpose()?;
 
                 self.check
@@ -129,7 +131,9 @@ impl WalkState<'_, '_> {
                 }
 
                 let constraint = declared_type
-                    .map(|declared_type| self.walk_type_expression(declared_type))
+                    .map(|declared_type| {
+                        self.walk_type_expression(declared_type, GenericPosition::Annotation)
+                    })
                     .transpose()?;
                 let default = default
                     .map(|default| self.walk_static_term(default))
