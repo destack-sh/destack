@@ -74,14 +74,17 @@ export function notDeepEqual(actual: unknown, expected: unknown, message?: strin
 }
 
 /// Assert that `values` contains `expected`.
-export function contains<T>(values: &readonly Iterable<T>, expected: T, message?: string): void
+export function contains<T>(values: readonly Iterable<T>, expected: T, message?: string): void
     where T: Equal<T> {
     todo("assert.contains");
 }
 
 /// Assert that `values` does not contain `expected`.
-export function notContains<T>(values: &readonly Iterable<T>, expected: T, message?: string): void
-    where T: Equal<T> {
+export function notContains<T>(
+    values: readonly Iterable<T>,
+    expected: T,
+    message?: string,
+): void where T: Equal<T> {
     todo("assert.notContains");
 }
 

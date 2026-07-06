@@ -37,7 +37,7 @@ export class Context {
 
     /// Run `body` with scoped context overrides.
     static with<T>(patch: ContextPatch, body: () => T): T {
-        const token = pushContext(&readonly patch);
+        const token = pushContext(patch);
         const result = body();
 
         popContext(token);
@@ -47,7 +47,7 @@ export class Context {
 
     /// Run async `body` with scoped context overrides.
     static async withAsync<T>(patch: ContextPatch, body: () => Promise<T>): Promise<T> {
-        const token = pushContext(&readonly patch);
+        const token = pushContext(patch);
         const result = await body();
 
         popContext(token);
@@ -159,7 +159,7 @@ export declare function currentContext(): Context;
 /// Push one scoped context override.
 @languageItem("context.push")
 @intrinsic("context.push")
-export declare function pushContext(patch: &readonly ContextPatch): ContextToken;
+export declare function pushContext(patch: ContextPatch): ContextToken;
 
 /// Pop one scoped context override.
 @languageItem("context.pop")
