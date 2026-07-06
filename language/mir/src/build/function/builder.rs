@@ -108,6 +108,7 @@ impl<'a> FunctionBuilder<'a> {
             allocation: AllocationMode::Any,
             suspension: None,
             environment: None,
+            binding: None,
             body: None,
         };
         let function_id = tree.insert(function);

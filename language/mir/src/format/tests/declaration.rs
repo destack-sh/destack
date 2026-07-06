@@ -83,6 +83,9 @@ export global Exported: int32 = 7
 
 external function imported(int32): int32
 
+@binding("runtime.touch")
+external function touch(): void
+
 export function exported(v0: int32): int32 {
 entry(v0: int32):
     v1: int32 = call imported(v0)

@@ -3,10 +3,10 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockParameter, BlockTarget,
-    Call, CheckConstraint, Function, FunctionBody, FunctionHeaderSpans, FunctionParameter,
-    Instruction, Linkage, Local, LocalNodeId, Mutability, SwitchCase, Terminator, TrapKind, TypeId,
-    TypedValueSpan, Value,
+    AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Block,
+    BlockParameter, BlockTarget, Call, CheckConstraint, Function, FunctionBody,
+    FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId, Mutability,
+    SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -41,6 +41,19 @@ pub(super) struct ParsedFunctionHeader {
     pub(super) return_colon_span: Span,
 }
 
+/// Function attributes after extracting first-class function fields.
+#[derive(Debug)]
+pub(super) struct FunctionAttributes {
+    /// The hidden environment type when present.
+    pub(super) environment_type: Option<TypeId>,
+    /// The runtime binding name when present.
+    pub(super) binding_name: Option<StringId>,
+    /// Generic attributes that remain attached to the function node.
+    pub(super) attributes: Vec<Attribute>,
+    /// Spans for generic attributes that remain attached to the function node.
+    pub(super) attribute_spans: Vec<Span>,
+}
+
 /// Function header parse mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum FunctionHeaderMode {
@@ -51,19 +64,27 @@ pub(super) enum FunctionHeaderMode {
 }
 
 impl Parser {
-    /// Resolve attributes into function tables.
-    pub(super) fn resolve_function_attributes(
+    /// Extract first-class function fields from parsed attributes.
+    pub(super) fn extract_function_attributes(
         &mut self,
-        attributes: &[Attribute],
-    ) -> ParseResult<Option<TypeId>> {
-        // tables output
+        attributes: Vec<Attribute>,
+        attribute_spans: Vec<Span>,
+    ) -> ParseResult<FunctionAttributes> {
+        // first-class fields
         let mut environment_type = None;
+        let mut binding_name = None;
+        let mut retained_attributes = Vec::new();
+        let mut retained_attribute_spans = Vec::new();
 
         // inspect attributes
-        for attribute in attributes {
+        for (attribute, attribute_span) in attributes.into_iter().zip(attribute_spans) {
             let name = match attribute.name {
-                crate::AttributeIdentifier::Identifier(name) => self.strings.get(name).to_string(),
-                crate::AttributeIdentifier::Missing | crate::AttributeIdentifier::Error => continue,
+                AttributeIdentifier::Identifier(name) => self.strings.get(name).to_string(),
+                AttributeIdentifier::Missing | AttributeIdentifier::Error => {
+                    retained_attributes.push(attribute);
+                    retained_attribute_spans.push(attribute_span);
+                    continue;
+                }
             };
             if name.as_str() == "environment" {
                 if environment_type.is_some() {
@@ -83,10 +104,37 @@ impl Parser {
                     }
                 };
                 environment_type = Some(env_type);
+                continue;
             }
+
+            if name.as_str() == "binding" {
+                if binding_name.is_some() {
+                    return Err(ParseError::new("duplicate binding attribute", self.pos()));
+                }
+
+                let name = match &attribute.args {
+                    AttributeArgs::Value(AttributeValue::String(value)) => *value,
+                    _ => {
+                        return Err(ParseError::new(
+                            "binding expects a string value",
+                            self.pos(),
+                        ));
+                    }
+                };
+                binding_name = Some(name);
+                continue;
+            }
+
+            retained_attributes.push(attribute);
+            retained_attribute_spans.push(attribute_span);
         }
 
-        Ok(environment_type)
+        Ok(FunctionAttributes {
+            environment_type,
+            binding_name,
+            attributes: retained_attributes,
+            attribute_spans: retained_attribute_spans,
+        })
     }
 
     /// Parse one function header.
@@ -156,7 +204,7 @@ impl Parser {
         let function_id = header.function_id;
 
         // function tables
-        let environment_type = self.resolve_function_attributes(&attributes)?;
+        let function_attributes = self.extract_function_attributes(attributes, attribute_spans)?;
         let parameter_names = self.header_parameter_names(&header.parameters);
 
         // external function body
@@ -169,7 +217,8 @@ impl Parser {
                 header.return_type,
             );
             function.parameter_names = parameter_names;
-            function.environment = environment_type;
+            function.environment = function_attributes.environment_type;
+            function.binding = function_attributes.binding_name;
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
 
             // update the placeholder with the parsed signature
@@ -182,7 +231,8 @@ impl Parser {
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 header.signature_span,
             );
-            self.tree.set_attribute_spans(function_id, attribute_spans);
+            self.tree
+                .set_attribute_spans(function_id, function_attributes.attribute_spans);
             self.tree
                 .set_function_parameter_spans(function_id, header.parameter_spans);
             self.tree.set_function_header_spans(
@@ -199,8 +249,9 @@ impl Parser {
             self.pop_lifetime_scope();
 
             // record attributes
-            if !attributes.is_empty() {
-                self.tree.set_attributes(function_id, attributes);
+            if !function_attributes.attributes.is_empty() {
+                self.tree
+                    .set_attributes(function_id, function_attributes.attributes);
             }
 
             // optional declaration terminator
@@ -221,7 +272,8 @@ impl Parser {
             NodeSpanType::Region(NodeSpanRegion::Type),
             header.signature_span,
         );
-        self.tree.set_attribute_spans(id, attribute_spans);
+        self.tree
+            .set_attribute_spans(id, function_attributes.attribute_spans);
         self.tree
             .set_function_parameter_spans(id, header.parameter_spans);
         let parameters = header.parameters;
@@ -240,7 +292,8 @@ impl Parser {
         function.parameter_names = parameter_names;
         function.return_type = header.return_type;
         function.linkage = linkage;
-        function.environment = environment_type;
+        function.environment = function_attributes.environment_type;
+        function.binding = function_attributes.binding_name;
 
         // body
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
@@ -316,8 +369,8 @@ impl Parser {
             .set_text_span(id, self.span_from_parse_start(item_start));
 
         // record attributes
-        if !attributes.is_empty() {
-            self.tree.set_attributes(id, attributes);
+        if !function_attributes.attributes.is_empty() {
+            self.tree.set_attributes(id, function_attributes.attributes);
         }
 
         Ok(id)
