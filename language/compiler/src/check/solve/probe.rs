@@ -68,7 +68,7 @@ impl CheckState<'_> {
                     }
                 }
                 Dependency::NodeType(node) => {
-                    if self.committed_node_type_maybe(node).is_none() && !live.contains(&blocker) {
+                    if self.node_type_maybe(node).is_none() && !live.contains(&blocker) {
                         live.push(blocker);
                     }
                 }

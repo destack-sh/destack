@@ -313,7 +313,7 @@ impl CheckState<'_> {
             .is_some_and(|module| module.absent_symbols.contains(&symbol))
     }
 
-    /// Return loaded state for one module.
+    /// Return loaded state for one in-component module.
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
         match self.modules.get(&module) {
             Some(state) => state,
@@ -321,7 +321,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return loaded state for one module mutably.
+    /// Return loaded state for one in-component module mutably.
     pub(in crate::check) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState {
         match self.modules.get_mut(&module) {
             Some(state) => state,
@@ -329,27 +329,27 @@ impl CheckState<'_> {
         }
     }
 
-    /// Move loaded state for one module out of check state.
+    /// Move loaded state for one in-component module out of check state.
     pub(in crate::check) fn take_module(&mut self, module: ModuleId) -> CheckModuleState {
         self.modules
             .swap_remove(&module)
             .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
     }
 
-    /// Return one committed source node type, if present.
-    pub(in crate::check) fn committed_node_type_maybe(
+    /// Return one source node type without flow narrowing, if present.
+    pub(in crate::check) fn node_type_maybe(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
         self.node_types.get(&node).copied()
     }
 
-    /// Return one committed source node type.
-    pub(in crate::check) fn committed_node_type(
+    /// Return one source node type without flow narrowing.
+    pub(in crate::check) fn node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if let Some(ty) = self.committed_node_type_maybe(node) {
+        if let Some(ty) = self.node_type_maybe(node) {
             Ok(Answer::Ready(ty))
         } else {
             Ok(Answer::pending([Dependency::NodeType(node)]))
@@ -368,12 +368,12 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one committed source node type or fail on an internal invariant break.
-    pub(in crate::check) fn require_committed_node_type(
+    /// Return one source node type without flow narrowing or fail on an invariant break.
+    pub(in crate::check) fn require_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(ty) = self.committed_node_type_maybe(node) else {
+        let Some(ty) = self.node_type_maybe(node) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "required node has no checked type: {}",
@@ -391,7 +391,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if let Some(previous) = self.committed_node_type_maybe(node) {
+        if let Some(previous) = self.node_type_maybe(node) {
             if previous == ty {
                 return Ok(());
             }
@@ -420,7 +420,7 @@ impl CheckState<'_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.committed_node_type_maybe(node) {
+        if let Some(ty) = self.node_type_maybe(node) {
             return Ok(ty);
         }
 

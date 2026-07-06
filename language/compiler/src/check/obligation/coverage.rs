@@ -359,8 +359,7 @@ impl CheckState<'_> {
             // expression patterns cover values their type absorbs
             dir::Pattern::Expression { value: expression } => {
                 let expression = *expression;
-                let expected =
-                    answer!(self.committed_node_type(expression.into_global_any(module))?);
+                let expected = answer!(self.node_type(expression.into_global_any(module))?);
 
                 self.decide_relation(origin, Relation::Assignable, value, expected)
             }
@@ -387,7 +386,7 @@ impl CheckState<'_> {
             | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let tag = answer!(self.committed_node_type(ty.into_global_any(module))?);
+                let tag = answer!(self.node_type(ty.into_global_any(module))?);
                 let tag_decision =
                     self.decide_relation(origin, Relation::Assignable, value, tag)?;
                 if !tag_decision.is_ready_true() {
@@ -454,7 +453,7 @@ impl CheckState<'_> {
 
                 Ok(decision)
             }
-            dir::PredicateTest::Has(_) | dir::PredicateTest::Call(_) => Ok(Answer::Ready(false)),
+            dir::PredicateTest::Membership(_) => Ok(Answer::Ready(false)),
         }
     }
 
@@ -672,7 +671,7 @@ impl CheckState<'_> {
             }
             // expression patterns cover literal points
             dir::Pattern::Expression { value } => {
-                let ty = answer!(self.committed_node_type(value.into_global_any(module))?);
+                let ty = answer!(self.node_type(value.into_global_any(module))?);
                 let ty = answer!(self.reduce_type_head(origin, ty)?);
                 self.type_scalar_literal(ty)?.map(|literal| {
                     IntervalCoverage::Intervals(vec![dir::RangeType {
@@ -785,7 +784,7 @@ impl CheckState<'_> {
         let Some(bound) = bound else {
             return Ok(Answer::Ready(Some(StaticRangeBound::Open)));
         };
-        let ty = answer!(self.committed_node_type(bound.into_global_any(module))?);
+        let ty = answer!(self.node_type(bound.into_global_any(module))?);
 
         let reduced = answer!(self.reduce_type_head(origin, ty)?);
         match self.ty(reduced)? {

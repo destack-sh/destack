@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, ExpectedType, FlowNarrowing, FlowPath, Obligation, Origin, PatternCoverage,
+    Expectation, ExpectedType, FlowPath, FlowPredicate, Obligation, Origin, PatternCoverage,
     PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
@@ -84,7 +84,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // choose the TS initializer widening rule before walking the value
+        // choose the initializer widening rule before walking the value
         let widening = self.declarator_initializer_widening(symbol, declarator.value);
 
         // walk the initializer as its own expression
@@ -343,27 +343,27 @@ impl WalkState<'_, '_> {
             }
             // value
             dir::Pattern::Expression { .. } => {
-                let narrowing = FlowNarrowing::Pattern {
+                let predicate = FlowPredicate::Pattern {
                     pattern: pattern.into_global(self.module),
                     is_positive,
                 };
 
-                self.narrow_flow_path(path, narrowing);
+                self.apply_flow_predicate(path, predicate);
             }
             // T(a, b), T { name }
             dir::Pattern::NominalTuple { fields, .. }
             | dir::Pattern::NominalObject { fields, .. } => {
                 let fields = fields.clone();
-                let narrowing = FlowNarrowing::Pattern {
+                let predicate = FlowPredicate::Pattern {
                     pattern: pattern.into_global(self.module),
                     is_positive,
                 };
 
                 if is_positive {
-                    self.narrow_flow_path(path.clone(), narrowing);
+                    self.apply_flow_predicate(path.clone(), predicate);
                     self.narrow_pattern_field_match(path, &fields)?;
                 } else {
-                    self.narrow_flow_path(path, narrowing);
+                    self.apply_flow_predicate(path, predicate);
                 }
             }
             // { name }
@@ -378,21 +378,21 @@ impl WalkState<'_, '_> {
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {}
             // start..end
             dir::Pattern::Range { .. } => {
-                let narrowing = FlowNarrowing::Pattern {
+                let predicate = FlowPredicate::Pattern {
                     pattern: pattern.into_global(self.module),
                     is_positive,
                 };
 
-                self.narrow_flow_path(path, narrowing);
+                self.apply_flow_predicate(path, predicate);
             }
             // a | b
             dir::Pattern::Union { .. } => {
-                let narrowing = FlowNarrowing::Pattern {
+                let predicate = FlowPredicate::Pattern {
                     pattern: pattern.into_global(self.module),
                     is_positive,
                 };
 
-                self.narrow_flow_path(path, narrowing);
+                self.apply_flow_predicate(path, predicate);
             }
             // [a, b], [...items]
             dir::Pattern::Tuple { .. }

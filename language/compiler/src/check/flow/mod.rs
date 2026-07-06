@@ -3,11 +3,11 @@ mod branch;
 mod control;
 mod frame;
 mod function;
-mod narrowing;
 mod path;
+mod predicate;
 mod state;
 
 pub(in crate::check) use frame::*;
-pub(in crate::check) use narrowing::*;
 pub(in crate::check) use path::*;
+pub(in crate::check) use predicate::*;
 pub(in crate::check) use state::*;

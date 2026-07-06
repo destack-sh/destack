@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, Expectation, ExpectedType, FlowNarrowing, FlowPath, MatchCase, Obligation,
+    ConditionBranch, Expectation, ExpectedType, FlowPath, FlowPredicate, MatchCase, Obligation,
     Origin, PatternCoverage, PatternCoverageObligation, Relation, StaticGate, ValueUse, WalkState,
 };
 
@@ -277,11 +277,11 @@ impl WalkState<'_, '_> {
         path: FlowPath,
         pattern: dir::GlobalNodeId<dir::Pattern>,
     ) {
-        let narrowing = FlowNarrowing::Pattern {
+        let predicate = FlowPredicate::Pattern {
             pattern,
             is_positive: false,
         };
 
-        self.narrow_flow_path(path, narrowing);
+        self.apply_flow_predicate(path, predicate);
     }
 }

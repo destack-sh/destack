@@ -28,7 +28,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(()));
         }
 
-        if self.committed_node_type_maybe(site.node).is_some() {
+        if self.node_type_maybe(site.node).is_some() {
             return self.constrain_node_value(site, relation, target, origin, use_);
         }
 

@@ -16,7 +16,7 @@ impl CheckState<'_> {
         mode: InferMode,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
-        if self.committed_node_type_maybe(node.into_any()).is_some() {
+        if self.node_type_maybe(node.into_any()).is_some() {
             return Ok(Answer::Ready(()));
         }
 
@@ -99,8 +99,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(()))
             }
             dir::Expression::FixedArrayExpression { value, length } => {
-                let count =
-                    answer!(self.committed_node_type(length.into_global_any(node.module_id))?);
+                let count = answer!(self.node_type(length.into_global_any(node.module_id))?);
 
                 self.infer_fixed_array_expression(site, value, count)
             }
@@ -142,7 +141,7 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(()))
             }
             dir::Expression::StructExpression { ty, properties } => {
-                let target = answer!(self.committed_node_type(ty.into_global_any(node.module_id))?);
+                let target = answer!(self.node_type(ty.into_global_any(node.module_id))?);
 
                 self.select_property_merge(
                     site,
@@ -293,7 +292,7 @@ impl CheckState<'_> {
         answer!(self.infer_node(child_site, PlaceUse::Read)?);
         // commit the raw child type: both nodes share one flow path,
         // so the parent read overlays the narrowing itself
-        let ty = answer!(self.committed_node_type(child_site.node)?);
+        let ty = answer!(self.node_type(child_site.node)?);
         self.commit_node_type(site.node, ty)?;
 
         Ok(Answer::Ready(()))
