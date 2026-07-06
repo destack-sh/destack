@@ -206,6 +206,13 @@ impl dir::NodeVisitor for ResolveState<'_> {
         pattern: &dir::Pattern,
     ) {
         match pattern {
+            dir::Pattern::Range {
+                start,
+                end,
+                end_kind,
+            } => {
+                self.use_range_language_item(start.is_some(), end.is_some(), *end_kind);
+            }
             dir::Pattern::Sequence { .. } => {
                 self.use_sequence_pattern_language_items();
             }
