@@ -111,6 +111,13 @@ impl DecisionTable {
         self.decisions.len()
     }
 
+    /// Truncate decisions back to one probe mark.
+    pub(in crate::check) fn truncate_to(&mut self, count: usize) {
+        while self.decisions.len() > count {
+            self.decisions.pop();
+        }
+    }
+
     /// Take decided nodes owned by one module.
     pub(in crate::check) fn take_module(
         &mut self,

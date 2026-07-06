@@ -11,42 +11,137 @@ use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolveMode, 
 pub(in crate::check) struct Probe {
     /// The solver state before the probe.
     solver: SolverSnapshot,
-    /// The decision count before the probe, asserted stable on rejection.
+    /// The node type count before the probe.
+    node_types: usize,
+    /// The decision count before the probe.
     decisions: usize,
-    /// Working type segment marks for each loaded module before the probe.
-    types: IndexMap<ModuleId, dir::TypeMark>,
+    /// The event count before the probe.
+    events: usize,
+    /// Module marks before the probe.
+    modules: IndexMap<ModuleId, ModuleProbeMark>,
+}
+
+/// Per-module check state mark before one probe.
+#[derive(Debug)]
+struct ModuleProbeMark {
+    /// Working type segment mark before the probe.
+    types: dir::TypeMark,
+    /// Diagnostic count before the probe.
+    diagnostics: usize,
+    /// Warning count before the probe.
+    warnings: usize,
 }
 
 impl CheckState<'_> {
+    /// Run one speculative check and keep it only when its ready value is accepted.
+    pub(in crate::check) fn probe_accept<T>(
+        &mut self,
+        attempt: impl FnOnce(&mut Self) -> CompilerResult<Answer<T>>,
+        accept: impl FnOnce(&T) -> bool,
+    ) -> CompilerResult<Answer<T>> {
+        let probe = self.begin_probe();
+        let result = attempt(self);
+
+        match result {
+            Ok(Answer::Ready(value)) if accept(&value) => {
+                self.commit_probe(probe);
+
+                Ok(Answer::Ready(value))
+            }
+            Ok(Answer::Ready(value)) => {
+                self.reject_probe(probe);
+
+                Ok(Answer::Ready(value))
+            }
+            Ok(Answer::Pending(blockers)) => {
+                self.reject_probe(probe);
+
+                Ok(Answer::Pending(self.live_blockers(blockers)))
+            }
+            Err(error) => {
+                self.reject_probe(probe);
+
+                Err(error)
+            }
+        }
+    }
+
+    /// Run one speculative check and keep accepted ready state or pending state.
+    pub(in crate::check) fn probe_accept_or_pending<T>(
+        &mut self,
+        attempt: impl FnOnce(&mut Self) -> CompilerResult<Answer<T>>,
+        accept: impl FnOnce(&T) -> bool,
+    ) -> CompilerResult<Answer<T>> {
+        let probe = self.begin_probe();
+        let result = attempt(self);
+
+        match result {
+            Ok(Answer::Ready(value)) if accept(&value) => {
+                self.commit_probe(probe);
+
+                Ok(Answer::Ready(value))
+            }
+            Ok(Answer::Ready(value)) => {
+                self.reject_probe(probe);
+
+                Ok(Answer::Ready(value))
+            }
+            Ok(Answer::Pending(blockers)) => {
+                self.commit_probe(probe);
+
+                Ok(Answer::Pending(blockers))
+            }
+            Err(error) => {
+                self.reject_probe(probe);
+
+                Err(error)
+            }
+        }
+    }
+
     /// Begin one probe.
-    pub(in crate::check) fn begin_probe(&mut self) -> Probe {
-        let types = self
+    fn begin_probe(&mut self) -> Probe {
+        let modules = self
             .modules
             .iter()
-            .map(|(module, state)| (*module, state.types_tail.mark()))
+            .map(|(module, state)| {
+                (
+                    *module,
+                    ModuleProbeMark {
+                        types: state.types_tail.mark(),
+                        diagnostics: state.diagnostics.len(),
+                        warnings: state.warnings.len(),
+                    },
+                )
+            })
             .collect();
         let solver = self.solver.snapshot();
 
         Probe {
             solver,
+            node_types: self.node_types.len(),
             decisions: self.decisions.count(),
-            types,
+            events: self.events.len(),
+            modules,
         }
     }
 
     /// Roll back one rejected probe.
-    pub(in crate::check) fn reject_probe(&mut self, snapshot: Probe) {
-        debug_assert_eq!(
-            snapshot.decisions,
-            self.decisions.count(),
-            "a rejected probe may not commit node decisions"
-        );
-        self.solver.rollback(snapshot.solver);
-        self.drop_probe_types(snapshot.types);
+    fn reject_probe(&mut self, snapshot: Probe) {
+        let Probe {
+            solver,
+            node_types,
+            decisions,
+            events,
+            modules,
+        } = snapshot;
+
+        self.solver.rollback(solver);
+        self.drop_probe_state(node_types, decisions, events, modules);
     }
 
     /// Commit one accepted probe.
-    pub(in crate::check) fn commit_probe(&mut self, snapshot: Probe) {
+    fn commit_probe(&mut self, snapshot: Probe) {
         self.solver.commit(snapshot.solver);
     }
 
@@ -150,52 +245,36 @@ impl CheckState<'_> {
         relation: Relation,
         source: dir::GlobalTypeId,
         expected: dir::GlobalTypeId,
-        variables: impl IntoIterator<Item = dir::TypeVariableId>,
     ) -> CompilerResult<Answer<()>> {
-        let variables = variables.into_iter().collect::<SmallVec<[_; 4]>>();
-        if variables.is_empty() {
-            return Ok(Answer::Ready(()));
-        }
-
-        let probe = self.begin_probe();
-        match self.constrain(origin, relation, source, expected)? {
-            Answer::Ready(true) => {}
-            Answer::Ready(false) => {
-                self.reject_probe(probe);
-
-                return Ok(Answer::Ready(()));
-            }
-            Answer::Pending(blockers) => {
-                self.reject_probe(probe);
-
-                return Ok(Answer::Pending(self.live_blockers(blockers)));
-            }
-        }
-
-        match self.solve_probe_variables(variables)? {
-            Answer::Ready(true) => {
-                self.commit_probe(probe);
-
-                Ok(Answer::Ready(()))
-            }
-            Answer::Ready(false) => {
-                self.reject_probe(probe);
-
-                Ok(Answer::Ready(()))
-            }
-            Answer::Pending(blockers) => {
-                self.reject_probe(probe);
-
-                Ok(Answer::Pending(self.live_blockers(blockers)))
-            }
+        match self.probe_accept(
+            |state| state.constrain(origin, relation, source, expected),
+            |holds| *holds,
+        )? {
+            Answer::Ready(true) => Ok(Answer::Ready(())),
+            Answer::Ready(false) => Ok(Answer::Ready(())),
+            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
     }
 
-    /// Drop types allocated inside a rejected probe.
-    fn drop_probe_types(&mut self, marks: IndexMap<ModuleId, dir::TypeMark>) {
-        for (module, mark) in marks {
+    /// Drop state allocated inside a rejected probe.
+    fn drop_probe_state(
+        &mut self,
+        node_types: usize,
+        decisions: usize,
+        events: usize,
+        modules: IndexMap<ModuleId, ModuleProbeMark>,
+    ) {
+        while self.node_types.len() > node_types {
+            self.node_types.pop();
+        }
+        self.decisions.truncate_to(decisions);
+        self.events.truncate(events);
+
+        for (module, mark) in modules {
             if let Some(state) = self.modules.get_mut(&module) {
-                state.types_tail.truncate_to(mark);
+                state.types_tail.truncate_to(mark.types);
+                state.diagnostics.truncate(mark.diagnostics);
+                state.warnings.truncate(mark.warnings);
             }
         }
     }

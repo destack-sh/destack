@@ -507,14 +507,6 @@ impl CheckState<'_> {
                 }
                 pairs.push((relation, left.value, right.value));
             }
-            // union targets accept when any member accepts
-            (_, dir::Type::Union(elements)) if relation == Relation::Assignable => {
-                let elements = SmallVec::<[_; 4]>::from_slice(
-                    self.type_ids(right.module_id, elements.elements)?,
-                );
-
-                return Ok(Some(self.constrain_union_target(origin, left, &elements)?));
-            }
             // union sources flow every element into the target
             (dir::Type::Union(elements), _) if relation == Relation::Assignable => {
                 let elements = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
@@ -523,6 +515,14 @@ impl CheckState<'_> {
                 for element in elements {
                     pairs.push((relation, element, right));
                 }
+            }
+            // union targets accept when any member accepts
+            (_, dir::Type::Union(elements)) if relation == Relation::Assignable => {
+                let elements = SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(right.module_id, elements.elements)?,
+                );
+
+                return Ok(Some(self.constrain_union_target(origin, left, &elements)?));
             }
             (dir::Type::Dynamic(left), dir::Type::Dynamic(right)) => {
                 pairs.push((relation, left.constraint, right.constraint));
@@ -550,32 +550,17 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
-        // try closed arms before binding open inference arms
-        let mut open = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        for element in elements.iter().copied() {
-            if self.type_variables(element)?.is_empty() {
-                if answer!(self.constrain(origin, Relation::Assignable, left, element)?) {
-                    return Ok(Answer::Ready(true));
-                }
-            } else {
-                open.push(element);
-            }
-        }
-
-        // try open arms speculatively, keeping the first accepting arm
+        // try every arm speculatively, keeping the first accepting arm
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        for element in open {
-            let probe = self.begin_probe();
-            match self.constrain(origin, Relation::Assignable, left, element)? {
-                Answer::Ready(true) => {
-                    self.commit_probe(probe);
-
-                    return Ok(Answer::Ready(true));
-                }
-                Answer::Ready(false) => self.reject_probe(probe),
+        for element in elements.iter().copied() {
+            match self.probe_accept(
+                |state| state.constrain(origin, Relation::Assignable, left, element),
+                |holds| *holds,
+            )? {
+                Answer::Ready(true) => return Ok(Answer::Ready(true)),
+                Answer::Ready(false) => {}
                 Answer::Pending(dependencies) => {
-                    self.reject_probe(probe);
-                    blockers.extend(self.live_blockers(dependencies));
+                    blockers.extend(dependencies);
                 }
             }
         }
