@@ -17,7 +17,7 @@ impl CheckState<'_> {
         let module = node.module_id;
         let value_site = self.node_site(value.into_global_any(module))?;
         let value_type = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let target = answer!(self.committed_node_type(target_type.into_global_any(module))?);
+        let target = answer!(self.node_type(target_type.into_global_any(module))?);
         self.push_constraint(Constraint::check(
             Relation::Satisfies,
             value_type,
@@ -53,7 +53,7 @@ impl CheckState<'_> {
         }
 
         let value_type = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
-        let target = answer!(self.committed_node_type(target_type.into_global_any(module))?);
+        let target = answer!(self.node_type(target_type.into_global_any(module))?);
         self.push_constraint(Constraint::check(
             Relation::Castable,
             value_type,

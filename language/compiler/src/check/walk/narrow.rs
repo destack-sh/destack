@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{NarrowPredicate, WalkState};
+use crate::check::{FlowPredicate, PathPredicate, WalkState};
 
 /// The condition branch being entered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -130,19 +130,19 @@ impl WalkState<'_, '_> {
             }
             // key in value
             dir::Expression::Binary {
-                left,
                 operator: dir::BinaryOperator::In,
                 right,
+                ..
             } => {
-                self.narrow_by_key_membership(*left, *right, branch)?;
+                self.narrow_by_guard(id, *right, branch)?;
             }
             // value is T
-            dir::Expression::Is { value, target_type } => {
-                self.narrow_by_is(*value, *target_type, branch)?;
+            dir::Expression::Is { value, .. } => {
+                self.narrow_by_guard(id, *value, branch)?;
             }
             // value instanceof Target
-            dir::Expression::InstanceOf { value, target } => {
-                self.narrow_by_instance(*value, *target, branch)?;
+            dir::Expression::InstanceOf { value, .. } => {
+                self.narrow_by_guard(id, *value, branch)?;
             }
             // expressions without flow effects
             _ => {}
@@ -151,113 +151,35 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Narrow flow from one `is` expression.
+    /// Narrow flow from one guard expression.
     ///
     /// Example:
     /// ```ds
     /// value is T
     /// ```
-    fn narrow_by_is(
+    fn narrow_by_guard(
         &mut self,
-        value: dir::LocalNodeId<dir::Expression>,
-        target_type: dir::LocalNodeId<dir::TypeExpression>,
-        branch: ConditionBranch,
-    ) -> CompilerResult<()> {
-        let Some(path) = self.flow_path(value) else {
-            return Ok(());
-        };
-        let target = self.walk_frame_type_expression(target_type)?;
-        let predicate = match branch {
-            ConditionBranch::True => NarrowPredicate::Is(target),
-            ConditionBranch::False => NarrowPredicate::IsNot(target),
-        };
-
-        self.narrow_flow_path_by(path, predicate)
-    }
-
-    /// Narrow flow from one `"key" in value` expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// "name" in value
-    /// ```
-    fn narrow_by_key_membership(
-        &mut self,
-        key: dir::LocalNodeId<dir::Expression>,
+        guard: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
         branch: ConditionBranch,
     ) -> CompilerResult<()> {
-        if branch == ConditionBranch::False {
-            return Ok(());
-        }
         let Some(path) = self.flow_path(value) else {
-            return Ok(());
-        };
-        let Some(key) = self.tree.get(key).static_key() else {
-            return Ok(());
-        };
-        self.narrow_flow_path_by(path, NarrowPredicate::Has(key))
-    }
-
-    /// Narrow flow from one `value instanceof Target` expression.
-    ///
-    /// Example:
-    /// ```ds
-    /// value instanceof Target
-    /// ```
-    fn narrow_by_instance(
-        &mut self,
-        value: dir::LocalNodeId<dir::Expression>,
-        target: dir::LocalNodeId<dir::Expression>,
-        branch: ConditionBranch,
-    ) -> CompilerResult<()> {
-        let Some(path) = self.flow_path(value) else {
-            return Ok(());
-        };
-        let Some(target) = self.instanceof_target_type(target)? else {
             return Ok(());
         };
         let predicate = match branch {
-            ConditionBranch::True => NarrowPredicate::Is(target),
-            ConditionBranch::False => NarrowPredicate::IsNot(target),
+            ConditionBranch::True => FlowPredicate::Guard {
+                guard: guard.into_global(self.module),
+                is_positive: true,
+            },
+            ConditionBranch::False => FlowPredicate::Guard {
+                guard: guard.into_global(self.module),
+                is_positive: false,
+            },
         };
 
-        self.narrow_flow_path_by(path, predicate)
-    }
+        self.apply_flow_predicate(path, predicate);
 
-    /// Return the instance type named by one `instanceof` target.
-    fn instanceof_target_type(
-        &mut self,
-        target: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let source = target.into_global_any(self.module);
-        let reference = self
-            .check
-            .module(self.module)
-            .resolved
-            .references
-            .get(source)
-            .cloned();
-
-        // derive early branch flow from unambiguous class references
-        let Some(dir::Reference::Bound(symbols)) = reference else {
-            return Ok(None);
-        };
-        let symbols = self.check.present_symbols(&symbols);
-        let [symbol] = symbols.as_slice() else {
-            return Ok(None);
-        };
-        if self.check.symbol_kind(*symbol) != dir::SymbolKind::Class {
-            return Ok(None);
-        }
-
-        let ty = dir::Type::Instance(dir::GenericInstance {
-            symbol: *symbol,
-            arguments: dir::TypeListId::EMPTY,
-        });
-        let ty = self.intern_type(ty)?;
-
-        Ok(Some(ty))
+        Ok(())
     }
 
     /// Narrow flow from one equality expression.
@@ -280,10 +202,10 @@ impl WalkState<'_, '_> {
         };
 
         let predicate = match branch {
-            ConditionBranch::True => NarrowPredicate::Is(target),
-            ConditionBranch::False => NarrowPredicate::IsNot(target),
+            ConditionBranch::True => PathPredicate::Is(target),
+            ConditionBranch::False => PathPredicate::IsNot(target),
         };
-        self.narrow_flow_path_by(path, predicate)?;
+        self.apply_path_predicate(path, predicate)?;
         self.narrow_parent_by_member_predicate(value, predicate)?;
 
         Ok(())
@@ -298,7 +220,7 @@ impl WalkState<'_, '_> {
     fn narrow_parent_by_member_predicate(
         &mut self,
         value: dir::LocalNodeId<dir::Expression>,
-        predicate: NarrowPredicate,
+        predicate: PathPredicate,
     ) -> CompilerResult<()> {
         // require an existing member flow path
         let Some(path) = self.flow_path(value) else {
@@ -312,7 +234,7 @@ impl WalkState<'_, '_> {
         }
 
         // narrow base with a structural member predicate
-        self.narrow_base_flow_path_by_member(base_path, key, predicate)
+        self.apply_member_path_predicate(base_path, key, predicate)
     }
 
     /// Return the base expression for one member path expression.

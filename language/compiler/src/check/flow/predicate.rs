@@ -2,20 +2,18 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowNarrowing, FlowPath, FlowPointChange, FlowSite,
+    Answer, CheckState, Decision, Dependency, FlowPath, FlowPointChange, FlowPredicate, FlowSite,
     Origin, WalkState, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Runtime flow predicate used to narrow one stable path.
+/// Direct predicate applied to one stable path during walking.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum NarrowPredicate {
+pub(in crate::check) enum PathPredicate {
     /// Keep values assignable to the target type.
     Is(dir::GlobalTypeId),
     /// Keep values not assignable to the target type.
     IsNot(dir::GlobalTypeId),
-    /// Keep objects with a known member key.
-    Has(dir::StaticKey),
 }
 
 impl CheckState<'_> {
@@ -99,7 +97,9 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        self.committed_node_type(site.node)
+        let ty = answer!(self.node_type(site.node)?);
+
+        self.flow_type_at(site, ty)
     }
 
     /// Return one type as viewed at one flow point.
@@ -108,24 +108,26 @@ impl CheckState<'_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        // only expression occurrences participate in flow predicates
         let dir::NodeType::Expression = site.node.local_id.ty else {
             return Ok(Answer::Ready(ty));
         };
 
+        // only stable paths can carry durable flow information
         let node = site.node.into_typed::<dir::Expression>();
         let Some(path) = self.flow_path(node) else {
             return Ok(Answer::Ready(ty));
         };
 
-        match self.flow_narrowing(site, &path, ty)? {
+        match self.flow_narrowed_type(site, &path, ty)? {
             Answer::Ready(Some(narrowed)) => Ok(Answer::Ready(narrowed)),
             Answer::Ready(None) => Ok(Answer::Ready(ty)),
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
     }
 
-    /// Return the narrowing visible for one path at one flow site.
-    pub(in crate::check) fn flow_narrowing(
+    /// Return the type after predicates visible at one flow site.
+    pub(in crate::check) fn flow_narrowed_type(
         &mut self,
         site: FlowSite,
         path: &FlowPath,
@@ -133,10 +135,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let module = self.module(site.node.module_id);
         let flows = &module.flows;
-        let mut current = Some(site.flow);
 
-        // collect every narrowing of the path back to its last clear
-        let mut narrowings = Vec::new();
+        // collect every predicate of the path back to its last clear
+        let mut predicates = Vec::new();
+        let mut current = Some(site.flow);
         while let Some(point) = current {
             let Some(flow) = flows.get(point.index()) else {
                 return Err(CompilerError::Internal {
@@ -144,31 +146,34 @@ impl CheckState<'_> {
                 });
             };
 
+            // keep matching path predicates
             match &flow.change {
                 FlowPointChange::Start => {}
-                FlowPointChange::Narrow {
+                FlowPointChange::Predicate {
                     path: narrowed,
-                    narrowing,
+                    predicate,
                 } if narrowed.as_ref() == path => {
-                    narrowings.push(*narrowing);
+                    predicates.push(*predicate);
                 }
                 FlowPointChange::Clear { path: cleared } if path.starts_with(cleared) => {
                     break;
                 }
-                FlowPointChange::Narrow { .. } | FlowPointChange::Clear { .. } => {}
+                FlowPointChange::Predicate { .. } | FlowPointChange::Clear { .. } => {}
             }
 
+            // move toward the entry flow
             current = flow.parent;
         }
 
-        if narrowings.is_empty() {
+        // no predicate affects this path
+        if predicates.is_empty() {
             return Ok(Answer::Ready(None));
         }
 
         // apply oldest first, so each later test refines the earlier result
         let mut narrowed = source;
-        for narrowing in narrowings.into_iter().rev() {
-            match self.resolve_flow_narrowing(site.node, narrowed, narrowing)? {
+        for predicate in predicates.into_iter().rev() {
+            match self.resolve_flow_predicate(site.node, narrowed, predicate)? {
                 Answer::Ready(Some(next)) => narrowed = next,
                 Answer::Ready(None) => {}
                 Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -178,33 +183,48 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(narrowed)))
     }
 
-    /// Return the type named by one flow narrowing.
-    fn resolve_flow_narrowing(
+    /// Apply one flow predicate to a source type.
+    fn resolve_flow_predicate(
         &mut self,
         node: dir::GlobalNodeIdAny,
         source: dir::GlobalTypeId,
-        narrowing: FlowNarrowing,
+        predicate: FlowPredicate,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        match narrowing {
-            FlowNarrowing::Pattern {
+        match predicate {
+            FlowPredicate::Pattern {
                 pattern,
                 is_positive,
-            } => match self.pattern_narrowing_target(self.node_site(node)?.origin(), pattern)? {
-                Answer::Ready(Some(target)) => {
-                    self.resolve_type_narrowing(node, source, target, is_positive)
+            } => {
+                // resolve pattern decisions into the type accepted by the pattern
+                let origin = self.node_site(node)?.origin();
+                match self.pattern_predicate_target(origin, pattern)? {
+                    Answer::Ready(Some(target)) => {
+                        self.resolve_type_predicate(node, source, target, is_positive)
+                    }
+                    Answer::Ready(None) => Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
                 }
-                Answer::Ready(None) => Ok(Answer::Ready(None)),
-                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-            },
-            FlowNarrowing::Narrow {
+            }
+            FlowPredicate::Type {
                 target,
                 is_positive,
-            } => self.resolve_type_narrowing(node, source, target, is_positive),
+            } => self.resolve_type_predicate(node, source, target, is_positive),
+            FlowPredicate::Guard { guard, is_positive } => {
+                // resolve guard predicates through their selected guard decision
+                let origin = self.node_site(node)?.origin();
+                match self.guard_predicate_target(origin, guard)? {
+                    Answer::Ready(Some(target)) => {
+                        self.resolve_type_predicate(node, source, target, is_positive)
+                    }
+                    Answer::Ready(None) => Ok(Answer::Ready(None)),
+                    Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                }
+            }
         }
     }
 
-    /// Resolve one runtime type narrowing.
-    fn resolve_type_narrowing(
+    /// Resolve one runtime type predicate.
+    fn resolve_type_predicate(
         &mut self,
         node: dir::GlobalNodeIdAny,
         source: dir::GlobalTypeId,
@@ -216,6 +236,8 @@ impl CheckState<'_> {
             target,
             is_positive,
         });
+
+        // reduce the synthetic predicate operation through the normal reducer
         let narrowed = self.intern_type(node.module_id, dir::Type::Operation(operation))?;
         let narrowed = match self.reduce_type_head(self.node_site(node)?.origin(), narrowed)? {
             Answer::Ready(ty) => ty,
@@ -225,8 +247,57 @@ impl CheckState<'_> {
         Ok(Answer::Ready(Some(narrowed)))
     }
 
+    /// Return the target type tested by one selected guard expression.
+    fn guard_predicate_target(
+        &mut self,
+        origin: Origin,
+        guard: dir::GlobalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let Some(decision) = self.decision(guard.into_any()).cloned() else {
+            return Ok(Answer::pending([Dependency::Decision(guard.into_any())]));
+        };
+
+        let Decision::Guard(resolution) = decision else {
+            return Ok(Answer::Ready(None));
+        };
+
+        match resolution {
+            // type guards narrow both branches against the selected target
+            dir::GuardResolution::Is(predicate) => Ok(Answer::Ready(Some(predicate.target_type))),
+
+            // class guards narrow both branches against the selected instance type
+            dir::GuardResolution::InstanceOf(predicate) => {
+                Ok(Answer::Ready(Some(predicate.target_type)))
+            }
+
+            // static membership guards narrow through the tested shape
+            dir::GuardResolution::In(predicate) => {
+                self.membership_predicate_target(origin, &predicate)
+            }
+        }
+    }
+
+    /// Return the static receiver shape tested by one membership guard.
+    fn membership_predicate_target(
+        &mut self,
+        origin: Origin,
+        predicate: &dir::InGuardResolution,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let dir::PredicateTest::Membership(test) = &predicate.predicate.test else {
+            return Ok(Answer::Ready(None));
+        };
+        let dir::PredicateKey::Static(key) = test.key else {
+            return Ok(Answer::Ready(None));
+        };
+
+        let unknown = self.intern_type(origin.module(), dir::Type::Unknown)?;
+        let target = self.member_shape_type(origin.module(), key, unknown)?;
+
+        Ok(Answer::Ready(Some(target)))
+    }
+
     /// Return the type subset accepted by one pattern.
-    fn pattern_narrowing_target(
+    fn pattern_predicate_target(
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
@@ -239,11 +310,11 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
 
-        self.pattern_resolution_narrowing_target(origin, pattern, &resolution)
+        self.pattern_resolution_predicate_target(origin, pattern, &resolution)
     }
 
     /// Return the type subset accepted by one pattern resolution.
-    fn pattern_resolution_narrowing_target(
+    fn pattern_resolution_predicate_target(
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
@@ -278,16 +349,16 @@ impl CheckState<'_> {
             | dir::PatternResolution::Default(dir::PatternDefaultResolution {
                 pattern: inner,
                 ..
-            }) => self.pattern_node_narrowing_target(origin, *inner),
+            }) => self.pattern_node_predicate_target(origin, *inner),
             dir::PatternResolution::Or(or) => {
-                self.or_pattern_narrowing_target(origin, pattern, &or.patterns)
+                self.or_pattern_predicate_target(origin, pattern, &or.patterns)
             }
             _ => Ok(Answer::Ready(None)),
         }
     }
 
     /// Return the type subset accepted by one child pattern node.
-    fn pattern_node_narrowing_target(
+    fn pattern_node_predicate_target(
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeIdAny,
@@ -296,11 +367,11 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
 
-        self.pattern_narrowing_target(origin, pattern.into_typed())
+        self.pattern_predicate_target(origin, pattern.into_typed())
     }
 
     /// Return the union target accepted by one or-pattern.
-    fn or_pattern_narrowing_target(
+    fn or_pattern_predicate_target(
         &mut self,
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
@@ -308,7 +379,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let mut targets = Vec::new();
         for branch in branches {
-            let Some(target) = answer!(self.pattern_node_narrowing_target(origin, *branch)?) else {
+            let Some(target) = answer!(self.pattern_node_predicate_target(origin, *branch)?) else {
                 return Ok(Answer::Ready(None));
             };
             if !targets.contains(&target) {
@@ -360,76 +431,62 @@ impl WalkState<'_, '_> {
     }
 
     /// Narrow one flow path.
-    pub(in crate::check) fn narrow_flow_path(&mut self, path: FlowPath, narrowing: FlowNarrowing) {
-        self.flow_mut().narrow(path, narrowing);
+    pub(in crate::check) fn apply_flow_predicate(
+        &mut self,
+        path: FlowPath,
+        predicate: FlowPredicate,
+    ) {
+        self.flow_mut().apply_predicate(path, predicate);
     }
 
     /// Narrow one flow path with a runtime predicate.
-    pub(in crate::check) fn narrow_flow_path_by(
+    pub(in crate::check) fn apply_path_predicate(
         &mut self,
         path: FlowPath,
-        predicate: NarrowPredicate,
+        predicate: PathPredicate,
     ) -> CompilerResult<()> {
-        let narrowing = match predicate {
+        let predicate = match predicate {
             // keep matching values
-            NarrowPredicate::Is(target) => FlowNarrowing::Narrow {
+            PathPredicate::Is(target) => FlowPredicate::Type {
                 target,
                 is_positive: true,
             },
 
             // keep non-matching values
-            NarrowPredicate::IsNot(target) => FlowNarrowing::Narrow {
+            PathPredicate::IsNot(target) => FlowPredicate::Type {
                 target,
                 is_positive: false,
             },
-
-            // keep objects with the requested key
-            NarrowPredicate::Has(key) => {
-                let unknown = self.intern_type(dir::Type::Unknown)?;
-                let target = self.member_shape_type(key, unknown)?;
-                let predicate = NarrowPredicate::Is(target);
-
-                return self.narrow_flow_path_by(path, predicate);
-            }
         };
-        self.narrow_flow_path(path, narrowing);
+        self.apply_flow_predicate(path, predicate);
 
         Ok(())
     }
 
     /// Narrow one base flow path from a member predicate.
-    pub(in crate::check) fn narrow_base_flow_path_by_member(
+    pub(in crate::check) fn apply_member_path_predicate(
         &mut self,
         path: FlowPath,
         key: dir::StaticKey,
-        predicate: NarrowPredicate,
+        predicate: PathPredicate,
     ) -> CompilerResult<()> {
         let predicate = match predicate {
             // keep parent values with a matching member type
-            NarrowPredicate::Is(ty) => {
+            PathPredicate::Is(ty) => {
                 let target = self.member_shape_type(key, ty)?;
 
-                NarrowPredicate::Is(target)
+                PathPredicate::Is(target)
             }
 
             // keep parent values without a matching member type
-            NarrowPredicate::IsNot(ty) => {
+            PathPredicate::IsNot(ty) => {
                 let target = self.member_shape_type(key, ty)?;
 
-                NarrowPredicate::IsNot(target)
-            }
-
-            // keep parent values with a member that has the nested key
-            NarrowPredicate::Has(member_key) => {
-                let unknown = self.intern_type(dir::Type::Unknown)?;
-                let member = self.member_shape_type(member_key, unknown)?;
-                let target = self.member_shape_type(key, member)?;
-
-                NarrowPredicate::Is(target)
+                PathPredicate::IsNot(target)
             }
         };
 
-        self.narrow_flow_path_by(path, predicate)
+        self.apply_path_predicate(path, predicate)
     }
 
     /// Return one single-field structural shape type.
@@ -441,8 +498,8 @@ impl WalkState<'_, '_> {
         self.check.member_shape_type(self.module, key, ty)
     }
 
-    /// Clear flow narrowings invalidated by mutating an expression.
-    pub(in crate::check) fn clear_mutated_expression_narrowings(
+    /// Clear flow predicates invalidated by mutating an expression.
+    pub(in crate::check) fn clear_mutated_expression_predicates(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) {
@@ -451,7 +508,7 @@ impl WalkState<'_, '_> {
             return;
         };
 
-        // clear all dependent narrowings
-        self.flow_mut().clear_narrowings_under(&path);
+        // clear all dependent predicates
+        self.flow_mut().clear_predicates_under(&path);
     }
 }

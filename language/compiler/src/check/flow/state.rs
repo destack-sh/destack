@@ -20,8 +20,8 @@ pub(in crate::check) struct FlowState {
     pub(in crate::check::flow) tries: Vec<TryTarget>,
     /// Places definitely assigned at the current walk point.
     pub(in crate::check::flow) assigned: IndexSet<AssignedPlace>,
-    /// Narrowed values keyed by flow path.
-    pub(in crate::check::flow) narrowings: IndexMap<FlowPath, FlowNarrowing>,
+    /// Flow predicates keyed by stable path.
+    pub(in crate::check::flow) predicates: IndexMap<FlowPath, FlowPredicate>,
     /// Jumps that bound no target and complete as statements.
     unbound_jumps: IndexSet<dir::LocalNodeIdAny>,
 
@@ -43,7 +43,7 @@ impl Default for FlowState {
             targets: Vec::new(),
             tries: Vec::new(),
             assigned: IndexSet::new(),
-            narrowings: IndexMap::new(),
+            predicates: IndexMap::new(),
             unbound_jumps: IndexSet::new(),
             changes: Vec::new(),
             points: vec![FlowPoint {
@@ -86,14 +86,14 @@ pub(in crate::check) struct FlowPoint {
 pub(in crate::check) enum FlowPointChange {
     /// Initial flow state.
     Start,
-    /// One narrowing change.
-    Narrow {
-        /// The narrowed path.
+    /// One predicate applied to a path.
+    Predicate {
+        /// The tested path.
         path: Box<FlowPath>,
-        /// The narrowing value.
-        narrowing: FlowNarrowing,
+        /// The applied predicate.
+        predicate: FlowPredicate,
     },
-    /// One cleared narrowing.
+    /// One cleared predicate.
     Clear {
         /// The cleared path.
         path: Box<FlowPath>,
@@ -114,8 +114,8 @@ pub(in crate::check) struct FlowCheckpoint {
 pub(in crate::check) struct FlowBranch {
     /// Places assigned by this branch.
     assigned: IndexSet<AssignedPlace>,
-    /// Narrowings touched by this branch.
-    narrowings: IndexMap<FlowPath, Option<FlowNarrowing>>,
+    /// Predicates touched by this branch.
+    predicates: IndexMap<FlowPath, Option<FlowPredicate>>,
 }
 
 impl FlowBranch {
@@ -123,7 +123,7 @@ impl FlowBranch {
     pub(in crate::check) fn empty() -> Self {
         Self {
             assigned: IndexSet::new(),
-            narrowings: IndexMap::new(),
+            predicates: IndexMap::new(),
         }
     }
 
@@ -157,18 +157,18 @@ enum FlowChange {
         /// Whether the place was already assigned.
         was_assigned: bool,
     },
-    /// One narrowing change.
-    Narrow {
-        /// The narrowed path.
+    /// One predicate change.
+    Predicate {
+        /// The tested path.
         path: Box<FlowPath>,
-        /// The previous narrowing at the same path.
-        previous: Option<FlowNarrowing>,
+        /// The previous predicate at the same path.
+        previous: Option<FlowPredicate>,
     },
 }
 
-/// One narrowing value recorded by flow.
+/// One flow predicate recorded for a stable path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum FlowNarrowing {
+pub(in crate::check) enum FlowPredicate {
     /// The values accepted or rejected by one pattern.
     Pattern {
         /// The pattern node.
@@ -176,10 +176,17 @@ pub(in crate::check) enum FlowNarrowing {
         /// Whether matching values are kept.
         is_positive: bool,
     },
-    /// A runtime type narrowing applied to a source type at a flow point.
-    Narrow {
-        /// The type tested by the narrowing.
+    /// Values assignable or not assignable to one target type.
+    Type {
+        /// The type tested by the predicate.
         target: dir::GlobalTypeId,
+        /// Whether this is the positive branch.
+        is_positive: bool,
+    },
+    /// The type predicate selected by one guard expression.
+    Guard {
+        /// The guard expression node.
+        guard: dir::GlobalNodeId<dir::Expression>,
         /// Whether this is the positive branch.
         is_positive: bool,
     },
@@ -262,7 +269,7 @@ impl FlowState {
         };
         let branch = self.branch(function.checkpoint);
 
-        // restore outer definite assignment and narrowing state
+        // restore outer definite assignment and predicate state
         self.restore(function.checkpoint);
 
         (capture, branch)
@@ -491,19 +498,19 @@ impl FlowState {
     }
 
     /// Narrow one path at the current walk point.
-    pub(in crate::check) fn narrow(&mut self, path: FlowPath, narrowing: FlowNarrowing) {
-        // record previous narrowing for rollback
-        let previous = self.narrowings.get(&path).copied();
+    pub(in crate::check) fn apply_predicate(&mut self, path: FlowPath, predicate: FlowPredicate) {
+        // record previous predicate for rollback
+        let previous = self.predicates.get(&path).copied();
 
-        self.changes.push(FlowChange::Narrow {
+        self.changes.push(FlowChange::Predicate {
             path: Box::new(path.clone()),
             previous,
         });
-        self.push_point(FlowPointChange::Narrow {
+        self.push_point(FlowPointChange::Predicate {
             path: Box::new(path.clone()),
-            narrowing,
+            predicate,
         });
-        self.narrowings.insert(path, narrowing);
+        self.predicates.insert(path, predicate);
     }
 
     /// Return a checkpoint for later branch rollback.
@@ -517,7 +524,7 @@ impl FlowState {
     /// Return the branch changes made after one checkpoint.
     pub(in crate::check) fn branch(&self, checkpoint: FlowCheckpoint) -> FlowBranch {
         let mut assigned = IndexSet::new();
-        let mut narrowing_paths = IndexSet::new();
+        let mut predicate_paths = IndexSet::new();
 
         // collect flow state touched since the checkpoint
         for change in &self.changes[checkpoint.change_count..] {
@@ -527,17 +534,17 @@ impl FlowState {
                         assigned.insert(*place);
                     }
                 }
-                FlowChange::Narrow { path, .. } => {
-                    narrowing_paths.insert(path.as_ref().clone());
+                FlowChange::Predicate { path, .. } => {
+                    predicate_paths.insert(path.as_ref().clone());
                 }
             }
         }
 
-        // snapshot final narrowing values for touched paths
-        let narrowings = narrowing_paths
+        // snapshot final predicate values for touched paths
+        let predicates = predicate_paths
             .into_iter()
             .map(|path| {
-                let value = self.narrowings.get(&path).copied();
+                let value = self.predicates.get(&path).copied();
 
                 (path, value)
             })
@@ -545,7 +552,7 @@ impl FlowState {
 
         FlowBranch {
             assigned,
-            narrowings,
+            predicates,
         }
     }
 
@@ -570,12 +577,12 @@ impl FlowState {
                         self.assigned.shift_remove(&place);
                     }
                 }
-                FlowChange::Narrow { path, previous } => {
-                    // restore previous narrowing state
+                FlowChange::Predicate { path, previous } => {
+                    // restore previous predicate state
                     if let Some(previous) = previous {
-                        self.narrowings.insert(*path, previous);
+                        self.predicates.insert(*path, previous);
                     } else {
-                        self.narrowings.shift_remove(path.as_ref());
+                        self.predicates.shift_remove(path.as_ref());
                     }
                 }
             }
@@ -596,15 +603,15 @@ impl FlowState {
             self.mark_assigned(*place);
         }
 
-        // replay narrowings from the branch
-        for (path, narrowing) in &branch.narrowings {
-            // restore present narrowing
-            if let Some(narrowing) = narrowing {
-                self.narrow(path.clone(), *narrowing);
+        // replay predicates from the branch
+        for (path, predicate) in &branch.predicates {
+            // restore present predicate
+            if let Some(predicate) = predicate {
+                self.apply_predicate(path.clone(), *predicate);
             }
-            // restore cleared narrowing
+            // restore cleared predicate
             else {
-                self.clear_narrowing(path.clone());
+                self.clear_predicate(path.clone());
             }
         }
     }
@@ -623,70 +630,70 @@ impl FlowState {
             self.mark_assigned(*place);
         }
 
-        // collect all touched narrowing paths
+        // collect all touched predicate paths
         let mut paths = IndexSet::new();
-        paths.extend(left.narrowings.keys().cloned());
-        paths.extend(right.narrowings.keys().cloned());
+        paths.extend(left.predicates.keys().cloned());
+        paths.extend(right.predicates.keys().cloned());
 
-        // keep narrowings with equal final values in both branches
+        // keep predicates with equal final values in both branches
         for path in paths {
             // read final value from each branch
             let left = left
-                .narrowings
+                .predicates
                 .get(&path)
                 .copied()
-                .unwrap_or_else(|| self.narrowings.get(&path).copied());
+                .unwrap_or_else(|| self.predicates.get(&path).copied());
             let right = right
-                .narrowings
+                .predicates
                 .get(&path)
                 .copied()
-                .unwrap_or_else(|| self.narrowings.get(&path).copied());
+                .unwrap_or_else(|| self.predicates.get(&path).copied());
 
             // preserve equal branch results
             if left == right {
-                if let Some(narrowing) = left {
-                    self.narrow(path, narrowing);
+                if let Some(predicate) = left {
+                    self.apply_predicate(path, predicate);
                 }
                 // preserve equally cleared result
                 else {
-                    self.clear_narrowing(path);
+                    self.clear_predicate(path);
                 }
             }
             // clear diverging branch results
             else {
-                self.clear_narrowing(path);
+                self.clear_predicate(path);
             }
         }
     }
 
-    /// Clear one current narrowing.
-    fn clear_narrowing(&mut self, path: FlowPath) {
-        // record previous narrowing for rollback
-        let previous = self.narrowings.get(&path).copied();
+    /// Clear one current predicate.
+    fn clear_predicate(&mut self, path: FlowPath) {
+        // record previous predicate for rollback
+        let previous = self.predicates.get(&path).copied();
 
-        self.changes.push(FlowChange::Narrow {
+        self.changes.push(FlowChange::Predicate {
             path: Box::new(path.clone()),
             previous,
         });
         self.push_point(FlowPointChange::Clear {
             path: Box::new(path.clone()),
         });
-        self.narrowings.shift_remove(&path);
+        self.predicates.shift_remove(&path);
     }
 
-    /// Clear narrowings below one mutated path.
-    pub(in crate::check) fn clear_narrowings_under(&mut self, path: &FlowPath) {
+    /// Clear predicates below one mutated path.
+    pub(in crate::check) fn clear_predicates_under(&mut self, path: &FlowPath) {
         // collect invalidated paths before mutating the map
         let paths: Vec<_> = self
-            .narrowings
+            .predicates
             .keys()
-            .filter(|narrowing| narrowing.starts_with(path))
+            .filter(|predicate| predicate.starts_with(path))
             .cloned()
             .collect();
 
-        // clear each invalidated narrowing
+        // clear each invalidated predicate
         for path in paths {
-            self.clear_narrowing(path);
+            self.clear_predicate(path);
         }
     }
 }

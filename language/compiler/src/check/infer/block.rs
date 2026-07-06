@@ -19,8 +19,8 @@ impl CheckState<'_> {
                 answer!(self.infer_node_type(tail_site, PlaceUse::Read)?)
             }
             // walk already typed blocks that cannot reach their end as never
-            None => match self.committed_node_type_maybe(block.into_global_any(module)) {
-                Some(committed) => committed,
+            None => match self.node_type_maybe(block.into_global_any(module)) {
+                Some(ty) => ty,
                 None => self.intern_type(module, dir::Type::Void)?,
             },
         };
@@ -50,9 +50,9 @@ impl CheckState<'_> {
             }
             None => {
                 // walk already typed blocks that cannot reach their end as never
-                let verdict = self.committed_node_type_maybe(block.into_global_any(module));
+                let verdict = self.node_type_maybe(block.into_global_any(module));
                 let value = match verdict {
-                    Some(committed) => committed,
+                    Some(ty) => ty,
                     None => self.intern_type(module, dir::Type::Void)?,
                 };
                 self.commit_node_type(site.node, value)?;

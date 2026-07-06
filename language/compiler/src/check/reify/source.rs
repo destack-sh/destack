@@ -148,7 +148,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             // the hole's node type carries its solved variable
             let Some(ty) = self
                 .check
-                .committed_node_type_maybe(hole_id.into_global_any(module_id))
+                .node_type_maybe(hole_id.into_global_any(module_id))
             else {
                 continue;
             };

@@ -11,7 +11,7 @@ impl CheckState<'_> {
         use_: PlaceUse,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node;
-        if self.committed_node_type_maybe(node).is_some() {
+        if self.node_type_maybe(node).is_some() {
             return Ok(Answer::Ready(()));
         }
 

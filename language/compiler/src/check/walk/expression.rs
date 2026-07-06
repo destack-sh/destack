@@ -489,8 +489,8 @@ impl WalkState<'_, '_> {
                     self.mark_place_assigned(place);
                 }
 
-                // increments invalidate narrowings under the target
-                self.clear_mutated_expression_narrowings(right);
+                // increments invalidate predicates under the target
+                self.clear_mutated_expression_predicates(right);
 
                 // increment operation infers from its queued value use
             }
@@ -1437,8 +1437,8 @@ impl WalkState<'_, '_> {
         for (expression, place) in places {
             self.mark_place_assigned(place);
 
-            // assignments invalidate narrowings under the written expression
-            self.clear_mutated_expression_narrowings(expression);
+            // assignments invalidate predicates under the written expression
+            self.clear_mutated_expression_predicates(expression);
         }
     }
 
