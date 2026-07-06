@@ -8,9 +8,9 @@ const installCommand = "curl -fsSL https://destack.sh/install | sh";
 
 export function TopBar() {
     return (
-        <header class="border-b border-neutral-950 bg-destack-ink text-destack-cream">
-            <div class="mx-auto flex h-12 max-w-328 items-center justify-between gap-3 px-4 md:px-10">
-                <A class="flex min-w-0 items-center gap-2 text-sm font-extrabold" href="/">
+        <header class="border-b border-destack-cream/20 bg-destack-ink text-destack-cream">
+            <div class="flex h-14 max-w-[22rem] items-center justify-between gap-3 overflow-hidden px-4 md:mx-auto md:max-w-328 md:px-10">
+                <A class="flex shrink-0 items-center gap-2 text-sm font-extrabold" href="/">
                     <Icon class="size-7" />
                     <span>destack</span>
                 </A>
@@ -38,7 +38,7 @@ function InstallCommand() {
     return (
         <button
             aria-label="copy install command"
-            class="group flex min-w-0 max-w-[calc(100vw-8rem)] items-baseline gap-2 text-xs font-extrabold whitespace-nowrap"
+            class="group flex min-w-0 max-w-[10rem] items-baseline gap-2 text-xs font-extrabold whitespace-nowrap sm:max-w-[calc(100vw-8rem)]"
             onClick={copy}
             type="button"
         >
