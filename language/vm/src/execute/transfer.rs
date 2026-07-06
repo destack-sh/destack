@@ -23,7 +23,7 @@ pub(crate) enum Transfer {
     Call {
         /// Function to call.
         function: FunctionId,
-        /// Lowered or imported call target.
+        /// Lowered call target.
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
@@ -38,7 +38,7 @@ pub(crate) enum Transfer {
     CallBranch {
         /// Function to call.
         function: FunctionId,
-        /// Lowered or imported call target.
+        /// Lowered call target.
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
@@ -51,7 +51,7 @@ pub(crate) enum Transfer {
     TailCall {
         /// Function to call.
         function: FunctionId,
-        /// Lowered or imported call target.
+        /// Lowered call target.
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
