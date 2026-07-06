@@ -8,41 +8,11 @@ _default:
 
 # install provider bindings
 install:
-    bun x sst install
+    bun x sst install --print-logs
 
 # build provider bindings
 build:
     just install
-
-# format code
-format:
-    @echo "No stack formatting defined"
-
-# check formatting
-format-check:
-    @echo "No stack formatting checks defined"
-
-# run static checks
-lint:
-    just install
-    bun x sst version
-
-# run tests
-test:
-    @echo "No stack tests defined"
-
-# default check
-check:
-    just check-quick
-
-# normal check
-check-quick:
-    just format-check
-    just lint
-
-# check with slow suites
-check-full:
-    just check-quick
 
 # preview stage changes
 diff stage:
