@@ -7,7 +7,6 @@ _default:
 # build production output
 build:
     bun scripts/sync-assets.mjs
-    bun scripts/generate-snippets.mjs
     bun scripts/generate-posts.mjs
     bun x vinxi build
     bun scripts/postbuild.mjs
@@ -22,12 +21,10 @@ format-check:
 
 # regenerate generated files
 generate:
-    bun scripts/generate-snippets.mjs
     bun scripts/generate-posts.mjs
 
 # check generated files
 generate-check:
-    bun scripts/generate-snippets.mjs --check
     bun scripts/generate-posts.mjs --check
 
 # type check source
@@ -59,7 +56,6 @@ check-full:
 # run dev server
 dev:
     bun scripts/sync-assets.mjs
-    bun scripts/generate-snippets.mjs
     bun scripts/generate-posts.mjs
     bun x vinxi dev
 

@@ -5,7 +5,6 @@ import type { Plugin, ViteDevServer } from "vite";
 import { normalizePath } from "vite";
 
 const siteDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const repositoryDirectory = resolve(siteDirectory, "../..");
 
 type ContentTask = {
     isPending?: boolean;
@@ -19,15 +18,6 @@ type ContentTask = {
 
 export function contentPlugin(): Plugin {
     const tasks: ContentTask[] = [
-        {
-            name: "snippets",
-            script: "scripts/generate-snippets.mjs",
-            triggers: [
-                join(siteDirectory, "src/snippets"),
-                join(repositoryDirectory, "language/grammar/destack/queries/highlights.scm"),
-            ],
-            outputs: [join(siteDirectory, "src/generated/snippets.ts")],
-        },
         {
             name: "posts",
             script: "scripts/generate-posts.mjs",
