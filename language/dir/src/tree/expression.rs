@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
-    Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern, PlaceModifier,
-    Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TreeAttribute, TreeChild,
-    TypeExpression, UnaryOperator,
+    InferForm, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Pattern,
+    PlaceModifier, Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TreeAttribute,
+    TreeChild, TypeExpression, UnaryOperator,
 };
 
 /// A catch branch.
@@ -689,6 +689,17 @@ pub enum Expression {
     Instantiation {
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    },
+
+    /// Value inference hole.
+    ///
+    /// Examples:
+    /// ```
+    /// _(1, 2)
+    /// ```
+    Infer {
+        form: InferForm,
+        name: Option<StringId>,
     },
 
     /// A Call is call to a function OR an instantiation of a tuple type.
