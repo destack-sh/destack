@@ -91,7 +91,8 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
         | Expression::ImportMeta
         | Expression::ImportSource
         | Expression::This
-        | Expression::Super => true,
+        | Expression::Super
+        | Expression::Infer { .. } => true,
         Expression::Type { value } => is_trivial_type_expression(tree, *value),
         Expression::ObjectExpression { properties } => {
             properties.len() <= 5

@@ -16,7 +16,7 @@ use destack_dir::{Argument, Expression, Keyword, LocalNodeId, TokenSpan, TokenTy
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, soft_block_indent, soft_line_break_or_space,
-    token,
+    text, token,
 };
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -420,6 +420,11 @@ pub(crate) fn format_primary_expression<'ast>(
         // type expression
         Expression::Type { value } => {
             write!(f, [value])?;
+        }
+
+        // inference hole
+        Expression::Infer { .. } => {
+            write!(f, [text("_")])?;
         }
 
         // array literal
