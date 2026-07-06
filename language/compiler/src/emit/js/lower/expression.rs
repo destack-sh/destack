@@ -582,6 +582,12 @@ impl ModuleLowerer<'_> {
 
                 lowered_id.into_any()
             }
+            dir::Expression::Infer { .. } => {
+                let expression = js::Expression::Error;
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
             dir::Expression::ImportMeta => {
                 let expression = js::Expression::ImportMeta;
                 self.tree
