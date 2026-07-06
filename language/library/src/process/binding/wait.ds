@@ -76,10 +76,10 @@ export newtype ProcessWaitStatus =
 export interface ProcessWaitBinding {
     /// Wait for a child process handle.
     @binding("destack.process.wait.handle", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.wait"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     waitProcess(
         handle: ProcessHandle,
@@ -88,19 +88,19 @@ export interface ProcessWaitBinding {
 
     /// Poll a child process handle without blocking.
     @binding("destack.process.wait.poll", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.wait"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pollProcess(handle: ProcessHandle): Result<ProcessWaitStatus, HostError>;
 
     /// Wait for a process identifier.
     @binding("destack.process.wait.pid", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.wait"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     waitProcessId(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, HostError>;
 }

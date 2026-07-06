@@ -123,10 +123,10 @@ export struct GpuCapturedError {
 export interface GpuDeviceBinding {
     /// Open a logical GPU device.
     @binding("destack.gpu.device.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openDevice(
         adapter: GpuAdapterHandle,
@@ -135,64 +135,64 @@ export interface GpuDeviceBinding {
 
     /// Read device metadata.
     @binding("destack.gpu.device.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readDevice(device: GpuDeviceHandle): Result<GpuDevice, HostError>;
 
     /// Read a device feature snapshot.
     @binding("destack.gpu.device.features.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readDeviceFeatures(device: GpuDeviceHandle): Result<GpuFeatureId[], HostError>;
 
     /// Read a device limits snapshot.
     @binding("destack.gpu.device.limits.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readDeviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, HostError>;
 
     /// Check whether one device supports one feature.
     @binding("destack.gpu.device.feature.has", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     hasDeviceFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, HostError>;
 
     /// Read device health status.
     @binding("destack.gpu.device.status.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readDeviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, HostError>;
 
     /// Resolve the default queue for a logical device.
     @binding("destack.gpu.device.queue.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.queue"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readDeviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, HostError>;
 
     /// Poll a logical device for completion progress.
     @binding("destack.gpu.device.poll", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.queue"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pollDevice(
         device: GpuDeviceHandle,
@@ -202,19 +202,19 @@ export interface GpuDeviceBinding {
 
     /// Push one device error scope.
     @binding("destack.gpu.device.error.scope.push", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pushDeviceErrorScope(device: GpuDeviceHandle, filter: GpuErrorFilter): Result<void, HostError>;
 
     /// Pop one device error scope.
     @binding("destack.gpu.device.error.scope.pop", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     popDeviceErrorScope(
         device: GpuDeviceHandle,
@@ -223,10 +223,10 @@ export interface GpuDeviceBinding {
 
     /// Close a logical GPU device.
     @binding("destack.gpu.device.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeDevice(device: GpuDeviceHandle): Result<void, HostError>;
 }

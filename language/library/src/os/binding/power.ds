@@ -14,10 +14,10 @@ export enum OsPowerSource {
 export interface OsPowerBinding {
     /// Read operating-system power source.
     @binding("destack.os.powerSource.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.os.power.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readOsPowerSource(): Result<OsPowerSource, HostError>;
 }

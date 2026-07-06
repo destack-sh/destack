@@ -21,21 +21,21 @@ export enum CgroupController {
 export interface ProcessCgroupBinding {
     /// Join one Linux control group.
     @binding("destack.process.cgroup.join", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.process.cgroup.write"],
         platforms: ["linux"],
-        simulation: true,
     })
     joinCgroup(path: &readonly CgroupPath): Result<void, HostError>;
 
     /// Read one Linux cgroup v2 control file.
     @binding("destack.process.cgroup.read", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.process.cgroup.read"],
         platforms: ["linux"],
-        simulation: true,
     })
     readCgroup(
         path: &readonly CgroupPath,
@@ -45,11 +45,11 @@ export interface ProcessCgroupBinding {
 
     /// Write one Linux cgroup v2 control file.
     @binding("destack.process.cgroup.write", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.process.cgroup.write"],
         platforms: ["linux"],
-        simulation: true,
     })
     writeCgroup(
         path: &readonly CgroupPath,

@@ -25,37 +25,37 @@ export struct PtyPair {
 export interface TtyPtyBinding {
     /// Open one pseudo terminal pair.
     @binding("destack.tty.pty.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.tty.pty"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openPty(options: &readonly PtyOpenOptions): Result<PtyPair, HostError>;
 
     /// Read bytes from one pseudo terminal controller.
     @binding("destack.tty.pty.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.tty.pty.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readPty(pty: PtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
 
     /// Write bytes to one pseudo terminal controller.
     @binding("destack.tty.pty.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.tty.pty.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writePty(pty: PtyHandle, buffer: &readonly [uint8]): Result<uint64, HostError>;
 
     /// Close one pseudo terminal controller.
     @binding("destack.tty.pty.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.tty.close"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closePty(pty: PtyHandle): Result<void, HostError>;
 }

@@ -193,11 +193,11 @@ export struct CryptoKeyWrapParameters {
 export interface CryptoKeyBinding {
     /// Generate one secret key.
     @binding("destack.crypto.key.secret.generate", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.generate"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     generateSecretKey(
         store: CryptoStoreHandle,
@@ -207,11 +207,11 @@ export interface CryptoKeyBinding {
 
     /// Generate one asymmetric key pair.
     @binding("destack.crypto.key.pair.generate", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.generate"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     generateKeyPair(
         store: CryptoStoreHandle,
@@ -221,11 +221,11 @@ export interface CryptoKeyBinding {
 
     /// Import one key.
     @binding("destack.crypto.key.import", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.import", "host.crypto.store.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     importKey(
         store: CryptoStoreHandle,
@@ -235,21 +235,21 @@ export interface CryptoKeyBinding {
 
     /// Export one public key.
     @binding("destack.crypto.key.public.export", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.export", "host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     exportPublicKey(key: CryptoKeyHandle, format: CryptoKeyFormat): Result<uint8[], HostError>;
 
     /// Export one private key.
     @binding("destack.crypto.key.private.export", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.export", "host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     exportPrivateKey(
         key: CryptoKeyHandle,
@@ -258,31 +258,31 @@ export interface CryptoKeyBinding {
 
     /// Export one secret key.
     @binding("destack.crypto.key.secret.export", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.export", "host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     exportSecretKey(key: CryptoKeyHandle, format: CryptoKeyFormat): Result<uint8[], HostError>;
 
     /// Describe one key.
     @binding("destack.crypto.key.describe", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeKey(key: CryptoKeyHandle): Result<CryptoKeyDescriptor, HostError>;
 
     /// Sign one payload.
     @binding("destack.crypto.key.sign", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.sign"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     signWithKey(
         key: CryptoKeyHandle,
@@ -292,11 +292,11 @@ export interface CryptoKeyBinding {
 
     /// Verify one signature.
     @binding("destack.crypto.key.verify", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.verify"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     verifyWithKey(
         key: CryptoKeyHandle,
@@ -307,11 +307,11 @@ export interface CryptoKeyBinding {
 
     /// Encrypt one payload with one asymmetric key.
     @binding("destack.crypto.key.encrypt", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.encrypt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     encryptWithKey(
         key: CryptoKeyHandle,
@@ -321,11 +321,11 @@ export interface CryptoKeyBinding {
 
     /// Decrypt one payload with one asymmetric key.
     @binding("destack.crypto.key.decrypt", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.decrypt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     decryptWithKey(
         key: CryptoKeyHandle,
@@ -335,11 +335,11 @@ export interface CryptoKeyBinding {
 
     /// Wrap one key.
     @binding("destack.crypto.key.wrap", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.wrap"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     wrapKey(
         wrappingKey: CryptoKeyHandle,
@@ -350,11 +350,11 @@ export interface CryptoKeyBinding {
 
     /// Unwrap one key.
     @binding("destack.crypto.key.unwrap", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.unwrap", "host.crypto.store.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unwrapKey(
         store: CryptoStoreHandle,
@@ -366,11 +366,11 @@ export interface CryptoKeyBinding {
 
     /// Delete one key.
     @binding("destack.crypto.key.delete", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.key.delete", "host.crypto.store.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     deleteKey(key: CryptoKeyHandle): Result<void, HostError>;
 }

@@ -101,37 +101,37 @@ export struct ClipboardWriteItem {
 export interface InputClipboardBinding {
     /// Query whether text clipboard payload exists.
     @binding("destack.input.clipboard.text.has", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     hasClipboardText(): Result<boolean, HostError>;
 
     /// List clipboard items.
     @binding("destack.input.clipboard.items.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listClipboardItems(): Result<ClipboardItem[], HostError>;
 
     /// Read one text clipboard payload.
     @binding("destack.input.clipboard.text.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readClipboardText(): Result<^string, HostError>;
 
     /// Read one clipboard item representation as text.
     @binding("destack.input.clipboard.item.text.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readClipboardItemText(
         itemIndex: uint32,
@@ -140,10 +140,10 @@ export interface InputClipboardBinding {
 
     /// Read one clipboard item representation as bytes.
     @binding("destack.input.clipboard.item.bytes.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readClipboardItemBytes(
         itemIndex: uint32,
@@ -152,49 +152,49 @@ export interface InputClipboardBinding {
 
     /// Read one clipboard item representation as a filesystem path.
     @binding("destack.input.clipboard.item.path.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readClipboardItemPath(itemIndex: uint32, representationIndex: uint32): Result<Path, HostError>;
 
     /// Write one text clipboard payload.
     @binding("destack.input.clipboard.text.write", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.input.clipboard.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeClipboardText(text: &readonly string): Result<void, HostError>;
 
     /// Write clipboard items.
     @binding("destack.input.clipboard.items.write", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.input.clipboard.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeClipboardItems(items: &readonly [ClipboardWriteItem]): Result<void, HostError>;
 
     /// Read the clipboard sequence number.
     @binding("destack.input.clipboard.sequence.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.clipboard.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readClipboardSequence(): Result<uint64, HostError>;
 
     /// Clear clipboard payloads.
     @binding("destack.input.clipboard.clear", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.input.clipboard.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     clearClipboard(): Result<void, HostError>;
 }

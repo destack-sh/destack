@@ -6,19 +6,19 @@ import { VirtualMemoryRange } from "./virtual.ds";
 export interface MemoryLockBinding {
     /// Lock one memory range into physical memory.
     @binding("destack.memory.lock", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.lock"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     lockMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
     /// Unlock one memory range.
     @binding("destack.memory.unlock", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.lock"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unlockMemory(range: VirtualMemoryRange): Result<void, HostError>;
 }

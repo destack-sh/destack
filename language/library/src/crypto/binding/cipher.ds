@@ -42,11 +42,11 @@ export struct CryptoCipherOutput {
 export interface CryptoCipherBinding {
     /// Encrypt one payload in one shot.
     @binding("destack.crypto.cipher.encrypt", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     encryptCipher(
         key: CryptoKeyHandle,
@@ -56,11 +56,11 @@ export interface CryptoCipherBinding {
 
     /// Decrypt one payload in one shot.
     @binding("destack.crypto.cipher.decrypt", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     decryptCipher(
         key: CryptoKeyHandle,
@@ -70,11 +70,11 @@ export interface CryptoCipherBinding {
 
     /// Open one streaming cipher context.
     @binding("destack.crypto.cipher.open", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openCipher(
         key: CryptoKeyHandle,
@@ -84,11 +84,11 @@ export interface CryptoCipherBinding {
 
     /// Add authenticated data to one streaming cipher context.
     @binding("destack.crypto.cipher.additionalData.update", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     updateCipherAdditionalData(
         cipher: CryptoCipherHandle,
@@ -97,11 +97,11 @@ export interface CryptoCipherBinding {
 
     /// Update one streaming cipher context with one payload chunk.
     @binding("destack.crypto.cipher.update", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     updateCipher(
         cipher: CryptoCipherHandle,
@@ -110,11 +110,11 @@ export interface CryptoCipherBinding {
 
     /// Finalize one streaming cipher context.
     @binding("destack.crypto.cipher.finish", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     finishCipher(
         cipher: CryptoCipherHandle,
@@ -123,11 +123,11 @@ export interface CryptoCipherBinding {
 
     /// Close one streaming cipher context.
     @binding("destack.crypto.cipher.close", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.cipher"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeCipher(cipher: CryptoCipherHandle): Result<void, HostError>;
 }

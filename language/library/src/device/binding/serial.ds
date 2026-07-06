@@ -292,37 +292,37 @@ export newtype SerialEvent =
 export interface DeviceSerialBinding {
     /// List serial ports.
     @binding("destack.device.serial.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listSerialPorts(): Result<SerialPort[], HostError>;
 
     /// Open a serial topology watch.
     @binding("destack.device.serial.watch.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openSerialWatch(): Result<SerialWatchHandle, HostError>;
 
     /// Close a serial topology watch.
     @binding("destack.device.serial.watch.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeSerialWatch(watch: SerialWatchHandle): Result<void, HostError>;
 
     /// Read one serial topology event.
     @binding("destack.device.serial.watch.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readSerialWatch(
         watch: SerialWatchHandle,
@@ -331,10 +331,10 @@ export interface DeviceSerialBinding {
 
     /// Open a serial port.
     @binding("destack.device.serial.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openSerialPort(
         id: &readonly string,
@@ -343,37 +343,37 @@ export interface DeviceSerialBinding {
 
     /// Close a serial port.
     @binding("destack.device.serial.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeSerialPort(port: SerialPortHandle): Result<void, HostError>;
 
     /// Describe a serial port.
     @binding("destack.device.serial.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeSerialPort(port: SerialPortHandle): Result<SerialPort, HostError>;
 
     /// Read serial port configuration.
     @binding("destack.device.serial.config.get", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     getSerialConfig(port: SerialPortHandle): Result<SerialConfig, HostError>;
 
     /// Update serial port configuration.
     @binding("destack.device.serial.config.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.configure"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setSerialConfig(
         port: SerialPortHandle,
@@ -382,10 +382,10 @@ export interface DeviceSerialBinding {
 
     /// Read bytes from a serial port.
     @binding("destack.device.serial.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readSerial(
         port: SerialPortHandle,
@@ -395,10 +395,10 @@ export interface DeviceSerialBinding {
 
     /// Write bytes to a serial port.
     @binding("destack.device.serial.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeSerial(
         port: SerialPortHandle,
@@ -408,37 +408,37 @@ export interface DeviceSerialBinding {
 
     /// Wait for queued serial output to drain.
     @binding("destack.device.serial.drain", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drainSerial(port: SerialPortHandle): Result<void, HostError>;
 
     /// Flush queued serial bytes.
     @binding("destack.device.serial.flush", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.configure"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     flushSerial(port: SerialPortHandle, buffers: SerialFlushFlags): Result<void, HostError>;
 
     /// Read serial input signals.
     @binding("destack.device.serial.signals.get", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     getSerialSignals(port: SerialPortHandle): Result<SerialInputSignals, HostError>;
 
     /// Update serial output signals.
     @binding("destack.device.serial.signals.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.configure"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setSerialSignals(
         port: SerialPortHandle,
@@ -447,10 +447,10 @@ export interface DeviceSerialBinding {
 
     /// Read one serial port event.
     @binding("destack.device.serial.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.serial.observe"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readSerialEvent(port: SerialPortHandle, timeoutNs?: uint64): Result<SerialEvent, HostError>;
 }

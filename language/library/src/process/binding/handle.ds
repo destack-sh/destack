@@ -22,10 +22,10 @@ export const PROCESS_OPEN_SIGNAL: ProcessOpenFlags = ProcessOpenFlags(0x4);
 export interface ProcessHandleBinding {
     /// Open one process handle for an existing process id.
     @binding("destack.process.handle.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.handle"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openProcess(pid: ProcessId, flags: ProcessOpenFlags): Result<ProcessHandle, HostError>;
 }

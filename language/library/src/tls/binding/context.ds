@@ -60,28 +60,28 @@ export struct TlsContextOptions {
 export interface TlsContextBinding {
     /// Open one TLS context.
     @binding("destack.tls.context.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openTlsContext(options: &readonly TlsContextOptions): Result<TlsContextHandle, HostError>;
 
     /// Close one TLS context.
     @binding("destack.tls.context.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeTlsContext(context: TlsContextHandle): Result<void, HostError>;
 
     /// Set one local certificate chain and private key on a TLS context.
     @binding("destack.tls.context.identity.pem.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.identity.use", "host.tls.identity.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsIdentityPem(
         context: TlsContextHandle,
@@ -91,10 +91,10 @@ export interface TlsContextBinding {
 
     /// Set trust anchors on a TLS context from one PEM bundle.
     @binding("destack.tls.context.trust.pem.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.trust.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsTrustAnchorsPem(
         context: TlsContextHandle,
@@ -103,10 +103,10 @@ export interface TlsContextBinding {
 
     /// Set allowed TLS cipher suites for one context.
     @binding("destack.tls.context.cipherSuites.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.policy"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsCipherSuites(
         context: TlsContextHandle,
@@ -115,19 +115,19 @@ export interface TlsContextBinding {
 
     /// Set allowed TLS key exchange groups for one context.
     @binding("destack.tls.context.groups.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.policy"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsGroups(context: TlsContextHandle, groups: &readonly [string]): Result<void, HostError>;
 
     /// Set allowed TLS signature algorithms for one context.
     @binding("destack.tls.context.signatureAlgorithms.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.policy"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsSignatureAlgorithms(
         context: TlsContextHandle,
@@ -136,10 +136,10 @@ export interface TlsContextBinding {
 
     /// Set hostname verification mode for one context.
     @binding("destack.tls.context.hostnameVerification.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.hostname.verify"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsHostnameVerification(
         context: TlsContextHandle,
@@ -148,10 +148,10 @@ export interface TlsContextBinding {
 
     /// Set session resumption policy for one context.
     @binding("destack.tls.context.resumption.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.tls.context", "host.tls.resumption"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setTlsSessionResumption(
         context: TlsContextHandle,

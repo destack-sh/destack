@@ -84,19 +84,19 @@ export struct KeyboardState {
 export interface InputKeyboardBinding {
     /// Read one keyboard state snapshot.
     @binding("destack.input.keyboard.state.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.keyboard"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readKeyboardState(device: InputDeviceHandle): Result<KeyboardState, HostError>;
 
     /// Query keyboard layout metadata.
     @binding("destack.input.keyboard.layout.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.keyboard"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readKeyboardLayout(device: InputDeviceHandle): Result<KeyboardLayout, HostError>;
 }

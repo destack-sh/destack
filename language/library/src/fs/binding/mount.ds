@@ -19,10 +19,10 @@ export struct FileMount {
 export interface FsMountBinding {
     /// List filesystem mounts.
     @binding("destack.fs.mount.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.mount.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     list(): Result<FileMount[], HostError>;
 }

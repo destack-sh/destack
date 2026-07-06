@@ -24,10 +24,10 @@ export struct SemaphoreOptions {
 export interface IpcSemaphoreBinding {
     /// Create one named semaphore.
     @binding("destack.ipc.semaphore.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.semaphore"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createSemaphore(
         name: &readonly string,
@@ -36,10 +36,10 @@ export interface IpcSemaphoreBinding {
 
     /// Open one named semaphore.
     @binding("destack.ipc.semaphore.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.semaphore"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openSemaphore(
         name: &readonly string,
@@ -48,37 +48,37 @@ export interface IpcSemaphoreBinding {
 
     /// Close one semaphore handle.
     @binding("destack.ipc.semaphore.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.semaphore"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeSemaphore(semaphore: SemaphoreHandle): Result<void, HostError>;
 
     /// Remove one named semaphore.
     @binding("destack.ipc.semaphore.remove", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.semaphore"],
         families: ["unix"],
-        simulation: true,
     })
     removeSemaphore(name: &readonly string): Result<void, HostError>;
 
     /// Wait for one semaphore count.
     @binding("destack.ipc.semaphore.wait", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.semaphore"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     waitSemaphore(semaphore: SemaphoreHandle, timeoutNanoseconds?: uint64): Result<void, HostError>;
 
     /// Increment one semaphore count.
     @binding("destack.ipc.semaphore.post", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.semaphore"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     postSemaphore(semaphore: SemaphoreHandle, count: uint32): Result<void, HostError>;
 }

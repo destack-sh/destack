@@ -404,10 +404,10 @@ export newtype DisplayEvent =
 export interface DisplayEventBinding {
     /// Open one display event subscription.
     @binding("destack.display.event.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.event"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openDisplayEvents(
@@ -416,20 +416,20 @@ export interface DisplayEventBinding {
 
     /// Close one display event subscription.
     @binding("destack.display.event.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.event"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeDisplayEvents(events: DisplayEventHandle): Result<void, HostError>;
 
     /// Read display events.
     @binding("destack.display.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.event"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readDisplayEvents(

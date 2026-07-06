@@ -31,10 +31,10 @@ export struct UnixSocketMessage {
 export interface IpcUnixBinding {
     /// Send one Unix-domain socket message with transferred handles.
     @binding("destack.ipc.unix.send", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.unix", "host.ipc.handle.pass"],
         families: ["unix"],
-        simulation: true,
     })
     sendUnixSocketMessage(
         socket: SocketHandle,
@@ -45,10 +45,10 @@ export interface IpcUnixBinding {
 
     /// Receive one Unix-domain socket message with transferred handles.
     @binding("destack.ipc.unix.receive", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.unix", "host.ipc.handle.pass"],
         families: ["unix"],
-        simulation: true,
     })
     receiveUnixSocketMessage(
         socket: SocketHandle,

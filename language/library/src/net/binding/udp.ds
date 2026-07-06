@@ -93,37 +93,37 @@ export newtype MulticastOptionValue =
 export interface NetUdpBinding {
     /// Join one multicast group.
     @binding("destack.net.udp.joinMulticast", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.multicast"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     joinMulticast(socket: SocketHandle, group: MulticastGroup): Result<void, HostError>;
 
     /// Leave one multicast group.
     @binding("destack.net.udp.leaveMulticast", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.multicast"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     leaveMulticast(socket: SocketHandle, group: MulticastGroup): Result<void, HostError>;
 
     /// Join one source-specific multicast group.
     @binding("destack.net.udp.joinSourceMulticast", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.multicast"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     joinSourceMulticast(socket: SocketHandle, group: SourceMulticastGroup): Result<void, HostError>;
 
     /// Leave one source-specific multicast group.
     @binding("destack.net.udp.leaveSourceMulticast", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.multicast"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     leaveSourceMulticast(
         socket: SocketHandle,
@@ -132,19 +132,19 @@ export interface NetUdpBinding {
 
     /// Set one multicast option.
     @binding("destack.net.udp.setMulticastOption", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.multicast"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setMulticastOption(socket: SocketHandle, option: MulticastOptionValue): Result<void, HostError>;
 
     /// Read one multicast option.
     @binding("destack.net.udp.getMulticastOption", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.multicast"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     getMulticastOption(
         socket: SocketHandle,

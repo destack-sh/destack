@@ -124,10 +124,10 @@ export struct FileWatchBatch {
 export interface FsWatchBinding {
     /// Start watching one filesystem entry.
     @binding("destack.fs.watch.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.watch"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     open(
         entry: &readonly FilesystemEntry,
@@ -136,19 +136,19 @@ export interface FsWatchBinding {
 
     /// Stop watching and release the watch handle.
     @binding("destack.fs.watch.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.watch"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     close(watch: WatchHandle): Result<void, HostError>;
 
     /// Read watch events into an output slice.
     @binding("destack.fs.watch.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.watch"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     read(
         watch: WatchHandle,

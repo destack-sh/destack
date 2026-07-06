@@ -42,10 +42,10 @@ export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFl
 export interface MemoryMapBinding {
     /// Map a file backed memory range.
     @binding("destack.memory.map.file", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.map"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     mapFileMemory(
         file: FileHandle,
@@ -59,10 +59,10 @@ export interface MemoryMapBinding {
 
     /// Map an anonymous memory range.
     @binding("destack.memory.map.anonymous", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.map"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     mapAnonymousMemory(
         length: uint64,
@@ -74,19 +74,19 @@ export interface MemoryMapBinding {
 
     /// Unmap a mapped memory range.
     @binding("destack.memory.map.unmap", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.map"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unmapMemory(range: VirtualMemoryRange): Result<void, HostError>;
 
     /// Flush mapped memory to backing storage.
     @binding("destack.memory.map.sync", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.map"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     syncMappedMemory(
         range: VirtualMemoryRange,

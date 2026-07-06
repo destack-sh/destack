@@ -235,23 +235,26 @@ export type PlatformFamilyTag = "windows" | "unix" | "wasm";
 /// Host tags accepted by runtime bindings.
 export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
+/// Binding implementation owner.
+export type BindingProvider = "host" | "runtime";
+
 /// Options for runtime bindings.
 export type BindingOptions = {
     /// Effect kind for the binding.
     effect: "pure" | "deterministic" | "external";
     /// Actions required by this binding.
     requires: Action[];
-    /// Platforms that support this binding.
+    /// Platform whitelist, omitted means all platforms.
     platforms?: PlatformTag[];
-    /// Platform families that support this binding.
+    /// Platform-family whitelist, omitted means all families.
     families?: PlatformFamilyTag[];
-    /// Hosts that support this binding.
+    /// Host whitelist, omitted means all hosts.
     hosts?: HostTag[];
-    /// Marks bindings implemented by runtime state instead of the host.
-    provider?: "runtime";
-    /// Replay override for external effects.
+    /// Provider that implements this binding.
+    provider: BindingProvider;
+    /// Replay override, omitted means replay follows the effect kind.
     replay?: "forbidden";
-    /// Execution context required by this binding.
+    /// Required execution affinity, omitted means any affinity.
     affinity?: "worker" | "main";
 };
 

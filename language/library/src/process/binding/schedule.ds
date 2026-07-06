@@ -23,37 +23,37 @@ export struct ProcessAffinity {
 export interface ProcessScheduleBinding {
     /// Read one process priority.
     @binding("destack.process.schedule.priority.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.priority"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readProcessPriority(process: ProcessId): Result<ProcessPriority, HostError>;
 
     /// Set one process priority.
     @binding("destack.process.schedule.priority.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.priority"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setProcessPriority(process: ProcessId, priority: ProcessPriority): Result<void, HostError>;
 
     /// Read one process CPU affinity.
     @binding("destack.process.schedule.affinity.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.affinity"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readProcessAffinity(process: ProcessId): Result<ProcessAffinity, HostError>;
 
     /// Set one process CPU affinity.
     @binding("destack.process.schedule.affinity.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.affinity"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setProcessAffinity(
         process: ProcessId,

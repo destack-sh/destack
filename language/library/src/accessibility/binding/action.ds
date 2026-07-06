@@ -400,10 +400,10 @@ export newtype AccessibilityAction =
 export interface AccessibilityActionBinding {
     /// Open one inbound accessibility action stream.
     @binding("destack.accessibility.action.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.action"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openAccessibilityActions(
@@ -413,20 +413,20 @@ export interface AccessibilityActionBinding {
 
     /// Close one inbound accessibility action stream.
     @binding("destack.accessibility.action.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.action"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeAccessibilityActions(actions: AccessibilityActionHandle): Result<void, HostError>;
 
     /// Read accessibility actions.
     @binding("destack.accessibility.action.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.action"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readAccessibilityActions(

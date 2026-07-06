@@ -512,5 +512,12 @@ global {
     export { ExpansionContext, Macro, MacroContext, MaterializationContext } from "destack:macro";
 
     // destack:runtime
-    export { BindingOptions, binding, HostAction } from "destack:runtime";
+    export {
+        Action,
+        BindingOptions,
+        BindingProvider,
+        HostAction,
+        RuntimeAction,
+        binding,
+    } from "destack:runtime";
 }

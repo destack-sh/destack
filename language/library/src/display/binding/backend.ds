@@ -87,10 +87,10 @@ export struct DisplayBackend {
 export interface DisplayBackendBinding {
     /// List host display backends.
     @binding("destack.display.backend.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.backend"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     listDisplayBackends(): Result<DisplayBackend[], HostError>;

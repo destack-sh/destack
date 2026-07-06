@@ -92,19 +92,19 @@ export struct SensorStreamState {
 export interface InputSensorBinding {
     /// List supported sensors for one input device.
     @binding("destack.input.sensor.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.sensor"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listSensors(device: InputDeviceHandle): Result<Sensor[], HostError>;
 
     /// Set one sensor stream state.
     @binding("destack.input.sensor.stream.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.sensor"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setSensorStream(
         device: InputDeviceHandle,
@@ -114,10 +114,10 @@ export interface InputSensorBinding {
 
     /// Read one sensor sample.
     @binding("destack.input.sensor.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.sensor"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readSensor(
         device: InputDeviceHandle,

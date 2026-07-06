@@ -5,19 +5,19 @@ import { Path } from "destack:fs/binding";
 export interface ProcessWorkdirBinding {
     /// Return the current working directory.
     @binding("destack.process.workdir.get", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.workdir.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     getCurrentDirectory(): Result<Path, HostError>;
 
     /// Change the current working directory.
     @binding("destack.process.workdir.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.workdir.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setCurrentDirectory(path: &readonly Path): Result<void, HostError>;
 }

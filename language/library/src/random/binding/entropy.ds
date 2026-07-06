@@ -4,10 +4,10 @@ import { HostError } from "destack:error/host";
 export interface RandomEntropyBinding {
     /// Fill one buffer with host-provided random bytes.
     @binding("destack.random.bytes.fill", {
+        provider: "host",
         effect: "external",
         requires: ["host.random.bytes"],
         families: ["windows", "unix", "wasm"],
-        simulation: true,
     })
     fillRandomBytes(buffer: &[uint8]): Result<void, HostError>;
 }

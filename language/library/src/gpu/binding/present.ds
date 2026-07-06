@@ -238,31 +238,31 @@ export struct GpuPresentationSubscription {
 export interface GpuPresentBinding {
     /// Open one present surface for a window.
     @binding("destack.gpu.present.surface.open", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openSurface(window: WindowHandle): Result<GpuSurfaceHandle, HostError>;
 
     /// Close one present surface.
     @binding("destack.gpu.present.surface.close", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeSurface(surface: GpuSurfaceHandle): Result<void, HostError>;
 
     /// Read surface capabilities for one adapter.
     @binding("destack.gpu.present.surface.capabilities", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     surfaceCapabilities(
         surface: GpuSurfaceHandle,
@@ -271,11 +271,11 @@ export interface GpuPresentBinding {
 
     /// Configure one present surface.
     @binding("destack.gpu.present.surface.configure", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     configureSurface(
         device: GpuDeviceHandle,
@@ -285,31 +285,31 @@ export interface GpuPresentBinding {
 
     /// Remove one present surface configuration.
     @binding("destack.gpu.present.surface.unconfigure", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unconfigureSurface(surface: GpuSurfaceHandle): Result<void, HostError>;
 
     /// Read one present surface state.
     @binding("destack.gpu.present.surface.state.read", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     surfaceState(surface: GpuSurfaceHandle): Result<GpuSurfaceState, HostError>;
 
     /// Acquire one presentable surface texture.
     @binding("destack.gpu.present.surface.acquire", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     acquireSurface(
         surface: GpuSurfaceHandle,
@@ -318,11 +318,11 @@ export interface GpuPresentBinding {
 
     /// Present one acquired surface frame.
     @binding("destack.gpu.present.surface.present", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     presentSurface(
         surface: GpuSurfaceHandle,
@@ -331,11 +331,11 @@ export interface GpuPresentBinding {
 
     /// Open one presentation event subscription.
     @binding("destack.gpu.present.event.open", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openPresentationEvents(
         surface: GpuSurfaceHandle,
@@ -344,21 +344,21 @@ export interface GpuPresentBinding {
 
     /// Close one presentation event subscription.
     @binding("destack.gpu.present.event.close", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closePresentationEvents(events: GpuPresentationHandle): Result<void, HostError>;
 
     /// Read presentation events.
     @binding("destack.gpu.present.event.read", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.gpu.present"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readPresentationEvents(
         events: GpuPresentationHandle,

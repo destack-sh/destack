@@ -281,10 +281,10 @@ export struct ReverseAddressLookupResult {
 export interface NetResolveBinding {
     /// Resolve a host and service through host address lookup.
     @binding("destack.net.resolve.lookup", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.dns"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     lookupAddress(
         query: &readonly AddressLookupQuery,
@@ -292,19 +292,19 @@ export interface NetResolveBinding {
 
     /// Resolve DNS records.
     @binding("destack.net.resolve.record", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.dns"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     record(query: &readonly DnsQuery): Result<DnsRecord[], HostError>;
 
     /// Reverse lookup a socket address into host and service names.
     @binding("destack.net.resolve.reverseLookup", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.dns"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     reverseLookup(
         address: &readonly SocketAddress,

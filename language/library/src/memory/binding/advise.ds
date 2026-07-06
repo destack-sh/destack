@@ -20,19 +20,19 @@ export enum MemoryAdvice {
 export interface MemoryAdviseBinding {
     /// Apply memory access advice.
     @binding("destack.memory.advise", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.advise"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     adviseMemory(range: VirtualMemoryRange, advice: MemoryAdvice): Result<void, HostError>;
 
     /// Discard memory contents.
     @binding("destack.memory.discard", {
+        provider: "host",
         effect: "external",
         requires: ["host.memory.discard"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     discardMemory(range: VirtualMemoryRange): Result<void, HostError>;
 }

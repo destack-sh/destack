@@ -93,10 +93,10 @@ export struct AudioBackend {
 export interface AudioBackendBinding {
     /// List host audio backends.
     @binding("destack.audio.backend.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.backend"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listAudioBackends(): Result<AudioBackend[], HostError>;
 }

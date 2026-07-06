@@ -157,21 +157,21 @@ export struct CryptoKdfBits {
 export interface CryptoKdfBinding {
     /// Derive raw bytes.
     @binding("destack.crypto.kdf.deriveBits", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.kdf"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     deriveKdfBits(request: &readonly CryptoKdfBits): Result<uint8[], HostError>;
 
     /// Derive one key.
     @binding("destack.crypto.kdf.deriveKey", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.kdf", "host.crypto.store.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     deriveKdfKey(
         store: CryptoStoreHandle,

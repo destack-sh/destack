@@ -5,28 +5,28 @@ import { FileHandle } from "destack:fs/binding";
 export interface ProcessStdioBinding {
     /// Open the current process standard input stream.
     @binding("destack.process.stdio.input", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.stdio"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openStandardInput(): Result<FileHandle, HostError>;
 
     /// Open the current process standard output stream.
     @binding("destack.process.stdio.output", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.stdio"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openStandardOutput(): Result<FileHandle, HostError>;
 
     /// Open the current process standard error stream.
     @binding("destack.process.stdio.error", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.stdio"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openStandardError(): Result<FileHandle, HostError>;
 }

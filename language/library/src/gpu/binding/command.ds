@@ -204,10 +204,10 @@ export struct GpuBufferCopy {
 export interface GpuCommandBinding {
     /// Create a command encoder.
     @binding("destack.gpu.command.encoder.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createCommandEncoder(
         device: GpuDeviceHandle,
@@ -216,19 +216,19 @@ export interface GpuCommandBinding {
 
     /// Close a command encoder.
     @binding("destack.gpu.command.encoder.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeCommandEncoder(encoder: GpuCommandEncoderHandle): Result<void, HostError>;
 
     /// Finish one command encoder.
     @binding("destack.gpu.command.encoder.finish", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     finishCommandEncoder(
         encoder: GpuCommandEncoderHandle,
@@ -237,19 +237,19 @@ export interface GpuCommandBinding {
 
     /// Destroy one command buffer.
     @binding("destack.gpu.command.buffer.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroyCommandBuffer(commandBuffer: GpuCommandBufferHandle): Result<void, HostError>;
 
     /// Create a render bundle encoder.
     @binding("destack.gpu.command.render.bundle.encoder.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createRenderBundleEncoder(
         device: GpuDeviceHandle,
@@ -258,19 +258,19 @@ export interface GpuCommandBinding {
 
     /// Close a render-bundle encoder without producing a bundle.
     @binding("destack.gpu.command.render.bundle.encoder.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeRenderBundleEncoder(encoder: GpuRenderBundleEncoderHandle): Result<void, HostError>;
 
     /// Finish one render-bundle encoder.
     @binding("destack.gpu.command.render.bundle.encoder.finish", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     finishRenderBundleEncoder(
         encoder: GpuRenderBundleEncoderHandle,
@@ -279,10 +279,10 @@ export interface GpuCommandBinding {
 
     /// Begin a compute pass.
     @binding("destack.gpu.command.compute.pass.begin", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     beginComputePass(
         encoder: GpuCommandEncoderHandle,
@@ -291,19 +291,19 @@ export interface GpuCommandBinding {
 
     /// End a compute pass.
     @binding("destack.gpu.command.compute.pass.end", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     endComputePass(computePass: GpuComputePassHandle): Result<void, HostError>;
 
     /// Begin a render pass.
     @binding("destack.gpu.command.render.pass.begin", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     beginRenderPass(
         encoder: GpuCommandEncoderHandle,
@@ -312,19 +312,19 @@ export interface GpuCommandBinding {
 
     /// End a render pass.
     @binding("destack.gpu.command.render.pass.end", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     endRenderPass(renderPass: GpuRenderPassHandle): Result<void, HostError>;
 
     /// Insert explicit resource transitions.
     @binding("destack.gpu.command.resources.transition", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     transitionResources(
         encoder: GpuCommandEncoderHandle,
@@ -334,10 +334,10 @@ export interface GpuCommandBinding {
 
     /// Execute one batch of render bundles in the active render pass.
     @binding("destack.gpu.command.render.bundles.execute", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     executeRenderBundles(
         renderPass: GpuRenderPassHandle,
@@ -346,19 +346,19 @@ export interface GpuCommandBinding {
 
     /// Destroy a render bundle.
     @binding("destack.gpu.command.render.bundle.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroyRenderBundle(bundle: GpuRenderBundleHandle): Result<void, HostError>;
 
     /// Bind one render pipeline for one bundle encoder.
     @binding("destack.gpu.command.render.bundle.pipeline.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRenderBundlePipeline(
         encoder: GpuRenderBundleEncoderHandle,
@@ -367,10 +367,10 @@ export interface GpuCommandBinding {
 
     /// Bind one bind group in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.bind.group.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.bind"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRenderBundleBindGroup(
         encoder: GpuRenderBundleEncoderHandle,
@@ -381,10 +381,10 @@ export interface GpuCommandBinding {
 
     /// Bind one vertex buffer in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.vertex.buffer.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRenderBundleVertexBuffer(
         encoder: GpuRenderBundleEncoderHandle,
@@ -396,10 +396,10 @@ export interface GpuCommandBinding {
 
     /// Bind one index buffer in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.index.buffer.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRenderBundleIndexBuffer(
         encoder: GpuRenderBundleEncoderHandle,
@@ -411,10 +411,10 @@ export interface GpuCommandBinding {
 
     /// Encode one non-indexed draw in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.draw", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawRenderBundle(
         encoder: GpuRenderBundleEncoderHandle,
@@ -426,10 +426,10 @@ export interface GpuCommandBinding {
 
     /// Encode one indexed draw in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.draw.indexed", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawIndexedRenderBundle(
         encoder: GpuRenderBundleEncoderHandle,
@@ -442,10 +442,10 @@ export interface GpuCommandBinding {
 
     /// Encode one indirect non-indexed draw range in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.draw.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawIndirectRenderBundle(
         encoder: GpuRenderBundleEncoderHandle,
@@ -457,10 +457,10 @@ export interface GpuCommandBinding {
 
     /// Encode one indirect indexed draw range in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.draw.indexed.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawIndexedIndirectRenderBundle(
         encoder: GpuRenderBundleEncoderHandle,
@@ -472,10 +472,10 @@ export interface GpuCommandBinding {
 
     /// Insert one debug marker in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.debug.marker", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     insertRenderBundleDebugMarker(
         encoder: GpuRenderBundleEncoderHandle,
@@ -484,10 +484,10 @@ export interface GpuCommandBinding {
 
     /// Push one debug group in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.debug.group.push", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pushRenderBundleDebugGroup(
         encoder: GpuRenderBundleEncoderHandle,
@@ -496,19 +496,19 @@ export interface GpuCommandBinding {
 
     /// Pop one debug group in one bundle encoder.
     @binding("destack.gpu.command.render.bundle.debug.group.pop", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     popRenderBundleDebugGroup(encoder: GpuRenderBundleEncoderHandle): Result<void, HostError>;
 
     /// Bind one compute pipeline.
     @binding("destack.gpu.command.compute.pipeline.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setComputePipeline(
         pass: GpuComputePassHandle,
@@ -517,10 +517,10 @@ export interface GpuCommandBinding {
 
     /// Bind one render pipeline.
     @binding("destack.gpu.command.render.pipeline.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRenderPipeline(
         pass: GpuRenderPassHandle,
@@ -529,10 +529,10 @@ export interface GpuCommandBinding {
 
     /// Bind one bind group for one compute pass.
     @binding("destack.gpu.command.compute.bind.group.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.bind"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setComputeBindGroup(
         pass: GpuComputePassHandle,
@@ -543,10 +543,10 @@ export interface GpuCommandBinding {
 
     /// Bind one bind group for one render pass.
     @binding("destack.gpu.command.render.bind.group.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.bind"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRenderBindGroup(
         pass: GpuRenderPassHandle,
@@ -557,10 +557,10 @@ export interface GpuCommandBinding {
 
     /// Bind one vertex buffer for subsequent draw commands.
     @binding("destack.gpu.command.vertex.buffer.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setVertexBuffer(
         pass: GpuRenderPassHandle,
@@ -572,10 +572,10 @@ export interface GpuCommandBinding {
 
     /// Bind one index buffer for subsequent indexed draw commands.
     @binding("destack.gpu.command.index.buffer.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setIndexBuffer(
         pass: GpuRenderPassHandle,
@@ -587,10 +587,10 @@ export interface GpuCommandBinding {
 
     /// Set viewport state for the active render pass.
     @binding("destack.gpu.command.viewport.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setViewport(
         pass: GpuRenderPassHandle,
@@ -604,10 +604,10 @@ export interface GpuCommandBinding {
 
     /// Set a scissor rectangle for the active render pass.
     @binding("destack.gpu.command.scissor.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setScissor(
         pass: GpuRenderPassHandle,
@@ -619,10 +619,10 @@ export interface GpuCommandBinding {
 
     /// Set a blend constant for the active render pass.
     @binding("destack.gpu.command.blend.constant.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setBlendConstant(
         pass: GpuRenderPassHandle,
@@ -634,19 +634,19 @@ export interface GpuCommandBinding {
 
     /// Set a stencil-reference value for the active render pass.
     @binding("destack.gpu.command.stencil.reference.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setStencilReference(pass: GpuRenderPassHandle, reference: uint32): Result<void, HostError>;
 
     /// Insert one debug marker in one command-encoder scope.
     @binding("destack.gpu.command.debug.marker", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     insertCommandDebugMarker(
         encoder: GpuCommandEncoderHandle,
@@ -655,10 +655,10 @@ export interface GpuCommandBinding {
 
     /// Push one debug group in one command-encoder scope.
     @binding("destack.gpu.command.debug.group.push", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pushCommandDebugGroup(
         encoder: GpuCommandEncoderHandle,
@@ -667,19 +667,19 @@ export interface GpuCommandBinding {
 
     /// Pop one debug group in one command-encoder scope.
     @binding("destack.gpu.command.debug.group.pop", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     popCommandDebugGroup(encoder: GpuCommandEncoderHandle): Result<void, HostError>;
 
     /// Insert one debug marker in one compute-pass scope.
     @binding("destack.gpu.command.compute.pass.debug.marker", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     insertComputePassDebugMarker(
         pass: GpuComputePassHandle,
@@ -688,10 +688,10 @@ export interface GpuCommandBinding {
 
     /// Push one debug group in one compute-pass scope.
     @binding("destack.gpu.command.compute.pass.debug.group.push", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pushComputePassDebugGroup(
         pass: GpuComputePassHandle,
@@ -700,19 +700,19 @@ export interface GpuCommandBinding {
 
     /// Pop one debug group in one compute-pass scope.
     @binding("destack.gpu.command.compute.pass.debug.group.pop", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     popComputePassDebugGroup(pass: GpuComputePassHandle): Result<void, HostError>;
 
     /// Insert one debug marker in one render-pass scope.
     @binding("destack.gpu.command.render.pass.debug.marker", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     insertRenderPassDebugMarker(
         pass: GpuRenderPassHandle,
@@ -721,10 +721,10 @@ export interface GpuCommandBinding {
 
     /// Push one debug group in one render-pass scope.
     @binding("destack.gpu.command.render.pass.debug.group.push", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pushRenderPassDebugGroup(
         pass: GpuRenderPassHandle,
@@ -733,19 +733,19 @@ export interface GpuCommandBinding {
 
     /// Pop one debug group in one render-pass scope.
     @binding("destack.gpu.command.render.pass.debug.group.pop", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     popRenderPassDebugGroup(pass: GpuRenderPassHandle): Result<void, HostError>;
 
     /// Dispatch one compute workgroup grid.
     @binding("destack.gpu.command.dispatch", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     dispatch(
         pass: GpuComputePassHandle,
@@ -756,10 +756,10 @@ export interface GpuCommandBinding {
 
     /// Dispatch one compute workload from one indirect buffer argument.
     @binding("destack.gpu.command.dispatch.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     dispatchIndirect(
         pass: GpuComputePassHandle,
@@ -769,10 +769,10 @@ export interface GpuCommandBinding {
 
     /// Draw one non-indexed primitive range.
     @binding("destack.gpu.command.draw", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     draw(
         pass: GpuRenderPassHandle,
@@ -784,10 +784,10 @@ export interface GpuCommandBinding {
 
     /// Draw one indexed primitive range.
     @binding("destack.gpu.command.draw.indexed", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawIndexed(
         pass: GpuRenderPassHandle,
@@ -800,10 +800,10 @@ export interface GpuCommandBinding {
 
     /// Draw one indirect non-indexed command range.
     @binding("destack.gpu.command.draw.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawIndirect(
         pass: GpuRenderPassHandle,
@@ -815,10 +815,10 @@ export interface GpuCommandBinding {
 
     /// Draw one indirect indexed command range.
     @binding("destack.gpu.command.draw.indexed.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     drawIndexedIndirect(
         pass: GpuRenderPassHandle,
@@ -830,10 +830,10 @@ export interface GpuCommandBinding {
 
     /// Draw multiple indirect non-indexed command ranges.
     @binding("destack.gpu.command.multi.draw.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     multiDrawIndirect(
         pass: GpuRenderPassHandle,
@@ -845,10 +845,10 @@ export interface GpuCommandBinding {
 
     /// Draw multiple indirect indexed command ranges.
     @binding("destack.gpu.command.multi.draw.indexed.indirect", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     multiDrawIndexedIndirect(
         pass: GpuRenderPassHandle,
@@ -860,10 +860,10 @@ export interface GpuCommandBinding {
 
     /// Draw multiple indirect non-indexed command ranges with a host-visible count buffer.
     @binding("destack.gpu.command.multi.draw.indirect.count", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     multiDrawIndirectCount(
         pass: GpuRenderPassHandle,
@@ -877,10 +877,10 @@ export interface GpuCommandBinding {
 
     /// Draw multiple indirect indexed command ranges with a host-visible count buffer.
     @binding("destack.gpu.command.multi.draw.indexed.indirect.count", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     multiDrawIndexedIndirectCount(
         pass: GpuRenderPassHandle,
@@ -894,10 +894,10 @@ export interface GpuCommandBinding {
 
     /// Copy one buffer range.
     @binding("destack.gpu.command.buffer.copy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     copyBuffer(
         encoder: GpuCommandEncoderHandle,
@@ -910,10 +910,10 @@ export interface GpuCommandBinding {
 
     /// Clear one buffer range.
     @binding("destack.gpu.command.buffer.clear", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     clearBuffer(
         encoder: GpuCommandEncoderHandle,
@@ -924,10 +924,10 @@ export interface GpuCommandBinding {
 
     /// Copy one texture range to another texture.
     @binding("destack.gpu.command.texture.copy.texture", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     copyTextureToTexture(
         encoder: GpuCommandEncoderHandle,
@@ -938,10 +938,10 @@ export interface GpuCommandBinding {
 
     /// Copy one texture range into one buffer range.
     @binding("destack.gpu.command.texture.copy.buffer", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     copyTextureToBuffer(
         encoder: GpuCommandEncoderHandle,
@@ -952,10 +952,10 @@ export interface GpuCommandBinding {
 
     /// Copy one buffer range into one texture range.
     @binding("destack.gpu.command.buffer.copy.texture", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.command"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     copyBufferToTexture(
         encoder: GpuCommandEncoderHandle,
@@ -966,10 +966,10 @@ export interface GpuCommandBinding {
 
     /// Submit one command-buffer batch to one queue.
     @binding("destack.gpu.command.queue.submit", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.queue"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     queueSubmit(
         queue: GpuQueueHandle,
@@ -978,10 +978,10 @@ export interface GpuCommandBinding {
 
     /// Write host bytes into one GPU buffer through one queue.
     @binding("destack.gpu.command.queue.buffer.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.queue", "host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     queueWriteBuffer(
         queue: GpuQueueHandle,
@@ -994,10 +994,10 @@ export interface GpuCommandBinding {
 
     /// Write host bytes into one GPU texture through one queue.
     @binding("destack.gpu.command.queue.texture.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.queue", "host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     queueWriteTexture(
         queue: GpuQueueHandle,
@@ -1009,10 +1009,10 @@ export interface GpuCommandBinding {
 
     /// Wait for a queue to become idle.
     @binding("destack.gpu.command.queue.idle.wait", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.queue"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     queueWaitIdle(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, HostError>;
 }

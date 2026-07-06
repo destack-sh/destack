@@ -152,28 +152,28 @@ export enum PointerGrabMode {
 export interface InputPointerBinding {
     /// Read one pointer state snapshot.
     @binding("destack.input.pointer.state.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.pointer"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readPointerState(device: InputDeviceHandle): Result<PointerState, HostError>;
 
     /// Enable or disable relative pointer mode.
     @binding("destack.input.pointer.relative.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.pointer"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setPointerRelativeMode(device: InputDeviceHandle, isEnabled: boolean): Result<void, HostError>;
 
     /// Set pointer grab mode.
     @binding("destack.input.pointer.grab", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.grab"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     setPointerGrab(
@@ -184,10 +184,10 @@ export interface InputPointerBinding {
 
     /// Enable or disable pointer capture.
     @binding("destack.input.pointer.capture", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.grab"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     capturePointer(
@@ -198,10 +198,10 @@ export interface InputPointerBinding {
 
     /// Warp pointer position.
     @binding("destack.input.pointer.warp", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.pointer"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     warpPointer(

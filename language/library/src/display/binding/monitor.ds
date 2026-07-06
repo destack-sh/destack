@@ -154,30 +154,30 @@ export struct MonitorQuery {
 export interface DisplayMonitorBinding {
     /// List monitors.
     @binding("destack.display.monitor.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     listMonitors(query: &readonly MonitorQuery): Result<Monitor[], HostError>;
 
     /// Return the primary monitor handle.
     @binding("destack.display.monitor.primary", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     primaryMonitor(query: &readonly MonitorQuery): Result<MonitorHandle, HostError>;
 
     /// Open one monitor endpoint.
     @binding("destack.display.monitor.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openMonitor(
@@ -187,40 +187,40 @@ export interface DisplayMonitorBinding {
 
     /// Close one monitor endpoint.
     @binding("destack.display.monitor.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeMonitor(monitor: MonitorHandle): Result<void, HostError>;
 
     /// Describe one monitor.
     @binding("destack.display.monitor.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     describeMonitor(monitor: MonitorHandle): Result<Monitor, HostError>;
 
     /// List supported monitor modes.
     @binding("destack.display.monitor.mode.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor.mode"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     listMonitorModes(monitor: MonitorHandle): Result<MonitorMode[], HostError>;
 
     /// Select the closest supported monitor mode.
     @binding("destack.display.monitor.mode.closest", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor.mode"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closestMonitorMode(
@@ -230,50 +230,50 @@ export interface DisplayMonitorBinding {
 
     /// Set one monitor mode.
     @binding("destack.display.monitor.mode.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor.mode"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     setMonitorMode(monitor: MonitorHandle, mode: &readonly MonitorMode): Result<void, HostError>;
 
     /// Read one monitor color state.
     @binding("destack.display.monitor.color", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     monitorColorState(monitor: MonitorHandle): Result<MonitorColorState, HostError>;
 
     /// Set one monitor HDR policy.
     @binding("destack.display.monitor.hdr", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor.mode"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     setMonitorHdrMode(monitor: MonitorHandle, mode: DisplayHdrMode): Result<void, HostError>;
 
     /// Read one monitor gamma ramp.
     @binding("destack.display.monitor.gamma.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readMonitorGamma(monitor: MonitorHandle): Result<MonitorGammaRamp, HostError>;
 
     /// Set one monitor gamma ramp.
     @binding("destack.display.monitor.gamma.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.monitor.mode"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     writeMonitorGamma(

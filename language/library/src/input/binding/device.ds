@@ -149,55 +149,55 @@ export struct InputDeviceControls {
 export interface InputDeviceBinding {
     /// List input devices.
     @binding("destack.input.device.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listInputDevices(query: &readonly InputDeviceQuery): Result<InputDevice[], HostError>;
 
     /// Open one input device.
     @binding("destack.input.device.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openInputDevice(id: &readonly string): Result<InputDeviceHandle, HostError>;
 
     /// Close one input device.
     @binding("destack.input.device.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeInputDevice(device: InputDeviceHandle): Result<void, HostError>;
 
     /// Describe one input device.
     @binding("destack.input.device.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeInputDevice(device: InputDeviceHandle): Result<InputDevice, HostError>;
 
     /// Query controls for one input device.
     @binding("destack.input.device.controls.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readInputDeviceControls(device: InputDeviceHandle): Result<InputDeviceControls, HostError>;
 
     /// Enable or disable exclusive device grab.
     @binding("destack.input.device.grab", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.grab"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     grabInputDevice(device: InputDeviceHandle, isEnabled: boolean): Result<void, HostError>;
 }

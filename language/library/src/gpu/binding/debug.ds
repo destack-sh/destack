@@ -5,10 +5,10 @@ import { ResourceId } from "destack:runtime/resource";
 export interface GpuDebugBinding {
     /// Set a debug label on a GPU resource object.
     @binding("destack.gpu.debug.label.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.debug"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setLabel(handle: ResourceId, label: &readonly string): Result<void, HostError>;
 }

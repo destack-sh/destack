@@ -275,10 +275,10 @@ export newtype TextSessionEvent =
 export interface InputTextBinding {
     /// Open one text input session.
     @binding("destack.input.text.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openTextSession(
@@ -288,20 +288,20 @@ export interface InputTextBinding {
 
     /// Close one text input session.
     @binding("destack.input.text.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeTextSession(session: InputTextSessionHandle): Result<void, HostError>;
 
     /// Set text input geometry.
     @binding("destack.input.text.geometry.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     setTextGeometry(
@@ -311,20 +311,20 @@ export interface InputTextBinding {
 
     /// Read text input geometry.
     @binding("destack.input.text.geometry.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readTextGeometry(session: InputTextSessionHandle): Result<TextGeometry, HostError>;
 
     /// Set text input state.
     @binding("destack.input.text.state.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     setTextState(
@@ -334,10 +334,10 @@ export interface InputTextBinding {
 
     /// Read text-session events.
     @binding("destack.input.text.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readTextEvents(

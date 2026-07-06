@@ -48,28 +48,28 @@ export struct IoPollEvent {
 export interface IoPollBinding {
     /// Open a readiness poller.
     @binding("destack.io.poll.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.poll"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openIoPoll(backend: IoPollBackend): Result<IoPollHandle, HostError>;
 
     /// Close a readiness poller.
     @binding("destack.io.poll.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.poll"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeIoPoll(poll: IoPollHandle): Result<void, HostError>;
 
     /// Add one resource to a readiness poller.
     @binding("destack.io.poll.add", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.poll"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     addIoPoll(
         poll: IoPollHandle,
@@ -80,10 +80,10 @@ export interface IoPollBinding {
 
     /// Update one resource in a readiness poller.
     @binding("destack.io.poll.update", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.poll"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     updateIoPoll(
         poll: IoPollHandle,
@@ -94,19 +94,19 @@ export interface IoPollBinding {
 
     /// Remove one resource from a readiness poller.
     @binding("destack.io.poll.remove", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.poll"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     removeIoPoll(poll: IoPollHandle, resource: ResourceId): Result<void, HostError>;
 
     /// Wait for readiness events.
     @binding("destack.io.poll.wait", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.poll"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     waitIoPoll(
         poll: IoPollHandle,

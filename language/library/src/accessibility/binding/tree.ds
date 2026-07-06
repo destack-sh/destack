@@ -25,10 +25,10 @@ export struct AccessibilityTreeUpdate {
 export interface AccessibilityTreeBinding {
     /// Apply one accessibility tree update.
     @binding("destack.accessibility.tree.apply", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.tree"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     applyAccessibilityTree(
@@ -38,20 +38,20 @@ export interface AccessibilityTreeBinding {
 
     /// Clear the published accessibility tree.
     @binding("destack.accessibility.tree.clear", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.tree"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     clearAccessibilityTree(window: WindowHandle): Result<void, HostError>;
 
     /// Resolve one accessibility node at one point.
     @binding("destack.accessibility.tree.hitTest", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.tree"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     hitTestAccessibilityTree(

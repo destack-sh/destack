@@ -5,10 +5,10 @@ import { HostError } from "destack:error/host";
 export interface ProcessArgumentBinding {
     /// Return the process argument vector.
     @binding("destack.process.argument.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.arguments"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listArguments(): Result<Array<^string>, HostError>;
 }
