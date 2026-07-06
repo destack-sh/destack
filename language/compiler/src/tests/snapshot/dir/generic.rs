@@ -246,7 +246,7 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Add one generic instance source and index row.
-    fn add_generic_instance_row(
+    pub(crate) fn add_generic_instance_row(
         &mut self,
         anchor: SnapshotAnchor,
         source: Option<&str>,
