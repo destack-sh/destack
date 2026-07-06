@@ -1196,6 +1196,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
+        Expression::Infer { .. } => {}
+
         Expression::Call {
             position: _,
             left,
