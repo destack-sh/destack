@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     AssignedPlace, ConditionBranch, ControlTargetForm, Expectation, ExpectedType, FlowBranch,
-    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
-    Relation, ValueUse, WalkState, Widening,
+    FlowCheckpoint, GenericPosition, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, PlaceUse, Relation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -528,13 +528,15 @@ impl WalkState<'_, '_> {
             } => {
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
                 self.walk_expression(*left, self.tree.get(*left))?;
-                self.walk_generic_arguments(generic_arguments)?;
+                self.walk_generic_arguments(generic_arguments, GenericPosition::Annotation)?;
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
 
                 // call expression infers from its queued value use
             }
+            // _
+            dir::Expression::Infer { .. } => {}
             // new Type<T>(argument)
             dir::Expression::New { ty, arguments } => {
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
@@ -1144,7 +1146,9 @@ impl WalkState<'_, '_> {
         let (pattern, ty, body) = (catch.pattern, catch.ty, catch.body);
 
         // catch (error: T)
-        let expected = ty.map(|ty| self.walk_type_expression(ty)).transpose()?;
+        let expected = ty
+            .map(|ty| self.walk_type_expression(ty, GenericPosition::Annotation))
+            .transpose()?;
         if let (Some(failure), Some(expected)) = (failure, expected) {
             let origin = Origin::Node(
                 id.into_global_any(self.module),

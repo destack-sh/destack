@@ -4,8 +4,8 @@ use indexmap::IndexSet;
 use crate::CompilerResult;
 use crate::check::{
     Expectation, FlowBranch, GenericInductionDeclaration, GenericInductionParameter,
-    GenericInductionPosition, GenericTemplateId, Origin, ReceiverBinding, Relation, ValueUse,
-    WalkState, Widening,
+    GenericInductionPosition, GenericPosition, GenericTemplateId, Origin, ReceiverBinding,
+    Relation, ValueUse, WalkState, Widening,
 };
 
 /// Types produced by one parameter header.
@@ -242,7 +242,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(None);
         };
 
-        // open an owner template only when this signature contains induced holes
+        // open the enclosing template only when this signature contains induced holes
         if !self.signature_contains_induced_parameter(this_parameter, parameters, return_type)? {
             return Ok(None);
         }
@@ -667,7 +667,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         let is_optional = self.tree.get(id).is_optional();
-        let argument = self.walk_type_expression(declared_type)?;
+        let argument = self.walk_type_expression(declared_type, GenericPosition::Annotation)?;
         let argument = match induction {
             Some(position) => self.induce_constraint_type(id.into_any(), argument, position)?,
             None => argument,

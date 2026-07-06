@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 
 use crate::check::{
     BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
-    FlowState, GenericInductionParameter, Origin, PlaceUse, Relation, Task, TypeConstraint,
-    ValueUse, Widening,
+    FlowState, GenericInductionParameter, GenericPosition, Origin, PlaceUse, Relation, Task,
+    TypeConstraint, ValueUse, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -229,7 +229,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let previous = self.borrow_lifetime_elision;
         let first_tracked = self.return_borrow_lifetimes.len();
         self.borrow_lifetime_elision = BorrowLifetimeElision::TrackReturn;
-        let result = self.walk_type_expression(id);
+        let result = self.walk_type_expression(id, GenericPosition::Annotation);
         self.borrow_lifetime_elision = previous;
         let tracked = self.return_borrow_lifetimes.split_off(first_tracked);
 
@@ -243,7 +243,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let previous = self.borrow_lifetime_elision;
         self.borrow_lifetime_elision = BorrowLifetimeElision::Frame;
-        let result = self.walk_type_expression(id);
+        let result = self.walk_type_expression(id, GenericPosition::Annotation);
         self.borrow_lifetime_elision = previous;
 
         result

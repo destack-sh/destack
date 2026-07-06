@@ -672,7 +672,6 @@ impl CheckState<'_> {
         let parameters = self
             .symbol_template(symbol)
             .map(|template| self.generic_template_parameters(template));
-
         let mut decision = Answer::Ready(true);
         for (index, (pattern, actual)) in pattern
             .iter()

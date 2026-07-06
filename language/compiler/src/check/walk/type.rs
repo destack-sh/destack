@@ -20,8 +20,9 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = self.walk_type_expression_type(id)?;
+        let ty = self.walk_type_expression_type(id, position)?;
         self.commit_node_type(id, ty)?;
 
         Ok(ty)
@@ -31,6 +32,7 @@ impl WalkState<'_, '_> {
     fn walk_type_expression_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_any();
 
@@ -50,7 +52,7 @@ impl WalkState<'_, '_> {
                 let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut element_types = Vec::new();
                 for element in elements {
-                    element_types.push(self.walk_tuple_element(element)?);
+                    element_types.push(self.walk_tuple_element(element, position)?);
                 }
                 let elements = self.intern_elements(&element_types)?;
 
@@ -61,18 +63,18 @@ impl WalkState<'_, '_> {
             }
             // T[]
             dir::TypeExpression::Array { element } => {
-                let element = self.walk_type_expression(*element)?;
+                let element = self.walk_type_expression(*element, position)?;
                 self.intern_type(dir::Type::Array(dir::ArrayType { element }))
             }
             // [T]
             dir::TypeExpression::Slice { element } => {
-                let element = self.walk_type_expression(*element)?;
+                let element = self.walk_type_expression(*element, position)?;
 
                 self.intern_type(dir::Type::Slice(dir::SliceType { element }))
             }
             // [T; N]
             dir::TypeExpression::FixedArray { element, length } => {
-                let element = self.walk_type_expression(*element)?;
+                let element = self.walk_type_expression(*element, position)?;
                 let count = self.walk_static_term(*length)?;
 
                 self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
@@ -84,7 +86,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Object { members } => {
                 let members = members.iter().copied().collect::<SmallVec<[_; 4]>>();
 
-                self.walk_object_type(id, &members)
+                self.walk_object_type(id, &members, position)
             }
             // (value: T) => U
             dir::TypeExpression::Function(function) => {
@@ -109,7 +111,7 @@ impl WalkState<'_, '_> {
                     .copied()
                     .collect::<SmallVec<[_; 4]>>();
 
-                self.walk_reference_type(id, &path, &generic_arguments, GenericPosition::Annotation)
+                self.walk_reference_type(id, &path, &generic_arguments, position)
             }
             // T.Item
             dir::TypeExpression::Member {
@@ -132,8 +134,8 @@ impl WalkState<'_, '_> {
                     }
                     _ => None,
                 };
-                let owner = self.walk_type_expression(*left)?;
-                let arguments = self.walk_generic_arguments(&generic_arguments)?;
+                let owner = self.walk_type_expression(*left, position)?;
+                let arguments = self.walk_generic_arguments(&generic_arguments, position)?;
                 let arguments: Vec<_> = arguments.into_iter().map(|argument| argument.ty).collect();
                 let arguments = self.intern_type_ids(&arguments)?;
 
@@ -160,7 +162,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::This => self.intern_type(dir::Type::This),
             // readonly T
             dir::TypeExpression::Readonly { target_type } => {
-                let value = self.walk_type_expression(*target_type)?;
+                let value = self.walk_type_expression(*target_type, position)?;
 
                 self.intern_type(dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
@@ -169,14 +171,14 @@ impl WalkState<'_, '_> {
             }
             // local T, shared T
             dir::TypeExpression::Local { target_type } => {
-                self.walk_placed_type(id, *target_type, dir::Space::Local)
+                self.walk_placed_type(id, *target_type, dir::Space::Local, position)
             }
             dir::TypeExpression::Shared { target_type } => {
-                self.walk_placed_type(id, *target_type, dir::Space::Shared)
+                self.walk_placed_type(id, *target_type, dir::Space::Shared, position)
             }
             // keyof T
             dir::TypeExpression::KeyOf { target_type } => {
-                let target = self.walk_type_expression(*target_type)?;
+                let target = self.walk_type_expression(*target_type, position)?;
 
                 self.intern_type(dir::Type::Operation(dir::TypeOperation::KeyOf(
                     dir::UnaryType { target },
@@ -188,7 +190,7 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::StaticValue { expression } => self.walk_static_term(*expression),
             // T! strips nullish members distributively
             dir::TypeExpression::Must { target_type } => {
-                let target = self.walk_type_expression(*target_type)?;
+                let target = self.walk_type_expression(*target_type, position)?;
                 let null = self.intern_type(dir::Type::Null)?;
                 let undefined = self.intern_type(dir::Type::Undefined)?;
                 let nullish = self.normalized_union_type([null, undefined])?;
@@ -206,7 +208,7 @@ impl WalkState<'_, '_> {
             }
             // !T
             dir::TypeExpression::Not { target_type } => {
-                let target = self.walk_type_expression(*target_type)?;
+                let target = self.walk_type_expression(*target_type, position)?;
 
                 self.intern_type(dir::Type::Operation(dir::TypeOperation::StaticUnary(
                     dir::StaticUnaryType {
@@ -221,7 +223,7 @@ impl WalkState<'_, '_> {
                 target_type,
                 ..
             } => {
-                let value = self.walk_type_expression(*target_type)?;
+                let value = self.walk_type_expression(*target_type, position)?;
                 let value = if *mutability == Some(dir::Mutability::Immutable) {
                     self.intern_type(dir::Type::Form(dir::FormType {
                         form: dir::Form::Readonly,
@@ -242,7 +244,7 @@ impl WalkState<'_, '_> {
                 target_type,
                 ..
             } => {
-                let value = self.walk_type_expression(*target_type)?;
+                let value = self.walk_type_expression(*target_type, position)?;
                 let access = mutability
                     .map(dir::Mutability::access)
                     .unwrap_or(dir::Access::Mutable);
@@ -257,7 +259,7 @@ impl WalkState<'_, '_> {
             }
             // *T
             dir::TypeExpression::PointerOf { target_type, .. } => {
-                let value = self.walk_type_expression(*target_type)?;
+                let value = self.walk_type_expression(*target_type, position)?;
 
                 self.intern_type(dir::Type::Form(dir::FormType {
                     form: dir::Form::Raw,
@@ -269,7 +271,7 @@ impl WalkState<'_, '_> {
                 let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut element_types = Vec::new();
                 for element in elements {
-                    element_types.push(self.walk_type_expression(element)?);
+                    element_types.push(self.walk_type_expression(element, position)?);
                 }
 
                 self.normalized_union_type(element_types)
@@ -279,7 +281,7 @@ impl WalkState<'_, '_> {
                 let elements = elements.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut element_types = Vec::new();
                 for element in elements {
-                    element_types.push(self.walk_type_expression(element)?);
+                    element_types.push(self.walk_type_expression(element, position)?);
                 }
                 let elements = self.intern_type_ids(&element_types)?;
 
@@ -293,12 +295,12 @@ impl WalkState<'_, '_> {
                 else_type,
             } => {
                 let (extends_type, then_type, else_type) = (*extends_type, *then_type, *else_type);
-                let left = self.walk_type_expression(*left)?;
+                let left = self.walk_type_expression(*left, position)?;
                 // distribute only naked parameter scrutinees over unions
                 let is_distributive = matches!(self.check.ty(left)?, dir::Type::Parameter(_));
-                let right = self.walk_type_expression(extends_type)?;
-                let then_type = self.walk_type_expression(then_type)?;
-                let else_type = self.walk_type_expression(else_type)?;
+                let right = self.walk_type_expression(extends_type, position)?;
+                let then_type = self.walk_type_expression(then_type, position)?;
+                let else_type = self.walk_type_expression(else_type, position)?;
 
                 self.intern_type(dir::Type::Operation(dir::TypeOperation::Conditional(
                     dir::ConditionalType {
@@ -313,8 +315,8 @@ impl WalkState<'_, '_> {
             // T extends U, T implements U
             dir::TypeExpression::Extends { left, right }
             | dir::TypeExpression::Implements { left, right } => {
-                let left = self.walk_type_expression(*left)?;
-                let right = self.walk_type_expression(*right)?;
+                let left = self.walk_type_expression(*left, position)?;
+                let right = self.walk_type_expression(*right, position)?;
                 let then_type =
                     self.intern_type(dir::Type::Literal(dir::ScalarLiteral::Boolean(true)))?;
                 let else_type =
@@ -336,11 +338,11 @@ impl WalkState<'_, '_> {
                 readonly,
                 optional,
                 value,
-            } => self.walk_mapped_type(id, *parameter, *readonly, *optional, *value),
+            } => self.walk_mapped_type(id, *parameter, *readonly, *optional, *value, position),
             // T[K]
             dir::TypeExpression::Index { left, index } => {
-                let left = self.walk_type_expression(*left)?;
-                let index = self.walk_type_expression(*index)?;
+                let left = self.walk_type_expression(*left, position)?;
+                let index = self.walk_type_expression(*index, position)?;
 
                 self.intern_type(dir::Type::Operation(dir::TypeOperation::Index(
                     dir::IndexType { left, index },
@@ -352,7 +354,7 @@ impl WalkState<'_, '_> {
                 let spans = spans.iter().copied().collect::<SmallVec<[_; 4]>>();
                 let mut span_types = Vec::new();
                 for span in spans {
-                    span_types.push(self.walk_type_expression(span)?);
+                    span_types.push(self.walk_type_expression(span, position)?);
                 }
                 let strings = self.intern_strings(&strings)?;
                 let spans = self.intern_type_ids(&span_types)?;
@@ -391,7 +393,9 @@ impl WalkState<'_, '_> {
             // preserve named infer bindings for conditional matching
             dir::InferForm::Infer => {
                 let constraint = match constraint {
-                    Some(constraint) => Some(self.walk_type_expression(constraint)?),
+                    Some(constraint) => {
+                        Some(self.walk_type_expression(constraint, GenericPosition::Annotation)?)
+                    }
                     None => None,
                 };
                 let symbol = match name {
@@ -568,7 +572,17 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn walk_construct_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
+    ) -> CompilerResult<()> {
+        if matches!(
+            self.tree.get(id),
+            dir::TypeExpression::Infer {
+                form: dir::InferForm::Hole,
+                ..
+            }
+        ) {
+            return Ok(());
+        }
+
         // infer at reference heads, walk every other form strictly
         if let dir::TypeExpression::Reference {
             path,
@@ -588,10 +602,12 @@ impl WalkState<'_, '_> {
             )?;
             self.commit_node_type(id, ty)?;
 
-            return Ok(ty);
+            return Ok(());
         }
 
-        self.walk_type_expression(id)
+        self.walk_type_expression(id, GenericPosition::Annotation)?;
+
+        Ok(())
     }
 
     /// Return the type for one reference annotation, such as `Foo<T>`.
@@ -698,7 +714,7 @@ impl WalkState<'_, '_> {
             .commit_decision(source, Decision::Name(dir::NameResolution::new(symbol)))?;
 
         // apply written type arguments and open omitted slots
-        let applied = self.walk_generic_arguments(generic_arguments)?;
+        let applied = self.walk_generic_arguments(generic_arguments, position)?;
         let ty = self.referenced_symbol_type(id.into_any(), symbol, &applied, position)?;
 
         Ok(ty)
@@ -855,6 +871,9 @@ impl WalkState<'_, '_> {
             let constraint = self
                 .check
                 .substitute_type(self.module, constraint, &substitution)?;
+            if self.check.type_flags(argument)?.has_infer() {
+                continue;
+            }
 
             self.relate_generic_bound(
                 origin,
@@ -906,7 +925,7 @@ impl WalkState<'_, '_> {
         for (index, segment) in tail.iter().copied().enumerate() {
             let is_last = index + 1 == tail.len();
             let arguments: Vec<dir::GlobalTypeId> = if is_last && !generic_arguments.is_empty() {
-                self.walk_generic_arguments(generic_arguments)?
+                self.walk_generic_arguments(generic_arguments, position)?
                     .into_iter()
                     .map(|argument| argument.ty)
                     .collect()
@@ -931,6 +950,7 @@ impl WalkState<'_, '_> {
         &mut self,
         _id: dir::LocalNodeId<dir::TypeExpression>,
         members: &[dir::LocalNodeId<dir::TypeMember>],
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mut fields = Vec::new();
         let mut call_signatures = Vec::new();
@@ -953,7 +973,9 @@ impl WalkState<'_, '_> {
                         continue;
                     };
                     let ty = match declared_type {
-                        Some(declared_type) => self.walk_type_expression(declared_type)?,
+                        Some(declared_type) => {
+                            self.walk_type_expression(declared_type, position)?
+                        }
                         None => self.intern_type(dir::Type::Unknown)?,
                     };
 
@@ -1020,8 +1042,8 @@ impl WalkState<'_, '_> {
                     is_readonly,
                 } => {
                     let (name, is_optional, is_readonly) = (*name, *is_optional, *is_readonly);
-                    let key_type = self.walk_type_expression(*key_type)?;
-                    let value_type = self.walk_type_expression(*value_type)?;
+                    let key_type = self.walk_type_expression(*key_type, position)?;
+                    let value_type = self.walk_type_expression(*value_type, position)?;
 
                     index_signatures.push(dir::TypeIndexSignature {
                         name,
@@ -1053,6 +1075,7 @@ impl WalkState<'_, '_> {
     fn walk_tuple_element(
         &mut self,
         id: dir::LocalNodeId<dir::TupleElement>,
+        position: GenericPosition,
     ) -> CompilerResult<dir::TypeElement> {
         match self.tree.get(id) {
             dir::TupleElement::Element {
@@ -1062,7 +1085,7 @@ impl WalkState<'_, '_> {
                 is_readonly,
             } => {
                 let (label, is_optional, is_readonly) = (*label, *is_optional, *is_readonly);
-                let ty = self.walk_type_expression(*value)?;
+                let ty = self.walk_type_expression(*value, position)?;
 
                 Ok(dir::TypeElement {
                     label,
@@ -1085,7 +1108,7 @@ impl WalkState<'_, '_> {
             }
             dir::TupleElement::Spread { label, value } => {
                 let label = *label;
-                let ty = self.walk_type_expression(*value)?;
+                let ty = self.walk_type_expression(*value, position)?;
 
                 Ok(dir::TypeElement {
                     label,
@@ -1104,8 +1127,9 @@ impl WalkState<'_, '_> {
         _id: dir::LocalNodeId<dir::TypeExpression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
         space: dir::Space,
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let value = self.walk_type_expression(target_type)?;
+        let value = self.walk_type_expression(target_type, position)?;
         let place = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Place(
             dir::Place::Space(space),
         )))?;
@@ -1160,6 +1184,7 @@ impl WalkState<'_, '_> {
         readonly: dir::MappedTypeModifier,
         optional: dir::MappedTypeModifier,
         value: Option<dir::LocalNodeId<dir::TypeExpression>>,
+        position: GenericPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let mapped = self.tree.get(parameter);
         let (name, source_type, key_remap) = (mapped.name, mapped.source_type, mapped.key_remap);
@@ -1171,7 +1196,7 @@ impl WalkState<'_, '_> {
         else {
             return self.intern_type(dir::Type::Error);
         };
-        let constraint = self.walk_type_expression(source_type)?;
+        let constraint = self.walk_type_expression(source_type, position)?;
 
         // create a local generic parameter for the mapped key
         let binder = match self.check.generics.parameter_by_symbol(symbol) {
@@ -1202,11 +1227,11 @@ impl WalkState<'_, '_> {
         self.bind_symbol_type(symbol, ty)?;
 
         let key_remap = match key_remap {
-            Some(key_remap) => Some(self.walk_type_expression(key_remap)?),
+            Some(key_remap) => Some(self.walk_type_expression(key_remap, position)?),
             None => None,
         };
         let value = match value {
-            Some(value) => self.walk_type_expression(value)?,
+            Some(value) => self.walk_type_expression(value, position)?,
             None => self.intern_type(dir::Type::Unknown)?,
         };
 

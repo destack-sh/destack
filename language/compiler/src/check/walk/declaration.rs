@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 use crate::check::{
     CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
     ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericInductionDeclaration,
-    GenericInductionPosition, GenericTemplateId, ImplementationCoherenceObligation, Obligation,
-    Origin, Receiver, ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution,
-    WalkState, Widening,
+    GenericInductionPosition, GenericPosition, GenericTemplateId,
+    ImplementationCoherenceObligation, Obligation, Origin, Receiver, ReceiverBinding, Relation,
+    RepresentationObligation, TypeSubstitution, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -393,7 +393,7 @@ impl WalkState<'_, '_> {
         let _receiver = receiver.map(|receiver| self.enter_receiver_scope(Some(receiver)));
 
         // walk the written value
-        let value = self.walk_type_expression(declaration.value)?;
+        let value = self.walk_type_expression(declaration.value, GenericPosition::Annotation)?;
         self.push_type_induction_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
@@ -490,7 +490,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
             self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -605,7 +605,7 @@ impl WalkState<'_, '_> {
         let mut extends = None;
         let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
-            let ty = self.walk_type_expression(extends_type)?;
+            let ty = self.walk_type_expression(extends_type, GenericPosition::Annotation)?;
             self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
@@ -635,7 +635,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
             self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -846,7 +846,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
             self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -963,7 +963,7 @@ impl WalkState<'_, '_> {
         // walk inherited interfaces
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
-            let ty = self.walk_type_expression(*extends_type)?;
+            let ty = self.walk_type_expression(*extends_type, GenericPosition::Annotation)?;
             self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -1042,7 +1042,8 @@ impl WalkState<'_, '_> {
         let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
-        let target_type = self.walk_type_expression(declaration.target_type)?;
+        let target_type =
+            self.walk_type_expression(declaration.target_type, GenericPosition::Annotation)?;
         self.push_type_induction_site(induction, target_type);
         let target = self.walk_extension_target(target_type)?;
         let target_name = match &target {
@@ -1059,7 +1060,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type)?;
+            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
             self.push_type_induction_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -1432,8 +1433,8 @@ impl WalkState<'_, '_> {
         // walk operands
         let clause = self.tree.get(id);
         let (relation, left, right) = (clause.relation, clause.left, clause.right);
-        let left = self.walk_type_expression(left)?;
-        let right = self.walk_type_expression(right)?;
+        let left = self.walk_type_expression(left, GenericPosition::Annotation)?;
+        let right = self.walk_type_expression(right, GenericPosition::Annotation)?;
 
         // check clauses without a template through current bound logic
         let Some(template) = template else {

@@ -110,6 +110,7 @@ impl WalkState<'_, '_> {
             | dir::Expression::Debugger
             | dir::Expression::Missing
             | dir::Expression::Error
+            | dir::Expression::Infer { .. }
             | dir::Expression::RangeExpression { .. }
             | dir::Expression::TemplateExpression { .. }
             | dir::Expression::TaggedTemplateExpression { .. }
