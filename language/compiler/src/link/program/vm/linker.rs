@@ -186,7 +186,7 @@ impl<'a> VmLinker<'a> {
         for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
             if function.is_import() {
                 let function = self.function_id(function_id);
-                self.call_targets[function.index()] = Some(CallTarget::IMPORT);
+                self.call_targets[function.index()] = Some(CallTarget::BINDING);
                 continue;
             }
 
