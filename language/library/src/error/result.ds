@@ -1,6 +1,6 @@
 import { Promise } from "destack:async";
 import { Default } from "destack:memory";
-import { ControlFlow, Equal, FromResidual, Try } from "destack:ops";
+import { ControlFlow, Equal, Try } from "destack:ops";
 
 import { panic } from "./panic.ds";
 
@@ -159,19 +159,17 @@ export extension<T, E> of Result<T, E> implements Try {
         Result.ok(output)
     }
 
+    /// Create a result from a propagated residual.
+    static fromResidual(residual: E): Result<T, E> {
+        Result.err(residual)
+    }
+
     /// Branch into success or failure control flow.
     branch(): ControlFlow<E, T> {
         match (this) {
             Result.Ok { value } => ControlFlow.Continue({ value })
             Result.Err { error } => ControlFlow.Break({ residual: error })
         }
-    }
-}
-
-export extension<T, E> of Result<T, E> implements FromResidual<E> {
-    /// Create a result from a propagated residual.
-    static fromResidual(residual: E): Result<T, E> {
-        Result.err(residual)
     }
 }
 
