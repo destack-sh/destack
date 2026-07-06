@@ -568,8 +568,8 @@ pub(crate) fn runtime_shared_heap(
     program: Arc<program::Program>,
 ) -> RuntimeHeap {
     RuntimeHeap::new(
-        world.memory.allocator.clone(),
-        world.memory.shared_collector.clone(),
+        world.allocator.clone(),
+        world.shared_collector.clone(),
         options,
         program,
     )
