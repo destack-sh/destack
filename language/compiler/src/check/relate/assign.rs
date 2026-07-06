@@ -55,7 +55,12 @@ impl CheckState<'_> {
             }
             // parameters assign through their constraints, or sit inside a union target
             (dir::Type::Parameter(parameter), _) => {
-                let decision = self.decide_parameter_assignable(origin, parameter, target)?;
+                let decision = self.decide_parameter_relation(
+                    origin,
+                    Relation::Assignable,
+                    parameter,
+                    target,
+                )?;
 
                 self.decide_union_membership(
                     origin,
@@ -67,7 +72,12 @@ impl CheckState<'_> {
             }
             // erased arguments read through their declaration constraints only
             (dir::Type::Erased(parameter), _) => {
-                let decision = self.decide_parameter_assignable(origin, parameter, target)?;
+                let decision = self.decide_parameter_relation(
+                    origin,
+                    Relation::Assignable,
+                    parameter,
+                    target,
+                )?;
 
                 self.decide_union_membership(
                     origin,
@@ -335,18 +345,18 @@ impl CheckState<'_> {
         }
     }
 
-    /// Decide whether one parameter's constraint carries the assignment.
-    pub(in crate::check) fn decide_parameter_assignable(
+    /// Decide whether one parameter's bounds carry one relation.
+    pub(in crate::check) fn decide_parameter_relation(
         &mut self,
         origin: Origin,
+        relation: Relation,
         parameter: dir::GlobalGenericParameterId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         // prove through any declared or assumed bound
         let mut decision = Answer::Ready(false);
         for bound in self.parameter_bounds(origin, parameter)? {
-            decision =
-                decision.or(self.decide_relation(origin, Relation::Assignable, bound, target)?);
+            decision = decision.or(self.decide_relation(origin, relation, bound, target)?);
             if decision.is_ready_true() {
                 break;
             }
