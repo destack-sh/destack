@@ -2,7 +2,7 @@ import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
-import { Compare, Has, Index, IndexSet } from "destack:ops";
+import { Compare, Index, IndexSet } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
 import { Array } from "./array.ds";
@@ -123,7 +123,6 @@ export extension<K, V> of SortedMap<K, V> implements Default {
 
 export extension<K: Compare<K>, V> of SortedMap<K, V>
     implements
-        Has<K>,
         Index<K>,
         IndexSet<K, V>,
         Iterable<(K, V)>,

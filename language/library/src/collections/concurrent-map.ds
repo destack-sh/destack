@@ -2,7 +2,7 @@ import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Clone, Default, Dispose, WithAccess } from "destack:memory";
-import { Dereference, Equal, Has, Hash } from "destack:ops";
+import { Dereference, Equal, Hash } from "destack:ops";
 import { Atomic, RwLock, RwLockReadGuard, RwLockWriteGuard } from "destack:sync";
 
 import { Array } from "./array.ds";
@@ -163,7 +163,7 @@ export extension<K, V> of ConcurrentMap<K, V> implements Default {
     }
 }
 
-export extension<K: Hash, V> of ConcurrentMap<K, V> implements Has<K>, Extend<(K, V)> {
+export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     /// Create a concurrent map from entries.
     static from(entries: Iterable<(K, V)>): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.from")

@@ -2,7 +2,7 @@ import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Access, Default, MaybeUninit, WithAccess } from "destack:memory";
-import { Has, Index, IndexSet } from "destack:ops";
+import { Index, IndexSet } from "destack:ops";
 
 import { Array } from "./array.ds";
 
@@ -44,7 +44,6 @@ export struct Slab<T> {
 
 export extension<T> of Slab<T>
     implements
-        Has<SlabKey>,
         Index<SlabKey>,
         IndexSet<SlabKey, T>,
         Iterable<(SlabKey, T)>,
