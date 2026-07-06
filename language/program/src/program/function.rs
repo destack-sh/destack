@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::vm::Error;
 
-use super::TypeId;
+use super::{BindingId, TypeId};
 
 /// Durable runtime function id inside one program.
 #[repr(transparent)]
@@ -81,6 +81,7 @@ impl FunctionTable {
                             result: function.signature.result,
                         },
                         environment: function.environment.into(),
+                        binding: function.binding.into(),
                     };
 
                     Optional::some(function)
@@ -214,6 +215,8 @@ pub struct Function {
     pub signature: FunctionSignature,
     /// Captured closure environment type when one exists.
     pub environment: Optional<TypeId>,
+    /// Runtime binding id attached to this function when one exists.
+    pub binding: Optional<BindingId>,
 }
 
 impl Function {
@@ -248,6 +251,11 @@ impl Function {
     pub fn environment(&self) -> Option<TypeId> {
         self.environment.get()
     }
+
+    /// Return this function's runtime binding id when one exists.
+    pub fn binding_id(&self) -> Option<BindingId> {
+        self.binding.get()
+    }
 }
 
 /// Packed function signature entry.
@@ -278,6 +286,8 @@ pub struct FunctionBuilder {
     pub signature: Signature,
     /// Captured closure environment type when one exists.
     pub environment: Option<TypeId>,
+    /// Runtime binding id attached to this function when one exists.
+    pub binding: Option<BindingId>,
 }
 
 // SAFETY: function ids, exports, signatures, and entries are fixed-width.

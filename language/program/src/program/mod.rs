@@ -1,4 +1,5 @@
 mod activation;
+mod binding;
 mod continuation;
 mod dispatch;
 mod entry;
@@ -15,6 +16,7 @@ mod r#type;
 mod value;
 
 pub use activation::*;
+pub use binding::*;
 pub use continuation::*;
 pub use dispatch::*;
 pub use entry::*;

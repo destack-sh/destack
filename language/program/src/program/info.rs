@@ -7,7 +7,7 @@ use destack_serde::Reflect;
 use destack_source as source;
 use serde::{Deserialize, Serialize};
 
-use super::{EntryPoint, FunctionId, LayoutId, TypeId};
+use super::{BindingId, EntryPoint, FunctionId, LayoutId, TypeId};
 
 /// Reflected view of one program.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -18,6 +18,8 @@ pub struct ProgramInfo {
     types: SectionSlice<TypeInfo>,
     /// Reflected functions keyed by program function id.
     functions: SectionSlice<Optional<FunctionInfo>>,
+    /// Reflected runtime bindings.
+    bindings: SectionSlice<BindingInfo>,
     /// Reflected frame layouts keyed by frame layout id.
     frames: SectionSlice<FrameInfo>,
     /// Reflected globals keyed by program global id.
@@ -36,6 +38,8 @@ pub struct ProgramInfo {
     index_signatures: SectionSlice<TypeIndexSignature>,
     /// Flattened reflected function parameters.
     function_parameters: SectionSlice<FunctionParameterType>,
+    /// Flattened reflected binding strings.
+    binding_strings: SectionSlice<StringId>,
     /// Flattened reflected variant cases.
     variant_cases: SectionSlice<VariantCase>,
     /// Flattened reflected frame slots.
@@ -49,6 +53,7 @@ impl ProgramInfo {
         modules: Vec<ModuleInfo>,
         types: Vec<TypeInfoBuilder>,
         functions: Vec<Option<FunctionInfo>>,
+        bindings: Vec<BindingInfoBuilder>,
         frames: Vec<FrameInfoBuilder>,
         globals: Vec<GlobalInfo>,
         entries: Vec<EntryInfo>,
@@ -59,6 +64,7 @@ impl ProgramInfo {
         let mut members = EntryStore::new();
         let mut index_signatures = EntryStore::new();
         let mut function_parameters = EntryStore::new();
+        let mut binding_strings = EntryStore::new();
         let mut variant_cases = EntryStore::new();
         let mut frame_slots = EntryStore::new();
 
@@ -75,6 +81,30 @@ impl ProgramInfo {
                     &mut function_parameters,
                     &mut variant_cases,
                 )
+            })
+            .collect::<Vec<_>>();
+
+        // flatten reflected binding payloads
+        let bindings = bindings
+            .into_iter()
+            .map(|binding| {
+                let requires = binding_strings.append(binding.requires);
+                let platforms = binding_strings.append(binding.platforms);
+                let families = binding_strings.append(binding.families);
+                let hosts = binding_strings.append(binding.hosts);
+
+                BindingInfo {
+                    id: binding.id,
+                    name: binding.name,
+                    effect: binding.effect,
+                    provider: binding.provider,
+                    replay: binding.replay,
+                    affinity: binding.affinity,
+                    requires,
+                    platforms,
+                    families,
+                    hosts,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -95,6 +125,7 @@ impl ProgramInfo {
             modules: sections.insert(modules),
             types: sections.insert(types),
             functions: sections.insert(functions.into_iter().map(Into::into).collect::<Vec<_>>()),
+            bindings: sections.insert(bindings),
             frames: sections.insert(frames),
             globals: sections.insert(globals),
             entries: sections.insert(entries),
@@ -104,6 +135,7 @@ impl ProgramInfo {
             members: sections.insert(members.into_entries()),
             index_signatures: sections.insert(index_signatures.into_entries()),
             function_parameters: sections.insert(function_parameters.into_entries()),
+            binding_strings: sections.insert(binding_strings.into_entries()),
             variant_cases: sections.insert(variant_cases.into_entries()),
             frame_slots: sections.insert(frame_slots.into_entries()),
         }
@@ -122,6 +154,11 @@ impl ProgramInfo {
     /// Return reflected functions.
     pub fn functions<'a>(&self, sections: SectionImage<'a>) -> &'a [Optional<FunctionInfo>] {
         sections.entries(self.functions)
+    }
+
+    /// Return reflected bindings.
+    pub fn bindings<'a>(&self, sections: SectionImage<'a>) -> &'a [BindingInfo] {
+        sections.entries(self.bindings)
     }
 
     /// Return reflected frames.
@@ -191,6 +228,15 @@ impl ProgramInfo {
         range: EntryRange<FunctionParameterType>,
     ) -> &'a [FunctionParameterType] {
         range.slice(sections.entries(self.function_parameters))
+    }
+
+    /// Return one binding string payload range.
+    pub fn binding_strings<'a>(
+        &self,
+        sections: SectionImage<'a>,
+        range: EntryRange<StringId>,
+    ) -> &'a [StringId] {
+        range.slice(sections.entries(self.binding_strings))
     }
 
     /// Return one type payload variant-case range.
@@ -918,6 +964,8 @@ pub struct FunctionInfo {
     pub module: ModuleId,
     /// Function signature type.
     pub signature: TypeId,
+    /// Runtime binding attached to this function when one exists.
+    pub binding: Optional<BindingId>,
 }
 
 impl FunctionInfo {
@@ -927,8 +975,119 @@ impl FunctionInfo {
             name,
             module: module.into(),
             signature,
+            binding: Optional::none(),
         }
     }
+
+    /// Create one reflected runtime binding function entry.
+    pub fn binding(
+        name: StringId,
+        module: source::ModuleId,
+        signature: TypeId,
+        binding: BindingId,
+    ) -> Self {
+        Self {
+            name,
+            module: module.into(),
+            signature,
+            binding: Optional::some(binding),
+        }
+    }
+}
+
+/// Build-time reflected runtime binding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BindingInfoBuilder {
+    /// Stable runtime binding id.
+    pub id: BindingId,
+    /// Stable runtime binding name.
+    pub name: StringId,
+    /// Binding effect category.
+    pub effect: BindingEffect,
+    /// Provider that implements this binding.
+    pub provider: BindingProvider,
+    /// Replay policy for this binding.
+    pub replay: BindingReplay,
+    /// Execution context required by this binding.
+    pub affinity: BindingAffinity,
+    /// Required runtime actions.
+    pub requires: Vec<StringId>,
+    /// Supported platforms.
+    pub platforms: Vec<StringId>,
+    /// Supported platform families.
+    pub families: Vec<StringId>,
+    /// Supported host families.
+    pub hosts: Vec<StringId>,
+}
+
+/// Reflected runtime binding declaration.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct BindingInfo {
+    /// Stable runtime binding id.
+    pub id: BindingId,
+    /// Stable runtime binding name.
+    pub name: StringId,
+    /// Binding effect category.
+    pub effect: BindingEffect,
+    /// Provider that implements this binding.
+    pub provider: BindingProvider,
+    /// Replay policy for this binding.
+    pub replay: BindingReplay,
+    /// Execution context required by this binding.
+    pub affinity: BindingAffinity,
+    /// Required runtime actions.
+    pub requires: EntryRange<StringId>,
+    /// Supported platforms.
+    pub platforms: EntryRange<StringId>,
+    /// Supported platform families.
+    pub families: EntryRange<StringId>,
+    /// Supported host families.
+    pub hosts: EntryRange<StringId>,
+}
+
+/// Binding effect category.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum BindingEffect {
+    /// Binding is pure.
+    Pure = 0,
+    /// Binding is deterministic.
+    Deterministic = 1,
+    /// Binding observes or mutates external state.
+    External = 2,
+}
+
+/// Binding implementation owner.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum BindingProvider {
+    /// Binding is implemented by the host.
+    Host = 0,
+    /// Binding is implemented by runtime state.
+    Runtime = 1,
+}
+
+/// Binding replay policy.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum BindingReplay {
+    /// Binding may be recorded and replayed.
+    Recordable = 0,
+    /// Binding cannot be replayed.
+    Forbidden = 1,
+}
+
+/// Binding execution context.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum BindingAffinity {
+    /// Binding has no execution context requirement.
+    None = 0,
+    /// Binding requires the current worker context.
+    Worker = 1,
+    /// Binding requires the process main context.
+    Main = 2,
 }
 
 /// Build-time reflected program frame layout.
@@ -1026,6 +1185,11 @@ unsafe impl SectionEntry for MemberType {}
 unsafe impl SectionEntry for FunctionParameterType {}
 unsafe impl SectionEntry for VariantCase {}
 unsafe impl SectionEntry for FunctionInfo {}
+unsafe impl SectionEntry for BindingInfo {}
+unsafe impl SectionEntry for BindingEffect {}
+unsafe impl SectionEntry for BindingProvider {}
+unsafe impl SectionEntry for BindingReplay {}
+unsafe impl SectionEntry for BindingAffinity {}
 unsafe impl SectionEntry for FrameInfo {}
 unsafe impl SectionEntry for FrameSlotInfo {}
 unsafe impl SectionEntry for GlobalInfo {}
