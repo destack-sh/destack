@@ -20,7 +20,7 @@ export extension<comptime A: Access = "readonly"> of Grid {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -103,7 +103,6 @@ export extension<comptime A: Access = "readonly"> of Grid {
 /// @generic.instance id="WithAccess<Borrowed<Grid, view.L0, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<Grid, view.L0, "mutable">, A)
 /// @generic.instance id=view<peek.L0> template=view arguments=(peek.L0)
 "#,
-        r#""#,
     );
 }
 
@@ -131,7 +130,7 @@ function write(grid: &exclusive Grid): int32 {
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -232,6 +231,194 @@ function write(grid: &exclusive Grid): int32 {
 /// @generic.instance id=view<read.L0> template=view arguments=(read.L0)
 /// @generic.instance id=view<write.L0> template=view arguments=(write.L0)
 "#,
-        r#""#,
+    );
+}
+
+#[test]
+fn test_access_generic_receiver_selects_fixed_array_sibling_method() {
+    let session = TestSession::single(
+        r#"
+export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "readonly"> of [T; N] {
+    view(this: WithAccess<&[T; N], A>): int32 {
+        1
+    }
+
+    peek(this: WithAccess<&[T; N], A>): int32 {
+        this.view()
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "readonly"> of
+    [T; N] {
+    view(this: WithAccess<&[T; N], A>): int32 {
+        1
+    }
+
+    peek(this: WithAccess<&[T; N], A>): int32 {
+        this.view<T, N, L0, A>()
+    }
+}
+
+=== checked ===
+export extension FixedArrayAccess<T, comptime N: number, comptime A: Access = "readonly"> of [T; N] {
+/// @generic.template symbol=FixedArrayAccess parameters=(T, comptime N: float64, comptime A: Access = "readonly")
+/// @definition.extension symbol=FixedArrayAccess form=exported target=FixedArray<T, N>
+/// @definition.method symbol=FixedArrayAccess.peek slot=peek type=<comptime FixedArrayAccess.peek.L0: Lifetime>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, "mutable">, A>) => int32
+/// @definition.method symbol=FixedArrayAccess.view slot=view type=<comptime FixedArrayAccess.view.L0: Lifetime>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, "mutable">, A>) => int32
+/// @type.symbol symbol=FixedArrayAccess.T source=T type=T
+/// @type.symbol symbol=FixedArrayAccess.N source="comptime N: number" type=N
+/// @type.symbol symbol=FixedArrayAccess.A source="comptime A: Access = \"readonly\"" type=A
+/// @resolution.name source=Access target=memory.access.Access
+/// @type.node source="\"readonly\"" type="readonly"
+/// @resolution.name source=T target=FixedArrayAccess.T
+/// @resolution.name source=N target=FixedArrayAccess.N
+
+    view(this: WithAccess<&[T; N], A>): int32 {
+    /// @generic.template symbol=FixedArrayAccess.view parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=FixedArrayAccess.view type=<comptime FixedArrayAccess.view.L0: Lifetime>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, "mutable">, A>) => int32 reduced=<comptime FixedArrayAccess.view.L0: Lifetime>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, A>) => int32
+    /// @type.symbol symbol=FixedArrayAccess.view.this source="this: WithAccess<&[T; N], A>" type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, "mutable">, A> reduced=Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, A>
+    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=T target=FixedArrayAccess.T
+    /// @resolution.name source=N target=FixedArrayAccess.N
+    /// @resolution.name source=A target=FixedArrayAccess.A
+
+        1
+        /// @type.node source=1 type=1
+
+    }
+
+    peek(this: WithAccess<&[T; N], A>): int32 {
+    /// @generic.template symbol=FixedArrayAccess.peek parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=FixedArrayAccess.peek type=<comptime FixedArrayAccess.peek.L0: Lifetime>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, "mutable">, A>) => int32 reduced=<comptime FixedArrayAccess.peek.L0: Lifetime>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, A>) => int32
+    /// @type.symbol symbol=FixedArrayAccess.peek.this source="this: WithAccess<&[T; N], A>" type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, "mutable">, A> reduced=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, A>
+    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=T target=FixedArrayAccess.T
+    /// @resolution.name source=N target=FixedArrayAccess.N
+    /// @resolution.name source=A target=FixedArrayAccess.A
+
+        this.view()
+        /// @type.node source=this type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, "mutable">, A> reduced=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, A>
+        /// @type.node source=this.view type=<comptime FixedArrayAccess.view.L0: Lifetime>(this: WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, "mutable">, A>) => int32 | <comptime collections.array.view.A#1: Access = "readonly", comptime collections.array.view#1.L1: Lifetime>(this: WithAccess<Borrowed<FixedArray<T, N>, collections.array.view#1.L1, "mutable">, collections.array.view.A#1>, usize, usize | undefined) => WithAccess<Borrowed<Slice<T>, collections.array.view#1.L1, "mutable">, collections.array.view.A#1> reduced=<comptime FixedArrayAccess.view.L0: Lifetime>(this: Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, A>) => int32 | <comptime collections.array.view.A#1: Access = "readonly", comptime collections.array.view#1.L1: Lifetime>(this: Borrowed<FixedArray<T, N>, collections.array.view#1.L1, collections.array.view.A#1>, usize, usize | undefined) => Borrowed<Slice<T>, collections.array.view#1.L1, collections.array.view.A#1>
+        /// @type.node source=this.view() type=int32
+        /// @resolution.member source=this.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, A> kind=existential targets=[FixedArrayAccess.view, collections.array.view#1]
+        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=FixedArrayAccess.view receiver=Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, A> instance=FixedArrayAccess.view<FixedArrayAccess.peek.L0>
+        /// @resolution.receiver source=this kind=this declaration=FixedArrayAccess type=WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, "mutable">, A>
+        /// @generic.instance source=this id="WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, \"mutable\">, A>"
+        /// @generic.instance source=this.view id="WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, \"mutable\">, A>"
+        /// @generic.instance source=this.view id="WithAccess<Borrowed<FixedArray<T, N>, collections.array.view#1.L1, \"mutable\">, collections.array.view.A#1>"
+        /// @generic.instance source=this.view id="WithAccess<Borrowed<Slice<T>, collections.array.view#1.L1, \"mutable\">, collections.array.view.A#1>"
+        /// @generic.instance source=this.view() id=FixedArrayAccess.view<FixedArrayAccess.peek.L0>
+
+    }
+}
+
+/// @generic.instance id="WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<FixedArray<T, N>, FixedArrayAccess.peek.L0, "mutable">, A)
+/// @generic.instance id="WithAccess<Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<FixedArray<T, N>, FixedArrayAccess.view.L0, "mutable">, A)
+/// @generic.instance id="WithAccess<Borrowed<FixedArray<T, N>, collections.array.view#1.L1, \"mutable\">, collections.array.view.A#1>" template=memory.type.WithAccess arguments=(Borrowed<FixedArray<T, N>, collections.array.view#1.L1, "mutable">, collections.array.view.A#1)
+/// @generic.instance id="WithAccess<Borrowed<Slice<T>, collections.array.view#1.L1, \"mutable\">, collections.array.view.A#1>" template=memory.type.WithAccess arguments=(Borrowed<Slice<T>, collections.array.view#1.L1, "mutable">, collections.array.view.A#1)
+/// @generic.instance id=FixedArrayAccess.view<FixedArrayAccess.peek.L0> template=FixedArrayAccess.view arguments=(FixedArrayAccess.peek.L0)
+"#,
+    );
+}
+
+#[test]
+fn test_access_generic_receiver_selects_array_sibling_method() {
+    let session = TestSession::single(
+        r#"
+export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
+    view(this: WithAccess<&Array<T>, A>): int32 {
+        1
+    }
+
+    peek(this: WithAccess<&Array<T>, A>): int32 {
+        this.view()
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
+    view(this: WithAccess<&Array<T>, A>): int32 {
+        1
+    }
+
+    peek(this: WithAccess<&Array<T>, A>): int32 {
+        this.view<T, L0, A>()
+    }
+}
+
+=== checked ===
+export extension ArrayAccess<T, comptime A: Access = "readonly"> of Array<T> {
+/// @generic.template symbol=ArrayAccess parameters=(T, comptime A: Access = "readonly")
+/// @definition.extension symbol=ArrayAccess form=exported target=Array<T>
+/// @definition.method symbol=ArrayAccess.peek slot=peek type=<comptime ArrayAccess.peek.L0: Lifetime>(this: WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, "mutable">, A>) => int32
+/// @definition.method symbol=ArrayAccess.view slot=view type=<comptime ArrayAccess.view.L0: Lifetime>(this: WithAccess<Borrowed<Array<T>, ArrayAccess.view.L0, "mutable">, A>) => int32
+/// @type.symbol symbol=ArrayAccess.T source=T type=T
+/// @type.symbol symbol=ArrayAccess.A source="comptime A: Access = \"readonly\"" type=A
+/// @resolution.name source=Access target=memory.access.Access
+/// @type.node source="\"readonly\"" type="readonly"
+/// @resolution.name source=Array target=collections.array.Array
+/// @resolution.name source=T target=ArrayAccess.T
+
+    view(this: WithAccess<&Array<T>, A>): int32 {
+    /// @generic.template symbol=ArrayAccess.view parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=ArrayAccess.view type=<comptime ArrayAccess.view.L0: Lifetime>(this: WithAccess<Borrowed<Array<T>, ArrayAccess.view.L0, "mutable">, A>) => int32 reduced=<comptime ArrayAccess.view.L0: Lifetime>(this: Borrowed<Array<T>, ArrayAccess.view.L0, A>) => int32
+    /// @type.symbol symbol=ArrayAccess.view.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<Borrowed<Array<T>, ArrayAccess.view.L0, "mutable">, A> reduced=Borrowed<Array<T>, ArrayAccess.view.L0, A>
+    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=Array target=collections.array.Array
+    /// @resolution.name source=T target=ArrayAccess.T
+    /// @resolution.name source=A target=ArrayAccess.A
+
+        1
+        /// @type.node source=1 type=1
+
+    }
+
+    peek(this: WithAccess<&Array<T>, A>): int32 {
+    /// @generic.template symbol=ArrayAccess.peek parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=ArrayAccess.peek type=<comptime ArrayAccess.peek.L0: Lifetime>(this: WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, "mutable">, A>) => int32 reduced=<comptime ArrayAccess.peek.L0: Lifetime>(this: Borrowed<Array<T>, ArrayAccess.peek.L0, A>) => int32
+    /// @type.symbol symbol=ArrayAccess.peek.this source="this: WithAccess<&Array<T>, A>" type=WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, "mutable">, A> reduced=Borrowed<Array<T>, ArrayAccess.peek.L0, A>
+    /// @resolution.name source=WithAccess target=memory.type.WithAccess
+    /// @resolution.name source=Array target=collections.array.Array
+    /// @resolution.name source=T target=ArrayAccess.T
+    /// @resolution.name source=A target=ArrayAccess.A
+
+        this.view()
+        /// @type.node source=this type=WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, "mutable">, A> reduced=Borrowed<Array<T>, ArrayAccess.peek.L0, A>
+        /// @type.node source=this.view type=<comptime ArrayAccess.view.L0: Lifetime>(this: WithAccess<Borrowed<Array<T>, ArrayAccess.view.L0, "mutable">, A>) => int32 | <comptime collections.array.view.A#2: Access = "readonly", comptime collections.array.view#2.L1: Lifetime>(this: WithAccess<Borrowed<Array<T>, collections.array.view#2.L1, "mutable">, collections.array.view.A#2>, usize, usize | undefined) => WithAccess<Borrowed<Slice<T>, collections.array.view#2.L1, "mutable">, collections.array.view.A#2> reduced=<comptime ArrayAccess.view.L0: Lifetime>(this: Borrowed<Array<T>, ArrayAccess.view.L0, A>) => int32 | <comptime collections.array.view.A#2: Access = "readonly", comptime collections.array.view#2.L1: Lifetime>(this: Borrowed<Array<T>, collections.array.view#2.L1, collections.array.view.A#2>, usize, usize | undefined) => Borrowed<Slice<T>, collections.array.view#2.L1, collections.array.view.A#2>
+        /// @type.node source=this.view() type=int32
+        /// @resolution.member source=this.view receiver=Borrowed<Array<T>, ArrayAccess.peek.L0, A> kind=existential targets=[ArrayAccess.view, collections.array.view#2]
+        /// @resolution.call source=this.view() parameters=() return=int32 kind=symbol target=ArrayAccess.view receiver=Borrowed<Array<T>, ArrayAccess.peek.L0, A> instance=ArrayAccess.view<ArrayAccess.peek.L0>
+        /// @resolution.receiver source=this kind=this declaration=ArrayAccess type=WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, "mutable">, A>
+        /// @generic.instance source=this id="WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, \"mutable\">, A>"
+        /// @generic.instance source=this id=Array<T>
+        /// @generic.instance source=this.view id="WithAccess<Borrowed<Array<T>, ArrayAccess.view.L0, \"mutable\">, A>"
+        /// @generic.instance source=this.view id="WithAccess<Borrowed<Array<T>, collections.array.view#2.L1, \"mutable\">, collections.array.view.A#2>"
+        /// @generic.instance source=this.view id="WithAccess<Borrowed<Slice<T>, collections.array.view#2.L1, \"mutable\">, collections.array.view.A#2>"
+        /// @generic.instance source=this.view id=Array<T>
+        /// @generic.instance source=this.view() id=ArrayAccess.view<ArrayAccess.peek.L0>
+
+    }
+}
+
+/// @generic.instance id="WithAccess<Borrowed<Array<T>, ArrayAccess.peek.L0, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<Array<T>, ArrayAccess.peek.L0, "mutable">, A)
+/// @generic.instance id="WithAccess<Borrowed<Array<T>, ArrayAccess.view.L0, \"mutable\">, A>" template=memory.type.WithAccess arguments=(Borrowed<Array<T>, ArrayAccess.view.L0, "mutable">, A)
+/// @generic.instance id="WithAccess<Borrowed<Array<T>, collections.array.view#2.L1, \"mutable\">, collections.array.view.A#2>" template=memory.type.WithAccess arguments=(Borrowed<Array<T>, collections.array.view#2.L1, "mutable">, collections.array.view.A#2)
+/// @generic.instance id="WithAccess<Borrowed<Slice<T>, collections.array.view#2.L1, \"mutable\">, collections.array.view.A#2>" template=memory.type.WithAccess arguments=(Borrowed<Slice<T>, collections.array.view#2.L1, "mutable">, collections.array.view.A#2)
+/// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
+/// @generic.instance id=ArrayAccess.view<ArrayAccess.peek.L0> template=ArrayAccess.view arguments=(ArrayAccess.peek.L0)
+"#,
     );
 }

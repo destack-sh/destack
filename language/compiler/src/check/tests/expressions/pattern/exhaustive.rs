@@ -250,9 +250,6 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 
 #[test]
 fn test_tagged_variant_object_pattern_binds_the_payload() {
-    // KNOWN RED (#25 tail): the variant payload binding parks unsolved
-    // (EC101 at `limit`); the pin imputes the solved binding from the
-    // sibling nominal-object shape
     let session = TestSession::single(
         r#"
 @derive(Tagged)
@@ -282,7 +279,7 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
         Edge.Bounded { limit } => limit
         Edge.Open => fallback
     }
-} as T
+}
 
 === checked ===
 @derive(Tagged)
@@ -315,7 +312,7 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 /// @resolution.name source=T target=limitOr.T
 
     match (edge) {
-    /// @type.node type=T#2 | T#2
+    /// @type.node type=T#2
     /// @type.node source=edge type=Edge<T#2>
     /// @resolution.name source=edge target=limitOr.edge
     /// @generic.instance source=edge id=Edge<T#2>
@@ -346,5 +343,102 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 /// @generic.instance id=Edge<T#2> template=Edge arguments=(T#2)
 "#,
         r#""#,
+    );
+}
+
+#[test]
+fn test_tagged_variant_object_pattern_joins_payload_from_union_instances() {
+    let session = TestSession::single(
+        r#"
+@derive(Tagged)
+newtype Edge<T> =
+    | { kind: "bounded"; limit: T }
+    | { kind: "open" };
+
+declare const edge: Edge<string> | Edge<int32>;
+
+const value: string = match (edge) {
+    Edge.Bounded { limit } => limit
+    Edge.Open => ""
+};
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+@derive(Tagged)
+newtype Edge<T> = { kind: "bounded"; limit: T } | { kind: "open" };
+
+declare const edge: Edge<string> | Edge<int32>;
+
+const value: string = match (edge) {
+    Edge.Bounded { limit } => limit
+    Edge.Open => ""
+};
+
+=== checked ===
+@derive(Tagged)
+/// @generic.template symbol=Edge parameters=(T)
+/// @type.symbol symbol=Edge type=Edge
+/// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
+/// @type.symbol symbol=Edge.Open type=Edge.Open
+/// @definition.newtype symbol=Edge template=(T) value={ kind: "bounded"; limit: T } | { kind: "open" }
+/// @definition.variant symbol=Edge.Bounded key=Bounded
+/// @definition.variant symbol=Edge.Open key=Open
+/// @resolution.name source=derive target=decorator.derive.derive
+
+newtype Edge<T> =
+/// @type.symbol symbol=Edge.T source=T type=T
+
+    | { kind: "bounded"; limit: T }
+    /// @resolution.name source=T target=Edge.T
+
+    | { kind: "open" };
+
+declare const edge: Edge<string> | Edge<int32>;
+/// @type.symbol symbol=edge source=edge type=Edge<string> | Edge<int32>
+/// @resolution.name source=Edge target=Edge
+/// @resolution.name source=Edge target=Edge
+
+const value: string = match (edge) {
+/// @type.symbol symbol=value source=value type=string
+/// @type.node type=string | int32
+/// @type.node source=edge type=Edge<string> | Edge<int32>
+/// @resolution.name source=edge target=edge
+/// @generic.instance source=edge id=Edge<int32>
+/// @generic.instance source=edge id=Edge<string>
+
+    Edge.Bounded { limit } => limit
+    /// @resolution.name source=Edge.Bounded target=Edge
+    /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(\"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded<string | int32>, { limit: string | int32 })" payload=object fields={ limit }
+    /// @generic.instance source="Edge.Bounded { limit }" id="Edge<string | int32>"
+    /// @type.symbol symbol=limit source=limit type=string | int32
+    /// @type.node source=limit type=string | int32
+    /// @resolution.name source=limit target=limit
+
+    Edge.Open => ""
+    /// @type.node source=Edge type=Edge
+    /// @type.node source=Edge.Open type=Edge.Open
+    /// @resolution.name source=Edge target=Edge
+    /// @resolution.member source=Edge.Open receiver=Edge kind=symbol target=Edge.Open
+    /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(\"open\") is \"open\"" projection="variant.payload(Edge.Open<string | int32>, {})" fields=()
+    /// @generic.instance source=Edge.Open id="Edge<string | int32>"
+    /// @generic.instance source=Edge.Open id=Edge<T>
+    /// @type.node source="\"\"" type=""
+
+};
+
+/// @generic.instance id="Edge<string | int32>" template=Edge arguments=(string | int32)
+/// @generic.instance id=Edge<T> template=Edge arguments=(T)
+/// @generic.instance id=Edge<int32> template=Edge arguments=(int32)
+/// @generic.instance id=Edge<string> template=Edge arguments=(string)
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type 'string | int32' is not assignable to type 'string'"
+/// @diagnostic.label line=9 column=29 span="(edge) {\n    Edge.Bounded { limit } => limit\n    Edge.Open => \"\"\n}" line_source="const value: string = match (edge) {"
+"#,
     );
 }
