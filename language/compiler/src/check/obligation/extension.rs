@@ -33,6 +33,7 @@ impl CheckState<'_> {
         let failures = answer!(self.check_extension_members(
             origin,
             source,
+            symbol,
             extension.target.r#type(),
             &members,
             &implements,
@@ -153,6 +154,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         implements: &[dir::NominalHeritage],
@@ -171,8 +173,10 @@ impl CheckState<'_> {
                 origin,
                 source,
                 heritage.source,
+                symbol,
                 target,
                 members,
+                implements,
                 &interface,
             )?;
 
@@ -194,8 +198,10 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         anchor_source: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
+        implements: &[dir::NominalHeritage],
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let Some(definition) = self.definition(interface.symbol) else {
@@ -205,13 +211,19 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        let required =
-            answer!(self.interface_members(origin, source.module_id, interface, target)?);
+        let interface_substitution = self
+            .instance_substitution(source.module_id, interface)?
+            .with_receiver(target);
+        let requirements = answer!(self.interface_requirements_with_substitution(
+            origin,
+            interface.symbol,
+            &interface_substitution,
+        )?);
 
         // compare each required member with the extension's declared
         // members, where any matching overload satisfies the contract
-        let receiver = TypeSubstitution::default().with_receiver(target);
-        for interface_member in required {
+        let extension_substitution = TypeSubstitution::default().with_receiver(target);
+        for interface_member in requirements.members {
             let mut candidates = SmallVec::<[_; 2]>::new();
             for member in members {
                 let member = match self.declared_member(member)? {
@@ -238,7 +250,7 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(ObligationCheck::fail(failure)));
             }
 
-            // associated types without values only need presence
+            // require presence when an associated type stays abstract
             let Some(required_type) = interface_member.ty else {
                 continue;
             };
@@ -249,7 +261,8 @@ impl CheckState<'_> {
                     continue;
                 };
                 // the found member binds this to the implementing target
-                let found_type = self.substitute_type(source.module_id, found_type, &receiver)?;
+                let found_type =
+                    self.substitute_type(source.module_id, found_type, &extension_substitution)?;
 
                 let relation = interface_member.role.conformance_relation();
                 let assignment =
@@ -271,11 +284,29 @@ impl CheckState<'_> {
             }
         }
 
+        // check inherited interfaces against the same extension members
+        for application in requirements.inherited {
+            let check = self.check_extension_interface(
+                origin,
+                source,
+                application.source,
+                symbol,
+                target,
+                members,
+                implements,
+                &application.instance,
+            )?;
+            match check {
+                Answer::Ready(ObligationCheck::Holds) => {}
+                Answer::Ready(failure) => return Ok(Answer::Ready(failure)),
+                Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
+            }
+        }
+
         Ok(Answer::Ready(ObligationCheck::holds()))
     }
 
     /// Check visible implementations conflicting with one new extension.
-    #[allow(clippy::too_many_arguments)]
     fn check_conflicting_implementations(
         &mut self,
         origin: Origin,
