@@ -2,47 +2,20 @@ import { A } from "@solidjs/router";
 import { createSignal, onCleanup } from "solid-js";
 
 import { Icon } from "./icon";
-import { ThemeToggle } from "./theme";
 
 const copiedFeedbackMs = 2000;
 const installCommand = "curl -fsSL https://destack.sh/install | sh";
 
-const communityLinks = [
-    ["blog", "/blog/"],
-    ["discord", "https://discord.gg/xUFQ45TWYd"],
-    ["x", "https://x.com/destack"],
-    ["github", "https://github.com/destack-sh/destack"],
-] as const;
-
 export function TopBar() {
     return (
         <header class="border-b border-neutral-950 bg-destack-ink text-destack-cream">
-            <div class="mx-auto grid h-12 max-w-328 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 md:px-10">
+            <div class="mx-auto flex h-12 max-w-328 items-center justify-between gap-3 px-4 md:px-10">
                 <A class="flex min-w-0 items-center gap-2 text-sm font-extrabold" href="/">
                     <Icon class="size-7" />
                     <span>destack</span>
                 </A>
 
                 <InstallCommand />
-
-                <nav class="flex shrink-0 items-center justify-end gap-1 text-xs font-extrabold lowercase sm:gap-2 sm:text-sm">
-                    {communityLinks.map(([label, href], index) => (
-                        <>
-                            {index > 0 && <Separator />}
-                            {href.startsWith("/") ? (
-                                <A class="hover:text-destack-accent" href={href}>
-                                    {label}
-                                </A>
-                            ) : (
-                                <a class="hover:text-destack-accent" href={href}>
-                                    {label}
-                                </a>
-                            )}
-                        </>
-                    ))}
-                    <Separator />
-                    <ThemeToggle />
-                </nav>
             </div>
         </header>
     );
@@ -65,19 +38,15 @@ function InstallCommand() {
     return (
         <button
             aria-label="copy install command"
-            class="group hidden min-w-0 items-baseline gap-2 text-xs font-extrabold whitespace-nowrap md:flex"
+            class="group flex min-w-0 max-w-[calc(100vw-8rem)] items-baseline gap-2 text-xs font-extrabold whitespace-nowrap"
             onClick={copy}
             type="button"
         >
             <span class="text-destack-accent">$</span>
             <code class="min-w-0 truncate">{installCommand}</code>
-            <span class="w-[6ch] text-left text-destack-cream/50 lowercase group-hover:text-destack-accent">
+            <span class="hidden w-[6ch] text-left text-destack-cream/50 lowercase group-hover:text-destack-accent sm:block">
                 {isCopied() ? "copied" : "copy"}
             </span>
         </button>
     );
-}
-
-function Separator() {
-    return <span class="text-destack-cream/35">·</span>;
 }

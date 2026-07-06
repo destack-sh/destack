@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" role="img" aria-labelledby="title description">
   <title id="title">Destack toolchain</title>
   <desc id="description">A source program flows through the Destack compiler into native, web, and runtime outputs.</desc>
-  <rect width="900" height="420" fill="#fffdf7"/>
-  <path d="M40 52h820v316H40z" fill="#f7f1e6" stroke="#0a0a0a" stroke-width="3"/>
-  <path d="M64 78h230v238H64z" fill="#fffdf7" stroke="#0a0a0a" stroke-width="3"/>
-  <path d="M334 78h230v238H334z" fill="#fffdf7" stroke="#0a0a0a" stroke-width="3"/>
-  <path d="M604 78h232v238H604z" fill="#fffdf7" stroke="#0a0a0a" stroke-width="3"/>
+  <rect width="900" height="420" fill="#ffffff"/>
+  <path d="M40 52h820v316H40z" fill="#ffffff" stroke="#071923" stroke-width="3"/>
+  <path d="M64 78h230v238H64z" fill="#ffffff" stroke="#071923" stroke-width="3"/>
+  <path d="M334 78h230v238H334z" fill="#ffffff" stroke="#071923" stroke-width="3"/>
+  <path d="M604 78h232v238H604z" fill="#ffffff" stroke="#071923" stroke-width="3"/>
   <g fill="#052e40" font-family="JetBrains Mono, monospace" font-size="18" font-weight="900">
     <text x="84" y="116">source</text>
     <text x="354" y="116">compiler</text>
     <text x="624" y="116">outputs</text>
   </g>
-  <g fill="#0a0a0a" font-family="JetBrains Mono, monospace" font-size="16" font-weight="800">
+  <g fill="#06131b" font-family="JetBrains Mono, monospace" font-size="16" font-weight="800">
     <text x="84" y="160">strict TypeScript</text>
     <text x="84" y="194">precise types</text>
     <text x="84" y="228">modules</text>
@@ -25,15 +25,15 @@
     <text x="624" y="228">diagnostics</text>
     <text x="624" y="262">runtime policy</text>
   </g>
-  <g stroke="#e08b48" stroke-width="5" stroke-linecap="square" fill="none">
+  <g stroke="#58a6d6" stroke-width="5" stroke-linecap="square" fill="none">
     <path d="M294 197h40"/>
     <path d="M564 197h40"/>
   </g>
-  <g fill="#e08b48">
+  <g fill="#58a6d6">
     <path d="M326 187l14 10-14 10z"/>
     <path d="M596 187l14 10-14 10z"/>
   </g>
-  <g stroke="#0a0a0a" stroke-width="2" opacity=".22">
+  <g stroke="#071923" stroke-width="2" opacity=".22">
     <path d="M84 177h170"/>
     <path d="M84 211h170"/>
     <path d="M84 245h170"/>
