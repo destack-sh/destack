@@ -126,6 +126,13 @@ impl CheckState<'_> {
             return self.decide_relation(origin, relation, member.owner, target);
         }
 
+        // generic parameters prove relations through their active bounds
+        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
+            let decision = self.decide_parameter_relation(origin, relation, parameter, target)?;
+
+            return self.decide_union_membership(origin, relation, decision, source, target);
+        }
+
         // comptime scalars inhabit closed enums by member value
         if let dir::Type::Literal(literal) = self.ty(source)?
             && let Some(symbol) = self.type_symbol(target)?
