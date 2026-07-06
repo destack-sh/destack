@@ -1935,7 +1935,8 @@ pub fn expression_has_side_effects(
         | dir::Expression::ImportMeta
         | dir::Expression::ImportSource
         | dir::Expression::This
-        | dir::Expression::Super => false,
+        | dir::Expression::Super
+        | dir::Expression::Infer { .. } => false,
 
         // pure: containers (if elements are pure)
         dir::Expression::ArrayExpression { elements }
