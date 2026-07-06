@@ -145,7 +145,6 @@ global {
         Divide,
         Equal,
         FromResidual,
-        Has,
         Hash,
         Hasher,
         Index,

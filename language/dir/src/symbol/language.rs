@@ -1191,9 +1191,6 @@ define_language_items! {
 
         /// `destack:ops/subscript`.
         subscript {
-            /// Membership protocol.
-            Has => (NewtypeInterface, "ops/subscript", "Has"),
-
             /// Index access protocol.
             Index => (NewtypeInterface, "ops/subscript", "Index"),
 

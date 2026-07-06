@@ -24,12 +24,3 @@ export newtype interface IndexSet<I, V> {
     /// Store `value` at `key`.
     indexSet(&exclusive this, key: I, value: V): void;
 }
-
-/// Interface for membership checks `key in value`.
-///
-/// `key in value` becomes `value.has(&key)` when the receiver explicitly implements `Has<I>`.
-@languageItem("ops.Has")
-export newtype interface Has<I> {
-    /// Return whether `key` is present.
-    has(key: &readonly I): boolean;
-}

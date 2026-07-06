@@ -2,7 +2,7 @@ import { Borrow, From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Clone, Default, Dispose, WithAccess } from "destack:memory";
-import { Dereference, Equal, Has, Hash } from "destack:ops";
+import { Dereference, Equal, Hash } from "destack:ops";
 
 import { ConcurrentMap, ConcurrentMapRead } from "./concurrent-map.ds";
 
@@ -55,7 +55,7 @@ export extension<T> of ConcurrentSet<T> implements Default {
     }
 }
 
-export extension<T: Hash> of ConcurrentSet<T> implements Has<T>, Extend<T> {
+export extension<T: Hash> of ConcurrentSet<T> implements Extend<T> {
     /// Create a concurrent set from values.
     static from(values: Iterable<T>): ^ConcurrentSet<T> {
         todo("ConcurrentSet.from")

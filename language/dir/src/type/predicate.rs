@@ -2,8 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CallResolution, GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, ScalarLiteral,
-    StaticKey,
+    GlobalTypeId, PrimitiveType, Projection, RangeEnd, RangeType, ScalarLiteral, StaticKey,
 };
 
 /// Executable predicate selected during checking.
@@ -13,7 +12,6 @@ use crate::{
 /// value is string       // Unary
 /// value is Shape.Circle // Unary over VariantTag, projection: VariantPayload
 /// "name" in value       // Has
-/// key in bag            // Call
 /// value is "a" | "b"    // Any
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -128,7 +126,6 @@ impl PredicateOperand {
 /// ```ds
 /// value is string       // Unary
 /// "name" in value       // Has
-/// key in bag            // Call
 /// value is "a" | "b"    // Any
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -148,13 +145,6 @@ pub enum PredicateTest {
     /// "name" in value
     /// ```
     Has(PredicateHasTest),
-    /// Operator-dispatched predicate call.
-    ///
-    /// Examples:
-    /// ```ds
-    /// key in bag // bag implements Has<typeof key>
-    /// ```
-    Call(CallResolution),
     /// Predicate that accepts when any alternative accepts.
     ///
     /// Examples:
@@ -170,7 +160,6 @@ impl PredicateTest {
         match self {
             Self::Unary(test) => test.map_type_ids(map),
             Self::Has(test) => test.map_type_ids(map),
-            Self::Call(call) => call.map_type_ids(map),
             Self::Any(predicates) => {
                 for predicate in predicates {
                     predicate.map_type_ids(map);
