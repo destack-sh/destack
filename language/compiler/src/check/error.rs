@@ -699,6 +699,24 @@ pub enum CheckError {
         hint: String,
     },
 
+    /// Type cannot be constructed through an inferred call head.
+    ///
+    /// ```ds
+    /// const value: string = _(1);
+    /// ```
+    #[diagnostic(
+        code = "EC323",
+        message = "type '{ty}' cannot be constructed with '_(...)'"
+    )]
+    InvalidInferredConstructTarget {
+        /// Report the construct expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The expected target type.
+        ty: String,
+    },
+
     /// Call supplies the wrong number of arguments.
     ///
     /// ```ds
@@ -939,6 +957,19 @@ pub enum CheckError {
     )]
     UndecidableStaticCondition {
         /// Report the static condition expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Static value expression is not in the static subset.
+    ///
+    /// ```ds
+    /// type Value<comptime N: number = runtimeValue> = N;
+    /// ```
+    #[diagnostic(code = "EC440", message = "static value must be statically decidable")]
+    UndecidableStaticValue {
+        /// Report the static value expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

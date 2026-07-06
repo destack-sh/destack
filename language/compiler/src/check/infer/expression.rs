@@ -143,7 +143,14 @@ impl CheckState<'_> {
                 left,
                 &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
                 &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
+                None,
             ),
+            dir::Expression::Infer { .. } => {
+                self.report_cannot_infer_node(node.into_any())?;
+                self.commit_error_node(node.into_any())?;
+
+                Ok(Answer::Ready(()))
+            }
             dir::Expression::Binary {
                 left,
                 operator: dir::BinaryOperator::In,
@@ -181,12 +188,14 @@ impl CheckState<'_> {
                 ty,
                 &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                 ConstructResult::Direct,
+                None,
             ),
             dir::Expression::NewMaybe { ty, arguments } => self.select_construct(
                 site,
                 ty,
                 &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
                 ConstructResult::Fallible,
+                None,
             ),
             dir::Expression::Index { left, index, .. } => {
                 self.select_index(site, left, index, use_)
