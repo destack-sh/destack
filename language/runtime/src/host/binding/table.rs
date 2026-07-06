@@ -7,9 +7,9 @@ use crate::host::binding::{BindingAccess, BindingDescriptor, BindingId};
 use crate::world::policy::ActionSet;
 use destack_repository::{ExecutionMode, RuntimeOptions};
 
-/// Registry for runtime bindings and shims.
+/// Table for runtime binding descriptors and access policy.
 #[derive(Debug)]
-pub struct BindingRegistry {
+pub struct BindingTable {
     /// Registered binding descriptors for policy enforcement.
     descriptors: Vec<BindingDescriptor>,
     /// Binding metadata indexed by binding id.
@@ -18,8 +18,8 @@ pub struct BindingRegistry {
     access: RwLock<BindingAccess>,
 }
 
-impl BindingRegistry {
-    /// Create a new binding registry.
+impl BindingTable {
+    /// Create a new binding table.
     pub fn new() -> Self {
         Self {
             descriptors: Vec::new(),
@@ -33,7 +33,7 @@ impl BindingRegistry {
         &self.access
     }
 
-    /// Set the binding access for this registry.
+    /// Set the binding access for this table.
     pub fn set_access(&mut self, access: BindingAccess) {
         *self.access.write() = access;
     }
@@ -55,7 +55,7 @@ impl BindingRegistry {
         if let Some(existing) = self.descriptor_by_id.get(&descriptor.id)
             && *existing != descriptor
         {
-            return Err(binding_collision_error(descriptor.name));
+            return Err(Self::collision_error(descriptor.name));
         }
 
         self.descriptor_by_id.insert(descriptor.id, descriptor);
@@ -73,18 +73,18 @@ impl BindingRegistry {
     pub fn descriptors_by_id(&self) -> &HashMap<BindingId, BindingDescriptor> {
         &self.descriptor_by_id
     }
+
+    /// Return one binding id collision error.
+    fn collision_error(name: &str) -> Box<RuntimeError> {
+        RuntimeError::Internal {
+            message: format!("binding id collision for {name}"),
+        }
+        .boxed()
+    }
 }
 
-impl Default for BindingRegistry {
+impl Default for BindingTable {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Return one binding id collision error.
-fn binding_collision_error(name: &str) -> Box<RuntimeError> {
-    RuntimeError::Internal {
-        message: format!("binding id collision for {name}"),
-    }
-    .boxed()
 }

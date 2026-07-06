@@ -65,7 +65,7 @@ pub enum RuntimeError {
 /// Binding boundary failure reason.
 #[derive(Debug, Clone)]
 pub enum BindingError {
-    /// Binding name was not found in the registry.
+    /// Binding name was not found in the binding table.
     NotFound,
     /// Binding call rejected by policy.
     PolicyViolation,

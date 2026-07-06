@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingAccess, BindingRegistry};
+use crate::host::binding::{BindingAccess, BindingTable};
 use crate::host::resource::ResourceTableSnapshot;
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::RuntimeHeap;
@@ -34,8 +34,8 @@ pub struct Worker {
     pub(crate) resources: ResourceTable,
     /// Diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
-    /// External binding registry and policy enforcement.
-    pub(crate) bindings: BindingRegistry,
+    /// Runtime binding table and policy enforcement.
+    pub(crate) binding_table: BindingTable,
     /// Shared mark worker queue handle.
     pub(crate) shared_mark_worker: heap::SharedMarkWorker,
     /// Worker-local shared allocation cache.
@@ -164,7 +164,7 @@ impl std::fmt::Debug for Worker {
             .field("options", &self.options)
             .field("resources", &self.resources)
             .field("diagnostics", &self.diagnostics)
-            .field("bindings", &self.bindings)
+            .field("binding_table", &self.binding_table)
             .field("heap", &self.heap)
             .field("machine", &"<worker machine>")
             .field("event_loop", &self.event_loop)
@@ -251,10 +251,10 @@ impl Worker {
         // resources
         let resources = ResourceTable::new(worker_id);
 
-        // bindings
-        let mut bindings = BindingRegistry::new();
-        bindings.set_access(BindingAccess::new(world.trace.mode()));
-        bindings.apply_runtime_defaults(options);
+        // binding table
+        let mut binding_table = BindingTable::new();
+        binding_table.set_access(BindingAccess::new(world.trace.mode()));
+        binding_table.apply_runtime_defaults(options);
 
         // heap and local_static
         let heap_options = resolve_local_heap_options(&options.heap)?;
@@ -290,7 +290,7 @@ impl Worker {
             program,
             resources,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
-            bindings,
+            binding_table,
             shared_mark_worker,
             shared_cache,
             heap,
@@ -605,10 +605,10 @@ impl Worker {
             None => return Ok(None),
         };
 
-        // bindings and heap
-        let mut bindings = BindingRegistry::new();
-        bindings.set_access(BindingAccess::new(execution_mode));
-        bindings.apply_runtime_defaults(&self.options);
+        // binding table and heap
+        let mut binding_table = BindingTable::new();
+        binding_table.set_access(BindingAccess::new(execution_mode));
+        binding_table.apply_runtime_defaults(&self.options);
 
         let trace_view = self.machine.trace_view();
         let heap = self.heap.fork(trace_view)?;
@@ -624,7 +624,7 @@ impl Worker {
             options: self.options.clone(),
             resources,
             diagnostics,
-            bindings,
+            binding_table,
             program: self.program.clone(),
             shared_mark_worker,
             shared_cache,
@@ -656,10 +656,10 @@ impl Worker {
         // resources
         let resources = ResourceTable::new(worker_id);
 
-        // bindings
-        let mut bindings = BindingRegistry::new();
-        bindings.set_access(BindingAccess::new(world.trace.mode()));
-        bindings.apply_runtime_defaults(&options);
+        // binding table
+        let mut binding_table = BindingTable::new();
+        binding_table.set_access(BindingAccess::new(world.trace.mode()));
+        binding_table.apply_runtime_defaults(&options);
 
         // diagnostics and event loop
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
@@ -711,7 +711,7 @@ impl Worker {
             program,
             resources,
             diagnostics,
-            bindings,
+            binding_table,
             shared_mark_worker,
             shared_cache,
             heap,

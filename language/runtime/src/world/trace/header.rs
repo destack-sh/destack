@@ -37,8 +37,8 @@ pub struct TraceHeader {
     pub branch_id: BranchId,
     /// Trace payload selection for the log.
     pub replay_payload: BindingReplayPayload,
-    /// Hash of the binding registry.
-    pub binding_registry_hash: u128,
+    /// Hash of the binding table.
+    pub binding_table_hash: u128,
     /// Maximum number of events per chunk.
     pub max_events_per_chunk: u32,
     /// Maximum chunk size in bytes.
@@ -59,7 +59,7 @@ impl TraceHeader {
             random_source: RandomSource::Deterministic,
             branch_id: BranchId::new(0),
             replay_payload: BindingReplayPayload::Results,
-            binding_registry_hash: 0,
+            binding_table_hash: 0,
             max_events_per_chunk: TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK,
             max_chunk_size_bytes: TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES,
             environment: environment.into(),
