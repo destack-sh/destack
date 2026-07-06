@@ -177,6 +177,14 @@ impl Type {
         Some(domain)
     }
 
+    /// Return the direct infer operation.
+    pub fn infer(&self) -> Option<InferType> {
+        match self {
+            Self::Operation(TypeOperation::Infer(infer)) => Some(*infer),
+            _ => None,
+        }
+    }
+
     /// Return the symbolic leaf kind contributed by this type alone.
     /// A stored type joins this bit with every child type's flags.
     pub fn own_flags(&self) -> TypeFlags {
