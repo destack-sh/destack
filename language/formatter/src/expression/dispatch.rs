@@ -94,6 +94,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::ImportSource
         | Expression::This
         | Expression::Super
+        | Expression::Infer { .. }
         | Expression::Type { .. }
         | Expression::ScalarLiteral(_)
         | Expression::TemplateExpression { .. }
@@ -291,6 +292,7 @@ fn format_expression_body_inner<'ast>(
         | Expression::ImportSource
         | Expression::This
         | Expression::Super
+        | Expression::Infer { .. }
         | Expression::Type { .. }
         | Expression::ScalarLiteral(_)
         | Expression::TemplateExpression { .. }

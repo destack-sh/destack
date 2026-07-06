@@ -61,6 +61,19 @@ fn test_format_new_maybe_expression() {
     );
 }
 
+/// Inferred call heads should format as ordinary compact call heads.
+#[test]
+fn test_format_inferred_call_head() {
+    assert_format_program!(
+        r#"const point: Point = _(1, 2);
+"#,
+        r#"const point: Point = _(1, 2);
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
 /// Mixed argument families should use the expected grouped-last layout.
 #[test]
 fn test_format_grouped_last_argument_layout() {
