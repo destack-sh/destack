@@ -808,7 +808,7 @@ pub(crate) fn execute_tail_call(
     // require the local callee
     let local_index = target.local_index();
 
-    // return imported calls to transfer handling
+    // return binding calls to transfer handling
     let Some(local_index) = local_index else {
         return Transfer::TailCall {
             function: (*function).into(),
@@ -1083,7 +1083,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    // return imported calls to transfer handling
+    // return binding calls to transfer handling
     let local_index = target.local_index();
     let Some(local_index) = local_index else {
         return Transfer::TailCall {

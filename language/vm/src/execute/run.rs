@@ -67,7 +67,7 @@ impl Machine {
 
         // resolve the function target before entering the main loop
         match program.vm_call_target(function_id) {
-            Some(target) if target.is_import() => {
+            Some(target) if target.is_binding() => {
                 let name = program
                     .function(function_id)
                     .map(|function| {

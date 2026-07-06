@@ -23,7 +23,7 @@ impl Activation<'_> {
         function_id: FunctionId,
         target: CallTarget,
     ) -> RuntimeResult<LocalFunction<'a>> {
-        // reject imports before touching program storage
+        // reject binding targets before touching program storage
         let Some(function_index) = target.local_index() else {
             return Err(RuntimeError::new(Error::undefined_function(function_id)));
         };
@@ -36,8 +36,8 @@ impl Activation<'_> {
         Ok(LocalFunction { function })
     }
 
-    /// Return the runtime boundary error for one imported call.
-    fn imported_call_error(&self, program: &Program, function_id: FunctionId) -> RuntimeError {
+    /// Return the runtime boundary error for one binding call.
+    fn binding_call_error(&self, program: &Program, function_id: FunctionId) -> RuntimeError {
         let Some(function) = program.function(function_id) else {
             return self.machine.runtime_error(Error::invalid_program(format!(
                 "missing function tables for {function_id:?}"
@@ -195,9 +195,9 @@ impl Activation<'_> {
         moves: Option<MoveRange>,
         resume_pc: usize,
     ) -> RuntimeResult<()> {
-        // complete binding calls immediately in the caller frame
-        if target.is_import() {
-            return Err(self.imported_call_error(program, function));
+        // reject binding calls until runtime dispatch is wired
+        if target.is_binding() {
+            return Err(self.binding_call_error(program, function));
         }
 
         // otherwise enter the local callee on a new frame
@@ -227,9 +227,9 @@ impl Activation<'_> {
         env: Option<Cell>,
         target_state: FrameStateId,
     ) -> RuntimeResult<()> {
-        // imported calls resume the continuation immediately
-        if target.is_import() {
-            return Err(self.imported_call_error(program, function));
+        // reject binding calls until runtime dispatch is wired
+        if target.is_binding() {
+            return Err(self.binding_call_error(program, function));
         }
 
         // otherwise push the local callee and record the pending continuation
@@ -283,9 +283,9 @@ impl Activation<'_> {
             load_arguments(caller, current_func.argument_pool, arguments)?
         };
 
-        // complete binding tail calls before returning to the caller
-        if target.is_import() {
-            return Err(self.imported_call_error(program, function));
+        // reject binding tail calls until runtime dispatch is wired
+        if target.is_binding() {
+            return Err(self.binding_call_error(program, function));
         }
 
         // otherwise reuse the current frame for the local callee

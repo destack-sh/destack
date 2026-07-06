@@ -44,10 +44,11 @@ b1(v2: int32, v3: int32):
     run_mir_expect(mir, "caller", &[Value::int32(8)], Value::int32(26));
 }
 
-/// Imported calls fail at the VM boundary.
+/// Binding calls fail until runtime dispatch is installed.
 #[test]
-fn test_imported_call_requires_runtime_boundary() {
+fn test_call_binding_requires_runtime_dispatch() {
     let mir = r#"
+@binding("touch")
 external function touch(): void
 
 function caller(): int32 {
