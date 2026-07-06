@@ -2,14 +2,14 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::attribute::{write_attribute, write_attributes};
+use super::attribute::{write_attribute, write_attribute_value, write_attributes};
 use super::r#type::format_borrow_obligations;
 
 use crate::{
-    FormatMirNode, Function, FunctionHeaderSpans, LifetimeParameter, Linkage, Local, LocalNodeId,
-    MirFormatContext, MirFormatter, Mutability, Tree, write_comments_after, write_comments_before,
-    write_inline_comment_after, write_node_leading_comments,
-    write_node_leading_comments_after_separator,
+    Attribute, AttributeIdentifier, AttributeValue, FormatMirNode, Function, FunctionHeaderSpans,
+    LifetimeParameter, Linkage, Local, LocalNodeId, MirFormatContext, MirFormatter, Mutability,
+    Tree, write_comments_after, write_comments_before, write_inline_comment_after,
+    write_node_leading_comments, write_node_leading_comments_after_separator,
 };
 
 impl<'a> FormatMirNode<'a, Function> for Function {
@@ -165,6 +165,22 @@ pub(super) fn format_function_attributes<'a>(
         )?;
     }
 
+    if !has_attribute(attributes, "binding", f)
+        && let Some(binding) = function.binding
+    {
+        write!(
+            f,
+            [
+                token("@"),
+                token("binding"),
+                token("("),
+                format_with(|f| write_attribute_value(&AttributeValue::String(binding), f)),
+                token(")"),
+                hard_line_break()
+            ]
+        )?;
+    }
+
     // comments before the function head
     if let Some(previous_end) = explicit_attribute_end
         && let Some(keyword_span) = keyword_span
@@ -176,11 +192,11 @@ pub(super) fn format_function_attributes<'a>(
 }
 
 /// Return whether one explicit attribute list contains a named attribute.
-fn has_attribute(attributes: &[crate::Attribute], name: &str, f: &MirFormatter<'_, '_>) -> bool {
+fn has_attribute(attributes: &[Attribute], name: &str, f: &MirFormatter<'_, '_>) -> bool {
     attributes.iter().any(|attribute| {
         matches!(
             attribute.name,
-            crate::AttributeIdentifier::Identifier(identifier)
+            AttributeIdentifier::Identifier(identifier)
                 if f.context().strings.get(identifier) == name
         )
     })

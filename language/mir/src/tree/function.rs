@@ -101,6 +101,8 @@ pub struct Function {
     pub return_type: TypeId,
     /// The hidden environment type for this function when present.
     pub environment: Option<TypeId>,
+    /// Runtime binding name when this function has a binding identity.
+    pub binding: Option<StringId>,
     /// The executable function body when this function is defined.
     pub body: Option<FunctionBody>,
 
@@ -594,6 +596,7 @@ impl Function {
             allocation: AllocationMode::Any,
             suspension: None,
             environment: None,
+            binding: None,
             body,
         }
     }
@@ -684,6 +687,17 @@ impl Function {
     pub fn with_suspension(mut self, kind: SuspensionKind) -> Self {
         self.suspension = Some(kind);
         self
+    }
+
+    /// Set the runtime binding name and return self.
+    pub fn with_binding(mut self, binding: StringId) -> Self {
+        self.binding = Some(binding);
+        self
+    }
+
+    /// Return the runtime binding name when one is present.
+    pub fn binding_name(&self) -> Option<StringId> {
+        self.binding
     }
 
     /// Check if this function can suspend.
