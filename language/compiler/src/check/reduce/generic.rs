@@ -13,6 +13,8 @@ use crate::check::{
 pub(in crate::check) enum GenericPosition {
     /// A written annotation: omitted parameters fill from defaults.
     Annotation,
+    /// A conditional type match target: omitted parameters fill from defaults.
+    Match,
     /// An inference site: omitted parameters open as variables.
     Inference,
 }
@@ -148,7 +150,10 @@ impl CheckState<'_> {
             }
 
             // fill omitted annotation arguments from declared defaults
-            if position == GenericPosition::Annotation {
+            if matches!(
+                position,
+                GenericPosition::Annotation | GenericPosition::Match
+            ) {
                 let default = self.generic_parameter_default(
                     origin.module(),
                     parameter,

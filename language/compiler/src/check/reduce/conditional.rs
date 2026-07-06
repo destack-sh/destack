@@ -270,35 +270,19 @@ impl CheckState<'_> {
         binders: &[InferBinder],
         blockers: &mut SmallVec<[Dependency; 2]>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let probe = self.begin_probe();
-        let matched = self.match_infer_pattern(origin, right, then_type, binders, left);
+        let matched = self.probe_accept(
+            |state| state.match_infer_pattern(origin, right, then_type, binders, left),
+            |branch| branch.is_some(),
+        )?;
 
         match matched {
-            Ok(Answer::Ready(Some(branch))) => {
-                self.commit_probe(probe);
+            Answer::Ready(Some(branch)) => Ok(Some(branch)),
+            Answer::Ready(None) => Ok(Some(else_type)),
+            Answer::Pending(dependencies) if dependencies.is_empty() => Ok(Some(else_type)),
+            Answer::Pending(dependencies) => {
+                blockers.extend(dependencies);
 
-                Ok(Some(branch))
-            }
-            Ok(Answer::Ready(None)) => {
-                self.reject_probe(probe);
-
-                Ok(Some(else_type))
-            }
-            Ok(Answer::Pending(dependencies)) => {
-                self.reject_probe(probe);
-                let live_blockers = self.live_blockers(dependencies);
-                if live_blockers.is_empty() {
-                    Ok(Some(else_type))
-                } else {
-                    blockers.extend(live_blockers);
-
-                    Ok(None)
-                }
-            }
-            Err(error) => {
-                self.reject_probe(probe);
-
-                Err(error)
+                Ok(None)
             }
         }
     }
@@ -453,6 +437,15 @@ impl CheckState<'_> {
                     &actual_elements,
                 )
             }
+            (dir::Type::Shape(pattern), dir::Type::Shape(actual)) => self.match_infer_shape(
+                origin,
+                captures,
+                variance,
+                pattern_module,
+                pattern,
+                actual_module,
+                actual,
+            ),
             (dir::Type::FunctionSignature(pattern), dir::Type::FunctionSignature(actual)) => self
                 .match_infer_function(
                     origin,
@@ -502,6 +495,159 @@ impl CheckState<'_> {
         for (pattern, actual) in pattern.iter().copied().zip(actual.iter().copied()) {
             decision =
                 decision.and(self.match_infer_type(origin, captures, variance, pattern, actual)?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Match structural shapes inside a conditional `infer` pattern.
+    fn match_infer_shape(
+        &mut self,
+        origin: Origin,
+        captures: &mut InferMatch,
+        variance: Variance,
+        pattern_module: ModuleId,
+        pattern: dir::ShapeType,
+        actual_module: ModuleId,
+        actual: dir::ShapeType,
+    ) -> CompilerResult<Answer<bool>> {
+        let pattern_fields = self.shape_fields(pattern_module, pattern.fields)?.to_vec();
+        let actual_fields = self.shape_fields(actual_module, actual.fields)?.to_vec();
+        let fields = self.match_infer_shape_fields(
+            origin,
+            captures,
+            variance,
+            &pattern_fields,
+            &actual_fields,
+        )?;
+        if !fields.is_ready_true() {
+            return Ok(fields);
+        }
+
+        let pattern_calls = self
+            .type_ids(pattern_module, pattern.call_signatures)?
+            .to_vec();
+        let actual_calls = self
+            .type_ids(actual_module, actual.call_signatures)?
+            .to_vec();
+        let calls =
+            self.match_infer_arguments(origin, captures, variance, &pattern_calls, &actual_calls)?;
+        if !calls.is_ready_true() {
+            return Ok(calls);
+        }
+
+        let pattern_constructs = self
+            .type_ids(pattern_module, pattern.construct_signatures)?
+            .to_vec();
+        let actual_constructs = self
+            .type_ids(actual_module, actual.construct_signatures)?
+            .to_vec();
+        let constructs = self.match_infer_arguments(
+            origin,
+            captures,
+            variance,
+            &pattern_constructs,
+            &actual_constructs,
+        )?;
+        if !constructs.is_ready_true() {
+            return Ok(constructs);
+        }
+
+        let pattern_indexes = self
+            .shape_index_signatures(pattern_module, pattern.index_signatures)?
+            .to_vec();
+        let actual_indexes = self
+            .shape_index_signatures(actual_module, actual.index_signatures)?
+            .to_vec();
+        self.match_infer_index_signatures(
+            origin,
+            captures,
+            variance,
+            &pattern_indexes,
+            &actual_indexes,
+        )
+    }
+
+    /// Match structural fields inside a conditional `infer` pattern.
+    fn match_infer_shape_fields(
+        &mut self,
+        origin: Origin,
+        captures: &mut InferMatch,
+        variance: Variance,
+        pattern: &[dir::TypeField],
+        actual: &[dir::TypeField],
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(true);
+        for pattern_field in pattern {
+            let actual_field = actual.iter().find(|field| field.key == pattern_field.key);
+            let Some(actual_field) = actual_field else {
+                if pattern_field.is_optional {
+                    continue;
+                }
+
+                return Ok(Answer::Ready(false));
+            };
+            if actual_field.is_optional && !pattern_field.is_optional {
+                return Ok(Answer::Ready(false));
+            }
+
+            decision = decision.and(self.match_infer_type(
+                origin,
+                captures,
+                variance,
+                pattern_field.ty,
+                actual_field.ty,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Match index signatures inside a conditional `infer` pattern.
+    fn match_infer_index_signatures(
+        &mut self,
+        origin: Origin,
+        captures: &mut InferMatch,
+        variance: Variance,
+        pattern: &[dir::TypeIndexSignature],
+        actual: &[dir::TypeIndexSignature],
+    ) -> CompilerResult<Answer<bool>> {
+        if pattern.len() != actual.len() {
+            return Ok(Answer::Ready(false));
+        }
+
+        let mut decision = Answer::Ready(true);
+        for (pattern, actual) in pattern.iter().zip(actual) {
+            if pattern.is_optional != actual.is_optional
+                || pattern.is_readonly != actual.is_readonly
+            {
+                return Ok(Answer::Ready(false));
+            }
+
+            decision = decision.and(self.match_infer_type(
+                origin,
+                captures,
+                variance,
+                pattern.key_type,
+                actual.key_type,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+
+            decision = decision.and(self.match_infer_type(
+                origin,
+                captures,
+                variance,
+                pattern.value_type,
+                actual.value_type,
+            )?);
             if decision.is_ready_false() {
                 return Ok(decision);
             }

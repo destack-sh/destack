@@ -18,6 +18,20 @@ impl CheckState<'_> {
         };
 
         match item {
+            // primitive representation classes are aliases in type space
+            dir::LanguageItem::String => {
+                let ty = dir::Type::Primitive(dir::PrimitiveType::String);
+                let ty = self.intern_type(origin.module(), ty)?;
+
+                Ok(Answer::Ready(Some(ty)))
+            }
+            dir::LanguageItem::BigInt => {
+                let ty = dir::Type::Primitive(dir::PrimitiveType::Bigint);
+                let ty = self.intern_type(origin.module(), ty)?;
+
+                Ok(Answer::Ready(Some(ty)))
+            }
+
             // reduce collection aliases to structural types
             dir::LanguageItem::Array => self.reduce_array_application(origin, module, instance),
             dir::LanguageItem::Slice => self.reduce_slice_application(origin, module, instance),
