@@ -287,8 +287,6 @@ impl CheckState<'_> {
     }
 
     /// Match one function signature inside an active candidate attempt.
-    /// The signature module owns the signature payload's interned lists;
-    /// the origin module owns the call's source nodes.
     fn match_signature(
         &mut self,
         origin: Origin,
@@ -378,6 +376,7 @@ impl CheckState<'_> {
             substitution.parameters.extend(opened.parameters);
             substitution.arguments.extend(opened.arguments);
         }
+        let substitution = substitution.with_carried(carried);
 
         // check written arguments against their declared bounds
         if !generic_parameters.is_empty() {
@@ -406,11 +405,10 @@ impl CheckState<'_> {
             }
         }
 
-        // prove template predicates under the composed call substitution,
-        // with the receiver bound so self predicates prove against it
+        // prove template predicates with the receiver bound for `this`
         let predicates = self.template_predicates(function.template);
         if !predicates.is_empty() {
-            let mut composed = substitution.with_carried(carried);
+            let mut composed = substitution.clone();
             if let Some(receiver) = receiver {
                 composed = composed.with_receiver(receiver);
             }
@@ -436,7 +434,6 @@ impl CheckState<'_> {
             let Some(steps) = answer!(self.constrain_receiver_argument(
                 origin,
                 module,
-                source,
                 receiver,
                 this_parameter,
             )?) else {

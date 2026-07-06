@@ -830,6 +830,7 @@ impl CheckState<'_> {
             | dir::Type::Union(_)
             | dir::Type::Variable(_)
             | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::Intersection(_) => true,
         };
 

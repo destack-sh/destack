@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, Decision, FlowSite, Origin, PlaceUse, Relation,
-    SubscriptProtocol, ValueUse, answer,
+    Answer, CheckState, Constraint, Decision, FlowSite, MemberCandidate, MemberLookup, Origin,
+    PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
 };
 
 /// One selected subscript operation.
@@ -185,14 +185,16 @@ impl CheckState<'_> {
         // reduce both operands before selection
         let receiver = answer!(self.reduce_type_head(origin, receiver)?);
         let receiver_type = self.readable_value(receiver)?;
+        let space = self.member_receiver_space(receiver_node, receiver)?;
         let index = answer!(self.reduce_type_head(origin, index)?);
 
-        let Some(selection) = answer!(self.index_selection(
+        let Some(selection) = answer!(self.select_subscript(
             origin,
             module,
             use_,
             receiver,
             receiver_type,
+            space,
             index_node,
             index,
         )?) else {
@@ -215,13 +217,14 @@ impl CheckState<'_> {
     }
 
     /// Select one subscript operation against one receiver type.
-    pub(in crate::check) fn index_selection(
+    pub(in crate::check) fn select_subscript(
         &mut self,
         origin: Origin,
         module: ModuleId,
         use_: PlaceUse,
         receiver: dir::GlobalTypeId,
         receiver_type: dir::GlobalTypeId,
+        space: dir::MemberSpace,
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
@@ -233,18 +236,33 @@ impl CheckState<'_> {
                 .generic_parameter(parameter)
                 .and_then(|binding| binding.constraint);
             if let Some(constraint) = constraint {
-                return self.index_selection(
-                    origin, module, use_, receiver, constraint, index_node, index,
+                return self.select_subscript(
+                    origin, module, use_, receiver, constraint, space, index_node, index,
                 );
             }
         }
 
+        // singleton keys use the same member lookup as dot access
+        if let Some(key) = self.static_key_from_type(index)?
+            && let Some(selection) = answer!(self.select_member_subscript(
+                origin,
+                module,
+                use_,
+                receiver,
+                receiver_type,
+                space,
+                key,
+            )?)
+        {
+            return Ok(Answer::Ready(Some(selection)));
+        }
+
         match self.ty(receiver_type)? {
             dir::Type::Tuple(tuple) => {
-                self.tuple_index_selection(receiver, receiver_type.module_id, index, use_, tuple)
+                self.select_tuple_subscript(receiver, receiver_type.module_id, index, use_, tuple)
             }
             dir::Type::Shape(shape) => {
-                self.shape_index_selection(origin, receiver, receiver_type, index, use_, &shape)
+                self.select_shape_subscript(origin, receiver, receiver_type, index, use_, &shape)
             }
             dir::Type::Instance(_)
             | dir::Type::Reference(_)
@@ -254,7 +272,7 @@ impl CheckState<'_> {
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Primitive(_)
-            | dir::Type::Literal(_) => self.protocol_index_selection(
+            | dir::Type::Literal(_) => self.select_protocol_subscript(
                 origin,
                 module,
                 use_,
@@ -279,13 +297,15 @@ impl CheckState<'_> {
         let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
         let index = answer!(self.reduce_type_head(origin, index)?);
         let receiver_type = self.readable_value(receiver)?;
+        let space = dir::MemberSpace::Instance;
 
-        let Some(selection) = answer!(self.index_selection(
+        let Some(selection) = answer!(self.select_subscript(
             origin,
             module,
             PlaceUse::Read,
             receiver,
             receiver_type,
+            space,
             index_node,
             index,
         )?) else {
@@ -301,8 +321,83 @@ impl CheckState<'_> {
         Ok(Answer::Ready(selection.into_read_projection(index_node)))
     }
 
+    /// Select one static-key subscript through member lookup.
+    fn select_member_subscript(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        use_: PlaceUse,
+        receiver: dir::GlobalTypeId,
+        lookup_receiver: dir::GlobalTypeId,
+        space: dir::MemberSpace,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
+        let lookup = answer!(self.lookup_member(origin, module, lookup_receiver, space, key)?);
+
+        match lookup {
+            MemberLookup::Field(ty) => Ok(Answer::Ready(Some(SubscriptSelection::member(
+                use_,
+                dir::MemberResolution::new(receiver, dir::MemberTarget::Field(key)),
+                ty,
+            )))),
+            MemberLookup::Found(candidates) => self.select_member_candidate_subscript(
+                module,
+                use_,
+                receiver,
+                lookup_receiver,
+                candidates,
+            ),
+            MemberLookup::Missing => Ok(Answer::Ready(None)),
+        }
+    }
+
+    /// Select declaration-backed members for one static-key subscript.
+    fn select_member_candidate_subscript(
+        &mut self,
+        module: ModuleId,
+        use_: PlaceUse,
+        receiver: dir::GlobalTypeId,
+        lookup_receiver: dir::GlobalTypeId,
+        candidates: Vec<MemberCandidate>,
+    ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
+        if use_ != PlaceUse::Read {
+            return Ok(Answer::Ready(None));
+        }
+
+        // collect readable member candidates
+        let mut resolution_candidates = Vec::new();
+        let mut types = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            if !candidate.role.is_readable() {
+                continue;
+            }
+            types.push(candidate.ty);
+            let Some(candidate) = candidate.resolution_candidate(receiver) else {
+                continue;
+            };
+            resolution_candidates.push(candidate);
+        }
+
+        if resolution_candidates.is_empty() {
+            return Ok(Answer::Ready(None));
+        }
+
+        // union receivers require every runtime arm to expose the member
+        let target = if matches!(self.ty(lookup_receiver)?, dir::Type::Union(_)) {
+            dir::MemberTarget::Universal(resolution_candidates)
+        } else {
+            dir::MemberTarget::Existential(resolution_candidates)
+        };
+        let ty = self.normalized_union_type(module, types)?;
+        let resolution = dir::MemberResolution::new(receiver, target);
+
+        Ok(Answer::Ready(Some(SubscriptSelection::member(
+            use_, resolution, ty,
+        ))))
+    }
+
     /// Select one tuple element by literal position.
-    fn tuple_index_selection(
+    fn select_tuple_subscript(
         &self,
         receiver: dir::GlobalTypeId,
         module: ModuleId,
@@ -327,7 +422,7 @@ impl CheckState<'_> {
     }
 
     /// Select one structural field or index signature.
-    fn shape_index_selection(
+    fn select_shape_subscript(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -409,7 +504,7 @@ impl CheckState<'_> {
     }
 
     /// Select one protocol-backed subscript operation.
-    fn protocol_index_selection(
+    fn select_protocol_subscript(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -420,7 +515,7 @@ impl CheckState<'_> {
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         match use_ {
-            PlaceUse::Read => self.read_index_selection(
+            PlaceUse::Read => self.select_subscript_read(
                 origin,
                 module,
                 receiver,
@@ -428,7 +523,7 @@ impl CheckState<'_> {
                 index_node,
                 index,
             ),
-            PlaceUse::Write => self.write_index_selection(
+            PlaceUse::Write => self.select_subscript_write(
                 origin,
                 module,
                 receiver,
@@ -436,7 +531,7 @@ impl CheckState<'_> {
                 index_node,
                 index,
             ),
-            PlaceUse::Update => self.update_index_selection(
+            PlaceUse::Update => self.select_subscript_update(
                 origin,
                 module,
                 receiver,
@@ -448,7 +543,7 @@ impl CheckState<'_> {
     }
 
     /// Select one protocol-backed subscript read.
-    fn read_index_selection(
+    fn select_subscript_read(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -489,7 +584,7 @@ impl CheckState<'_> {
     ///
     /// Compound assignment reads through `index` and writes the
     /// operator result back through `indexSet`.
-    fn update_index_selection(
+    fn select_subscript_update(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -498,7 +593,7 @@ impl CheckState<'_> {
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
-        let read = answer!(self.read_index_selection(
+        let read = answer!(self.select_subscript_read(
             origin,
             module,
             receiver,
@@ -506,7 +601,7 @@ impl CheckState<'_> {
             index_node,
             index,
         )?);
-        let write = answer!(self.write_index_selection(
+        let write = answer!(self.select_subscript_write(
             origin,
             module,
             receiver,
@@ -535,7 +630,7 @@ impl CheckState<'_> {
     }
 
     /// Select one protocol-backed subscript write.
-    fn write_index_selection(
+    fn select_subscript_write(
         &mut self,
         origin: Origin,
         module: ModuleId,

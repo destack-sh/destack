@@ -116,7 +116,6 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
-                    false,
                     pass,
                 )?;
             }
@@ -126,7 +125,6 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
-                    !declaration.implements_types.is_empty(),
                     pass,
                 )?;
             }
@@ -136,7 +134,6 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
-                    !declaration.implements_types.is_empty(),
                     pass,
                 )?;
             }
@@ -146,7 +143,6 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
-                    !declaration.implements_types.is_empty(),
                     pass,
                 )?;
             }
@@ -156,7 +152,6 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
-                    true,
                     pass,
                 )?;
             }
@@ -166,7 +161,6 @@ impl WalkState<'_, '_> {
                     id,
                     &declaration.generic_parameters,
                     &declaration.where_clauses,
-                    false,
                     pass,
                 )?;
             }
@@ -192,7 +186,6 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         parameters: &[dir::LocalNodeId<dir::GenericParameter>],
         where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
-        assumes: bool,
         pass: TemplatePass,
     ) -> CompilerResult<()> {
         let Some(symbol) = self
@@ -204,12 +197,10 @@ impl WalkState<'_, '_> {
         };
         let source = id.into_global_any(self.module);
 
-        // declare identities first so bounds may reference any template;
-        // declarations without parameters still own a template when
-        // they home assumptions like heritage or where clauses
+        // declare identities first so bounds may reference any template
         if pass == TemplatePass::Declare {
             let template = self.open_generic_template(source, None, Some(symbol), parameters)?;
-            if template.is_none() && (assumes || !where_clauses.is_empty()) {
+            if template.is_none() && !where_clauses.is_empty() {
                 self.check
                     .open_generic_template(source, None, Some(symbol))?;
             }

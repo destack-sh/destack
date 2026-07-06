@@ -57,6 +57,41 @@ impl CheckState<'_> {
                 Some(self.decide_readonly_assignable(origin, source, target_form.value)?),
             ),
 
+            // borrowed forms bind lifetime and access slots before payloads
+            (
+                dir::Type::Form(dir::FormType {
+                    form:
+                        dir::Form::Borrowed {
+                            lifetime: source_lifetime,
+                            access: source_access,
+                        },
+                    value: source_value,
+                }),
+                dir::Type::Form(dir::FormType {
+                    form:
+                        dir::Form::Borrowed {
+                            lifetime: target_lifetime,
+                            access: target_access,
+                        },
+                    value: target_value,
+                }),
+            ) => {
+                self.push_lifetime_lower_bound_if_open(origin, source_lifetime, target_lifetime)?;
+                self.push_lifetime_lower_bound_if_open(origin, target_lifetime, source_lifetime)?;
+                let access =
+                    self.constrain_access_assignable(origin, source_access, target_access)?;
+                if !access.is_ready_true() {
+                    return Ok(Some(access));
+                }
+
+                Ok(Some(self.constrain(
+                    origin,
+                    Relation::Assignable,
+                    source_value,
+                    target_value,
+                )?))
+            }
+
             // memory forms check constructor then payload
             (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
                 let constructor =
@@ -221,5 +256,21 @@ impl CheckState<'_> {
             // symbolic accesses compare exactly
             _ => self.decide_relation(origin, Relation::Equal, source, target),
         }
+    }
+
+    /// Constrain whether one borrow access satisfies a required access.
+    fn constrain_access_assignable(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let source = self.settled_root(source)?;
+        let target = self.settled_root(target)?;
+        if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
+            return self.constrain(origin, Relation::Assignable, source, target);
+        }
+
+        self.decide_access_assignable(origin, source, target)
     }
 }

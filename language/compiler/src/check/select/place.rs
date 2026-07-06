@@ -176,12 +176,14 @@ impl CheckState<'_> {
                 let index_site = self.node_site(index_node)?;
                 let index = answer!(self.infer_node_type(index_site, PlaceUse::Read)?);
                 let receiver_type = self.readable_value(receiver)?;
-                let Some(selection) = answer!(self.index_selection(
+                let space = self.member_receiver_space(receiver_node, receiver)?;
+                let Some(selection) = answer!(self.select_subscript(
                     origin,
                     module,
                     use_,
                     receiver,
                     receiver_type,
+                    space,
                     index_node,
                     index,
                 )?) else {

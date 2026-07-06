@@ -1,9 +1,10 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowSite, Obligation, OperatorOperands, Origin,
-    PlaceUse, Relation, RuntimePredicateObligation, answer, membership_operator_protocol,
+    Answer, CheckState, Decision, Dependency, FlowSite, Obligation, Origin, PlaceUse, Relation,
+    RuntimePredicateObligation, answer,
 };
 
 impl CheckState<'_> {
@@ -24,7 +25,7 @@ impl CheckState<'_> {
         // reduce the tested value and target types
         let value_site = self.node_site(value_node)?;
         let value = answer!(self.predicate_operand_type(origin, value_site)?);
-        let target = answer!(self.committed_node_type(target_node)?);
+        let target = answer!(self.node_type(target_node)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
         let predicate = answer!(self.select_guard_predicate(origin, value, target, target_node)?);
 
@@ -55,51 +56,24 @@ impl CheckState<'_> {
         let value_site = self.node_site(value_node)?;
         let value = answer!(self.predicate_operand_type(origin, value_site)?);
 
-        // wait until the target expression resolves its declaration
-        let target = match self.decision(target_node) {
-            Some(Decision::Name(resolution)) => match resolution.symbols() {
-                [symbol] => Some((*symbol, Vec::new())),
-                _ => None,
-            },
-            Some(Decision::Instantiation(resolution)) => {
-                let arguments = dir::GenericArgumentBinding::values(&resolution.generic_arguments)
-                    .collect::<Vec<_>>();
-
-                Some((resolution.symbol, arguments))
-            }
-            Some(Decision::Rejected) => {
-                self.commit_decision(node, Decision::Rejected)?;
-                self.commit_error_node(node)?;
-
-                return Ok(Answer::Ready(()));
-            }
-            Some(_) | None => return Ok(Answer::pending([Dependency::Decision(target_node)])),
-        };
-
-        // reject targets that do not name one class declaration
-        let Some((target, arguments)) = target else {
-            self.report_instanceof_target_not_class(target_node)?;
-            self.commit_decision(node, Decision::Rejected)?;
-            self.commit_error_node(node)?;
-
-            return Ok(Answer::Ready(()));
-        };
-        if self.symbol_kind(target) != dir::SymbolKind::Class {
-            self.report_instanceof_target_not_class(target_node)?;
+        // reject failed target expressions without a second diagnostic
+        if matches!(self.decision(target_node), Some(Decision::Rejected)) {
             self.commit_decision(node, Decision::Rejected)?;
             self.commit_error_node(node)?;
 
             return Ok(Answer::Ready(()));
         }
 
-        let arguments = self.intern_type_ids(module, &arguments)?;
-        let target_type = self.intern_type(
-            module,
-            dir::Type::Instance(dir::GenericInstance {
-                symbol: target,
-                arguments,
-            }),
-        )?;
+        // resolve the class target after name and instantiation selection
+        let Some((target, target_type)) =
+            answer!(self.instanceof_target_type(origin, target_node)?)
+        else {
+            self.report_instanceof_target_not_class(target_node)?;
+            self.commit_decision(node, Decision::Rejected)?;
+            self.commit_error_node(node)?;
+
+            return Ok(Answer::Ready(()));
+        };
         let predicate = answer!(self.unary_predicate(
             origin,
             value,
@@ -115,6 +89,72 @@ impl CheckState<'_> {
         });
 
         self.commit_predicate(origin, node, value_node, target_node, resolution)
+    }
+
+    /// Return the class instance type named by one `instanceof` target.
+    pub(in crate::check) fn instanceof_target_type(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Answer<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>>> {
+        let module = origin.module();
+        let Some(decision) = self.decision(target).cloned() else {
+            return Ok(Answer::pending([Dependency::Decision(target)]));
+        };
+
+        // read the selected target symbol and written arguments
+        let target = match decision {
+            Decision::Name(resolution) => match resolution.symbols() {
+                [symbol] => Some((*symbol, None)),
+                _ => None,
+            },
+            Decision::Instantiation(resolution) => {
+                let arguments = dir::GenericArgumentBinding::values(&resolution.generic_arguments)
+                    .collect::<Vec<_>>();
+
+                Some((resolution.symbol, Some(arguments)))
+            }
+            Decision::Rejected => return Ok(Answer::Ready(None)),
+            _ => None,
+        };
+        let Some((symbol, arguments)) = target else {
+            return Ok(Answer::Ready(None));
+        };
+        if self.symbol_kind(symbol) != dir::SymbolKind::Class {
+            return Ok(Answer::Ready(None));
+        }
+
+        // bare generic class targets are existential over their type arguments
+        let arguments = match arguments {
+            Some(arguments) => arguments,
+            None => self.instanceof_erased_arguments(module, symbol)?,
+        };
+        let arguments = self.intern_type_ids(module, &arguments)?;
+        let target = self.intern_type(
+            module,
+            dir::Type::Instance(dir::GenericInstance { symbol, arguments }),
+        )?;
+
+        Ok(Answer::Ready(Some((symbol, target))))
+    }
+
+    /// Return erased arguments for one bare `instanceof` class target.
+    fn instanceof_erased_arguments(
+        &mut self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let Some(template) = self.symbol_template(symbol) else {
+            return Ok(Vec::new());
+        };
+        let parameters = self.generic_template_parameters(template);
+        let mut arguments = Vec::with_capacity(parameters.len());
+        for parameter in parameters {
+            let argument = self.intern_type(module, dir::Type::Erased(parameter))?;
+            arguments.push(argument);
+        }
+
+        Ok(arguments)
     }
 
     /// Select one `key in value` predicate.
@@ -137,32 +177,9 @@ impl CheckState<'_> {
         let key_type = answer!(self.predicate_operand_type(origin, key_site)?);
         let receiver_type = answer!(self.predicate_operand_type(origin, receiver_site)?);
         let key = self.module(module).view().get(key).static_key();
-        let is_nominal_receiver =
-            answer!(self.is_nominal_membership_receiver(origin, receiver_type)?);
 
-        // select protocol membership for nominal receivers
-        let predicate = if is_nominal_receiver {
-            let Some(resolution) =
-                answer!(self.select_has_operator(origin, receiver_type, key_type, key_node)?)
-            else {
-                let operands = [key_type, receiver_type];
-                self.report_no_matching_operator(
-                    origin,
-                    "in".to_string(),
-                    OperatorOperands::Types(&operands),
-                )?;
-                self.commit_decision(node, Decision::Rejected)?;
-                self.commit_error_node(node)?;
-
-                return Ok(Answer::Ready(()));
-            };
-
-            dir::Predicate::new(dir::PredicateTest::Call(resolution))
-        }
-        // select structural membership for structural receivers
-        else {
-            answer!(self.has_predicate(origin, receiver_type, key_type, key)?)
-        };
+        // select visible structural membership
+        let predicate = answer!(self.membership_predicate(origin, receiver_type, key_type, key)?);
 
         let resolution = dir::GuardResolution::In(dir::InGuardResolution {
             key_type,
@@ -171,61 +188,6 @@ impl CheckState<'_> {
         });
 
         self.commit_predicate(origin, node, key_node, receiver_node, resolution)
-    }
-
-    /// Select one custom `Has<K>` membership implementation.
-    fn select_has_operator(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        key: dir::GlobalTypeId,
-        key_node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
-        let module = origin.module();
-        let key_type = self.widen_type(key)?;
-        let protocol = self.language_protocol(dir::LanguageItem::Has, vec![key_type]);
-        let method = membership_operator_protocol().method;
-        let key = method.key(&self.module(module).strings);
-        let arguments = [key_type];
-        let sources = [dir::ArgumentSource::Provided(key_node)];
-        let Some(call) = answer!(self.select_protocol_call(
-            origin, receiver, receiver, key, &protocol, &arguments, &sources
-        )?) else {
-            return Ok(Answer::Ready(None));
-        };
-        let boolean =
-            self.intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-        let accepts = answer!(self.decide_relation(
-            origin,
-            Relation::Assignable,
-            call.return_type,
-            boolean
-        )?);
-
-        if accepts {
-            Ok(Answer::Ready(Some(call.resolution)))
-        } else {
-            Ok(Answer::Ready(None))
-        }
-    }
-
-    /// Return whether one membership receiver requires `Has`.
-    fn is_nominal_membership_receiver(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        let receiver = answer!(self.reduce_type_head(origin, receiver)?);
-
-        let result = match self.ty(receiver)? {
-            dir::Type::Instance(_) => true,
-            dir::Type::Form(form) => {
-                answer!(self.is_nominal_membership_receiver(origin, form.value)?)
-            }
-            _ => false,
-        };
-
-        Ok(Answer::Ready(result))
     }
 
     /// Return one predicate operand type.
@@ -345,6 +307,7 @@ impl CheckState<'_> {
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::This
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
@@ -447,7 +410,7 @@ impl CheckState<'_> {
     }
 
     /// Return one structural membership predicate.
-    fn has_predicate(
+    fn membership_predicate(
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
@@ -461,8 +424,8 @@ impl CheckState<'_> {
             Some(key) => dir::PredicateKey::Static(key),
             None => dir::PredicateKey::Dynamic(dir::PredicateOperand::new(key_type)),
         };
-        let test = dir::PredicateHasTest { receiver, key };
-        let predicate = dir::Predicate::new(dir::PredicateTest::Has(test));
+        let test = dir::PredicateMembershipTest { receiver, key };
+        let predicate = dir::Predicate::new(dir::PredicateTest::Membership(test));
 
         let Some(key) = static_key else {
             return Ok(Answer::Ready(predicate));

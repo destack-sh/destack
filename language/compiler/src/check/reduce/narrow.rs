@@ -22,13 +22,6 @@ impl CheckState<'_> {
             source = answer!(self.reduce_type_head(origin, backing)?);
         }
 
-        // narrow parameters through their first declared bound
-        if let dir::Type::Parameter(parameter) = self.ty(source)?
-            && let Some(bound) = self.parameter_bounds(origin, parameter)?.first().copied()
-        {
-            source = answer!(self.reduce_type_head(origin, bound)?);
-        }
-
         // narrow the payload beneath memory forms, then rebuild the forms
         if matches!(self.ty(source)?, dir::Type::Form(_)) {
             let value = answer!(self.value_beneath_forms(origin, source)?);
@@ -58,7 +51,7 @@ impl CheckState<'_> {
             dir::Type::Union(union) => {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
             }
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(Answer::Ready(None)),
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
             // stuck operations wait for their blocking variables
             dir::Type::Operation(_) => {
                 let variables = self.type_variables(source)?;
@@ -141,8 +134,11 @@ impl CheckState<'_> {
         // top-like source arms take the target on matching branches
         let is_top_like =
             answer!(self.decide_relation(origin, Relation::Assignable, target, source)?);
+        let can_preserve_intersection = self.can_preserve_intersection_narrowing(source, target)?;
         let narrowed = if is_positive && is_top_like {
             target
+        } else if is_positive && can_preserve_intersection {
+            self.normalized_intersection_type(module, [source, target])?
         } else if is_positive {
             self.intern_type(module, dir::Type::Never)?
         } else {
@@ -150,5 +146,23 @@ impl CheckState<'_> {
         };
 
         Ok(Answer::Ready(narrowed))
+    }
+
+    /// Return whether positive narrowing may need to keep both relation sides.
+    fn can_preserve_intersection_narrowing(
+        &self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let source_type = self.ty(source)?;
+        let target_type = self.ty(target)?;
+
+        Ok(matches!(
+            source_type,
+            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::Variable(_)
+        ) || matches!(
+            target_type,
+            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::Variable(_)
+        ))
     }
 }

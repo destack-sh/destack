@@ -62,7 +62,7 @@ impl CheckState<'_> {
             | dir::Type::FunctionSignature(_)
             | dir::Type::Function(_)
             | dir::Type::Union(_) => Ok(Answer::Ready(false)),
-            dir::Type::Parameter(parameter) => {
+            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
                 // prove through declared or assumed bounds
                 let mut decision = Answer::Ready(false);
                 for bound in self.parameter_bounds(origin, parameter)? {
