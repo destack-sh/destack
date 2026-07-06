@@ -256,6 +256,8 @@ declare const value: unknown;
 /// @type.symbol symbol=value source=value type=unknown
 
 const ok = value instanceof Named;
+/// @type.symbol symbol=ok source=ok type=<error>
+/// @type.node source="value instanceof Named" type=<error>
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @type.node source=Named type=Named
@@ -309,6 +311,178 @@ const ok = value instanceof User;
         r#"
 /// @diagnostic.error code=EC318 message="type 'string' can never be an instance of 'User'"
 /// @diagnostic.label line=5 column=12 span="value" line_source="const ok = value instanceof User;"
+"#,
+    );
+}
+
+#[test]
+fn test_instanceof_narrows_generic_value_to_intersection() {
+    let session = TestSession::single(
+        r#"
+class Deferred<T> {
+    then(callback: (value: T) => void): void {}
+}
+
+function adopt<T>(value: T): void {
+    if (value instanceof Deferred) {
+        value.then((value) => {});
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Deferred<T> {
+    then(callback: (arg0: T) => void): void {}
+}
+
+function adopt<T>(value: T): void {
+    if (value instanceof Deferred) {
+        value.then((value): void => {});
+    }
+}
+
+=== checked ===
+class Deferred<T> {
+/// @generic.template symbol=Deferred parameters=(T#1)
+/// @type.symbol symbol=Deferred type=Deferred
+/// @definition.class symbol=Deferred template=(T#1)
+/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, Function<(T#1,), void>) => void
+/// @type.symbol symbol=Deferred.T source=T type=T#1
+
+    then(callback: (value: T) => void): void {}
+    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: Deferred<T#1>, Function<(T#1,), void>) => void
+    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @resolution.name source=T target=Deferred.T
+
+}
+
+function adopt<T>(value: T): void {
+/// @generic.template symbol=adopt parameters=(T#2)
+/// @type.symbol symbol=adopt type=<T#2>(T#2) => void
+/// @type.symbol symbol=adopt.T source=T type=T#2
+/// @type.symbol symbol=adopt.value source="value: T" type=T#2
+/// @resolution.name source=T target=adopt.T
+
+    if (value instanceof Deferred) {
+    /// @type.node source="value instanceof Deferred" type=boolean
+    /// @type.node source=value type=T#2
+    /// @resolution.name source=value target=adopt.value
+    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 target=Deferred target_type=Deferred<*> predicate="T#2 is subtype(Deferred<*>)" narrowed=Deferred<*>
+    /// @type.node source=Deferred type=Deferred
+    /// @resolution.name source=Deferred target=Deferred
+
+        value.then((value) => {});
+        /// @type.node source="value.then((value) => {})" type=void
+        /// @type.node source=value type=T#2 & Deferred<*>
+        /// @type.node source=value.then type=(this: Deferred<*>, Function<(*,), void>) => void
+        /// @resolution.name source=value target=adopt.value
+        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> kind=symbol target=Deferred.then
+        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*>
+        /// @generic.instance source=value id=Deferred<*>
+        /// @generic.instance source=value.then id=Deferred<*>
+        /// @type.symbol symbol=adopt.symbol9 source="(value) => {}" type=Function<(*,), void>
+        /// @type.node source="(value) => {}" type=Function<(*,), void>
+        /// @type.symbol symbol=adopt.symbol9.value source=value type=*
+
+    }
+}
+
+/// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
+/// @generic.instance id=Deferred<T#1> template=Deferred arguments=(T#1)
+"#,
+    );
+}
+
+#[test]
+fn test_instanceof_narrows_generic_union_arm() {
+    let session = TestSession::single(
+        r#"
+class Deferred<T> {
+    then(callback: (value: T) => void): void {}
+}
+
+function adopt<T>(value: T | Deferred<T>): void {
+    if (value instanceof Deferred) {
+        value.then((value) => {});
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Deferred<T> {
+    then(callback: (arg0: T) => void): void {}
+}
+
+function adopt<T>(value: T | Deferred<T>): void {
+    if (value instanceof Deferred) {
+        value.then((value): void => {});
+    }
+}
+
+=== checked ===
+class Deferred<T> {
+/// @generic.template symbol=Deferred parameters=(T#1)
+/// @type.symbol symbol=Deferred type=Deferred
+/// @definition.class symbol=Deferred template=(T#1)
+/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, Function<(T#1,), void>) => void
+/// @type.symbol symbol=Deferred.T source=T type=T#1
+
+    then(callback: (value: T) => void): void {}
+    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: Deferred<T#1>, Function<(T#1,), void>) => void
+    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @resolution.name source=T target=Deferred.T
+
+}
+
+function adopt<T>(value: T | Deferred<T>): void {
+/// @generic.template symbol=adopt parameters=(T#2)
+/// @type.symbol symbol=adopt type=<T#2>(T#2 | Deferred<T#2>) => void
+/// @type.symbol symbol=adopt.T source=T type=T#2
+/// @type.symbol symbol=adopt.value source="value: T | Deferred<T>" type=T#2 | Deferred<T#2>
+/// @resolution.name source=T target=adopt.T
+/// @resolution.name source=Deferred target=Deferred
+/// @resolution.name source=T target=adopt.T
+
+    if (value instanceof Deferred) {
+    /// @type.node source="value instanceof Deferred" type=boolean
+    /// @type.node source=value type=T#2 | Deferred<T#2>
+    /// @resolution.name source=value target=adopt.value
+    /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Deferred<*>
+    /// @generic.instance source=value id=Deferred<T#2>
+    /// @type.node source=Deferred type=Deferred
+    /// @resolution.name source=Deferred target=Deferred
+
+        value.then((value) => {});
+        /// @type.node source="value.then((value) => {})" type=void
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
+        /// @type.node source=value.then type=(this: Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void
+        /// @resolution.name source=value target=adopt.value
+        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> | Deferred<T#2> kind=universal targets=[Deferred.then, Deferred.then]
+        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=universal targets=[Deferred.then, Deferred.then]
+        /// @generic.instance source=value id=Deferred<*>
+        /// @generic.instance source=value id=Deferred<T#2>
+        /// @generic.instance source=value.then id=Deferred<*>
+        /// @generic.instance source=value.then id=Deferred<T#2>
+        /// @type.symbol symbol=adopt.symbol9 source="(value) => {}" type=Function<(* | T#2,), void>
+        /// @type.node source="(value) => {}" type=Function<(* | T#2,), void>
+        /// @type.symbol symbol=adopt.symbol9.value source=value type=* | T#2
+
+    }
+}
+
+/// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
+/// @generic.instance id=Deferred<T#1> template=Deferred arguments=(T#1)
+/// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
 "#,
     );
 }

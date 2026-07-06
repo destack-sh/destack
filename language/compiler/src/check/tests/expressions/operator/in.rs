@@ -32,7 +32,7 @@ const hasX = "x" in point;
 /// @type.symbol symbol=hasX source=hasX type=boolean
 /// @type.node source="\"x\" in point" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: float64; y: float64 } predicate="has({ x: float64; y: float64 }, x)" narrowed={ x: float64; y: float64 }
+/// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, x)" narrowed={ x: float64; y: float64 }
 /// @type.node source=point type={ x: float64; y: float64 }
 /// @resolution.name source=point target=point
 
@@ -76,7 +76,7 @@ const hasName = "name" in point;
 /// @type.symbol symbol=hasName source=hasName type=boolean
 /// @type.node source="\"name\" in point" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: float64; y: float64 } predicate="has({ x: float64; y: float64 }, name)" narrowed=never
+/// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: float64; y: float64 } predicate="membership({ x: float64; y: float64 }, name)" narrowed=never
 /// @type.node source=point type={ x: float64; y: float64 }
 /// @resolution.name source=point target=point
 
@@ -89,10 +89,10 @@ hasName satisfies boolean;
 }
 
 #[test]
-fn test_in_dispatches_to_has_for_nominal_receiver() {
+fn test_in_uses_structural_membership_for_nominal_receiver() {
     let session = TestSession::single(
         r#"
-class Bag implements Has<string> {
+class Bag {
     has(key: &readonly string): boolean {
         return true;
     }
@@ -110,7 +110,7 @@ found satisfies boolean;
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Bag implements Has<string> {
+class Bag {
     has(key: Borrowed<string, L0, "readonly">): boolean {
         return true;
     }
@@ -122,17 +122,15 @@ const found: boolean = "name" in bag;
 found satisfies boolean;
 
 === checked ===
-class Bag implements Has<string> {
+class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.implements symbol=Bag source=Has<string> target=ops.subscript.Has arguments=(string)
-/// @definition.method symbol=Bag.has slot=has type=<comptime has.L0: Lifetime>(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
-/// @resolution.name source=Has target=ops.subscript.Has
+/// @definition.method symbol=Bag.has slot=has type=<comptime Bag.has.L0: Lifetime>(this: Bag, Borrowed<string, Bag.has.L0, "readonly">) => boolean
 
     has(key: &readonly string): boolean {
-    /// @generic.template symbol=Bag.has parameters=(comptime L0: Lifetime origin=induced.form)
-    /// @type.symbol symbol=Bag.has type=<comptime has.L0: Lifetime>(this: Bag, Borrowed<string, has.L0, "readonly">) => boolean
-    /// @type.symbol symbol=key source="key: &readonly string" type=Borrowed<string, has.L0, "readonly">
+    /// @generic.template symbol=Bag.has parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Bag.has type=<comptime Bag.has.L0: Lifetime>(this: Bag, Borrowed<string, Bag.has.L0, "readonly">) => boolean
+    /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=Borrowed<string, Bag.has.L0, "readonly">
 
         return true;
         /// @type.node source=true type=true
@@ -148,8 +146,7 @@ const found = "name" in bag;
 /// @type.symbol symbol=found source=found type=boolean
 /// @type.node source="\"name\" in bag" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate=call(Bag.has)
-/// @generic.instance source="\"name\" in bag" id="Bag.has<\"frame\">"
+/// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate="membership(Bag, name)" narrowed=never
 /// @type.node source=bag type=Bag
 /// @resolution.name source=bag target=bag
 
@@ -157,14 +154,12 @@ found satisfies boolean;
 /// @type.node source="found satisfies boolean" type=boolean
 /// @type.node source=found type=boolean
 /// @resolution.name source=found target=found
-
-/// @generic.instance id="Bag.has<\"frame\">" template=Bag.has arguments=("frame")
 "#,
     );
 }
 
 #[test]
-fn test_in_rejects_nominal_receiver_without_has() {
+fn test_in_accepts_nominal_receiver_field() {
     let session = TestSession::single(
         r#"
 declare class User {
@@ -177,7 +172,7 @@ declare const user: User;
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics(
+    session.assert_dir_checked(
         "main.ds",
         DirRows::checked().with_reference_types(),
         r#"
@@ -206,13 +201,11 @@ declare const user: User;
 /// @resolution.name source=User target=User
 
 "name" in user;
+/// @type.node source="\"name\" in user" type=boolean
 /// @type.node source="\"name\"" type="name"
+/// @resolution.guard source="\"name\" in user" kind=in key_type="name" receiver=User predicate="membership(User, name)" narrowed=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-"#,
-        r#"
-/// @diagnostic.error code=EC306 message="operator 'in' is not defined for '\"name\"' and 'User'"
-/// @diagnostic.label line=8 column=8 span="in" line_source="\"name\" in user;"
 "#,
     );
 }
@@ -263,8 +256,8 @@ declare const value: Named | Numbered;
 if ("name" in value) {
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="has(Named | Numbered, name)" narrowed={ name: string }
-/// @type.node source=value type={ name: string } | { id: int32 }
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
+/// @type.node source=value type=Named | Numbered
 /// @resolution.name source=value target=value
 
     value.name satisfies string;
@@ -273,6 +266,71 @@ if ("name" in value) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver={ name: string } kind=field key=name
+
+}
+"#,
+    );
+}
+
+#[test]
+fn test_in_narrows_negative_branch_by_property() {
+    let session = TestSession::single(
+        r#"
+type Named = { name: string };
+type Numbered = { id: int32 };
+
+declare const value: Named | Numbered;
+
+if ("name" in value) {
+} else {
+    value.id satisfies int32;
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+type Named = { name: string };
+type Numbered = { id: int32 };
+
+declare const value: Named | Numbered;
+
+if ("name" in value) {
+} else {
+    value.id satisfies int32;
+}
+
+=== checked ===
+type Named = { name: string };
+/// @type.symbol symbol=Named source="type Named = { name: string }" type={ name: string }
+/// @definition.type symbol=Named source="type Named = { name: string }" value={ name: string }
+
+type Numbered = { id: int32 };
+/// @type.symbol symbol=Numbered source="type Numbered = { id: int32 }" type={ id: int32 }
+/// @definition.type symbol=Numbered source="type Numbered = { id: int32 }" value={ id: int32 }
+
+declare const value: Named | Numbered;
+/// @type.symbol symbol=value source=value type=Named | Numbered
+/// @resolution.name source=Named target=Named
+/// @resolution.name source=Numbered target=Numbered
+
+if ("name" in value) {
+/// @type.node source="\"name\" in value" type=boolean
+/// @type.node source="\"name\"" type="name"
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
+/// @type.node source=value type=Named | Numbered
+/// @resolution.name source=value target=value
+
+} else {
+    value.id satisfies int32;
+    /// @type.node source="value.id satisfies int32" type=int32
+    /// @type.node source=value type={ id: int32 }
+    /// @type.node source=value.id type=int32
+    /// @resolution.name source=value target=value
+    /// @resolution.member source=value.id receiver={ id: int32 } kind=field key=id
 
 }
 "#,
@@ -298,7 +356,7 @@ fn test_in_rejects_primitive_receiver() {
 "x" in 1;
 /// @type.node source="\"x\" in 1" type=boolean
 /// @type.node source="\"x\"" type="x"
-/// @resolution.guard source="\"x\" in 1" kind=in key_type="x" receiver=1 predicate="has(1, x)" narrowed=never
+/// @resolution.guard source="\"x\" in 1" kind=in key_type="x" receiver=1 predicate="membership(1, x)" narrowed=never
 /// @type.node source=1 type=1
 "#,
         r#"
@@ -336,7 +394,7 @@ const point = { x: 1 };
 true in point;
 /// @type.node source="true in point" type=boolean
 /// @type.node source=true type=true
-/// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: float64 } predicate="has({ x: float64 }, true)"
+/// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: float64 } predicate="membership({ x: float64 }, true)"
 /// @type.node source=point type={ x: float64 }
 /// @resolution.name source=point target=point
 "#,
@@ -373,7 +431,7 @@ declare const value: unknown;
 "name" in value;
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="has(unknown, name)" narrowed={ name: unknown }
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="membership(unknown, name)" narrowed={ name: unknown }
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 "#,

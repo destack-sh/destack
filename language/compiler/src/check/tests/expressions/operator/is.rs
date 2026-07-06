@@ -66,7 +66,7 @@ if (value is { name: string }) {
 
 === checked ===
 declare const value: Dynamic<unknown>;
-/// @type.symbol symbol=value source=value type=memory.dynamic.Dynamic<unknown>
+/// @type.symbol symbol=value source=value type=Dynamic<unknown>
 /// @resolution.name source=Dynamic target=memory.dynamic.Dynamic
 
 if (value is { name: string }) {
@@ -74,10 +74,11 @@ if (value is { name: string }) {
 /// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate="Dynamic<unknown> is never"
+/// @generic.instance source=value id=Dynamic<unknown>
 
 }
 
-/// @generic.instance id=memory.dynamic.Dynamic<unknown> template=memory.dynamic.Dynamic arguments=(unknown)
+/// @generic.instance id=Dynamic<unknown> template=memory.dynamic.Dynamic arguments=(unknown)
 "#,
         r#"
 /// @diagnostic.error code=EC320 message="type '{ name: string }' cannot be tested at runtime"
@@ -269,12 +270,12 @@ function check<T>(value: unknown): void {
 /// @generic.template symbol=check parameters=(T)
 /// @type.symbol symbol=check type=<T>(unknown) => void
 /// @type.symbol symbol=check.T source=T type=T
-/// @type.symbol symbol=value source="value: unknown" type=unknown
+/// @type.symbol symbol=check.value source="value: unknown" type=unknown
 
     if (value is T) {
     /// @type.node source="value is T" type=boolean
     /// @type.node source=value type=unknown
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=check.value
     /// @resolution.guard source="value is T" kind=is value=unknown target=T predicate="unknown is never"
     /// @resolution.name source=T target=check.T
 
