@@ -467,7 +467,8 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: Default::default(),
-            memory: self.memory.clone(),
+            allocator: self.allocator.clone(),
+            shared_collector: self.shared_collector.clone(),
             state,
             lineage: self.lineage.clone(),
         })
@@ -485,7 +486,7 @@ impl World {
         let result = (|| {
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.state.trace.mode();
-            let collector = self.memory.shared_collector.clone();
+            let collector = self.shared_collector.clone();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
                 let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {
@@ -523,7 +524,8 @@ impl World {
                 host_queue: HostQueue::new(),
                 poller,
                 runtimes,
-                memory: self.memory.clone(),
+                allocator: self.allocator.clone(),
+                shared_collector: self.shared_collector.clone(),
                 state,
                 lineage: self.lineage.clone(),
             }))

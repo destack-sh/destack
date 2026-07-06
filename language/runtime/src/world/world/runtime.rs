@@ -23,8 +23,8 @@ impl World {
     ) -> RuntimeResult<RuntimeId> {
         let environment = environment.into();
         let mode = self.state.trace.mode();
-        let allocator = self.memory.allocator.clone();
-        let collector = self.memory.shared_collector.clone();
+        let allocator = self.allocator.clone();
+        let collector = self.shared_collector.clone();
         let world = &mut self.state;
         let mut runtime = Runtime::from_options_in_world(
             environment.clone(),
@@ -259,8 +259,8 @@ impl World {
             .iter()
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
             .collect();
-        let allocator = self.memory.allocator.clone();
-        let collector = self.memory.shared_collector.clone();
+        let allocator = self.allocator.clone();
+        let collector = self.shared_collector.clone();
 
         let runtime = Runtime::from_image(
             world,

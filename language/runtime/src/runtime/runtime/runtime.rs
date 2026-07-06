@@ -855,8 +855,8 @@ mod tests {
         program: Arc<program::Program>,
     ) -> RuntimeHeap {
         RuntimeHeap::new(
-            world.memory.allocator.clone(),
-            world.memory.shared_collector.clone(),
+            world.allocator.clone(),
+            world.shared_collector.clone(),
             options,
             program,
         )
