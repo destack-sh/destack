@@ -204,9 +204,9 @@ pub struct CallTarget {
 }
 
 impl CallTarget {
-    /// The function id names one imported function.
-    pub const IMPORT: Self = Self {
-        kind: CallTargetKind::Import,
+    /// The function id names one runtime binding.
+    pub const BINDING: Self = Self {
+        kind: CallTargetKind::Binding,
         index: 0,
     };
 
@@ -218,9 +218,9 @@ impl CallTarget {
         }
     }
 
-    /// Return whether this target names an import.
-    pub const fn is_import(self) -> bool {
-        matches!(self.kind, CallTargetKind::Import)
+    /// Return whether this target names a runtime binding.
+    pub const fn is_binding(self) -> bool {
+        matches!(self.kind, CallTargetKind::Binding)
     }
 
     /// Return the local function slot.
@@ -237,10 +237,10 @@ impl CallTarget {
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 enum CallTargetKind {
-    /// Function is imported.
+    /// Function is implemented by a runtime binding.
     #[default]
-    Import = 0,
-    /// Function is defined in local VM code.
+    Binding = 0,
+    /// Function has local VM code.
     Local = 1,
 }
 

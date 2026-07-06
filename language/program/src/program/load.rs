@@ -1,9 +1,9 @@
 use std::fmt;
 
-use ::serde::de::DeserializeOwned;
-use ::serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 use destack_core::{SectionDirectory, SectionImageError, SectionStorage};
-use destack_serde::{self as serde, Reflect, SchemaRef, SchemaRegistry};
+use destack_serde::{Reflect, SchemaRef, SchemaRegistry, from_slice, to_vec};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
 use super::Program;
 use crate::{
@@ -22,7 +22,7 @@ pub enum ProgramLoadError {
     /// Program bytes are not a supported program image.
     InvalidBytes(&'static str),
     /// Program bytes did not decode.
-    Codec(serde::Error),
+    Codec(destack_serde::Error),
     /// Program sections are malformed.
     Section(SectionImageError),
 }
@@ -40,9 +40,9 @@ impl fmt::Display for ProgramLoadError {
 
 impl std::error::Error for ProgramLoadError {}
 
-impl From<serde::Error> for ProgramLoadError {
+impl From<destack_serde::Error> for ProgramLoadError {
     /// Convert one codec error.
-    fn from(error: serde::Error) -> Self {
+    fn from(error: destack_serde::Error) -> Self {
         Self::Codec(error)
     }
 }
@@ -269,7 +269,7 @@ impl Program {
     where
         T: Serialize + ?Sized,
     {
-        let field = serde::to_vec(value)?;
+        let field = to_vec(value)?;
         let field_len = u32::try_from(field.len()).map_err(|_| {
             ProgramLoadError::InvalidBytes("program descriptor field exceeds supported byte length")
         })?;
@@ -313,7 +313,7 @@ impl Program {
         }
 
         // decode field and advance cursor
-        let value = serde::from_slice(&bytes[field_offset..next_offset])?;
+        let value = from_slice(&bytes[field_offset..next_offset])?;
         *offset = next_offset;
 
         Ok(value)
@@ -378,6 +378,7 @@ mod tests {
         let strings = StringTable::from_pool(&mut sections, &strings);
         let info = ProgramInfo::pack(
             &mut sections,
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             Vec::new(),
