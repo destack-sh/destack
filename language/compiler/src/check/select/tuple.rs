@@ -78,7 +78,7 @@ impl CheckState<'_> {
                         pattern.into_global_any(module),
                     )?;
                 } else {
-                    let hole = self.require_committed_node_type(target)?;
+                    let hole = self.require_node_type(target)?;
                     self.push_constraint(Constraint::check(
                         Relation::Equal,
                         projected_value,

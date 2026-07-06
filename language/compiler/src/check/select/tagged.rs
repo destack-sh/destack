@@ -54,7 +54,7 @@ impl CheckState<'_> {
         let expression = self.module(module).view().get(ty).clone();
         match expression {
             dir::TypeExpression::Member { left, name, .. } => {
-                let owner = answer!(self.committed_node_type(left.into_global_any(module))?);
+                let owner = answer!(self.node_type(left.into_global_any(module))?);
                 let key = dir::StaticKey::Name(name);
 
                 self.tagged_pattern_head_from_owner(origin, owner, key)
@@ -90,21 +90,32 @@ impl CheckState<'_> {
             return self.reject_pattern(node, origin, head.owner);
         }
 
-        // require the matched input to belong to the tagged owner
-        let input = answer!(self.committed_node_type(node.into_any())?);
-        let belongs = answer!(self.constrain(origin, Relation::Assignable, input, head.owner)?);
-        let variant = self.format_variant_case(head.owner, head.key);
-        if !belongs {
-            self.report_pattern_variant_not_in_type(origin, variant, input)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
+        // select the requested owner from the matched input when it is visible
+        let written_owner = head.owner;
+        let input = answer!(self.node_type(node.into_any())?);
+        let heads = answer!(self.tagged_heads_from_input(origin, input, &head)?);
 
-            return Ok(Answer::Ready(()));
-        }
+        // otherwise let the written generic owner bind against the input
+        let heads = if heads.is_empty() {
+            let belongs =
+                answer!(self.constrain(origin, Relation::Assignable, input, head.owner)?);
+            let variant = self.format_variant_case(head.owner, head.key);
+            if !belongs {
+                self.report_pattern_variant_not_in_type(origin, variant, input)?;
+                self.commit_decision(node.into_any(), Decision::Rejected)?;
 
-        // select the requested case from the substituted newtype backing
-        let Some(case) = answer!(self.tagged_case_selection(origin, &head)?) else {
-            let key = self.format_static_key(&head.key);
-            self.report_pattern_variant_missing(origin, key, head.owner)?;
+                return Ok(Answer::Ready(()));
+            }
+
+            vec![head]
+        } else {
+            heads
+        };
+
+        // select the requested case from every matched owner arm
+        let Some(case) = answer!(self.tagged_case_selection_from_heads(origin, &heads)?) else {
+            let key = self.format_static_key(&heads[0].key);
+            self.report_pattern_variant_missing(origin, key, written_owner)?;
             self.commit_decision(node.into_any(), Decision::Rejected)?;
 
             return Ok(Answer::Ready(()));
@@ -128,11 +139,12 @@ impl CheckState<'_> {
             discriminant: case.discriminant,
             ty: case.payload,
         };
+        let owner = self.tagged_selection_owner(origin.module(), &heads)?;
         let predicate = dir::Predicate::unary(
             dir::PredicateOperand::projected(dir::Projection::VariantTag { ty: tag_type }),
             dir::PredicateCondition::Literal(case.discriminant),
         )
-        .with_narrowed(head.owner)
+        .with_narrowed(owner)
         .with_projection(projection.clone());
 
         self.commit_pattern(
@@ -145,6 +157,123 @@ impl CheckState<'_> {
                 },
             )),
         )
+    }
+
+    /// Return tagged owner instances visible in the matched input.
+    fn tagged_heads_from_input(
+        &mut self,
+        origin: Origin,
+        input: dir::GlobalTypeId,
+        written: &TaggedPatternHead,
+    ) -> CompilerResult<Answer<Vec<TaggedPatternHead>>> {
+        let input = answer!(self.reduce_type_head(origin, input)?);
+        let mut heads = Vec::new();
+
+        // collect every visible owner instance from the input
+        match self.ty(input)? {
+            dir::Type::Instance(instance) if instance.symbol == written.instance.symbol => {
+                heads.push(TaggedPatternHead {
+                    owner: input,
+                    instance,
+                    key: written.key,
+                });
+            }
+            dir::Type::Union(union) => {
+                let arms =
+                    SmallVec::<[_; 4]>::from_slice(self.type_ids(input.module_id, union.elements)?);
+
+                for arm in arms {
+                    let arm = answer!(self.reduce_type_head(origin, arm)?);
+                    if let dir::Type::Instance(instance) = self.ty(arm)?
+                        && instance.symbol == written.instance.symbol
+                    {
+                        heads.push(TaggedPatternHead {
+                            owner: arm,
+                            instance,
+                            key: written.key,
+                        });
+                    }
+                }
+            }
+            _ => {}
+        };
+
+        Ok(Answer::Ready(heads))
+    }
+
+    /// Return one selected case from every matched tagged owner arm.
+    fn tagged_case_selection_from_heads(
+        &mut self,
+        origin: Origin,
+        heads: &[TaggedPatternHead],
+    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
+        let mut selected = Vec::with_capacity(heads.len());
+        for head in heads {
+            let Some(case) = answer!(self.tagged_case_selection(origin, head)?) else {
+                continue;
+            };
+            selected.push(case);
+        }
+
+        match selected.as_slice() {
+            [] => Ok(Answer::Ready(None)),
+            [case] => Ok(Answer::Ready(Some(case.clone()))),
+            _ => self.merge_tagged_cases(origin, selected),
+        }
+    }
+
+    /// Merge same-case selections from multiple generic owner arms.
+    fn merge_tagged_cases(
+        &mut self,
+        origin: Origin,
+        cases: Vec<TaggedCaseSelection>,
+    ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
+        let first = cases[0].clone();
+        let mut payloads = Vec::with_capacity(cases.len());
+        let mut fields = Vec::<TaggedPayloadField>::new();
+        let mut generic_arguments = Some(first.generic_arguments.clone());
+
+        // merge payloads and field types at their projected positions
+        for case in cases {
+            payloads.push(case.payload);
+            if generic_arguments.as_ref() != Some(&case.generic_arguments) {
+                generic_arguments = None;
+            }
+
+            for field in case.fields {
+                let Some(existing) = fields.iter_mut().find(|existing| existing.key == field.key)
+                else {
+                    fields.push(field);
+                    continue;
+                };
+
+                existing.ty =
+                    self.normalized_union_type(origin.module(), [existing.ty, field.ty])?;
+            }
+        }
+
+        let payload = self.normalized_union_type(origin.module(), payloads)?;
+        let generic_arguments = generic_arguments.unwrap_or_default();
+
+        Ok(Answer::Ready(Some(TaggedCaseSelection {
+            case: first.case,
+            generic_arguments,
+            discriminant: first.discriminant,
+            payload,
+            fields,
+        })))
+    }
+
+    /// Return the narrowed owner type selected by a tagged case.
+    fn tagged_selection_owner(
+        &mut self,
+        module: ModuleId,
+        heads: &[TaggedPatternHead],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match heads {
+            [head] => Ok(head.owner),
+            _ => self.normalized_union_type(module, heads.iter().map(|head| head.owner)),
+        }
     }
 
     /// Select one tagged variant construction call.
@@ -266,7 +395,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
 
-        let owner = answer!(self.committed_node_type(left.into_global_any(module))?);
+        let owner = answer!(self.node_type(left.into_global_any(module))?);
         self.tagged_pattern_head_from_owner(origin, owner, dir::StaticKey::Name(name))
     }
 
@@ -276,7 +405,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
-        let ty = answer!(self.committed_node_type(source)?);
+        let ty = answer!(self.node_type(source)?);
         let member = match self.ty(ty)? {
             dir::Type::Member(member) => member,
             _ => return Ok(Answer::Ready(None)),
@@ -610,7 +739,8 @@ impl CheckState<'_> {
                 }
                 dir::PatternField::Named { name, pattern, .. } => {
                     let key = name.static_key();
-                    let Some(field) = payload_fields.iter().find(|field| field.key == key) else {
+                    let Some(payload_field) = payload_fields.iter().find(|field| field.key == key)
+                    else {
                         let key = self.format_static_key(&key);
                         self.report_pattern_field_missing(origin, payload, key)?;
 
@@ -621,15 +751,22 @@ impl CheckState<'_> {
                         self.project_pattern_input(
                             flow,
                             scope,
-                            field.ty,
+                            payload_field.ty,
                             pattern.into_global_any(module),
                         )?;
+                    } else if let Some(symbol) =
+                        self.module(module).declaration_symbol((*field).into_any())
+                    {
+                        let input = self.pattern_binding_type(symbol, payload_field.ty)?;
+
+                        self.bind_symbol_type(symbol, input)?;
                     }
+
                     projected.push(dir::PatternFieldResolution {
                         source,
                         projection: dir::Projection::FieldGet {
                             field: dir::ProjectionField::Key(key),
-                            ty: field.ty,
+                            ty: payload_field.ty,
                         },
                         pattern: pattern.map(|pattern| pattern.into_global_any(module)),
                     });

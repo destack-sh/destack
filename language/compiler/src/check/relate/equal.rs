@@ -57,6 +57,7 @@ impl CheckState<'_> {
             (dir::Type::Parameter(left), dir::Type::Parameter(right)) => {
                 Answer::Ready(left == right)
             }
+            (dir::Type::Erased(left), dir::Type::Erased(right)) => Answer::Ready(left == right),
             (dir::Type::Range(left), dir::Type::Range(right)) => Answer::Ready(left == right),
             // memory forms compare constructor and payload
             (dir::Type::Form(left), dir::Type::Form(right)) => {

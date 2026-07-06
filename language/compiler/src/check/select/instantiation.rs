@@ -55,7 +55,7 @@ impl CheckState<'_> {
         let mut applied = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for argument in arguments {
             let argument = argument.into_global_any(module);
-            let ty = answer!(self.committed_node_type(argument)?);
+            let ty = answer!(self.node_type(argument)?);
             applied.push(ty);
         }
 

@@ -16,16 +16,6 @@ struct FormChain {
     is_open: bool,
 }
 
-/// Borrow required by an implicit autoref.
-pub(in crate::check) struct ImplicitBorrow {
-    /// The borrowed target type.
-    pub(in crate::check) target: dir::GlobalTypeId,
-    /// The required borrow lifetime.
-    pub(in crate::check) lifetime: dir::GlobalTypeId,
-    /// The required borrow access.
-    pub(in crate::check) access: dir::GlobalTypeId,
-}
-
 impl CheckState<'_> {
     /// Return the value beneath one type's memory forms.
     pub(in crate::check) fn value_beneath_forms(
@@ -622,6 +612,7 @@ impl CheckState<'_> {
             },
             dir::Type::Reference(_)
             | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::Variable(_)
             | dir::Type::This
             | dir::Type::Member(_)
@@ -1124,60 +1115,6 @@ impl CheckState<'_> {
         let module = origin.module();
 
         self.intern_type(module, ty)
-    }
-}
-
-impl CheckState<'_> {
-    /// Return the borrow required by one expected type.
-    pub(in crate::check) fn implicit_borrow(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        _source: dir::LocalNodeIdAny,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<ImplicitBorrow>>> {
-        let reduced = answer!(self.reduce_type(origin, ty)?);
-        if let dir::Type::Form(form) = self.ty(reduced)?
-            && let dir::Form::Borrowed { lifetime, access } = form.form
-        {
-            return Ok(Answer::Ready(Some(ImplicitBorrow {
-                target: reduced,
-                lifetime,
-                access,
-            })));
-        }
-
-        let dir::Type::Instance(instance) = self.ty(ty)? else {
-            return Ok(Answer::Ready(None));
-        };
-        if self.language_item(instance.symbol)? != Some(dir::LanguageItem::WithAccess)
-            || instance.arguments.len() != 2
-        {
-            return Ok(Answer::Ready(None));
-        }
-
-        let arguments = self.type_ids(ty.module_id, instance.arguments)?.to_vec();
-        let value = answer!(self.reduce_type(origin, arguments[0])?);
-        let access = arguments[1];
-        let dir::Type::Form(form) = self.ty(value)? else {
-            return Ok(Answer::Ready(None));
-        };
-        let dir::Form::Borrowed { lifetime, .. } = form.form else {
-            return Ok(Answer::Ready(None));
-        };
-        let target = self.intern_type(
-            module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Borrowed { lifetime, access },
-                value: form.value,
-            }),
-        )?;
-
-        Ok(Answer::Ready(Some(ImplicitBorrow {
-            target,
-            lifetime,
-            access,
-        })))
     }
 
     /// Resolve one type to its readable value.

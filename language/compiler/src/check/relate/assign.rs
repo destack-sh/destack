@@ -65,6 +65,20 @@ impl CheckState<'_> {
                     target,
                 )?
             }
+            // erased arguments read through their declaration constraints only
+            (dir::Type::Erased(parameter), _) => {
+                let decision = self.decide_parameter_assignable(origin, parameter, target)?;
+
+                self.decide_union_membership(
+                    origin,
+                    Relation::Assignable,
+                    decision,
+                    source,
+                    target,
+                )?
+            }
+            // erased arguments are existential and do not accept concrete writes
+            (_, dir::Type::Erased(_)) => Answer::Ready(false),
             // this assigns through its enclosing interface hypotheses, or sits inside a union target
             (dir::Type::This, _) => {
                 let decision = self.decide_this_assignable(origin, target)?;

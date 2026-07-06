@@ -666,6 +666,7 @@ impl CheckState<'_> {
             | dir::Type::Static(_)
             | dir::Type::Intrinsic
             | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::This
             | dir::Type::Range(_)
             | dir::Type::Reference(_) => ty,

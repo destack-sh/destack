@@ -19,6 +19,45 @@ struct ShapeMerge {
 }
 
 impl CheckState<'_> {
+    /// Return a flattened intersection type.
+    pub(in crate::check) fn normalized_intersection_type(
+        &mut self,
+        module: destack_source::ModuleId,
+        elements: impl IntoIterator<Item = dir::GlobalTypeId>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let mut kept = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for element in elements {
+            let element = self.settled_root(element)?;
+
+            // flatten nested intersections into one element list
+            let elements = match self.ty(element)? {
+                dir::Type::Intersection(intersection) => SmallVec::<[_; 4]>::from_slice(
+                    self.type_ids(element.module_id, intersection.elements)?,
+                ),
+                _ => SmallVec::from_slice(&[element]),
+            };
+
+            // keep exact elements once
+            for element in elements {
+                if !kept.contains(&element) {
+                    kept.push(element);
+                }
+            }
+        }
+
+        match kept.as_slice() {
+            [single] => Ok(*single),
+            _ => {
+                let elements = self.intern_type_ids(module, &kept)?;
+
+                self.intern_type(
+                    module,
+                    dir::Type::Intersection(dir::IntersectionType { elements }),
+                )
+            }
+        }
+    }
+
     /// Merge one intersection's structural shape elements.
     ///
     /// Shared field keys intersect their types, required fields and readonly forms win, and

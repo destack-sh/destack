@@ -8,14 +8,6 @@ use crate::check::{Answer, CheckState, Origin, Relation, answer};
 /// The projection steps picked for one receiver.
 pub(in crate::check) type ReceiverSteps = SmallVec<[dir::Projection; 2]>;
 
-/// One dereference step off a receiver type.
-struct ReceiverStep {
-    /// The projection recorded for this step.
-    projection: dir::Projection,
-    /// Whether the step dereferences a readonly view or borrow.
-    is_readonly: bool,
-}
-
 /// One adjusted receiver relation to try.
 struct ReceiverAdjustment {
     /// The source type after implicit adjustment.
@@ -26,30 +18,45 @@ struct ReceiverAdjustment {
     projection: Option<dir::Projection>,
 }
 
+impl ReceiverAdjustment {
+    /// Create an adjustment without a projection step.
+    fn direct(source: dir::GlobalTypeId, target: dir::GlobalTypeId) -> Self {
+        Self {
+            source,
+            target,
+            projection: None,
+        }
+    }
+
+    /// Create an adjustment with one projection step.
+    fn projected(
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        projection: dir::Projection,
+    ) -> Self {
+        Self {
+            source,
+            target,
+            projection: Some(projection),
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Match one implicit method receiver against a `this` parameter.
     pub(in crate::check) fn constrain_receiver_argument(
         &mut self,
         origin: Origin,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         receiver: dir::GlobalTypeId,
         this_parameter: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<ReceiverSteps>>> {
         let mut steps = ReceiverSteps::new();
         let mut receiver = receiver;
-        let mut readonly_place = false;
         loop {
             // try the current step under a probe
             let probe = self.begin_probe();
-            let adjusted = self.receiver_adjustment(
-                origin,
-                module,
-                source,
-                receiver,
-                this_parameter,
-                readonly_place,
-            );
+            let adjusted = self.receiver_adjustment(origin, module, receiver, this_parameter);
             let related = match adjusted {
                 Ok(Answer::Ready(Some(adjusted))) => {
                     match self.constrain(
@@ -96,10 +103,9 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(None));
             };
 
-            // dereferencing a readonly step caps every later re-borrow
-            readonly_place |= step.is_readonly;
-            receiver = step.projection.ty();
-            steps.push(step.projection);
+            // record the next projected receiver
+            receiver = step.ty();
+            steps.push(step);
         }
     }
 
@@ -108,34 +114,20 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<Option<ReceiverStep>>> {
+    ) -> CompilerResult<Answer<Option<dir::Projection>>> {
         let head = answer!(self.reduce_type_head(origin, receiver)?);
 
         // dereference one memory form
         if let dir::Type::Form(form) = self.ty(head)? {
-            let is_readonly = match form.form {
-                dir::Form::Readonly => true,
-                dir::Form::Borrowed { access, .. } => {
-                    answer!(self.access_is_readonly(origin, access)?)
-                }
-                _ => false,
-            };
-
-            return Ok(Answer::Ready(Some(ReceiverStep {
-                projection: dir::Projection::Dereference {
-                    read: dir::DereferenceOperation::Direct,
-                    ty: form.value,
-                },
-                is_readonly,
+            return Ok(Answer::Ready(Some(dir::Projection::Dereference {
+                read: dir::DereferenceOperation::Direct,
+                ty: form.value,
             })));
         }
 
         // project one newtype to its backing
         if let Some(projection) = answer!(self.newtype_backing_projection(origin, head)?) {
-            return Ok(Answer::Ready(Some(ReceiverStep {
-                projection,
-                is_readonly: false,
-            })));
+            return Ok(Answer::Ready(Some(projection)));
         }
 
         Ok(Answer::Ready(None))
@@ -146,10 +138,8 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
-        source: dir::LocalNodeIdAny,
         receiver: dir::GlobalTypeId,
         this_parameter: dir::GlobalTypeId,
-        readonly_place: bool,
     ) -> CompilerResult<Answer<Option<ReceiverAdjustment>>> {
         // borrowed receivers relate to the declared this directly
         let receiver_head = answer!(self.reduce_type_head(origin, receiver)?);
@@ -157,52 +147,39 @@ impl CheckState<'_> {
             self.ty(receiver_head)?,
             dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed { .. })
         ) {
-            return Ok(Answer::Ready(Some(ReceiverAdjustment {
-                source: receiver,
-                target: this_parameter,
-                projection: None,
-            })));
+            return Ok(Answer::Ready(Some(ReceiverAdjustment::direct(
+                receiver,
+                this_parameter,
+            ))));
         }
 
-        // a readonly place cannot be re-borrowed exclusively
-        if readonly_place {
-            let this_head = answer!(self.reduce_type_head(origin, this_parameter)?);
-            if let dir::Type::Form(form) = self.ty(this_head)?
-                && let dir::Form::Borrowed { access, .. } = form.form
-                && !answer!(self.access_is_readonly(origin, access)?)
-            {
-                return Ok(Answer::Ready(None));
-            }
+        // read borrow requirements from a direct borrowed `this`
+        let this_parameter = answer!(self.reduce_type(origin, this_parameter)?);
+        if let dir::Type::Form(form) = self.ty(this_parameter)?
+            && let dir::Form::Borrowed { lifetime, access } = form.form
+        {
+            let borrowed = self.intern_type(
+                module,
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Borrowed { lifetime, access },
+                    value: receiver,
+                }),
+            )?;
+            let projection = dir::Projection::Borrow {
+                access: None,
+                ty: borrowed,
+            };
+
+            return Ok(Answer::Ready(Some(ReceiverAdjustment::projected(
+                borrowed,
+                this_parameter,
+                projection,
+            ))));
         }
 
-        // materialize autoref when the `this` parameter demands a borrow
-        let Some(borrow) = answer!(self.implicit_borrow(origin, module, source, this_parameter)?)
-        else {
-            return Ok(Answer::Ready(Some(ReceiverAdjustment {
-                source: receiver,
-                target: this_parameter,
-                projection: None,
-            })));
-        };
-        let borrowed = self.intern_type(
-            module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Borrowed {
-                    lifetime: borrow.lifetime,
-                    access: borrow.access,
-                },
-                value: receiver,
-            }),
-        )?;
-        let projection = dir::Projection::Borrow {
-            access: None,
-            ty: borrowed,
-        };
-
-        Ok(Answer::Ready(Some(ReceiverAdjustment {
-            source: borrowed,
-            target: borrow.target,
-            projection: Some(projection),
-        })))
+        Ok(Answer::Ready(Some(ReceiverAdjustment::direct(
+            receiver,
+            this_parameter,
+        ))))
     }
 }

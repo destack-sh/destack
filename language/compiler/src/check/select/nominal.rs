@@ -31,7 +31,7 @@ impl CheckState<'_> {
 
         // reduce the written nominal tag
         let tag_node = ty.into_global_any(module);
-        let tag = answer!(self.committed_node_type(tag_node)?);
+        let tag = answer!(self.node_type(tag_node)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
             dir::Type::Instance(instance) => instance,
@@ -100,7 +100,7 @@ impl CheckState<'_> {
 
         // reduce the written nominal tag
         let tag_node = ty.into_global_any(module);
-        let tag = answer!(self.committed_node_type(tag_node)?);
+        let tag = answer!(self.node_type(tag_node)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
             dir::Type::Instance(instance) => instance,
@@ -109,7 +109,7 @@ impl CheckState<'_> {
 
         // bind the pattern instantiation from the matched input: the
         // scrutinee arm with the pattern's head determines its holes
-        let input = answer!(self.committed_node_type(node.into_any())?);
+        let input = answer!(self.node_type(node.into_any())?);
         let input = answer!(self.value_beneath_forms(origin, input)?);
         let mut matched = input;
         if let Some(backing) = answer!(self.newtype_backing(origin, input)?) {

@@ -59,9 +59,46 @@ impl CheckState<'_> {
 
             return self.types_may_overlap(origin, left, constraint);
         }
+        if let dir::Type::Erased(parameter) = left_type {
+            let Some(constraint) = self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.constraint)
+            else {
+                return Ok(Answer::Ready(true));
+            };
 
-        // keep other open types conservative
-        if Self::is_open_inhabitant_type(&left_type) || Self::is_open_inhabitant_type(&right_type) {
+            return self.types_may_overlap(origin, constraint, right);
+        }
+        if let dir::Type::Erased(parameter) = right_type {
+            let Some(constraint) = self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.constraint)
+            else {
+                return Ok(Answer::Ready(true));
+            };
+
+            return self.types_may_overlap(origin, left, constraint);
+        }
+
+        // keep indeterminate heads conservative
+        let has_indeterminate_head = matches!(
+            left_type,
+            dir::Type::Any
+                | dir::Type::Unknown
+                | dir::Type::Object
+                | dir::Type::Variable(_)
+                | dir::Type::Dynamic(_)
+                | dir::Type::Error
+        ) || matches!(
+            right_type,
+            dir::Type::Any
+                | dir::Type::Unknown
+                | dir::Type::Object
+                | dir::Type::Variable(_)
+                | dir::Type::Dynamic(_)
+                | dir::Type::Error
+        );
+        if has_indeterminate_head {
             return Ok(Answer::Ready(true));
         }
 
@@ -151,19 +188,6 @@ impl CheckState<'_> {
         }
 
         Ok(Answer::Ready(false))
-    }
-
-    /// Return whether one type is too open to disprove inhabitant overlap.
-    fn is_open_inhabitant_type(ty: &dir::Type) -> bool {
-        matches!(
-            ty,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Object
-                | dir::Type::Variable(_)
-                | dir::Type::Dynamic(_)
-                | dir::Type::Error
-        )
     }
 
     /// Return exact overlap for scalar singleton and interval types.

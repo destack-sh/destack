@@ -32,7 +32,7 @@ impl CheckState<'_> {
 
         // reduce the constructed annotation
         let annotation = ty.into_global_any(module);
-        let target = answer!(self.committed_node_type(annotation)?);
+        let target = answer!(self.node_type(annotation)?);
         let target = answer!(self.reduce_type_head(origin, target)?);
         let instance = match self.ty(target)? {
             dir::Type::Instance(instance) => instance,
