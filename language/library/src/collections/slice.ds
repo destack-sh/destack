@@ -46,11 +46,6 @@ export extension<T> of Slice<T>
     static fromRaw(data: *T, length: usize): Raw<[T]>;
 
     /// Return the number of elements.
-    get length(): usize {
-        this.size
-    }
-
-    /// Return the number of elements.
     @intrinsic("collections.slice.length")
     get size(): usize;
 
@@ -178,6 +173,11 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
 
     /// The contiguous range view type.
     type View = [T];
+
+    /// Return the number of elements.
+    get length(): usize {
+        this.size
+    }
 
     /// Return the element at `index` by value.
     index(index: usize): T {

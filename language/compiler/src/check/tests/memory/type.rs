@@ -186,6 +186,85 @@ borrowedAccess satisfies "mutable";
 }
 
 #[test]
+fn test_static_value_default_uses_type_expression_bridge() {
+    let session = TestSession::single(
+        r#"
+struct Cell {
+    value: int32;
+}
+
+type Reborrow<Q, comptime L: Lifetime = type(LifetimeOr<Q, "static">)> = Borrowed<Q, L>;
+type StaticCell = Reborrow<Cell>;
+
+declare const cell: StaticCell;
+
+cell satisfies Borrowed<Cell, "static">;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cell {
+    value: int32;
+}
+
+type Reborrow<Q, comptime L: Lifetime = LifetimeOr<Q, "static">> = Borrowed<Q, L>;
+type StaticCell = Reborrow<Cell>;
+
+declare const cell: StaticCell;
+
+cell satisfies Borrowed<Cell, "static">;
+
+=== checked ===
+struct Cell {
+/// @type.symbol symbol=Cell type=Cell
+/// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
+
+}
+
+type Reborrow<Q, comptime L: Lifetime = type(LifetimeOr<Q, "static">)> = Borrowed<Q, L>;
+/// @generic.template symbol=Reborrow parameters=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">)
+/// @type.symbol symbol=Reborrow type=Borrowed<Q, L, "mutable">
+/// @definition.type symbol=Reborrow template=(Q, comptime L: Lifetime = LifetimeOr<Q, "static">) value=Borrowed<Q, L, "mutable">
+/// @type.symbol symbol=Reborrow.Q source=Q type=Q
+/// @type.symbol symbol=Reborrow.L source="comptime L: Lifetime = type(LifetimeOr<Q, \"static\">)" type=L
+/// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
+/// @resolution.name source=LifetimeOr target=memory.type.LifetimeOr
+/// @resolution.name source=Q target=Reborrow.Q
+/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @resolution.name source=Q target=Reborrow.Q
+/// @resolution.name source=L target=Reborrow.L
+
+type StaticCell = Reborrow<Cell>;
+/// @type.symbol symbol=StaticCell source="type StaticCell = Reborrow<Cell>" type=Reborrow<Cell, LifetimeOr<Cell, "static">> reduced=Borrowed<Cell, "static", "mutable">
+/// @definition.type symbol=StaticCell source="type StaticCell = Reborrow<Cell>" value=Reborrow<Cell, LifetimeOr<Cell, "static">> reduced=Borrowed<Cell, "static", "mutable">
+/// @resolution.name source=Reborrow target=Reborrow
+/// @resolution.name source=Cell target=Cell
+
+declare const cell: StaticCell;
+/// @type.symbol symbol=cell source=cell type=StaticCell reduced=Borrowed<Cell, "static", "mutable">
+/// @resolution.name source=StaticCell target=StaticCell
+
+cell satisfies Borrowed<Cell, "static">;
+/// @resolution.name source=cell target=cell
+/// @resolution.name source=Borrowed target=memory.borrow.Borrowed
+/// @resolution.name source=Cell target=Cell
+
+/// @generic.instance id="Borrowed<Q, L, \"mutable\">" template=memory.borrow.Borrowed arguments=(Q, L, "mutable")
+/// @generic.instance id="LifetimeOr<Cell, \"static\">" template=memory.type.LifetimeOr arguments=(Cell, "static")
+/// @generic.instance id="Reborrow<Cell, LifetimeOr<Cell, \"static\">>" template=Reborrow arguments=(Cell, LifetimeOr<Cell, "static">)
+"#,
+    );
+}
+
+#[test]
 fn test_read_default_axes_from_plain_type() {
     let session = TestSession::single(
         r#"
@@ -1125,6 +1204,48 @@ borrow satisfies Borrowed<Cell, "static", "readonly">;
 
 /// @generic.instance id="Borrowed<Readonly<Cell>, \"static\", \"mutable\">" template=memory.borrow.Borrowed arguments=(Readonly<Cell>, "static", "mutable")
 /// @generic.instance id=Readonly<Cell> template=types.object.Readonly arguments=(Cell)
+"#,
+    );
+}
+
+#[test]
+fn test_default_trait_returns_this_type() {
+    let session = TestSession::single(
+        r#"
+import { Phantom } from "destack:memory";
+
+const marker: Phantom<int32> = Phantom<int32>.default();
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+import { Phantom } from "destack:memory";
+
+const marker: Phantom<int32> = Phantom<int32>.default<int32>();
+
+=== checked ===
+import { Phantom } from "destack:memory";
+
+const marker: Phantom<int32> = Phantom<int32>.default();
+/// @type.symbol symbol=marker source=marker type=memory.phantom.Phantom<int32>
+/// @resolution.name source=Phantom target=memory.phantom.Phantom
+/// @type.node source=Phantom type=memory.phantom.Phantom
+/// @type.node source=Phantom<int32> type=memory.phantom.Phantom<int32>
+/// @type.node source=Phantom<int32>.default type=() => memory.phantom.Phantom<int32>
+/// @type.node source=Phantom<int32>.default() type=memory.phantom.Phantom<int32>
+/// @resolution.name source=Phantom target=memory.phantom.Phantom
+/// @resolution.member source=Phantom<int32>.default receiver=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default
+/// @resolution.call source=Phantom<int32>.default() parameters=() return=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32>
+/// @resolution.instantiation source=Phantom<int32> target=memory.phantom.Phantom instance=memory.phantom.Phantom<int32>
+/// @generic.instance source=Phantom<int32> id=memory.phantom.Phantom<int32>
+/// @generic.instance source=Phantom<int32>.default id=memory.phantom.Phantom<int32>
+/// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>
+
+/// @generic.instance id=memory.phantom.Phantom<int32> template=memory.phantom.Phantom arguments=(int32)
 "#,
     );
 }
