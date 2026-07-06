@@ -30,6 +30,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
             dir::Type::Key(key) => self.key_type_label(*key),
             dir::Type::Intrinsic => "intrinsic".to_string(),
+            dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
             dir::Type::Reference(reference) => self.reference_symbol_label(reference.symbol),
             dir::Type::Instance(instance) => self.instance_type_label(types, instance),

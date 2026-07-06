@@ -59,6 +59,7 @@ impl CheckState<'_> {
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::This => "this".to_string(),
             dir::Type::Variable(_) => "_".to_string(),
+            dir::Type::Erased(_) => "*".to_string(),
 
             dir::Type::Primitive(primitive) => format_primitive(&primitive),
             dir::Type::Literal(literal) => self.format_scalar_literal(&literal),

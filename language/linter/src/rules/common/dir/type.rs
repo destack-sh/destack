@@ -689,6 +689,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Key(_) => false,
             dir::Type::Memory(_) => false,
             dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::Variable(_)
             | dir::Type::Static(_)
             | dir::Type::EnumMember(_)
@@ -1467,6 +1468,7 @@ fn type_truthiness_inner(
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::This
             | dir::Type::Intrinsic
             | dir::Type::EnumMember(_)
@@ -1542,6 +1544,7 @@ fn type_nullishness_inner(
             | dir::Type::Function(_)
             | dir::Type::FunctionPointer(_) => TypeNullishness::Never,
             dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
             | dir::Type::This
             | dir::Type::Intrinsic
             | dir::Type::Reference(_)
