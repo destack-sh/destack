@@ -353,14 +353,59 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         for (expression_id, expression) in view.iter_nodes_of_type::<dir::Expression>() {
             match expression {
                 dir::Expression::Call { .. } => {
+                    self.reify_inferred_construct_head(module_id, expression_id, expression)?;
                     self.reify_call_arguments(module_id, expression_id, expression)?;
                 }
                 dir::Expression::New { .. } | dir::Expression::NewMaybe { .. } => {
                     self.reify_construct_arguments(module_id, expression_id, expression)?;
                 }
+                dir::Expression::StructExpression { ty, .. } => {
+                    self.reify_struct_expression_target(module_id, expression_id, *ty)?;
+                }
                 _ => {}
             }
         }
+
+        Ok(())
+    }
+
+    /// Reify one omitted newtype constructor head.
+    fn reify_inferred_construct_head(
+        &mut self,
+        module_id: ModuleId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) -> CompilerResult<()> {
+        let dir::Expression::Call { left, .. } = expression else {
+            return Ok(());
+        };
+        if !matches!(
+            self.types.tree.get(*left),
+            dir::Expression::Infer {
+                form: dir::InferForm::Hole,
+                name: None,
+            }
+        ) {
+            return Ok(());
+        }
+        let Some(Decision::Construct(resolution)) = self
+            .check
+            .decision(expression_id.into_global_any(module_id))
+        else {
+            return Ok(());
+        };
+        let dir::ConstructTarget::Newtype(candidate) = &resolution.target else {
+            return Ok(());
+        };
+
+        self.anchor((*left).into_any());
+        let Some(reified) = self.types.reify_symbol_expression(candidate.symbol) else {
+            return Ok(());
+        };
+        let dir::Expression::Call { left, .. } = self.types.tree.get_mut(expression_id) else {
+            unreachable!("call expressions keep their kind");
+        };
+        *left = reified;
 
         Ok(())
     }
@@ -417,6 +462,37 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             unreachable!("call expressions keep their kind");
         };
         *left = instantiation;
+
+        Ok(())
+    }
+
+    /// Reify one omitted struct expression target from its checked type.
+    fn reify_struct_expression_target(
+        &mut self,
+        module_id: ModuleId,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        ty: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<()> {
+        if !matches!(
+            self.types.tree.get(ty),
+            dir::TypeExpression::Infer {
+                form: dir::InferForm::Hole,
+                ..
+            }
+        ) {
+            return Ok(());
+        }
+        let node = expression_id.into_global_any(module_id);
+        let Some(target) = self.check.node_type_maybe(node) else {
+            return Ok(());
+        };
+
+        self.anchor(ty.into_any());
+        let Some(reified) = self.types.reify(target)? else {
+            return Ok(());
+        };
+        let reified = self.types.tree.get(reified).clone();
+        *self.types.tree.get_mut(ty) = reified;
 
         Ok(())
     }

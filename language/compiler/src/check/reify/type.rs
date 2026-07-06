@@ -1099,6 +1099,15 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         self.tree.insert(node, self.span)
     }
 
+    /// Reify one symbol as a value expression.
+    pub(in crate::check) fn reify_symbol_expression(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::LocalNodeId<dir::Expression>> {
+        let name = self.symbol_name(symbol)?;
+        Some(self.insert(dir::Expression::Identifier { name }))
+    }
+
     /// Spell one symbol name into the render pool.
     fn symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<dir::StringId> {
         if let Some(item) = self.check.environment.language.item(symbol) {
