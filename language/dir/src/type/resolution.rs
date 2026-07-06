@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ArgumentBinding, BinaryOperator, ClassConstructor, DereferenceOperation,
-    GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Predicate, Projection,
-    ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, UnaryOperator, VariantCase,
+    GenericArgumentBinding, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, MemberSpace, Predicate,
+    Projection, ProjectionField, ScalarLiteral, StaticKey, SubscriptOperation, UnaryOperator,
+    VariantCase,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -285,6 +286,8 @@ pub struct MemberCandidate {
     pub receiver: GlobalTypeId,
     /// The projection steps.
     pub adjustments: Vec<Projection>,
+    /// The member space that selected this candidate.
+    pub space: MemberSpace,
     /// The declaration that exposed this member.
     pub owner: GlobalSymbolId,
     /// The selected member symbol.
@@ -693,6 +696,8 @@ pub struct CallCandidate {
     pub receiver: Option<GlobalTypeId>,
     /// The projection steps.
     pub adjustments: Vec<Projection>,
+    /// The generic scope whose arguments are carried into this call.
+    pub generic_scope: Option<GlobalSymbolId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
     /// The selected generic argument bindings needed by this call candidate.
