@@ -60,8 +60,6 @@ pub(in crate::check) enum Obligation {
     WritablePlace(WritablePlaceObligation),
     /// A type at a representation slot must have a computed representation.
     Representation(RepresentationObligation),
-    /// A type must satisfy one compiler-known auto interface.
-    AutoInterface(AutoInterfaceObligation),
     /// A runtime predicate must have valid operands.
     RuntimePredicate(RuntimePredicateObligation),
     /// A for-in source must be enumerable.
@@ -83,7 +81,6 @@ impl Obligation {
             Self::PatternCoverage(obligation) => obligation.source,
             Self::WritablePlace(obligation) => obligation.place.source,
             Self::Representation(obligation) => obligation.source,
-            Self::AutoInterface(obligation) => obligation.source,
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::ForInSource(obligation) => obligation.source,
             Self::ExtensionConformance(obligation) => obligation.source,
@@ -461,21 +458,6 @@ pub(in crate::check) struct RepresentationObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-/// Obliges a type to satisfy one compiler-known auto interface.
-///
-/// ```ds
-/// T: DynamicSafe
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct AutoInterfaceObligation {
-    /// The source requiring the interface.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The type that must satisfy the interface.
-    pub(in crate::check) ty: dir::GlobalTypeId,
-    /// The required auto interface.
-    pub(in crate::check) interface: dir::AutoInterface,
-}
-
 /// Obliges a runtime predicate to be executable.
 ///
 /// ```ds
@@ -643,9 +625,6 @@ impl CheckState<'_> {
             Obligation::WritablePlace(obligation) => self.check_writable_place(origin, obligation),
             Obligation::Representation(obligation) => {
                 self.check_representation(origin, obligation.ty)
-            }
-            Obligation::AutoInterface(obligation) => {
-                self.check_auto_interface(origin, obligation.ty, obligation.interface)
             }
             Obligation::RuntimePredicate(obligation) => {
                 self.check_runtime_predicate(origin, obligation)
