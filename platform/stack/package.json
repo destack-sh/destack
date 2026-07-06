@@ -11,6 +11,7 @@
         "remove": "sst install --print-logs && CLOUDFLARE_DEFAULT_ACCOUNT_ID=${CLOUDFLARE_DEFAULT_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}} sst remove --stage ${DESTACK_STAGE:?DESTACK_STAGE is required}"
     },
     "devDependencies": {
+        "@pulumi/cloudflare": "6.15.0",
         "sst": "4.14.3"
     }
 }
