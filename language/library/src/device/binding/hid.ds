@@ -99,46 +99,46 @@ export struct HidReport {
 export interface DeviceHidBinding {
     /// List HID devices.
     @binding("destack.device.hid.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listHidDevices(query: &readonly HidDeviceQuery): Result<HidDevice[], HostError>;
 
     /// Open one HID device.
     @binding("destack.device.hid.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openHidDevice(id: &readonly string): Result<HidDeviceHandle, HostError>;
 
     /// Close one HID device.
     @binding("destack.device.hid.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeHidDevice(device: HidDeviceHandle): Result<void, HostError>;
 
     /// Read the HID report descriptor.
     @binding("destack.device.hid.descriptor.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readHidDescriptor(device: HidDeviceHandle): Result<uint8[], HostError>;
 
     /// Read one HID input report.
     @binding("destack.device.hid.report.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readHidReport(
         device: HidDeviceHandle,
@@ -148,10 +148,10 @@ export interface DeviceHidBinding {
 
     /// Write one HID output report.
     @binding("destack.device.hid.report.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeHidReport(
         device: HidDeviceHandle,
@@ -161,10 +161,10 @@ export interface DeviceHidBinding {
 
     /// Read one HID feature report.
     @binding("destack.device.hid.feature.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.feature"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readHidFeature(
         device: HidDeviceHandle,
@@ -174,10 +174,10 @@ export interface DeviceHidBinding {
 
     /// Write one HID feature report.
     @binding("destack.device.hid.feature.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.hid.feature"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeHidFeature(
         device: HidDeviceHandle,

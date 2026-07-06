@@ -11,11 +11,11 @@ export newtype CryptoDigestHandle = ResourceId;
 export interface CryptoDigestBinding {
     /// Compute one digest in one shot.
     @binding("destack.crypto.digest.compute", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.digest"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     computeDigest(
         algorithm: CryptoDigestAlgorithm,
@@ -24,41 +24,41 @@ export interface CryptoDigestBinding {
 
     /// Open one streaming digest context.
     @binding("destack.crypto.digest.open", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.digest"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openDigest(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, HostError>;
 
     /// Update one streaming digest context.
     @binding("destack.crypto.digest.update", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.digest"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     updateDigest(digest: CryptoDigestHandle, payload: &readonly [uint8]): Result<void, HostError>;
 
     /// Finalize one streaming digest context and return one digest output.
     @binding("destack.crypto.digest.finish", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.digest"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     finishDigest(digest: CryptoDigestHandle): Result<uint8[], HostError>;
 
     /// Close one streaming digest context.
     @binding("destack.crypto.digest.close", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.digest"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeDigest(digest: CryptoDigestHandle): Result<void, HostError>;
 }

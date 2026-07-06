@@ -216,28 +216,28 @@ export struct RawSocketOption {
 export interface NetOptionsBinding {
     /// Set one normalized socket option.
     @binding("destack.net.options.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.option"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     set(socket: SocketHandle, option: SocketOptionValue): Result<void, HostError>;
 
     /// Read one normalized socket option.
     @binding("destack.net.options.get", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.option"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     get(socket: SocketHandle, option: SocketOption): Result<SocketOptionValue, HostError>;
 
     /// Set one raw socket option from bytes.
     @binding("destack.net.options.setRaw", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.option"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setRaw(
         socket: SocketHandle,
@@ -247,10 +247,10 @@ export interface NetOptionsBinding {
 
     /// Read one raw socket option into a caller-owned buffer.
     @binding("destack.net.options.getRaw", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.option"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     getRaw(
         socket: SocketHandle,

@@ -399,10 +399,10 @@ export newtype AccessibilityTextResponse =
 export interface AccessibilityTextBinding {
     /// Open one inbound accessibility text query stream.
     @binding("destack.accessibility.text.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openAccessibilityText(
@@ -412,20 +412,20 @@ export interface AccessibilityTextBinding {
 
     /// Close one inbound accessibility text query stream.
     @binding("destack.accessibility.text.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeAccessibilityText(text: AccessibilityTextHandle): Result<void, HostError>;
 
     /// Read one accessibility text query.
     @binding("destack.accessibility.text.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readAccessibilityText(
@@ -435,10 +435,10 @@ export interface AccessibilityTextBinding {
 
     /// Respond to one accessibility text query.
     @binding("destack.accessibility.text.respond", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     respondAccessibilityText(
@@ -448,10 +448,10 @@ export interface AccessibilityTextBinding {
 
     /// Publish text metadata for one node.
     @binding("destack.accessibility.text.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     setAccessibilityText(
@@ -462,10 +462,10 @@ export interface AccessibilityTextBinding {
 
     /// Clear text metadata for one node.
     @binding("destack.accessibility.text.clear", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.text"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     clearAccessibilityText(

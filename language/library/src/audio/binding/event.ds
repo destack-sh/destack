@@ -122,10 +122,10 @@ export newtype AudioEvent =
 export interface AudioEventBinding {
     /// Open one audio event subscription.
     @binding("destack.audio.event.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.event"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openAudioEvents(
         subscription: &readonly AudioEventSubscription,
@@ -133,19 +133,19 @@ export interface AudioEventBinding {
 
     /// Close one audio event subscription.
     @binding("destack.audio.event.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.event"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeAudioEvents(events: AudioEventHandle): Result<void, HostError>;
 
     /// Read audio events.
     @binding("destack.audio.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.event"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readAudioEvents(
         events: AudioEventHandle,

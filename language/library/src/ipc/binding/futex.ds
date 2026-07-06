@@ -5,10 +5,10 @@ import { SharedMemoryHandle } from "destack:ipc/binding";
 export interface IpcFutexBinding {
     /// Wait on one shared-memory futex word.
     @binding("destack.ipc.futex.wait", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.futex", "host.ipc.memory"],
         platforms: ["linux"],
-        simulation: true,
     })
     waitFutex(
         memory: SharedMemoryHandle,
@@ -19,10 +19,10 @@ export interface IpcFutexBinding {
 
     /// Wake futex waiters for one shared-memory word.
     @binding("destack.ipc.futex.wake", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.futex", "host.ipc.memory"],
         platforms: ["linux"],
-        simulation: true,
     })
     wakeFutex(memory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, HostError>;
 }

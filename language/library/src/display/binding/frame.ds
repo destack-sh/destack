@@ -51,10 +51,10 @@ export struct DisplayFrameSubscription {
 export interface DisplayFrameBinding {
     /// Open one display frame timing stream.
     @binding("destack.display.frame.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.frame"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openDisplayFrames(
@@ -63,20 +63,20 @@ export interface DisplayFrameBinding {
 
     /// Close one display frame timing stream.
     @binding("destack.display.frame.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.frame"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeDisplayFrames(frames: DisplayFrameHandle): Result<void, HostError>;
 
     /// Read display frame timing events.
     @binding("destack.display.frame.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.display.frame"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readDisplayFrames(

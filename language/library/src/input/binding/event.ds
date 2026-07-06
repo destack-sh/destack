@@ -396,10 +396,10 @@ export newtype InputEvent =
 export interface InputEventBinding {
     /// Open an input event subscription.
     @binding("destack.input.event.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.event"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     openInputEvents(
@@ -408,20 +408,20 @@ export interface InputEventBinding {
 
     /// Close an input event subscription.
     @binding("destack.input.event.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.event"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     closeInputEvents(events: InputEventHandle): Result<void, HostError>;
 
     /// Read input events.
     @binding("destack.input.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.event"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     readInputEvents(

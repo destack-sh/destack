@@ -37,10 +37,10 @@ export newtype XattrTarget = XattrTargetEntry | XattrTargetFile;
 export interface FsXattrBinding {
     /// Read one extended attribute into an output buffer.
     @binding("destack.fs.xattr.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.xattr"],
         families: ["unix"],
-        simulation: true,
     })
     read(
         target: &readonly XattrTarget,
@@ -50,10 +50,10 @@ export interface FsXattrBinding {
 
     /// Write one extended attribute.
     @binding("destack.fs.xattr.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.xattr"],
         families: ["unix"],
-        simulation: true,
     })
     write(
         target: &readonly XattrTarget,
@@ -64,19 +64,19 @@ export interface FsXattrBinding {
 
     /// List extended attribute names into an output buffer.
     @binding("destack.fs.xattr.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.xattr"],
         families: ["unix"],
-        simulation: true,
     })
     list(target: &readonly XattrTarget, buffer: &[uint8]): Result<uint64, HostError>;
 
     /// Remove one extended attribute.
     @binding("destack.fs.xattr.remove", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.xattr"],
         families: ["unix"],
-        simulation: true,
     })
     remove(target: &readonly XattrTarget, name: &readonly [uint8]): Result<void, HostError>;
 }

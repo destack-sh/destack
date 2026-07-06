@@ -739,10 +739,10 @@ export struct GpuTextureState {
 export interface GpuResourceBinding {
     /// Create a GPU buffer.
     @binding("destack.gpu.resource.buffer.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createBuffer(
         device: GpuDeviceHandle,
@@ -751,19 +751,19 @@ export interface GpuResourceBinding {
 
     /// Destroy a GPU buffer.
     @binding("destack.gpu.resource.buffer.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroyBuffer(buffer: GpuBufferHandle): Result<void, HostError>;
 
     /// Write a byte range to a GPU buffer.
     @binding("destack.gpu.resource.buffer.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeBuffer(
         buffer: GpuBufferHandle,
@@ -773,10 +773,10 @@ export interface GpuResourceBinding {
 
     /// Read a byte range from a GPU buffer.
     @binding("destack.gpu.resource.buffer.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBuffer(
         buffer: GpuBufferHandle,
@@ -786,10 +786,10 @@ export interface GpuResourceBinding {
 
     /// Map a buffer range.
     @binding("destack.gpu.resource.buffer.map", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     mapBuffer(
         buffer: GpuBufferHandle,
@@ -800,28 +800,28 @@ export interface GpuResourceBinding {
 
     /// Unmap a mapped buffer.
     @binding("destack.gpu.resource.buffer.unmap", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unmapBuffer(buffer: GpuBufferHandle): Result<void, HostError>;
 
     /// Read a buffer state snapshot.
     @binding("destack.gpu.resource.buffer.state.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBufferState(buffer: GpuBufferHandle): Result<GpuBufferState, HostError>;
 
     /// Create a texture resource.
     @binding("destack.gpu.resource.texture.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createTexture(
         device: GpuDeviceHandle,
@@ -830,28 +830,28 @@ export interface GpuResourceBinding {
 
     /// Destroy a texture resource.
     @binding("destack.gpu.resource.texture.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroyTexture(texture: GpuTextureHandle): Result<void, HostError>;
 
     /// Read a texture state snapshot.
     @binding("destack.gpu.resource.texture.state.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readTextureState(texture: GpuTextureHandle): Result<GpuTextureState, HostError>;
 
     /// Create a texture view.
     @binding("destack.gpu.resource.texture.view.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createTextureView(
         texture: GpuTextureHandle,
@@ -860,19 +860,19 @@ export interface GpuResourceBinding {
 
     /// Destroy a texture view.
     @binding("destack.gpu.resource.texture.view.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroyTextureView(view: GpuTextureViewHandle): Result<void, HostError>;
 
     /// Create a sampler resource.
     @binding("destack.gpu.resource.sampler.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createSampler(
         device: GpuDeviceHandle,
@@ -881,19 +881,19 @@ export interface GpuResourceBinding {
 
     /// Destroy a sampler resource.
     @binding("destack.gpu.resource.sampler.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroySampler(sampler: GpuSamplerHandle): Result<void, HostError>;
 
     /// Create an external texture resource.
     @binding("destack.gpu.resource.external.texture.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     createExternalTexture(
         device: GpuDeviceHandle,
@@ -903,10 +903,10 @@ export interface GpuResourceBinding {
 
     /// Destroy an external texture resource.
     @binding("destack.gpu.resource.external.texture.destroy", {
+        provider: "host",
         effect: "external",
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     destroyExternalTexture(externalTexture: GpuExternalTextureHandle): Result<void, HostError>;
 }

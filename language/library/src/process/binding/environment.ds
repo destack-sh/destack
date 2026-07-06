@@ -21,73 +21,73 @@ export struct RawEnvironmentVariable {
 export interface ProcessEnvironmentBinding {
     /// Read an environment variable.
     @binding("destack.process.environment.get", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     getEnvironment(name: &readonly string): Result<^string | undefined, HostError>;
 
     /// List environment variables.
     @binding("destack.process.environment.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listEnvironment(): Result<EnvironmentVariable[], HostError>;
 
     /// Set an environment variable.
     @binding("destack.process.environment.set", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     setEnvironment(name: &readonly string, value: &readonly string): Result<void, HostError>;
 
     /// Remove an environment variable.
     @binding("destack.process.environment.remove", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     removeEnvironment(name: &readonly string): Result<void, HostError>;
 
     /// Read a raw Unix environment variable.
     @binding("destack.process.environment.getRaw", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.read"],
         families: ["unix"],
-        simulation: true,
     })
     getRawEnvironment(name: &readonly [uint8]): Result<uint8[] | undefined, HostError>;
 
     /// List raw Unix environment variables.
     @binding("destack.process.environment.listRaw", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.read"],
         families: ["unix"],
-        simulation: true,
     })
     listRawEnvironment(): Result<RawEnvironmentVariable[], HostError>;
 
     /// Set a raw Unix environment variable.
     @binding("destack.process.environment.setRaw", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.write"],
         families: ["unix"],
-        simulation: true,
     })
     setRawEnvironment(name: &readonly [uint8], value: &readonly [uint8]): Result<void, HostError>;
 
     /// Remove a raw Unix environment variable.
     @binding("destack.process.environment.removeRaw", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.environment.write"],
         families: ["unix"],
-        simulation: true,
     })
     removeRawEnvironment(name: &readonly [uint8]): Result<void, HostError>;
 }

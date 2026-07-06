@@ -26,10 +26,10 @@ export struct IoControlResult {
 export interface IoControlBinding {
     /// Execute one resource control request.
     @binding("destack.io.control", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.control"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     executeIoControl(
         resource: ResourceId,

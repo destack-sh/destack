@@ -21,28 +21,28 @@ export struct IoCompletionEvent {
 export interface IoCompletionBinding {
     /// Open a completion queue.
     @binding("destack.io.completion.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openIoCompletion(entries: uint32): Result<IoCompletionHandle, HostError>;
 
     /// Close a completion queue.
     @binding("destack.io.completion.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeIoCompletion(completion: IoCompletionHandle): Result<void, HostError>;
 
     /// Bind one resource to a completion queue.
     @binding("destack.io.completion.bind", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     bindIoCompletion(
         completion: IoCompletionHandle,
@@ -52,10 +52,10 @@ export interface IoCompletionBinding {
 
     /// Unbind one resource from a completion queue.
     @binding("destack.io.completion.unbind", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unbindIoCompletion(
         completion: IoCompletionHandle,
@@ -64,10 +64,10 @@ export interface IoCompletionBinding {
 
     /// Post one synthetic completion event.
     @binding("destack.io.completion.post", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     postIoCompletion(
         completion: IoCompletionHandle,
@@ -76,10 +76,10 @@ export interface IoCompletionBinding {
 
     /// Wait for completion events.
     @binding("destack.io.completion.wait", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     waitIoCompletion(
         completion: IoCompletionHandle,
@@ -89,10 +89,10 @@ export interface IoCompletionBinding {
 
     /// Cancel queued completions for one resource.
     @binding("destack.io.completion.cancel", {
+        provider: "host",
         effect: "external",
         requires: ["host.io.completion"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     cancelIoCompletion(
         completion: IoCompletionHandle,

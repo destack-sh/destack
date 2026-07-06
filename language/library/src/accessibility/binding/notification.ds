@@ -62,10 +62,10 @@ export struct AccessibilityNotification {
 export interface AccessibilityNotificationBinding {
     /// Post one accessibility notification.
     @binding("destack.accessibility.notification.post", {
+        provider: "host",
         effect: "external",
         requires: ["host.accessibility.notification"],
         families: ["windows", "unix"],
-        simulation: true,
         affinity: "worker",
     })
     postAccessibilityNotification(

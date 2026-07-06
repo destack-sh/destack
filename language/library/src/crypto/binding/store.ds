@@ -158,40 +158,40 @@ export struct CryptoCertificateListPage {
 export interface CryptoStoreBinding {
     /// Read crypto provider capabilities.
     @binding("destack.crypto.capability.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.crypto.capability.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readCryptoProviderCapability(): Result<CryptoProviderCapability, HostError>;
 
     /// Open one crypto store.
     @binding("destack.crypto.store.open", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openCryptoStore(options: &readonly CryptoStoreOptions): Result<CryptoStoreHandle, HostError>;
 
     /// Close one crypto store.
     @binding("destack.crypto.store.close", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeCryptoStore(store: CryptoStoreHandle): Result<void, HostError>;
 
     /// List keys from one store.
     @binding("destack.crypto.store.keys.list", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listCryptoKeys(
         store: CryptoStoreHandle,
@@ -200,11 +200,11 @@ export interface CryptoStoreBinding {
 
     /// List certificates from one store.
     @binding("destack.crypto.store.certificates.list", {
+        provider: "host",
         effect: "external",
         replay: "forbidden",
         requires: ["host.crypto.store.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listCryptoCertificates(
         store: CryptoStoreHandle,

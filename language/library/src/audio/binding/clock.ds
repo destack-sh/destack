@@ -33,10 +33,10 @@ export struct AudioClockSample {
 export interface AudioClockBinding {
     /// Read one stream clock sample.
     @binding("destack.audio.clock.stream", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.clock"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     audioStreamClock(stream: AudioStreamHandle): Result<AudioClockSample, HostError>;
 }

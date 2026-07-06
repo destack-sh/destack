@@ -6,28 +6,28 @@ import { ProcessId } from "./identity.ds";
 export interface ProcessSessionBinding {
     /// Create a new Unix session and return the session leader id.
     @binding("destack.process.session.create", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.session"],
         families: ["unix"],
-        simulation: true,
     })
     createSession(): Result<ProcessId, HostError>;
 
     /// Set the process group id for one Unix process.
     @binding("destack.process.session.setGroup", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.session"],
         families: ["unix"],
-        simulation: true,
     })
     setProcessGroup(pid: ProcessId, group: ProcessId): Result<void, HostError>;
 
     /// Read the process group id for one Unix process.
     @binding("destack.process.session.group", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.session"],
         families: ["unix"],
-        simulation: true,
     })
     getProcessGroup(pid: ProcessId): Result<ProcessId, HostError>;
 }

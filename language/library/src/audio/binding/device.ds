@@ -157,19 +157,19 @@ export struct AudioDevice {
 export interface AudioDeviceBinding {
     /// List audio devices.
     @binding("destack.audio.device.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listAudioDevices(query: &readonly AudioDeviceQuery): Result<AudioDevice[], HostError>;
 
     /// Return the default device identifier for one direction.
     @binding("destack.audio.device.default", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     defaultAudioDevice(
         backend: &readonly AudioBackendSelection,
@@ -178,10 +178,10 @@ export interface AudioDeviceBinding {
 
     /// Describe one audio device.
     @binding("destack.audio.device.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.device"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeAudioDevice(
         backend: &readonly AudioBackendSelection,
@@ -190,10 +190,10 @@ export interface AudioDeviceBinding {
 
     /// Trigger one backend device rescan.
     @binding("destack.audio.device.rescan", {
+        provider: "host",
         effect: "external",
         requires: ["host.audio.device.watch"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     rescanAudioDevices(backend: &readonly AudioBackendSelection): Result<void, HostError>;
 }

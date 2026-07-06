@@ -4,10 +4,10 @@ import { HostError } from "destack:error/host";
 export interface ProcessExitBinding {
     /// Exit the current process with the given code.
     @binding("destack.process.exit", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.exit"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     exit(code: uint32): Result<void, HostError>;
 }

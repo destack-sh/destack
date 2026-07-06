@@ -38,19 +38,19 @@ export struct HapticParameters {
 export interface InputHapticsBinding {
     /// List supported haptic effects.
     @binding("destack.input.haptics.effects.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.haptics"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listHapticEffects(device: InputDeviceHandle): Result<HapticEffect[], HostError>;
 
     /// Play one haptic effect.
     @binding("destack.input.haptics.play", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.haptics"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     playHaptics(
         device: InputDeviceHandle,
@@ -60,10 +60,10 @@ export interface InputHapticsBinding {
 
     /// Stop active haptic effects.
     @binding("destack.input.haptics.stop", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.haptics"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     stopHaptics(device: InputDeviceHandle): Result<void, HostError>;
 }

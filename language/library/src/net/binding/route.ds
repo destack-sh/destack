@@ -45,28 +45,28 @@ export struct NetworkRouteEntry {
 export interface NetRouteBinding {
     /// List route table entries.
     @binding("destack.net.route.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.route.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     list(family: SocketFamily): Result<NetworkRouteEntry[], HostError>;
 
     /// Add a route table entry.
     @binding("destack.net.route.add", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.route.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     add(route: NetworkRouteEntry): Result<void, HostError>;
 
     /// Remove a route table entry.
     @binding("destack.net.route.remove", {
+        provider: "host",
         effect: "external",
         requires: ["host.net.route.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     remove(route: NetworkRouteEntry): Result<void, HostError>;
 }

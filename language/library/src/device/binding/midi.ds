@@ -314,55 +314,55 @@ export struct MidiOutputRecord {
 export interface DeviceMidiBinding {
     /// List MIDI backends.
     @binding("destack.device.midi.backend.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listMidiBackends(): Result<MidiBackend[], HostError>;
 
     /// Open a MIDI topology watch.
     @binding("destack.device.midi.event.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.observe"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openMidiWatch(options: &readonly MidiWatchOptions): Result<MidiWatchHandle, HostError>;
 
     /// Close a MIDI topology watch.
     @binding("destack.device.midi.event.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.observe"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeMidiWatch(watch: MidiWatchHandle): Result<void, HostError>;
 
     /// Read one MIDI topology event.
     @binding("destack.device.midi.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.observe"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readMidiWatch(watch: MidiWatchHandle, timeoutNs?: uint64): Result<MidiEvent, HostError>;
 
     /// List MIDI input ports.
     @binding("destack.device.midi.input.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listMidiInputs(options: &readonly MidiListOptions): Result<MidiPort[], HostError>;
 
     /// Open a MIDI input port.
     @binding("destack.device.midi.input.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openMidiInput(
         id: &readonly string,
@@ -371,28 +371,28 @@ export interface DeviceMidiBinding {
 
     /// Close a MIDI input port.
     @binding("destack.device.midi.input.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeMidiInput(input: MidiInputPortHandle): Result<void, HostError>;
 
     /// Describe a MIDI input port.
     @binding("destack.device.midi.input.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeMidiInput(input: MidiInputPortHandle): Result<MidiPort, HostError>;
 
     /// Read MIDI input records.
     @binding("destack.device.midi.input.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readMidiInput(
         input: MidiInputPortHandle,
@@ -402,10 +402,10 @@ export interface DeviceMidiBinding {
 
     /// Create a virtual MIDI input port.
     @binding("destack.device.midi.input.virtual.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.virtual"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openVirtualMidiInput(
         options: &readonly MidiVirtualOptions,
@@ -413,19 +413,19 @@ export interface DeviceMidiBinding {
 
     /// List MIDI output ports.
     @binding("destack.device.midi.output.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listMidiOutputs(options: &readonly MidiListOptions): Result<MidiPort[], HostError>;
 
     /// Open a MIDI output port.
     @binding("destack.device.midi.output.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openMidiOutput(
         id: &readonly string,
@@ -434,28 +434,28 @@ export interface DeviceMidiBinding {
 
     /// Close a MIDI output port.
     @binding("destack.device.midi.output.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeMidiOutput(output: MidiOutputPortHandle): Result<void, HostError>;
 
     /// Describe a MIDI output port.
     @binding("destack.device.midi.output.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.open"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeMidiOutput(output: MidiOutputPortHandle): Result<MidiPort, HostError>;
 
     /// Write MIDI output records.
     @binding("destack.device.midi.output.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.write"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeMidiOutput(
         output: MidiOutputPortHandle,
@@ -464,10 +464,10 @@ export interface DeviceMidiBinding {
 
     /// Create a virtual MIDI output port.
     @binding("destack.device.midi.output.virtual.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.midi.virtual"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openVirtualMidiOutput(
         options: &readonly MidiVirtualOptions,

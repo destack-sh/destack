@@ -34,10 +34,10 @@ export struct MessageQueueMessage {
 export interface IpcMessageBinding {
     /// Open or create one POSIX message queue.
     @binding("destack.ipc.message.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.message"],
         families: ["unix"],
-        simulation: true,
     })
     openMessageQueue(
         name: &readonly string,
@@ -46,28 +46,28 @@ export interface IpcMessageBinding {
 
     /// Close one message queue handle.
     @binding("destack.ipc.message.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.message"],
         families: ["unix"],
-        simulation: true,
     })
     closeMessageQueue(queue: MessageQueueHandle): Result<void, HostError>;
 
     /// Remove one named message queue.
     @binding("destack.ipc.message.remove", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.message"],
         families: ["unix"],
-        simulation: true,
     })
     removeMessageQueue(name: &readonly string): Result<void, HostError>;
 
     /// Send one message to a queue.
     @binding("destack.ipc.message.send", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.message"],
         families: ["unix"],
-        simulation: true,
     })
     sendMessageQueue(
         queue: MessageQueueHandle,
@@ -78,10 +78,10 @@ export interface IpcMessageBinding {
 
     /// Receive one message from a queue.
     @binding("destack.ipc.message.receive", {
+        provider: "host",
         effect: "external",
         requires: ["host.ipc.message"],
         families: ["unix"],
-        simulation: true,
     })
     receiveMessageQueue(
         queue: MessageQueueHandle,

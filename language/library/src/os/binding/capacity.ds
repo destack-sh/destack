@@ -14,10 +14,10 @@ export struct OsCapacity {
 export interface OsCapacityBinding {
     /// Read operating-system capacity.
     @binding("destack.os.capacity.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.os.capacity.read"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readOsCapacity(): Result<OsCapacity, HostError>;
 }

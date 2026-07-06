@@ -410,37 +410,37 @@ export struct BluetoothGattValueEvent {
 export interface DeviceBluetoothBinding {
     /// List Bluetooth adapters.
     @binding("destack.device.bluetooth.adapter.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listBluetoothAdapters(): Result<BluetoothAdapter[], HostError>;
 
     /// Open a Bluetooth adapter topology watch.
     @binding("destack.device.bluetooth.adapter.watch.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openBluetoothAdapterWatch(): Result<BluetoothAdapterWatchHandle, HostError>;
 
     /// Close a Bluetooth adapter topology watch.
     @binding("destack.device.bluetooth.adapter.watch.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeBluetoothAdapterWatch(watch: BluetoothAdapterWatchHandle): Result<void, HostError>;
 
     /// Read one Bluetooth adapter topology event.
     @binding("destack.device.bluetooth.adapter.watch.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.list"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothAdapterWatch(
         watch: BluetoothAdapterWatchHandle,
@@ -449,10 +449,10 @@ export interface DeviceBluetoothBinding {
 
     /// Open a Bluetooth LE scan.
     @binding("destack.device.bluetooth.scan.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.scan"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openBluetoothScan(
         options: &readonly BluetoothScanOptions,
@@ -460,19 +460,19 @@ export interface DeviceBluetoothBinding {
 
     /// Close a Bluetooth LE scan.
     @binding("destack.device.bluetooth.scan.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.scan"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeBluetoothScan(scan: BluetoothScanHandle): Result<void, HostError>;
 
     /// Read one Bluetooth scan event.
     @binding("destack.device.bluetooth.scan.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.scan"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothScan(
         scan: BluetoothScanHandle,
@@ -481,37 +481,37 @@ export interface DeviceBluetoothBinding {
 
     /// Open a Bluetooth device session.
     @binding("destack.device.bluetooth.open", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     openBluetoothDevice(id: &readonly string): Result<BluetoothDeviceHandle, HostError>;
 
     /// Close a Bluetooth device session.
     @binding("destack.device.bluetooth.close", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     closeBluetoothDevice(device: BluetoothDeviceHandle): Result<void, HostError>;
 
     /// Describe a Bluetooth device session.
     @binding("destack.device.bluetooth.describe", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     describeBluetoothDevice(device: BluetoothDeviceHandle): Result<BluetoothDevice, HostError>;
 
     /// Read one Bluetooth session event.
     @binding("destack.device.bluetooth.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothEvent(
         device: BluetoothDeviceHandle,
@@ -520,37 +520,37 @@ export interface DeviceBluetoothBinding {
 
     /// Pair a Bluetooth device.
     @binding("destack.device.bluetooth.pair", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     pairBluetoothDevice(device: BluetoothDeviceHandle): Result<void, HostError>;
 
     /// Unpair a Bluetooth device.
     @binding("destack.device.bluetooth.unpair", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unpairBluetoothDevice(device: BluetoothDeviceHandle): Result<void, HostError>;
 
     /// Read Bluetooth signal strength.
     @binding("destack.device.bluetooth.rssi", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.connect"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothRssi(device: BluetoothDeviceHandle): Result<int32, HostError>;
 
     /// List Bluetooth GATT services.
     @binding("destack.device.bluetooth.gatt.service.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listBluetoothGattServices(
         device: BluetoothDeviceHandle,
@@ -558,10 +558,10 @@ export interface DeviceBluetoothBinding {
 
     /// List Bluetooth GATT characteristics.
     @binding("destack.device.bluetooth.gatt.characteristic.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listBluetoothGattCharacteristics(
         device: BluetoothDeviceHandle,
@@ -570,10 +570,10 @@ export interface DeviceBluetoothBinding {
 
     /// List Bluetooth GATT descriptors.
     @binding("destack.device.bluetooth.gatt.descriptor.list", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     listBluetoothGattDescriptors(
         device: BluetoothDeviceHandle,
@@ -582,10 +582,10 @@ export interface DeviceBluetoothBinding {
 
     /// Read a Bluetooth GATT characteristic.
     @binding("destack.device.bluetooth.gatt.characteristic.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothGattCharacteristic(
         device: BluetoothDeviceHandle,
@@ -595,10 +595,10 @@ export interface DeviceBluetoothBinding {
 
     /// Write a Bluetooth GATT characteristic.
     @binding("destack.device.bluetooth.gatt.characteristic.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeBluetoothGattCharacteristic(
         device: BluetoothDeviceHandle,
@@ -609,10 +609,10 @@ export interface DeviceBluetoothBinding {
 
     /// Read a Bluetooth GATT descriptor.
     @binding("destack.device.bluetooth.gatt.descriptor.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothGattDescriptor(
         device: BluetoothDeviceHandle,
@@ -622,10 +622,10 @@ export interface DeviceBluetoothBinding {
 
     /// Write a Bluetooth GATT descriptor.
     @binding("destack.device.bluetooth.gatt.descriptor.write", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     writeBluetoothGattDescriptor(
         device: BluetoothDeviceHandle,
@@ -635,10 +635,10 @@ export interface DeviceBluetoothBinding {
 
     /// Subscribe to Bluetooth GATT value notifications.
     @binding("destack.device.bluetooth.gatt.subscribe", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     subscribeBluetoothGatt(
         device: BluetoothDeviceHandle,
@@ -647,19 +647,19 @@ export interface DeviceBluetoothBinding {
 
     /// Unsubscribe from Bluetooth GATT value notifications.
     @binding("destack.device.bluetooth.gatt.unsubscribe", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     unsubscribeBluetoothGatt(subscription: BluetoothSubscriptionHandle): Result<void, HostError>;
 
     /// Read one Bluetooth GATT value notification.
     @binding("destack.device.bluetooth.gatt.event.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.device.bluetooth.gatt"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readBluetoothGattEvent(
         subscription: BluetoothSubscriptionHandle,

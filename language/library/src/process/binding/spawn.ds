@@ -126,10 +126,10 @@ export struct ProcessSpawnOptions {
 export interface ProcessSpawnBinding {
     /// Spawn a child process.
     @binding("destack.process.spawn", {
+        provider: "host",
         effect: "external",
         requires: ["host.process.spawn"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     spawn(options: &readonly ProcessSpawnOptions): Result<ProcessHandle, HostError>;
 }

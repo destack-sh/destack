@@ -52,10 +52,10 @@ export struct TouchState {
 export interface InputTouchBinding {
     /// Read one touch state snapshot.
     @binding("destack.input.touch.state.read", {
+        provider: "host",
         effect: "external",
         requires: ["host.input.touch"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readTouchState(device: InputDeviceHandle): Result<TouchState, HostError>;
 }

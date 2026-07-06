@@ -207,10 +207,10 @@ export struct FileStatus {
 export interface FsStatusBinding {
     /// Read status for a filesystem entry.
     @binding("destack.fs.status.entry", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readEntry(
         entry: &readonly FilesystemEntry,
@@ -219,10 +219,10 @@ export interface FsStatusBinding {
 
     /// Read status for an open file.
     @binding("destack.fs.status.file", {
+        provider: "host",
         effect: "external",
         requires: ["host.fs.metadata"],
         families: ["windows", "unix"],
-        simulation: true,
     })
     readFile(file: FileHandle, options: FileStatusOptions): Result<FileStatus, HostError>;
 }
