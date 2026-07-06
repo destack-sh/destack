@@ -1692,15 +1692,6 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Option<(dir::GlobalNodeIdAny, dir::GenericInstance)>> {
         let global_source = source.into_global_any(self.module);
 
-        // heritage names the declared receiver, so `this` resolves now
-        let ty = match self.flow().current_receiver() {
-            Some(receiver) => {
-                let substitution = TypeSubstitution::default().with_receiver(receiver.ty);
-
-                self.check.substitute_type(self.module, ty, &substitution)?
-            }
-            None => ty,
-        };
         let dir::Type::Instance(instance) = self.check.ty(ty)? else {
             return Ok(None);
         };

@@ -159,6 +159,18 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic.into());
     }
 
+    /// Report a static value expression that cannot decide statically.
+    pub(in crate::check) fn report_undecidable_static_value(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UndecidableStaticValue { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic.into());
+    }
+
     /// Report a missing explicit method receiver.
     pub(in crate::check) fn report_missing_explicit_receiver(
         &mut self,
@@ -399,6 +411,18 @@ impl CheckState<'_> {
             let error = CheckError::CannotInferType { anchor, module };
             self.module_mut(module).diagnostics.push(error.into());
         }
+
+        Ok(())
+    }
+
+    /// Report one source node whose type could not be inferred.
+    pub(in crate::check) fn report_cannot_infer_node(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.source_anchor(source);
+        let error = CheckError::CannotInferType { anchor, module };
+        self.module_mut(module).diagnostics.push(error.into());
 
         Ok(())
     }
@@ -690,6 +714,23 @@ impl CheckState<'_> {
             module,
             ty: self.format_type(target),
             hint: hint.to_string(),
+        };
+        self.module_mut(module).diagnostics.push(error.into());
+
+        Ok(())
+    }
+
+    /// Report one inferred construction target that is not a concrete newtype.
+    pub(in crate::check) fn report_invalid_inferred_construct_target(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::InvalidInferredConstructTarget {
+            anchor,
+            module,
+            ty: self.format_type(target),
         };
         self.module_mut(module).diagnostics.push(error.into());
 

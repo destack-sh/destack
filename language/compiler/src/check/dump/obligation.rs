@@ -34,9 +34,6 @@ impl Obligation {
             Self::Representation(obligation) => {
                 event.text("type", context.type_label(obligation.ty))
             }
-            Self::AutoInterface(obligation) => event
-                .text("type", context.type_label(obligation.ty))
-                .text("interface", obligation.interface.name()),
             Self::RuntimePredicate(obligation) => event.text(
                 "predicate",
                 runtime_predicate_label(&obligation.predicate, context),
@@ -67,7 +64,6 @@ impl Obligation {
             Self::PatternCoverage(_) => "pattern.coverage",
             Self::WritablePlace(_) => "writable.place",
             Self::Representation(_) => "representation",
-            Self::AutoInterface(_) => "auto.interface",
             Self::RuntimePredicate(_) => "runtime.predicate",
             Self::ForInSource(_) => "for.in.source",
             Self::ExtensionConformance(_) => "extension.conformance",

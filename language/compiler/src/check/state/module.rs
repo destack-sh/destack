@@ -76,6 +76,7 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) static_presence: IndexMap<dir::GlobalNodeIdAny, bool>,
     /// Declarations whose guards decided statically false.
     pub(in crate::check) absent_symbols: IndexSet<dir::GlobalSymbolId>,
+
     // diagnostics drained during write
     /// Diagnostics reported while walking this module.
     pub(in crate::check) diagnostics: Vec<DiagnosticBuilder<CheckError>>,

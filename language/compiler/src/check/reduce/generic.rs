@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     BoundMode, CheckState, GenericInductionParameter, GenericParameterId, GenericTemplateId,
-    Origin, TypeSubstitution, Widening,
+    Origin, Relation, TypeSubstitution, Widening,
 };
 
 /// Position of one written generic application.
@@ -191,7 +191,13 @@ impl CheckState<'_> {
                 .map(|constraint| self.substitute_type(origin.module(), constraint, &substitution))
                 .transpose()?;
             if let Some(constraint) = constraint {
-                self.push_upper_bound(variable, source_node, constraint, BoundMode::Strong)?;
+                self.push_upper_bound(
+                    variable,
+                    source_node,
+                    constraint,
+                    Relation::Satisfies,
+                    BoundMode::Strong,
+                )?;
             }
 
             // record defaults as weak solve bounds
