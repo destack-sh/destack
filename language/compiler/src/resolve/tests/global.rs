@@ -524,7 +524,7 @@ global {
 function read() {
     const answer = 1;
     return answer;
-    /// @reference.bound source=answer targets=[answer]
+    /// @reference.bound source=answer targets=[read.answer]
 
 }
 
