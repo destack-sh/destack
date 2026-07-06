@@ -1083,7 +1083,7 @@ fn add_call_candidate_fields(
         .optional_field("adjustments", adjustments_label(&candidate.adjustments))
         .optional_field(
             "instance",
-            generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments),
+            call_candidate_instance_label(builder, candidate),
         )
 }
 
@@ -1201,23 +1201,11 @@ fn add_call_target_generic_instances(
 
     match target {
         dir::CallTarget::Symbol(candidate) => {
-            add_generic_instance(
-                builder,
-                anchor,
-                source,
-                candidate.symbol,
-                &candidate.generic_arguments,
-            );
+            add_call_candidate_generic_instance(builder, anchor, source, candidate);
         }
         dir::CallTarget::Universal(candidates) => {
             for candidate in candidates {
-                add_generic_instance(
-                    builder,
-                    anchor,
-                    source.clone(),
-                    candidate.symbol,
-                    &candidate.generic_arguments,
-                );
+                add_call_candidate_generic_instance(builder, anchor, source.clone(), candidate);
             }
         }
         dir::CallTarget::Builtin(_) | dir::CallTarget::Expression { .. } => {}
@@ -1411,6 +1399,183 @@ fn add_generic_instance(
     let arguments = generic_instance_arguments(builder, symbol, arguments);
 
     builder.add_generic_instance(anchor, source, symbol, &arguments);
+}
+
+/// Render one selected callable instance.
+fn call_candidate_instance_label(
+    builder: &DirSnapshotBuilder<'_>,
+    candidate: &dir::CallCandidate,
+) -> Option<String> {
+    let Some(owner) = candidate.generic_scope else {
+        return generic_instance_label(builder, candidate.symbol, &candidate.generic_arguments);
+    };
+
+    let owner_arguments = generic_instance_arguments(builder, owner, &candidate.generic_arguments);
+    let member_arguments =
+        generic_instance_arguments(builder, candidate.symbol, &candidate.generic_arguments);
+    if owner_arguments.is_empty() && member_arguments.is_empty() {
+        return None;
+    }
+
+    let owner_label = call_candidate_owner_label(
+        builder,
+        owner,
+        &owner_arguments,
+        &candidate.generic_arguments,
+    );
+    let member_label = call_candidate_member_label(builder, owner, candidate.symbol);
+    let member_label = match member_arguments.as_slice() {
+        [] => member_label,
+        _ => format!(
+            "{}<{}>",
+            member_label,
+            member_arguments
+                .iter()
+                .map(|argument| builder.global_type_label(*argument))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    };
+
+    Some(format!("{owner_label}.{member_label}"))
+}
+
+/// Render the generic scope selected by one call.
+fn call_candidate_owner_label(
+    builder: &DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    arguments: &[dir::GlobalTypeId],
+    bindings: &[dir::GenericArgumentBinding],
+) -> String {
+    let Some(dir::Definition::Extension(extension)) = builder
+        .definitions
+        .as_ref()
+        .and_then(|definitions| definitions.definition(owner))
+    else {
+        return match arguments {
+            [] => builder.symbol_path_label(owner),
+            _ => builder.generic_instance_label(owner, arguments),
+        };
+    };
+
+    if builder.is_anonymous_symbol(owner) {
+        let target = type_label_with_bindings(builder, extension.target.r#type(), bindings);
+        let extension = builder.anonymous_extension_label(owner);
+
+        format!("{target}.{extension}")
+    } else {
+        match arguments {
+            [] => builder.symbol_path_label(owner),
+            _ => builder.generic_instance_label(owner, arguments),
+        }
+    }
+}
+
+/// Render one type while applying selected generic bindings.
+fn type_label_with_bindings(
+    builder: &DirSnapshotBuilder<'_>,
+    type_id: dir::GlobalTypeId,
+    bindings: &[dir::GenericArgumentBinding],
+) -> String {
+    let Some(ty) = type_value(builder, type_id) else {
+        return builder.global_type_label(type_id);
+    };
+
+    match ty {
+        dir::Type::Parameter(parameter) => bindings
+            .iter()
+            .find(|binding| binding.parameter == parameter)
+            .map(|binding| builder.global_type_label(binding.argument))
+            .unwrap_or_else(|| builder.global_type_label(type_id)),
+        dir::Type::Reference(reference) => builder.reference_symbol_label(reference.symbol),
+        dir::Type::Instance(instance) => {
+            generic_instance_type_label(builder, type_id.module_id, &instance, bindings)
+        }
+        _ => builder.global_type_label(type_id),
+    }
+}
+
+/// Render one applied declaration while applying selected generic bindings.
+fn generic_instance_type_label(
+    builder: &DirSnapshotBuilder<'_>,
+    module: destack_source::ModuleId,
+    instance: &dir::GenericInstance,
+    bindings: &[dir::GenericArgumentBinding],
+) -> String {
+    let Some(types) = type_table(builder, module) else {
+        return builder.symbol_path_label(instance.symbol);
+    };
+
+    let arguments = types
+        .type_ids(instance.arguments)
+        .iter()
+        .map(|argument| type_label_with_bindings(builder, *argument, bindings))
+        .collect::<Vec<_>>();
+    if arguments.is_empty() {
+        return builder.reference_symbol_label(instance.symbol);
+    }
+
+    let symbol = builder.reference_symbol_label(instance.symbol);
+    let arguments = arguments.join(", ");
+
+    format!("{symbol}<{arguments}>")
+}
+
+/// Return the stored type value for one visible type id.
+fn type_value(builder: &DirSnapshotBuilder<'_>, type_id: dir::GlobalTypeId) -> Option<dir::Type> {
+    let types = type_table(builder, type_id.module_id)?;
+
+    Some(types.get_type(type_id.local_id))
+}
+
+/// Return the visible type table for one module.
+fn type_table<'a>(
+    builder: &'a DirSnapshotBuilder<'_>,
+    module: destack_source::ModuleId,
+) -> Option<&'a dir::TypeTable<'static>> {
+    if module == builder.tree.module_id {
+        builder.types.as_ref()
+    } else {
+        builder.foreign_types.get(&module)
+    }
+}
+
+/// Add one selected callable instance row.
+fn add_call_candidate_generic_instance(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    source: Option<String>,
+    candidate: &dir::CallCandidate,
+) {
+    let Some(label) = call_candidate_instance_label(builder, candidate) else {
+        return;
+    };
+    let arguments = generic_argument_values(&candidate.generic_arguments);
+    let arguments = builder.generic_instance_arguments_label(&arguments);
+    let template = builder.symbol_path_label(candidate.symbol);
+
+    builder.add_generic_instance_row(
+        anchor,
+        source.as_deref(),
+        &label,
+        Some(&template),
+        &arguments,
+    );
+}
+
+/// Render one member name relative to its owner.
+fn call_candidate_member_label(
+    builder: &DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    symbol: dir::GlobalSymbolId,
+) -> String {
+    let owner = builder.symbol_path_label(owner);
+    let symbol = builder.symbol_path_label(symbol);
+    let Some(member) = symbol.strip_prefix(&format!("{owner}.")) else {
+        return symbol;
+    };
+
+    member.to_string()
 }
 
 /// Add ordered pattern sequence fields.

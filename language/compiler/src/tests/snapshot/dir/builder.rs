@@ -35,6 +35,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) binding_names: Option<BindingSnapshotName<'a>>,
     /// The checked generic table.
     pub(super) generics: Option<dir::GenericTable<'static>>,
+    /// The checked definition table.
+    pub(super) definitions: Option<dir::DefinitionTable<'static>>,
     /// The visible type table used by layout anchors.
     pub(super) types: Option<dir::TypeTable<'static>>,
     /// The visible static table used by type labels.
@@ -86,6 +88,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             bindings: None,
             binding_names: None,
             generics: None,
+            definitions: None,
             types: None,
             statics: None,
             module_path_by_id: None,
@@ -250,6 +253,9 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.uses_type_labels() {
             self.generics = Some(dir::GenericTable::from_segment(checked.generics.clone()));
+            self.definitions = Some(dir::DefinitionTable::from_segment(
+                checked.definitions.clone(),
+            ));
 
             let types = dir::TypeTable::from_segments(vec![
                 bound.types.clone(),
@@ -501,6 +507,42 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         self.binding_names().symbol_path(symbol_id.local_id)
+    }
+
+    /// Return whether one local symbol has no source name.
+    pub(crate) fn is_anonymous_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
+        if symbol_id.module_id != self.tree.module_id {
+            return false;
+        }
+
+        self.symbol(symbol_id.local_id).name().is_none()
+    }
+
+    /// Render one anonymous extension path segment.
+    pub(crate) fn anonymous_extension_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
+        let definitions = self
+            .definitions
+            .as_ref()
+            .unwrap_or_else(|| panic!("dir snapshot needs definitions"));
+        let mut index = 0;
+
+        // count anonymous extensions in definition order
+        for (symbol, definition) in definitions.iter_definitions() {
+            if !matches!(definition, dir::Definition::Extension(_)) {
+                continue;
+            }
+
+            if !self.is_anonymous_symbol(symbol) {
+                continue;
+            }
+
+            index += 1;
+            if symbol == symbol_id {
+                return format!("<extension#{index}>");
+            }
+        }
+
+        panic!("dir snapshot missing anonymous extension {symbol_id:?}");
     }
 
     /// Render the declaration source for one local symbol.
