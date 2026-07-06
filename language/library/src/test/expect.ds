@@ -60,9 +60,9 @@ export class Expect<T> {
     /// Assert that the value contains `expected`.
     toContain<U>(this: &readonly Expect<Iterable<U>>, expected: U): void where U: Equal<U> {
         if (this.isNegated) {
-            assert.notContains(&readonly this.value, expected)
+            assert.notContains(this.value, expected)
         } else {
-            assert.contains(&readonly this.value, expected)
+            assert.contains(this.value, expected)
         }
     }
 
