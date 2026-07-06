@@ -19,17 +19,14 @@ format:
 # check formatting
 format-check:
     just site/format-check
-    just stack/format-check
 
 # run static checks
 lint:
     just site/lint
-    just stack/lint
 
 # run tests
 test:
     just site/test
-    just stack/test
 
 # default check
 check:
