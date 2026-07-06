@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_core::{SectionPacker, StringPool};
+use destack_core::{SectionPacker, StringId, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
 use destack_program::{FunctionId, GlobalId, Program, StringTable, TypeId};
@@ -82,7 +82,7 @@ impl ProgramLinker {
         let mut sections = SectionPacker::new();
 
         // project program tables before lowering VM code
-        let functions = FunctionLinker::new(&self.tree, &self).link(&mut sections);
+        let functions = FunctionLinker::new(&self.tree, &self).link(&mut sections)?;
         let layouts = LayoutLinker::new(
             &self.tree,
             &self.target_layout,
@@ -262,6 +262,11 @@ impl ProgramLinker {
     /// Return the number of program function ids.
     pub(crate) fn function_count(&self) -> usize {
         self.function_ids.len()
+    }
+
+    /// Return one linked string.
+    pub(crate) fn string(&self, string: StringId) -> &str {
+        self.strings.get(string)
     }
 
     /// Return the program type id for one MIR type.
