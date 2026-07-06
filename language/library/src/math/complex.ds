@@ -39,17 +39,26 @@ export extension<T: Float> of Complex<T>
 
     /// Return zero.
     static zero(): Complex<T> {
-        Complex { real: 0, imaginary: 0 }
+        Complex {
+            real: T.zero(),
+            imaginary: T.zero(),
+        }
     }
 
     /// Return one.
     static one(): Complex<T> {
-        Complex { real: 1, imaginary: 0 }
+        Complex {
+            real: T.one(),
+            imaginary: T.zero(),
+        }
     }
 
     /// Return the imaginary unit.
     static i(): Complex<T> {
-        Complex { real: 0, imaginary: 1 }
+        Complex {
+            real: T.zero(),
+            imaginary: T.one(),
+        }
     }
 
     /// Create a complex value from polar components.

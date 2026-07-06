@@ -1,10 +1,22 @@
+/// Numeric type with an additive identity.
+export newtype interface Zero {
+    /// Return the additive identity.
+    static zero(): this;
+}
+
+/// Numeric type with a multiplicative identity.
+export newtype interface One {
+    /// Return the multiplicative identity.
+    static one(): this;
+}
+
 /// Marker for the builtin integer types of any width.
 @languageItem("math.Integer")
-export newtype interface Integer {}
+export newtype interface Integer extends Zero, One {}
 
 /// Marker for the builtin float formats of any width.
 @languageItem("math.Float")
-export newtype interface Float {}
+export newtype interface Float extends Zero, One {}
 
 /// Any sized machine scalar, excluding `bigint`.
 export type Numeric = Integer | Float;

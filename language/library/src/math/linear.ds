@@ -84,7 +84,10 @@ export extension<T: Numeric> of Vector2<T>
 
     /// Return the zero vector.
     static zero(): Vector2<T> {
-        Vector2 { x: 0, y: 0 }
+        Vector2 {
+            x: T.zero(),
+            y: T.zero(),
+        }
     }
 
     /// Return a vector with every component set to `value`.
@@ -239,7 +242,11 @@ export extension<T: Numeric> of Vector3<T>
 
     /// Return the zero vector.
     static zero(): Vector3<T> {
-        Vector3 { x: 0, y: 0, z: 0 }
+        Vector3 {
+            x: T.zero(),
+            y: T.zero(),
+            z: T.zero(),
+        }
     }
 
     /// Return a vector with every component set to `value`.
@@ -408,7 +415,12 @@ export extension<T: Numeric> of Vector4<T>
 
     /// Return the zero vector.
     static zero(): Vector4<T> {
-        Vector4 { x: 0, y: 0, z: 0, w: 0 }
+        Vector4 {
+            x: T.zero(),
+            y: T.zero(),
+            z: T.zero(),
+            w: T.zero(),
+        }
     }
 
     /// Return a vector with every component set to `value`.
