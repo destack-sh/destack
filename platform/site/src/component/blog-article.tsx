@@ -17,7 +17,7 @@ export function BlogArticle(props: BlogArticleProps) {
             <div class="relative isolate min-w-0 pr-2 pb-2">
                 <div
                     aria-hidden="true"
-                    class="pointer-events-none absolute top-3 right-0 bottom-0 left-3 z-0 bg-size-[3px_3px] bg-[radial-gradient(circle,var(--color-destack-accent)_0_1.15px,transparent_1.3px)]"
+                    class="pointer-events-none absolute top-3 right-0 bottom-0 left-3 z-0 bg-size-[3px_3px] bg-[radial-gradient(circle,var(--color-destack-ink)_0_1.15px,transparent_1.3px)]"
                 />
 
                 <article class="relative z-10 grid w-full gap-10 border-2 border-destack-frame bg-destack-panel px-4 py-6 md:px-8 md:py-8">
