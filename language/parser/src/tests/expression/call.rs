@@ -412,6 +412,44 @@ fn test_parse_call_expression_with_generic_arguments() {
 }
 
 #[test]
+fn test_parse_call_with_inferred_callee() {
+    let test = TestParser::new("_(1, 2)");
+    let mut parser = test.prepare();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        // _
+        assert_node!(parser.tree, *left, Expression::Infer { form, name } => {
+            assert_eq!(*form, InferForm::Hole);
+            assert!(name.is_none());
+        });
+        // (1, 2)
+        assert_eq!(arguments.len(), 2);
+    });
+
+    TestParser::assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_call_with_inferred_callee_object_argument() {
+    let test = TestParser::new("_({ x: 1, y: 2 })");
+    let mut parser = test.prepare();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        // _
+        assert_node!(parser.tree, *left, Expression::Infer { form, name } => {
+            assert_eq!(*form, InferForm::Hole);
+            assert!(name.is_none());
+        });
+        // ({ x: 1, y: 2 })
+        assert_eq!(arguments.len(), 1);
+    });
+
+    TestParser::assert_no_errors(&parser);
+}
+
+#[test]
 fn test_parse_new_without_parentheses() {
     // new Foo without parentheses
     let test = TestParser::new("new Foo");

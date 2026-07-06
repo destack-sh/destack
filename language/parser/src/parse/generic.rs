@@ -115,6 +115,11 @@ impl Parser {
             self.eat_token(TokenType::Spread)?;
         }
 
+        // spread call expressions are value packs
+        if is_spread && self.peek_token_type_at(1) == TokenType::OpenParenthesis {
+            return self.parse_generic_value_argument(true, context, start);
+        }
+
         // associated type refinement
         if !is_spread
             && self.peek_is_keyword(Keyword::Type)
@@ -187,6 +192,16 @@ impl Parser {
         }
 
         // otherwise parse the argument in value space
+        self.parse_generic_value_argument(is_spread, context, start)
+    }
+
+    /// Parse one generic argument in value space.
+    fn parse_generic_value_argument(
+        &mut self,
+        is_spread: bool,
+        context: GenericArgumentContext,
+        start: &ParseStart,
+    ) -> ParserResult<LocalNodeId<GenericArgument>> {
         let value = self.parse_expression(ExpressionContext {
             function: context.function,
             stops: ExpressionStops::ANGLE_CLOSE,

@@ -222,6 +222,18 @@ impl Parser {
 
         // classify identifier-shaped grammar from one consumed head
         match self.peek_token_type() {
+            // an applied hole heads an inferred call
+            TokenType::OpenParenthesis if self.range_str(name_range) == "_" => {
+                let expression = self.insert_node(
+                    Expression::Infer {
+                        form: InferForm::Hole,
+                        name: None,
+                    },
+                    name_range,
+                );
+
+                Ok(expression)
+            }
             TokenType::ArrowWide => {
                 let declaration = self.parse_bare_lambda(
                     start,
