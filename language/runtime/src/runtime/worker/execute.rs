@@ -30,7 +30,7 @@ impl Worker {
             environment: self.environment.clone(),
             options: self.options.clone(),
             diagnostics: self.diagnostics.clone(),
-            bindings: &self.bindings,
+            binding_table: &self.binding_table,
             host,
             host_queue,
             world,

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::world::policy::ActionSet;
 use destack_core::fnv1a_128;
+use destack_program::BindingId;
 
 /// Default codec used for binding payloads.
 pub const DEFAULT_BINDING_CODEC: CodecId = CodecId::from_name("destack-serde-v1");
@@ -53,7 +54,7 @@ impl BindingDescriptor {
         Self {
             name,
             namespace: "",
-            id: BindingId::from_name(name),
+            id: BindingId::from_static_name(name),
             signature: SignatureHash::from_signature(signature),
             codec: DEFAULT_BINDING_CODEC,
             determinism,
@@ -212,17 +213,6 @@ pub enum BindingReplayKind {
     BindingCall,
     /// Record one entropy sample.
     Entropy,
-}
-
-/// Stable identifier for a binding name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BindingId(pub u128);
-
-impl BindingId {
-    /// Build a binding id from a binding name.
-    pub const fn from_name(name: &'static str) -> Self {
-        Self(fnv1a_128(name.as_bytes()))
-    }
 }
 
 /// Stable identifier for a binding payload codec.

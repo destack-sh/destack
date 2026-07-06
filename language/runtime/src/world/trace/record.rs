@@ -47,7 +47,7 @@ pub enum Outcome {
     TimeAdvance(Instant),
     /// Entropy sample for time and random nondeterminism.
     Entropy(EntropySample),
-    /// External binding call payload or result.
+    /// Binding call payload or result.
     BindingCall(BindingCall),
     /// One runtime spawn outcome that must be replayed structurally.
     RuntimeSpawned {
@@ -169,10 +169,10 @@ impl EntropySample {
     }
 }
 
-/// External binding call captured for trace.
+/// Binding call captured for trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BindingCall {
-    /// Binding identifier from the registry.
+    /// Binding identifier from the binding table.
     pub binding_id: BindingId,
     /// Codec identifier for the payload.
     pub codec: CodecId,

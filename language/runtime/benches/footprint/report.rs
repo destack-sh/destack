@@ -9,7 +9,7 @@ use destack_program::StaticSpace;
 use destack_repository::{Environment, RuntimeOptions};
 use destack_runtime::diagnostic::DiagnosticStore;
 use destack_runtime::host::HostPollResult;
-use destack_runtime::host::binding::BindingRegistry;
+use destack_runtime::host::binding::BindingTable;
 use destack_runtime::host::resource::ResourceTable;
 use destack_runtime::runtime::random::Random;
 use destack_runtime::runtime::scheduler::EventLoop;
@@ -52,7 +52,7 @@ fn print_type_sizes() {
         ("runtime", "Random", size_of::<Random>()),
         ("host", "HostPollResult", size_of::<HostPollResult>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
-        ("host", "BindingRegistry", size_of::<BindingRegistry>()),
+        ("host", "BindingTable", size_of::<BindingTable>()),
         (
             "diagnostic",
             "DiagnosticStore",
@@ -87,7 +87,7 @@ fn print_component_sizes() {
         ("heap", "AllocationCache", size_of::<AllocationCache>()),
         ("heap", "SharedMarkWorker", size_of::<SharedMarkWorker>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
-        ("host", "BindingRegistry", size_of::<BindingRegistry>()),
+        ("host", "BindingTable", size_of::<BindingTable>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
         ("machine", "StaticSpace", size_of::<StaticSpace>()),
     ];

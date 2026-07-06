@@ -50,7 +50,7 @@ pub(crate) fn binding_call<'host>(
         environment: worker.environment.clone(),
         options: worker.options.clone(),
         diagnostics: worker.diagnostics.clone(),
-        bindings: &worker.bindings,
+        binding_table: &worker.binding_table,
         host,
         host_queue,
         world: world as *mut WorldState,
@@ -611,7 +611,7 @@ fn worker_for_options(
     .expect("runtime test worker should build");
 
     // apply runtime options to binding policy state
-    worker.bindings.apply_runtime_defaults(options);
+    worker.binding_table.apply_runtime_defaults(options);
 
     // drain initial host bootstrap events for deterministic scheduler tests
     poll_host_events(world.host.as_ref(), &world.host_queue, Some(0))

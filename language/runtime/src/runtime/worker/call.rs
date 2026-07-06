@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::binding::{
-    BindingAccess, BindingAffinity, BindingDescriptor, BindingRegistry, BindingReplayPayload,
+    BindingAccess, BindingAffinity, BindingDescriptor, BindingReplayPayload, BindingTable,
     RuntimeAccess,
 };
 use crate::host::core::{Host, HostQueue, advance_host_events};
@@ -30,8 +30,8 @@ pub struct BindingCall<'host> {
     pub(crate) options: Arc<RuntimeOptions>,
     /// Runtime diagnostics storage.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
-    /// External binding registry and policy enforcement.
-    pub(crate) bindings: *const BindingRegistry,
+    /// Runtime binding table and policy enforcement.
+    pub(crate) binding_table: *const BindingTable,
     /// Host integration for callbacks.
     pub(crate) host: &'host dyn Host,
     /// Host event queue for callbacks.
@@ -46,11 +46,11 @@ pub struct BindingCall<'host> {
 
 #[allow(clippy::mut_from_ref)]
 impl BindingCall<'_> {
-    /// Borrow the binding registry.
+    /// Borrow the binding table.
     #[inline]
-    fn bindings(&self) -> &BindingRegistry {
+    fn binding_table(&self) -> &BindingTable {
         // SAFETY: the pointer targets a worker field that is not mutably borrowed during calls
-        unsafe { &*self.bindings }
+        unsafe { &*self.binding_table }
     }
 
     /// Borrow the runtime diagnostics store.
@@ -104,7 +104,7 @@ impl BindingCall<'_> {
     /// Borrow the binding access for this worker.
     #[inline]
     fn access(&self) -> parking_lot::RwLockReadGuard<'_, BindingAccess> {
-        self.bindings().access().read()
+        self.binding_table().access().read()
     }
 
     /// Build one entropy replay subject for the current call and one binding.
@@ -295,12 +295,12 @@ impl BindingCall<'_> {
         let runtime_access = self.decide_binding(spec)?;
         self.ensure_binding_access_allowed(spec, runtime_access)?;
 
-        // reject unavailable host bindings before entering the call
+        // reject unavailable host binding before entering the call
         if !spec.supports_current_target() {
             return Err(RuntimeError::from(HostError::not_supported(spec.name)).boxed());
         }
 
-        // service runtime-owned host ingress before host bindings execute
+        // service runtime-owned host ingress before host binding execution
         self.advance_wait_progress()?;
 
         Ok(())

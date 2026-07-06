@@ -1,12 +1,12 @@
 mod access;
 mod descriptor;
-mod registry;
+mod table;
 
 pub use access::BindingAccess;
 pub(crate) use descriptor::current_platform_name;
 pub use descriptor::{
-    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingId, BindingProvider,
-    BindingReplayKind, BindingReplayPayload, CodecId, DEFAULT_BINDING_CODEC, RuntimeAccess,
-    SignatureHash,
+    BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, BindingReplayKind,
+    BindingReplayPayload, CodecId, DEFAULT_BINDING_CODEC, RuntimeAccess, SignatureHash,
 };
-pub use registry::BindingRegistry;
+pub use destack_program::BindingId;
+pub use table::BindingTable;
