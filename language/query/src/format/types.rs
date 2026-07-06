@@ -40,6 +40,7 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
             dir::Type::Reference(reference) => return self.symbol(reference.symbol),
             dir::Type::Instance(instance) => return self.instance(*instance),
             dir::Type::Parameter(parameter) => return self.generic_parameter(*parameter),
+            dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Member(member) => return self.member(*member),
             dir::Type::EnumMember(member) => return self.symbol(member.member),
             dir::Type::Form(form) => return self.form(*form),

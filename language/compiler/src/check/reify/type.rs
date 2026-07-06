@@ -232,7 +232,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         let expression = match ty {
             // open variables and errors have no honest spelling
-            dir::Type::Variable(_) | dir::Type::Error => return Ok(None),
+            dir::Type::Variable(_) | dir::Type::Erased(_) | dir::Type::Error => return Ok(None),
 
             dir::Type::Never => Self::literal(dir::TypeLiteral::Never),
             dir::Type::Any => Self::literal(dir::TypeLiteral::Any),

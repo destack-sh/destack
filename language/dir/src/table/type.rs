@@ -246,6 +246,7 @@ impl<'a> TypeTable<'a> {
             | Type::Memory(_)
             | Type::Static(_)
             | Type::Intrinsic
+            | Type::Erased(_)
             | Type::Parameter(_)
             | Type::This
             | Type::Range(_)

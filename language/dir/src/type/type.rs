@@ -44,6 +44,8 @@ pub enum Type {
     Static(GlobalStaticId),
     /// Compiler intrinsic type body.
     Intrinsic,
+    /// Erased generic argument captured by a runtime head test.
+    Erased(GlobalGenericParameterId),
 
     /// Generic parameter, like the `T` in `class Box<T>`.
     Parameter(GlobalGenericParameterId),
@@ -183,6 +185,7 @@ impl Type {
             Self::Variable(_) => TypeFlags::HAS_VARIABLE,
             Self::Error => TypeFlags::HAS_ERROR,
             Self::Parameter(_) => TypeFlags::HAS_PARAMETER,
+            Self::Erased(_) => TypeFlags::HAS_PARAMETER,
             Self::This => TypeFlags::HAS_THIS,
             Self::Reference(_) => TypeFlags::HAS_REFERENCE,
             Self::Member(_) => TypeFlags::HAS_MEMBER,

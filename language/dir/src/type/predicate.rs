@@ -11,7 +11,7 @@ use crate::{
 /// ```ds
 /// value is string       // Unary
 /// value is Shape.Circle // Unary over VariantTag, projection: VariantPayload
-/// "name" in value       // Has
+/// "name" in value       // Membership
 /// value is "a" | "b"    // Any
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -125,7 +125,7 @@ impl PredicateOperand {
 /// Examples:
 /// ```ds
 /// value is string       // Unary
-/// "name" in value       // Has
+/// "name" in value       // Membership
 /// value is "a" | "b"    // Any
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -144,7 +144,7 @@ pub enum PredicateTest {
     /// ```ds
     /// "name" in value
     /// ```
-    Has(PredicateHasTest),
+    Membership(PredicateMembershipTest),
     /// Predicate that accepts when any alternative accepts.
     ///
     /// Examples:
@@ -159,7 +159,7 @@ impl PredicateTest {
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         match self {
             Self::Unary(test) => test.map_type_ids(map),
-            Self::Has(test) => test.map_type_ids(map),
+            Self::Membership(test) => test.map_type_ids(map),
             Self::Any(predicates) => {
                 for predicate in predicates {
                     predicate.map_type_ids(map);
@@ -276,14 +276,14 @@ impl PredicateCondition {
 /// key in value
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct PredicateHasTest {
+pub struct PredicateMembershipTest {
     /// The receiver value.
     pub receiver: PredicateOperand,
     /// The tested key.
     pub key: PredicateKey,
 }
 
-impl PredicateHasTest {
+impl PredicateMembershipTest {
     /// Apply one mapping to every type id stored in this membership test.
     pub fn map_type_ids(&mut self, map: &mut impl FnMut(GlobalTypeId) -> GlobalTypeId) {
         self.receiver.map_type_ids(map);

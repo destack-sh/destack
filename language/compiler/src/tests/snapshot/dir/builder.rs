@@ -450,33 +450,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Return the source anchor for one global type, derived from the type's
-    /// own identity rather than per-type provenance (which no longer exists).
-    /// Nominal references anchor at their declaration symbol; single-value
-    /// memory forms recurse into the wrapped value; everything else (tuples,
-    /// unions, scalars, foreign-module types) anchors at the end.
-    pub(crate) fn anchor_global_type(&self, type_id: dir::GlobalTypeId) -> SnapshotAnchor {
-        if type_id.module_id != self.tree.module_id {
-            return SnapshotAnchor::End;
-        }
-        let Some(types) = &self.types else {
-            return SnapshotAnchor::End;
-        };
-
-        match types.get_type(type_id.local_id) {
-            dir::Type::Instance(instance) if instance.symbol.module_id == self.tree.module_id => {
-                self.anchor_symbol(instance.symbol)
-            }
-            dir::Type::Reference(reference)
-                if reference.symbol.module_id == self.tree.module_id =>
-            {
-                self.anchor_symbol(reference.symbol)
-            }
-            dir::Type::Form(form) => self.anchor_global_type(form.value),
-            _ => SnapshotAnchor::End,
-        }
-    }
-
     /// Return the source anchor for one scope.
     pub(super) fn anchor_scope(
         &self,
@@ -712,11 +685,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         let debug = format!("{value:?}");
 
         Self::lower_snake(&debug)
-    }
-
-    /// Render one optional integer label.
-    pub(crate) fn optional_u32_label(value: Option<u32>) -> Option<String> {
-        value.map(|value| value.to_string())
     }
 
     /// Return one module target field.

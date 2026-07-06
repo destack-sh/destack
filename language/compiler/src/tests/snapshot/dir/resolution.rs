@@ -606,14 +606,11 @@ fn predicate_label(builder: &DirSnapshotBuilder<'_>, predicate: &dir::Predicate)
             predicate_operand_label(builder, &test.input),
             predicate_condition_label(builder, &test.condition)
         ),
-        dir::PredicateTest::Has(test) => format!(
-            "has({}, {})",
+        dir::PredicateTest::Membership(test) => format!(
+            "membership({}, {})",
             predicate_operand_label(builder, &test.receiver),
             predicate_key_label(builder, &test.key)
         ),
-        dir::PredicateTest::Call(resolution) => {
-            format!("call({})", call_target_label(builder, &resolution.target))
-        }
         dir::PredicateTest::Any(alternatives) => alternatives
             .iter()
             .map(|predicate| predicate_label(builder, predicate))
@@ -928,9 +925,7 @@ fn add_pattern_test_fields(
 fn predicate_condition(predicate: &dir::Predicate) -> Option<&dir::PredicateCondition> {
     match &predicate.test {
         dir::PredicateTest::Unary(test) => Some(&test.condition),
-        dir::PredicateTest::Has(_) | dir::PredicateTest::Call(_) | dir::PredicateTest::Any(_) => {
-            None
-        }
+        dir::PredicateTest::Membership(_) | dir::PredicateTest::Any(_) => None,
     }
 }
 
@@ -1309,14 +1304,11 @@ fn add_predicate_generic_instances(
         dir::PredicateTest::Unary(test) => {
             add_predicate_operand_generic_instance(builder, anchor, source.clone(), &test.input);
         }
-        dir::PredicateTest::Has(test) => {
+        dir::PredicateTest::Membership(test) => {
             add_predicate_operand_generic_instance(builder, anchor, source.clone(), &test.receiver);
             if let dir::PredicateKey::Dynamic(operand) = &test.key {
                 add_predicate_operand_generic_instance(builder, anchor, source.clone(), operand);
             }
-        }
-        dir::PredicateTest::Call(resolution) => {
-            add_call_target_generic_instances(builder, node_id, &resolution.target);
         }
         dir::PredicateTest::Any(alternatives) => {
             for alternative in alternatives {
