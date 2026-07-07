@@ -18,19 +18,11 @@ impl CheckState<'_> {
         let mut steps = 0usize;
         loop {
             while let Some(task) = self.solver.pop_task() {
-                if self.solver.is_task_complete(&task) {
-                    continue;
-                }
-
                 let answer = self.run_task(&task)?;
 
                 // park pending tasks on their blockers
                 if let Answer::Pending(blockers) = answer {
                     self.park_task(&task, &blockers)?;
-                }
-                // mark source node work complete after it reaches a ready answer
-                else {
-                    self.solver.complete_task(&task);
                 }
 
                 self.record_event(CheckEvent::TaskRan { step: steps, task });

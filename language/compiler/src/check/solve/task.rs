@@ -128,34 +128,6 @@ impl Task {
             Self::Relate(_) | Self::Oblige(_) | Self::Solve { .. } | Self::Bind { .. } => None,
         }
     }
-
-    /// Return the stable dedupe key for source node work.
-    pub(in crate::check) fn key(&self) -> Option<TaskKey> {
-        match self {
-            Self::Infer { site, use_ } => Some(TaskKey::Infer {
-                site: *site,
-                use_: *use_,
-            }),
-            Self::Check {
-                site,
-                expected,
-                relation,
-                origin,
-                use_,
-            } => Some(TaskKey::Check {
-                site: *site,
-                expected: *expected,
-                relation: *relation,
-                origin: *origin,
-                use_: *use_,
-            }),
-            Self::Relate(_)
-            | Self::Propagate(_)
-            | Self::Oblige(_)
-            | Self::Solve { .. }
-            | Self::Bind { .. } => None,
-        }
-    }
 }
 
 /// Static task scheduling priority.
@@ -232,31 +204,6 @@ pub(in crate::check) enum TryPropagationTarget {
     Return {
         /// The function return type, if propagation is inside a function.
         ty: Option<dir::GlobalTypeId>,
-    },
-}
-
-/// Stable dedupe key for one source node task.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(in crate::check) enum TaskKey {
-    /// Inference of one source node.
-    Infer {
-        /// The inferred source use.
-        site: FlowSite,
-        /// The syntactic place use when the node is a place expression.
-        use_: PlaceUse,
-    },
-    /// Checking of one source use against one expected context.
-    Check {
-        /// The checked source use.
-        site: FlowSite,
-        /// The expected type resolved by this check.
-        expected: ExpectedType,
-        /// The checked relation.
-        relation: Relation,
-        /// The source that produced the check.
-        origin: Origin,
-        /// The checked value use.
-        use_: ValueUse,
     },
 }
 
