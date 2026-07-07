@@ -13,22 +13,33 @@ export local class Promise<T> {
     private state: PromiseState<T>;
 
     /// Create a promise from an eager executor.
-    constructor(executor: PromiseExecutor<T>) {
+    constructor(executor: (resolve: (value: T) => void) => void) {
         this.state = PromisePending {
             kind: "pending",
             head: undefined,
             tail: undefined,
         };
 
-        let resolve: PromiseResolve<T> = (value) => {
-            this.resolve(value);
+        let resolve = (value: T) => {
+            this.fulfill(value);
         };
 
         executor(resolve);
     }
 
+    /// Continue when the promise fulfills, adopting the returned promise.
+    then<U>(onFulfilled: (value: T) => Promise<U>): Promise<U> {
+        let next = new Promise<U>((resolve) => {
+            this.addReaction((value) => {
+                onFulfilled(value).then(resolve);
+            });
+        });
+
+        return next;
+    }
+
     /// Continue when the promise fulfills.
-    then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U> {
+    then<U>(onFulfilled: (value: T) => U): Promise<U> {
         let next = new Promise<U>((resolve) => {
             this.addReaction((value) => {
                 resolve(onFulfilled(value));
@@ -38,22 +49,31 @@ export local class Promise<T> {
         return next;
     }
 
-    /// Continue after the promise fulfills, keeping the value.
-    finally(onFinally: () => void | Promise<void>): Promise<T> {
+    /// Continue after the promise fulfills, adopting the returned promise.
+    finally(onFinally: () => Promise<void>): Promise<T> {
         return this.then((value) => {
-            Promise.resolve(onFinally()).then(() => value)
+            onFinally().then(() => value)
         });
     }
 
+    /// Continue after the promise fulfills, keeping the value.
+    finally(onFinally: () => void): Promise<T> {
+        return this.then((value) => {
+            onFinally();
+            value
+        });
+    }
+
+    /// Return an existing promise.
+    static resolve<T>(value: Promise<T>): Promise<T> {
+        value
+    }
+
     /// Create a fulfilled promise.
-    static resolve<T>(value: T | Promise<T>): Promise<T> {
-        if (value instanceof Promise) {
-            return value as Promise<T>;
-        } else {
-            return new Promise<T>((resolve) => {
-                resolve(value as T);
-            });
-        }
+    static resolve<T>(value: T): Promise<T> {
+        new Promise<T>((resolve) => {
+            resolve(value);
+        })
     }
 
     /// Wait for all promises.
@@ -68,7 +88,7 @@ export local class Promise<T> {
 
     /// Create a promise with an exposed resolving function.
     static withResolvers<T>(): PromiseResolvers<T> {
-        let resolve: PromiseResolve<T> | undefined = undefined;
+        let resolve: ((value: T) => void) | undefined = undefined;
         let promise = new Promise<T>((innerResolve) => {
             resolve = innerResolve;
         });
@@ -84,18 +104,6 @@ export local class Promise<T> {
         return suspendContinuation<T>((continuation) => {
             this.addAwaiter(continuation);
         });
-    }
-
-    /// Resolve this promise with a value or another promise.
-    private resolve(value: T | Promise<T>): void {
-        // adopt nested promises
-        if (value instanceof Promise) {
-            value.then((value) => {
-                this.fulfill(value);
-            });
-        } else {
-            this.fulfill(value as T);
-        }
     }
 
     /// Fulfill this promise with a final value.
@@ -180,14 +188,8 @@ export local struct PromiseResolvers<T> {
     promise: Promise<T>;
 
     /// Resolve the promise.
-    resolve: PromiseResolve<T>;
+    resolve: (value: T) => void;
 }
-
-/// Function that resolves a promise.
-export type PromiseResolve<T> = (value: T | Promise<T>) => void;
-
-/// Function that starts a promise.
-export type PromiseExecutor<T> = (resolve: PromiseResolve<T>) => void;
 
 /// Current promise state.
 type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T>;
