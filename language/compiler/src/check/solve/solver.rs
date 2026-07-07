@@ -1,13 +1,13 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
     Constraint, ConstraintId, ConstraintState, ConstraintTable, Dependency, ObligationEntry,
-    ObligationId, ObligationTable, Opening, Origin, RelationCache, RelationCacheSnapshot, Task,
-    TaskKey, TypeSubstitution, VariableState, VariableTable, Widening, WorkMark, WorkQueue,
+    ObligationId, ObligationTable, Origin, RelationCache, RelationCacheSnapshot, Task,
+    VariableRole, VariableState, VariableTable, Widening, WorkMark, WorkQueue,
 };
 
 /// Solver state for one checked component.
@@ -30,13 +30,8 @@ pub(in crate::check) struct Solver {
     pub(in crate::check) relations: RelationCache,
     /// Obligations collected for this component.
     pub(in crate::check) obligations: ObligationTable,
-    /// Generic substitutions opened by source sites across solver polls.
-    pub(in crate::check) opened_substitutions: IndexMap<Opening, TypeSubstitution>,
-
     /// Tasks parked on unresolved dependencies.
     waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Completed source typing task keys.
-    completed_keys: IndexSet<TaskKey>,
     /// Undo entries recorded by active snapshots.
     undo: Vec<Undo>,
     /// The number of nested snapshots.
@@ -84,18 +79,6 @@ enum Undo {
         /// The previous waiter list.
         previous: Option<SmallVec<[Task; 2]>>,
     },
-    /// Undo one opened substitution mutation.
-    OpenedSubstitution {
-        /// The changed opening.
-        opening: Opening,
-        /// The previous substitution.
-        previous: Option<TypeSubstitution>,
-    },
-    /// Undo one completed source typing task key.
-    CompletedKey {
-        /// The completed task key.
-        key: TaskKey,
-    },
 }
 
 impl Solver {
@@ -110,9 +93,7 @@ impl Solver {
             queue: WorkQueue::new(),
             relations: RelationCache::new(),
             obligations: ObligationTable::new(),
-            opened_substitutions: IndexMap::new(),
             waiters: IndexMap::new(),
-            completed_keys: IndexSet::new(),
             undo: Vec::new(),
             snapshot_depth: 0,
         }
@@ -171,6 +152,7 @@ impl Solver {
         _module: ModuleId,
         origin: Origin,
         widening: Widening,
+        role: VariableRole,
     ) -> dir::TypeVariableId {
         let variable = dir::TypeVariableId(self.next_variable);
         self.next_variable += 1;
@@ -178,7 +160,7 @@ impl Solver {
             id: variable,
             previous: None,
         });
-        self.variables.allocate(variable, origin, widening);
+        self.variables.allocate(variable, origin, widening, role);
 
         variable
     }
@@ -229,24 +211,6 @@ impl Solver {
         self.obligations.insert(id, entry);
 
         id
-    }
-
-    /// Return one substitution opened by a source site.
-    pub(in crate::check) fn opened_substitution(
-        &self,
-        opening: Opening,
-    ) -> Option<&TypeSubstitution> {
-        self.opened_substitutions.get(&opening)
-    }
-
-    /// Insert one substitution opened by a source site.
-    pub(in crate::check) fn insert_opened_substitution(
-        &mut self,
-        opening: Opening,
-        substitution: TypeSubstitution,
-    ) {
-        self.record_opened_substitution(opening);
-        self.opened_substitutions.insert(opening, substitution);
     }
 
     /// Return the representative for one variable.
@@ -316,28 +280,6 @@ impl Solver {
         self.waiters.swap_remove(&dependency).unwrap_or_default()
     }
 
-    /// Return whether this source task has already completed.
-    pub(in crate::check) fn is_task_complete(&self, task: &Task) -> bool {
-        task.key()
-            .is_some_and(|key| self.completed_keys.contains(&key))
-    }
-
-    /// Mark this source task as completed.
-    pub(in crate::check) fn complete_task(&mut self, task: &Task) {
-        let Some(key) = task.key() else {
-            return;
-        };
-
-        if self.completed_keys.contains(&key) {
-            return;
-        }
-
-        if self.snapshot_depth > 0 {
-            self.undo.push(Undo::CompletedKey { key: key.clone() });
-        }
-        self.completed_keys.insert(key);
-    }
-
     /// Drain every parked dependency, leaving the waiter table empty.
     pub(in crate::check) fn drain_waiters(&mut self) -> Vec<(Dependency, SmallVec<[Task; 2]>)> {
         self.waiters.drain(..).collect()
@@ -390,16 +332,6 @@ impl Solver {
         }
     }
 
-    /// Record one opened substitution if a snapshot is active.
-    fn record_opened_substitution(&mut self, opening: Opening) {
-        if self.snapshot_depth > 0 {
-            self.undo.push(Undo::OpenedSubstitution {
-                opening,
-                previous: self.opened_substitutions.get(&opening).cloned(),
-            });
-        }
-    }
-
     /// Apply one undo entry.
     fn rollback_undo(&mut self, undo: Undo) {
         match undo {
@@ -422,17 +354,6 @@ impl Solver {
                     self.waiters.swap_remove(&dependency);
                 }
             },
-            Undo::OpenedSubstitution { opening, previous } => match previous {
-                Some(previous) => {
-                    self.opened_substitutions.insert(opening, previous);
-                }
-                None => {
-                    self.opened_substitutions.swap_remove(&opening);
-                }
-            },
-            Undo::CompletedKey { key } => {
-                self.completed_keys.swap_remove(&key);
-            }
         }
     }
 

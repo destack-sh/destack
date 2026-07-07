@@ -15,8 +15,11 @@ impl CheckState<'_> {
         module: ModuleId,
         origin: Origin,
         widening: Widening,
+        role: VariableRole,
     ) -> dir::TypeVariableId {
-        let variable = self.solver.allocate_variable(module, origin, widening);
+        let variable = self
+            .solver
+            .allocate_variable(module, origin, widening, role);
         self.record_event(CheckEvent::VariableAllocated { variable, widening });
 
         variable
@@ -53,29 +56,6 @@ impl CheckState<'_> {
         };
 
         Ok(self.solver.variable(variable)?.role)
-    }
-
-    /// Set one special role on an open variable.
-    pub(in crate::check) fn set_variable_role(
-        &mut self,
-        variable: dir::TypeVariableId,
-        role: VariableRole,
-    ) -> CompilerResult<()> {
-        let variable = self.solver.representative(variable)?;
-        let state = self.solver.variable_mut(variable)?;
-
-        if !state.role.is_inference() && state.role != role {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "variable {variable:?} has conflicting roles: {:?} and {:?}",
-                    state.role, role
-                ),
-            });
-        }
-
-        state.role = role;
-
-        Ok(())
     }
 
     /// Set one variable's default solution.
@@ -157,9 +137,6 @@ impl CheckState<'_> {
             }
         }
 
-        let mut bounds_hold =
-            answer!(self.relate_bounds(origin, representative, &lower, &upper)?);
-
         let blockers = self.bound_blockers(representative, &lower_types, default)?;
         if !blockers.is_empty() {
             self.record_event(CheckEvent::VariableBlocked {
@@ -237,7 +214,7 @@ impl CheckState<'_> {
         // check ignored weak lower bounds against a strong solution
         if !can_use_weak {
             for bound in lower.iter().filter(|bound| bound.mode == BoundMode::Weak) {
-                match self.constrain(origin, bound.relation, bound.ty, solution)? {
+                match self.constrain_type(origin, bound.relation, bound.ty, solution)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) | Answer::Pending(_) => {
                         self.push_constraint(Constraint::r#type(
@@ -257,7 +234,7 @@ impl CheckState<'_> {
                 match self.constrain_bound_relation(origin, solution, bound.ty, &bound)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) => {
-                        bounds_hold = false;
+                        return Ok(Answer::Ready(false));
                     }
                     Answer::Pending(blockers) => {
                         return Ok(Answer::Pending(blockers));
@@ -266,42 +243,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Answer::Ready(bounds_hold))
-    }
-
-    /// Relate every lower bound to every upper bound.
-    fn relate_bounds(
-        &mut self,
-        origin: Origin,
-        variable: dir::TypeVariableId,
-        lower: &[TypeBound],
-        upper: &[TypeBound],
-    ) -> CompilerResult<Answer<bool>> {
-        let mut decision = Answer::Ready(true);
-
-        // push contextual upper bounds into nested lower holes
-        for lower in lower.iter().copied() {
-            for upper in upper.iter().copied() {
-                if self.type_contains_variable(upper.ty, variable)? {
-                    continue;
-                }
-
-                match self.constrain_bound_relation(origin, lower.ty, upper.ty, &upper)? {
-                    Answer::Ready(true) => {}
-                    Answer::Ready(false) => {
-                        decision = Answer::Ready(false);
-                    }
-                    Answer::Pending(blockers) => {
-                        decision = decision.and(Answer::Pending(blockers));
-                    }
-                }
-                if decision.is_ready_false() {
-                    return Ok(decision);
-                }
-            }
-        }
-
-        Ok(decision)
+        Ok(Answer::Ready(true))
     }
 
     /// Return whether one type contains a variable representative.
@@ -329,7 +271,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         let origin = self.origin_at(origin, source.source);
 
-        self.constrain(origin, source.relation, solution, bound)
+        self.constrain_type(origin, source.relation, solution, bound)
     }
 
     /// Return bound types that may choose a solution in one solve mode.

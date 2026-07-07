@@ -19,7 +19,7 @@ impl CheckState<'_> {
                 let origin = Origin::Node(propagation.source, propagation.value.scope);
                 let failure = answer!(self.try_residual(origin, propagation.source, value)?);
                 let is_assignable =
-                    answer!(self.constrain(origin, Relation::Assignable, failure, ty,)?);
+                    answer!(self.constrain_type(origin, Relation::Assignable, failure, ty,)?);
                 if !is_assignable {
                     self.report_constraint_failure(
                         origin,

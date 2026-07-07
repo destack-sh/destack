@@ -121,6 +121,7 @@ impl VariableTable {
         variable: dir::TypeVariableId,
         origin: Origin,
         widening: Widening,
+        role: VariableRole,
     ) {
         self.insert(
             variable,
@@ -131,7 +132,7 @@ impl VariableTable {
                 upper: SmallVec::new(),
                 solution: None,
                 default: None,
-                role: VariableRole::Inference,
+                role,
                 alias: None,
             },
         );
