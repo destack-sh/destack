@@ -1,9 +1,9 @@
 use destack_dir::{
-    Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator, DecoratorPosition,
-    Expression, FunctionDeclaration, FunctionRole, GenericArgument, GenericParameter, IfForm,
-    IntegerType, Key, Keyword, Member, Name, NodeType, Parameter, Pattern, PatternField,
-    ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue, TupleElement, TypeExpression,
-    TypeLiteral, TypeMember,
+    Argument, Asynchrony, BinaryOperator, ClassDeclaration, CommentKind, Declaration, Decorator,
+    DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
+    GenericParameter, IfForm, IntegerType, Key, Keyword, Member, Name, NodeType, Parameter,
+    Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue,
+    TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -660,20 +660,23 @@ fn test_parse_spread_type_generic_argument() {
 
 #[test]
 fn test_parse_spread_value_generic_argument() {
-    // <...values()>
-    let mut test = TestParser::new_with_language("<...values()>", LanguageType::Destack);
+    // <...1 + 2>
+    let mut test = TestParser::new_with_language("<...1 + 2>", LanguageType::Destack);
     let mut parser = test.prepare();
-    parser.flags.set_in_type(true);
     let arguments = parser.eat_generic_arguments().unwrap();
 
     test.assert_no_errors(&parser);
 
     assert_eq!(arguments.len(), 1);
     assert_node!(parser.tree, arguments[0], GenericArgument::SpreadValue { value } => {
-        assert_node!(parser.tree, *value, Expression::Call { left, generic_arguments, arguments, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "values");
-            assert!(generic_arguments.is_empty());
-            assert!(arguments.is_empty());
+        assert_node!(parser.tree, *value, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::Add);
+            assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                assert_eq!(*value, 1);
+            });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                assert_eq!(*value, 2);
+            });
         });
     });
 }
