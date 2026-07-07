@@ -1,6 +1,7 @@
 import { todo } from "destack:error";
 import { Concrete } from "destack:memory";
 import { sizeOf } from "destack:reflect";
+
 import { Integer } from "./scalar.ds";
 
 /// Count leading zeros in an integer.

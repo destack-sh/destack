@@ -286,9 +286,7 @@ export interface NetResolveBinding {
         requires: ["host.net.dns"],
         families: ["windows", "unix"],
     })
-    lookupAddress(
-        query: &readonly AddressLookupQuery,
-    ): Result<AddressLookupResult[], HostError>;
+    lookupAddress(query: &readonly AddressLookupQuery): Result<AddressLookupResult[], HostError>;
 
     /// Resolve DNS records.
     @binding("destack.net.resolve.record", {

@@ -778,11 +778,7 @@ export interface GpuResourceBinding {
         requires: ["host.gpu.resource"],
         families: ["windows", "unix"],
     })
-    readBuffer(
-        buffer: GpuBufferHandle,
-        offset: uint64,
-        length: uint64,
-    ): Result<uint8[], HostError>;
+    readBuffer(buffer: GpuBufferHandle, offset: uint64, length: uint64): Result<uint8[], HostError>;
 
     /// Map a buffer range.
     @binding("destack.gpu.resource.buffer.map", {

@@ -1,6 +1,6 @@
-import { WithAccess } from "destack:memory";
 import { As, Borrow } from "destack:convert";
 import { todo } from "destack:error";
+import { WithAccess } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 import { Unpin } from "./capability.ds";

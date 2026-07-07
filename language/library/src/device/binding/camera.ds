@@ -401,9 +401,7 @@ export interface DeviceCameraBinding {
         requires: ["host.device.camera.configure"],
         families: ["windows", "unix"],
     })
-    listCameraControls(
-        stream: CameraStreamHandle,
-    ): Result<CameraControlCapability[], HostError>;
+    listCameraControls(stream: CameraStreamHandle): Result<CameraControlCapability[], HostError>;
 
     /// Read camera control values.
     @binding("destack.device.camera.control.get", {

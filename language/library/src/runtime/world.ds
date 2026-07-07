@@ -105,7 +105,12 @@ export class World {
     labels?: [Label];
 
     /// Create a world view.
-    private constructor(handle: WorldHandle, branch: BranchId, revision: RevisionId, runtimes: uint32) {
+    private constructor(
+        handle: WorldHandle,
+        branch: BranchId,
+        revision: RevisionId,
+        runtimes: uint32,
+    ) {
         this.handle = handle;
         this.branch = branch;
         this.revision = revision;
@@ -152,7 +157,12 @@ export class Worker {
     labels?: [Label];
 
     /// Create a worker view.
-    private constructor(handle: WorkerHandle, id: WorkerId, runtime: RuntimeId, hasPendingWork: boolean) {
+    private constructor(
+        handle: WorkerHandle,
+        id: WorkerId,
+        runtime: RuntimeId,
+        hasPendingWork: boolean,
+    ) {
         this.handle = handle;
         this.id = id;
         this.runtime = runtime;

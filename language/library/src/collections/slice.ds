@@ -212,8 +212,9 @@ export extension<T> of Slice<T> implements Sequence<T>, Index<usize>, IndexSet<u
     }
 }
 
-export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly">
-    of Slice<T> implements Index<R, A> {
+export extension<T, R: RangeBounds<usize>, comptime A: Access = "readonly"> of Slice<T>
+    implements
+        Index<R, A> {
     /// The indexed output type.
     type Output = WithAccess<&[T], A>;
 

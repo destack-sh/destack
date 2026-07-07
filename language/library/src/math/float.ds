@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+
 import { Float } from "./scalar.ds";
 
 /// Square root.

@@ -1,5 +1,6 @@
 import { Slice } from "destack:collections";
 import { todo } from "destack:error";
+
 import { Integer } from "./scalar.ds";
 
 /// Fixed-width vector type.
@@ -63,10 +64,7 @@ export function load<T, comptime N: int>(source: &readonly [T]): Vector<T, N> {
 }
 
 /// Store `value` into `destination`.
-export function store<T, comptime N: int>(
-    destination: &exclusive [T],
-    value: Vector<T, N>,
-): void {
+export function store<T, comptime N: int>(destination: &exclusive [T], value: Vector<T, N>): void {
     todo("vector.store");
 }
 
