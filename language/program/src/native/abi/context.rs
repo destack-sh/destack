@@ -44,9 +44,9 @@ impl NativeContext {
 pub struct NativeExit {
     /// Exit kind written by runtime services that leave native execution.
     pub kind: NativeExitCode,
-    /// Safepoint associated with yield or deoptimization.
+    /// Safepoint associated with yield, stop, or deoptimization.
     pub safepoint: u32,
-    /// Native continuation associated with yield and deoptimization exits.
+    /// Native continuation associated with yield, stop, and deoptimization exits.
     pub continuation: NativeContinuation,
     /// Trap code associated with trap exits.
     pub trap: NativeTrapCode,

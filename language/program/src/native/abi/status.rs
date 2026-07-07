@@ -20,6 +20,8 @@ pub enum NativeExitKind {
     Deoptimized = 3,
     /// Execution stopped with a language panic.
     Panicked = 4,
+    /// Execution stopped for host inspection.
+    Stopped = 5,
 }
 
 impl NativeExitKind {
@@ -54,6 +56,7 @@ impl TryFrom<NativeExitCode> for NativeExitKind {
             2 => Ok(Self::Trapped),
             3 => Ok(Self::Deoptimized),
             4 => Ok(Self::Panicked),
+            5 => Ok(Self::Stopped),
             code => Err(NativeExitError { code }),
         }
     }

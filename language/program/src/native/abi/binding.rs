@@ -123,6 +123,13 @@ pub type NativeYield = unsafe extern "C" fn(
     continuation: NativeContinuation,
 ) -> NativeExitCode;
 
+/// Stop execution for host inspection.
+pub type NativeStop = unsafe extern "C" fn(
+    context: *mut NativeContext,
+    safepoint: u32,
+    continuation: NativeContinuation,
+) -> NativeExitCode;
+
 /// Deoptimize native execution into continuation state.
 pub type NativeDeopt = unsafe extern "C" fn(
     context: *mut NativeContext,
