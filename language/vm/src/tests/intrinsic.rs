@@ -1,10 +1,11 @@
 use crate::Cell;
 use crate::diagnostic::Error;
 use crate::tests::{
-    allocate_local_zeroed, assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok,
+    allocate_local_zeroed, assert_execution_completed, assert_execution_stopped,
+    assert_runtime_error_matches, create_machine, run_mir, run_mir_expect, run_mir_ok,
     run_mir_with_frame, run_mir_with_frame_ok, shared_allocation_plan,
 };
-use destack_program::{LayoutShape, Program, TypeId, UnsignedInt, Value};
+use destack_program::{LayoutShape, Program, StopReason, TypeId, Value};
 
 /// Return the pointee type for a reference parameter.
 fn reference_pointee_type(program: &Program, ty: TypeId) -> TypeId {
@@ -790,15 +791,24 @@ entry(v0: int32, v1: int32):
 }
 
 #[test]
-fn test_intrinsic_breakpoint() {
+fn test_breakpoint_stops_and_continues() {
     let mir = r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
-    intrinsic.error.debug.breakpoint()
+    breakpoint
     return v0
 }
 "#;
-    run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
+    let mut machine = create_machine(mir);
+    let (continuation, reason) = assert_execution_stopped(
+        machine.run_function_by_name_yielding("test", &[Value::int32(42)]),
+    );
+
+    assert_eq!(reason, StopReason::Breakpoint);
+
+    let output = assert_execution_completed(machine.continue_continuation(continuation));
+
+    assert_eq!(output, Value::int32(42));
 }
 
 #[test]
@@ -846,63 +856,6 @@ b0(v0: int32):
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
-}
-
-#[test]
-fn test_intrinsic_return_address() {
-    let mir = r#"
-function inner(): uint64 {
-entry:
-    v0: uint64 = intrinsic.returnAddress()
-    return v0
-}
-
-function test(): uint64 {
-entry:
-    v0: uint64 = call inner()
-    return v0
-}
-"#;
-    let output = run_mir_ok(mir, "test", &[]);
-    let value = UnsignedInt::try_from(&output).expect("expected uint value");
-
-    assert!(value.value != 0, "expected non-zero return address");
-}
-
-#[test]
-fn test_intrinsic_return_address_no_caller() {
-    let mir = r#"
-function test(): uint64 {
-entry:
-    v0: uint64 = intrinsic.returnAddress()
-    return v0
-}
-"#;
-    run_mir_expect(mir, "test", &[], Value::uint64(0));
-}
-
-#[test]
-fn test_intrinsic_frame_address() {
-    let mir = r#"
-function inner(): uint64 {
-entry:
-    v0: uint64 = intrinsic.frameAddress()
-    return v0
-}
-
-function test(): uint64 {
-entry:
-    v0: uint64 = call inner()
-    return v0
-}
-"#;
-    let output = run_mir_ok(mir, "test", &[]);
-    let value = UnsignedInt::try_from(&output).expect("expected uint value");
-
-    assert!(
-        value.value > 0x7FFF_0000_0000_0000u128,
-        "expected synthetic frame address"
-    );
 }
 
 #[test]

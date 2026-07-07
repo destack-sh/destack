@@ -3,11 +3,11 @@ use crate::diagnostic::Error;
 use crate::machine::Activation;
 
 use super::Transfer;
-use destack_program::TypeId;
 use destack_program::vm::{
     BoundsCheck, Check, CheckId, CheckKind, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, VariantCheck,
 };
+use destack_program::{StopReason, TypeId};
 
 const SWITCH_SIGN_BIT: u32 = 1 << 16;
 const SWITCH_WIDTH_MASK: u32 = SWITCH_SIGN_BIT - 1;
@@ -67,6 +67,23 @@ macro_rules! fixed_compare_branch_executor {
             }
         )+
     };
+}
+
+/// Stop execution at one debugger breakpoint.
+#[inline(always)]
+pub(crate) fn execute_breakpoint(activation: &mut Activation<'_>, next_pc: u32) -> Transfer {
+    let frame = activation.active_frame();
+    let point = activation
+        .program
+        .point(frame.function(), frame.block, next_pc);
+    let Some(frame_state) = activation.program.frame_state_at(point) else {
+        return Transfer::Error(Error::invalid_instruction());
+    };
+
+    Transfer::Stop {
+        reason: StopReason::Breakpoint,
+        frame_state,
+    }
 }
 
 /// Return one default switch jump.

@@ -440,21 +440,6 @@ cell_intrinsic!(
     round
 );
 cell_intrinsic!(
-    /// Execute breakpoint.
-    execute_intrinsic_breakpoint,
-    breakpoint
-);
-cell_intrinsic!(
-    /// Execute return address load.
-    execute_intrinsic_return_address,
-    return_address_intrinsic
-);
-cell_intrinsic!(
-    /// Execute frame address load.
-    execute_intrinsic_frame_address,
-    frame_address_intrinsic
-);
-cell_intrinsic!(
     /// Execute expected value hint.
     execute_intrinsic_expect,
     expect
@@ -533,14 +518,8 @@ pub(crate) fn execute_intrinsic(
         mir::Intrinsic::Ceil => execute_intrinsic_ceil(activation, instruction),
         mir::Intrinsic::Trunc => execute_intrinsic_trunc(activation, instruction),
         mir::Intrinsic::Round => execute_intrinsic_round(activation, instruction),
-        mir::Intrinsic::Breakpoint => execute_intrinsic_breakpoint(activation, instruction),
-        mir::Intrinsic::ReturnAddress => execute_intrinsic_return_address(activation, instruction),
-        mir::Intrinsic::FrameAddress => execute_intrinsic_frame_address(activation, instruction),
         mir::Intrinsic::Expect => execute_intrinsic_expect(activation, instruction),
         mir::Intrinsic::BlackBox => execute_intrinsic_black_box(activation, instruction),
-        mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
-            Err(Error::invalid_instruction())
-        }
     }
 }
 
@@ -1579,29 +1558,6 @@ impl Activation<'_> {
         Ok(Cell::ZERO)
     }
 
-    /// Ignore breakpoint in the activation.
-    fn breakpoint(&self, _arguments: &[IntrinsicOperand], _args: &[Cell]) -> RuntimeResult<Cell> {
-        Ok(Cell::ZERO)
-    }
-
-    /// Return the current return address.
-    fn return_address_intrinsic(
-        &self,
-        _arguments: &[IntrinsicOperand],
-        _args: &[Cell],
-    ) -> RuntimeResult<Cell> {
-        self.return_address()
-    }
-
-    /// Return the current frame address.
-    fn frame_address_intrinsic(
-        &self,
-        _arguments: &[IntrinsicOperand],
-        _args: &[Cell],
-    ) -> RuntimeResult<Cell> {
-        self.frame_address()
-    }
-
     /// Return the hinted value.
     fn expect(&self, _arguments: &[IntrinsicOperand], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::Expect, args)
@@ -1667,28 +1623,5 @@ impl Activation<'_> {
         }
 
         Ok(0)
-    }
-
-    // runtime introspection
-
-    /// Return the synthetic return address.
-    fn return_address(&self) -> RuntimeResult<Cell> {
-        if self.machine.frames.len() < 2 {
-            return Ok(Cell::uint(0, 64));
-        }
-
-        let caller_frame = &self.machine.frames[self.machine.frames.len() - 2];
-        let func_id = caller_frame.function().0 as u64;
-        let block_id = caller_frame.block as u64;
-
-        let synthetic_addr = (func_id << 32) | block_id;
-        Ok(Cell::uint(synthetic_addr, 64))
-    }
-
-    /// Return the synthetic frame address.
-    fn frame_address(&self) -> RuntimeResult<Cell> {
-        let frame_idx = self.machine.frames.len() as u64;
-        let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
-        Ok(Cell::uint(synthetic_addr, 64))
     }
 }
