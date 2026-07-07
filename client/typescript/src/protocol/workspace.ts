@@ -1,5 +1,6 @@
 import type { DiagnosticBatch } from "../_generated/protocol/notification.js";
 import type { ProtocolError } from "../_generated/protocol/error.js";
+import { ArtifactPayload } from "../_generated/artifact/payload.js";
 import type { ArtifactReference } from "../_generated/artifact/reference.js";
 import type {
     FileOperation,
@@ -80,6 +81,7 @@ import type {
     ExportResult,
 } from "../_generated/protocol/workspace/artifact/export.js";
 import { Connection, connectEndpoint } from "./connection/index.js";
+import { BinaryReader } from "./serde.js";
 
 const DEFAULT_WATCH_COALESCE_WINDOW_MS = 50n;
 const DEFAULT_WATCH_BATCH_SIZE = 1024;
@@ -97,6 +99,15 @@ export type RemoteWorkspaceOptions = {
     /** Whether opening should preload root diagnostics. */
     readonly loadIndex?: boolean;
 };
+
+/** One artifact payload kind. */
+type ArtifactPayloadKind = ArtifactPayload["kind"];
+
+/** One artifact payload narrowed by kind. */
+type ArtifactPayloadOf<K extends ArtifactPayloadKind> = Extract<
+    ArtifactPayload,
+    { readonly kind: K }
+>;
 
 /** Shared command input fields accepted by remote workspace commands. */
 type CommandInputFields = {
@@ -262,7 +273,12 @@ export interface Workspace {
     /** Clean generated state. */
     clean(request?: CleanInputInit): Promise<CleanOutput>;
     /** Return one artifact payload. */
-    artifact(artifact: ArtifactReference): Promise<ArtifactBlob>;
+    artifact(artifact: ArtifactReference): Promise<ArtifactPayload>;
+    /** Return one artifact payload and require its kind. */
+    artifact<K extends ArtifactPayloadKind>(
+        artifact: ArtifactReference,
+        kind: K,
+    ): Promise<ArtifactPayloadOf<K>>;
     /** Store one content payload. */
     store(content: Content | string | Uint8Array | readonly number[]): Promise<ContentId>;
     /** Load one content payload. */
@@ -460,8 +476,19 @@ export class RemoteWorkspace implements Workspace {
     }
 
     /** Return one artifact payload. */
-    async artifact(artifact: ArtifactReference): Promise<ArtifactBlob> {
-        return this.#client.artifact(artifact);
+    async artifact(artifact: ArtifactReference): Promise<ArtifactPayload>;
+    /** Return one artifact payload and require its kind. */
+    async artifact<K extends ArtifactPayloadKind>(
+        artifact: ArtifactReference,
+        kind: K,
+    ): Promise<ArtifactPayloadOf<K>>;
+    async artifact(
+        artifact: ArtifactReference,
+        kind?: ArtifactPayloadKind,
+    ): Promise<ArtifactPayload> {
+        const blob = await this.#client.artifact(artifact);
+
+        return decodeArtifactBlob(blob, kind);
     }
 
     /** Store one content payload. */
@@ -720,6 +747,22 @@ function contentPayload(content: Content | string | Uint8Array | readonly number
     }
 
     return Content.binary(content);
+}
+
+/** Decode one fetched artifact blob. */
+function decodeArtifactBlob(
+    blob: ArtifactBlob,
+    kind?: ArtifactPayloadKind,
+): ArtifactPayload {
+    const reader = new BinaryReader(blob.bytes);
+    const payload = ArtifactPayload.decode(reader);
+    reader.finish();
+
+    if (kind !== undefined && payload.kind !== kind) {
+        throw new Error(`expected ${kind} artifact, got ${payload.kind}`);
+    }
+
+    return payload;
 }
 
 /** Return whether one value is already an exact content payload. */

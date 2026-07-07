@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Protocol, TypeVar, cast
+from typing import Any, Protocol, TypeVar, cast, overload
 
+from destack._generated.artifact.payload import ArtifactPayload, decode_artifact_payload
 from destack._generated.artifact.reference import ArtifactReference
 from ..connection import Connection, connect_endpoint
+from ..serde import BinaryReader
 from destack._generated.protocol.query import (
     DiagnosticSnapshot,
     FileImagesRequest,
@@ -100,6 +102,7 @@ DEFAULT_WATCH_COALESCE_WINDOW_MS = 50
 DEFAULT_WATCH_BATCH_SIZE = 1024
 CommandInit = Mapping[str, Any]
 T = TypeVar("T")
+Payload = TypeVar("Payload", bound=ArtifactPayload)
 
 
 class Workspace(Protocol):
@@ -193,8 +196,17 @@ class Workspace(Protocol):
     def clean(self, request: CleanInput | CommandInit | None = None) -> CleanOutput:
         """Clean generated state."""
 
-    def artifact(self, artifact: ArtifactReference) -> ArtifactBlob:
+    @overload
+    def artifact(self, artifact: ArtifactReference) -> ArtifactPayload:
         """Return one artifact payload."""
+
+    @overload
+    def artifact(
+        self,
+        artifact: ArtifactReference,
+        ty: type[Payload],
+    ) -> Payload:
+        """Return one artifact payload and require its variant."""
 
     def store(self, content: Content | str | bytes | bytearray) -> ContentId:
         """Store one content payload."""
@@ -420,10 +432,29 @@ class RemoteWorkspace:
 
         return self._client.clean(clean_input(request))
 
-    def artifact(self, artifact: ArtifactReference) -> ArtifactBlob:
+    @overload
+    def artifact(self, artifact: ArtifactReference) -> ArtifactPayload:
         """Return one artifact payload."""
 
-        return self._client.artifact(artifact)
+    @overload
+    def artifact(
+        self,
+        artifact: ArtifactReference,
+        ty: type[Payload],
+    ) -> Payload:
+        """Return one artifact payload and require its variant."""
+
+    def artifact(
+        self,
+        artifact: ArtifactReference,
+        ty: type[Payload] | None = None,
+    ) -> ArtifactPayload | Payload:
+        """Return one artifact payload."""
+
+        blob = self._client.artifact(artifact)
+        payload = decode_artifact_blob(blob)
+
+        return require_artifact_payload(payload, ty)
 
     def store(self, content: Content | str | bytes | bytearray) -> ContentId:
         """Store one content payload."""
@@ -833,6 +864,31 @@ def content_payload(content: Content | str | bytes | bytearray) -> Content:
         return ContentBinary(content=bytes(content))
 
     raise TypeError("unsupported content payload")
+
+
+def decode_artifact_blob(blob: ArtifactBlob) -> ArtifactPayload:
+    """Decode one fetched artifact blob."""
+
+    reader = BinaryReader(blob.bytes)
+    payload = decode_artifact_payload(reader)
+    reader.finish()
+
+    return payload
+
+
+def require_artifact_payload(
+    payload: ArtifactPayload,
+    ty: type[Payload] | None,
+) -> ArtifactPayload | Payload:
+    """Return one artifact payload after checking its variant."""
+
+    if ty is None:
+        return payload
+
+    if isinstance(payload, ty):
+        return payload
+
+    raise TypeError(f"expected {ty.__name__}, got {type(payload).__name__}")
 
 
 def watch_options(options: WatchStartOptions | CommandInit | None) -> WatchStartOptions:
