@@ -1,9 +1,9 @@
 use std::fmt;
 
 use destack_core::{SectionDirectory, SectionImageError, SectionStorage};
-use destack_serde::{Reflect, SchemaRef, SchemaRegistry, from_slice, to_vec};
+use destack_serde::{from_slice, to_vec};
+use serde::Serialize;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
 use super::Program;
 use crate::{
@@ -51,37 +51,6 @@ impl From<SectionImageError> for ProgramLoadError {
     /// Convert one section error.
     fn from(error: SectionImageError) -> Self {
         Self::Section(error)
-    }
-}
-
-impl Serialize for Program {
-    /// Serialize one program through its byte envelope.
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let bytes = self.to_bytes().map_err(ser::Error::custom)?;
-
-        bytes.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Program {
-    /// Deserialize one program from its byte envelope.
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let bytes = Vec::<u8>::deserialize(deserializer)?;
-
-        Self::load(&bytes).map_err(de::Error::custom)
-    }
-}
-
-impl Reflect for Program {
-    /// Reflect one program as its byte envelope.
-    fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
-        Vec::<u8>::reflect(registry)
     }
 }
 
@@ -323,8 +292,9 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use destack_core::{SectionPacker, StringId, StringPool};
-    use destack_heap::{HeapOptions, SharedHeapOptions, TraceTable};
-    use destack_mir::TargetLayout;
+    use destack_heap::{self, HeapOptions, SharedHeapOptions};
+    use destack_mir::{TargetLayout, TraceTable};
+    use destack_serde::{from_slice, to_vec};
 
     use crate::{
         DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program, ProgramInfo,
@@ -356,6 +326,20 @@ mod tests {
         );
     }
 
+    /// Serialize a program as its logical reflected shape.
+    #[test]
+    fn test_roundtrip_program_codec() {
+        let (program, name) = empty_program();
+        let bytes = to_vec(&program).expect("program should encode");
+        let loaded = from_slice::<Program>(&bytes).expect("program should decode");
+
+        assert_eq!(
+            loaded.sections().table_bytes(),
+            program.sections().table_bytes()
+        );
+        assert_eq!(loaded.string(name), Some("main"));
+    }
+
     /// Pack one minimal section-backed program.
     fn empty_program() -> (Program, StringId) {
         let mut sections = SectionPacker::new();
@@ -374,7 +358,7 @@ mod tests {
         let constant_space = StaticImage::pack(&mut sections, Vec::new());
         let shared_static_space = StaticImage::pack(&mut sections, Vec::new());
         let local_static_space = StaticImage::pack(&mut sections, Vec::new());
-        let traces = TraceTable::pack(&mut sections, &destack_mir::TraceTable::new());
+        let traces = destack_heap::TraceTable::pack(&mut sections, &TraceTable::new());
         let strings = StringTable::from_pool(&mut sections, &strings);
         let info = ProgramInfo::pack(
             &mut sections,
