@@ -184,7 +184,9 @@ impl PublicIndexTree {
                 continue;
             }
 
-            if is_public_namespace_path(root, path) && directory.is_empty() {
+            if path == directory {
+                direct_modules.push((path, names));
+            } else if is_public_namespace_path(root, path) && directory.is_empty() {
                 child_directories.insert(path[0].clone());
             } else if path.len() == directory.len() + 1 {
                 direct_modules.push((path, names));

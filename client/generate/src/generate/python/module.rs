@@ -143,17 +143,12 @@ fn render_runtime_imports(schema: &Schema, module: &SchemaModule, is_stub: bool)
         text.line("from dataclasses import dataclass");
     }
 
-    if items
-        .iter()
-        .any(|item| item.scalar_newtype().is_some() || item_needs_json(item) || item.is_enum())
-    {
+    if items.iter().any(|item| item_needs_typing(item)) {
         text.line("import typing");
     }
     let needs_typing_import = !collections.is_empty()
         || items.iter().any(|item| item_needs_dataclass(schema, item))
-        || items
-            .iter()
-            .any(|item| item.scalar_newtype().is_some() || item_needs_json(item) || item.is_enum());
+        || items.iter().any(|item| item_needs_typing(item));
     if needs_typing_import {
         text.blank();
     }
@@ -321,6 +316,11 @@ fn item_needs_sequence(item: &Item) -> bool {
 /// Return whether this item uses the Python Any type.
 fn item_needs_json(item: &Item) -> bool {
     item_types(item).iter().any(|ty| type_needs_json(ty))
+}
+
+/// Return whether this item uses the Python typing module.
+fn item_needs_typing(item: &Item) -> bool {
+    item.scalar_newtype().is_some() || item_needs_json(item) || item.is_enum()
 }
 
 /// Return direct field and payload types for one item.

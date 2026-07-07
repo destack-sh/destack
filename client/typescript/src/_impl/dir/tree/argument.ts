@@ -1,5 +1,5 @@
 import type { StaticKey } from "../../../_generated/dir/symbol/key.js";
-import type { SymbolKind, SymbolSpace } from "../../../_generated/dir/symbol/symbol.js";
+import type { SymbolKind } from "../../../_generated/dir/symbol/symbol.js";
 import type { GenericParameter, Parameter } from "../../../_generated/dir/tree/argument.js";
 import type { LocalNodeId } from "../../../_generated/dir/tree/node.js";
 
@@ -15,15 +15,15 @@ export const GenericParameterImpl = {
     },
 
     /** Return the symbol space declared by the parameter. */
-    symbolSpace(parameter: GenericParameter): SymbolSpace | undefined {
-        // type parameters bind in type space
-        if (parameter.kind === "type" || parameter.kind === "variadicType") {
-            return "type";
-        }
-
-        // value parameters bind in value space
-        else if (parameter.kind === "value" || parameter.kind === "variadicValue") {
-            return "value";
+    symbolSpace(parameter: GenericParameter): "declaration" | undefined {
+        // generic parameters bind in declaration space
+        if (
+            parameter.kind === "type" ||
+            parameter.kind === "variadicType" ||
+            parameter.kind === "value" ||
+            parameter.kind === "variadicValue"
+        ) {
+            return "declaration";
         }
         // error parameters do not bind in a symbol space
         else {

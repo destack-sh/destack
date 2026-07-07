@@ -1,6 +1,6 @@
 import type { ScopeKind } from "../../../_generated/dir/symbol/scope.js";
 import type { StaticKey } from "../../../_generated/dir/symbol/key.js";
-import type { SymbolKind, SymbolSpace } from "../../../_generated/dir/symbol/symbol.js";
+import type { SymbolKind } from "../../../_generated/dir/symbol/symbol.js";
 import type { Member, MemberSlot, Property } from "../../../_generated/dir/tree/property.js";
 import { KeyImpl } from "./key.js";
 
@@ -99,17 +99,17 @@ export const MemberImpl = {
     },
 
     /** Return the symbol space declared by a member. */
-    symbolSpace(member: Member): SymbolSpace | undefined {
+    symbolSpace(member: Member): "declaration" | undefined {
         const kind = MemberImpl.symbolKind(member);
 
-        // associated types bind in type space
-        if (kind === "associatedType") {
-            return "type";
-        }
-
-        // values bind in value space
-        else if (kind === "associatedConst" || kind === "variable" || kind === "function") {
-            return "value";
+        // members with symbols bind in declaration space
+        if (
+            kind === "associatedType" ||
+            kind === "associatedConst" ||
+            kind === "variable" ||
+            kind === "function"
+        ) {
+            return "declaration";
         }
         // members without symbols do not bind in a symbol space
         else {
