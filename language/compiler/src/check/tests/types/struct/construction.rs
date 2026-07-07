@@ -54,6 +54,226 @@ point satisfies Point;
 }
 
 #[test]
+fn test_generic_struct_literal_uses_expected_result_arguments() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: T;
+}
+
+function wrap<T>(value: T): Box<T> {
+    Box { value }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+=== annotated ===
+struct Box<T> {
+    value: T;
+}
+
+function wrap<T>(value: T): Box<T> {
+    Box<T> { value }
+}
+
+=== checked ===
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(T#1)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(T#1)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+function wrap<T>(value: T): Box<T> {
+/// @generic.template symbol=wrap parameters=(T#2)
+/// @type.symbol symbol=wrap type=<T#2>(T#2) => Box<T#2>
+/// @type.symbol symbol=wrap.T source=T type=T#2
+/// @type.symbol symbol=wrap.value source="value: T" type=T#2
+/// @resolution.name source=T target=wrap.T
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=wrap.T
+
+    Box { value }
+    /// @type.node source="Box { value }" type=Box<T#2>
+    /// @resolution.name source=Box target=Box
+    /// @generic.instance source="Box { value }" id=Box<T#2>
+    /// @type.node source=value type=T#2
+    /// @resolution.name source=value target=wrap.value
+
+}
+
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+
+/// @check.stats.solve variables=0 types=8 constraints=1 obligations=1 solutions=0 bounds=0 decisions=6
+"#,
+    );
+}
+
+#[test]
+fn test_generic_struct_literal_checks_field_with_static_bound_member() {
+    let session = TestSession::single(
+        r#"
+newtype interface Zero {
+    static zero(): this;
+}
+
+struct Box<T: Zero> {
+    value: T;
+}
+
+function make<T: Zero>(): Box<T> {
+    Box { value: T.zero() }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Zero {
+    static zero(): this;
+}
+
+struct Box<T: Zero> {
+    value: T;
+}
+
+function make<T: Zero>(): Box<T> {
+    Box<T> { value: T.zero() }
+}
+
+=== checked ===
+newtype interface Zero {
+/// @type.symbol symbol=Zero type=Zero
+/// @definition.interface symbol=Zero nominal=true
+/// @definition.method symbol=Zero.zero source="static zero(): this" slot=zero static=true type=() => this
+
+    static zero(): this;
+    /// @type.symbol symbol=Zero.zero source="static zero(): this" type=() => this
+
+}
+
+struct Box<T: Zero> {
+/// @generic.template symbol=Box parameters=(T#1: Zero)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(T#1: Zero)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source="T: Zero" type=T#1
+/// @resolution.name source=Zero target=Zero
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+function make<T: Zero>(): Box<T> {
+/// @generic.template symbol=make parameters=(T#2: Zero)
+/// @type.symbol symbol=make type=<T#2: Zero>() => Box<T#2>
+/// @type.symbol symbol=make.T source="T: Zero" type=T#2
+/// @resolution.name source=Zero target=Zero
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=make.T
+
+    Box { value: T.zero() }
+    /// @resolution.name source=Box target=Box
+    /// @resolution.name source=T target=make.T
+    /// @resolution.member source=T.zero receiver=T#2 kind=symbol target=Zero.zero
+    /// @resolution.call source=T.zero() parameters=() return=T#2 kind=symbol target=Zero.zero receiver=T#2
+
+}
+
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+"#,
+        r#""#,
+    );
+}
+
+#[test]
+fn test_generic_struct_literal_checks_field_with_scalar_operator() {
+    let session = TestSession::single(
+        r#"
+import { Float } from "destack:math";
+
+struct Box<T: Float> {
+    value: T;
+}
+
+function doubled<T: Float>(value: T): Box<T> {
+    Box { value: value + value }
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Float } from "destack:math";
+
+struct Box<T: Float> {
+    value: T;
+}
+
+function doubled<T: Float>(value: T): Box<T> {
+    Box<T> { value: value + value }
+}
+
+=== checked ===
+import { Float } from "destack:math";
+
+struct Box<T: Float> {
+/// @generic.template symbol=Box parameters=(T#1: math.scalar.Float)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(T#1: math.scalar.Float)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Box.T source="T: Float" type=T#1
+/// @resolution.name source=Float target=math.scalar.Float
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Box.T
+
+}
+
+function doubled<T: Float>(value: T): Box<T> {
+/// @generic.template symbol=doubled parameters=(T#2: math.scalar.Float)
+/// @type.symbol symbol=doubled type=<T#2: math.scalar.Float>(T#2) => Box<T#2>
+/// @type.symbol symbol=doubled.T source="T: Float" type=T#2
+/// @resolution.name source=Float target=math.scalar.Float
+/// @type.symbol symbol=doubled.value source="value: T" type=T#2
+/// @resolution.name source=T target=doubled.T
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=T target=doubled.T
+
+    Box { value: value + value }
+    /// @resolution.name source=Box target=Box
+    /// @resolution.name source=value target=doubled.value
+    /// @resolution.call source="value + value" parameters=() return=T#2 kind=builtin builtin=binary.add
+    /// @resolution.name source=value target=doubled.value
+
+}
+
+/// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
+"#,
+        r#""#,
+    );
+}
+
+#[test]
 fn test_struct_tagged_literal_exposes_methods() {
     let session = TestSession::single(
         r#"

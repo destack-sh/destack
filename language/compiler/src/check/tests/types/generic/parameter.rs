@@ -24,15 +24,16 @@ declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
 /// @type.symbol symbol=id.T source="const T" type=T
-/// @type.symbol symbol=value#1 source="value: T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
 const value = id("ready");
-/// @type.symbol symbol=value#2 source=value type="ready"
+/// @type.symbol symbol=value source=value type="ready"
 /// @resolution.name source=id target=id
-/// @resolution.call source="id(\"ready\")" parameters=("ready") return="ready" kind=symbol target=id instance="id<\"ready\">"
+/// @resolution.call source="id(\"ready\")" parameters=("ready") arguments=(provided("ready") as "ready") return="ready" kind=symbol target=id instance="id<\"ready\">"
 /// @generic.instance source="id(\"ready\")" id="id<\"ready\">"
+
 /// @generic.instance id="id<\"ready\">" template=id arguments=("ready")
 "#,
     );
@@ -64,20 +65,21 @@ declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
 /// @type.symbol symbol=id.T source="const T" type=T
-/// @type.symbol symbol=value source="value: T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
 const values = id([1, 2]);
 /// @type.symbol symbol=values source=values type=readonly [1, 2]
 /// @resolution.name source=id target=id
-/// @resolution.call source="id([1, 2])" parameters=(readonly [1, 2]) return=readonly [1, 2] kind=symbol target=id instance="id<readonly [1, 2]>"
+/// @resolution.call source="id([1, 2])" parameters=(readonly [1, 2]) arguments=(provided([1, 2]) as readonly [1, 2]) return=readonly [1, 2] kind=symbol target=id instance="id<readonly [1, 2]>"
 /// @generic.instance source="id([1, 2])" id="id<readonly [1, 2]>"
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1
 /// @resolution.name source=values target=values
 /// @resolution.member source=values[0] receiver=readonly [1, 2] kind=element index=0
+
 /// @generic.instance id="id<readonly [1, 2]>" template=id arguments=(readonly [1, 2])
 "#,
     );
@@ -109,21 +111,202 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
-/// @type.symbol symbol=value source="value: T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
 const values = id([1, 2]);
 /// @type.symbol symbol=values source=values type=Array<float64>
 /// @resolution.name source=id target=id
-/// @resolution.call source="id([1, 2])" parameters=(Array<float64>) return=Array<float64> kind=symbol target=id instance="id<Array<float64>>"
-/// @generic.instance source="id([1, 2])" id="id<Array<float64>>"
+/// @resolution.call source="id([1, 2])" parameters=(Array<float64>) arguments=(provided([1, 2]) as Array<float64>) return=Array<float64> kind=symbol target=id instance=id<Array<float64>>
+/// @generic.instance source="id([1, 2])" id=id<Array<float64>>
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=float64
 /// @resolution.name source=values target=values
-/// @resolution.call source=values[0] parameters=(usize) return=float64 kind=symbol target=collections.array.index#8 receiver=Array<float64>
-/// @generic.instance id="id<Array<float64>>" template=id arguments=(Array<float64>)
+/// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64> instance=Array<float64>.<extension#6>.index#4
+/// @generic.instance source=values[0] id=Array<float64>.<extension#6>.index#4
+
+/// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, collections.array.<module>#7.L1, collections.array.<module>#7.L2, collections.array.<module>#7.L3, float64)
+/// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
+"#,
+    );
+}
+
+#[test]
+fn test_mutable_array_alias_does_not_widen_element_type() {
+    let session = TestSession::single(
+        r#"
+declare function take(values: float64[]): void;
+declare const values: (1 | 2)[];
+
+take(values);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function take(values: float64[]): void;
+declare const values: (1 | 2)[];
+
+take(values);
+
+=== checked ===
+declare function take(values: float64[]): void;
+/// @type.symbol symbol=take source="declare function take(values: float64[]): void" type=(Array<float64>) => void
+/// @type.symbol symbol=take.values source="values: float64[]" type=Array<float64>
+
+declare const values: (1 | 2)[];
+/// @type.symbol symbol=values source=values type=Array<1 | 2>
+
+take(values);
+/// @resolution.name source=take target=take
+/// @resolution.name source=values target=values
+"#,
+        r#"
+/// @diagnostic.error code=EC209 message="argument of type 'Array<1 | 2>' is not assignable to parameter of type 'Array<float64>'"
+/// @diagnostic.label line=5 column=6 span="values" line_source="take(values);"
+"#,
+    );
+}
+
+#[test]
+fn test_fresh_array_materializes_as_slice_parameter() {
+    let session = TestSession::single(
+        r#"
+declare function take(values: Slice<float64>): void;
+
+take([1, 2]);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function take(values: Slice<float64>): void;
+
+take([1, 2] as Slice<float64>);
+
+=== checked ===
+declare function take(values: Slice<float64>): void;
+/// @type.symbol symbol=take source="declare function take(values: Slice<float64>): void" type=(Slice<float64>) => void
+/// @type.symbol symbol=take.values source="values: Slice<float64>" type=Slice<float64>
+/// @resolution.name source=Slice target=collections.slice.Slice
+
+take([1, 2]);
+/// @resolution.name source=take target=take
+/// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
+
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
+"#,
+    );
+}
+
+#[test]
+fn test_fresh_array_materializes_as_fixed_array_parameter() {
+    let session = TestSession::single(
+        r#"
+declare function take(values: [float64; 2]): void;
+
+take([1, 2]);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function take(values: [float64; 2]): void;
+
+take([1, 2]);
+
+=== checked ===
+declare function take(values: [float64; 2]): void;
+/// @type.symbol symbol=take source="declare function take(values: [float64; 2]): void" type=(FixedArray<float64, 2>) => void
+/// @type.symbol symbol=take.values source="values: [float64; 2]" type=FixedArray<float64, 2>
+
+take([1, 2]);
+/// @resolution.name source=take target=take
+/// @resolution.call source="take([1, 2])" parameters=(FixedArray<float64, 2>) arguments=(provided([1, 2]) as FixedArray<float64, 2>) return=void kind=symbol target=take
+"#,
+    );
+}
+
+#[test]
+fn test_fresh_array_rejects_mismatched_fixed_array_parameter_length() {
+    let session = TestSession::single(
+        r#"
+declare function take(values: [float64; 2]): void;
+
+take([1, 2, 3]);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function take(values: [float64; 2]): void;
+
+take([1, 2, 3]);
+
+=== checked ===
+declare function take(values: [float64; 2]): void;
+/// @type.symbol symbol=take source="declare function take(values: [float64; 2]): void" type=(FixedArray<float64, 2>) => void
+/// @type.symbol symbol=take.values source="values: [float64; 2]" type=FixedArray<float64, 2>
+
+take([1, 2, 3]);
+/// @resolution.name source=take target=take
+"#,
+        r#"
+/// @diagnostic.error code=EC209 message="argument of type 'Array<1 | 2 | 3>' is not assignable to parameter of type 'FixedArray<float64, 2>'"
+/// @diagnostic.label line=4 column=6 span="[1, 2, 3]" line_source="take([1, 2, 3]);"
+"#,
+    );
+}
+
+#[test]
+fn test_plain_type_parameter_widens_tuple_literal_precision() {
+    let session = TestSession::single(
+        r#"
+declare function id<T>(value: T): T;
+
+const value = id((1, "x"));
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function id<T>(value: T): T;
+
+const value: (float64, string) = id<(float64, string)>((1, "x"));
+
+=== checked ===
+declare function id<T>(value: T): T;
+/// @generic.template symbol=id parameters=(T)
+/// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
+/// @type.symbol symbol=id.T source=T type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
+/// @resolution.name source=T target=id.T
+/// @resolution.name source=T target=id.T
+
+const value = id((1, "x"));
+/// @type.symbol symbol=value source=value type=(float64, string)
+/// @resolution.name source=id target=id
+/// @resolution.call source="id((1, \"x\"))" parameters=((float64, string)) arguments=(provided((1, "x")) as (float64, string)) return=(float64, string) kind=symbol target=id instance="id<(float64, string)>"
+/// @generic.instance source="id((1, \"x\"))" id="id<(float64, string)>"
+
+/// @generic.instance id="id<(float64, string)>" template=id arguments=((float64, string))
 "#,
     );
 }
@@ -159,26 +342,27 @@ declare function id<const T>(value: T): T;
 /// @generic.template symbol=id parameters=(const T)
 /// @type.symbol symbol=id source="declare function id<const T>(value: T): T" type=<const T>(T) => T
 /// @type.symbol symbol=id.T source="const T" type=T
-/// @type.symbol symbol=value#1 source="value: T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
 const value = id({ kind: "ready", level: 1 });
-/// @type.symbol symbol=value#2 source=value type=Managed<{ readonly kind: "ready"; readonly level: 1 }>
+/// @type.symbol symbol=value source=value type={ readonly kind: "ready"; readonly level: 1 }
 /// @resolution.name source=id target=id
-/// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=(Managed<{ readonly kind: "ready"; readonly level: 1 }>) return=Managed<{ readonly kind: "ready"; readonly level: 1 }> kind=symbol target=id instance="id<Managed<{ readonly kind: \"ready\"; readonly level: 1 }>>"
-/// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<Managed<{ readonly kind: \"ready\"; readonly level: 1 }>>"
+/// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ readonly kind: "ready"; readonly level: 1 }) arguments=(provided({ kind: "ready", level: 1 }) as { readonly kind: "ready"; readonly level: 1 }) return={ readonly kind: "ready"; readonly level: 1 } kind=symbol target=id instance="id<{ readonly kind: \"ready\"; readonly level: 1 }>"
+/// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<{ readonly kind: \"ready\"; readonly level: 1 }>"
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type="ready"
-/// @resolution.name source=value target=value#2
-/// @resolution.member source=value.kind receiver=Managed<{ readonly kind: "ready"; readonly level: 1 }> kind=field key=kind
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.kind receiver={ readonly kind: "ready"; readonly level: 1 } kind=field key=kind
 
 const level = value.level;
 /// @type.symbol symbol=level source=level type=1
-/// @resolution.name source=value target=value#2
-/// @resolution.member source=value.level receiver=Managed<{ readonly kind: "ready"; readonly level: 1 }> kind=field key=level
-/// @generic.instance id="id<Managed<{ readonly kind: \"ready\"; readonly level: 1 }>>" template=id arguments=(Managed<{ readonly kind: "ready"; readonly level: 1 }>)
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.level receiver={ readonly kind: "ready"; readonly level: 1 } kind=field key=level
+
+/// @generic.instance id="id<{ readonly kind: \"ready\"; readonly level: 1 }>" template=id arguments=({ readonly kind: "ready"; readonly level: 1 })
 "#,
     );
 }
@@ -214,26 +398,27 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
-/// @type.symbol symbol=value#1 source="value: T" type=T
+/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
 const value = id({ kind: "ready", level: 1 });
-/// @type.symbol symbol=value#2 source=value type=Managed<{ kind: string; level: float64 }>
+/// @type.symbol symbol=value source=value type={ kind: string; level: float64 }
 /// @resolution.name source=id target=id
-/// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=(Managed<{ kind: string; level: float64 }>) return=Managed<{ kind: string; level: float64 }> kind=symbol target=id instance="id<Managed<{ kind: string; level: float64 }>>"
-/// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<Managed<{ kind: string; level: float64 }>>"
+/// @resolution.call source="id({ kind: \"ready\", level: 1 })" parameters=({ kind: string; level: float64 }) arguments=(provided({ kind: "ready", level: 1 }) as { kind: string; level: float64 }) return={ kind: string; level: float64 } kind=symbol target=id instance="id<{ kind: string; level: float64 }>"
+/// @generic.instance source="id({ kind: \"ready\", level: 1 })" id="id<{ kind: string; level: float64 }>"
 
 const kind = value.kind;
 /// @type.symbol symbol=kind source=kind type=string
-/// @resolution.name source=value target=value#2
-/// @resolution.member source=value.kind receiver=Managed<{ kind: string; level: float64 }> kind=field key=kind
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.kind receiver={ kind: string; level: float64 } kind=field key=kind
 
 const level = value.level;
 /// @type.symbol symbol=level source=level type=float64
-/// @resolution.name source=value target=value#2
-/// @resolution.member source=value.level receiver=Managed<{ kind: string; level: float64 }> kind=field key=level
-/// @generic.instance id="id<Managed<{ kind: string; level: float64 }>>" template=id arguments=(Managed<{ kind: string; level: float64 }>)
+/// @resolution.name source=value target=value
+/// @resolution.member source=value.level receiver={ kind: string; level: float64 } kind=field key=level
+
+/// @generic.instance id="id<{ kind: string; level: float64 }>" template=id arguments=({ kind: string; level: float64 })
 "#,
     );
 }
@@ -263,17 +448,17 @@ function read<T: T | { name: string }>(value: T): string {
 /// @type.symbol symbol=read type=<T: T | { name: string }>(T) => string
 /// @type.symbol symbol=read.T source="T: T | { name: string }" type=T
 /// @resolution.name source=T target=read.T
-/// @type.symbol symbol=value source="value: T" type=T
+/// @type.symbol symbol=read.value source="value: T" type=T
 /// @resolution.name source=T target=read.T
 
     return value.name;
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=read.value
 
 }
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="member 'name' does not exist on type 'T'"
-/// @diagnostic.label line=3 column=12 source="return value.name;"
+/// @diagnostic.label line=3 column=18 span="name" line_source="return value.name;"
 "#,
     );
 }
@@ -787,9 +972,8 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 
 === checked ===
 interface Hash {
-/// @generic.template symbol=Hash parameters=()
 /// @type.symbol symbol=Hash type=Hash
-/// @definition.interface symbol=Hash template=()
+/// @definition.interface symbol=Hash
 /// @definition.method symbol=Hash.hash source="hash(): float64" slot=hash type=(this: Hash) => float64
 
     hash(): float64;
@@ -908,9 +1092,8 @@ function twice<T>(value: T): int32 where T: Doubling {
 
 === checked ===
 interface Doubling {
-/// @generic.template symbol=Doubling parameters=()
 /// @type.symbol symbol=Doubling type=Doubling
-/// @definition.interface symbol=Doubling template=()
+/// @definition.interface symbol=Doubling
 /// @definition.method symbol=Doubling.double source="double(): int32" slot=double type=(this: Doubling) => int32
 
     double(): int32;
@@ -981,7 +1164,7 @@ export struct Cell<T> {
 
 export extension<T> of Cell<T> {
     static new(value: T): Cell<T> {
-        Cell { storage: Inner.new<T>(value) }
+        Cell<T> { storage: Inner.new<T>(value) }
     }
 }
 
@@ -1051,7 +1234,8 @@ export extension<T> of Cell<T> {
         /// @resolution.name source=Cell target=Cell
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner kind=symbol target=new#1
-        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner
+        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner instance=Inner<T#4>.<extension#1>.new#1
+        /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
         /// @resolution.name source=value target=new.value#2
 
     }
@@ -1060,6 +1244,7 @@ export extension<T> of Cell<T> {
 /// @generic.instance id=Cell<T#4> template=Cell arguments=(T#4)
 /// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
 /// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
+/// @generic.instance id=Inner<T#4>.<extension#1>.new#1 template=new#1 arguments=(T#4)
 "#, r#""#);
 }
 
@@ -1089,9 +1274,8 @@ function build<T: Makeable>(): T {
 
 === checked ===
 interface Makeable {
-/// @generic.template symbol=Makeable parameters=()
 /// @type.symbol symbol=Makeable type=Makeable
-/// @definition.interface symbol=Makeable template=()
+/// @definition.interface symbol=Makeable
 /// @definition.method symbol=Makeable.make source="static make(): this" slot=make static=true type=() => this
 
     static make(): this;
@@ -1113,6 +1297,170 @@ function build<T: Makeable>(): T {
 
 }
 "#, r#""#);
+}
+
+#[test]
+fn test_static_member_selects_through_a_union_parameter_bound() {
+    let session = TestSession::single(
+        r#"
+interface Zero {
+    static zero(): this;
+}
+
+interface Integer extends Zero {}
+interface Float extends Zero {}
+type Numeric = Integer | Float;
+
+function zero<T: Numeric>(): T {
+    T.zero()
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Zero {
+    static zero(): this;
+}
+
+interface Integer extends Zero {}
+interface Float extends Zero {}
+type Numeric = Integer | Float;
+
+function zero<T: Numeric>(): T {
+    T.zero()
+}
+
+=== checked ===
+interface Zero {
+/// @type.symbol symbol=Zero type=Zero
+/// @definition.interface symbol=Zero
+/// @definition.method symbol=Zero.zero source="static zero(): this" slot=zero static=true type=() => this
+
+    static zero(): this;
+    /// @type.symbol symbol=Zero.zero source="static zero(): this" type=() => this
+
+}
+
+interface Integer extends Zero {}
+/// @type.symbol symbol=Integer source="interface Integer extends Zero {}" type=Integer
+/// @definition.interface symbol=Integer source="interface Integer extends Zero {}"
+/// @definition.extends symbol=Integer source=Zero target=Zero
+/// @resolution.name source=Zero target=Zero
+
+interface Float extends Zero {}
+/// @type.symbol symbol=Float source="interface Float extends Zero {}" type=Float
+/// @definition.interface symbol=Float source="interface Float extends Zero {}"
+/// @definition.extends symbol=Float source=Zero target=Zero
+/// @resolution.name source=Zero target=Zero
+
+type Numeric = Integer | Float;
+/// @type.symbol symbol=Numeric source="type Numeric = Integer | Float" type=Integer | Float
+/// @definition.type symbol=Numeric source="type Numeric = Integer | Float" value=Integer | Float
+/// @resolution.name source=Integer target=Integer
+/// @resolution.name source=Float target=Float
+
+function zero<T: Numeric>(): T {
+/// @generic.template symbol=zero parameters=(T: Numeric)
+/// @type.symbol symbol=zero type=<T: Numeric>() => T
+/// @type.symbol symbol=zero.T source="T: Numeric" type=T
+/// @resolution.name source=Numeric target=Numeric
+/// @resolution.name source=T target=zero.T
+
+    T.zero()
+    /// @resolution.name source=T target=zero.T
+    /// @resolution.member source=T.zero receiver=T kind=symbol target=Zero.zero
+    /// @resolution.call source=T.zero() parameters=() return=T kind=symbol target=Zero.zero receiver=T
+
+}
+"#,
+        r#""#,
+    );
+}
+
+#[test]
+fn test_generic_float_arithmetic_accepts_scalar_literals() {
+    let session = TestSession::single(
+        r#"
+interface Float {}
+
+declare function log<T: Float>(value: T): T;
+declare function sqrt<T: Float>(value: T): T;
+
+function asinh<T: Float>(x: T): T {
+    log(x + sqrt(x * x + 1))
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Float {}
+
+declare function log<T: Float>(value: T): T;
+declare function sqrt<T: Float>(value: T): T;
+
+function asinh<T: Float>(x: T): T {
+    log<T>(x + sqrt<T>(x * x + 1))
+}
+
+=== checked ===
+interface Float {}
+/// @type.symbol symbol=Float source="interface Float {}" type=Float
+/// @definition.interface symbol=Float source="interface Float {}"
+
+declare function log<T: Float>(value: T): T;
+/// @generic.template symbol=log parameters=(T#1: Float)
+/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: Float>(T#1) => T#1
+/// @type.symbol symbol=log.T source="T: Float" type=T#1
+/// @resolution.name source=Float target=Float
+/// @type.symbol symbol=log.value source="value: T" type=T#1
+/// @resolution.name source=T target=log.T
+/// @resolution.name source=T target=log.T
+
+declare function sqrt<T: Float>(value: T): T;
+/// @generic.template symbol=sqrt parameters=(T#2: Float)
+/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: Float>(T#2) => T#2
+/// @type.symbol symbol=sqrt.T source="T: Float" type=T#2
+/// @resolution.name source=Float target=Float
+/// @type.symbol symbol=sqrt.value source="value: T" type=T#2
+/// @resolution.name source=T target=sqrt.T
+/// @resolution.name source=T target=sqrt.T
+
+function asinh<T: Float>(x: T): T {
+/// @generic.template symbol=asinh parameters=(T#3: Float)
+/// @type.symbol symbol=asinh type=<T#3: Float>(T#3) => T#3
+/// @type.symbol symbol=asinh.T source="T: Float" type=T#3
+/// @resolution.name source=Float target=Float
+/// @type.symbol symbol=asinh.x source="x: T" type=T#3
+/// @resolution.name source=T target=asinh.T
+/// @resolution.name source=T target=asinh.T
+
+    log(x + sqrt(x * x + 1))
+    /// @resolution.name source=log target=log
+    /// @resolution.call source="log(x + sqrt(x * x + 1))" parameters=(T#3) arguments=(provided(x + sqrt(x * x + 1)) as T#3) return=T#3 kind=symbol target=log instance=log<T#3>
+    /// @generic.instance source="log(x + sqrt(x * x + 1))" id=log<T#3>
+    /// @resolution.name source=x target=asinh.x
+    /// @resolution.name source=sqrt target=sqrt
+    /// @resolution.call source="sqrt(x * x + 1)" parameters=(T#3) arguments=(provided(x * x + 1) as T#3) return=T#3 kind=symbol target=sqrt instance=sqrt<T#3>
+    /// @generic.instance source="sqrt(x * x + 1)" id=sqrt<T#3>
+    /// @resolution.name source=x target=asinh.x
+    /// @resolution.call source="x * x" parameters=() return=T#3 kind=builtin builtin=binary.multiply
+    /// @resolution.name source=x target=asinh.x
+    /// @resolution.call source="x * x + 1" parameters=() return=T#3 kind=builtin builtin=binary.add
+
+}
+
+/// @generic.instance id=log<T#3> template=log arguments=(T#3)
+/// @generic.instance id=sqrt<T#3> template=sqrt arguments=(T#3)
+"#,
+    );
 }
 
 #[test]
@@ -1232,7 +1580,8 @@ extension<T> of Box<T> {
         Box.make(value)
         /// @resolution.name source=Box target=Box
         /// @resolution.member source=Box.make receiver=Box kind=symbol target=make
-        /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make receiver=Box
+        /// @resolution.call source=Box.make(value) parameters=(T#3) arguments=(provided(value) as T#3) return=Box<T#3> kind=symbol target=make receiver=Box instance=Box<T#3>.<extension#1>.make
+        /// @generic.instance source=Box.make(value) id=Box<T#3>.<extension#1>.make
         /// @resolution.name source=value target=wrap.value
 
     }
@@ -1241,6 +1590,7 @@ extension<T> of Box<T> {
 /// @generic.instance id=Box<T#1> template=Box arguments=(T#1)
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 /// @generic.instance id=Box<T#3> template=Box arguments=(T#3)
+/// @generic.instance id=Box<T#3>.<extension#1>.make template=make arguments=(T#3)
 "#, r#""#);
 }
 
@@ -1278,7 +1628,7 @@ struct Inner<T> {
 
 extension<T> of Inner<T> {
     static new(value: T): Inner<T> {
-        Inner { value }
+        Inner<T> { value }
     }
 }
 
@@ -1288,7 +1638,7 @@ struct Outer<T> {
 
 extension<T> of Outer<T> {
     static new(value: T): Outer<T> {
-        Outer { inner: Inner.new<T>(value) }
+        Outer<T> { inner: Inner.new<T>(value) }
     }
 }
 
@@ -1361,7 +1711,8 @@ extension<T> of Outer<T> {
         /// @resolution.name source=Outer target=Outer
         /// @resolution.name source=Inner target=Inner
         /// @resolution.member source=Inner.new receiver=Inner kind=symbol target=new#1
-        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner
+        /// @resolution.call source=Inner.new(value) parameters=(T#4) arguments=(provided(value) as T#4) return=Inner<T#4> kind=symbol target=new#1 receiver=Inner instance=Inner<T#4>.<extension#1>.new#1
+        /// @generic.instance source=Inner.new(value) id=Inner<T#4>.<extension#1>.new#1
         /// @resolution.name source=value target=new.value#2
 
     }
@@ -1369,6 +1720,7 @@ extension<T> of Outer<T> {
 
 /// @generic.instance id=Inner<T#2> template=Inner arguments=(T#2)
 /// @generic.instance id=Inner<T#3> template=Inner arguments=(T#3)
+/// @generic.instance id=Inner<T#4>.<extension#1>.new#1 template=new#1 arguments=(T#4)
 /// @generic.instance id=Outer<T#4> template=Outer arguments=(T#4)
 "#, r#""#);
 }
@@ -1407,7 +1759,7 @@ function check<T>(a: T): T | undefined {
     }
 
     result
-} as T | undefined
+}
 
 === checked ===
 function pair<T>(a: T): (T, boolean) {
