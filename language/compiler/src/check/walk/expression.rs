@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     AssignedPlace, ConditionBranch, ControlTargetForm, Expectation, ExpectedType, FlowBranch,
-    FlowCheckpoint, GenericPosition, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, PlaceUse, Relation, ValueUse, WalkState, Widening,
+    FlowCheckpoint, Obligation, Origin, PatternCoverage, PatternCoverageObligation, PlaceUse,
+    Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -55,7 +55,7 @@ impl WalkState<'_, '_> {
             // { ... }
             dir::Expression::Block(block) => {
                 let block = *block;
-                self.walk_block(block, self.tree.get(block))?;
+                self.walk_block(block, self.tree.get(block), None)?;
             }
             // label: body
             dir::Expression::Label { label, body } => {
@@ -239,9 +239,11 @@ impl WalkState<'_, '_> {
                 let (cardinality, value) = (*cardinality, *value);
                 let delegate_return = match cardinality {
                     // yield* delegates resume into the inner return
-                    dir::YieldCardinality::Generator => {
-                        Some(self.open_type_hole(id.into_any(), Widening::Preserve)?)
-                    }
+                    dir::YieldCardinality::Generator => Some(self.open_type_hole(
+                        id.into_any(),
+                        Widening::Preserve,
+                        VariableRole::Regular,
+                    )?),
                     dir::YieldCardinality::Scalar => None,
                 };
                 if let Some(value) = value {
@@ -528,7 +530,7 @@ impl WalkState<'_, '_> {
             } => {
                 let arguments = arguments.iter().copied().collect::<SmallVec<[_; 4]>>();
                 self.walk_expression(*left, self.tree.get(*left))?;
-                self.walk_generic_arguments(generic_arguments, GenericPosition::Annotation)?;
+                self.walk_generic_arguments(generic_arguments)?;
                 for argument in &arguments {
                     self.walk_argument(*argument, self.tree.get(*argument))?;
                 }
@@ -848,7 +850,7 @@ impl WalkState<'_, '_> {
         // walk body under true condition flow
         let before_body = self.fork_flow();
         self.narrow_expression(condition, ConditionBranch::True)?;
-        self.walk_block(body, self.tree.get(body))?;
+        self.walk_block(body, self.tree.get(body), None)?;
         self.restore_flow(before_body);
 
         // collect normal exit through false condition
@@ -894,7 +896,7 @@ impl WalkState<'_, '_> {
         // walk body with iteration binding assigned
         let before_body = self.fork_flow();
         self.mark_bindings_assigned(pattern.into_any());
-        self.walk_block(body, self.tree.get(body))?;
+        self.walk_block(body, self.tree.get(body), None)?;
         self.restore_flow(before_body);
 
         // collect normal loop exit
@@ -944,7 +946,7 @@ impl WalkState<'_, '_> {
         if let Some(condition) = condition {
             self.narrow_expression(condition, ConditionBranch::True)?;
         }
-        self.walk_block(body, self.tree.get(body))?;
+        self.walk_block(body, self.tree.get(body), None)?;
         let body_flow = self
             .block_can_complete_normally(self.tree.get(body))
             .then(|| self.collect_flow_branch(before_body));
@@ -1027,7 +1029,7 @@ impl WalkState<'_, '_> {
 
         // walk body with isolated flow
         let before_body = self.fork_flow();
-        self.walk_block(body, self.tree.get(body))?;
+        self.walk_block(body, self.tree.get(body), None)?;
         self.restore_flow(before_body);
 
         // restore only branches that leave the loop
@@ -1146,9 +1148,7 @@ impl WalkState<'_, '_> {
         let (pattern, ty, body) = (catch.pattern, catch.ty, catch.body);
 
         // catch (error: T)
-        let expected = ty
-            .map(|ty| self.walk_type_expression(ty, GenericPosition::Annotation))
-            .transpose()?;
+        let expected = ty.map(|ty| self.walk_type_expression(ty)).transpose()?;
         if let (Some(failure), Some(expected)) = (failure, expected) {
             let origin = Origin::Node(
                 id.into_global_any(self.module),
@@ -1351,7 +1351,7 @@ impl WalkState<'_, '_> {
                 self.walk_expression(default, self.tree.get(default))?;
                 self.walk_assign_pattern(pattern, None, access)?
             }
-            // [a, , ...rest] = values
+            // [a, ...rest] = values
             dir::AssignPattern::Sequence { fields } => {
                 let mut places = Vec::new();
                 for field in fields.clone() {

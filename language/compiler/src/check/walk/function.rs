@@ -3,8 +3,8 @@ use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, FlowBranch, GenericPosition, GenericTemplateId, InducedLifetimeOwner, Origin,
-    ReceiverBinding, Relation, ValueUse, VariableRole, WalkState, Widening,
+    Expectation, FlowBranch, GenericTemplateId, InducedLifetimeOwner, Origin, ReceiverBinding,
+    Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 
 /// Types produced by one parameter header.
@@ -173,33 +173,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<(dir::TypeVariableId, dir::GlobalTypeId)>> {
         let mut lifetimes = Vec::new();
-        let mut pending = vec![ty];
-        let mut visited = IndexSet::new();
 
-        // walk the type graph without expanding declarations
-        while let Some(ty) = pending.pop() {
-            if !visited.insert(ty) {
+        // collect open lifetime variables from the type graph
+        for variable in self.check.type_variables(ty)? {
+            if !matches!(
+                self.check.variable_role(variable)?,
+                VariableRole::Lifetime { .. }
+            ) {
                 continue;
             }
 
-            let ty = self.check.settled_root(ty)?;
-            let current = self.check.ty(ty)?;
-            if let dir::Type::Variable(variable) = current {
-                let Some(variable) = self.check.open_variable(variable)? else {
-                    continue;
-                };
-                if matches!(
-                    self.check.variable_role(variable)?,
-                    VariableRole::Lifetime { .. }
-                ) {
-                    lifetimes.push((variable, ty));
-                }
-
-                continue;
-            }
-
-            self.check
-                .for_each_type_child(ty.module_id, &current, |child| pending.push(child))?;
+            let ty = self.check.variable_type(variable)?;
+            lifetimes.push((variable, ty));
         }
 
         Ok(lifetimes)
@@ -458,7 +443,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the async completion type
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
-            let completed = self.open_type_hole(source, Widening::Preserve)?;
+            let completed =
+                self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
             let promised =
                 self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
             self.relate_type(origin, Relation::Assignable, promised, result);
@@ -468,9 +454,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.open_type_hole(source, Widening::Preserve)?;
-            let completed = self.open_type_hole(source, Widening::Preserve)?;
-            let resumed = self.open_type_hole(source, Widening::Preserve)?;
+            let yielded = self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
+            let completed =
+                self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
+            let resumed = self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -514,9 +501,20 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let expectation = (!Self::is_constructor_signature(signature)
             && self.expression_can_complete_normally(body))
         .then(|| Expectation::assignable(return_target, origin, ValueUse::Output));
-        self.walk_expression(body, self.tree.get(body))?;
-        if let Some(expectation) = expectation {
-            self.queue_node_check(body, expectation)?;
+        match (self.tree.get(body), expectation) {
+            // queue checked block bodies through the block owner
+            (dir::Expression::Block(block), Some(expectation)) => {
+                self.walk_block(*block, self.tree.get(*block), Some(expectation))?;
+            }
+            // queue checked expression bodies through the expression owner
+            (_, Some(expectation)) => {
+                self.walk_expression(body, self.tree.get(body))?;
+                self.queue_node_check(body, expectation)?;
+            }
+            // unchecked bodies keep ordinary expression ownership
+            (_, None) => {
+                self.walk_expression(body, self.tree.get(body))?;
+            }
         }
 
         self.leave_function_frame()
@@ -596,7 +594,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             parameter => parameter.declared_type(),
         };
         let Some(declared_type) = declared_type else {
-            let ty = self.open_type_hole(id.into_any(), Widening::Preserve)?;
+            let ty =
+                self.open_type_hole(id.into_any(), Widening::Preserve, VariableRole::Regular)?;
             self.commit_node_type(id, ty)?;
 
             return Ok(Some(ParameterType {
@@ -606,9 +605,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         let is_optional = self.tree.get(id).is_optional();
-        let argument = self.walk_type_expression(declared_type, GenericPosition::Annotation)?;
+        let argument = self.walk_type_expression(declared_type)?;
         let argument = if represents_open_type {
-            self.represented_open_type(id.into_any(), argument)?
+            self.represented_open_type(argument)?
         } else {
             argument
         };

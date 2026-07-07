@@ -2,8 +2,8 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    Expectation, FlowBranch, FlowState, GenericPosition, GenericTemplateId, InducedLifetimeOwner,
-    Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
+    Expectation, FlowBranch, FlowState, GenericTemplateId, InducedLifetimeOwner, Origin, Receiver,
+    ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -256,12 +256,10 @@ impl WalkState<'_, '_> {
 
                 // walk constraint and value
                 let constraint = constraint
-                    .map(|constraint| {
-                        self.walk_type_expression(constraint, GenericPosition::Annotation)
-                    })
+                    .map(|constraint| self.walk_type_expression(constraint))
                     .transpose()?;
                 let value = value
-                    .map(|value| self.walk_type_expression(value, GenericPosition::Annotation))
+                    .map(|value| self.walk_type_expression(value))
                     .transpose()?;
 
                 // write the member symbol type
@@ -307,9 +305,7 @@ impl WalkState<'_, '_> {
 
                 // walk the declared type
                 let declared = declared_type
-                    .map(|declared_type| {
-                        self.walk_type_expression(declared_type, GenericPosition::Annotation)
-                    })
+                    .map(|declared_type| self.walk_type_expression(declared_type))
                     .transpose()?;
 
                 // the value is a static written form checked against the type
@@ -401,9 +397,8 @@ impl WalkState<'_, '_> {
                 // derive the declared field type
                 let field_type = match declared_type {
                     Some(declared_type) => {
-                        let written =
-                            self.walk_type_expression(declared_type, GenericPosition::Annotation)?;
-                        let written = self.represented_open_type(id.into_any(), written)?;
+                        let written = self.walk_type_expression(declared_type)?;
+                        let written = self.represented_open_type(written)?;
                         let written = if is_optional {
                             self.optional_value_type(written)?
                         } else {
@@ -736,8 +731,7 @@ impl WalkState<'_, '_> {
                 let Some(declared_type) = declared_type else {
                     return Ok(None);
                 };
-                let declared_ty =
-                    self.walk_type_expression(declared_type, GenericPosition::Annotation)?;
+                let declared_ty = self.walk_type_expression(declared_type)?;
                 let written = if is_optional {
                     self.optional_value_type(declared_ty)?
                 } else {
@@ -887,9 +881,8 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let (key_type, value_type) = (*key_type, *value_type);
-                let key_type = self.walk_type_expression(key_type, GenericPosition::Annotation)?;
-                let value_type =
-                    self.walk_type_expression(value_type, GenericPosition::Annotation)?;
+                let key_type = self.walk_type_expression(key_type)?;
+                let value_type = self.walk_type_expression(value_type)?;
 
                 // index signatures write as their value function shape
                 let _ = key_type;
@@ -932,12 +925,10 @@ impl WalkState<'_, '_> {
                 }
 
                 let constraint = constraint
-                    .map(|constraint| {
-                        self.walk_type_expression(constraint, GenericPosition::Annotation)
-                    })
+                    .map(|constraint| self.walk_type_expression(constraint))
                     .transpose()?;
                 let value = value
-                    .map(|value| self.walk_type_expression(value, GenericPosition::Annotation))
+                    .map(|value| self.walk_type_expression(value))
                     .transpose()?;
 
                 // write the member symbol type
@@ -974,9 +965,7 @@ impl WalkState<'_, '_> {
                 }
 
                 let declared = declared_type
-                    .map(|declared_type| {
-                        self.walk_type_expression(declared_type, GenericPosition::Annotation)
-                    })
+                    .map(|declared_type| self.walk_type_expression(declared_type))
                     .transpose()?;
                 let written = value
                     .map(|value| self.walk_static_term(value))

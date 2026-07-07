@@ -230,21 +230,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the tagged discriminant literal for one ready backing arm.
-    pub(in crate::check) fn require_tagged_arm_discriminant(
-        &mut self,
-        origin: Origin,
-        arm: dir::GlobalTypeId,
-        operation: &'static str,
-    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
-        match self.tagged_arm_discriminant(origin, arm)? {
-            Answer::Ready(value) => Ok(value),
-            Answer::Pending(blockers) => Err(CompilerError::Internal {
-                message: format!("{operation} requires a ready tagged arm: {blockers:?}"),
-            }),
-        }
-    }
-
     /// Return the tagged discriminant literal for one nominal backing arm.
     pub(in crate::check) fn tagged_instance_discriminant(
         &mut self,

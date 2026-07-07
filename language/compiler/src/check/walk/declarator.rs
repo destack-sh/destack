@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, ExpectedType, FlowPath, FlowPredicate, GenericPosition, Obligation, Origin,
-    PatternCoverage, PatternCoverageObligation, ValueUse, WalkState, Widening,
+    Expectation, ExpectedType, FlowPath, FlowPredicate, Obligation, Origin, PatternCoverage,
+    PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -49,7 +49,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         // bind annotated declarators before checking their initializers
         if let Some(ty) = declarator.ty {
-            let written = self.walk_type_expression(ty, GenericPosition::Annotation)?;
+            let written = self.walk_type_expression(ty)?;
             self.queue_bind_type(symbol, written);
 
             // const unique symbols carry their declaration identity as a static value
@@ -136,7 +136,7 @@ impl WalkState<'_, '_> {
 
         // walk declared type
         if let Some(ty) = declarator.ty {
-            self.walk_type_expression(ty, GenericPosition::Annotation)?;
+            self.walk_type_expression(ty)?;
         }
 
         // walk matched value
@@ -168,7 +168,7 @@ impl WalkState<'_, '_> {
                 );
             }
         } else if let Some(ty) = declarator.ty {
-            let matched = self.walk_type_expression(ty, GenericPosition::Annotation)?;
+            let matched = self.walk_type_expression(ty)?;
             let expectation = Expectation::assignable(
                 matched,
                 Origin::Node(

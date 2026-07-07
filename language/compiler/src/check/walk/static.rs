@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Decision, GenericPosition, StaticIfCondition, WalkState, Widening};
+use crate::check::{Decision, StaticIfCondition, VariableRole, WalkState, Widening};
 use crate::r#static::{StaticContext, StaticError};
 
 /// Source presence decided by closed static gates.
@@ -267,10 +267,14 @@ impl WalkState<'_, '_> {
                     ..
                 } = self.tree.get(*value)
                 {
-                    let ty = self.open_type_hole((*value).into_any(), Widening::Preserve)?;
+                    let ty = self.open_type_hole(
+                        (*value).into_any(),
+                        Widening::Preserve,
+                        VariableRole::Regular,
+                    )?;
                     self.commit_node_type(*value, ty)?
                 } else {
-                    self.walk_type_expression(*value, GenericPosition::Annotation)?
+                    self.walk_type_expression(*value)?
                 };
 
                 self.bind_static_term(expression, ty)

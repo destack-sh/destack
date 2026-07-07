@@ -147,7 +147,7 @@ impl WalkState<'_, '_> {
                 // enter selector flow before the body
                 self.walk_match_selector(selector, value)?;
 
-                self.walk_block(*body, self.tree.get(*body))?;
+                self.walk_block(*body, self.tree.get(*body), None)?;
             }
         };
 
