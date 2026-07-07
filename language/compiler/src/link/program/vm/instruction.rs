@@ -392,6 +392,8 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::Assume { condition: _ } => Instruction::new(Op::Assume, 0, 0, 0, 0),
 
+            mir::Instruction::Breakpoint => Instruction::new(Op::Breakpoint, 0, 0, 0, 0),
+
             mir::Instruction::Intrinsic {
                 destination,
                 intrinsic,

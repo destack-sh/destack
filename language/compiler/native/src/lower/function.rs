@@ -593,7 +593,7 @@ impl<'a> FunctionLowerer<'a> {
             // optimizer only markers
             mir::Instruction::Assume { .. }
             | mir::Instruction::ProfileIncrement { .. }
-            | mir::Instruction::ProfileValue { .. } => {}
+            | mir::Instruction::ProfileSample { .. } => {}
 
             // field.get: load at computed aggregate slot offset
             mir::Instruction::FieldGet {
@@ -1076,6 +1076,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Instruction::AtomicFence { .. } => return unsupported("atomic.fence"),
             mir::Instruction::BarrierWrite { .. } => return unsupported("barrier.write"),
+            mir::Instruction::Breakpoint => return unsupported("breakpoint"),
 
             // intrinsic: depends on the specific intrinsic
             mir::Instruction::Intrinsic { intrinsic, .. } => {

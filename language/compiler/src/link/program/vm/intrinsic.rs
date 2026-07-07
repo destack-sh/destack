@@ -51,23 +51,9 @@ impl<'a> BlockLowerer<'a> {
             None => IntrinsicDest::None,
         };
 
-        // reject compile-time intrinsics before building the side record
-        self.validate_runtime_intrinsic(intrinsic)?;
         let intrinsic = IntrinsicCall::new(intrinsic, dest, arguments, &operands)
             .ok_or_else(|| self.unsupported_instruction("intrinsic with more than 16 arguments"))?;
 
         Ok(pool.instruction_with_side(Op::Intrinsic, intrinsic))
-    }
-
-    /// Validate one runtime intrinsic.
-    fn validate_runtime_intrinsic(&self, intrinsic: mir::Intrinsic) -> LinkResult<()> {
-        match intrinsic {
-            mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self
-                .unsupported_instruction(format!(
-                    "intrinsic.{} (compile-time only)",
-                    intrinsic.to_str()
-                ))),
-            _ => Ok(()),
-        }
     }
 }
