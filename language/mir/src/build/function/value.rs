@@ -306,6 +306,11 @@ impl<'a> FunctionBuilder<'a> {
 
     // instruction builders: intrinsics
 
+    /// Insert one debugger breakpoint.
+    pub fn breakpoint(&mut self) {
+        self.insert_instruction(Instruction::Breakpoint);
+    }
+
     /// Call an intrinsic that returns a value.
     pub fn intrinsic(
         &mut self,

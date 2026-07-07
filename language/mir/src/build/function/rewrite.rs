@@ -79,6 +79,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(function, from, to);
                 }
                 Instruction::FunctionEnvironmentCurrent { .. } => {}
+                Instruction::Breakpoint => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
@@ -333,7 +334,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(condition, from, to);
                 }
                 Instruction::ProfileIncrement { .. } => {}
-                Instruction::ProfileValue { value, .. } => {
+                Instruction::ProfileSample { value, .. } => {
                     Self::replace_value_in_slot(value, from, to);
                 }
 

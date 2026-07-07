@@ -101,8 +101,9 @@ impl Parser {
                     | "atomic.store"
                     | "atomic.fence"
                     | "assume"
+                    | "breakpoint"
                     | "profile.increment"
-                    | "profile.value"
+                    | "profile.sample"
             )
         {
             return Err(ParseError::invalid(
@@ -253,12 +254,15 @@ impl Parser {
                 let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
                 Instruction::ProfileIncrement { counter }
             }
-            "profile.value" => {
+            "profile.sample" => {
                 let counter = self.parse_profile_counter_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::ProfileValue { counter, value }
+                Instruction::ProfileSample { counter, value }
             }
+
+            // debug control
+            "breakpoint" => Instruction::Breakpoint,
 
             // intrinsics
             _ if opcode_text.starts_with("intrinsic.") => {

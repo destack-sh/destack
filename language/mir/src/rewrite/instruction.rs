@@ -131,7 +131,9 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Free { .. } => false,
 
         // instrumentation and intrinsics may have side effects
-        mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileValue { .. } => false,
+        mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::ProfileSample { .. } => false,
+        mir::Instruction::Breakpoint => false,
         mir::Instruction::Intrinsic { .. } => false,
     }
 }
@@ -301,7 +303,11 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Free { .. } => true,
 
         // profile instrumentation must be preserved
-        mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileValue { .. } => true,
+        mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::ProfileSample { .. } => true,
+
+        // debugger control must be preserved
+        mir::Instruction::Breakpoint => true,
 
         // intrinsics may have side effects, check purity for safe removal
         mir::Instruction::Intrinsic { intrinsic, .. } => {
@@ -347,7 +353,7 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
             | mir::Instruction::ProfileIncrement { .. }
-            | mir::Instruction::ProfileValue { .. }
+            | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
@@ -1129,7 +1135,7 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
             result_type: *result_type,
         },
-        mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
+        mir::Instruction::ProfileSample { counter, value } => mir::Instruction::ProfileSample {
             counter: *counter,
             value: substitute(value),
         },
@@ -1149,6 +1155,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. }
         | mir::Instruction::ProfileIncrement { .. }
+        | mir::Instruction::Breakpoint
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
     }
 }
@@ -2742,10 +2749,11 @@ pub fn instruction_map(
         mir::Instruction::ProfileIncrement { counter } => {
             mir::Instruction::ProfileIncrement { counter: *counter }
         }
-        mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
+        mir::Instruction::ProfileSample { counter, value } => mir::Instruction::ProfileSample {
             counter: *counter,
             value: remap(*value),
         },
+        mir::Instruction::Breakpoint => mir::Instruction::Breakpoint,
     }
 }
 
@@ -3525,10 +3533,11 @@ pub fn instruction_map_with_locals(
         mir::Instruction::ProfileIncrement { counter } => {
             mir::Instruction::ProfileIncrement { counter: *counter }
         }
-        mir::Instruction::ProfileValue { counter, value } => mir::Instruction::ProfileValue {
+        mir::Instruction::ProfileSample { counter, value } => mir::Instruction::ProfileSample {
             counter: *counter,
             value: remap(*value),
         },
+        mir::Instruction::Breakpoint => mir::Instruction::Breakpoint,
     }
 }
 
