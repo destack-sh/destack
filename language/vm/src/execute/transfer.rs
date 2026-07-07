@@ -3,7 +3,7 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Outcome};
 use crate::options::LimitOptions;
 use destack_program::vm::{ArgumentRange, CallTarget, FunctionCode, MoveRange};
-use destack_program::{FrameStateId, FunctionId, Program, TypeId};
+use destack_program::{FrameStateId, FunctionId, Program, StopReason, TypeId};
 
 use super::frame::move_values_within_frame;
 
@@ -66,6 +66,13 @@ pub(crate) enum Transfer {
         value: Cell,
         /// The yielded value type.
         source_type: TypeId,
+        /// The frame state captured in the continuation.
+        frame_state: FrameStateId,
+    },
+    /// Stop for host inspection.
+    Stop {
+        /// The stop reason.
+        reason: StopReason,
         /// The frame state captured in the continuation.
         frame_state: FrameStateId,
     },
@@ -153,6 +160,22 @@ impl Activation<'_> {
         })
     }
 
+    /// Complete one stop transfer and return the stopped outcome.
+    fn complete_stop(
+        &mut self,
+        program: &Program,
+        reason: StopReason,
+        frame_state: FrameStateId,
+    ) -> RuntimeResult<Outcome> {
+        let resume_frame_index = self.machine.frames.len() - 1;
+        let continuation = self.capture_continuation(program, resume_frame_index, frame_state)?;
+
+        Ok(Outcome::Stopped {
+            continuation,
+            reason,
+        })
+    }
+
     /// Complete one control transfer produced by instruction execution.
     pub(crate) fn complete_transfer(
         &mut self,
@@ -230,6 +253,10 @@ impl Activation<'_> {
             } => self
                 .complete_yield(program, value, source_type, frame_state)
                 .map(Some),
+            Transfer::Stop {
+                reason,
+                frame_state,
+            } => self.complete_stop(program, reason, frame_state).map(Some),
             Transfer::Return(value) => self.complete_return(program, value),
             Transfer::Error(error) => Err(self.machine.runtime_error(error)),
         }

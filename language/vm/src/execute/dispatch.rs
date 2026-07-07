@@ -1179,6 +1179,10 @@ macro_rules! dispatch_instruction {
             Op::SwitchTable => $transfer!(super::execute_switch_table($activation, instruction)),
             Op::Check => $transfer!(super::execute_check($activation, instruction)),
             Op::Assume => $step!(super::execute_assume($activation, instruction)),
+            Op::Breakpoint => $transfer!(super::execute_breakpoint(
+                $activation,
+                ($block_pc + 1) as u32
+            )),
             Op::BarrierWriteHeap => {
                 $step!(super::execute_barrier_write_heap($activation, instruction))
             }

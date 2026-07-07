@@ -100,6 +100,8 @@ pub enum Trap {
     InvalidCast,
     /// Yielded during a non-yielding execution.
     UnexpectedYield,
+    /// Stopped during completion-only execution.
+    UnexpectedStop,
     /// Attempted to resume without a pending yield.
     ResumeWithoutYield,
     /// Attempted to resume with an invalid continuation.
@@ -439,6 +441,14 @@ impl Error {
         }
     }
 
+    /// Return an unexpected debugger stop error.
+    #[inline]
+    pub fn unexpected_stop() -> Self {
+        Self::Trap {
+            reason: Trap::UnexpectedStop,
+        }
+    }
+
     /// Return a resume without yield error.
     #[inline]
     pub fn resume_without_yield() -> Self {
@@ -610,6 +620,7 @@ impl Trap {
             Self::ImmutableGlobalWrite { .. } => 23,
             Self::ImmutableReferenceWrite { .. } => 26,
             Self::UnexpectedYield => 28,
+            Self::UnexpectedStop => 38,
             Self::ResumeWithoutYield => 29,
             Self::InvalidContinuation => 30,
             Self::InvalidSpace { .. } => 33,
@@ -649,6 +660,7 @@ impl Trap {
             Self::Unreachable => "reached unreachable code".to_string(),
             Self::InvalidCast => "invalid cast".to_string(),
             Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
+            Self::UnexpectedStop => "stopped during completion-only execution".to_string(),
             Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
             Self::InvalidContinuation => {
                 "attempted to resume with an invalid continuation".to_string()

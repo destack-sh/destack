@@ -10,7 +10,7 @@ use destack_heap::{
 };
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type};
-use destack_program::{Layout, LayoutShape, StaticSpace, TypeId, Value};
+use destack_program::{Layout, LayoutShape, StaticSpace, StopReason, TypeId, Value};
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 
 use crate::diagnostic::{Error, RuntimeResult};
@@ -471,6 +471,22 @@ impl TestMachine {
         )
     }
 
+    /// Continue one stopped continuation.
+    pub(crate) fn continue_continuation(
+        &mut self,
+        continuation: Continuation,
+    ) -> RuntimeResult<Outcome> {
+        self.machine.continue_continuation(
+            &mut self.local_static,
+            &mut self.shared_static,
+            &mut self.heap,
+            &self.shared_heap,
+            &mut self.shared_cache,
+            &self.shared_mark_worker,
+            continuation,
+        )
+    }
+
     /// Collect garbage and return one GC summary.
     pub(crate) fn collect_garbage(&mut self) -> GcStats {
         self.collect_garbage_with_continuations(&mut [])
@@ -796,6 +812,23 @@ pub(crate) fn assert_execution_yielded(result: RuntimeResult<Outcome>) -> (Conti
             value,
         } => (continuation, value),
         Outcome::Completed { .. } => panic!("expected yield"),
+        Outcome::Stopped { .. } => panic!("expected yield"),
+    }
+}
+
+/// Assert that one execution result stopped.
+pub(crate) fn assert_execution_stopped(
+    result: RuntimeResult<Outcome>,
+) -> (Continuation, StopReason) {
+    let outcome = result.expect("execution failed");
+
+    match outcome {
+        Outcome::Stopped {
+            continuation,
+            reason,
+        } => (continuation, reason),
+        Outcome::Completed { .. } => panic!("expected stop"),
+        Outcome::Yielded { .. } => panic!("expected stop"),
     }
 }
 
@@ -806,6 +839,7 @@ pub(crate) fn assert_execution_completed(result: RuntimeResult<Outcome>) -> Valu
     match outcome {
         Outcome::Completed { value } => value,
         Outcome::Yielded { .. } => panic!("expected completion"),
+        Outcome::Stopped { .. } => panic!("expected completion"),
     }
 }
 

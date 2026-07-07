@@ -44,6 +44,7 @@ impl Machine {
         match outcome {
             Outcome::Completed { value } => Ok(value),
             Outcome::Yielded { .. } => Err(self.runtime_error(Error::unexpected_yield())),
+            Outcome::Stopped { .. } => Err(self.runtime_error(Error::unexpected_stop())),
         }
     }
 
