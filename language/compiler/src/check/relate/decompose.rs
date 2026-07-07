@@ -2,7 +2,20 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::CheckState;
+use crate::check::{
+    Answer, CheckState, GenericParameterId, Origin, Relation, TypeSubstitution, answer,
+};
+
+/// Applied generic argument that violates its declared parameter bound.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) struct GenericBoundRejection {
+    /// The source node for the rejected argument.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The rejected argument type.
+    pub(in crate::check) argument: dir::GlobalTypeId,
+    /// The required bound after earlier arguments were substituted.
+    pub(in crate::check) bound: dir::GlobalTypeId,
+}
 
 impl CheckState<'_> {
     /// Decompose two same-constructor types into fixed slot pairs.
@@ -348,6 +361,248 @@ impl CheckState<'_> {
         };
 
         Ok(type_pairs(pair_lists.0, pair_lists.1))
+    }
+
+    /// Check applied generic arguments against declared parameter bounds.
+    pub(in crate::check) fn check_generic_arguments(
+        &mut self,
+        origin: Origin,
+        parameters: &[dir::GlobalGenericParameterId],
+        arguments: &[dir::GlobalTypeId],
+        sources: &[dir::GlobalNodeIdAny],
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<Answer<Option<GenericBoundRejection>>> {
+        for ((parameter, argument), argument_source) in parameters
+            .iter()
+            .copied()
+            .zip(arguments.iter().copied())
+            .zip(sources.iter().copied())
+        {
+            let Some(constraint) = self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.constraint)
+            else {
+                continue;
+            };
+            let bound = self.substitute_type(origin.module(), constraint, substitution)?;
+
+            let origin = self.origin_at(origin, argument_source);
+            if !answer!(self.constrain_type(origin, Relation::Satisfies, argument, bound)?) {
+                return Ok(Answer::Ready(Some(GenericBoundRejection {
+                    source: argument_source,
+                    argument,
+                    bound,
+                })));
+            }
+        }
+
+        Ok(Answer::Ready(None))
+    }
+
+    /// Match one generic type pattern and return its direct substitution.
+    pub(in crate::check) fn match_generic_pattern(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        pattern: dir::GlobalTypeId,
+        actual: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+        let mut substitution = TypeSubstitution::default();
+        if !answer!(self.match_generic_type(
+            origin,
+            parameters,
+            &mut substitution,
+            pattern,
+            actual
+        )?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let source = self.origin_source_node(origin)?;
+        if !answer!(self.check_generic_substitution_bounds(
+            origin,
+            source.into_global(origin.module()),
+            &substitution,
+        )?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(substitution)))
+    }
+
+    /// Match one parameter list over positional pattern and actual pairs.
+    ///
+    /// Parameters the pairs leave free stay rigid, and bound arguments must
+    /// satisfy their declared constraints.
+    pub(in crate::check) fn match_generic_pairs(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
+    ) -> CompilerResult<Answer<Option<TypeSubstitution>>> {
+        let mut substitution = TypeSubstitution::default();
+        for (pattern, actual) in pairs.iter().copied() {
+            if !answer!(self.match_generic_type(
+                origin,
+                parameters,
+                &mut substitution,
+                pattern,
+                actual,
+            )?) {
+                return Ok(Answer::Ready(None));
+            }
+        }
+
+        let source = self.origin_source_node(origin)?;
+        if !answer!(self.check_generic_substitution_bounds(
+            origin,
+            source.into_global(origin.module()),
+            &substitution,
+        )?) {
+            return Ok(Answer::Ready(None));
+        }
+
+        Ok(Answer::Ready(Some(substitution)))
+    }
+
+    /// Return the type substitution for one generic instance.
+    /// `module` is the owner of the instance's argument list.
+    pub(in crate::check) fn instance_substitution(
+        &self,
+        module: destack_source::ModuleId,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<TypeSubstitution> {
+        let Some(template) = self.symbol_template(instance.symbol) else {
+            return Ok(TypeSubstitution::default());
+        };
+
+        let parameters = self.generic_template_parameters(template);
+        let arguments = self
+            .type_ids(module, instance.arguments)?
+            .iter()
+            .copied()
+            .take(parameters.len())
+            .collect();
+
+        Ok(TypeSubstitution {
+            parameters,
+            arguments,
+            receiver: None,
+        })
+    }
+
+    /// Match one generic type pattern without opening inference variables.
+    fn match_generic_type(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
+        pattern: dir::GlobalTypeId,
+        actual: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let pattern = answer!(self.reduce_type(origin, pattern)?);
+        let actual = answer!(self.reduce_type(origin, actual)?);
+
+        let pattern_type = self.ty(pattern)?;
+        let actual_type = self.ty(actual)?;
+
+        // bind template parameters directly
+        if let dir::Type::Parameter(parameter) = pattern_type
+            && parameters.contains(&parameter)
+        {
+            return self.bind_generic_argument(origin, substitution, parameter, actual);
+        }
+
+        // decompose identical parameterized types to record bindings
+        if pattern == actual && !self.type_flags(pattern)?.has_parameter() {
+            return Ok(Answer::Ready(true));
+        }
+
+        // decompose fixed slots beneath one shared constructor
+        let pairs = self.decompose_type_pair(pattern, actual)?;
+        if let Some(pairs) = pairs {
+            return self.match_generic_arguments(origin, parameters, substitution, &pairs);
+        }
+
+        Ok(Answer::Ready(pattern_type == actual_type))
+    }
+
+    /// Bind one generic parameter argument in a direct substitution.
+    fn bind_generic_argument(
+        &mut self,
+        origin: Origin,
+        substitution: &mut TypeSubstitution,
+        parameter: GenericParameterId,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<bool>> {
+        let position = substitution
+            .parameters
+            .iter()
+            .position(|candidate| *candidate == parameter);
+        let Some(position) = position else {
+            substitution.parameters.push(parameter);
+            substitution.arguments.push(argument);
+
+            return Ok(Answer::Ready(true));
+        };
+
+        let bound = substitution.arguments[position];
+
+        self.decide_relation(origin, Relation::Equal, bound, argument)
+    }
+
+    /// Check every generic argument in one completed substitution.
+    fn check_generic_substitution_bounds(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalNodeIdAny,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<Answer<bool>> {
+        for (parameter, argument) in substitution
+            .parameters
+            .iter()
+            .copied()
+            .zip(substitution.arguments.iter().copied())
+        {
+            let Some(constraint) = self
+                .generic_parameter(parameter)
+                .and_then(|binding| binding.constraint)
+            else {
+                continue;
+            };
+            let constraint = self.substitute_type(origin.module(), constraint, substitution)?;
+            let origin = self.origin_at(origin, source);
+            if !answer!(self.constrain_type(origin, Relation::Satisfies, argument, constraint)?) {
+                return Ok(Answer::Ready(false));
+            }
+        }
+
+        Ok(Answer::Ready(true))
+    }
+
+    /// Match fixed positional type pairs.
+    fn match_generic_arguments(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
+        pairs: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(true);
+        for (pattern, actual) in pairs.iter().copied() {
+            decision = decision.and(self.match_generic_type(
+                origin,
+                parameters,
+                substitution,
+                pattern,
+                actual,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
     }
 }
 

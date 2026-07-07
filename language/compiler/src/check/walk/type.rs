@@ -865,7 +865,7 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Error);
         }
 
-        // bind written arguments and open every omitted slot
+        // bind written arguments and declared defaults
         let written = applied
             .iter()
             .map(|argument| argument.ty)
@@ -874,7 +874,7 @@ impl WalkState<'_, '_> {
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let Some(substitution) = self.check.apply_parameter_arguments(
+        let Some(substitution) = self.check.substitute_parameter_arguments(
             origin,
             &parameters,
             &written,

@@ -4,7 +4,9 @@ use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::CheckState;
+use crate::check::{
+    CheckState, GenericParameterId, GenericTemplateId, Origin, VariableRole, Widening,
+};
 
 /// One positional generic substitution.
 #[derive(Debug, Clone, Default)]
@@ -50,30 +52,150 @@ impl TypeSubstitution {
 
         composed
     }
+}
 
-    /// Return inference variables referenced by this substitution's arguments.
-    pub(in crate::check) fn variables(
-        &self,
-        check: &CheckState<'_>,
-    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 4]>> {
-        let mut variables = SmallVec::new();
+impl CheckState<'_> {
+    /// Substitute written annotation arguments into one template.
+    pub(in crate::check) fn substitute_annotation_arguments(
+        &mut self,
+        origin: Origin,
+        template: GenericTemplateId,
+        written: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<TypeSubstitution>> {
+        let parameters = self.generic_template_parameters(template);
 
-        // collect variables in argument order from most recently inferred first
-        for argument in self.arguments.iter().rev().copied() {
-            for variable in check.type_variables(argument)? {
-                if !variables.contains(&variable) {
-                    variables.push(variable);
-                }
+        self.substitute_parameter_arguments(
+            origin,
+            &parameters,
+            written,
+            TypeSubstitution::default(),
+        )
+    }
+
+    /// Substitute written annotation arguments into one parameter list.
+    pub(in crate::check) fn substitute_parameter_arguments(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        written: &[dir::GlobalTypeId],
+        mut substitution: TypeSubstitution,
+    ) -> CompilerResult<Option<TypeSubstitution>> {
+        if written.len() > self.written_parameter_count(parameters) {
+            return Ok(None);
+        }
+
+        // bind explicit parameters and fill omitted defaults
+        let mut cursor = 0;
+        for parameter in parameters.iter().copied() {
+            let Some(binding) = self.generic_parameter(parameter).copied() else {
+                return Ok(None);
+            };
+            let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
+            if is_explicit && cursor < written.len() {
+                substitution.parameters.push(parameter);
+                substitution.arguments.push(written[cursor]);
+                cursor += 1;
+
+                continue;
+            }
+
+            // evaluate defaults against the application built so far
+            let default = binding
+                .default
+                .map(|default| self.substitute_type(origin.module(), default, &substitution))
+                .transpose()?;
+            if let Some(default) = default {
+                substitution.parameters.push(parameter);
+                substitution.arguments.push(default);
+
+                continue;
+            }
+
+            if is_explicit {
+                return Ok(None);
             }
         }
 
-        Ok(variables)
+        Ok(Some(substitution))
+    }
+
+    /// Instantiate one parameter list, opening omitted explicit parameters.
+    pub(in crate::check) fn instantiate_parameter_arguments(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        written: &[dir::GlobalTypeId],
+        mut substitution: TypeSubstitution,
+    ) -> CompilerResult<Option<TypeSubstitution>> {
+        if written.len() > self.written_parameter_count(parameters) {
+            return Ok(None);
+        }
+
+        // bind written parameters and open omitted inference parameters
+        let mut cursor = 0;
+        for parameter in parameters.iter().copied() {
+            let Some(binding) = self.generic_parameter(parameter).copied() else {
+                return Ok(None);
+            };
+            let is_explicit = matches!(binding.origin, dir::GenericParameterOrigin::Explicit);
+            if is_explicit && cursor < written.len() {
+                substitution.parameters.push(parameter);
+                substitution.arguments.push(written[cursor]);
+                cursor += 1;
+
+                continue;
+            }
+
+            // use declared defaults for non-inference parameters
+            let default = binding
+                .default
+                .map(|default| self.substitute_type(origin.module(), default, &substitution))
+                .transpose()?;
+            if let Some(default) = default
+                && !is_explicit
+            {
+                substitution.parameters.push(parameter);
+                substitution.arguments.push(default);
+
+                continue;
+            }
+
+            // omitted explicit parameters are ordinary inference variables
+            if is_explicit {
+                let variable = self.allocate_variable(
+                    origin.module(),
+                    origin,
+                    Widening::Preserve,
+                    VariableRole::Regular,
+                );
+                let argument = self.variable_type(variable)?;
+                substitution.parameters.push(parameter);
+                substitution.arguments.push(argument);
+            }
+        }
+
+        Ok(Some(substitution))
+    }
+
+    /// Return how many parameters accept written arguments.
+    pub(in crate::check) fn written_parameter_count(
+        &self,
+        parameters: &[GenericParameterId],
+    ) -> usize {
+        parameters
+            .iter()
+            .filter(|parameter| {
+                self.generic_parameter(**parameter).is_some_and(|binding| {
+                    matches!(binding.origin, dir::GenericParameterOrigin::Explicit)
+                })
+            })
+            .count()
     }
 }
 
 /// Rule applied to matching leaves of one type graph.
 #[derive(Debug, Clone, Copy)]
-enum TypeRewrite<'a> {
+enum SubstitutionRule<'a> {
     /// Replace generic parameter and receiver references by position.
     Substitute {
         /// The declared parameters in declaration order.
@@ -95,13 +217,11 @@ enum TypeRewrite<'a> {
         /// The captured types keyed by binder symbol.
         captures: &'a [InferSubstitution],
     },
-    /// Replace solved variables with their solutions, keep open variables.
-    ResolveVariables,
     /// Remove inference barriers after candidate inference has closed.
     EraseNoInfer,
 }
 
-impl TypeRewrite<'_> {
+impl SubstitutionRule<'_> {
     /// Return the substituted argument for one parameter.
     fn substituted(&self, parameter: dir::GlobalGenericParameterId) -> Option<dir::GlobalTypeId> {
         match self {
@@ -114,10 +234,7 @@ impl TypeRewrite<'_> {
                 .position(|candidate| *candidate == parameter)
                 .and_then(|position| arguments.get(position))
                 .copied(),
-            Self::Replace { .. }
-            | Self::SubstituteInfer { .. }
-            | Self::ResolveVariables
-            | Self::EraseNoInfer => None,
+            Self::Replace { .. } | Self::SubstituteInfer { .. } | Self::EraseNoInfer => None,
         }
     }
 
@@ -125,10 +242,7 @@ impl TypeRewrite<'_> {
     fn receiver(&self) -> Option<dir::GlobalTypeId> {
         match self {
             Self::Substitute { receiver, .. } => *receiver,
-            Self::Replace { .. }
-            | Self::SubstituteInfer { .. }
-            | Self::ResolveVariables
-            | Self::EraseNoInfer => None,
+            Self::Replace { .. } | Self::SubstituteInfer { .. } | Self::EraseNoInfer => None,
         }
     }
 
@@ -139,10 +253,7 @@ impl TypeRewrite<'_> {
                 .iter()
                 .find(|capture| capture.symbol == symbol)
                 .map(|capture| capture.ty),
-            Self::Substitute { .. }
-            | Self::Replace { .. }
-            | Self::ResolveVariables
-            | Self::EraseNoInfer => None,
+            Self::Substitute { .. } | Self::Replace { .. } | Self::EraseNoInfer => None,
         }
     }
 }
@@ -185,22 +296,22 @@ impl CheckState<'_> {
         Ok(variables)
     }
 
-    /// Rewrite one type by replacing its leaves.
+    /// Substitute one type graph by replacing matching leaves.
     /// Returns the same id when nothing changed.
-    /// Source payload lists resolve in each rewritten type's own module;
+    /// Source payload lists resolve in each source type's own module;
     /// rebuilt composites intern into the writable target module.
-    fn rewrite_type(
+    fn substitute_graph(
         &mut self,
         target: ModuleId,
         id: dir::GlobalTypeId,
-        rewrite: TypeRewrite<'_>,
+        rule: SubstitutionRule<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // mark every rewritten path once, then rebuild along the marks
-        let mut rewrites = IndexMap::new();
-        self.mark_rewrites(id, rewrite, &mut rewrites)?;
-        let mut rewriting = IndexSet::new();
+        // mark every affected path once, then rebuild along the marks
+        let mut marks = IndexMap::new();
+        self.mark_substitutions(id, rule, &mut marks)?;
+        let mut substituting = IndexSet::new();
 
-        self.rewrite_type_guarded(target, id, rewrite, &rewrites, &mut rewriting)
+        self.substitute_guarded(target, id, rule, &marks, &mut substituting)
     }
 
     /// Substitute generic parameters and `this` in one type.
@@ -214,24 +325,15 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        self.rewrite_type(
+        self.substitute_graph(
             target,
             id,
-            TypeRewrite::Substitute {
+            SubstitutionRule::Substitute {
                 parameters: &substitution.parameters,
                 arguments: &substitution.arguments,
                 receiver: substitution.receiver,
             },
         )
-    }
-
-    /// Replace solved variables in one type.
-    pub(in crate::check) fn resolve_type_variables(
-        &mut self,
-        target: ModuleId,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.rewrite_type(target, id, TypeRewrite::ResolveVariables)
     }
 
     /// Remove inference barriers after candidate inference has closed.
@@ -240,7 +342,7 @@ impl CheckState<'_> {
         target: ModuleId,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.rewrite_type(target, id, TypeRewrite::EraseNoInfer)
+        self.substitute_graph(target, id, SubstitutionRule::EraseNoInfer)
     }
 
     /// Return whether one type graph contains an inference barrier.
@@ -288,9 +390,9 @@ impl CheckState<'_> {
         from: dir::GlobalTypeId,
         to: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let rewrite = TypeRewrite::Replace { from, to };
+        let rule = SubstitutionRule::Replace { from, to };
 
-        self.rewrite_type(target, id, rewrite)
+        self.substitute_graph(target, id, rule)
     }
 
     /// Substitute conditional-infer captures inside one branch type.
@@ -304,30 +406,30 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        self.rewrite_type(target, id, TypeRewrite::SubstituteInfer { captures })
+        self.substitute_graph(target, id, SubstitutionRule::SubstituteInfer { captures })
     }
 
-    /// Mark whether each reachable id contains one rewritten leaf.
+    /// Mark whether each reachable id contains an affected leaf.
     /// Cyclic graphs mark conservatively unchanged on re-entry.
-    fn mark_rewrites(
+    fn mark_substitutions(
         &self,
         id: dir::GlobalTypeId,
-        rewrite: TypeRewrite<'_>,
-        rewrites: &mut IndexMap<dir::GlobalTypeId, bool>,
+        rule: SubstitutionRule<'_>,
+        marks: &mut IndexMap<dir::GlobalTypeId, bool>,
     ) -> CompilerResult<bool> {
         // replay marks and break cycles
-        if let Some(known) = rewrites.get(&id) {
+        if let Some(known) = marks.get(&id) {
             return Ok(*known);
         }
-        rewrites.insert(id, false);
+        marks.insert(id, false);
 
         // leaves decide directly, composites inherit their children
         let ty = self.ty(id)?;
-        let hit = match (ty, rewrite) {
-            _ if matches!(rewrite, TypeRewrite::Replace { from, .. } if from == id) => true,
+        let hit = match (ty, rule) {
+            _ if matches!(rule, SubstitutionRule::Replace { from, .. } if from == id) => true,
             (dir::Type::Instance(instance), _)
                 if instance.arguments.is_empty()
-                    && rewrite.infer_capture(instance.symbol).is_some() =>
+                    && rule.infer_capture(instance.symbol).is_some() =>
             {
                 true
             }
@@ -337,22 +439,20 @@ impl CheckState<'_> {
                     ..
                 })),
                 _,
-            ) if rewrite.infer_capture(symbol).is_some() => true,
-            (dir::Type::Parameter(parameter), TypeRewrite::Substitute { .. }) => {
-                rewrite.substituted(parameter).is_some()
+            ) if rule.infer_capture(symbol).is_some() => true,
+            (dir::Type::Parameter(parameter), SubstitutionRule::Substitute { .. }) => {
+                rule.substituted(parameter).is_some()
             }
-            (dir::Type::This, TypeRewrite::Substitute { .. }) => rewrite.receiver().is_some(),
-            (dir::Type::Variable(variable), TypeRewrite::ResolveVariables) => {
-                self.solver.solution(variable)?.is_some()
-            }
+            (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
             (dir::Type::Variable(variable), _) => match self.solver.solution(variable)? {
-                Some(solution) => self.mark_rewrites(solution, rewrite, rewrites)?,
+                Some(solution) => self.mark_substitutions(solution, rule, marks)?,
                 None => false,
             },
-            (dir::Type::Operation(dir::TypeOperation::NoInfer(_)), TypeRewrite::EraseNoInfer) => {
-                true
-            }
-            (dir::Type::Instance(instance), TypeRewrite::EraseNoInfer)
+            (
+                dir::Type::Operation(dir::TypeOperation::NoInfer(_)),
+                SubstitutionRule::EraseNoInfer,
+            ) => true,
+            (dir::Type::Instance(instance), SubstitutionRule::EraseNoInfer)
                 if self
                     .environment
                     .language
@@ -366,49 +466,49 @@ impl CheckState<'_> {
                 self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
                 let mut hit = false;
                 for child in children {
-                    hit |= self.mark_rewrites(child, rewrite, rewrites)?;
+                    hit |= self.mark_substitutions(child, rule, marks)?;
                 }
 
                 hit
             }
         };
-        rewrites.insert(id, hit);
+        marks.insert(id, hit);
 
         Ok(hit)
     }
 
-    /// Rewrite one type with the active rewrite path tracked.
-    fn rewrite_type_guarded(
+    /// Substitute one type with the active path tracked.
+    fn substitute_guarded(
         &mut self,
         target: ModuleId,
         id: dir::GlobalTypeId,
-        rewrite: TypeRewrite<'_>,
-        rewrites: &IndexMap<dir::GlobalTypeId, bool>,
-        rewriting: &mut IndexSet<dir::GlobalTypeId>,
+        rule: SubstitutionRule<'_>,
+        marks: &IndexMap<dir::GlobalTypeId, bool>,
+        substituting: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // break rewrite cycles conservatively
-        if !rewriting.insert(id) {
+        // break substitution cycles conservatively
+        if !substituting.insert(id) {
             return Ok(id);
         }
-        let rewritten = destack_core::ensure_sufficient_stack(|| {
-            self.rewrite_type_id(target, id, rewrite, rewrites, rewriting)
+        let substituted = destack_core::ensure_sufficient_stack(|| {
+            self.substitute_id(target, id, rule, marks, substituting)
         });
-        rewriting.swap_remove(&id);
+        substituting.swap_remove(&id);
 
-        rewritten
+        substituted
     }
 
-    /// Rewrite one type id after the cycle guard accepts it.
-    fn rewrite_type_id(
+    /// Substitute one type id after the cycle guard accepts it.
+    fn substitute_id(
         &mut self,
         target: ModuleId,
         id: dir::GlobalTypeId,
-        rewrite: TypeRewrite<'_>,
-        rewrites: &IndexMap<dir::GlobalTypeId, bool>,
-        rewriting: &mut IndexSet<dir::GlobalTypeId>,
+        rule: SubstitutionRule<'_>,
+        marks: &IndexMap<dir::GlobalTypeId, bool>,
+        substituting: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // replace one matched type id
-        if let TypeRewrite::Replace { from, to } = rewrite
+        if let SubstitutionRule::Replace { from, to } = rule
             && id == from
         {
             return Ok(to);
@@ -417,7 +517,7 @@ impl CheckState<'_> {
         // substitute one conditional-infer binder reference
         if let dir::Type::Instance(instance) = self.ty(id)?
             && instance.arguments.is_empty()
-            && let Some(replacement) = rewrite.infer_capture(instance.symbol)
+            && let Some(replacement) = rule.infer_capture(instance.symbol)
         {
             return Ok(replacement);
         }
@@ -427,30 +527,30 @@ impl CheckState<'_> {
             symbol: Some(symbol),
             ..
         })) = self.ty(id)?
-            && let Some(replacement) = rewrite.infer_capture(symbol)
+            && let Some(replacement) = rule.infer_capture(symbol)
         {
             return Ok(replacement);
         }
 
         // substitute one generic parameter reference
         if let dir::Type::Parameter(parameter) = self.ty(id)? {
-            if let Some(replacement) = rewrite.substituted(parameter) {
+            if let Some(replacement) = rule.substituted(parameter) {
                 return Ok(replacement);
             }
-            if matches!(rewrite, TypeRewrite::Substitute { .. }) {
+            if matches!(rule, SubstitutionRule::Substitute { .. }) {
                 return Ok(id);
             }
         }
 
         // substitute one qualified receiver reference
         if matches!(self.ty(id)?, dir::Type::This)
-            && let Some(receiver) = rewrite.receiver()
+            && let Some(receiver) = rule.receiver()
         {
             return Ok(receiver);
         }
 
         // erase one inference barrier after the owning signature closes inference
-        if matches!(rewrite, TypeRewrite::EraseNoInfer) {
+        if matches!(rule, SubstitutionRule::EraseNoInfer) {
             let unwrapped = match self.ty(id)? {
                 dir::Type::Operation(dir::TypeOperation::NoInfer(unary)) => Some(unary.target),
                 dir::Type::Instance(instance)
@@ -468,7 +568,7 @@ impl CheckState<'_> {
                 _ => None,
             };
             if let Some(unwrapped) = unwrapped {
-                return self.rewrite_type_guarded(target, unwrapped, rewrite, rewrites, rewriting);
+                return self.substitute_guarded(target, unwrapped, rule, marks, substituting);
             }
         }
 
@@ -480,45 +580,43 @@ impl CheckState<'_> {
         if let Some(variable) = variable {
             let solution = self.solver.solution(variable)?;
 
-            return match (solution, rewrite) {
+            return match (solution, rule) {
                 (Some(solution), _) => {
                     // solutions mark separately from their variable entries
-                    let mut rewrites = IndexMap::new();
-                    self.mark_rewrites(solution, rewrite, &mut rewrites)?;
+                    let mut marks = IndexMap::new();
+                    self.mark_substitutions(solution, rule, &mut marks)?;
 
-                    self.rewrite_type_guarded(target, solution, rewrite, &rewrites, rewriting)
+                    self.substitute_guarded(target, solution, rule, &marks, substituting)
                 }
                 (None, _) => Ok(id),
             };
         }
 
-        // skip rebuilds for types without rewritten leaves
-        if !rewrites.get(&id).copied().unwrap_or(false) {
+        // skip rebuilds for types without affected leaves
+        if !marks.get(&id).copied().unwrap_or(false) {
             return Ok(id);
         }
 
         // read payloads where the type lives, intern the rebuild where we work
         let ty = self.ty(id)?;
-        let rewritten =
-            self.rewrite_children(id.module_id, target, ty, rewrite, rewrites, rewriting)?;
+        let substituted =
+            self.substitute_children(id.module_id, target, ty, rule, marks, substituting)?;
 
-        self.intern_type(target, rewritten)
+        self.intern_type(target, substituted)
     }
 
-    /// Rebuild one type with rewritten children.
-    /// The source module owns the value's payload lists; the target module
-    /// owns the rebuilt type and its reinterned lists.
-    fn rewrite_children(
+    /// Rebuild one type with substituted children.
+    fn substitute_children(
         &mut self,
         source: ModuleId,
         target: ModuleId,
         ty: dir::Type,
-        rewrite: TypeRewrite<'_>,
-        rewrites: &IndexMap<dir::GlobalTypeId, bool>,
-        rewriting: &mut IndexSet<dir::GlobalTypeId>,
+        rule: SubstitutionRule<'_>,
+        marks: &IndexMap<dir::GlobalTypeId, bool>,
+        substituting: &mut IndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::Type> {
         self.map_type_children(source, target, ty, &mut |state, child| {
-            state.rewrite_type_guarded(target, child, rewrite, rewrites, rewriting)
+            state.substitute_guarded(target, child, rule, marks, substituting)
         })
     }
 }
