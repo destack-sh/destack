@@ -607,7 +607,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let is_optional = self.tree.get(id).is_optional();
         let argument = self.walk_type_expression(declared_type)?;
         let argument = if represents_open_type {
-            self.represented_open_type(argument)?
+            self.check.storage_type(self.module, argument)?
         } else {
             argument
         };
