@@ -10,6 +10,46 @@ use destack_program::vm::{
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 
+/// One VM cell cast encoding.
+enum CellCast {
+    /// Cast with one packed instruction field.
+    Field {
+        /// The VM operation.
+        op: Op,
+        /// The packed instruction field.
+        field: u32,
+    },
+    /// Cast with source and destination integer metadata.
+    WideInteger {
+        /// The VM operation.
+        op: Op,
+        /// The packed integer cast metadata.
+        cast: WideIntegerCast,
+    },
+}
+
+impl CellCast {
+    /// Build one field encoded VM cast.
+    fn field(op: Op, field: u32) -> Self {
+        Self::Field { op, field }
+    }
+
+    /// Build one wide integer encoded VM cast.
+    fn wide_integer(op: Op, cast: WideIntegerCast) -> Self {
+        Self::WideInteger { op, cast }
+    }
+
+    /// Build one VM instruction.
+    fn instruction(self, destination: u32, argument: u32) -> Instruction {
+        match self {
+            CellCast::Field { op, field } => Instruction::new(op, destination, argument, field, 0),
+            CellCast::WideInteger { op, cast } => {
+                Instruction::new(op, destination, argument, cast.flags(), cast.widths())
+            }
+        }
+    }
+}
+
 impl<'a> BlockLowerer<'a> {
     /// Lower one cast instruction.
     pub(super) fn lower_cast(
@@ -50,19 +90,17 @@ impl<'a> BlockLowerer<'a> {
 
         // use the direct cell path when both sides fit in one cell
         if destination_is_cell && argument_is_cell {
-            return Ok(Instruction::new(
-                self.cell_cast_op(operator)?,
-                self.cell_offset(destination)?,
-                self.cell_offset(argument)?,
-                self.encode_cell_cast(
-                    &type_linker,
-                    &operand_lowerer,
-                    operator,
-                    argument_type,
-                    to_type,
-                )?,
-                0,
-            ));
+            let cast = self.cell_cast(
+                &type_linker,
+                &operand_lowerer,
+                operator,
+                argument_type,
+                to_type,
+            )?;
+            let destination_offset = self.cell_offset(destination)?;
+            let argument_offset = self.cell_offset(argument)?;
+
+            return Ok(cast.instruction(destination_offset, argument_offset));
         }
 
         // wide integer casts need explicit source and destination widths
@@ -146,100 +184,178 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Pack one cell integer cast target.
-    fn cell_cast_op(&self, operator: mir::CastOperator) -> LinkResult<Op> {
-        match operator {
-            mir::CastOperator::Bitcast => Ok(Op::CastBitcast),
-            mir::CastOperator::Truncate => Ok(Op::CastTruncate),
-            mir::CastOperator::ZeroExtend => Ok(Op::CastZeroExtend),
-            mir::CastOperator::SignExtend => Ok(Op::CastSignExtend),
-            mir::CastOperator::FloatToSignedInt => Ok(Op::CastFloatToSignedInt),
-            mir::CastOperator::FloatToUnsignedInt => Ok(Op::CastFloatToUnsignedInt),
-            mir::CastOperator::FloatToSignedIntSaturating => Ok(Op::CastFloatToSignedIntSaturating),
-            mir::CastOperator::FloatToUnsignedIntSaturating => {
-                Ok(Op::CastFloatToUnsignedIntSaturating)
-            }
-            mir::CastOperator::SignedIntToFloat => Ok(Op::CastSignedIntToFloat),
-            mir::CastOperator::UnsignedIntToFloat => Ok(Op::CastUnsignedIntToFloat),
-            mir::CastOperator::FloatTruncate
-            | mir::CastOperator::FloatExtend
-            | mir::CastOperator::FloatConvert => Ok(Op::CastFloatConvert),
-            mir::CastOperator::PointerToInt => Ok(Op::CastPointerToInt),
-            mir::CastOperator::IntToPointer => Ok(Op::CastIntToPointer),
-        }
-    }
-
-    /// Encode one cell cast instruction field.
-    fn encode_cell_cast(
+    /// Build one cell cast encoding.
+    fn cell_cast(
         &self,
         type_linker: &super::super::TypeLinker<'_>,
         operand_lowerer: &super::value::OperandLowerer<'_>,
         operator: mir::CastOperator,
         from_type: mir::LocalNodeId<mir::Type>,
         to_type: mir::LocalNodeId<mir::Type>,
-    ) -> LinkResult<u32> {
+    ) -> LinkResult<CellCast> {
         match operator {
-            mir::CastOperator::Bitcast => Ok(0),
-            mir::CastOperator::Truncate
-            | mir::CastOperator::ZeroExtend
-            | mir::CastOperator::SignExtend
-            | mir::CastOperator::PointerToInt => {
-                let (width, signed) = operand_lowerer
-                    .integer_layout(to_type)
-                    .ok_or_else(|| self.invalid_cast("integer target"))?;
-
-                IntegerCast::new(width, signed)
-                    .map(|cast| cast.field())
-                    .map_err(|_| self.invalid_cast("integer cast"))
+            mir::CastOperator::Bitcast => Ok(CellCast::field(Op::CastBitcast, 0)),
+            mir::CastOperator::Saturate => {
+                self.saturating_integer_cell_cast(operand_lowerer, from_type, to_type)
             }
-            mir::CastOperator::FloatToSignedInt
-            | mir::CastOperator::FloatToUnsignedInt
-            | mir::CastOperator::FloatToSignedIntSaturating
-            | mir::CastOperator::FloatToUnsignedIntSaturating => {
-                let source = type_linker
-                    .cell_layout(from_type)
-                    .ok_or_else(|| self.invalid_cast("float cast source"))?;
-                let (width, _) = operand_lowerer
-                    .integer_layout(to_type)
-                    .ok_or_else(|| self.invalid_cast("float cast target"))?;
-
-                FloatToIntCast::new(source, width)
-                    .map(|cast| cast.field())
-                    .map_err(|_| self.invalid_cast("float to integer cast"))
+            mir::CastOperator::Truncate => {
+                self.integer_cell_cast(operand_lowerer, to_type, Op::CastTruncate)
             }
-            mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => {
-                let destination = type_linker
-                    .cell_layout(to_type)
-                    .ok_or_else(|| self.invalid_cast("integer cast target"))?;
-
-                IntToFloatCast::new(destination)
-                    .map(|cast| cast.field())
-                    .map_err(|_| self.invalid_cast("integer to float cast"))
+            mir::CastOperator::ZeroExtend => {
+                self.integer_cell_cast(operand_lowerer, to_type, Op::CastZeroExtend)
+            }
+            mir::CastOperator::SignExtend => {
+                self.integer_cell_cast(operand_lowerer, to_type, Op::CastSignExtend)
+            }
+            mir::CastOperator::PointerToInt => {
+                self.integer_cell_cast(operand_lowerer, to_type, Op::CastPointerToInt)
+            }
+            mir::CastOperator::FloatToSignedInt => self.float_to_int_cell_cast(
+                type_linker,
+                operand_lowerer,
+                from_type,
+                to_type,
+                Op::CastFloatToSignedInt,
+            ),
+            mir::CastOperator::FloatToUnsignedInt => self.float_to_int_cell_cast(
+                type_linker,
+                operand_lowerer,
+                from_type,
+                to_type,
+                Op::CastFloatToUnsignedInt,
+            ),
+            mir::CastOperator::FloatToSignedIntSaturating => self.float_to_int_cell_cast(
+                type_linker,
+                operand_lowerer,
+                from_type,
+                to_type,
+                Op::CastFloatToSignedIntSaturating,
+            ),
+            mir::CastOperator::FloatToUnsignedIntSaturating => self.float_to_int_cell_cast(
+                type_linker,
+                operand_lowerer,
+                from_type,
+                to_type,
+                Op::CastFloatToUnsignedIntSaturating,
+            ),
+            mir::CastOperator::SignedIntToFloat => {
+                self.int_to_float_cell_cast(type_linker, to_type, Op::CastSignedIntToFloat)
+            }
+            mir::CastOperator::UnsignedIntToFloat => {
+                self.int_to_float_cell_cast(type_linker, to_type, Op::CastUnsignedIntToFloat)
             }
             mir::CastOperator::FloatTruncate
             | mir::CastOperator::FloatExtend
             | mir::CastOperator::FloatConvert => {
-                let source = type_linker
-                    .cell_layout(from_type)
-                    .ok_or_else(|| self.invalid_cast("float cast source"))?;
-                let destination = type_linker
-                    .cell_layout(to_type)
-                    .ok_or_else(|| self.invalid_cast("float cast target"))?;
-
-                FloatCast::new(source, destination)
-                    .map(|cast| cast.field())
-                    .map_err(|_| self.invalid_cast("float cast"))
+                self.float_cell_cast(type_linker, from_type, to_type)
             }
-            mir::CastOperator::IntToPointer => {
-                let layout = type_linker
-                    .cell_layout(to_type)
-                    .ok_or_else(|| self.invalid_cast("pointer cast target"))?;
-
-                PointerCast::new(layout)
-                    .map(|cast| cast.field())
-                    .map_err(|_| self.invalid_cast("integer to pointer cast"))
-            }
+            mir::CastOperator::IntToPointer => self.int_to_pointer_cell_cast(type_linker, to_type),
         }
+    }
+
+    /// Build one destination-shaped integer cell cast.
+    fn integer_cell_cast(
+        &self,
+        operand_lowerer: &super::value::OperandLowerer<'_>,
+        to_type: mir::LocalNodeId<mir::Type>,
+        op: Op,
+    ) -> LinkResult<CellCast> {
+        let (width, signed) = operand_lowerer
+            .integer_layout(to_type)
+            .ok_or_else(|| self.invalid_cast("integer target"))?;
+
+        IntegerCast::new(width, signed)
+            .map(|cast| CellCast::field(op, cast.field()))
+            .map_err(|_| self.invalid_cast("integer cast"))
+    }
+
+    /// Build one saturating integer cell cast.
+    fn saturating_integer_cell_cast(
+        &self,
+        operand_lowerer: &super::value::OperandLowerer<'_>,
+        from_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<CellCast> {
+        let (source_width, source_signed) = operand_lowerer
+            .integer_layout(from_type)
+            .ok_or_else(|| self.invalid_cast("integer saturation source"))?;
+        let (dest_width, dest_signed) = operand_lowerer
+            .integer_layout(to_type)
+            .ok_or_else(|| self.invalid_cast("integer saturation destination"))?;
+        let cast = WideIntegerCast::new(source_width, dest_width, source_signed, dest_signed);
+
+        Ok(CellCast::wide_integer(Op::CastSaturateInt, cast))
+    }
+
+    /// Build one float to integer cell cast.
+    fn float_to_int_cell_cast(
+        &self,
+        type_linker: &super::super::TypeLinker<'_>,
+        operand_lowerer: &super::value::OperandLowerer<'_>,
+        from_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::LocalNodeId<mir::Type>,
+        op: Op,
+    ) -> LinkResult<CellCast> {
+        let source = type_linker
+            .cell_layout(from_type)
+            .ok_or_else(|| self.invalid_cast("float cast source"))?;
+        let (width, _) = operand_lowerer
+            .integer_layout(to_type)
+            .ok_or_else(|| self.invalid_cast("float cast target"))?;
+
+        FloatToIntCast::new(source, width)
+            .map(|cast| CellCast::field(op, cast.field()))
+            .map_err(|_| self.invalid_cast("float to integer cast"))
+    }
+
+    /// Build one integer to float cell cast.
+    fn int_to_float_cell_cast(
+        &self,
+        type_linker: &super::super::TypeLinker<'_>,
+        to_type: mir::LocalNodeId<mir::Type>,
+        op: Op,
+    ) -> LinkResult<CellCast> {
+        let destination = type_linker
+            .cell_layout(to_type)
+            .ok_or_else(|| self.invalid_cast("integer cast target"))?;
+
+        IntToFloatCast::new(destination)
+            .map(|cast| CellCast::field(op, cast.field()))
+            .map_err(|_| self.invalid_cast("integer to float cast"))
+    }
+
+    /// Build one float cell cast.
+    fn float_cell_cast(
+        &self,
+        type_linker: &super::super::TypeLinker<'_>,
+        from_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<CellCast> {
+        let source = type_linker
+            .cell_layout(from_type)
+            .ok_or_else(|| self.invalid_cast("float cast source"))?;
+        let destination = type_linker
+            .cell_layout(to_type)
+            .ok_or_else(|| self.invalid_cast("float cast target"))?;
+
+        FloatCast::new(source, destination)
+            .map(|cast| CellCast::field(Op::CastFloatConvert, cast.field()))
+            .map_err(|_| self.invalid_cast("float cast"))
+    }
+
+    /// Build one integer to pointer cell cast.
+    fn int_to_pointer_cell_cast(
+        &self,
+        type_linker: &super::super::TypeLinker<'_>,
+        to_type: mir::LocalNodeId<mir::Type>,
+    ) -> LinkResult<CellCast> {
+        let layout = type_linker
+            .cell_layout(to_type)
+            .ok_or_else(|| self.invalid_cast("pointer cast target"))?;
+
+        PointerCast::new(layout)
+            .map(|cast| CellCast::field(Op::CastIntToPointer, cast.field()))
+            .map_err(|_| self.invalid_cast("integer to pointer cast"))
     }
 }
 

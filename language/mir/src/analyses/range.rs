@@ -898,7 +898,8 @@ fn range_for_cast(
     match operator {
         mir::CastOperator::SignExtend
         | mir::CastOperator::ZeroExtend
-        | mir::CastOperator::Truncate => {
+        | mir::CastOperator::Truncate
+        | mir::CastOperator::Saturate => {
             // require an integer operand range
             let ValueRange::Integer {
                 min,
@@ -944,6 +945,15 @@ fn range_for_cast(
                     Some(ValueRange::Integer {
                         min: *min,
                         max: *max,
+                        width: to_width,
+                        is_signed: to_signed,
+                    })
+                }
+                mir::CastOperator::Saturate => {
+                    let (min_bound, max_bound) = integer_bounds(to_width, to_signed)?;
+                    Some(ValueRange::Integer {
+                        min: (*min).clamp(min_bound, max_bound),
+                        max: (*max).clamp(min_bound, max_bound),
                         width: to_width,
                         is_signed: to_signed,
                     })
@@ -3702,6 +3712,55 @@ b3(v3: float32):
                 min: 1,
                 max: 2_147_483_647,
                 width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Saturating integer casts clamp merged integer ranges.
+    #[test]
+    fn test_range_int_saturating_cast() {
+        let test = TestProgram::new(
+            r#"
+function test(v0: boolean): int8 {
+entry(v0: boolean):
+    branch v0, b1, b2
+
+b1:
+    v1: int32 = -300
+    jump b3(v1)
+
+b2:
+    v2: int32 = 300
+    jump b3(v2)
+
+b3(v3: int32):
+    v4: int8 = cast.saturate v3 -> int8
+    return v4
+}
+"#,
+        );
+
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analysis_cache();
+        let ranges = analyses.get::<RangeAnalysis>(function, &test.tree);
+
+        let block3 = function.block(3);
+        let block = test.tree.get(block3);
+        let instruction_id = block.instructions[0];
+        let instruction = test.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: i8::MIN as i128,
+                max: i8::MAX as i128,
+                width: 8,
                 is_signed: true
             }
         );

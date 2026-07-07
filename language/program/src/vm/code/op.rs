@@ -698,6 +698,8 @@ pub enum Op {
     CastBitcast,
     /// Truncate one integer cell.
     CastTruncate,
+    /// Clamp one integer cell into the destination range.
+    CastSaturateInt,
     /// Zero extend one integer cell.
     CastZeroExtend,
     /// Sign extend one integer cell.

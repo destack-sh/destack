@@ -1237,6 +1237,38 @@ pub fn fold_cast(
             }
         }
 
+        mir::CastOperator::Saturate => {
+            // read target integer bounds
+            let (target_width, target_signed) =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                    Some(info) => info,
+                    None => return Some(value),
+                };
+            let (min_bound, max_bound) = integer_bounds(target_width, target_signed)?;
+
+            // clamp integer values
+            match value {
+                mir::Constant::Int { value, .. } => {
+                    let value = value.clamp(min_bound, max_bound);
+                    Some(integer_constant_from_i128(
+                        value,
+                        target_width,
+                        target_signed,
+                    ))
+                }
+                mir::Constant::UInt { value, .. } => {
+                    let value = unsigned_as_saturating_i128(value, max_bound);
+                    let value = value.clamp(min_bound, max_bound);
+                    Some(integer_constant_from_i128(
+                        value,
+                        target_width,
+                        target_signed,
+                    ))
+                }
+                _ => Some(value),
+            }
+        }
+
         mir::CastOperator::ZeroExtend => {
             // read target integer width
             let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
@@ -1562,6 +1594,32 @@ fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128
     }
 
     truncated
+}
+
+/// Create a signed or unsigned integer constant.
+fn integer_constant_from_i128(value: i128, width: u16, is_signed: bool) -> mir::Constant {
+    if is_signed {
+        mir::Constant::Int {
+            value,
+            width,
+            is_signed: true,
+        }
+    } else {
+        mir::Constant::UInt {
+            value: value as u128,
+            width,
+        }
+    }
+}
+
+/// Convert an unsigned integer to i128 with target-bound saturation.
+fn unsigned_as_saturating_i128(value: u128, max_bound: i128) -> i128 {
+    // clamp before crossing the signed boundary
+    if value > i128::MAX as u128 {
+        max_bound
+    } else {
+        value as i128
+    }
 }
 
 /// Truncate an unsigned integer to a target bit width.

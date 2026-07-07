@@ -962,6 +962,9 @@ macro_rules! dispatch_instruction {
             Op::PackedNegF64x2 => $step!(super::execute_packed_neg_f64x2($activation, instruction)),
             Op::CastBitcast => $step!(super::execute_cast_bitcast($activation, instruction)),
             Op::CastTruncate => $step!(super::execute_cast_truncate($activation, instruction)),
+            Op::CastSaturateInt => {
+                $step!(super::execute_cast_saturate_int($activation, instruction))
+            }
             Op::CastZeroExtend => $step!(super::execute_cast_zero_extend($activation, instruction)),
             Op::CastSignExtend => $step!(super::execute_cast_sign_extend($activation, instruction)),
             Op::CastFloatToSignedInt => $step!(super::execute_cast_float_to_signed_int(

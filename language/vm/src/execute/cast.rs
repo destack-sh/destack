@@ -189,6 +189,34 @@ fn cast_truncate(argument: Cell, field: u32) -> Result<Cell, Error> {
     })
 }
 
+/// Saturate one integer cell into a target integer range.
+fn cast_saturate_int(argument: Cell, flags: u32, widths: u32) -> Result<Cell, Error> {
+    let cast = WideIntegerCast::from_fields(flags, widths);
+    let (source_signed, dest_signed) = cast.signs();
+    let (source_width, dest_width) = cast.widths_pair();
+    let source_width = u8::try_from(source_width).map_err(|_| Error::invalid_cast())?;
+    let dest_width = u8::try_from(dest_width).map_err(|_| Error::invalid_cast())?;
+
+    // decode the source value at its declared width
+    let value = if source_signed {
+        i128::from(truncate_signed(argument.as_i64(), source_width))
+    } else {
+        i128::from(truncate_unsigned(argument.as_u64(), source_width))
+    };
+
+    // clamp into the destination range
+    let (min_bound, max_bound) =
+        integer_bounds(dest_width, dest_signed).ok_or(Error::invalid_cast())?;
+    let value = value.clamp(min_bound, max_bound);
+
+    // encode with the destination signedness
+    if dest_signed {
+        Ok(Cell::int(value as i64, dest_width))
+    } else {
+        Ok(Cell::uint(value as u64, dest_width))
+    }
+}
+
 /// Zero extend one integer cell.
 fn cast_zero_extend(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (width, _) = IntegerCast::from_field(field).decode();
@@ -293,6 +321,24 @@ pub(crate) fn execute_cast_truncate(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     execute_cell_cast(activation, instruction, cast_truncate)
+}
+
+/// Execute saturating integer cast cell op.
+pub(crate) fn execute_cast_saturate_int(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let destination = instruction.a;
+    let argument = instruction.b;
+
+    // clamp the source integer into the destination range
+    let argument = activation.load_cell_at(argument);
+    let result = cast_saturate_int(argument, instruction.c, instruction.d)?;
+
+    // store result
+    activation.store_cell_at(destination, result);
+
+    Ok(())
 }
 
 /// Execute zero extend cell op.

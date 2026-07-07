@@ -1334,6 +1334,8 @@ pub enum CastOperator {
     Bitcast,
     /// Truncate integer to smaller width.
     Truncate,
+    /// Clamp integer into the destination range.
+    Saturate,
     /// Zero-extend integer to larger width.
     ZeroExtend,
     /// Sign-extend integer to larger width.
@@ -1368,6 +1370,7 @@ impl CastOperator {
         match self {
             CastOperator::Bitcast => "cast.bit",
             CastOperator::Truncate => "cast.truncate",
+            CastOperator::Saturate => "cast.saturate",
             CastOperator::ZeroExtend => "cast.extend.u",
             CastOperator::SignExtend => "cast.extend.s",
             CastOperator::FloatToSignedInt => "cast.floatToInt.s",
@@ -1398,6 +1401,7 @@ impl FromStr for CastOperator {
         match s {
             "cast.bit" => Ok(CastOperator::Bitcast),
             "cast.truncate" => Ok(CastOperator::Truncate),
+            "cast.saturate" => Ok(CastOperator::Saturate),
             "cast.extend.u" => Ok(CastOperator::ZeroExtend),
             "cast.extend.s" => Ok(CastOperator::SignExtend),
             "cast.floatToInt.s" => Ok(CastOperator::FloatToSignedInt),

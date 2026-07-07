@@ -34,6 +34,50 @@ entry(v0: int64):
     run_mir_expect(mir, "trunc", &[Value::int64(-42)], Value::int32(-42));
 }
 
+/// Signed integer saturation clamps into the destination range.
+#[test]
+fn test_signed_int_saturating_cast() {
+    let mir = r#"
+function sat(v0: int32): int8 {
+entry(v0: int32):
+    v1: int8 = cast.saturate v0 -> int8
+    return v1
+}
+"#;
+    run_mir_expect(mir, "sat", &[Value::int32(42)], Value::int8(42));
+    run_mir_expect(mir, "sat", &[Value::int32(300)], Value::int8(i8::MAX));
+    run_mir_expect(mir, "sat", &[Value::int32(-300)], Value::int8(i8::MIN));
+}
+
+/// Unsigned integer saturation clamps negative inputs to zero.
+#[test]
+fn test_signed_to_unsigned_int_saturating_cast() {
+    let mir = r#"
+function sat(v0: int32): uint8 {
+entry(v0: int32):
+    v1: uint8 = cast.saturate v0 -> uint8
+    return v1
+}
+"#;
+    run_mir_expect(mir, "sat", &[Value::int32(42)], Value::uint8(42));
+    run_mir_expect(mir, "sat", &[Value::int32(300)], Value::uint8(u8::MAX));
+    run_mir_expect(mir, "sat", &[Value::int32(-1)], Value::uint8(0));
+}
+
+/// Unsigned integer saturation clamps into signed destination range.
+#[test]
+fn test_unsigned_to_signed_int_saturating_cast() {
+    let mir = r#"
+function sat(v0: uint32): int8 {
+entry(v0: uint32):
+    v1: int8 = cast.saturate v0 -> int8
+    return v1
+}
+"#;
+    run_mir_expect(mir, "sat", &[Value::uint32(42)], Value::int8(42));
+    run_mir_expect(mir, "sat", &[Value::uint32(300)], Value::int8(i8::MAX));
+}
+
 /// Zero-extend u8 to u32.
 #[test]
 fn test_zero_extend() {
