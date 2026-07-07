@@ -1892,6 +1892,12 @@ impl<'a> FunctionLowerer<'a> {
         let result = match operator {
             mir::CastOperator::Bitcast => ins.bitcast(to_type, cir::MemFlags::new(), argument),
             mir::CastOperator::Truncate => ins.ireduce(to_type, argument),
+            mir::CastOperator::Saturate => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "native saturating integer cast is not supported",
+                    instruction_id,
+                ));
+            }
             mir::CastOperator::ZeroExtend => ins.uextend(to_type, argument),
             mir::CastOperator::SignExtend => ins.sextend(to_type, argument),
             mir::CastOperator::FloatToSignedInt => ins.fcvt_to_sint(to_type, argument),
