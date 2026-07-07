@@ -22,6 +22,11 @@ class ResolutionSegment:
         destack._generated.dir.tree.node.GlobalNodeIdAny,
         destack._generated.dir.type.resolution.NameResolution,
     ]
+    # checked generic instantiations keyed by DIR node
+    instantiations: Mapping[
+        destack._generated.dir.tree.node.GlobalNodeIdAny,
+        destack._generated.dir.type.resolution.InstantiationResolution,
+    ]
     # checked label resolutions keyed by DIR node
     labels: Mapping[
         destack._generated.dir.tree.node.GlobalNodeIdAny,
@@ -42,10 +47,15 @@ class ResolutionSegment:
         destack._generated.dir.tree.node.GlobalNodeIdAny,
         destack._generated.dir.type.resolution.CallResolution,
     ]
-    # checked paired read-write resolutions keyed by DIR node
-    read_writes: Mapping[
+    # checked place resolutions keyed by DIR node
+    places: Mapping[
         destack._generated.dir.tree.node.GlobalNodeIdAny,
-        destack._generated.dir.type.resolution.ReadWriteResolution,
+        destack._generated.dir.type.resolution.PlaceResolution,
+    ]
+    # checked guard resolutions keyed by DIR node
+    guards: Mapping[
+        destack._generated.dir.tree.node.GlobalNodeIdAny,
+        destack._generated.dir.type.resolution.GuardResolution,
     ]
     # checked construct resolutions keyed by DIR node
     constructs: Mapping[

@@ -2,6 +2,7 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, jsonField, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
+import type { PlaceModifier } from "./declaration.js";
 import type { ExportKind } from "./dependency.js";
 import type { DependencyForm } from "./dependency.js";
 import type { ImportAttributeClause } from "./import.js";
@@ -16,6 +17,7 @@ import type { BinaryOperator } from "./operator.js";
 import type { RangeEnd } from "./operator.js";
 import type { UnaryOperator } from "./operator.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
+import { decodePlaceModifier, encodePlaceModifier, fromJsonPlaceModifier, toJsonPlaceModifier } from "./declaration.js";
 import { decodeExportKind, encodeExportKind, fromJsonExportKind, toJsonExportKind } from "./dependency.js";
 import { decodeDependencyForm, encodeDependencyForm, fromJsonDependencyForm, toJsonDependencyForm } from "./dependency.js";
 import { decodeImportAttributeClause, encodeImportAttributeClause, fromJsonImportAttributeClause, toJsonImportAttributeClause } from "./import.js";
@@ -74,7 +76,7 @@ export type Expression =
           readonly mutability: Mutability;
           readonly declarators: ReadonlyArray<LocalNodeId>;
           readonly isAmbient: boolean;
-          readonly isShared: boolean;
+          readonly place?: PlaceModifier;
       }
     /** Let-else binding with an early-exit branch. */
     | {
@@ -269,13 +271,13 @@ export type Expression =
           readonly ty: LocalNodeId;
           readonly properties: ReadonlyArray<LocalNodeId>;
       }
-    /** A TreeExpression constructs a tree fragment with arguments and children. */
+    /** A TreeExpression constructs a tree fragment with attributes and children. */
     | {
           readonly kind: "treeExpression";
           readonly left?: LocalNodeId;
           readonly genericArguments: ReadonlyArray<LocalNodeId>;
-          readonly arguments?: ReadonlyArray<LocalNodeId>;
-          readonly elements?: ReadonlyArray<LocalNodeId>;
+          readonly attributes?: ReadonlyArray<LocalNodeId>;
+          readonly children?: ReadonlyArray<LocalNodeId>;
       }
     /** Parenthesized expression. */
     | {
@@ -454,8 +456,8 @@ export const Expression = {
     },
 
     /** Let binding for mutable and immutable variables. */
-    "let"(kind: LetKind, export_: ExportKind | undefined, mutability: Mutability, declarators: ReadonlyArray<LocalNodeId>, isAmbient: boolean, isShared: boolean): Expression {
-        return { kind: "let", kindValue: kind, export: export_, mutability, declarators, isAmbient, isShared };
+    "let"(kind: LetKind, export_: ExportKind | undefined, mutability: Mutability, declarators: ReadonlyArray<LocalNodeId>, isAmbient: boolean, place: PlaceModifier | undefined): Expression {
+        return { kind: "let", kindValue: kind, export: export_, mutability, declarators, isAmbient, place };
     },
 
     /** Let-else binding with an early-exit branch. */
@@ -623,9 +625,9 @@ export const Expression = {
         return { kind: "structExpression", ty, properties };
     },
 
-    /** A TreeExpression constructs a tree fragment with arguments and children. */
-    treeExpression(left: LocalNodeId | undefined, genericArguments: ReadonlyArray<LocalNodeId>, arguments_: ReadonlyArray<LocalNodeId> | undefined, elements: ReadonlyArray<LocalNodeId> | undefined): Expression {
-        return { kind: "treeExpression", left, genericArguments, arguments: arguments_, elements };
+    /** A TreeExpression constructs a tree fragment with attributes and children. */
+    treeExpression(left: LocalNodeId | undefined, genericArguments: ReadonlyArray<LocalNodeId>, attributes: ReadonlyArray<LocalNodeId> | undefined, children: ReadonlyArray<LocalNodeId> | undefined): Expression {
+        return { kind: "treeExpression", left, genericArguments, attributes, children };
     },
 
     /** Parenthesized expression. */
@@ -830,7 +832,9 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
                 encodeLocalNodeId(writer, item3);
             }
             writer.writeBool(value.isAmbient);
-            writer.writeBool(value.isShared);
+            writer.writeOption(value.place, (value5) => {
+                encodePlaceModifier(writer, value5);
+            });
             return;
         case "letElse":
             writer.writeUnsigned(6);
@@ -1051,13 +1055,13 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
             for (const item1 of value.genericArguments) {
                 encodeLocalNodeId(writer, item1);
             }
-            writer.writeOption(value.arguments, (value2) => {
+            writer.writeOption(value.attributes, (value2) => {
                 writer.writeUnsigned(value2.length);
                 for (const item3 of value2) {
                     encodeLocalNodeId(writer, item3);
                 }
             });
-            writer.writeOption(value.elements, (value3) => {
+            writer.writeOption(value.children, (value3) => {
                 writer.writeUnsigned(value3.length);
                 for (const item4 of value3) {
                     encodeLocalNodeId(writer, item4);
@@ -1278,7 +1282,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
             const mutability = decodeMutability(reader);
             const declarators = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
             const isAmbient = reader.readBool();
-            const isShared = reader.readBool();
+            const place = reader.readOption(() => decodePlaceModifier(reader));
 
             return {
                 kind: "let",
@@ -1287,7 +1291,7 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 mutability,
                 declarators,
                 isAmbient,
-                isShared,
+                ...(place === undefined ? {} : { place }),
             };
         }
         case 6: {
@@ -1594,15 +1598,15 @@ export function decodeExpression(reader: BinaryReader): Expression {
         case 39: {
             const left = reader.readOption(() => decodeLocalNodeId(reader));
             const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
-            const arguments_ = reader.readOption(() => (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })());
-            const elements = reader.readOption(() => (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })());
+            const attributes = reader.readOption(() => (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })());
+            const children = reader.readOption(() => (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })());
 
             return {
                 kind: "treeExpression",
                 ...(left === undefined ? {} : { left }),
                 genericArguments,
-                ...(arguments_ === undefined ? {} : { arguments: arguments_ }),
-                ...(elements === undefined ? {} : { elements }),
+                ...(attributes === undefined ? {} : { attributes }),
+                ...(children === undefined ? {} : { children }),
             };
         }
         case 40: {
@@ -1883,7 +1887,7 @@ export function toJsonExpression(value: Expression): Json {
                 mutability: toJsonMutability(value.mutability),
                 declarators: value.declarators.map((item0) => toJsonLocalNodeId(item0)),
                 isAmbient: value.isAmbient,
-                isShared: value.isShared,
+                ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
             };
         case "letElse":
             return {
@@ -2081,8 +2085,8 @@ export function toJsonExpression(value: Expression): Json {
                 kind: "treeExpression",
                 ...(value.left === undefined ? {} : { left: toJsonLocalNodeId(value.left) }),
                 genericArguments: value.genericArguments.map((item0) => toJsonLocalNodeId(item0)),
-                ...(value.arguments === undefined ? {} : { arguments: value.arguments.map((item0) => toJsonLocalNodeId(item0)) }),
-                ...(value.elements === undefined ? {} : { elements: value.elements.map((item0) => toJsonLocalNodeId(item0)) }),
+                ...(value.attributes === undefined ? {} : { attributes: value.attributes.map((item0) => toJsonLocalNodeId(item0)) }),
+                ...(value.children === undefined ? {} : { children: value.children.map((item0) => toJsonLocalNodeId(item0)) }),
             };
         case "parenthesized":
             return {
@@ -2281,7 +2285,7 @@ export function fromJsonExpression(value: Json): Expression {
                 mutability: fromJsonMutability(jsonField(object, "mutability")),
                 declarators: jsonArray(jsonField(object, "declarators")).map((item0) => fromJsonLocalNodeId(item0)),
                 isAmbient: jsonBool(jsonField(object, "isAmbient")),
-                isShared: jsonBool(jsonField(object, "isShared")),
+                place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
             };
         case "letElse":
             return {
@@ -2479,8 +2483,8 @@ export function fromJsonExpression(value: Json): Expression {
                 kind,
                 left: jsonOptional(object, "left", (value) => fromJsonLocalNodeId(value)),
                 genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonLocalNodeId(item0)),
-                arguments: jsonOptional(object, "arguments", (value) => jsonArray(value).map((item0) => fromJsonLocalNodeId(item0))),
-                elements: jsonOptional(object, "elements", (value) => jsonArray(value).map((item0) => fromJsonLocalNodeId(item0))),
+                attributes: jsonOptional(object, "attributes", (value) => jsonArray(value).map((item0) => fromJsonLocalNodeId(item0))),
+                children: jsonOptional(object, "children", (value) => jsonArray(value).map((item0) => fromJsonLocalNodeId(item0))),
             };
         case "parenthesized":
             return {
@@ -3638,9 +3642,11 @@ export function fromJsonCatch(value: Json): Catch {
 
 /** A WhereClause is a single clause in a where type declaration. */
 export type WhereClause = {
-    /** The target type to constrain (like `T` in `T: int32`). */
+    /** The relation between the two operands. */
+    readonly relation: WhereRelation;
+    /** The left relation operand, like `T` in `T: int32`. */
     readonly left: LocalNodeId;
-    /** The constraint type (like `int32` in `T: int32`). */
+    /** The right relation operand, like `int32` in `T: int32`. */
     readonly right: LocalNodeId;
 };
 
@@ -3668,16 +3674,19 @@ export const WhereClause = {
 
 /** Encode one WhereClause. */
 export function encodeWhereClause(writer: BinaryWriter, value: WhereClause): void {
+    encodeWhereRelation(writer, value.relation);
     encodeLocalNodeId(writer, value.left);
     encodeLocalNodeId(writer, value.right);
 }
 
 /** Decode one WhereClause. */
 export function decodeWhereClause(reader: BinaryReader): WhereClause {
+    const relation = decodeWhereRelation(reader);
     const left = decodeLocalNodeId(reader);
     const right = decodeLocalNodeId(reader);
 
     return {
+        relation,
         left,
         right,
     };
@@ -3686,6 +3695,7 @@ export function decodeWhereClause(reader: BinaryReader): WhereClause {
 /** Return one JSON value for one WhereClause. */
 export function toJsonWhereClause(value: WhereClause): Json {
     return {
+        relation: toJsonWhereRelation(value.relation),
         left: toJsonLocalNodeId(value.left),
         right: toJsonLocalNodeId(value.right),
     };
@@ -3696,7 +3706,80 @@ export function fromJsonWhereClause(value: Json): WhereClause {
     const object = jsonObject(value);
 
     return {
+        relation: fromJsonWhereRelation(jsonField(object, "relation")),
         left: fromJsonLocalNodeId(jsonField(object, "left")),
         right: fromJsonLocalNodeId(jsonField(object, "right")),
     };
+}
+
+/** A where-clause relation. */
+export type WhereRelation = "satisfies" | "equals";
+
+export const WhereRelation = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: WhereRelation): void {
+        encodeWhereRelation(writer, value);
+    },
+
+    /** Decode one WhereRelation. */
+    decode(reader: BinaryReader): WhereRelation {
+        return decodeWhereRelation(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: WhereRelation): Json {
+        return toJsonWhereRelation(value);
+    },
+
+    /** Return one WhereRelation from one JSON value. */
+    fromJson(value: Json): WhereRelation {
+        return fromJsonWhereRelation(value);
+    },
+};
+
+/** Encode one WhereRelation. */
+export function encodeWhereRelation(writer: BinaryWriter, value: WhereRelation): void {
+    switch (value) {
+        case "satisfies":
+            writer.writeUnsigned(0);
+            return;
+        case "equals":
+            writer.writeUnsigned(1);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one WhereRelation. */
+export function decodeWhereRelation(reader: BinaryReader): WhereRelation {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "satisfies";
+        case 1:
+            return "equals";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one WhereRelation. */
+export function toJsonWhereRelation(value: WhereRelation): Json {
+    return value;
+}
+
+/** Return one WhereRelation from one JSON value. */
+export function fromJsonWhereRelation(value: Json): WhereRelation {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "satisfies":
+            return "satisfies";
+        case "equals":
+            return "equals";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
 }

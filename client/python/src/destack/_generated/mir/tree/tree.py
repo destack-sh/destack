@@ -22,7 +22,6 @@ from destack.protocol.serde import (
     nested_bytes,
 )
 
-import destack._generated.mir.metadata.metadata
 import destack._generated.mir.source.token
 import destack._generated.mir.tree.attribute
 import destack._generated.mir.tree.block
@@ -44,7 +43,7 @@ import destack._generated.source.tree.index
 
 @dataclass(frozen=True, slots=True)
 class NodeIndexEntry:
-    """Dense metadata for one MIR node id."""
+    """Dense index entry for one MIR node id."""
 
     # the packed local id and node type
     packed: int
@@ -106,7 +105,7 @@ class Tree:
     first_global_id: int
     # the next global node id to allocate
     next_global_id: int
-    # dense local id and node type metadata by node id
+    # dense local id and node type by node id
     node_index_by_node_id: Sequence[NodeIndexEntry]
     # maps global node id → attached attributes
     attributes_by_node_id: Mapping[
@@ -176,8 +175,6 @@ class Tree:
     switch_cases: Sequence[destack._generated.mir.tree.terminator.SwitchCase]
     # structured tensor immediates
     tensor_immediates: Sequence[destack._generated.mir.tree.immediate.TensorImmediate]
-    # structured MIR metadata domains
-    metadata: destack._generated.mir.metadata.metadata.Metadata
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -522,7 +519,6 @@ def encode_tree(writer: BinaryWriter, value: Tree) -> None:
         destack._generated.mir.tree.immediate.encode_tensor_immediate(
             writer, item_value_tensor_immediates_0
         )
-    destack._generated.mir.metadata.metadata.encode_metadata(writer, value.metadata)
 
 
 def decode_tree(reader: BinaryReader) -> Tree:
@@ -653,7 +649,6 @@ def decode_tree(reader: BinaryReader) -> Tree:
         destack._generated.mir.tree.immediate.decode_tensor_immediate(reader)
         for _ in range(reader.read_number())
     ]
-    metadata = destack._generated.mir.metadata.metadata.decode_metadata(reader)
 
     return Tree(
         first_global_id=first_global_id,
@@ -688,7 +683,6 @@ def decode_tree(reader: BinaryReader) -> Tree:
         flags=flags,
         switch_cases=switch_cases,
         tensor_immediates=tensor_immediates,
-        metadata=metadata,
     )
 
 
@@ -845,9 +839,6 @@ def to_json_tree(value: Tree) -> Json:
             destack._generated.mir.tree.immediate.to_json_tensor_immediate(item_0)
             for item_0 in value.tensor_immediates
         ],
-        "metadata": destack._generated.mir.metadata.metadata.to_json_metadata(
-            value.metadata
-        ),
     }
 
 
@@ -1009,9 +1000,6 @@ def from_json_tree(value: Json) -> Tree:
             destack._generated.mir.tree.immediate.from_json_tensor_immediate(item_0)
             for item_0 in json_array(json_field(object_, "tensorImmediates"))
         ],
-        metadata=destack._generated.mir.metadata.metadata.from_json_metadata(
-            json_field(object_, "metadata")
-        ),
     )
 
 

@@ -18,6 +18,7 @@ from destack.protocol.serde import (
 
 import destack._generated.artifact.core.key
 import destack._generated.artifact.core.version
+import destack._generated.artifact.index
 import destack._generated.source.file.model.component
 import destack._generated.source.file.model.file
 import destack._generated.source.file.model.module
@@ -206,9 +207,27 @@ class ArtifactProjectionKeyDirChecked:
         return to_json_artifact_projection_key(self)
 
 
+@dataclass(frozen=True, slots=True)
+class ArtifactProjectionKeyModuleIndex:
+    """A module index projection."""
+
+    module_index: destack._generated.artifact.index.ModuleIndexProjection
+    kind: typing.Literal["moduleIndex"] = "moduleIndex"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_artifact_projection_key(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_artifact_projection_key(self)
+
+
 """One observable projection of an artifact payload."""
 ArtifactProjectionKey: typing.TypeAlias = (
-    ArtifactProjectionKeyComponentGraph | ArtifactProjectionKeyDirChecked
+    ArtifactProjectionKeyComponentGraph
+    | ArtifactProjectionKeyDirChecked
+    | ArtifactProjectionKeyModuleIndex
 )
 
 
@@ -223,6 +242,11 @@ def encode_artifact_projection_key(
         writer.write_unsigned(1)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.dir_checked
+        )
+    elif value.kind == "moduleIndex":
+        writer.write_unsigned(2)
+        destack._generated.artifact.index.encode_module_index_projection(
+            writer, value.module_index
         )
     else:
         raise SerdeError("unknown enum variant")
@@ -242,6 +266,12 @@ def decode_artifact_projection_key(reader: BinaryReader) -> ArtifactProjectionKe
         )
 
         return ArtifactProjectionKeyDirChecked(dir_checked=dir_checked)
+    elif variant == 2:
+        module_index = destack._generated.artifact.index.decode_module_index_projection(
+            reader
+        )
+
+        return ArtifactProjectionKeyModuleIndex(module_index=module_index)
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
@@ -260,6 +290,13 @@ def to_json_artifact_projection_key(value: ArtifactProjectionKey) -> Json:
             "kind": "dirChecked",
             "dir_checked": destack._generated.source.file.model.module.to_json_module_id(
                 value.dir_checked
+            ),
+        }
+    elif value.kind == "moduleIndex":
+        return {
+            "kind": "moduleIndex",
+            "module_index": destack._generated.artifact.index.to_json_module_index_projection(
+                value.module_index
             ),
         }
     else:
@@ -281,6 +318,12 @@ def from_json_artifact_projection_key(value: Json) -> ArtifactProjectionKey:
         return ArtifactProjectionKeyDirChecked(
             dir_checked=destack._generated.source.file.model.module.from_json_module_id(
                 json_field(object_, "dir_checked")
+            )
+        )
+    elif kind == "moduleIndex":
+        return ArtifactProjectionKeyModuleIndex(
+            module_index=destack._generated.artifact.index.from_json_module_index_projection(
+                json_field(object_, "module_index")
             )
         )
     else:
@@ -749,6 +792,7 @@ __all__ = [
     "from_json_artifact_projection_key",
     "ArtifactProjectionKeyComponentGraph",
     "ArtifactProjectionKeyDirChecked",
+    "ArtifactProjectionKeyModuleIndex",
     "ComponentGraphProjection",
     "encode_component_graph_projection",
     "decode_component_graph_projection",

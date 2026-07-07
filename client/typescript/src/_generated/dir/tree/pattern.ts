@@ -23,9 +23,9 @@ export type Pattern =
           readonly kind: "must";
           readonly must: LocalNodeId;
       }
-    /** Assignment pattern (like `x = 1` or `{ x } = {}`). */
+    /** Defaulted pattern like `x = 1`. */
     | {
-          readonly kind: "assign";
+          readonly kind: "default";
           readonly pattern: LocalNodeId;
           readonly value: LocalNodeId;
       }
@@ -109,9 +109,9 @@ export const Pattern = {
         return { kind: "must", must };
     },
 
-    /** Assignment pattern (like `x = 1` or `{ x } = {}`). */
-    assign(pattern: LocalNodeId, value: LocalNodeId): Pattern {
-        return { kind: "assign", pattern, value };
+    /** Defaulted pattern like `x = 1`. */
+    "default"(pattern: LocalNodeId, value: LocalNodeId): Pattern {
+        return { kind: "default", pattern, value };
     },
 
     /** Borrow pattern (like `&x`). */
@@ -205,7 +205,7 @@ export function encodePattern(writer: BinaryWriter, value: Pattern): void {
             writer.writeUnsigned(1);
             encodeLocalNodeId(writer, value.must);
             return;
-        case "assign":
+        case "default":
             writer.writeUnsigned(2);
             encodeLocalNodeId(writer, value.pattern);
             encodeLocalNodeId(writer, value.value);
@@ -316,7 +316,7 @@ export function decodePattern(reader: BinaryReader): Pattern {
             const value = decodeLocalNodeId(reader);
 
             return {
-                kind: "assign",
+                kind: "default",
                 pattern,
                 value,
             };
@@ -448,9 +448,9 @@ export function toJsonPattern(value: Pattern): Json {
                 kind: "must",
                 must: toJsonLocalNodeId(value.must),
             };
-        case "assign":
+        case "default":
             return {
-                kind: "assign",
+                kind: "default",
                 pattern: toJsonLocalNodeId(value.pattern),
                 value: toJsonLocalNodeId(value.value),
             };
@@ -541,7 +541,7 @@ export function fromJsonPattern(value: Json): Pattern {
                 kind,
                 must: fromJsonLocalNodeId(jsonField(object, "must")),
             };
-        case "assign":
+        case "default":
             return {
                 kind,
                 pattern: fromJsonLocalNodeId(jsonField(object, "pattern")),
@@ -857,20 +857,25 @@ export function fromJsonPatternField(value: Json): PatternField {
 
 /** An AssignPattern is one assignment left hand side. */
 export type AssignPattern =
-    /** Expression target like `x`, `obj.x`, or `obj[key]`. */
+    /** Writable place target like `x`, `obj.x`, or `obj[key]`. */
     | {
-          readonly kind: "expression";
-          readonly value: LocalNodeId;
+          readonly kind: "place";
+          readonly expression: LocalNodeId;
       }
     /** Defaulted destructuring target like `x = 1`. */
     | {
-          readonly kind: "assign";
+          readonly kind: "default";
           readonly pattern: LocalNodeId;
           readonly value: LocalNodeId;
       }
     /** Sequence destructuring target like `[a, , ...rest]`. */
     | {
           readonly kind: "sequence";
+          readonly fields: ReadonlyArray<LocalNodeId>;
+      }
+    /** Tuple destructuring target like `(a, b)` or `(a,)`. */
+    | {
+          readonly kind: "tuple";
           readonly fields: ReadonlyArray<LocalNodeId>;
       }
     /** Object destructuring target like `{ x, y: z }`. */
@@ -881,19 +886,24 @@ export type AssignPattern =
 ;
 
 export const AssignPattern = {
-    /** Expression target like `x`, `obj.x`, or `obj[key]`. */
-    expression(value: LocalNodeId): AssignPattern {
-        return { kind: "expression", value };
+    /** Writable place target like `x`, `obj.x`, or `obj[key]`. */
+    place(expression: LocalNodeId): AssignPattern {
+        return { kind: "place", expression };
     },
 
     /** Defaulted destructuring target like `x = 1`. */
-    assign(pattern: LocalNodeId, value: LocalNodeId): AssignPattern {
-        return { kind: "assign", pattern, value };
+    "default"(pattern: LocalNodeId, value: LocalNodeId): AssignPattern {
+        return { kind: "default", pattern, value };
     },
 
     /** Sequence destructuring target like `[a, , ...rest]`. */
     sequence(fields: ReadonlyArray<LocalNodeId>): AssignPattern {
         return { kind: "sequence", fields };
+    },
+
+    /** Tuple destructuring target like `(a, b)` or `(a,)`. */
+    tuple(fields: ReadonlyArray<LocalNodeId>): AssignPattern {
+        return { kind: "tuple", fields };
     },
 
     /** Object destructuring target like `{ x, y: z }`. */
@@ -925,11 +935,11 @@ export const AssignPattern = {
 /** Encode one AssignPattern. */
 export function encodeAssignPattern(writer: BinaryWriter, value: AssignPattern): void {
     switch (value.kind) {
-        case "expression":
+        case "place":
             writer.writeUnsigned(0);
-            encodeLocalNodeId(writer, value.value);
+            encodeLocalNodeId(writer, value.expression);
             return;
-        case "assign":
+        case "default":
             writer.writeUnsigned(1);
             encodeLocalNodeId(writer, value.pattern);
             encodeLocalNodeId(writer, value.value);
@@ -941,8 +951,15 @@ export function encodeAssignPattern(writer: BinaryWriter, value: AssignPattern):
                 encodeLocalNodeId(writer, item0);
             }
             return;
-        case "object":
+        case "tuple":
             writer.writeUnsigned(3);
+            writer.writeUnsigned(value.fields.length);
+            for (const item0 of value.fields) {
+                encodeLocalNodeId(writer, item0);
+            }
+            return;
+        case "object":
+            writer.writeUnsigned(4);
             writer.writeUnsigned(value.fields.length);
             for (const item0 of value.fields) {
                 encodeLocalNodeId(writer, item0);
@@ -959,11 +976,11 @@ export function decodeAssignPattern(reader: BinaryReader): AssignPattern {
 
     switch (variant) {
         case 0: {
-            const value = decodeLocalNodeId(reader);
+            const expression = decodeLocalNodeId(reader);
 
             return {
-                kind: "expression",
-                value,
+                kind: "place",
+                expression,
             };
         }
         case 1: {
@@ -971,7 +988,7 @@ export function decodeAssignPattern(reader: BinaryReader): AssignPattern {
             const value = decodeLocalNodeId(reader);
 
             return {
-                kind: "assign",
+                kind: "default",
                 pattern,
                 value,
             };
@@ -988,6 +1005,14 @@ export function decodeAssignPattern(reader: BinaryReader): AssignPattern {
             const fields = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
 
             return {
+                kind: "tuple",
+                fields,
+            };
+        }
+        case 4: {
+            const fields = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
+
+            return {
                 kind: "object",
                 fields,
             };
@@ -1000,20 +1025,25 @@ export function decodeAssignPattern(reader: BinaryReader): AssignPattern {
 /** Return one JSON value for one AssignPattern. */
 export function toJsonAssignPattern(value: AssignPattern): Json {
     switch (value.kind) {
-        case "expression":
+        case "place":
             return {
-                kind: "expression",
-                value: toJsonLocalNodeId(value.value),
+                kind: "place",
+                expression: toJsonLocalNodeId(value.expression),
             };
-        case "assign":
+        case "default":
             return {
-                kind: "assign",
+                kind: "default",
                 pattern: toJsonLocalNodeId(value.pattern),
                 value: toJsonLocalNodeId(value.value),
             };
         case "sequence":
             return {
                 kind: "sequence",
+                fields: value.fields.map((item0) => toJsonLocalNodeId(item0)),
+            };
+        case "tuple":
+            return {
+                kind: "tuple",
                 fields: value.fields.map((item0) => toJsonLocalNodeId(item0)),
             };
         case "object":
@@ -1032,18 +1062,23 @@ export function fromJsonAssignPattern(value: Json): AssignPattern {
     const kind = jsonString(jsonField(object, "kind"));
 
     switch (kind) {
-        case "expression":
+        case "place":
             return {
                 kind,
-                value: fromJsonLocalNodeId(jsonField(object, "value")),
+                expression: fromJsonLocalNodeId(jsonField(object, "expression")),
             };
-        case "assign":
+        case "default":
             return {
                 kind,
                 pattern: fromJsonLocalNodeId(jsonField(object, "pattern")),
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
             };
         case "sequence":
+            return {
+                kind,
+                fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonLocalNodeId(item0)),
+            };
+        case "tuple":
             return {
                 kind,
                 fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonLocalNodeId(item0)),
@@ -1064,7 +1099,7 @@ export type AssignPatternField =
     | {
           readonly kind: "named";
           readonly name: Name;
-          readonly pattern?: LocalNodeId;
+          readonly pattern: LocalNodeId;
           readonly isShorthand: boolean;
       }
     /** Computed field like `{ [key]: value }`. */
@@ -1091,7 +1126,7 @@ export type AssignPatternField =
 
 export const AssignPatternField = {
     /** Named field like `{ x }` or `{ x: y }`. */
-    named(name: Name, pattern: LocalNodeId | undefined, isShorthand: boolean): AssignPatternField {
+    named(name: Name, pattern: LocalNodeId, isShorthand: boolean): AssignPatternField {
         return { kind: "named", name, pattern, isShorthand };
     },
 
@@ -1142,9 +1177,7 @@ export function encodeAssignPatternField(writer: BinaryWriter, value: AssignPatt
         case "named":
             writer.writeUnsigned(0);
             encodeName(writer, value.name);
-            writer.writeOption(value.pattern, (value1) => {
-                encodeLocalNodeId(writer, value1);
-            });
+            encodeLocalNodeId(writer, value.pattern);
             writer.writeBool(value.isShorthand);
             return;
         case "computed":
@@ -1177,13 +1210,13 @@ export function decodeAssignPatternField(reader: BinaryReader): AssignPatternFie
     switch (variant) {
         case 0: {
             const name = decodeName(reader);
-            const pattern = reader.readOption(() => decodeLocalNodeId(reader));
+            const pattern = decodeLocalNodeId(reader);
             const isShorthand = reader.readBool();
 
             return {
                 kind: "named",
                 name,
-                ...(pattern === undefined ? {} : { pattern }),
+                pattern,
                 isShorthand,
             };
         }
@@ -1228,7 +1261,7 @@ export function toJsonAssignPatternField(value: AssignPatternField): Json {
             return {
                 kind: "named",
                 name: toJsonName(value.name),
-                ...(value.pattern === undefined ? {} : { pattern: toJsonLocalNodeId(value.pattern) }),
+                pattern: toJsonLocalNodeId(value.pattern),
                 isShorthand: value.isShorthand,
             };
         case "computed":
@@ -1266,7 +1299,7 @@ export function fromJsonAssignPatternField(value: Json): AssignPatternField {
             return {
                 kind,
                 name: fromJsonName(jsonField(object, "name")),
-                pattern: jsonOptional(object, "pattern", (value) => fromJsonLocalNodeId(value)),
+                pattern: fromJsonLocalNodeId(jsonField(object, "pattern")),
                 isShorthand: jsonBool(jsonField(object, "isShorthand")),
             };
         case "computed":

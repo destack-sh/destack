@@ -8,33 +8,6 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-"""Stable non-zero identifier for one trace map."""
-TraceId: typing.TypeAlias = int
-
-def encode_trace_id(writer: BinaryWriter, value: TraceId) -> None: ...
-def decode_trace_id(reader: BinaryReader) -> TraceId: ...
-def to_json_trace_id(value: TraceId) -> Json: ...
-def from_json_trace_id(value: Json) -> TraceId: ...
-
-@dataclass(frozen=True, slots=True)
-class TraceTable:
-    """Shared trace map table for one MIR module or lowered program."""
-
-    # trace maps indexed by TraceId
-    traces: Sequence[TraceMap]
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TraceTable: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> TraceTable: ...
-
-def encode_trace_table(writer: BinaryWriter, value: TraceTable) -> None: ...
-def decode_trace_table(reader: BinaryReader) -> TraceTable: ...
-def to_json_trace_table(value: TraceTable) -> Json: ...
-def from_json_trace_table(value: Json) -> TraceTable: ...
-
 @dataclass(frozen=True, slots=True)
 class TraceMapEmpty:
     """The payload contains no references."""
@@ -52,6 +25,8 @@ class TraceMapFixed:
     local_offsets: Sequence[int]
     # byte offsets of encoded shared heap references
     shared_offsets: Sequence[int]
+    # byte offsets of encoded frame references
+    frame_offsets: Sequence[int]
     kind: typing.Literal["fixed"] = "fixed"
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -148,16 +123,6 @@ def to_json_trace_variant(value: TraceVariant) -> Json: ...
 def from_json_trace_variant(value: Json) -> TraceVariant: ...
 
 __all__ = [
-    "TraceId",
-    "encode_trace_id",
-    "decode_trace_id",
-    "to_json_trace_id",
-    "from_json_trace_id",
-    "TraceTable",
-    "encode_trace_table",
-    "decode_trace_table",
-    "to_json_trace_table",
-    "from_json_trace_table",
     "TraceMap",
     "encode_trace_map",
     "decode_trace_map",

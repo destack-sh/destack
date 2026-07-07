@@ -7,7 +7,7 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.mir.metadata.dispatch
+import destack._generated.mir.table.dispatch
 import destack._generated.mir.tree.call
 import destack._generated.mir.tree.constant
 import destack._generated.mir.tree.node
@@ -92,13 +92,13 @@ class TerminatorSwitch:
 
 @dataclass(frozen=True, slots=True)
 class TerminatorYield:
-    """Yield from a coroutine."""
+    """Yield from a coroutine to its current owner."""
 
     # the yielded value
     value: destack._generated.mir.tree.value.Value
-    # the block to resume at when the coroutine is continued
+    # the block entered when the coroutine receives a resume command
     resume: BlockTarget
-    # the cleanup block when the suspended frame is cancelled or dropped
+    # the cleanup block when the yield is left by panic unwinding
     unwind: BlockTarget | None
     kind: typing.Literal["yield"] = "yield"
 
@@ -148,7 +148,7 @@ class TerminatorCallVirtual:
     # the class type declaring this dispatch slot
     class_: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     # the continuation block
@@ -169,7 +169,7 @@ class TerminatorCallDynamic:
     # the dynamic constraint type declaring this dispatch slot
     constraint: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     # the continuation block
@@ -322,7 +322,7 @@ class TerminatorTailCallVirtual:
     # the class type declaring this dispatch slot
     class_: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["tailCallVirtual"] = "tailCallVirtual"
@@ -339,7 +339,7 @@ class TerminatorTailCallDynamic:
     # the dynamic constraint type declaring this dispatch slot
     constraint: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["tailCallDynamic"] = "tailCallDynamic"
@@ -487,14 +487,14 @@ class CheckConstraintOverflow:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class CheckConstraintType:
-    """Runtime type descriptor check for a value."""
+class CheckConstraintIsType:
+    """Exact runtime type check for a value."""
 
-    # the descriptor value being checked
+    # the value being checked
     value: destack._generated.mir.tree.value.Value
-    # the expected dynamic type for this descriptor
+    # the expected concrete runtime type
     expected: destack._generated.mir.tree.node.LocalNodeId
-    kind: typing.Literal["type"] = "type"
+    kind: typing.Literal["isType"] = "isType"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -513,27 +513,14 @@ class CheckConstraintVariant:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class CheckConstraintReceiverType:
-    """Dynamic receiver type check for a class or concrete receiver."""
+class CheckConstraintIsSubtype:
+    """Runtime subtype relation check for a value."""
 
-    # the receiver being checked
-    receiver: destack._generated.mir.tree.value.Value
-    # the expected concrete receiver type
+    # the value being checked
+    value: destack._generated.mir.tree.value.Value
+    # the expected supertype
     expected: destack._generated.mir.tree.node.LocalNodeId
-    kind: typing.Literal["receiverType"] = "receiverType"
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    def to_json(self) -> Json: ...
-
-@dataclass(frozen=True, slots=True)
-class CheckConstraintImplements:
-    """Interface conformance check for a receiver."""
-
-    # the receiver being checked
-    receiver: destack._generated.mir.tree.value.Value
-    # the expected interface type
-    expected: destack._generated.mir.tree.node.LocalNodeId
-    kind: typing.Literal["implements"] = "implements"
+    kind: typing.Literal["isSubtype"] = "isSubtype"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -546,10 +533,9 @@ CheckConstraint: typing.TypeAlias = (
     | CheckConstraintShiftRange
     | CheckConstraintNarrow
     | CheckConstraintOverflow
-    | CheckConstraintType
+    | CheckConstraintIsType
     | CheckConstraintVariant
-    | CheckConstraintReceiverType
-    | CheckConstraintImplements
+    | CheckConstraintIsSubtype
 )
 
 def encode_check_constraint(writer: BinaryWriter, value: CheckConstraint) -> None: ...
@@ -652,10 +638,9 @@ __all__ = [
     "CheckConstraintShiftRange",
     "CheckConstraintNarrow",
     "CheckConstraintOverflow",
-    "CheckConstraintType",
+    "CheckConstraintIsType",
     "CheckConstraintVariant",
-    "CheckConstraintReceiverType",
-    "CheckConstraintImplements",
+    "CheckConstraintIsSubtype",
     "SwitchCaseSlice",
     "encode_switch_case_slice",
     "decode_switch_case_slice",

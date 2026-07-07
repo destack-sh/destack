@@ -57,12 +57,12 @@ class PatternMust:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternAssign:
-    """Assignment pattern (like `x = 1` or `{ x } = {}`)."""
+class PatternDefault:
+    """Defaulted pattern like `x = 1`."""
 
     pattern: destack._generated.dir.tree.node.LocalNodeId
     value: destack._generated.dir.tree.node.LocalNodeId
-    kind: typing.Literal["assign"] = "assign"
+    kind: typing.Literal["default"] = "default"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -276,7 +276,7 @@ class PatternUnion:
 Pattern: typing.TypeAlias = (
     PatternWildcard
     | PatternMust
-    | PatternAssign
+    | PatternDefault
     | PatternBorrowOf
     | PatternMoveOf
     | PatternDereferenceOf
@@ -299,7 +299,7 @@ def encode_pattern(writer: BinaryWriter, value: Pattern) -> None:
     elif value.kind == "must":
         writer.write_unsigned(1)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.must)
-    elif value.kind == "assign":
+    elif value.kind == "default":
         writer.write_unsigned(2)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.pattern)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
@@ -408,7 +408,7 @@ def decode_pattern(reader: BinaryReader) -> Pattern:
         pattern = destack._generated.dir.tree.node.decode_local_node_id(reader)
         value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
-        return PatternAssign(
+        return PatternDefault(
             pattern=pattern,
             value=value_,
         )
@@ -541,9 +541,9 @@ def to_json_pattern(value: Pattern) -> Json:
             "kind": "must",
             "must": destack._generated.dir.tree.node.to_json_local_node_id(value.must),
         }
-    elif value.kind == "assign":
+    elif value.kind == "default":
         return {
-            "kind": "assign",
+            "kind": "default",
             "pattern": destack._generated.dir.tree.node.to_json_local_node_id(
                 value.pattern
             ),
@@ -703,8 +703,8 @@ def from_json_pattern(value: Json) -> Pattern:
                 json_field(object_, "must")
             )
         )
-    elif kind == "assign":
-        return PatternAssign(
+    elif kind == "default":
+        return PatternDefault(
             pattern=destack._generated.dir.tree.node.from_json_local_node_id(
                 json_field(object_, "pattern")
             ),
@@ -1106,11 +1106,11 @@ def from_json_pattern_field(value: Json) -> PatternField:
 
 
 @dataclass(frozen=True, slots=True)
-class AssignPatternExpression:
-    """Expression target like `x`, `obj.x`, or `obj[key]`."""
+class AssignPatternPlace:
+    """Writable place target like `x`, `obj.x`, or `obj[key]`."""
 
-    value: destack._generated.dir.tree.node.LocalNodeId
-    kind: typing.Literal["expression"] = "expression"
+    expression: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["place"] = "place"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1122,12 +1122,12 @@ class AssignPatternExpression:
 
 
 @dataclass(frozen=True, slots=True)
-class AssignPatternAssign:
+class AssignPatternDefault:
     """Defaulted destructuring target like `x = 1`."""
 
     pattern: destack._generated.dir.tree.node.LocalNodeId
     value: destack._generated.dir.tree.node.LocalNodeId
-    kind: typing.Literal["assign"] = "assign"
+    kind: typing.Literal["default"] = "default"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1144,6 +1144,22 @@ class AssignPatternSequence:
 
     fields: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     kind: typing.Literal["sequence"] = "sequence"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_assign_pattern(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_assign_pattern(self)
+
+
+@dataclass(frozen=True, slots=True)
+class AssignPatternTuple:
+    """Tuple destructuring target like `(a, b)` or `(a,)`."""
+
+    fields: Sequence[destack._generated.dir.tree.node.LocalNodeId]
+    kind: typing.Literal["tuple"] = "tuple"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1172,19 +1188,20 @@ class AssignPatternObject:
 
 """An AssignPattern is one assignment left hand side."""
 AssignPattern: typing.TypeAlias = (
-    AssignPatternExpression
-    | AssignPatternAssign
+    AssignPatternPlace
+    | AssignPatternDefault
     | AssignPatternSequence
+    | AssignPatternTuple
     | AssignPatternObject
 )
 
 
 def encode_assign_pattern(writer: BinaryWriter, value: AssignPattern) -> None:
     """Encode one AssignPattern."""
-    if value.kind == "expression":
+    if value.kind == "place":
         writer.write_unsigned(0)
-        destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
-    elif value.kind == "assign":
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.expression)
+    elif value.kind == "default":
         writer.write_unsigned(1)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.pattern)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
@@ -1195,8 +1212,15 @@ def encode_assign_pattern(writer: BinaryWriter, value: AssignPattern) -> None:
             destack._generated.dir.tree.node.encode_local_node_id(
                 writer, item_value_fields_0
             )
-    elif value.kind == "object":
+    elif value.kind == "tuple":
         writer.write_unsigned(3)
+        writer.write_unsigned(len(value.fields))
+        for item_value_fields_0 in value.fields:
+            destack._generated.dir.tree.node.encode_local_node_id(
+                writer, item_value_fields_0
+            )
+    elif value.kind == "object":
+        writer.write_unsigned(4)
         writer.write_unsigned(len(value.fields))
         for item_value_fields_0 in value.fields:
             destack._generated.dir.tree.node.encode_local_node_id(
@@ -1211,16 +1235,16 @@ def decode_assign_pattern(reader: BinaryReader) -> AssignPattern:
     variant = reader.read_number()
 
     if variant == 0:
-        value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
+        expression = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
-        return AssignPatternExpression(
-            value=value_,
+        return AssignPatternPlace(
+            expression=expression,
         )
     elif variant == 1:
         pattern = destack._generated.dir.tree.node.decode_local_node_id(reader)
         value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
-        return AssignPatternAssign(
+        return AssignPatternDefault(
             pattern=pattern,
             value=value_,
         )
@@ -1239,6 +1263,15 @@ def decode_assign_pattern(reader: BinaryReader) -> AssignPattern:
             for _ in range(reader.read_number())
         ]
 
+        return AssignPatternTuple(
+            fields=fields,
+        )
+    elif variant == 4:
+        fields = [
+            destack._generated.dir.tree.node.decode_local_node_id(reader)
+            for _ in range(reader.read_number())
+        ]
+
         return AssignPatternObject(
             fields=fields,
         )
@@ -1248,16 +1281,16 @@ def decode_assign_pattern(reader: BinaryReader) -> AssignPattern:
 
 def to_json_assign_pattern(value: AssignPattern) -> Json:
     """Return one JSON value for one AssignPattern."""
-    if value.kind == "expression":
+    if value.kind == "place":
         return {
-            "kind": "expression",
-            "value": destack._generated.dir.tree.node.to_json_local_node_id(
-                value.value
+            "kind": "place",
+            "expression": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.expression
             ),
         }
-    elif value.kind == "assign":
+    elif value.kind == "default":
         return {
-            "kind": "assign",
+            "kind": "default",
             "pattern": destack._generated.dir.tree.node.to_json_local_node_id(
                 value.pattern
             ),
@@ -1268,6 +1301,14 @@ def to_json_assign_pattern(value: AssignPattern) -> Json:
     elif value.kind == "sequence":
         return {
             "kind": "sequence",
+            "fields": [
+                destack._generated.dir.tree.node.to_json_local_node_id(item_0)
+                for item_0 in value.fields
+            ],
+        }
+    elif value.kind == "tuple":
+        return {
+            "kind": "tuple",
             "fields": [
                 destack._generated.dir.tree.node.to_json_local_node_id(item_0)
                 for item_0 in value.fields
@@ -1290,14 +1331,14 @@ def from_json_assign_pattern(value: Json) -> AssignPattern:
     object_ = json_object(value)
     kind = json_string(json_field(object_, "kind"))
 
-    if kind == "expression":
-        return AssignPatternExpression(
-            value=destack._generated.dir.tree.node.from_json_local_node_id(
-                json_field(object_, "value")
+    if kind == "place":
+        return AssignPatternPlace(
+            expression=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "expression")
             ),
         )
-    elif kind == "assign":
-        return AssignPatternAssign(
+    elif kind == "default":
+        return AssignPatternDefault(
             pattern=destack._generated.dir.tree.node.from_json_local_node_id(
                 json_field(object_, "pattern")
             ),
@@ -1307,6 +1348,13 @@ def from_json_assign_pattern(value: Json) -> AssignPattern:
         )
     elif kind == "sequence":
         return AssignPatternSequence(
+            fields=[
+                destack._generated.dir.tree.node.from_json_local_node_id(item_0)
+                for item_0 in json_array(json_field(object_, "fields"))
+            ],
+        )
+    elif kind == "tuple":
+        return AssignPatternTuple(
             fields=[
                 destack._generated.dir.tree.node.from_json_local_node_id(item_0)
                 for item_0 in json_array(json_field(object_, "fields"))
@@ -1328,7 +1376,7 @@ class AssignPatternFieldNamed:
     """Named field like `{ x }` or `{ x: y }`."""
 
     name: destack._generated.dir.tree.key.Name
-    pattern: destack._generated.dir.tree.node.LocalNodeId | None
+    pattern: destack._generated.dir.tree.node.LocalNodeId
     is_shorthand: bool
     kind: typing.Literal["named"] = "named"
 
@@ -1422,11 +1470,7 @@ def encode_assign_pattern_field(
     if value.kind == "named":
         writer.write_unsigned(0)
         destack._generated.dir.tree.key.encode_name(writer, value.name)
-        if value.pattern is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            destack._generated.dir.tree.node.encode_local_node_id(writer, value.pattern)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.pattern)
         writer.write_bool(value.is_shorthand)
     elif value.kind == "computed":
         writer.write_unsigned(1)
@@ -1454,9 +1498,7 @@ def decode_assign_pattern_field(reader: BinaryReader) -> AssignPatternField:
 
     if variant == 0:
         name = destack._generated.dir.tree.key.decode_name(reader)
-        pattern = reader.read_option(
-            lambda: destack._generated.dir.tree.node.decode_local_node_id(reader)
-        )
+        pattern = destack._generated.dir.tree.node.decode_local_node_id(reader)
         is_shorthand = reader.read_bool()
 
         return AssignPatternFieldNamed(
@@ -1498,14 +1540,8 @@ def to_json_assign_pattern_field(value: AssignPatternField) -> Json:
         return {
             "kind": "named",
             "name": destack._generated.dir.tree.key.to_json_name(value.name),
-            **(
-                {}
-                if value.pattern is None
-                else {
-                    "pattern": destack._generated.dir.tree.node.to_json_local_node_id(
-                        value.pattern
-                    )
-                }
+            "pattern": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.pattern
             ),
             "isShorthand": value.is_shorthand,
         }
@@ -1555,12 +1591,8 @@ def from_json_assign_pattern_field(value: Json) -> AssignPatternField:
             name=destack._generated.dir.tree.key.from_json_name(
                 json_field(object_, "name")
             ),
-            pattern=json_optional(
-                object_,
-                "pattern",
-                lambda value: destack._generated.dir.tree.node.from_json_local_node_id(
-                    value
-                ),
+            pattern=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "pattern")
             ),
             is_shorthand=json_bool(json_field(object_, "isShorthand")),
         )
@@ -1603,7 +1635,7 @@ __all__ = [
     "from_json_pattern",
     "PatternWildcard",
     "PatternMust",
-    "PatternAssign",
+    "PatternDefault",
     "PatternBorrowOf",
     "PatternMoveOf",
     "PatternDereferenceOf",
@@ -1631,9 +1663,10 @@ __all__ = [
     "decode_assign_pattern",
     "to_json_assign_pattern",
     "from_json_assign_pattern",
-    "AssignPatternExpression",
-    "AssignPatternAssign",
+    "AssignPatternPlace",
+    "AssignPatternDefault",
     "AssignPatternSequence",
+    "AssignPatternTuple",
     "AssignPatternObject",
     "AssignPatternField",
     "encode_assign_pattern_field",

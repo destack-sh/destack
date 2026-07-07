@@ -13,7 +13,7 @@ from destack.protocol.serde import (
     json_optional,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.edit.edit
 
 
@@ -22,7 +22,7 @@ class InlineRequest:
     """Request payload for inline refactor queries."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -45,12 +45,12 @@ class InlineRequest:
 
 def encode_inline_request(writer: BinaryWriter, value: InlineRequest) -> None:
     """Encode one InlineRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_inline_request(reader: BinaryReader) -> InlineRequest:
     """Decode one InlineRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return InlineRequest(
         position=position,
@@ -60,7 +60,7 @@ def decode_inline_request(reader: BinaryReader) -> InlineRequest:
 def to_json_inline_request(value: InlineRequest) -> Json:
     """Return one JSON value for one InlineRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -71,7 +71,7 @@ def from_json_inline_request(value: Json) -> InlineRequest:
     object_ = json_object(value)
 
     return InlineRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )

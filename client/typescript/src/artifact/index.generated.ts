@@ -14,6 +14,7 @@ export {
 } from "../_generated/artifact/bundle.js";
 export {
     ComponentGraph,
+    ModuleGraph,
 } from "../_generated/artifact/component.js";
 export {
     ConditionSet,
@@ -55,7 +56,6 @@ export {
     DirCheckedComponent,
     DirCheckedComponentEntry,
     DirCheckedModule,
-    DirElaborated,
     DirExpanded,
     DirExported,
     DirImported,
@@ -79,6 +79,11 @@ export {
     ArtifactEventLog,
     ArtifactEventValue,
 } from "../_generated/artifact/event.js";
+export {
+    ModuleIndex,
+    ModuleIndexProjection,
+    ProgramIndex,
+} from "../_generated/artifact/index.js";
 export {
     ModuleLinted,
     PackageLinted,
@@ -118,10 +123,6 @@ export {
     Product,
     ProductTarget,
 } from "../_generated/artifact/product.js";
-export {
-    ModuleQueryIndex,
-    WorkspaceQueryIndex,
-} from "../_generated/artifact/query.js";
 export {
     ArtifactReference,
 } from "../_generated/artifact/reference.js";

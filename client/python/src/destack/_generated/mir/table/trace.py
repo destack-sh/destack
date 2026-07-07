@@ -18,90 +18,6 @@ from destack.protocol.serde import (
     json_string,
 )
 
-"""Stable non-zero identifier for one trace map."""
-TraceId: typing.TypeAlias = int
-
-
-def encode_trace_id(writer: BinaryWriter, value: TraceId) -> None:
-    """Encode one TraceId."""
-    writer.write_unsigned(value)
-
-
-def decode_trace_id(reader: BinaryReader) -> TraceId:
-    """Decode one TraceId."""
-    return reader.read_number()
-
-
-def to_json_trace_id(value: TraceId) -> Json:
-    """Return one JSON value for one TraceId."""
-    return value
-
-
-def from_json_trace_id(value: Json) -> TraceId:
-    """Return one TraceId from one JSON value."""
-    return json_int(value)
-
-
-@dataclass(frozen=True, slots=True)
-class TraceTable:
-    """Shared trace map table for one MIR module or lowered program."""
-
-    # trace maps indexed by TraceId
-    traces: Sequence[TraceMap]
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_trace_table(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TraceTable:
-        """Decode one TraceTable."""
-        return decode_trace_table(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_trace_table(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> TraceTable:
-        """Return one TraceTable from one JSON value."""
-        return from_json_trace_table(value)
-
-
-def encode_trace_table(writer: BinaryWriter, value: TraceTable) -> None:
-    """Encode one TraceTable."""
-    writer.write_unsigned(len(value.traces))
-    for item_value_traces_0 in value.traces:
-        encode_trace_map(writer, item_value_traces_0)
-
-
-def decode_trace_table(reader: BinaryReader) -> TraceTable:
-    """Decode one TraceTable."""
-    traces = [decode_trace_map(reader) for _ in range(reader.read_number())]
-
-    return TraceTable(
-        traces=traces,
-    )
-
-
-def to_json_trace_table(value: TraceTable) -> Json:
-    """Return one JSON value for one TraceTable."""
-    return {
-        "traces": [to_json_trace_map(item_0) for item_0 in value.traces],
-    }
-
-
-def from_json_trace_table(value: Json) -> TraceTable:
-    """Return one TraceTable from one JSON value."""
-    object_ = json_object(value)
-
-    return TraceTable(
-        traces=[
-            from_json_trace_map(item_0)
-            for item_0 in json_array(json_field(object_, "traces"))
-        ],
-    )
-
 
 @dataclass(frozen=True, slots=True)
 class TraceMapEmpty:
@@ -126,6 +42,8 @@ class TraceMapFixed:
     local_offsets: Sequence[int]
     # byte offsets of encoded shared heap references
     shared_offsets: Sequence[int]
+    # byte offsets of encoded frame references
+    frame_offsets: Sequence[int]
     kind: typing.Literal["fixed"] = "fixed"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -236,6 +154,9 @@ def encode_trace_map(writer: BinaryWriter, value: TraceMap) -> None:
         writer.write_unsigned(len(value.shared_offsets))
         for item_value_shared_offsets_0 in value.shared_offsets:
             writer.write_unsigned(item_value_shared_offsets_0)
+        writer.write_unsigned(len(value.frame_offsets))
+        for item_value_frame_offsets_0 in value.frame_offsets:
+            writer.write_unsigned(item_value_frame_offsets_0)
     elif value.kind == "nested":
         writer.write_unsigned(2)
         writer.write_unsigned(value.byte_offset)
@@ -269,10 +190,12 @@ def decode_trace_map(reader: BinaryReader) -> TraceMap:
     elif variant == 1:
         local_offsets = [reader.read_number() for _ in range(reader.read_number())]
         shared_offsets = [reader.read_number() for _ in range(reader.read_number())]
+        frame_offsets = [reader.read_number() for _ in range(reader.read_number())]
 
         return TraceMapFixed(
             local_offsets=local_offsets,
             shared_offsets=shared_offsets,
+            frame_offsets=frame_offsets,
         )
     elif variant == 2:
         byte_offset = reader.read_number()
@@ -321,6 +244,7 @@ def to_json_trace_map(value: TraceMap) -> Json:
             "kind": "fixed",
             "localOffsets": [item_0 for item_0 in value.local_offsets],
             "sharedOffsets": [item_0 for item_0 in value.shared_offsets],
+            "frameOffsets": [item_0 for item_0 in value.frame_offsets],
         }
     elif value.kind == "nested":
         return {
@@ -366,6 +290,10 @@ def from_json_trace_map(value: Json) -> TraceMap:
             shared_offsets=[
                 json_int(item_0)
                 for item_0 in json_array(json_field(object_, "sharedOffsets"))
+            ],
+            frame_offsets=[
+                json_int(item_0)
+                for item_0 in json_array(json_field(object_, "frameOffsets"))
             ],
         )
     elif kind == "nested":
@@ -469,16 +397,6 @@ def from_json_trace_variant(value: Json) -> TraceVariant:
 
 
 __all__ = [
-    "TraceId",
-    "encode_trace_id",
-    "decode_trace_id",
-    "to_json_trace_id",
-    "from_json_trace_id",
-    "TraceTable",
-    "encode_trace_table",
-    "decode_trace_table",
-    "to_json_trace_table",
-    "from_json_trace_table",
     "TraceMap",
     "encode_trace_map",
     "decode_trace_map",

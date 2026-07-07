@@ -8,14 +8,14 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 @dataclass(frozen=True, slots=True)
 class FoldingRangesRequest:
     """Request folding ranges for a document."""
 
     # the queried module
-    module: destack._generated.query.core.target.QueryModule
+    module: destack._generated.query.protocol.target.Module
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -56,9 +56,9 @@ def from_json_folding_ranges_response(value: Json) -> FoldingRangesResponse: ...
 class FoldingRange:
     """A foldable range in source code."""
 
-    # start line (0-indexed)
+    # start line
     start_line: int
-    # end line (0-indexed)
+    # end line
     end_line: int
     # optional start character
     start_character: int | None

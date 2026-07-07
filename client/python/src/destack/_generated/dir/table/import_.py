@@ -139,8 +139,6 @@ class ImportTable:
 
     # the module id of the import table
     module_id: destack._generated.source.file.model.module.ModuleId
-    # modules reached by resolved imports and active globals
-    modules: Sequence[destack._generated.source.file.model.module.ModuleId]
     # imported local symbols keyed to their resolved target
     target_by_symbol: Mapping[
         destack._generated.dir.symbol.symbol.LocalSymbolId, ImportTarget
@@ -149,7 +147,7 @@ class ImportTable:
     global_target_by_key: Mapping[
         destack._generated.dir.symbol.key.StaticKey, Sequence[ImportTarget]
     ]
-    # language item symbols required by compiler syntax
+    # resolved symbols for language items used by this module
     language_symbol_by_item: Mapping[
         destack._generated.dir.symbol.language.LanguageItem,
         destack._generated.dir.symbol.symbol.GlobalSymbolId,
@@ -179,11 +177,6 @@ def encode_import_table(writer: BinaryWriter, value: ImportTable) -> None:
     destack._generated.source.file.model.module.encode_module_id(
         writer, value.module_id
     )
-    writer.write_unsigned(len(value.modules))
-    for item_value_modules_0 in value.modules:
-        destack._generated.source.file.model.module.encode_module_id(
-            writer, item_value_modules_0
-        )
     entries_value_target_by_symbol_0 = []
     for (
         key_value_target_by_symbol_0,
@@ -271,10 +264,6 @@ def encode_import_table(writer: BinaryWriter, value: ImportTable) -> None:
 def decode_import_table(reader: BinaryReader) -> ImportTable:
     """Decode one ImportTable."""
     module_id = destack._generated.source.file.model.module.decode_module_id(reader)
-    modules = [
-        destack._generated.source.file.model.module.decode_module_id(reader)
-        for _ in range(reader.read_number())
-    ]
     target_by_symbol = {
         destack._generated.dir.symbol.symbol.decode_local_symbol_id(
             reader
@@ -296,7 +285,6 @@ def decode_import_table(reader: BinaryReader) -> ImportTable:
 
     return ImportTable(
         module_id=module_id,
-        modules=modules,
         target_by_symbol=target_by_symbol,
         global_target_by_key=global_target_by_key,
         language_symbol_by_item=language_symbol_by_item,
@@ -309,10 +297,6 @@ def to_json_import_table(value: ImportTable) -> Json:
         "moduleId": destack._generated.source.file.model.module.to_json_module_id(
             value.module_id
         ),
-        "modules": [
-            destack._generated.source.file.model.module.to_json_module_id(item_0)
-            for item_0 in value.modules
-        ],
         "targetBySymbol": [
             [
                 destack._generated.dir.symbol.symbol.to_json_local_symbol_id(key_0),
@@ -345,10 +329,6 @@ def from_json_import_table(value: Json) -> ImportTable:
         module_id=destack._generated.source.file.model.module.from_json_module_id(
             json_field(object_, "moduleId")
         ),
-        modules=[
-            destack._generated.source.file.model.module.from_json_module_id(item_0)
-            for item_0 in json_array(json_field(object_, "modules"))
-        ],
         target_by_symbol={
             destack._generated.dir.symbol.symbol.from_json_local_symbol_id(
                 key_0

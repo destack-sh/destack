@@ -8,13 +8,8 @@ export {
     GcOptions,
 } from "../_generated/heap/core/gc.js";
 export {
-    AllocationClass,
-    AllocationSite,
-    SmallAllocationPlan,
-    SmallAllocationSite,
-    SmallCacheIndex,
-    SmallSpanClass,
-} from "../_generated/heap/core/layout.js";
+    TraceTable,
+} from "../_generated/heap/core/trace.js";
 export {
     HeapOptions,
 } from "../_generated/heap/local/heap/options.js";

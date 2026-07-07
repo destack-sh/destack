@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.edit.edit
 import destack._generated.source.file.model.span
 
@@ -15,7 +15,7 @@ class RenameTargetRequest:
     """Request the rename target at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -36,7 +36,7 @@ class RenameRequest:
     """Request rename edits at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
     # the new name for the symbol
     new_name: str
 
@@ -78,7 +78,7 @@ class RenameTarget:
     """Target of a rename query."""
 
     # the semantic rename target
-    target: destack._generated.query.core.target.QueryTarget
+    target: destack._generated.query.protocol.target.Target
     # the range of the symbol to rename
     range: destack._generated.source.file.model.span.Span
     # the current name (placeholder for rename dialog)

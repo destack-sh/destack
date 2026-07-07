@@ -28,10 +28,10 @@ class ExportTable:
     # local and indirect exports keyed by exported name
     export_by_key: Mapping[
         destack._generated.dir.symbol.export.ExportKey,
-        destack._generated.dir.symbol.export.ExportEntry,
+        destack._generated.dir.symbol.export.NamedExport,
     ]
     # star exports declared by the module
-    star_exports: Sequence[destack._generated.dir.symbol.export.StarExportEntry]
+    star_exports: Sequence[destack._generated.dir.symbol.export.StarExport]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -78,12 +78,12 @@ def encode_export_table(writer: BinaryWriter, value: ExportTable) -> None:
         destack._generated.dir.symbol.export.encode_export_key(
             writer, entry_value_export_by_key_0[0]
         )
-        destack._generated.dir.symbol.export.encode_export_entry(
+        destack._generated.dir.symbol.export.encode_named_export(
             writer, entry_value_export_by_key_0[1]
         )
     writer.write_unsigned(len(value.star_exports))
     for item_value_star_exports_0 in value.star_exports:
-        destack._generated.dir.symbol.export.encode_star_export_entry(
+        destack._generated.dir.symbol.export.encode_star_export(
             writer, item_value_star_exports_0
         )
 
@@ -94,11 +94,11 @@ def decode_export_table(reader: BinaryReader) -> ExportTable:
     export_by_key = {
         destack._generated.dir.symbol.export.decode_export_key(
             reader
-        ): destack._generated.dir.symbol.export.decode_export_entry(reader)
+        ): destack._generated.dir.symbol.export.decode_named_export(reader)
         for _ in range(reader.read_number())
     }
     star_exports = [
-        destack._generated.dir.symbol.export.decode_star_export_entry(reader)
+        destack._generated.dir.symbol.export.decode_star_export(reader)
         for _ in range(reader.read_number())
     ]
 
@@ -118,12 +118,12 @@ def to_json_export_table(value: ExportTable) -> Json:
         "exportByKey": [
             [
                 destack._generated.dir.symbol.export.to_json_export_key(key_0),
-                destack._generated.dir.symbol.export.to_json_export_entry(item_0),
+                destack._generated.dir.symbol.export.to_json_named_export(item_0),
             ]
             for key_0, item_0 in value.export_by_key.items()
         ],
         "starExports": [
-            destack._generated.dir.symbol.export.to_json_star_export_entry(item_0)
+            destack._generated.dir.symbol.export.to_json_star_export(item_0)
             for item_0 in value.star_exports
         ],
     }
@@ -140,11 +140,11 @@ def from_json_export_table(value: Json) -> ExportTable:
         export_by_key={
             destack._generated.dir.symbol.export.from_json_export_key(
                 key_0
-            ): destack._generated.dir.symbol.export.from_json_export_entry(item_0)
+            ): destack._generated.dir.symbol.export.from_json_named_export(item_0)
             for key_0, item_0 in json_array(json_field(object_, "exportByKey"))
         },
         star_exports=[
-            destack._generated.dir.symbol.export.from_json_star_export_entry(item_0)
+            destack._generated.dir.symbol.export.from_json_star_export(item_0)
             for item_0 in json_array(json_field(object_, "starExports"))
         ],
     )

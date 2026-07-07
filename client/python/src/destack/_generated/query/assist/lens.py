@@ -18,7 +18,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.file.model.span
 
 
@@ -27,7 +27,7 @@ class CodeLensesRequest:
     """Request code lenses for a document."""
 
     # the queried module
-    module: destack._generated.query.core.target.QueryModule
+    module: destack._generated.query.protocol.target.Module
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -50,12 +50,12 @@ class CodeLensesRequest:
 
 def encode_code_lenses_request(writer: BinaryWriter, value: CodeLensesRequest) -> None:
     """Encode one CodeLensesRequest."""
-    destack._generated.query.core.target.encode_query_module(writer, value.module)
+    destack._generated.query.protocol.target.encode_module(writer, value.module)
 
 
 def decode_code_lenses_request(reader: BinaryReader) -> CodeLensesRequest:
     """Decode one CodeLensesRequest."""
-    module = destack._generated.query.core.target.decode_query_module(reader)
+    module = destack._generated.query.protocol.target.decode_module(reader)
 
     return CodeLensesRequest(
         module=module,
@@ -65,9 +65,7 @@ def decode_code_lenses_request(reader: BinaryReader) -> CodeLensesRequest:
 def to_json_code_lenses_request(value: CodeLensesRequest) -> Json:
     """Return one JSON value for one CodeLensesRequest."""
     return {
-        "module": destack._generated.query.core.target.to_json_query_module(
-            value.module
-        ),
+        "module": destack._generated.query.protocol.target.to_json_module(value.module),
     }
 
 
@@ -76,7 +74,7 @@ def from_json_code_lenses_request(value: Json) -> CodeLensesRequest:
     object_ = json_object(value)
 
     return CodeLensesRequest(
-        module=destack._generated.query.core.target.from_json_query_module(
+        module=destack._generated.query.protocol.target.from_json_module(
             json_field(object_, "module")
         ),
     )

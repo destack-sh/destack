@@ -17,144 +17,134 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.file.model.span
 
 
 @dataclass(frozen=True, slots=True)
-class DocumentHighlightRequest:
+class HighlightRequest:
     """Request highlights at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_document_highlight_request(writer, self)
+        encode_highlight_request(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> DocumentHighlightRequest:
-        """Decode one DocumentHighlightRequest."""
-        return decode_document_highlight_request(reader)
+    def decode(cls, reader: BinaryReader) -> HighlightRequest:
+        """Decode one HighlightRequest."""
+        return decode_highlight_request(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_document_highlight_request(self)
+        return to_json_highlight_request(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> DocumentHighlightRequest:
-        """Return one DocumentHighlightRequest from one JSON value."""
-        return from_json_document_highlight_request(value)
+    def from_json(cls, value: Json) -> HighlightRequest:
+        """Return one HighlightRequest from one JSON value."""
+        return from_json_highlight_request(value)
 
 
-def encode_document_highlight_request(
-    writer: BinaryWriter, value: DocumentHighlightRequest
-) -> None:
-    """Encode one DocumentHighlightRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+def encode_highlight_request(writer: BinaryWriter, value: HighlightRequest) -> None:
+    """Encode one HighlightRequest."""
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
-def decode_document_highlight_request(reader: BinaryReader) -> DocumentHighlightRequest:
-    """Decode one DocumentHighlightRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+def decode_highlight_request(reader: BinaryReader) -> HighlightRequest:
+    """Decode one HighlightRequest."""
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
-    return DocumentHighlightRequest(
+    return HighlightRequest(
         position=position,
     )
 
 
-def to_json_document_highlight_request(value: DocumentHighlightRequest) -> Json:
-    """Return one JSON value for one DocumentHighlightRequest."""
+def to_json_highlight_request(value: HighlightRequest) -> Json:
+    """Return one JSON value for one HighlightRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
 
 
-def from_json_document_highlight_request(value: Json) -> DocumentHighlightRequest:
-    """Return one DocumentHighlightRequest from one JSON value."""
+def from_json_highlight_request(value: Json) -> HighlightRequest:
+    """Return one HighlightRequest from one JSON value."""
     object_ = json_object(value)
 
-    return DocumentHighlightRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+    return HighlightRequest(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
 
 
 @dataclass(frozen=True, slots=True)
-class DocumentHighlightResponse:
-    """Response payload for document highlight queries."""
+class HighlightResponse:
+    """Response payload for highlight queries."""
 
-    # document highlights
-    highlights: Sequence[DocumentHighlight]
+    # highlights
+    highlights: Sequence[Highlight]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_document_highlight_response(writer, self)
+        encode_highlight_response(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> DocumentHighlightResponse:
-        """Decode one DocumentHighlightResponse."""
-        return decode_document_highlight_response(reader)
+    def decode(cls, reader: BinaryReader) -> HighlightResponse:
+        """Decode one HighlightResponse."""
+        return decode_highlight_response(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_document_highlight_response(self)
+        return to_json_highlight_response(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> DocumentHighlightResponse:
-        """Return one DocumentHighlightResponse from one JSON value."""
-        return from_json_document_highlight_response(value)
+    def from_json(cls, value: Json) -> HighlightResponse:
+        """Return one HighlightResponse from one JSON value."""
+        return from_json_highlight_response(value)
 
 
-def encode_document_highlight_response(
-    writer: BinaryWriter, value: DocumentHighlightResponse
-) -> None:
-    """Encode one DocumentHighlightResponse."""
+def encode_highlight_response(writer: BinaryWriter, value: HighlightResponse) -> None:
+    """Encode one HighlightResponse."""
     writer.write_unsigned(len(value.highlights))
     for item_value_highlights_0 in value.highlights:
-        encode_document_highlight(writer, item_value_highlights_0)
+        encode_highlight(writer, item_value_highlights_0)
 
 
-def decode_document_highlight_response(
-    reader: BinaryReader,
-) -> DocumentHighlightResponse:
-    """Decode one DocumentHighlightResponse."""
-    highlights = [
-        decode_document_highlight(reader) for _ in range(reader.read_number())
-    ]
+def decode_highlight_response(reader: BinaryReader) -> HighlightResponse:
+    """Decode one HighlightResponse."""
+    highlights = [decode_highlight(reader) for _ in range(reader.read_number())]
 
-    return DocumentHighlightResponse(
+    return HighlightResponse(
         highlights=highlights,
     )
 
 
-def to_json_document_highlight_response(value: DocumentHighlightResponse) -> Json:
-    """Return one JSON value for one DocumentHighlightResponse."""
+def to_json_highlight_response(value: HighlightResponse) -> Json:
+    """Return one JSON value for one HighlightResponse."""
     return {
-        "highlights": [
-            to_json_document_highlight(item_0) for item_0 in value.highlights
-        ],
+        "highlights": [to_json_highlight(item_0) for item_0 in value.highlights],
     }
 
 
-def from_json_document_highlight_response(value: Json) -> DocumentHighlightResponse:
-    """Return one DocumentHighlightResponse from one JSON value."""
+def from_json_highlight_response(value: Json) -> HighlightResponse:
+    """Return one HighlightResponse from one JSON value."""
     object_ = json_object(value)
 
-    return DocumentHighlightResponse(
+    return HighlightResponse(
         highlights=[
-            from_json_document_highlight(item_0)
+            from_json_highlight(item_0)
             for item_0 in json_array(json_field(object_, "highlights"))
         ],
     )
 
 
 @dataclass(frozen=True, slots=True)
-class DocumentHighlight:
-    """A highlighted range in a document."""
+class Highlight:
+    """A highlighted range in a module."""
 
     # the highlighted range
     range: destack._generated.source.file.model.span.Span
@@ -163,53 +153,53 @@ class DocumentHighlight:
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_document_highlight(writer, self)
+        encode_highlight(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> DocumentHighlight:
-        """Decode one DocumentHighlight."""
-        return decode_document_highlight(reader)
+    def decode(cls, reader: BinaryReader) -> Highlight:
+        """Decode one Highlight."""
+        return decode_highlight(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_document_highlight(self)
+        return to_json_highlight(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> DocumentHighlight:
-        """Return one DocumentHighlight from one JSON value."""
-        return from_json_document_highlight(value)
+    def from_json(cls, value: Json) -> Highlight:
+        """Return one Highlight from one JSON value."""
+        return from_json_highlight(value)
 
 
-def encode_document_highlight(writer: BinaryWriter, value: DocumentHighlight) -> None:
-    """Encode one DocumentHighlight."""
+def encode_highlight(writer: BinaryWriter, value: Highlight) -> None:
+    """Encode one Highlight."""
     destack._generated.source.file.model.span.encode_span(writer, value.range)
     encode_highlight_kind(writer, value.kind)
 
 
-def decode_document_highlight(reader: BinaryReader) -> DocumentHighlight:
-    """Decode one DocumentHighlight."""
+def decode_highlight(reader: BinaryReader) -> Highlight:
+    """Decode one Highlight."""
     range_ = destack._generated.source.file.model.span.decode_span(reader)
     kind = decode_highlight_kind(reader)
 
-    return DocumentHighlight(
+    return Highlight(
         range=range_,
         kind=kind,
     )
 
 
-def to_json_document_highlight(value: DocumentHighlight) -> Json:
-    """Return one JSON value for one DocumentHighlight."""
+def to_json_highlight(value: Highlight) -> Json:
+    """Return one JSON value for one Highlight."""
     return {
         "range": destack._generated.source.file.model.span.to_json_span(value.range),
         "kind": to_json_highlight_kind(value.kind),
     }
 
 
-def from_json_document_highlight(value: Json) -> DocumentHighlight:
-    """Return one DocumentHighlight from one JSON value."""
+def from_json_highlight(value: Json) -> Highlight:
+    """Return one Highlight from one JSON value."""
     object_ = json_object(value)
 
-    return DocumentHighlight(
+    return Highlight(
         range=destack._generated.source.file.model.span.from_json_span(
             json_field(object_, "range")
         ),
@@ -217,7 +207,7 @@ def from_json_document_highlight(value: Json) -> DocumentHighlight:
     )
 
 
-"""Kind of document highlight."""
+"""Kind of highlight."""
 HighlightKind: typing.TypeAlias = (
     typing.Literal["text"] | typing.Literal["read"] | typing.Literal["write"]
 )
@@ -269,21 +259,21 @@ def from_json_highlight_kind(value: Json) -> HighlightKind:
 
 
 __all__ = [
-    "DocumentHighlightRequest",
-    "encode_document_highlight_request",
-    "decode_document_highlight_request",
-    "to_json_document_highlight_request",
-    "from_json_document_highlight_request",
-    "DocumentHighlightResponse",
-    "encode_document_highlight_response",
-    "decode_document_highlight_response",
-    "to_json_document_highlight_response",
-    "from_json_document_highlight_response",
-    "DocumentHighlight",
-    "encode_document_highlight",
-    "decode_document_highlight",
-    "to_json_document_highlight",
-    "from_json_document_highlight",
+    "HighlightRequest",
+    "encode_highlight_request",
+    "decode_highlight_request",
+    "to_json_highlight_request",
+    "from_json_highlight_request",
+    "HighlightResponse",
+    "encode_highlight_response",
+    "decode_highlight_response",
+    "to_json_highlight_response",
+    "from_json_highlight_response",
+    "Highlight",
+    "encode_highlight",
+    "decode_highlight",
+    "to_json_highlight",
+    "from_json_highlight",
     "HighlightKind",
     "encode_highlight_kind",
     "decode_highlight_kind",

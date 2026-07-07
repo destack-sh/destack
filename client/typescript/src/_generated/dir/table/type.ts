@@ -3,14 +3,14 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonField, jsonInteger, jsonObject, nestedBytes } from "../../../protocol/serde.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
-import type { LocalNodeIdAny } from "../tree/node.js";
 import type { Type } from "../type/type.js";
+import type { TypeFlags } from "../type/type.js";
 import type { GlobalTypeId } from "../type/type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
-import { decodeLocalNodeIdAny, encodeLocalNodeIdAny, fromJsonLocalNodeIdAny, toJsonLocalNodeIdAny } from "../tree/node.js";
 import { decodeType, encodeType, fromJsonType, toJsonType } from "../type/type.js";
+import { decodeTypeFlags, encodeTypeFlags, fromJsonTypeFlags, toJsonTypeFlags } from "../type/type.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "../type/type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -20,14 +20,28 @@ export type TypeSegment = {
     readonly moduleId: ModuleId;
     /** The first type id owned by this table segment. */
     readonly firstTypeId: number;
-    /** Canonical type entries. */
+    /** The interned type entries. */
     readonly types: ReadonlyArray<Type>;
-    /** The source for each type id. */
-    readonly sources: ReadonlyArray<LocalNodeIdAny>;
+    /** The structural flags per type, computed at intern time. */
+    readonly flags: ReadonlyArray<TypeFlags>;
+    /** The type id lists referenced by type payloads. */
+    readonly typeIds: ListPool;
+    /** The tuple element lists referenced by type payloads. */
+    readonly elements: ListPool;
+    /** The shape field lists referenced by type payloads. */
+    readonly fields: ListPool;
+    /** The function parameter lists referenced by type payloads. */
+    readonly parameters: ListPool;
+    /** The index signature lists referenced by type payloads. */
+    readonly indexSignatures: ListPool;
+    /** The string lists referenced by type payloads. */
+    readonly strings: ListPool;
     /** Effective checked type keyed by DIR node occurrence. */
     readonly nodeTypes: ReadonlyMap<GlobalNodeIdAny, GlobalTypeId>;
     /** Checked declaration type keyed by symbol. */
     readonly symbolTypes: ReadonlyMap<GlobalSymbolId, GlobalTypeId>;
+    /** Reduced checked type keyed by surface type. */
+    readonly reducedTypes: ReadonlyMap<GlobalTypeId, GlobalTypeId>;
 };
 
 export const TypeSegment = {
@@ -60,33 +74,51 @@ export function encodeTypeSegment(writer: BinaryWriter, value: TypeSegment): voi
     for (const item2 of value.types) {
         encodeType(writer, item2);
     }
-    writer.writeUnsigned(value.sources.length);
-    for (const item3 of value.sources) {
-        encodeLocalNodeIdAny(writer, item3);
+    writer.writeUnsigned(value.flags.length);
+    for (const item3 of value.flags) {
+        encodeTypeFlags(writer, item3);
     }
-    const entries4 = Array.from(value.nodeTypes.entries()).map(([key4, item4]) => {
+    encodeListPool(writer, value.typeIds);
+    encodeListPool(writer, value.elements);
+    encodeListPool(writer, value.fields);
+    encodeListPool(writer, value.parameters);
+    encodeListPool(writer, value.indexSignatures);
+    encodeListPool(writer, value.strings);
+    const entries10 = Array.from(value.nodeTypes.entries()).map(([key10, item10]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeGlobalNodeIdAny(writer, key4);
+            encodeGlobalNodeIdAny(writer, key10);
         });
-        return { key4, item4, keyBytes };
+        return { key10, item10, keyBytes };
     });
-    entries4.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries4.length);
-    for (const entry4 of entries4) {
-        encodeGlobalNodeIdAny(writer, entry4.key4);
-        encodeGlobalTypeId(writer, entry4.item4);
+    entries10.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries10.length);
+    for (const entry10 of entries10) {
+        encodeGlobalNodeIdAny(writer, entry10.key10);
+        encodeGlobalTypeId(writer, entry10.item10);
     }
-    const entries5 = Array.from(value.symbolTypes.entries()).map(([key5, item5]) => {
+    const entries11 = Array.from(value.symbolTypes.entries()).map(([key11, item11]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeGlobalSymbolId(writer, key5);
+            encodeGlobalSymbolId(writer, key11);
         });
-        return { key5, item5, keyBytes };
+        return { key11, item11, keyBytes };
     });
-    entries5.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries5.length);
-    for (const entry5 of entries5) {
-        encodeGlobalSymbolId(writer, entry5.key5);
-        encodeGlobalTypeId(writer, entry5.item5);
+    entries11.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries11.length);
+    for (const entry11 of entries11) {
+        encodeGlobalSymbolId(writer, entry11.key11);
+        encodeGlobalTypeId(writer, entry11.item11);
+    }
+    const entries12 = Array.from(value.reducedTypes.entries()).map(([key12, item12]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeGlobalTypeId(writer, key12);
+        });
+        return { key12, item12, keyBytes };
+    });
+    entries12.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries12.length);
+    for (const entry12 of entries12) {
+        encodeGlobalTypeId(writer, entry12.key12);
+        encodeGlobalTypeId(writer, entry12.item12);
     }
 }
 
@@ -95,17 +127,31 @@ export function decodeTypeSegment(reader: BinaryReader): TypeSegment {
     const moduleId = decodeModuleId(reader);
     const firstTypeId = reader.readNumber();
     const types = (() => { const length2 = reader.readNumber(); const items2: Array<Type> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeType(reader)); } return items2; })();
-    const sources = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeIdAny> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeIdAny(reader)); } return items3; })();
-    const nodeTypes = (() => { const length4 = reader.readNumber(); const items4 = new Map<GlobalNodeIdAny, GlobalTypeId>(); for (let index = 0; index < length4; index += 1) { items4.set(decodeGlobalNodeIdAny(reader), decodeGlobalTypeId(reader)); } return items4; })();
-    const symbolTypes = (() => { const length5 = reader.readNumber(); const items5 = new Map<GlobalSymbolId, GlobalTypeId>(); for (let index = 0; index < length5; index += 1) { items5.set(decodeGlobalSymbolId(reader), decodeGlobalTypeId(reader)); } return items5; })();
+    const flags = (() => { const length3 = reader.readNumber(); const items3: Array<TypeFlags> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeTypeFlags(reader)); } return items3; })();
+    const typeIds = decodeListPool(reader);
+    const elements = decodeListPool(reader);
+    const fields = decodeListPool(reader);
+    const parameters = decodeListPool(reader);
+    const indexSignatures = decodeListPool(reader);
+    const strings = decodeListPool(reader);
+    const nodeTypes = (() => { const length10 = reader.readNumber(); const items10 = new Map<GlobalNodeIdAny, GlobalTypeId>(); for (let index = 0; index < length10; index += 1) { items10.set(decodeGlobalNodeIdAny(reader), decodeGlobalTypeId(reader)); } return items10; })();
+    const symbolTypes = (() => { const length11 = reader.readNumber(); const items11 = new Map<GlobalSymbolId, GlobalTypeId>(); for (let index = 0; index < length11; index += 1) { items11.set(decodeGlobalSymbolId(reader), decodeGlobalTypeId(reader)); } return items11; })();
+    const reducedTypes = (() => { const length12 = reader.readNumber(); const items12 = new Map<GlobalTypeId, GlobalTypeId>(); for (let index = 0; index < length12; index += 1) { items12.set(decodeGlobalTypeId(reader), decodeGlobalTypeId(reader)); } return items12; })();
 
     return {
         moduleId,
         firstTypeId,
         types,
-        sources,
+        flags,
+        typeIds,
+        elements,
+        fields,
+        parameters,
+        indexSignatures,
+        strings,
         nodeTypes,
         symbolTypes,
+        reducedTypes,
     };
 }
 
@@ -115,9 +161,16 @@ export function toJsonTypeSegment(value: TypeSegment): Json {
         moduleId: toJsonModuleId(value.moduleId),
         firstTypeId: value.firstTypeId,
         types: value.types.map((item0) => toJsonType(item0)),
-        sources: value.sources.map((item0) => toJsonLocalNodeIdAny(item0)),
+        flags: value.flags.map((item0) => toJsonTypeFlags(item0)),
+        typeIds: toJsonListPool(value.typeIds),
+        elements: toJsonListPool(value.elements),
+        fields: toJsonListPool(value.fields),
+        parameters: toJsonListPool(value.parameters),
+        indexSignatures: toJsonListPool(value.indexSignatures),
+        strings: toJsonListPool(value.strings),
         nodeTypes: Array.from(value.nodeTypes.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonGlobalTypeId(item0)] as const),
         symbolTypes: Array.from(value.symbolTypes.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), toJsonGlobalTypeId(item0)] as const),
+        reducedTypes: Array.from(value.reducedTypes.entries()).map(([key0, item0]) => [toJsonGlobalTypeId(key0), toJsonGlobalTypeId(item0)] as const),
     };
 }
 
@@ -129,8 +182,83 @@ export function fromJsonTypeSegment(value: Json): TypeSegment {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         firstTypeId: jsonInteger(jsonField(object, "firstTypeId")),
         types: jsonArray(jsonField(object, "types")).map((item0) => fromJsonType(item0)),
-        sources: jsonArray(jsonField(object, "sources")).map((item0) => fromJsonLocalNodeIdAny(item0)),
+        flags: jsonArray(jsonField(object, "flags")).map((item0) => fromJsonTypeFlags(item0)),
+        typeIds: fromJsonListPool(jsonField(object, "typeIds")),
+        elements: fromJsonListPool(jsonField(object, "elements")),
+        fields: fromJsonListPool(jsonField(object, "fields")),
+        parameters: fromJsonListPool(jsonField(object, "parameters")),
+        indexSignatures: fromJsonListPool(jsonField(object, "indexSignatures")),
+        strings: fromJsonListPool(jsonField(object, "strings")),
         nodeTypes: new Map(jsonArray(jsonField(object, "nodeTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonGlobalTypeId(item0)] as const; })),
         symbolTypes: new Map(jsonArray(jsonField(object, "symbolTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), fromJsonGlobalTypeId(item0)] as const; })),
+        reducedTypes: new Map(jsonArray(jsonField(object, "reducedTypes")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalTypeId(key0), fromJsonGlobalTypeId(item0)] as const; })),
+    };
+}
+
+/** Interned lists of one type payload kind. */
+export type ListPool = {
+    /** The first element owned by this segment. */
+    readonly first: number;
+    /** The stored list elements. */
+    readonly elements: ReadonlyArray<GlobalTypeId>;
+};
+
+export const ListPool = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ListPool): void {
+        encodeListPool(writer, value);
+    },
+
+    /** Decode one ListPool. */
+    decode(reader: BinaryReader): ListPool {
+        return decodeListPool(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ListPool): Json {
+        return toJsonListPool(value);
+    },
+
+    /** Return one ListPool from one JSON value. */
+    fromJson(value: Json): ListPool {
+        return fromJsonListPool(value);
+    },
+};
+
+/** Encode one ListPool. */
+export function encodeListPool(writer: BinaryWriter, value: ListPool): void {
+    writer.writeUnsigned(value.first);
+    writer.writeUnsigned(value.elements.length);
+    for (const item1 of value.elements) {
+        encodeGlobalTypeId(writer, item1);
+    }
+}
+
+/** Decode one ListPool. */
+export function decodeListPool(reader: BinaryReader): ListPool {
+    const first = reader.readNumber();
+    const elements = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+
+    return {
+        first,
+        elements,
+    };
+}
+
+/** Return one JSON value for one ListPool. */
+export function toJsonListPool(value: ListPool): Json {
+    return {
+        first: value.first,
+        elements: value.elements.map((item0) => toJsonGlobalTypeId(item0)),
+    };
+}
+
+/** Return one ListPool from one JSON value. */
+export function fromJsonListPool(value: Json): ListPool {
+    const object = jsonObject(value);
+
+    return {
+        first: jsonInteger(jsonField(object, "first")),
+        elements: jsonArray(jsonField(object, "elements")).map((item0) => fromJsonGlobalTypeId(item0)),
     };
 }

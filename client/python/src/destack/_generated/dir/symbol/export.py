@@ -115,104 +115,104 @@ def from_json_export_key(value: Json) -> ExportKey:
 
 
 @dataclass(frozen=True, slots=True)
-class ExportEntryLocal:
+class NamedExportLocal:
     """A local export."""
 
-    local: LocalExportEntry
+    local: LocalExport
     kind: typing.Literal["local"] = "local"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_export_entry(writer, self)
+        encode_named_export(writer, self)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_export_entry(self)
+        return to_json_named_export(self)
 
 
 @dataclass(frozen=True, slots=True)
-class ExportEntryIndirect:
+class NamedExportIndirect:
     """A re-export from another module."""
 
-    indirect: IndirectExportEntry
+    indirect: IndirectExport
     kind: typing.Literal["indirect"] = "indirect"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_export_entry(writer, self)
+        encode_named_export(writer, self)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_export_entry(self)
+        return to_json_named_export(self)
 
 
 """One named export entry."""
-ExportEntry: typing.TypeAlias = ExportEntryLocal | ExportEntryIndirect
+NamedExport: typing.TypeAlias = NamedExportLocal | NamedExportIndirect
 
 
-def encode_export_entry(writer: BinaryWriter, value: ExportEntry) -> None:
-    """Encode one ExportEntry."""
+def encode_named_export(writer: BinaryWriter, value: NamedExport) -> None:
+    """Encode one NamedExport."""
     if value.kind == "local":
         writer.write_unsigned(0)
-        encode_local_export_entry(writer, value.local)
+        encode_local_export(writer, value.local)
     elif value.kind == "indirect":
         writer.write_unsigned(1)
-        encode_indirect_export_entry(writer, value.indirect)
+        encode_indirect_export(writer, value.indirect)
     else:
         raise SerdeError("unknown enum variant")
 
 
-def decode_export_entry(reader: BinaryReader) -> ExportEntry:
-    """Decode one ExportEntry."""
+def decode_named_export(reader: BinaryReader) -> NamedExport:
+    """Decode one NamedExport."""
     variant = reader.read_number()
 
     if variant == 0:
-        local = decode_local_export_entry(reader)
+        local = decode_local_export(reader)
 
-        return ExportEntryLocal(local=local)
+        return NamedExportLocal(local=local)
     elif variant == 1:
-        indirect = decode_indirect_export_entry(reader)
+        indirect = decode_indirect_export(reader)
 
-        return ExportEntryIndirect(indirect=indirect)
+        return NamedExportIndirect(indirect=indirect)
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
-def to_json_export_entry(value: ExportEntry) -> Json:
-    """Return one JSON value for one ExportEntry."""
+def to_json_named_export(value: NamedExport) -> Json:
+    """Return one JSON value for one NamedExport."""
     if value.kind == "local":
         return {
             "kind": "local",
-            "local": to_json_local_export_entry(value.local),
+            "local": to_json_local_export(value.local),
         }
     elif value.kind == "indirect":
         return {
             "kind": "indirect",
-            "indirect": to_json_indirect_export_entry(value.indirect),
+            "indirect": to_json_indirect_export(value.indirect),
         }
     else:
         raise SerdeError("unknown enum variant")
 
 
-def from_json_export_entry(value: Json) -> ExportEntry:
-    """Return one ExportEntry from one JSON value."""
+def from_json_named_export(value: Json) -> NamedExport:
+    """Return one NamedExport from one JSON value."""
     object_ = json_object(value)
     kind = json_string(json_field(object_, "kind"))
 
     if kind == "local":
-        return ExportEntryLocal(
-            local=from_json_local_export_entry(json_field(object_, "local"))
+        return NamedExportLocal(
+            local=from_json_local_export(json_field(object_, "local"))
         )
     elif kind == "indirect":
-        return ExportEntryIndirect(
-            indirect=from_json_indirect_export_entry(json_field(object_, "indirect"))
+        return NamedExportIndirect(
+            indirect=from_json_indirect_export(json_field(object_, "indirect"))
         )
     else:
         raise SerdeError(f"unknown enum variant: {kind}")
 
 
 @dataclass(frozen=True, slots=True)
-class LocalExportEntry:
+class LocalExport:
     """One local export from a symbol declared in the current module."""
 
     # the exported name
@@ -224,25 +224,25 @@ class LocalExportEntry:
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_local_export_entry(writer, self)
+        encode_local_export(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> LocalExportEntry:
-        """Decode one LocalExportEntry."""
-        return decode_local_export_entry(reader)
+    def decode(cls, reader: BinaryReader) -> LocalExport:
+        """Decode one LocalExport."""
+        return decode_local_export(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_local_export_entry(self)
+        return to_json_local_export(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> LocalExportEntry:
-        """Return one LocalExportEntry from one JSON value."""
-        return from_json_local_export_entry(value)
+    def from_json(cls, value: Json) -> LocalExport:
+        """Return one LocalExport from one JSON value."""
+        return from_json_local_export(value)
 
 
-def encode_local_export_entry(writer: BinaryWriter, value: LocalExportEntry) -> None:
-    """Encode one LocalExportEntry."""
+def encode_local_export(writer: BinaryWriter, value: LocalExport) -> None:
+    """Encode one LocalExport."""
     encode_export_key(writer, value.key)
     destack._generated.dir.symbol.symbol.encode_local_symbol_id(writer, value.source)
     if value.item is None:
@@ -252,23 +252,23 @@ def encode_local_export_entry(writer: BinaryWriter, value: LocalExportEntry) -> 
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.item)
 
 
-def decode_local_export_entry(reader: BinaryReader) -> LocalExportEntry:
-    """Decode one LocalExportEntry."""
+def decode_local_export(reader: BinaryReader) -> LocalExport:
+    """Decode one LocalExport."""
     key = decode_export_key(reader)
     source = destack._generated.dir.symbol.symbol.decode_local_symbol_id(reader)
     item = reader.read_option(
         lambda: destack._generated.dir.tree.node.decode_local_node_id(reader)
     )
 
-    return LocalExportEntry(
+    return LocalExport(
         key=key,
         source=source,
         item=item,
     )
 
 
-def to_json_local_export_entry(value: LocalExportEntry) -> Json:
-    """Return one JSON value for one LocalExportEntry."""
+def to_json_local_export(value: LocalExport) -> Json:
+    """Return one JSON value for one LocalExport."""
     return {
         "key": to_json_export_key(value.key),
         "source": destack._generated.dir.symbol.symbol.to_json_local_symbol_id(
@@ -286,11 +286,11 @@ def to_json_local_export_entry(value: LocalExportEntry) -> Json:
     }
 
 
-def from_json_local_export_entry(value: Json) -> LocalExportEntry:
-    """Return one LocalExportEntry from one JSON value."""
+def from_json_local_export(value: Json) -> LocalExport:
+    """Return one LocalExport from one JSON value."""
     object_ = json_object(value)
 
-    return LocalExportEntry(
+    return LocalExport(
         key=from_json_export_key(json_field(object_, "key")),
         source=destack._generated.dir.symbol.symbol.from_json_local_symbol_id(
             json_field(object_, "source")
@@ -306,7 +306,7 @@ def from_json_local_export_entry(value: Json) -> LocalExportEntry:
 
 
 @dataclass(frozen=True, slots=True)
-class IndirectExportEntry:
+class IndirectExport:
     """One named re-export from another module."""
 
     # the exported name in the current module
@@ -320,27 +320,25 @@ class IndirectExportEntry:
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_indirect_export_entry(writer, self)
+        encode_indirect_export(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> IndirectExportEntry:
-        """Decode one IndirectExportEntry."""
-        return decode_indirect_export_entry(reader)
+    def decode(cls, reader: BinaryReader) -> IndirectExport:
+        """Decode one IndirectExport."""
+        return decode_indirect_export(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_indirect_export_entry(self)
+        return to_json_indirect_export(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> IndirectExportEntry:
-        """Return one IndirectExportEntry from one JSON value."""
-        return from_json_indirect_export_entry(value)
+    def from_json(cls, value: Json) -> IndirectExport:
+        """Return one IndirectExport from one JSON value."""
+        return from_json_indirect_export(value)
 
 
-def encode_indirect_export_entry(
-    writer: BinaryWriter, value: IndirectExportEntry
-) -> None:
-    """Encode one IndirectExportEntry."""
+def encode_indirect_export(writer: BinaryWriter, value: IndirectExport) -> None:
+    """Encode one IndirectExport."""
     encode_export_key(writer, value.key)
     destack._generated.dir.tree.node.encode_local_node_id(writer, value.item)
     if value.target is None:
@@ -353,8 +351,8 @@ def encode_indirect_export_entry(
     encode_export_selector(writer, value.imported)
 
 
-def decode_indirect_export_entry(reader: BinaryReader) -> IndirectExportEntry:
-    """Decode one IndirectExportEntry."""
+def decode_indirect_export(reader: BinaryReader) -> IndirectExport:
+    """Decode one IndirectExport."""
     key = decode_export_key(reader)
     item = destack._generated.dir.tree.node.decode_local_node_id(reader)
     target = reader.read_option(
@@ -362,7 +360,7 @@ def decode_indirect_export_entry(reader: BinaryReader) -> IndirectExportEntry:
     )
     imported = decode_export_selector(reader)
 
-    return IndirectExportEntry(
+    return IndirectExport(
         key=key,
         item=item,
         target=target,
@@ -370,8 +368,8 @@ def decode_indirect_export_entry(reader: BinaryReader) -> IndirectExportEntry:
     )
 
 
-def to_json_indirect_export_entry(value: IndirectExportEntry) -> Json:
-    """Return one JSON value for one IndirectExportEntry."""
+def to_json_indirect_export(value: IndirectExport) -> Json:
+    """Return one JSON value for one IndirectExport."""
     return {
         "key": to_json_export_key(value.key),
         "item": destack._generated.dir.tree.node.to_json_local_node_id(value.item),
@@ -388,11 +386,11 @@ def to_json_indirect_export_entry(value: IndirectExportEntry) -> Json:
     }
 
 
-def from_json_indirect_export_entry(value: Json) -> IndirectExportEntry:
-    """Return one IndirectExportEntry from one JSON value."""
+def from_json_indirect_export(value: Json) -> IndirectExport:
+    """Return one IndirectExport from one JSON value."""
     object_ = json_object(value)
 
-    return IndirectExportEntry(
+    return IndirectExport(
         key=from_json_export_key(json_field(object_, "key")),
         item=destack._generated.dir.tree.node.from_json_local_node_id(
             json_field(object_, "item")
@@ -528,7 +526,7 @@ def from_json_export_selector(value: Json) -> ExportSelector:
 
 
 @dataclass(frozen=True, slots=True)
-class StarExportEntry:
+class StarExport:
     """One `export * from` edge."""
 
     # the dependency item that declared the star export
@@ -538,25 +536,25 @@ class StarExportEntry:
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_star_export_entry(writer, self)
+        encode_star_export(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> StarExportEntry:
-        """Decode one StarExportEntry."""
-        return decode_star_export_entry(reader)
+    def decode(cls, reader: BinaryReader) -> StarExport:
+        """Decode one StarExport."""
+        return decode_star_export(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_star_export_entry(self)
+        return to_json_star_export(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> StarExportEntry:
-        """Return one StarExportEntry from one JSON value."""
-        return from_json_star_export_entry(value)
+    def from_json(cls, value: Json) -> StarExport:
+        """Return one StarExport from one JSON value."""
+        return from_json_star_export(value)
 
 
-def encode_star_export_entry(writer: BinaryWriter, value: StarExportEntry) -> None:
-    """Encode one StarExportEntry."""
+def encode_star_export(writer: BinaryWriter, value: StarExport) -> None:
+    """Encode one StarExport."""
     destack._generated.dir.tree.node.encode_local_node_id(writer, value.item)
     if value.target is None:
         writer.write_byte(0)
@@ -567,21 +565,21 @@ def encode_star_export_entry(writer: BinaryWriter, value: StarExportEntry) -> No
         )
 
 
-def decode_star_export_entry(reader: BinaryReader) -> StarExportEntry:
-    """Decode one StarExportEntry."""
+def decode_star_export(reader: BinaryReader) -> StarExport:
+    """Decode one StarExport."""
     item = destack._generated.dir.tree.node.decode_local_node_id(reader)
     target = reader.read_option(
         lambda: destack._generated.source.file.model.module.decode_module_id(reader)
     )
 
-    return StarExportEntry(
+    return StarExport(
         item=item,
         target=target,
     )
 
 
-def to_json_star_export_entry(value: StarExportEntry) -> Json:
-    """Return one JSON value for one StarExportEntry."""
+def to_json_star_export(value: StarExport) -> Json:
+    """Return one JSON value for one StarExport."""
     return {
         "item": destack._generated.dir.tree.node.to_json_local_node_id(value.item),
         **(
@@ -596,11 +594,11 @@ def to_json_star_export_entry(value: StarExportEntry) -> Json:
     }
 
 
-def from_json_star_export_entry(value: Json) -> StarExportEntry:
-    """Return one StarExportEntry from one JSON value."""
+def from_json_star_export(value: Json) -> StarExport:
+    """Return one StarExport from one JSON value."""
     object_ = json_object(value)
 
-    return StarExportEntry(
+    return StarExport(
         item=destack._generated.dir.tree.node.from_json_local_node_id(
             json_field(object_, "item")
         ),
@@ -622,23 +620,23 @@ __all__ = [
     "from_json_export_key",
     "ExportKeyDefault",
     "ExportKeyNamed",
-    "ExportEntry",
-    "encode_export_entry",
-    "decode_export_entry",
-    "to_json_export_entry",
-    "from_json_export_entry",
-    "ExportEntryLocal",
-    "ExportEntryIndirect",
-    "LocalExportEntry",
-    "encode_local_export_entry",
-    "decode_local_export_entry",
-    "to_json_local_export_entry",
-    "from_json_local_export_entry",
-    "IndirectExportEntry",
-    "encode_indirect_export_entry",
-    "decode_indirect_export_entry",
-    "to_json_indirect_export_entry",
-    "from_json_indirect_export_entry",
+    "NamedExport",
+    "encode_named_export",
+    "decode_named_export",
+    "to_json_named_export",
+    "from_json_named_export",
+    "NamedExportLocal",
+    "NamedExportIndirect",
+    "LocalExport",
+    "encode_local_export",
+    "decode_local_export",
+    "to_json_local_export",
+    "from_json_local_export",
+    "IndirectExport",
+    "encode_indirect_export",
+    "decode_indirect_export",
+    "to_json_indirect_export",
+    "from_json_indirect_export",
     "ExportSelector",
     "encode_export_selector",
     "decode_export_selector",
@@ -647,9 +645,9 @@ __all__ = [
     "ExportSelectorNamed",
     "ExportSelectorDefault",
     "ExportSelectorNamespace",
-    "StarExportEntry",
-    "encode_star_export_entry",
-    "decode_star_export_entry",
-    "to_json_star_export_entry",
-    "from_json_star_export_entry",
+    "StarExport",
+    "encode_star_export",
+    "decode_star_export",
+    "to_json_star_export",
+    "from_json_star_export",
 ]

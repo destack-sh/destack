@@ -8,52 +8,39 @@ export {
     LinkNode,
 } from "../_generated/mir/analyses/link_graph.js";
 export {
-    DataLayout,
-} from "../_generated/mir/metadata/data.js";
+    Token,
+    TokenType,
+} from "../_generated/mir/source/token.js";
 export {
-    DispatchMetadata,
     DispatchSlot,
+    DispatchTable,
     DynamicEntry,
     DynamicShape,
     DynamicSlot,
     DynamicTable,
-    Vtable,
-    VtableEntry,
-} from "../_generated/mir/metadata/dispatch.js";
+    VirtualTable,
+} from "../_generated/mir/table/dispatch.js";
 export {
     DropGlue,
     DropHook,
-    DropMetadata,
-} from "../_generated/mir/metadata/drop.js";
+    DropTable,
+} from "../_generated/mir/table/drop.js";
 export {
+    CallEffect,
     Determinism,
+    EffectTable,
     FunctionBehavior,
+    FunctionEffect,
     MemoryEffect,
     PanicBehavior,
     ReturnBehavior,
     SuspendBehavior,
-} from "../_generated/mir/metadata/effect.js";
-export {
-    FrameLayout,
-    FrameLayoutId,
-    FrameMaterialization,
-    FrameSlot,
-    FrameSlotId,
-    FrameStateId,
-    FrameTable,
-} from "../_generated/mir/metadata/frame.js";
-export {
-    CallMetadata,
-    CallSite,
-    FunctionMetadata,
-    FunctionMetadataTable,
-} from "../_generated/mir/metadata/function.js";
+} from "../_generated/mir/table/effect.js";
 export {
     ElementLayout,
     Layout,
     LayoutField,
     LayoutId,
-    LayoutMetadata,
     LayoutShape,
     LayoutTable,
     NewtypeLayout,
@@ -65,37 +52,37 @@ export {
     VariantCaseLayout,
     VariantLayout,
     VariantTagLayout,
-} from "../_generated/mir/metadata/layout.js";
+} from "../_generated/mir/table/layout.js";
 export {
-    AllocationSize,
     ArgumentAccess,
     ArgumentEscape,
     CallArgumentEffect,
-    MemoryAccessKind,
-    MemoryAccessMetadata,
-    MemoryAccessTarget,
-    MemoryMetadata,
-} from "../_generated/mir/metadata/memory.js";
-export {
-    Metadata,
-} from "../_generated/mir/metadata/metadata.js";
+    MemoryAccess,
+    MemoryAccessOrder,
+    MemoryOperation,
+    MemoryTable,
+    MemoryTarget,
+} from "../_generated/mir/table/memory.js";
 export {
     CounterId,
-} from "../_generated/mir/metadata/profile.js";
+    FunctionHash,
+    FunctionProfileTable,
+    ProfilePoint,
+    ProfileTable,
+} from "../_generated/mir/table/profile.js";
 export {
-    TraceId,
+    Endian,
+    PointerLayout,
+    TargetLayout,
+} from "../_generated/mir/table/target.js";
+export {
     TraceMap,
-    TraceTable,
     TraceVariant,
-} from "../_generated/mir/metadata/trace.js";
+} from "../_generated/mir/table/trace.js";
 export {
     TypeLineage,
-    TypeMetadata,
-} from "../_generated/mir/metadata/type.js";
-export {
-    Token,
-    TokenType,
-} from "../_generated/mir/source/token.js";
+    TypeTable,
+} from "../_generated/mir/table/type.js";
 export {
     Attribute,
     AttributeArgs,
@@ -109,13 +96,21 @@ export {
 } from "../_generated/mir/tree/block.js";
 export {
     Call,
+    CallSite,
 } from "../_generated/mir/tree/call.js";
 export {
     Constant,
 } from "../_generated/mir/tree/constant.js";
 export {
+    Edge,
+    Successor,
+} from "../_generated/mir/tree/edge.js";
+export {
     AllocationMode,
     Function,
+    FunctionBody,
+    InstructionIndex,
+    InstructionLocation,
     SuspensionKind,
 } from "../_generated/mir/tree/function.js";
 export {
@@ -150,17 +145,13 @@ export {
     AtomicAccess,
     AtomicRmwOperator,
     CompareExchangeAccess,
+    ExecutionScope,
     FenceAccess,
-    MemoryFlags,
     MemoryOrdering,
-    MemoryScope,
-    SpaceSet,
-    SyncScope,
+    StorageSet,
 } from "../_generated/mir/tree/memory.js";
 export {
     LocalNodeId,
-    LocalNodeIdAny,
-    NodeType,
 } from "../_generated/mir/tree/node.js";
 export {
     BinaryOperator,
@@ -177,21 +168,13 @@ export {
     SignatureParameter,
 } from "../_generated/mir/tree/parameter.js";
 export {
-    Patch,
-} from "../_generated/mir/tree/patch.js";
-export {
     Symbol,
 } from "../_generated/mir/tree/symbol.js";
 export {
     TensorConvertMode,
-    TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow,
-    TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers,
     TensorIndexReduceOperator,
     TensorIndexTieBreak,
     TensorReduceOperator,
-    TensorScatterDimensionNumbers,
     TensorScatterMode,
 } from "../_generated/mir/tree/tensor.js";
 export {

@@ -126,79 +126,79 @@ export function fromJsonExportKey(value: Json): ExportKey {
 }
 
 /** One named export entry. */
-export type ExportEntry =
+export type NamedExport =
     /** A local export. */
     | {
           readonly kind: "local";
-          readonly local: LocalExportEntry;
+          readonly local: LocalExport;
       }
     /** A re-export from another module. */
     | {
           readonly kind: "indirect";
-          readonly indirect: IndirectExportEntry;
+          readonly indirect: IndirectExport;
       }
 ;
 
-export const ExportEntry = {
+export const NamedExport = {
     /** A local export. */
-    local(local: LocalExportEntry): ExportEntry {
+    local(local: LocalExport): NamedExport {
         return { kind: "local", local };
     },
 
     /** A re-export from another module. */
-    indirect(indirect: IndirectExportEntry): ExportEntry {
+    indirect(indirect: IndirectExport): NamedExport {
         return { kind: "indirect", indirect };
     },
 
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ExportEntry): void {
-        encodeExportEntry(writer, value);
+    encode(writer: BinaryWriter, value: NamedExport): void {
+        encodeNamedExport(writer, value);
     },
 
-    /** Decode one ExportEntry. */
-    decode(reader: BinaryReader): ExportEntry {
-        return decodeExportEntry(reader);
+    /** Decode one NamedExport. */
+    decode(reader: BinaryReader): NamedExport {
+        return decodeNamedExport(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ExportEntry): Json {
-        return toJsonExportEntry(value);
+    toJson(value: NamedExport): Json {
+        return toJsonNamedExport(value);
     },
 
-    /** Return one ExportEntry from one JSON value. */
-    fromJson(value: Json): ExportEntry {
-        return fromJsonExportEntry(value);
+    /** Return one NamedExport from one JSON value. */
+    fromJson(value: Json): NamedExport {
+        return fromJsonNamedExport(value);
     },
 };
 
-/** Encode one ExportEntry. */
-export function encodeExportEntry(writer: BinaryWriter, value: ExportEntry): void {
+/** Encode one NamedExport. */
+export function encodeNamedExport(writer: BinaryWriter, value: NamedExport): void {
     switch (value.kind) {
         case "local":
             writer.writeUnsigned(0);
-            encodeLocalExportEntry(writer, value.local);
+            encodeLocalExport(writer, value.local);
             return;
         case "indirect":
             writer.writeUnsigned(1);
-            encodeIndirectExportEntry(writer, value.indirect);
+            encodeIndirectExport(writer, value.indirect);
             return;
     }
 
     throw new SerdeError("unknown enum variant");
 }
 
-/** Decode one ExportEntry. */
-export function decodeExportEntry(reader: BinaryReader): ExportEntry {
+/** Decode one NamedExport. */
+export function decodeNamedExport(reader: BinaryReader): NamedExport {
     const variant = reader.readNumber();
 
     switch (variant) {
         case 0: {
-            const local = decodeLocalExportEntry(reader);
+            const local = decodeLocalExport(reader);
 
             return { kind: "local", local };
         }
         case 1: {
-            const indirect = decodeIndirectExportEntry(reader);
+            const indirect = decodeIndirectExport(reader);
 
             return { kind: "indirect", indirect };
         }
@@ -207,26 +207,26 @@ export function decodeExportEntry(reader: BinaryReader): ExportEntry {
     throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
-/** Return one JSON value for one ExportEntry. */
-export function toJsonExportEntry(value: ExportEntry): Json {
+/** Return one JSON value for one NamedExport. */
+export function toJsonNamedExport(value: NamedExport): Json {
     switch (value.kind) {
         case "local":
             return {
                 kind: "local",
-                local: toJsonLocalExportEntry(value.local),
+                local: toJsonLocalExport(value.local),
             };
         case "indirect":
             return {
                 kind: "indirect",
-                indirect: toJsonIndirectExportEntry(value.indirect),
+                indirect: toJsonIndirectExport(value.indirect),
             };
     }
 
     throw new SerdeError("unknown enum variant");
 }
 
-/** Return one ExportEntry from one JSON value. */
-export function fromJsonExportEntry(value: Json): ExportEntry {
+/** Return one NamedExport from one JSON value. */
+export function fromJsonNamedExport(value: Json): NamedExport {
     const object = jsonObject(value);
     const kind = jsonString(jsonField(object, "kind"));
 
@@ -234,12 +234,12 @@ export function fromJsonExportEntry(value: Json): ExportEntry {
         case "local":
             return {
                 kind,
-                local: fromJsonLocalExportEntry(jsonField(object, "local")),
+                local: fromJsonLocalExport(jsonField(object, "local")),
             };
         case "indirect":
             return {
                 kind,
-                indirect: fromJsonIndirectExportEntry(jsonField(object, "indirect")),
+                indirect: fromJsonIndirectExport(jsonField(object, "indirect")),
             };
     }
 
@@ -247,7 +247,7 @@ export function fromJsonExportEntry(value: Json): ExportEntry {
 }
 
 /** One local export from a symbol declared in the current module. */
-export type LocalExportEntry = {
+export type LocalExport = {
     /** The exported name. */
     readonly key: ExportKey;
     /** The local symbol exposed by the export. */
@@ -256,30 +256,30 @@ export type LocalExportEntry = {
     readonly item?: LocalNodeId;
 };
 
-export const LocalExportEntry = {
+export const LocalExport = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: LocalExportEntry): void {
-        encodeLocalExportEntry(writer, value);
+    encode(writer: BinaryWriter, value: LocalExport): void {
+        encodeLocalExport(writer, value);
     },
 
-    /** Decode one LocalExportEntry. */
-    decode(reader: BinaryReader): LocalExportEntry {
-        return decodeLocalExportEntry(reader);
+    /** Decode one LocalExport. */
+    decode(reader: BinaryReader): LocalExport {
+        return decodeLocalExport(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: LocalExportEntry): Json {
-        return toJsonLocalExportEntry(value);
+    toJson(value: LocalExport): Json {
+        return toJsonLocalExport(value);
     },
 
-    /** Return one LocalExportEntry from one JSON value. */
-    fromJson(value: Json): LocalExportEntry {
-        return fromJsonLocalExportEntry(value);
+    /** Return one LocalExport from one JSON value. */
+    fromJson(value: Json): LocalExport {
+        return fromJsonLocalExport(value);
     },
 };
 
-/** Encode one LocalExportEntry. */
-export function encodeLocalExportEntry(writer: BinaryWriter, value: LocalExportEntry): void {
+/** Encode one LocalExport. */
+export function encodeLocalExport(writer: BinaryWriter, value: LocalExport): void {
     encodeExportKey(writer, value.key);
     encodeLocalSymbolId(writer, value.source);
     writer.writeOption(value.item, (value2) => {
@@ -287,8 +287,8 @@ export function encodeLocalExportEntry(writer: BinaryWriter, value: LocalExportE
     });
 }
 
-/** Decode one LocalExportEntry. */
-export function decodeLocalExportEntry(reader: BinaryReader): LocalExportEntry {
+/** Decode one LocalExport. */
+export function decodeLocalExport(reader: BinaryReader): LocalExport {
     const key = decodeExportKey(reader);
     const source = decodeLocalSymbolId(reader);
     const item = reader.readOption(() => decodeLocalNodeId(reader));
@@ -300,8 +300,8 @@ export function decodeLocalExportEntry(reader: BinaryReader): LocalExportEntry {
     };
 }
 
-/** Return one JSON value for one LocalExportEntry. */
-export function toJsonLocalExportEntry(value: LocalExportEntry): Json {
+/** Return one JSON value for one LocalExport. */
+export function toJsonLocalExport(value: LocalExport): Json {
     return {
         key: toJsonExportKey(value.key),
         source: toJsonLocalSymbolId(value.source),
@@ -309,8 +309,8 @@ export function toJsonLocalExportEntry(value: LocalExportEntry): Json {
     };
 }
 
-/** Return one LocalExportEntry from one JSON value. */
-export function fromJsonLocalExportEntry(value: Json): LocalExportEntry {
+/** Return one LocalExport from one JSON value. */
+export function fromJsonLocalExport(value: Json): LocalExport {
     const object = jsonObject(value);
 
     return {
@@ -321,7 +321,7 @@ export function fromJsonLocalExportEntry(value: Json): LocalExportEntry {
 }
 
 /** One named re-export from another module. */
-export type IndirectExportEntry = {
+export type IndirectExport = {
     /** The exported name in the current module. */
     readonly key: ExportKey;
     /** The dependency item that declared the export. */
@@ -332,30 +332,30 @@ export type IndirectExportEntry = {
     readonly imported: ExportSelector;
 };
 
-export const IndirectExportEntry = {
+export const IndirectExport = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: IndirectExportEntry): void {
-        encodeIndirectExportEntry(writer, value);
+    encode(writer: BinaryWriter, value: IndirectExport): void {
+        encodeIndirectExport(writer, value);
     },
 
-    /** Decode one IndirectExportEntry. */
-    decode(reader: BinaryReader): IndirectExportEntry {
-        return decodeIndirectExportEntry(reader);
+    /** Decode one IndirectExport. */
+    decode(reader: BinaryReader): IndirectExport {
+        return decodeIndirectExport(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: IndirectExportEntry): Json {
-        return toJsonIndirectExportEntry(value);
+    toJson(value: IndirectExport): Json {
+        return toJsonIndirectExport(value);
     },
 
-    /** Return one IndirectExportEntry from one JSON value. */
-    fromJson(value: Json): IndirectExportEntry {
-        return fromJsonIndirectExportEntry(value);
+    /** Return one IndirectExport from one JSON value. */
+    fromJson(value: Json): IndirectExport {
+        return fromJsonIndirectExport(value);
     },
 };
 
-/** Encode one IndirectExportEntry. */
-export function encodeIndirectExportEntry(writer: BinaryWriter, value: IndirectExportEntry): void {
+/** Encode one IndirectExport. */
+export function encodeIndirectExport(writer: BinaryWriter, value: IndirectExport): void {
     encodeExportKey(writer, value.key);
     encodeLocalNodeId(writer, value.item);
     writer.writeOption(value.target, (value2) => {
@@ -364,8 +364,8 @@ export function encodeIndirectExportEntry(writer: BinaryWriter, value: IndirectE
     encodeExportSelector(writer, value.imported);
 }
 
-/** Decode one IndirectExportEntry. */
-export function decodeIndirectExportEntry(reader: BinaryReader): IndirectExportEntry {
+/** Decode one IndirectExport. */
+export function decodeIndirectExport(reader: BinaryReader): IndirectExport {
     const key = decodeExportKey(reader);
     const item = decodeLocalNodeId(reader);
     const target = reader.readOption(() => decodeModuleId(reader));
@@ -379,8 +379,8 @@ export function decodeIndirectExportEntry(reader: BinaryReader): IndirectExportE
     };
 }
 
-/** Return one JSON value for one IndirectExportEntry. */
-export function toJsonIndirectExportEntry(value: IndirectExportEntry): Json {
+/** Return one JSON value for one IndirectExport. */
+export function toJsonIndirectExport(value: IndirectExport): Json {
     return {
         key: toJsonExportKey(value.key),
         item: toJsonLocalNodeId(value.item),
@@ -389,8 +389,8 @@ export function toJsonIndirectExportEntry(value: IndirectExportEntry): Json {
     };
 }
 
-/** Return one IndirectExportEntry from one JSON value. */
-export function fromJsonIndirectExportEntry(value: Json): IndirectExportEntry {
+/** Return one IndirectExport from one JSON value. */
+export function fromJsonIndirectExport(value: Json): IndirectExport {
     const object = jsonObject(value);
 
     return {
@@ -540,45 +540,45 @@ export function fromJsonExportSelector(value: Json): ExportSelector {
 }
 
 /** One `export * from` edge. */
-export type StarExportEntry = {
+export type StarExport = {
     /** The dependency item that declared the star export. */
     readonly item: LocalNodeId;
     /** The target module selected by the export. */
     readonly target?: ModuleId;
 };
 
-export const StarExportEntry = {
+export const StarExport = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: StarExportEntry): void {
-        encodeStarExportEntry(writer, value);
+    encode(writer: BinaryWriter, value: StarExport): void {
+        encodeStarExport(writer, value);
     },
 
-    /** Decode one StarExportEntry. */
-    decode(reader: BinaryReader): StarExportEntry {
-        return decodeStarExportEntry(reader);
+    /** Decode one StarExport. */
+    decode(reader: BinaryReader): StarExport {
+        return decodeStarExport(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: StarExportEntry): Json {
-        return toJsonStarExportEntry(value);
+    toJson(value: StarExport): Json {
+        return toJsonStarExport(value);
     },
 
-    /** Return one StarExportEntry from one JSON value. */
-    fromJson(value: Json): StarExportEntry {
-        return fromJsonStarExportEntry(value);
+    /** Return one StarExport from one JSON value. */
+    fromJson(value: Json): StarExport {
+        return fromJsonStarExport(value);
     },
 };
 
-/** Encode one StarExportEntry. */
-export function encodeStarExportEntry(writer: BinaryWriter, value: StarExportEntry): void {
+/** Encode one StarExport. */
+export function encodeStarExport(writer: BinaryWriter, value: StarExport): void {
     encodeLocalNodeId(writer, value.item);
     writer.writeOption(value.target, (value1) => {
         encodeModuleId(writer, value1);
     });
 }
 
-/** Decode one StarExportEntry. */
-export function decodeStarExportEntry(reader: BinaryReader): StarExportEntry {
+/** Decode one StarExport. */
+export function decodeStarExport(reader: BinaryReader): StarExport {
     const item = decodeLocalNodeId(reader);
     const target = reader.readOption(() => decodeModuleId(reader));
 
@@ -588,16 +588,16 @@ export function decodeStarExportEntry(reader: BinaryReader): StarExportEntry {
     };
 }
 
-/** Return one JSON value for one StarExportEntry. */
-export function toJsonStarExportEntry(value: StarExportEntry): Json {
+/** Return one JSON value for one StarExport. */
+export function toJsonStarExport(value: StarExport): Json {
     return {
         item: toJsonLocalNodeId(value.item),
         ...(value.target === undefined ? {} : { target: toJsonModuleId(value.target) }),
     };
 }
 
-/** Return one StarExportEntry from one JSON value. */
-export function fromJsonStarExportEntry(value: Json): StarExportEntry {
+/** Return one StarExport from one JSON value. */
+export function fromJsonStarExport(value: Json): StarExport {
     const object = jsonObject(value);
 
     return {

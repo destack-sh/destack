@@ -22,14 +22,14 @@ import destack._generated.artifact.component
 import destack._generated.artifact.data
 import destack._generated.artifact.dir
 import destack._generated.artifact.environment
+import destack._generated.artifact.index
 import destack._generated.artifact.lint
 import destack._generated.artifact.mir
 import destack._generated.artifact.object
 import destack._generated.artifact.package
 import destack._generated.artifact.product
-import destack._generated.artifact.query
 import destack._generated.artifact.script
-import destack._generated.program.program
+import destack._generated.program.model
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,22 +257,6 @@ class ArtifactPayloadDirMaterialized:
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactPayloadDirElaborated:
-    """Elaborated DIR."""
-
-    dir_elaborated: destack._generated.artifact.dir.DirElaborated
-    kind: typing.Literal["dirElaborated"] = "dirElaborated"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_artifact_payload(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_artifact_payload(self)
-
-
-@dataclass(frozen=True, slots=True)
 class ArtifactPayloadMirLowered:
     """Lowered MIR before optimization."""
 
@@ -337,11 +321,11 @@ class ArtifactPayloadMirOptimized:
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactPayloadModuleQueryIndex:
-    """Query index for one module profile."""
+class ArtifactPayloadModuleIndex:
+    """Index for one module profile."""
 
-    module_query_index: destack._generated.artifact.query.ModuleQueryIndex
-    kind: typing.Literal["moduleQueryIndex"] = "moduleQueryIndex"
+    module_index: destack._generated.artifact.index.ModuleIndex
+    kind: typing.Literal["moduleIndex"] = "moduleIndex"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -353,11 +337,11 @@ class ArtifactPayloadModuleQueryIndex:
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactPayloadWorkspaceQueryIndex:
-    """Query index for one workspace profile."""
+class ArtifactPayloadProgramIndex:
+    """Index for one program profile."""
 
-    workspace_query_index: destack._generated.artifact.query.WorkspaceQueryIndex
-    kind: typing.Literal["workspaceQueryIndex"] = "workspaceQueryIndex"
+    program_index: destack._generated.artifact.index.ProgramIndex
+    kind: typing.Literal["programIndex"] = "programIndex"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -452,7 +436,7 @@ class ArtifactPayloadBundle:
 class ArtifactPayloadProgram:
     """Program for one package target."""
 
-    program: destack._generated.program.program.Program
+    program: destack._generated.program.model.Program
     kind: typing.Literal["program"] = "program"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -544,13 +528,12 @@ ArtifactPayload: typing.TypeAlias = (
     | ArtifactPayloadDirCheckedComponent
     | ArtifactPayloadDirChecked
     | ArtifactPayloadDirMaterialized
-    | ArtifactPayloadDirElaborated
     | ArtifactPayloadMirLowered
     | ArtifactPayloadMirVerified
     | ArtifactPayloadMirAnalyzed
     | ArtifactPayloadMirOptimized
-    | ArtifactPayloadModuleQueryIndex
-    | ArtifactPayloadWorkspaceQueryIndex
+    | ArtifactPayloadModuleIndex
+    | ArtifactPayloadProgramIndex
     | ArtifactPayloadScript
     | ArtifactPayloadObject
     | ArtifactPayloadAsset
@@ -620,68 +603,63 @@ def encode_artifact_payload(writer: BinaryWriter, value: ArtifactPayload) -> Non
         destack._generated.artifact.dir.encode_dir_materialized(
             writer, value.dir_materialized
         )
-    elif value.kind == "dirElaborated":
-        writer.write_unsigned(14)
-        destack._generated.artifact.dir.encode_dir_elaborated(
-            writer, value.dir_elaborated
-        )
     elif value.kind == "mirLowered":
-        writer.write_unsigned(15)
+        writer.write_unsigned(14)
         destack._generated.artifact.mir.encode_mir_lowered(writer, value.mir_lowered)
     elif value.kind == "mirVerified":
-        writer.write_unsigned(16)
+        writer.write_unsigned(15)
         destack._generated.artifact.mir.encode_mir_verified(writer, value.mir_verified)
     elif value.kind == "mirAnalyzed":
-        writer.write_unsigned(17)
+        writer.write_unsigned(16)
         destack._generated.artifact.mir.encode_mir_analyzed(writer, value.mir_analyzed)
     elif value.kind == "mirOptimized":
-        writer.write_unsigned(18)
+        writer.write_unsigned(17)
         destack._generated.artifact.mir.encode_mir_optimized(
             writer, value.mir_optimized
         )
-    elif value.kind == "moduleQueryIndex":
-        writer.write_unsigned(19)
-        destack._generated.artifact.query.encode_module_query_index(
-            writer, value.module_query_index
+    elif value.kind == "moduleIndex":
+        writer.write_unsigned(18)
+        destack._generated.artifact.index.encode_module_index(
+            writer, value.module_index
         )
-    elif value.kind == "workspaceQueryIndex":
-        writer.write_unsigned(20)
-        destack._generated.artifact.query.encode_workspace_query_index(
-            writer, value.workspace_query_index
+    elif value.kind == "programIndex":
+        writer.write_unsigned(19)
+        destack._generated.artifact.index.encode_program_index(
+            writer, value.program_index
         )
     elif value.kind == "script":
-        writer.write_unsigned(21)
+        writer.write_unsigned(20)
         destack._generated.artifact.script.encode_script(writer, value.script)
     elif value.kind == "object":
-        writer.write_unsigned(22)
+        writer.write_unsigned(21)
         destack._generated.artifact.object.encode_object(writer, value.object)
     elif value.kind == "asset":
-        writer.write_unsigned(23)
+        writer.write_unsigned(22)
         destack._generated.artifact.asset.encode_asset(writer, value.asset)
     elif value.kind == "build":
-        writer.write_unsigned(24)
+        writer.write_unsigned(23)
         destack._generated.artifact.build.encode_build(writer, value.build)
     elif value.kind == "bundle":
-        writer.write_unsigned(25)
+        writer.write_unsigned(24)
         destack._generated.artifact.bundle.encode_bundle(writer, value.bundle)
     elif value.kind == "program":
-        writer.write_unsigned(26)
-        destack._generated.program.program.encode_program(writer, value.program)
+        writer.write_unsigned(25)
+        destack._generated.program.model.encode_program(writer, value.program)
     elif value.kind == "product":
-        writer.write_unsigned(27)
+        writer.write_unsigned(26)
         destack._generated.artifact.product.encode_product(writer, value.product)
     elif value.kind == "moduleLinted":
-        writer.write_unsigned(28)
+        writer.write_unsigned(27)
         destack._generated.artifact.lint.encode_module_linted(
             writer, value.module_linted
         )
     elif value.kind == "packageLinted":
-        writer.write_unsigned(29)
+        writer.write_unsigned(28)
         destack._generated.artifact.lint.encode_package_linted(
             writer, value.package_linted
         )
     elif value.kind == "workspaceLinted":
-        writer.write_unsigned(30)
+        writer.write_unsigned(29)
         destack._generated.artifact.lint.encode_workspace_linted(
             writer, value.workspace_linted
         )
@@ -762,76 +740,66 @@ def decode_artifact_payload(reader: BinaryReader) -> ArtifactPayload:
 
         return ArtifactPayloadDirMaterialized(dir_materialized=dir_materialized)
     elif variant == 14:
-        dir_elaborated = destack._generated.artifact.dir.decode_dir_elaborated(reader)
-
-        return ArtifactPayloadDirElaborated(dir_elaborated=dir_elaborated)
-    elif variant == 15:
         mir_lowered = destack._generated.artifact.mir.decode_mir_lowered(reader)
 
         return ArtifactPayloadMirLowered(mir_lowered=mir_lowered)
-    elif variant == 16:
+    elif variant == 15:
         mir_verified = destack._generated.artifact.mir.decode_mir_verified(reader)
 
         return ArtifactPayloadMirVerified(mir_verified=mir_verified)
-    elif variant == 17:
+    elif variant == 16:
         mir_analyzed = destack._generated.artifact.mir.decode_mir_analyzed(reader)
 
         return ArtifactPayloadMirAnalyzed(mir_analyzed=mir_analyzed)
-    elif variant == 18:
+    elif variant == 17:
         mir_optimized = destack._generated.artifact.mir.decode_mir_optimized(reader)
 
         return ArtifactPayloadMirOptimized(mir_optimized=mir_optimized)
+    elif variant == 18:
+        module_index = destack._generated.artifact.index.decode_module_index(reader)
+
+        return ArtifactPayloadModuleIndex(module_index=module_index)
     elif variant == 19:
-        module_query_index = (
-            destack._generated.artifact.query.decode_module_query_index(reader)
-        )
+        program_index = destack._generated.artifact.index.decode_program_index(reader)
 
-        return ArtifactPayloadModuleQueryIndex(module_query_index=module_query_index)
+        return ArtifactPayloadProgramIndex(program_index=program_index)
     elif variant == 20:
-        workspace_query_index = (
-            destack._generated.artifact.query.decode_workspace_query_index(reader)
-        )
-
-        return ArtifactPayloadWorkspaceQueryIndex(
-            workspace_query_index=workspace_query_index
-        )
-    elif variant == 21:
         script = destack._generated.artifact.script.decode_script(reader)
 
         return ArtifactPayloadScript(script=script)
-    elif variant == 22:
+    elif variant == 21:
         object = destack._generated.artifact.object.decode_object(reader)
 
         return ArtifactPayloadObject(object=object)
-    elif variant == 23:
+    elif variant == 22:
         asset = destack._generated.artifact.asset.decode_asset(reader)
 
         return ArtifactPayloadAsset(asset=asset)
-    elif variant == 24:
+    elif variant == 23:
         build = destack._generated.artifact.build.decode_build(reader)
 
         return ArtifactPayloadBuild(build=build)
-    elif variant == 25:
+    elif variant == 24:
         bundle = destack._generated.artifact.bundle.decode_bundle(reader)
 
         return ArtifactPayloadBundle(bundle=bundle)
-    elif variant == 26:
-        program = destack._generated.program.program.decode_program(reader)
+    elif variant == 25:
+        program = destack._generated.program.model.decode_program(reader)
 
         return ArtifactPayloadProgram(program=program)
-    elif variant == 27:
+    elif variant == 26:
         product = destack._generated.artifact.product.decode_product(reader)
 
         return ArtifactPayloadProduct(product=product)
-    elif variant == 28:
+    elif variant == 27:
         module_linted = destack._generated.artifact.lint.decode_module_linted(reader)
 
         return ArtifactPayloadModuleLinted(module_linted=module_linted)
-    elif variant == 29:
+    elif variant == 28:
         package_linted = destack._generated.artifact.lint.decode_package_linted(reader)
 
         return ArtifactPayloadPackageLinted(package_linted=package_linted)
-    elif variant == 30:
+    elif variant == 29:
         workspace_linted = destack._generated.artifact.lint.decode_workspace_linted(
             reader
         )
@@ -939,13 +907,6 @@ def to_json_artifact_payload(value: ArtifactPayload) -> Json:
                 value.dir_materialized
             ),
         }
-    elif value.kind == "dirElaborated":
-        return {
-            "kind": "dirElaborated",
-            "dir_elaborated": destack._generated.artifact.dir.to_json_dir_elaborated(
-                value.dir_elaborated
-            ),
-        }
     elif value.kind == "mirLowered":
         return {
             "kind": "mirLowered",
@@ -974,18 +935,18 @@ def to_json_artifact_payload(value: ArtifactPayload) -> Json:
                 value.mir_optimized
             ),
         }
-    elif value.kind == "moduleQueryIndex":
+    elif value.kind == "moduleIndex":
         return {
-            "kind": "moduleQueryIndex",
-            "module_query_index": destack._generated.artifact.query.to_json_module_query_index(
-                value.module_query_index
+            "kind": "moduleIndex",
+            "module_index": destack._generated.artifact.index.to_json_module_index(
+                value.module_index
             ),
         }
-    elif value.kind == "workspaceQueryIndex":
+    elif value.kind == "programIndex":
         return {
-            "kind": "workspaceQueryIndex",
-            "workspace_query_index": destack._generated.artifact.query.to_json_workspace_query_index(
-                value.workspace_query_index
+            "kind": "programIndex",
+            "program_index": destack._generated.artifact.index.to_json_program_index(
+                value.program_index
             ),
         }
     elif value.kind == "script":
@@ -1016,9 +977,7 @@ def to_json_artifact_payload(value: ArtifactPayload) -> Json:
     elif value.kind == "program":
         return {
             "kind": "program",
-            "program": destack._generated.program.program.to_json_program(
-                value.program
-            ),
+            "program": destack._generated.program.model.to_json_program(value.program),
         }
     elif value.kind == "product":
         return {
@@ -1141,12 +1100,6 @@ def from_json_artifact_payload(value: Json) -> ArtifactPayload:
                 json_field(object_, "dir_materialized")
             )
         )
-    elif kind == "dirElaborated":
-        return ArtifactPayloadDirElaborated(
-            dir_elaborated=destack._generated.artifact.dir.from_json_dir_elaborated(
-                json_field(object_, "dir_elaborated")
-            )
-        )
     elif kind == "mirLowered":
         return ArtifactPayloadMirLowered(
             mir_lowered=destack._generated.artifact.mir.from_json_mir_lowered(
@@ -1171,16 +1124,16 @@ def from_json_artifact_payload(value: Json) -> ArtifactPayload:
                 json_field(object_, "mir_optimized")
             )
         )
-    elif kind == "moduleQueryIndex":
-        return ArtifactPayloadModuleQueryIndex(
-            module_query_index=destack._generated.artifact.query.from_json_module_query_index(
-                json_field(object_, "module_query_index")
+    elif kind == "moduleIndex":
+        return ArtifactPayloadModuleIndex(
+            module_index=destack._generated.artifact.index.from_json_module_index(
+                json_field(object_, "module_index")
             )
         )
-    elif kind == "workspaceQueryIndex":
-        return ArtifactPayloadWorkspaceQueryIndex(
-            workspace_query_index=destack._generated.artifact.query.from_json_workspace_query_index(
-                json_field(object_, "workspace_query_index")
+    elif kind == "programIndex":
+        return ArtifactPayloadProgramIndex(
+            program_index=destack._generated.artifact.index.from_json_program_index(
+                json_field(object_, "program_index")
             )
         )
     elif kind == "script":
@@ -1215,7 +1168,7 @@ def from_json_artifact_payload(value: Json) -> ArtifactPayload:
         )
     elif kind == "program":
         return ArtifactPayloadProgram(
-            program=destack._generated.program.program.from_json_program(
+            program=destack._generated.program.model.from_json_program(
                 json_field(object_, "program")
             )
         )
@@ -1267,13 +1220,12 @@ __all__ = [
     "ArtifactPayloadDirCheckedComponent",
     "ArtifactPayloadDirChecked",
     "ArtifactPayloadDirMaterialized",
-    "ArtifactPayloadDirElaborated",
     "ArtifactPayloadMirLowered",
     "ArtifactPayloadMirVerified",
     "ArtifactPayloadMirAnalyzed",
     "ArtifactPayloadMirOptimized",
-    "ArtifactPayloadModuleQueryIndex",
-    "ArtifactPayloadWorkspaceQueryIndex",
+    "ArtifactPayloadModuleIndex",
+    "ArtifactPayloadProgramIndex",
     "ArtifactPayloadScript",
     "ArtifactPayloadObject",
     "ArtifactPayloadAsset",

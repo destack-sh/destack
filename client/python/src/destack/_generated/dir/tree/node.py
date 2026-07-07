@@ -371,6 +371,8 @@ NodeType: typing.TypeAlias = (
     | typing.Literal["genericArgument"]
     | typing.Literal["tupleElement"]
     | typing.Literal["argument"]
+    | typing.Literal["treeAttribute"]
+    | typing.Literal["treeChild"]
     | typing.Literal["matchCase"]
     | typing.Literal["pattern"]
     | typing.Literal["patternField"]
@@ -418,18 +420,22 @@ def encode_node_type(writer: BinaryWriter, value: NodeType) -> None:
         writer.write_unsigned(16)
     elif value == "argument":
         writer.write_unsigned(17)
-    elif value == "matchCase":
+    elif value == "treeAttribute":
         writer.write_unsigned(18)
-    elif value == "pattern":
+    elif value == "treeChild":
         writer.write_unsigned(19)
-    elif value == "patternField":
+    elif value == "matchCase":
         writer.write_unsigned(20)
-    elif value == "assignPattern":
+    elif value == "pattern":
         writer.write_unsigned(21)
-    elif value == "assignPatternField":
+    elif value == "patternField":
         writer.write_unsigned(22)
-    elif value == "decorator":
+    elif value == "assignPattern":
         writer.write_unsigned(23)
+    elif value == "assignPatternField":
+        writer.write_unsigned(24)
+    elif value == "decorator":
+        writer.write_unsigned(25)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -475,16 +481,20 @@ def decode_node_type(reader: BinaryReader) -> NodeType:
     elif variant == 17:
         return "argument"
     elif variant == 18:
-        return "matchCase"
+        return "treeAttribute"
     elif variant == 19:
-        return "pattern"
+        return "treeChild"
     elif variant == 20:
-        return "patternField"
+        return "matchCase"
     elif variant == 21:
-        return "assignPattern"
+        return "pattern"
     elif variant == 22:
-        return "assignPatternField"
+        return "patternField"
     elif variant == 23:
+        return "assignPattern"
+    elif variant == 24:
+        return "assignPatternField"
+    elif variant == 25:
         return "decorator"
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -535,6 +545,10 @@ def from_json_node_type(value: Json) -> NodeType:
         return "tupleElement"
     elif variant == "argument":
         return "argument"
+    elif variant == "treeAttribute":
+        return "treeAttribute"
+    elif variant == "treeChild":
+        return "treeChild"
     elif variant == "matchCase":
         return "matchCase"
     elif variant == "pattern":

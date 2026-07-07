@@ -31,6 +31,11 @@ class ResolutionSegment:
         destack._generated.dir.tree.node.GlobalNodeIdAny,
         destack._generated.dir.type.resolution.NameResolution,
     ]
+    # checked generic instantiations keyed by DIR node
+    instantiations: Mapping[
+        destack._generated.dir.tree.node.GlobalNodeIdAny,
+        destack._generated.dir.type.resolution.InstantiationResolution,
+    ]
     # checked label resolutions keyed by DIR node
     labels: Mapping[
         destack._generated.dir.tree.node.GlobalNodeIdAny,
@@ -51,10 +56,15 @@ class ResolutionSegment:
         destack._generated.dir.tree.node.GlobalNodeIdAny,
         destack._generated.dir.type.resolution.CallResolution,
     ]
-    # checked paired read-write resolutions keyed by DIR node
-    read_writes: Mapping[
+    # checked place resolutions keyed by DIR node
+    places: Mapping[
         destack._generated.dir.tree.node.GlobalNodeIdAny,
-        destack._generated.dir.type.resolution.ReadWriteResolution,
+        destack._generated.dir.type.resolution.PlaceResolution,
+    ]
+    # checked guard resolutions keyed by DIR node
+    guards: Mapping[
+        destack._generated.dir.tree.node.GlobalNodeIdAny,
+        destack._generated.dir.type.resolution.GuardResolution,
     ]
     # checked construct resolutions keyed by DIR node
     constructs: Mapping[
@@ -114,6 +124,30 @@ def encode_resolution_segment(writer: BinaryWriter, value: ResolutionSegment) ->
         )
         destack._generated.dir.type.resolution.encode_name_resolution(
             writer, entry_value_names_0[1]
+        )
+    entries_value_instantiations_0 = []
+    for (
+        key_value_instantiations_0,
+        item_value_instantiations_0,
+    ) in value.instantiations.items():
+
+        def write_key_value_instantiations_0(writer: BinaryWriter) -> None:
+            destack._generated.dir.tree.node.encode_global_node_id_any(
+                writer, key_value_instantiations_0
+            )
+
+        key_bytes = nested_bytes(write_key_value_instantiations_0)
+        entries_value_instantiations_0.append(
+            (key_value_instantiations_0, item_value_instantiations_0, key_bytes)
+        )
+    entries_value_instantiations_0.sort(key=lambda entry: entry[2])
+    writer.write_unsigned(len(entries_value_instantiations_0))
+    for entry_value_instantiations_0 in entries_value_instantiations_0:
+        destack._generated.dir.tree.node.encode_global_node_id_any(
+            writer, entry_value_instantiations_0[0]
+        )
+        destack._generated.dir.type.resolution.encode_instantiation_resolution(
+            writer, entry_value_instantiations_0[1]
         )
     entries_value_labels_0 = []
     for key_value_labels_0, item_value_labels_0 in value.labels.items():
@@ -197,26 +231,47 @@ def encode_resolution_segment(writer: BinaryWriter, value: ResolutionSegment) ->
         destack._generated.dir.type.resolution.encode_call_resolution(
             writer, entry_value_calls_0[1]
         )
-    entries_value_read_writes_0 = []
-    for key_value_read_writes_0, item_value_read_writes_0 in value.read_writes.items():
+    entries_value_places_0 = []
+    for key_value_places_0, item_value_places_0 in value.places.items():
 
-        def write_key_value_read_writes_0(writer: BinaryWriter) -> None:
+        def write_key_value_places_0(writer: BinaryWriter) -> None:
             destack._generated.dir.tree.node.encode_global_node_id_any(
-                writer, key_value_read_writes_0
+                writer, key_value_places_0
             )
 
-        key_bytes = nested_bytes(write_key_value_read_writes_0)
-        entries_value_read_writes_0.append(
-            (key_value_read_writes_0, item_value_read_writes_0, key_bytes)
+        key_bytes = nested_bytes(write_key_value_places_0)
+        entries_value_places_0.append(
+            (key_value_places_0, item_value_places_0, key_bytes)
         )
-    entries_value_read_writes_0.sort(key=lambda entry: entry[2])
-    writer.write_unsigned(len(entries_value_read_writes_0))
-    for entry_value_read_writes_0 in entries_value_read_writes_0:
+    entries_value_places_0.sort(key=lambda entry: entry[2])
+    writer.write_unsigned(len(entries_value_places_0))
+    for entry_value_places_0 in entries_value_places_0:
         destack._generated.dir.tree.node.encode_global_node_id_any(
-            writer, entry_value_read_writes_0[0]
+            writer, entry_value_places_0[0]
         )
-        destack._generated.dir.type.resolution.encode_read_write_resolution(
-            writer, entry_value_read_writes_0[1]
+        destack._generated.dir.type.resolution.encode_place_resolution(
+            writer, entry_value_places_0[1]
+        )
+    entries_value_guards_0 = []
+    for key_value_guards_0, item_value_guards_0 in value.guards.items():
+
+        def write_key_value_guards_0(writer: BinaryWriter) -> None:
+            destack._generated.dir.tree.node.encode_global_node_id_any(
+                writer, key_value_guards_0
+            )
+
+        key_bytes = nested_bytes(write_key_value_guards_0)
+        entries_value_guards_0.append(
+            (key_value_guards_0, item_value_guards_0, key_bytes)
+        )
+    entries_value_guards_0.sort(key=lambda entry: entry[2])
+    writer.write_unsigned(len(entries_value_guards_0))
+    for entry_value_guards_0 in entries_value_guards_0:
+        destack._generated.dir.tree.node.encode_global_node_id_any(
+            writer, entry_value_guards_0[0]
+        )
+        destack._generated.dir.type.resolution.encode_guard_resolution(
+            writer, entry_value_guards_0[1]
         )
     entries_value_constructs_0 = []
     for key_value_constructs_0, item_value_constructs_0 in value.constructs.items():
@@ -295,6 +350,14 @@ def decode_resolution_segment(reader: BinaryReader) -> ResolutionSegment:
         ): destack._generated.dir.type.resolution.decode_name_resolution(reader)
         for _ in range(reader.read_number())
     }
+    instantiations = {
+        destack._generated.dir.tree.node.decode_global_node_id_any(
+            reader
+        ): destack._generated.dir.type.resolution.decode_instantiation_resolution(
+            reader
+        )
+        for _ in range(reader.read_number())
+    }
     labels = {
         destack._generated.dir.tree.node.decode_global_node_id_any(
             reader
@@ -319,10 +382,16 @@ def decode_resolution_segment(reader: BinaryReader) -> ResolutionSegment:
         ): destack._generated.dir.type.resolution.decode_call_resolution(reader)
         for _ in range(reader.read_number())
     }
-    read_writes = {
+    places = {
         destack._generated.dir.tree.node.decode_global_node_id_any(
             reader
-        ): destack._generated.dir.type.resolution.decode_read_write_resolution(reader)
+        ): destack._generated.dir.type.resolution.decode_place_resolution(reader)
+        for _ in range(reader.read_number())
+    }
+    guards = {
+        destack._generated.dir.tree.node.decode_global_node_id_any(
+            reader
+        ): destack._generated.dir.type.resolution.decode_guard_resolution(reader)
         for _ in range(reader.read_number())
     }
     constructs = {
@@ -349,11 +418,13 @@ def decode_resolution_segment(reader: BinaryReader) -> ResolutionSegment:
     return ResolutionSegment(
         module_id=module_id,
         names=names,
+        instantiations=instantiations,
         labels=labels,
         receivers=receivers,
         members=members,
         calls=calls,
-        read_writes=read_writes,
+        places=places,
+        guards=guards,
         constructs=constructs,
         patterns=patterns,
         assign_patterns=assign_patterns,
@@ -372,6 +443,15 @@ def to_json_resolution_segment(value: ResolutionSegment) -> Json:
                 destack._generated.dir.type.resolution.to_json_name_resolution(item_0),
             ]
             for key_0, item_0 in value.names.items()
+        ],
+        "instantiations": [
+            [
+                destack._generated.dir.tree.node.to_json_global_node_id_any(key_0),
+                destack._generated.dir.type.resolution.to_json_instantiation_resolution(
+                    item_0
+                ),
+            ]
+            for key_0, item_0 in value.instantiations.items()
         ],
         "labels": [
             [
@@ -405,14 +485,19 @@ def to_json_resolution_segment(value: ResolutionSegment) -> Json:
             ]
             for key_0, item_0 in value.calls.items()
         ],
-        "readWrites": [
+        "places": [
             [
                 destack._generated.dir.tree.node.to_json_global_node_id_any(key_0),
-                destack._generated.dir.type.resolution.to_json_read_write_resolution(
-                    item_0
-                ),
+                destack._generated.dir.type.resolution.to_json_place_resolution(item_0),
             ]
-            for key_0, item_0 in value.read_writes.items()
+            for key_0, item_0 in value.places.items()
+        ],
+        "guards": [
+            [
+                destack._generated.dir.tree.node.to_json_global_node_id_any(key_0),
+                destack._generated.dir.type.resolution.to_json_guard_resolution(item_0),
+            ]
+            for key_0, item_0 in value.guards.items()
         ],
         "constructs": [
             [
@@ -458,6 +543,14 @@ def from_json_resolution_segment(value: Json) -> ResolutionSegment:
             ): destack._generated.dir.type.resolution.from_json_name_resolution(item_0)
             for key_0, item_0 in json_array(json_field(object_, "names"))
         },
+        instantiations={
+            destack._generated.dir.tree.node.from_json_global_node_id_any(
+                key_0
+            ): destack._generated.dir.type.resolution.from_json_instantiation_resolution(
+                item_0
+            )
+            for key_0, item_0 in json_array(json_field(object_, "instantiations"))
+        },
         labels={
             destack._generated.dir.tree.node.from_json_global_node_id_any(
                 key_0
@@ -486,13 +579,17 @@ def from_json_resolution_segment(value: Json) -> ResolutionSegment:
             ): destack._generated.dir.type.resolution.from_json_call_resolution(item_0)
             for key_0, item_0 in json_array(json_field(object_, "calls"))
         },
-        read_writes={
+        places={
             destack._generated.dir.tree.node.from_json_global_node_id_any(
                 key_0
-            ): destack._generated.dir.type.resolution.from_json_read_write_resolution(
-                item_0
-            )
-            for key_0, item_0 in json_array(json_field(object_, "readWrites"))
+            ): destack._generated.dir.type.resolution.from_json_place_resolution(item_0)
+            for key_0, item_0 in json_array(json_field(object_, "places"))
+        },
+        guards={
+            destack._generated.dir.tree.node.from_json_global_node_id_any(
+                key_0
+            ): destack._generated.dir.type.resolution.from_json_guard_resolution(item_0)
+            for key_0, item_0 in json_array(json_field(object_, "guards"))
         },
         constructs={
             destack._generated.dir.tree.node.from_json_global_node_id_any(

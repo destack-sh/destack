@@ -9,7 +9,14 @@ from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
 import destack._generated.core.bitset
 import destack._generated.mir.analyses.link_graph
-import destack._generated.mir.tree.patch
+import destack._generated.mir.table.dispatch
+import destack._generated.mir.table.drop
+import destack._generated.mir.table.effect
+import destack._generated.mir.table.layout
+import destack._generated.mir.table.memory
+import destack._generated.mir.table.profile
+import destack._generated.mir.table.target
+import destack._generated.mir.table.type
 import destack._generated.mir.tree.symbol
 import destack._generated.mir.tree.tree
 
@@ -19,6 +26,22 @@ class MirLowered:
 
     # the MIR tree
     tree: destack._generated.mir.tree.tree.Tree
+    # target ABI layout
+    target: destack._generated.mir.table.target.TargetLayout
+    # canonical MIR type table
+    types: destack._generated.mir.table.type.TypeTable
+    # canonical MIR layout table
+    layouts: destack._generated.mir.table.layout.LayoutTable
+    # canonical MIR dispatch table
+    dispatch: destack._generated.mir.table.dispatch.DispatchTable
+    # canonical MIR drop table
+    drops: destack._generated.mir.table.drop.DropTable
+    # explicit MIR memory access table
+    memory: destack._generated.mir.table.memory.MemoryTable
+    # function and call effect table
+    effects: destack._generated.mir.table.effect.EffectTable
+    # static profile counter table
+    profile: destack._generated.mir.table.profile.ProfileTable
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -34,10 +57,26 @@ def from_json_mir_lowered(value: Json) -> MirLowered: ...
 
 @dataclass(frozen=True, slots=True)
 class MirVerified:
-    """Verified MIR patch after required semantic verification."""
+    """Verified MIR after required semantic verification."""
 
-    # required verification patch
-    patch: destack._generated.mir.tree.patch.Patch
+    # the verified MIR tree
+    tree: destack._generated.mir.tree.tree.Tree
+    # target ABI layout
+    target: destack._generated.mir.table.target.TargetLayout
+    # canonical MIR type table
+    types: destack._generated.mir.table.type.TypeTable
+    # canonical MIR layout table
+    layouts: destack._generated.mir.table.layout.LayoutTable
+    # canonical MIR dispatch table
+    dispatch: destack._generated.mir.table.dispatch.DispatchTable
+    # canonical MIR drop table
+    drops: destack._generated.mir.table.drop.DropTable
+    # explicit MIR memory access table
+    memory: destack._generated.mir.table.memory.MemoryTable
+    # function and call effect table
+    effects: destack._generated.mir.table.effect.EffectTable
+    # static profile counter table
+    profile: destack._generated.mir.table.profile.ProfileTable
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -55,8 +94,24 @@ def from_json_mir_verified(value: Json) -> MirVerified: ...
 class MirOptimized:
     """Optimized MIR payload after pipeline transforms."""
 
-    # ordered optimization patches
-    patches: Sequence[destack._generated.mir.tree.patch.Patch]
+    # the optimized MIR tree
+    tree: destack._generated.mir.tree.tree.Tree
+    # target ABI layout
+    target: destack._generated.mir.table.target.TargetLayout
+    # canonical MIR type table
+    types: destack._generated.mir.table.type.TypeTable
+    # canonical MIR layout table
+    layouts: destack._generated.mir.table.layout.LayoutTable
+    # canonical MIR dispatch table
+    dispatch: destack._generated.mir.table.dispatch.DispatchTable
+    # canonical MIR drop table
+    drops: destack._generated.mir.table.drop.DropTable
+    # explicit MIR memory access table
+    memory: destack._generated.mir.table.memory.MemoryTable
+    # function and call effect table
+    effects: destack._generated.mir.table.effect.EffectTable
+    # static profile counter table
+    profile: destack._generated.mir.table.profile.ProfileTable
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod

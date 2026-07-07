@@ -61,6 +61,8 @@ class Symbol:
     role: SymbolRole
     # the declaration kind of the symbol
     kind: SymbolKind
+    # the lexical visibility extent of this symbol
+    visibility: SymbolVisibility
     # the mutability for value bindings when known
     binding_mutability: destack._generated.dir.tree.node.Mutability | None
     # where this symbol was introduced
@@ -122,6 +124,16 @@ def decode_symbol_kind(reader: BinaryReader) -> SymbolKind: ...
 def to_json_symbol_kind(value: SymbolKind) -> Json: ...
 def from_json_symbol_kind(value: Json) -> SymbolKind: ...
 
+"""The lexical visibility extent of a symbol."""
+SymbolVisibility: typing.TypeAlias = (
+    typing.Literal["forward"] | typing.Literal["scope"] | typing.Literal["member"]
+)
+
+def encode_symbol_visibility(writer: BinaryWriter, value: SymbolVisibility) -> None: ...
+def decode_symbol_visibility(reader: BinaryReader) -> SymbolVisibility: ...
+def to_json_symbol_visibility(value: SymbolVisibility) -> Json: ...
+def from_json_symbol_visibility(value: Json) -> SymbolVisibility: ...
+
 """Where a symbol originated in the source."""
 SymbolOrigin: typing.TypeAlias = typing.Literal["module"] | typing.Literal["global"]
 
@@ -129,16 +141,6 @@ def encode_symbol_origin(writer: BinaryWriter, value: SymbolOrigin) -> None: ...
 def decode_symbol_origin(reader: BinaryReader) -> SymbolOrigin: ...
 def to_json_symbol_origin(value: SymbolOrigin) -> Json: ...
 def from_json_symbol_origin(value: Json) -> SymbolOrigin: ...
-
-"""The space of a symbol."""
-SymbolSpace: typing.TypeAlias = (
-    typing.Literal["type"] | typing.Literal["value"] | typing.Literal["label"]
-)
-
-def encode_symbol_space(writer: BinaryWriter, value: SymbolSpace) -> None: ...
-def decode_symbol_space(reader: BinaryReader) -> SymbolSpace: ...
-def to_json_symbol_space(value: SymbolSpace) -> Json: ...
-def from_json_symbol_space(value: Json) -> SymbolSpace: ...
 
 __all__ = [
     "GlobalSymbolId",
@@ -166,14 +168,14 @@ __all__ = [
     "decode_symbol_kind",
     "to_json_symbol_kind",
     "from_json_symbol_kind",
+    "SymbolVisibility",
+    "encode_symbol_visibility",
+    "decode_symbol_visibility",
+    "to_json_symbol_visibility",
+    "from_json_symbol_visibility",
     "SymbolOrigin",
     "encode_symbol_origin",
     "decode_symbol_origin",
     "to_json_symbol_origin",
     "from_json_symbol_origin",
-    "SymbolSpace",
-    "encode_symbol_space",
-    "decode_symbol_space",
-    "to_json_symbol_space",
-    "from_json_symbol_space",
 ]

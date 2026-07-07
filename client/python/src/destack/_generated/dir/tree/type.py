@@ -388,6 +388,22 @@ class TypeExpressionTypeOf:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeExpressionStaticValue:
+    """Static value expression in type space."""
+
+    expression: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["staticValue"] = "staticValue"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_expression(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_expression(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TypeExpressionMust:
     """`T!`."""
 
@@ -682,6 +698,7 @@ TypeExpression: typing.TypeAlias = (
     | TypeExpressionShared
     | TypeExpressionKeyOf
     | TypeExpressionTypeOf
+    | TypeExpressionStaticValue
     | TypeExpressionMust
     | TypeExpressionNot
     | TypeExpressionOwnedOf
@@ -800,28 +817,16 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
     elif value.kind == "typeOf":
         writer.write_unsigned(21)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
-    elif value.kind == "must":
+    elif value.kind == "staticValue":
         writer.write_unsigned(22)
-        destack._generated.dir.tree.node.encode_local_node_id(writer, value.target_type)
-    elif value.kind == "not":
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.expression)
+    elif value.kind == "must":
         writer.write_unsigned(23)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.target_type)
-    elif value.kind == "ownedOf":
+    elif value.kind == "not":
         writer.write_unsigned(24)
-        if value.mutability is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            destack._generated.dir.tree.node.encode_mutability(writer, value.mutability)
-        if value.variance is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            destack._generated.dir.tree.expression.encode_variance_bound(
-                writer, value.variance
-            )
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.target_type)
-    elif value.kind == "borrowedOf":
+    elif value.kind == "ownedOf":
         writer.write_unsigned(25)
         if value.mutability is None:
             writer.write_byte(0)
@@ -836,8 +841,23 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
                 writer, value.variance
             )
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.target_type)
-    elif value.kind == "pointerOf":
+    elif value.kind == "borrowedOf":
         writer.write_unsigned(26)
+        if value.mutability is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.dir.tree.node.encode_mutability(writer, value.mutability)
+        if value.variance is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.dir.tree.expression.encode_variance_bound(
+                writer, value.variance
+            )
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.target_type)
+    elif value.kind == "pointerOf":
+        writer.write_unsigned(27)
         if value.mutability is None:
             writer.write_byte(0)
         else:
@@ -845,21 +865,21 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
             destack._generated.dir.tree.node.encode_mutability(writer, value.mutability)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.target_type)
     elif value.kind == "union":
-        writer.write_unsigned(27)
-        writer.write_unsigned(len(value.elements))
-        for item_value_elements_0 in value.elements:
-            destack._generated.dir.tree.node.encode_local_node_id(
-                writer, item_value_elements_0
-            )
-    elif value.kind == "intersection":
         writer.write_unsigned(28)
         writer.write_unsigned(len(value.elements))
         for item_value_elements_0 in value.elements:
             destack._generated.dir.tree.node.encode_local_node_id(
                 writer, item_value_elements_0
             )
-    elif value.kind == "conditional":
+    elif value.kind == "intersection":
         writer.write_unsigned(29)
+        writer.write_unsigned(len(value.elements))
+        for item_value_elements_0 in value.elements:
+            destack._generated.dir.tree.node.encode_local_node_id(
+                writer, item_value_elements_0
+            )
+    elif value.kind == "conditional":
+        writer.write_unsigned(30)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.left)
         destack._generated.dir.tree.node.encode_local_node_id(
             writer, value.extends_type
@@ -867,15 +887,15 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.then_type)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.else_type)
     elif value.kind == "extends":
-        writer.write_unsigned(30)
-        destack._generated.dir.tree.node.encode_local_node_id(writer, value.left)
-        destack._generated.dir.tree.node.encode_local_node_id(writer, value.right)
-    elif value.kind == "implements":
         writer.write_unsigned(31)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.left)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.right)
-    elif value.kind == "mapped":
+    elif value.kind == "implements":
         writer.write_unsigned(32)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.left)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.right)
+    elif value.kind == "mapped":
+        writer.write_unsigned(33)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.parameter)
         encode_mapped_type_modifier(writer, value.readonly)
         encode_mapped_type_modifier(writer, value.optional)
@@ -885,11 +905,11 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
             writer.write_byte(1)
             destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
     elif value.kind == "index":
-        writer.write_unsigned(33)
+        writer.write_unsigned(34)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.left)
         destack._generated.dir.tree.node.encode_local_node_id(writer, value.index)
     elif value.kind == "templateLiteral":
-        writer.write_unsigned(34)
+        writer.write_unsigned(35)
         writer.write_unsigned(len(value.strings))
         for item_value_strings_0 in value.strings:
             destack._generated.core.string.encode_string_id(
@@ -901,7 +921,7 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
                 writer, item_value_spans_0
             )
     elif value.kind == "infer":
-        writer.write_unsigned(35)
+        writer.write_unsigned(36)
         encode_infer_form(writer, value.form)
         if value.name is None:
             writer.write_byte(0)
@@ -916,9 +936,9 @@ def encode_type_expression(writer: BinaryWriter, value: TypeExpression) -> None:
                 writer, value.constraint
             )
     elif value.kind == "missing":
-        writer.write_unsigned(36)
-    elif value.kind == "error":
         writer.write_unsigned(37)
+    elif value.kind == "error":
+        writer.write_unsigned(38)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -1075,18 +1095,24 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             value=value_,
         )
     elif variant == 22:
+        expression = destack._generated.dir.tree.node.decode_local_node_id(reader)
+
+        return TypeExpressionStaticValue(
+            expression=expression,
+        )
+    elif variant == 23:
         target_type = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
         return TypeExpressionMust(
             target_type=target_type,
         )
-    elif variant == 23:
+    elif variant == 24:
         target_type = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
         return TypeExpressionNot(
             target_type=target_type,
         )
-    elif variant == 24:
+    elif variant == 25:
         mutability = reader.read_option(
             lambda: destack._generated.dir.tree.node.decode_mutability(reader)
         )
@@ -1100,7 +1126,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             variance=variance,
             target_type=target_type,
         )
-    elif variant == 25:
+    elif variant == 26:
         mutability = reader.read_option(
             lambda: destack._generated.dir.tree.node.decode_mutability(reader)
         )
@@ -1114,7 +1140,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             variance=variance,
             target_type=target_type,
         )
-    elif variant == 26:
+    elif variant == 27:
         mutability = reader.read_option(
             lambda: destack._generated.dir.tree.node.decode_mutability(reader)
         )
@@ -1124,7 +1150,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             mutability=mutability,
             target_type=target_type,
         )
-    elif variant == 27:
+    elif variant == 28:
         elements = [
             destack._generated.dir.tree.node.decode_local_node_id(reader)
             for _ in range(reader.read_number())
@@ -1133,7 +1159,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
         return TypeExpressionUnion(
             elements=elements,
         )
-    elif variant == 28:
+    elif variant == 29:
         elements = [
             destack._generated.dir.tree.node.decode_local_node_id(reader)
             for _ in range(reader.read_number())
@@ -1142,7 +1168,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
         return TypeExpressionIntersection(
             elements=elements,
         )
-    elif variant == 29:
+    elif variant == 30:
         left = destack._generated.dir.tree.node.decode_local_node_id(reader)
         extends_type = destack._generated.dir.tree.node.decode_local_node_id(reader)
         then_type = destack._generated.dir.tree.node.decode_local_node_id(reader)
@@ -1154,7 +1180,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             then_type=then_type,
             else_type=else_type,
         )
-    elif variant == 30:
+    elif variant == 31:
         left = destack._generated.dir.tree.node.decode_local_node_id(reader)
         right = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
@@ -1162,7 +1188,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             left=left,
             right=right,
         )
-    elif variant == 31:
+    elif variant == 32:
         left = destack._generated.dir.tree.node.decode_local_node_id(reader)
         right = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
@@ -1170,7 +1196,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             left=left,
             right=right,
         )
-    elif variant == 32:
+    elif variant == 33:
         parameter = destack._generated.dir.tree.node.decode_local_node_id(reader)
         readonly = decode_mapped_type_modifier(reader)
         optional = decode_mapped_type_modifier(reader)
@@ -1184,7 +1210,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             optional=optional,
             value=value_,
         )
-    elif variant == 33:
+    elif variant == 34:
         left = destack._generated.dir.tree.node.decode_local_node_id(reader)
         index = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
@@ -1192,7 +1218,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             left=left,
             index=index,
         )
-    elif variant == 34:
+    elif variant == 35:
         strings = [
             destack._generated.core.string.decode_string_id(reader)
             for _ in range(reader.read_number())
@@ -1206,7 +1232,7 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             strings=strings,
             spans=spans,
         )
-    elif variant == 35:
+    elif variant == 36:
         form = decode_infer_form(reader)
         name = reader.read_option(
             lambda: destack._generated.core.string.decode_string_id(reader)
@@ -1220,9 +1246,9 @@ def decode_type_expression(reader: BinaryReader) -> TypeExpression:
             name=name,
             constraint=constraint,
         )
-    elif variant == 36:
-        return TypeExpressionMissing()
     elif variant == 37:
+        return TypeExpressionMissing()
+    elif variant == 38:
         return TypeExpressionError()
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -1398,6 +1424,13 @@ def to_json_type_expression(value: TypeExpression) -> Json:
             "kind": "typeOf",
             "value": destack._generated.dir.tree.node.to_json_local_node_id(
                 value.value
+            ),
+        }
+    elif value.kind == "staticValue":
+        return {
+            "kind": "staticValue",
+            "expression": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.expression
             ),
         }
     elif value.kind == "must":
@@ -1747,6 +1780,12 @@ def from_json_type_expression(value: Json) -> TypeExpression:
         return TypeExpressionTypeOf(
             value=destack._generated.dir.tree.node.from_json_local_node_id(
                 json_field(object_, "value")
+            ),
+        )
+    elif kind == "staticValue":
+        return TypeExpressionStaticValue(
+            expression=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "expression")
             ),
         )
     elif kind == "must":
@@ -3110,6 +3149,7 @@ __all__ = [
     "TypeExpressionShared",
     "TypeExpressionKeyOf",
     "TypeExpressionTypeOf",
+    "TypeExpressionStaticValue",
     "TypeExpressionMust",
     "TypeExpressionNot",
     "TypeExpressionOwnedOf",

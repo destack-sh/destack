@@ -9,6 +9,7 @@ from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
 import destack._generated.artifact.core.key
 import destack._generated.artifact.core.version
+import destack._generated.artifact.index
 import destack._generated.source.file.model.component
 import destack._generated.source.file.model.file
 import destack._generated.source.file.model.module
@@ -87,9 +88,21 @@ class ArtifactProjectionKeyDirChecked:
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
 
+@dataclass(frozen=True, slots=True)
+class ArtifactProjectionKeyModuleIndex:
+    """A module index projection."""
+
+    module_index: destack._generated.artifact.index.ModuleIndexProjection
+    kind: typing.Literal["moduleIndex"] = "moduleIndex"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
 """One observable projection of an artifact payload."""
 ArtifactProjectionKey: typing.TypeAlias = (
-    ArtifactProjectionKeyComponentGraph | ArtifactProjectionKeyDirChecked
+    ArtifactProjectionKeyComponentGraph
+    | ArtifactProjectionKeyDirChecked
+    | ArtifactProjectionKeyModuleIndex
 )
 
 def encode_artifact_projection_key(
@@ -253,6 +266,7 @@ __all__ = [
     "from_json_artifact_projection_key",
     "ArtifactProjectionKeyComponentGraph",
     "ArtifactProjectionKeyDirChecked",
+    "ArtifactProjectionKeyModuleIndex",
     "ComponentGraphProjection",
     "encode_component_graph_projection",
     "decode_component_graph_projection",

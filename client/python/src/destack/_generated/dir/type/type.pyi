@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 import typing
 
@@ -19,21 +18,8 @@ import destack._generated.dir.type.generic
 import destack._generated.dir.type.primitive
 import destack._generated.source.file.model.module
 
-@dataclass(frozen=True, slots=True)
-class TypeVariableId:
-    """Identifier for one open inference variable inside a checked component."""
-
-    # the module that allocated the variable
-    module_id: destack._generated.source.file.model.module.ModuleId
-    # the variable index inside the module
-    index: int
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeVariableId: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> TypeVariableId: ...
+"""One open inference variable inside a checked component."""
+TypeVariableId: typing.TypeAlias = int
 
 def encode_type_variable_id(writer: BinaryWriter, value: TypeVariableId) -> None: ...
 def decode_type_variable_id(reader: BinaryReader) -> TypeVariableId: ...
@@ -135,7 +121,7 @@ class PlaceSpace:
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
 
-"""Normalized place value."""
+"""Normalized memory placement value."""
 Place: typing.TypeAlias = PlaceAmbient | PlaceSpace
 
 def encode_place(writer: BinaryWriter, value: Place) -> None: ...
@@ -180,13 +166,32 @@ def to_json_lifetime(value: Lifetime) -> Json: ...
 def from_json_lifetime(value: Json) -> Lifetime: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeReference:
+    """One written reference to a type declaration before application."""
+
+    # the referenced declaration symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> TypeReference: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> TypeReference: ...
+
+def encode_type_reference(writer: BinaryWriter, value: TypeReference) -> None: ...
+def decode_type_reference(reader: BinaryReader) -> TypeReference: ...
+def to_json_type_reference(value: TypeReference) -> Json: ...
+def from_json_type_reference(value: Json) -> TypeReference: ...
+
+@dataclass(frozen=True, slots=True)
 class GenericInstance:
     """One declaration applied to its complete positional arguments."""
 
     # the referenced declaration symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the complete positional arguments in declaration order
-    arguments: Sequence[GlobalTypeId]
+    # the complete positional argument list in declaration order
+    arguments: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -199,6 +204,52 @@ def encode_generic_instance(writer: BinaryWriter, value: GenericInstance) -> Non
 def decode_generic_instance(reader: BinaryReader) -> GenericInstance: ...
 def to_json_generic_instance(value: GenericInstance) -> Json: ...
 def from_json_generic_instance(value: Json) -> GenericInstance: ...
+
+@dataclass(frozen=True, slots=True)
+class TypeListId:
+    """One interned list inside the owning module's type storage."""
+
+    # the first element of the list
+    start: int
+    # the number of elements in the list
+    count: int
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> TypeListId: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> TypeListId: ...
+
+def encode_type_list_id(writer: BinaryWriter, value: TypeListId) -> None: ...
+def decode_type_list_id(reader: BinaryReader) -> TypeListId: ...
+def to_json_type_list_id(value: TypeListId) -> Json: ...
+def from_json_type_list_id(value: Json) -> TypeListId: ...
+
+@dataclass(frozen=True, slots=True)
+class MemberType:
+    """Member type selected from an owner type."""
+
+    # the owner type
+    owner: GlobalTypeId
+    # the selected member key
+    key: destack._generated.dir.symbol.key.StaticKey
+    # the complete positional argument list applied to the member
+    arguments: TypeListId
+    # the declaring scope qualifying the projection
+    qualifier: GlobalTypeId | None
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> MemberType: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> MemberType: ...
+
+def encode_member_type(writer: BinaryWriter, value: MemberType) -> None: ...
+def decode_member_type(reader: BinaryReader) -> MemberType: ...
+def to_json_member_type(value: MemberType) -> Json: ...
+def from_json_member_type(value: Json) -> MemberType: ...
 
 @dataclass(frozen=True, slots=True)
 class GlobalTypeId:
@@ -230,27 +281,25 @@ def to_json_local_type_id(value: LocalTypeId) -> Json: ...
 def from_json_local_type_id(value: Json) -> LocalTypeId: ...
 
 @dataclass(frozen=True, slots=True)
-class MemberType:
-    """Member type selected from an owner type."""
+class EnumMemberType:
+    """Singleton type of one enum member."""
 
-    # the owner type
+    # the enum declaration instance
     owner: GlobalTypeId
-    # the selected member key
-    key: destack._generated.dir.symbol.key.StaticKey
-    # the complete positional arguments applied to the member
-    arguments: Sequence[GlobalTypeId]
+    # the selected enum variant symbol
+    member: destack._generated.dir.symbol.symbol.GlobalSymbolId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
-    def decode(cls, reader: BinaryReader) -> MemberType: ...
+    def decode(cls, reader: BinaryReader) -> EnumMemberType: ...
     def to_json(self) -> Json: ...
     @classmethod
-    def from_json(cls, value: Json) -> MemberType: ...
+    def from_json(cls, value: Json) -> EnumMemberType: ...
 
-def encode_member_type(writer: BinaryWriter, value: MemberType) -> None: ...
-def decode_member_type(reader: BinaryReader) -> MemberType: ...
-def to_json_member_type(value: MemberType) -> Json: ...
-def from_json_member_type(value: Json) -> MemberType: ...
+def encode_enum_member_type(writer: BinaryWriter, value: EnumMemberType) -> None: ...
+def decode_enum_member_type(reader: BinaryReader) -> EnumMemberType: ...
+def to_json_enum_member_type(value: EnumMemberType) -> Json: ...
+def from_json_enum_member_type(value: Json) -> EnumMemberType: ...
 
 @dataclass(frozen=True, slots=True)
 class FormType:
@@ -386,6 +435,16 @@ class TypeOperationConditional:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeOperationNarrow:
+    """Runtime guard narrowing, like the true or false branch of `value is T`."""
+
+    narrow: NarrowType
+    kind: typing.Literal["narrow"] = "narrow"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
 class TypeOperationMapped:
     """Mapped type expression, like `{ [K in keyof T]: T[K] }`."""
 
@@ -426,11 +485,41 @@ class TypeOperationInfer:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeOperationTypeOf:
+    """Type query expression, like `typeof value`."""
+
+    type_of: TypeOfType
+    kind: typing.Literal["typeOf"] = "typeOf"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
 class TypeOperationKeyOf:
     """`keyof T`."""
 
     key_of: UnaryType
     kind: typing.Literal["keyOf"] = "keyOf"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TypeOperationNoInfer:
+    """Inference blocker like `NoInfer<T>`."""
+
+    no_infer: UnaryType
+    kind: typing.Literal["noInfer"] = "noInfer"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TypeOperationAwaited:
+    """Awaited value type, like `Awaited<Promise<T>>`."""
+
+    awaited: UnaryType
+    kind: typing.Literal["awaited"] = "awaited"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -481,11 +570,15 @@ class TypeOperationStaticUnary:
 TypeOperation: typing.TypeAlias = (
     TypeOperationStringMapping
     | TypeOperationConditional
+    | TypeOperationNarrow
     | TypeOperationMapped
     | TypeOperationIndex
     | TypeOperationTemplateLiteral
     | TypeOperationInfer
+    | TypeOperationTypeOf
     | TypeOperationKeyOf
+    | TypeOperationNoInfer
+    | TypeOperationAwaited
     | TypeOperationTryOutput
     | TypeOperationTryResidual
     | TypeOperationStaticBinary
@@ -536,6 +629,29 @@ def encode_conditional_type(writer: BinaryWriter, value: ConditionalType) -> Non
 def decode_conditional_type(reader: BinaryReader) -> ConditionalType: ...
 def to_json_conditional_type(value: ConditionalType) -> Json: ...
 def from_json_conditional_type(value: Json) -> ConditionalType: ...
+
+@dataclass(frozen=True, slots=True)
+class NarrowType:
+    """A runtime guard narrowing applied to one source type."""
+
+    # the source type being narrowed
+    source: GlobalTypeId
+    # the runtime-tested target type
+    target: GlobalTypeId
+    # whether matching arms are kept or removed
+    is_positive: bool
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> NarrowType: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> NarrowType: ...
+
+def encode_narrow_type(writer: BinaryWriter, value: NarrowType) -> None: ...
+def decode_narrow_type(reader: BinaryReader) -> NarrowType: ...
+def to_json_narrow_type(value: NarrowType) -> Json: ...
+def from_json_narrow_type(value: Json) -> NarrowType: ...
 
 @dataclass(frozen=True, slots=True)
 class MappedType:
@@ -635,10 +751,10 @@ def from_json_index_type(value: Json) -> IndexType: ...
 class TemplateLiteralType:
     """A template literal type."""
 
-    # the literal string segments
-    strings: Sequence[destack._generated.core.string.StringId]
-    # the interpolated type spans
-    spans: Sequence[GlobalTypeId]
+    # the literal string segment list
+    strings: TypeListId
+    # the interpolated type span list
+    spans: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -660,6 +776,8 @@ class InferType:
 
     # the inferred binding name
     name: destack._generated.core.string.StringId | None
+    # the inferred binding symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId | None
     # the optional inferred constraint
     constraint: GlobalTypeId | None
 
@@ -674,6 +792,25 @@ def encode_infer_type(writer: BinaryWriter, value: InferType) -> None: ...
 def decode_infer_type(reader: BinaryReader) -> InferType: ...
 def to_json_infer_type(value: InferType) -> Json: ...
 def from_json_infer_type(value: Json) -> InferType: ...
+
+@dataclass(frozen=True, slots=True)
+class TypeOfType:
+    """Type query expression, like `typeof value`."""
+
+    # the queried value reference
+    value: destack._generated.dir.tree.node.GlobalNodeIdAny
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> TypeOfType: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> TypeOfType: ...
+
+def encode_type_of_type(writer: BinaryWriter, value: TypeOfType) -> None: ...
+def decode_type_of_type(reader: BinaryReader) -> TypeOfType: ...
+def to_json_type_of_type(value: TypeOfType) -> Json: ...
+def from_json_type_of_type(value: Json) -> TypeOfType: ...
 
 @dataclass(frozen=True, slots=True)
 class UnaryType:
@@ -827,7 +964,7 @@ def from_json_fixed_array_type(value: Json) -> FixedArrayType: ...
 
 @dataclass(frozen=True, slots=True)
 class RangeType:
-    """Compact scalar interval type."""
+    """Compact discrete scalar interval type."""
 
     # the inclusive lower bound
     start: destack._generated.dir.tree.literal.ScalarLiteral | None
@@ -873,8 +1010,8 @@ class TupleType:
 
     # the tuple source form
     form: TupleForm
-    # the tuple elements
-    elements: Sequence[TypeElement]
+    # the tuple element list
+    elements: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -897,44 +1034,17 @@ def to_json_tuple_form(value: TupleForm) -> Json: ...
 def from_json_tuple_form(value: Json) -> TupleForm: ...
 
 @dataclass(frozen=True, slots=True)
-class TypeElement:
-    """An element in a tuple type."""
-
-    # the optional label for the element
-    label: destack._generated.core.string.StringId | None
-    # the element type
-    ty: GlobalTypeId
-    # whether the element is optional
-    is_optional: bool
-    # whether the element is readonly
-    is_readonly: bool
-    # whether the element is a rest element
-    is_rest: bool
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeElement: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> TypeElement: ...
-
-def encode_type_element(writer: BinaryWriter, value: TypeElement) -> None: ...
-def decode_type_element(reader: BinaryReader) -> TypeElement: ...
-def to_json_type_element(value: TypeElement) -> Json: ...
-def from_json_type_element(value: Json) -> TypeElement: ...
-
-@dataclass(frozen=True, slots=True)
 class ShapeType:
     """A structural object shape type."""
 
-    # the shape fields
-    fields: Sequence[TypeField]
-    # the call signatures
-    call_signatures: Sequence[GlobalTypeId]
-    # the construct signatures
-    construct_signatures: Sequence[GlobalTypeId]
-    # the index signatures
-    index_signatures: Sequence[TypeIndexSignature]
+    # the shape field list
+    fields: TypeListId
+    # the call signature list
+    call_signatures: TypeListId
+    # the construct signature list
+    construct_signatures: TypeListId
+    # the index signature list
+    index_signatures: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -949,71 +1059,17 @@ def to_json_shape_type(value: ShapeType) -> Json: ...
 def from_json_shape_type(value: Json) -> ShapeType: ...
 
 @dataclass(frozen=True, slots=True)
-class TypeField:
-    """A field in an object-like type."""
-
-    # the key of the field
-    key: destack._generated.dir.symbol.key.StaticKey
-    # the type of the field
-    ty: GlobalTypeId
-    # whether the field is optional
-    is_optional: bool
-    # whether the field is readonly
-    is_readonly: bool
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeField: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> TypeField: ...
-
-def encode_type_field(writer: BinaryWriter, value: TypeField) -> None: ...
-def decode_type_field(reader: BinaryReader) -> TypeField: ...
-def to_json_type_field(value: TypeField) -> Json: ...
-def from_json_type_field(value: Json) -> TypeField: ...
-
-@dataclass(frozen=True, slots=True)
-class TypeIndexSignature:
-    """An index signature in an object type."""
-
-    # the parameter name like `K`
-    name: destack._generated.core.string.StringId
-    # the key type
-    key_type: GlobalTypeId
-    # the value type
-    value_type: GlobalTypeId
-    # whether the index signature is optional
-    is_optional: bool
-    # whether the index signature is readonly
-    is_readonly: bool
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeIndexSignature: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> TypeIndexSignature: ...
-
-def encode_type_index_signature(
-    writer: BinaryWriter, value: TypeIndexSignature
-) -> None: ...
-def decode_type_index_signature(reader: BinaryReader) -> TypeIndexSignature: ...
-def to_json_type_index_signature(value: TypeIndexSignature) -> Json: ...
-def from_json_type_index_signature(value: Json) -> TypeIndexSignature: ...
-
-@dataclass(frozen=True, slots=True)
 class FunctionSignatureType:
     """A function signature type."""
 
     # the function asynchrony
     asynchrony: destack._generated.dir.tree.node.Asynchrony
-    # the generic parameter types
-    generic_parameters: Sequence[GlobalTypeId]
+    # the template that owns this signature's generic parameters
+    template: destack._generated.dir.type.generic.GlobalGenericTemplateId | None
     # the optional `this` parameter type
     this_parameter: GlobalTypeId | None
-    # the runtime parameters
-    parameters: Sequence[FunctionParameterType]
+    # the runtime parameter list
+    parameters: TypeListId
     # the optional return type
     return_type: GlobalTypeId | None
     # whether this is a generator function
@@ -1032,35 +1088,6 @@ def encode_function_signature_type(
 def decode_function_signature_type(reader: BinaryReader) -> FunctionSignatureType: ...
 def to_json_function_signature_type(value: FunctionSignatureType) -> Json: ...
 def from_json_function_signature_type(value: Json) -> FunctionSignatureType: ...
-
-@dataclass(frozen=True, slots=True)
-class FunctionParameterType:
-    """A runtime parameter in a function type."""
-
-    # the parameter type
-    ty: GlobalTypeId
-    # the static generic parameter supplied by this runtime argument
-    static_parameter: (
-        destack._generated.dir.type.generic.GlobalGenericParameterId | None
-    )
-    # whether the parameter may be omitted at the call site
-    is_optional: bool
-    # whether the parameter captures remaining call arguments
-    is_rest: bool
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> FunctionParameterType: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> FunctionParameterType: ...
-
-def encode_function_parameter_type(
-    writer: BinaryWriter, value: FunctionParameterType
-) -> None: ...
-def decode_function_parameter_type(reader: BinaryReader) -> FunctionParameterType: ...
-def to_json_function_parameter_type(value: FunctionParameterType) -> Json: ...
-def from_json_function_parameter_type(value: Json) -> FunctionParameterType: ...
 
 @dataclass(frozen=True, slots=True)
 class FunctionType:
@@ -1108,8 +1135,8 @@ def from_json_function_pointer_type(value: Json) -> FunctionPointerType: ...
 class UnionType:
     """A union type."""
 
-    # the union elements
-    elements: Sequence[GlobalTypeId]
+    # the union element list
+    elements: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -1127,8 +1154,8 @@ def from_json_union_type(value: Json) -> UnionType: ...
 class IntersectionType:
     """An intersection type."""
 
-    # the intersection elements
-    elements: Sequence[GlobalTypeId]
+    # the intersection element list
+    elements: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -1245,6 +1272,16 @@ class TypeLiteral:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeKey:
+    """Singleton property key type, like `Symbol.for("id")`."""
+
+    key: destack._generated.dir.symbol.key.StaticKey
+    kind: typing.Literal["key"] = "key"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
 class TypeMemory:
     """Singleton type of one normalized memory value."""
 
@@ -1274,6 +1311,16 @@ class TypeIntrinsic:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeErased:
+    """Erased generic argument captured by a runtime head test."""
+
+    erased: destack._generated.dir.type.generic.GlobalGenericParameterId
+    kind: typing.Literal["erased"] = "erased"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
 class TypeParameter:
     """Generic parameter, like the `T` in `class Box<T>`."""
 
@@ -1284,11 +1331,21 @@ class TypeParameter:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class TypeReference:
-    """Type declaration reference, like `User` or `Map<string, User>`."""
+class TypeReferenceVariant:
+    """Type declaration reference before application, like `Box` in `Box.empty`."""
 
-    reference: GenericInstance
+    reference: TypeReference
     kind: typing.Literal["reference"] = "reference"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TypeInstance:
+    """Applied type declaration, like `User` or `Map<string, User>`."""
+
+    instance: GenericInstance
+    kind: typing.Literal["instance"] = "instance"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -1308,6 +1365,16 @@ class TypeMember:
 
     member: MemberType
     kind: typing.Literal["member"] = "member"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TypeEnumMember:
+    """Singleton enum member type, like `Mode.Read`."""
+
+    enum_member: EnumMemberType
+    kind: typing.Literal["enumMember"] = "enumMember"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -1465,13 +1532,17 @@ Type: typing.TypeAlias = (
     | TypeObject
     | TypePrimitive
     | TypeLiteral
+    | TypeKey
     | TypeMemory
     | TypeStatic
     | TypeIntrinsic
+    | TypeErased
     | TypeParameter
-    | TypeReference
+    | TypeReferenceVariant
+    | TypeInstance
     | TypeThis
     | TypeMember
+    | TypeEnumMember
     | TypeForm
     | TypeDynamic
     | TypeOperationVariant
@@ -1492,6 +1563,14 @@ def encode_type(writer: BinaryWriter, value: Type) -> None: ...
 def decode_type(reader: BinaryReader) -> Type: ...
 def to_json_type(value: Type) -> Json: ...
 def from_json_type(value: Json) -> Type: ...
+
+"""The symbolic leaf kinds contained in one type graph, computed once at intern time."""
+TypeFlags: typing.TypeAlias = int
+
+def encode_type_flags(writer: BinaryWriter, value: TypeFlags) -> None: ...
+def decode_type_flags(reader: BinaryReader) -> TypeFlags: ...
+def to_json_type_flags(value: TypeFlags) -> Json: ...
+def from_json_type_flags(value: Json) -> TypeFlags: ...
 
 __all__ = [
     "TypeVariableId",
@@ -1533,11 +1612,26 @@ __all__ = [
     "LifetimeStatic",
     "LifetimeFrame",
     "LifetimeSymbol",
+    "TypeReference",
+    "encode_type_reference",
+    "decode_type_reference",
+    "to_json_type_reference",
+    "from_json_type_reference",
     "GenericInstance",
     "encode_generic_instance",
     "decode_generic_instance",
     "to_json_generic_instance",
     "from_json_generic_instance",
+    "TypeListId",
+    "encode_type_list_id",
+    "decode_type_list_id",
+    "to_json_type_list_id",
+    "from_json_type_list_id",
+    "MemberType",
+    "encode_member_type",
+    "decode_member_type",
+    "to_json_member_type",
+    "from_json_member_type",
     "GlobalTypeId",
     "encode_global_type_id",
     "decode_global_type_id",
@@ -1548,11 +1642,11 @@ __all__ = [
     "decode_local_type_id",
     "to_json_local_type_id",
     "from_json_local_type_id",
-    "MemberType",
-    "encode_member_type",
-    "decode_member_type",
-    "to_json_member_type",
-    "from_json_member_type",
+    "EnumMemberType",
+    "encode_enum_member_type",
+    "decode_enum_member_type",
+    "to_json_enum_member_type",
+    "from_json_enum_member_type",
     "FormType",
     "encode_form_type",
     "decode_form_type",
@@ -1581,11 +1675,15 @@ __all__ = [
     "from_json_type_operation",
     "TypeOperationStringMapping",
     "TypeOperationConditional",
+    "TypeOperationNarrow",
     "TypeOperationMapped",
     "TypeOperationIndex",
     "TypeOperationTemplateLiteral",
     "TypeOperationInfer",
+    "TypeOperationTypeOf",
     "TypeOperationKeyOf",
+    "TypeOperationNoInfer",
+    "TypeOperationAwaited",
     "TypeOperationTryOutput",
     "TypeOperationTryResidual",
     "TypeOperationStaticBinary",
@@ -1600,6 +1698,11 @@ __all__ = [
     "decode_conditional_type",
     "to_json_conditional_type",
     "from_json_conditional_type",
+    "NarrowType",
+    "encode_narrow_type",
+    "decode_narrow_type",
+    "to_json_narrow_type",
+    "from_json_narrow_type",
     "MappedType",
     "encode_mapped_type",
     "decode_mapped_type",
@@ -1630,6 +1733,11 @@ __all__ = [
     "decode_infer_type",
     "to_json_infer_type",
     "from_json_infer_type",
+    "TypeOfType",
+    "encode_type_of_type",
+    "decode_type_of_type",
+    "to_json_type_of_type",
+    "from_json_type_of_type",
     "UnaryType",
     "encode_unary_type",
     "decode_unary_type",
@@ -1685,36 +1793,16 @@ __all__ = [
     "decode_tuple_form",
     "to_json_tuple_form",
     "from_json_tuple_form",
-    "TypeElement",
-    "encode_type_element",
-    "decode_type_element",
-    "to_json_type_element",
-    "from_json_type_element",
     "ShapeType",
     "encode_shape_type",
     "decode_shape_type",
     "to_json_shape_type",
     "from_json_shape_type",
-    "TypeField",
-    "encode_type_field",
-    "decode_type_field",
-    "to_json_type_field",
-    "from_json_type_field",
-    "TypeIndexSignature",
-    "encode_type_index_signature",
-    "decode_type_index_signature",
-    "to_json_type_index_signature",
-    "from_json_type_index_signature",
     "FunctionSignatureType",
     "encode_function_signature_type",
     "decode_function_signature_type",
     "to_json_function_signature_type",
     "from_json_function_signature_type",
-    "FunctionParameterType",
-    "encode_function_parameter_type",
-    "decode_function_parameter_type",
-    "to_json_function_parameter_type",
-    "from_json_function_parameter_type",
     "FunctionType",
     "encode_function_type",
     "decode_function_type",
@@ -1751,13 +1839,17 @@ __all__ = [
     "TypeObject",
     "TypePrimitive",
     "TypeLiteral",
+    "TypeKey",
     "TypeMemory",
     "TypeStatic",
     "TypeIntrinsic",
+    "TypeErased",
     "TypeParameter",
-    "TypeReference",
+    "TypeReferenceVariant",
+    "TypeInstance",
     "TypeThis",
     "TypeMember",
+    "TypeEnumMember",
     "TypeForm",
     "TypeDynamic",
     "TypeOperationVariant",
@@ -1772,4 +1864,9 @@ __all__ = [
     "TypeFunctionPointer",
     "TypeUnion",
     "TypeIntersection",
+    "TypeFlags",
+    "encode_type_flags",
+    "decode_type_flags",
+    "to_json_type_flags",
+    "from_json_type_flags",
 ]

@@ -244,6 +244,16 @@ class TypeExpressionTypeOf:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeExpressionStaticValue:
+    """Static value expression in type space."""
+
+    expression: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["staticValue"] = "staticValue"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
 class TypeExpressionMust:
     """`T!`."""
 
@@ -442,6 +452,7 @@ TypeExpression: typing.TypeAlias = (
     | TypeExpressionShared
     | TypeExpressionKeyOf
     | TypeExpressionTypeOf
+    | TypeExpressionStaticValue
     | TypeExpressionMust
     | TypeExpressionNot
     | TypeExpressionOwnedOf
@@ -718,6 +729,7 @@ __all__ = [
     "TypeExpressionShared",
     "TypeExpressionKeyOf",
     "TypeExpressionTypeOf",
+    "TypeExpressionStaticValue",
     "TypeExpressionMust",
     "TypeExpressionNot",
     "TypeExpressionOwnedOf",

@@ -2,13 +2,17 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonBool, jsonField, jsonNumber, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
+import type { Name } from "./key.js";
 import type { LocalNodeId } from "./node.js";
 import type { FloatType } from "../type/primitive.js";
 import type { IntegerType } from "../type/primitive.js";
+import type { ScalarAlias } from "../type/primitive.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
+import { decodeName, encodeName, fromJsonName, toJsonName } from "./key.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodeFloatType, encodeFloatType, fromJsonFloatType, toJsonFloatType } from "../type/primitive.js";
 import { decodeIntegerType, encodeIntegerType, fromJsonIntegerType, toJsonIntegerType } from "../type/primitive.js";
+import { decodeScalarAlias, encodeScalarAlias, fromJsonScalarAlias, toJsonScalarAlias } from "../type/primitive.js";
 
 /** A ScalarLiteral is literal scalar value. */
 export type ScalarLiteral =
@@ -522,12 +526,17 @@ export type TypeLiteral =
     | {
           readonly kind: "number";
       }
-    /** Integer type. */
+    /** A widthless source alias for a sized scalar, like `int` for `int64`. */
+    | {
+          readonly kind: "alias";
+          readonly alias: ScalarAlias;
+      }
+    /** Width-spelled integer type, like `int32` or `usize`. */
     | {
           readonly kind: "integer";
           readonly integer: IntegerType;
       }
-    /** Floating-point type. */
+    /** Width-spelled floating-point type, like `float32`. */
     | {
           readonly kind: "float";
           readonly float: FloatType;
@@ -603,12 +612,17 @@ export const TypeLiteral = {
         return { kind: "number" };
     },
 
-    /** Integer type. */
+    /** A widthless source alias for a sized scalar, like `int` for `int64`. */
+    alias(alias: ScalarAlias): TypeLiteral {
+        return { kind: "alias", alias };
+    },
+
+    /** Width-spelled integer type, like `int32` or `usize`. */
     integer(integer: IntegerType): TypeLiteral {
         return { kind: "integer", integer };
     },
 
-    /** Floating-point type. */
+    /** Width-spelled floating-point type, like `float32`. */
     float(float: FloatType): TypeLiteral {
         return { kind: "float", float };
     },
@@ -683,19 +697,23 @@ export function encodeTypeLiteral(writer: BinaryWriter, value: TypeLiteral): voi
         case "number":
             writer.writeUnsigned(11);
             return;
-        case "integer":
+        case "alias":
             writer.writeUnsigned(12);
+            encodeScalarAlias(writer, value.alias);
+            return;
+        case "integer":
+            writer.writeUnsigned(13);
             encodeIntegerType(writer, value.integer);
             return;
         case "float":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(14);
             encodeFloatType(writer, value.float);
             return;
         case "symbol":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(15);
             return;
         case "uniqueSymbol":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(16);
             return;
     }
 
@@ -744,19 +762,24 @@ export function decodeTypeLiteral(reader: BinaryReader): TypeLiteral {
             return { kind: "number" };
         }
         case 12: {
+            const alias = decodeScalarAlias(reader);
+
+            return { kind: "alias", alias };
+        }
+        case 13: {
             const integer = decodeIntegerType(reader);
 
             return { kind: "integer", integer };
         }
-        case 13: {
+        case 14: {
             const float = decodeFloatType(reader);
 
             return { kind: "float", float };
         }
-        case 14: {
+        case 15: {
             return { kind: "symbol" };
         }
-        case 15: {
+        case 16: {
             return { kind: "uniqueSymbol" };
         }
     }
@@ -814,6 +837,11 @@ export function toJsonTypeLiteral(value: TypeLiteral): Json {
         case "number":
             return {
                 kind: "number",
+            };
+        case "alias":
+            return {
+                kind: "alias",
+                alias: toJsonScalarAlias(value.alias),
             };
         case "integer":
             return {
@@ -892,6 +920,11 @@ export function fromJsonTypeLiteral(value: Json): TypeLiteral {
             return {
                 kind,
             };
+        case "alias":
+            return {
+                kind,
+                alias: fromJsonScalarAlias(jsonField(object, "alias")),
+            };
         case "integer":
             return {
                 kind,
@@ -907,6 +940,499 @@ export function fromJsonTypeLiteral(value: Json): TypeLiteral {
                 kind,
             };
         case "uniqueSymbol":
+            return {
+                kind,
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** A tree tag attribute. */
+export type TreeAttribute =
+    /** Named attribute with an optional value. */
+    | {
+          readonly kind: "named";
+          readonly name: Name;
+          readonly value?: TreeAttributeValue;
+      }
+    /** Spread attribute. */
+    | {
+          readonly kind: "spread";
+          readonly value: LocalNodeId;
+      }
+    /** Malformed attribute slot. */
+    | {
+          readonly kind: "error";
+      }
+;
+
+export const TreeAttribute = {
+    /** Named attribute with an optional value. */
+    named(name: Name, value: TreeAttributeValue | undefined): TreeAttribute {
+        return { kind: "named", name, value };
+    },
+
+    /** Spread attribute. */
+    spread(value: LocalNodeId): TreeAttribute {
+        return { kind: "spread", value };
+    },
+
+    /** Malformed attribute slot. */
+    error(): TreeAttribute {
+        return { kind: "error" };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TreeAttribute): void {
+        encodeTreeAttribute(writer, value);
+    },
+
+    /** Decode one TreeAttribute. */
+    decode(reader: BinaryReader): TreeAttribute {
+        return decodeTreeAttribute(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TreeAttribute): Json {
+        return toJsonTreeAttribute(value);
+    },
+
+    /** Return one TreeAttribute from one JSON value. */
+    fromJson(value: Json): TreeAttribute {
+        return fromJsonTreeAttribute(value);
+    },
+};
+
+/** Encode one TreeAttribute. */
+export function encodeTreeAttribute(writer: BinaryWriter, value: TreeAttribute): void {
+    switch (value.kind) {
+        case "named":
+            writer.writeUnsigned(0);
+            encodeName(writer, value.name);
+            writer.writeOption(value.value, (value1) => {
+                encodeTreeAttributeValue(writer, value1);
+            });
+            return;
+        case "spread":
+            writer.writeUnsigned(1);
+            encodeLocalNodeId(writer, value.value);
+            return;
+        case "error":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one TreeAttribute. */
+export function decodeTreeAttribute(reader: BinaryReader): TreeAttribute {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const name = decodeName(reader);
+            const value = reader.readOption(() => decodeTreeAttributeValue(reader));
+
+            return {
+                kind: "named",
+                name,
+                ...(value === undefined ? {} : { value }),
+            };
+        }
+        case 1: {
+            const value = decodeLocalNodeId(reader);
+
+            return {
+                kind: "spread",
+                value,
+            };
+        }
+        case 2: {
+            return { kind: "error" };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one TreeAttribute. */
+export function toJsonTreeAttribute(value: TreeAttribute): Json {
+    switch (value.kind) {
+        case "named":
+            return {
+                kind: "named",
+                name: toJsonName(value.name),
+                ...(value.value === undefined ? {} : { value: toJsonTreeAttributeValue(value.value) }),
+            };
+        case "spread":
+            return {
+                kind: "spread",
+                value: toJsonLocalNodeId(value.value),
+            };
+        case "error":
+            return {
+                kind: "error",
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one TreeAttribute from one JSON value. */
+export function fromJsonTreeAttribute(value: Json): TreeAttribute {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "named":
+            return {
+                kind,
+                name: fromJsonName(jsonField(object, "name")),
+                value: jsonOptional(object, "value", (value) => fromJsonTreeAttributeValue(value)),
+            };
+        case "spread":
+            return {
+                kind,
+                value: fromJsonLocalNodeId(jsonField(object, "value")),
+            };
+        case "error":
+            return {
+                kind,
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** The value form of a tree tag attribute. */
+export type TreeAttributeValue =
+    /** Quoted string attribute value. */
+    | {
+          readonly kind: "string";
+          readonly string: StringId;
+      }
+    /** Expression container attribute value. */
+    | {
+          readonly kind: "expression";
+          readonly expression: LocalNodeId;
+      }
+;
+
+export const TreeAttributeValue = {
+    /** Quoted string attribute value. */
+    "string"(string_: StringId): TreeAttributeValue {
+        return { kind: "string", string: string_ };
+    },
+
+    /** Expression container attribute value. */
+    expression(expression: LocalNodeId): TreeAttributeValue {
+        return { kind: "expression", expression };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TreeAttributeValue): void {
+        encodeTreeAttributeValue(writer, value);
+    },
+
+    /** Decode one TreeAttributeValue. */
+    decode(reader: BinaryReader): TreeAttributeValue {
+        return decodeTreeAttributeValue(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TreeAttributeValue): Json {
+        return toJsonTreeAttributeValue(value);
+    },
+
+    /** Return one TreeAttributeValue from one JSON value. */
+    fromJson(value: Json): TreeAttributeValue {
+        return fromJsonTreeAttributeValue(value);
+    },
+};
+
+/** Encode one TreeAttributeValue. */
+export function encodeTreeAttributeValue(writer: BinaryWriter, value: TreeAttributeValue): void {
+    switch (value.kind) {
+        case "string":
+            writer.writeUnsigned(0);
+            encodeStringId(writer, value.string);
+            return;
+        case "expression":
+            writer.writeUnsigned(1);
+            encodeLocalNodeId(writer, value.expression);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one TreeAttributeValue. */
+export function decodeTreeAttributeValue(reader: BinaryReader): TreeAttributeValue {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const string_ = decodeStringId(reader);
+
+            return { kind: "string", string: string_ };
+        }
+        case 1: {
+            const expression = decodeLocalNodeId(reader);
+
+            return { kind: "expression", expression };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one TreeAttributeValue. */
+export function toJsonTreeAttributeValue(value: TreeAttributeValue): Json {
+    switch (value.kind) {
+        case "string":
+            return {
+                kind: "string",
+                string: toJsonStringId(value.string),
+            };
+        case "expression":
+            return {
+                kind: "expression",
+                expression: toJsonLocalNodeId(value.expression),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one TreeAttributeValue from one JSON value. */
+export function fromJsonTreeAttributeValue(value: Json): TreeAttributeValue {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "string":
+            return {
+                kind,
+                string: fromJsonStringId(jsonField(object, "string")),
+            };
+        case "expression":
+            return {
+                kind,
+                expression: fromJsonLocalNodeId(jsonField(object, "expression")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** A tree child. */
+export type TreeChild =
+    /** Raw tree text. */
+    | {
+          readonly kind: "text";
+          readonly value: StringId;
+      }
+    /** Expression container child. */
+    | {
+          readonly kind: "expression";
+          readonly value: LocalNodeId;
+      }
+    /** Spread expression container child. */
+    | {
+          readonly kind: "spread";
+          readonly value: LocalNodeId;
+      }
+    /** Nested tree expression child. */
+    | {
+          readonly kind: "tree";
+          readonly value: LocalNodeId;
+      }
+    /** Malformed child slot. */
+    | {
+          readonly kind: "error";
+      }
+;
+
+export const TreeChild = {
+    /** Raw tree text. */
+    text(value: StringId): TreeChild {
+        return { kind: "text", value };
+    },
+
+    /** Expression container child. */
+    expression(value: LocalNodeId): TreeChild {
+        return { kind: "expression", value };
+    },
+
+    /** Spread expression container child. */
+    spread(value: LocalNodeId): TreeChild {
+        return { kind: "spread", value };
+    },
+
+    /** Nested tree expression child. */
+    tree(value: LocalNodeId): TreeChild {
+        return { kind: "tree", value };
+    },
+
+    /** Malformed child slot. */
+    error(): TreeChild {
+        return { kind: "error" };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: TreeChild): void {
+        encodeTreeChild(writer, value);
+    },
+
+    /** Decode one TreeChild. */
+    decode(reader: BinaryReader): TreeChild {
+        return decodeTreeChild(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: TreeChild): Json {
+        return toJsonTreeChild(value);
+    },
+
+    /** Return one TreeChild from one JSON value. */
+    fromJson(value: Json): TreeChild {
+        return fromJsonTreeChild(value);
+    },
+};
+
+/** Encode one TreeChild. */
+export function encodeTreeChild(writer: BinaryWriter, value: TreeChild): void {
+    switch (value.kind) {
+        case "text":
+            writer.writeUnsigned(0);
+            encodeStringId(writer, value.value);
+            return;
+        case "expression":
+            writer.writeUnsigned(1);
+            encodeLocalNodeId(writer, value.value);
+            return;
+        case "spread":
+            writer.writeUnsigned(2);
+            encodeLocalNodeId(writer, value.value);
+            return;
+        case "tree":
+            writer.writeUnsigned(3);
+            encodeLocalNodeId(writer, value.value);
+            return;
+        case "error":
+            writer.writeUnsigned(4);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one TreeChild. */
+export function decodeTreeChild(reader: BinaryReader): TreeChild {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const value = decodeStringId(reader);
+
+            return {
+                kind: "text",
+                value,
+            };
+        }
+        case 1: {
+            const value = decodeLocalNodeId(reader);
+
+            return {
+                kind: "expression",
+                value,
+            };
+        }
+        case 2: {
+            const value = decodeLocalNodeId(reader);
+
+            return {
+                kind: "spread",
+                value,
+            };
+        }
+        case 3: {
+            const value = decodeLocalNodeId(reader);
+
+            return {
+                kind: "tree",
+                value,
+            };
+        }
+        case 4: {
+            return { kind: "error" };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one TreeChild. */
+export function toJsonTreeChild(value: TreeChild): Json {
+    switch (value.kind) {
+        case "text":
+            return {
+                kind: "text",
+                value: toJsonStringId(value.value),
+            };
+        case "expression":
+            return {
+                kind: "expression",
+                value: toJsonLocalNodeId(value.value),
+            };
+        case "spread":
+            return {
+                kind: "spread",
+                value: toJsonLocalNodeId(value.value),
+            };
+        case "tree":
+            return {
+                kind: "tree",
+                value: toJsonLocalNodeId(value.value),
+            };
+        case "error":
+            return {
+                kind: "error",
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one TreeChild from one JSON value. */
+export function fromJsonTreeChild(value: Json): TreeChild {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "text":
+            return {
+                kind,
+                value: fromJsonStringId(jsonField(object, "value")),
+            };
+        case "expression":
+            return {
+                kind,
+                value: fromJsonLocalNodeId(jsonField(object, "value")),
+            };
+        case "spread":
+            return {
+                kind,
+                value: fromJsonLocalNodeId(jsonField(object, "value")),
+            };
+        case "tree":
+            return {
+                kind,
+                value: fromJsonLocalNodeId(jsonField(object, "value")),
+            };
+        case "error":
             return {
                 kind,
             };

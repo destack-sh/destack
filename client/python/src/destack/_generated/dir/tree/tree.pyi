@@ -17,6 +17,7 @@ import destack._generated.dir.tree.decorator
 import destack._generated.dir.tree.dependency
 import destack._generated.dir.tree.expression
 import destack._generated.dir.tree.index
+import destack._generated.dir.tree.literal
 import destack._generated.dir.tree.match
 import destack._generated.dir.tree.node
 import destack._generated.dir.tree.pattern
@@ -60,6 +61,8 @@ class Tree:
     generic_arguments: Sequence[destack._generated.dir.tree.argument.GenericArgument]
     tuple_elements: Sequence[destack._generated.dir.tree.argument.TupleElement]
     arguments: Sequence[destack._generated.dir.tree.argument.Argument]
+    tree_attributes: Sequence[destack._generated.dir.tree.literal.TreeAttribute]
+    tree_children: Sequence[destack._generated.dir.tree.literal.TreeChild]
     match_cases: Sequence[destack._generated.dir.tree.match.MatchCase]
     patterns: Sequence[destack._generated.dir.tree.pattern.Pattern]
     pattern_fields: Sequence[destack._generated.dir.tree.pattern.PatternField]

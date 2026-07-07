@@ -26,6 +26,7 @@ import destack._generated.dir.tree.decorator
 import destack._generated.dir.tree.dependency
 import destack._generated.dir.tree.expression
 import destack._generated.dir.tree.index
+import destack._generated.dir.tree.literal
 import destack._generated.dir.tree.match
 import destack._generated.dir.tree.node
 import destack._generated.dir.tree.pattern
@@ -70,6 +71,8 @@ class Tree:
     generic_arguments: Sequence[destack._generated.dir.tree.argument.GenericArgument]
     tuple_elements: Sequence[destack._generated.dir.tree.argument.TupleElement]
     arguments: Sequence[destack._generated.dir.tree.argument.Argument]
+    tree_attributes: Sequence[destack._generated.dir.tree.literal.TreeAttribute]
+    tree_children: Sequence[destack._generated.dir.tree.literal.TreeChild]
     match_cases: Sequence[destack._generated.dir.tree.match.MatchCase]
     patterns: Sequence[destack._generated.dir.tree.pattern.Pattern]
     pattern_fields: Sequence[destack._generated.dir.tree.pattern.PatternField]
@@ -217,6 +220,16 @@ def encode_tree(writer: BinaryWriter, value: Tree) -> None:
     for item_value_arguments_0 in value.arguments:
         destack._generated.dir.tree.argument.encode_argument(
             writer, item_value_arguments_0
+        )
+    writer.write_unsigned(len(value.tree_attributes))
+    for item_value_tree_attributes_0 in value.tree_attributes:
+        destack._generated.dir.tree.literal.encode_tree_attribute(
+            writer, item_value_tree_attributes_0
+        )
+    writer.write_unsigned(len(value.tree_children))
+    for item_value_tree_children_0 in value.tree_children:
+        destack._generated.dir.tree.literal.encode_tree_child(
+            writer, item_value_tree_children_0
         )
     writer.write_unsigned(len(value.match_cases))
     for item_value_match_cases_0 in value.match_cases:
@@ -425,6 +438,14 @@ def decode_tree(reader: BinaryReader) -> Tree:
         destack._generated.dir.tree.argument.decode_argument(reader)
         for _ in range(reader.read_number())
     ]
+    tree_attributes = [
+        destack._generated.dir.tree.literal.decode_tree_attribute(reader)
+        for _ in range(reader.read_number())
+    ]
+    tree_children = [
+        destack._generated.dir.tree.literal.decode_tree_child(reader)
+        for _ in range(reader.read_number())
+    ]
     match_cases = [
         destack._generated.dir.tree.match.decode_match_case(reader)
         for _ in range(reader.read_number())
@@ -502,6 +523,8 @@ def decode_tree(reader: BinaryReader) -> Tree:
         generic_arguments=generic_arguments,
         tuple_elements=tuple_elements,
         arguments=arguments,
+        tree_attributes=tree_attributes,
+        tree_children=tree_children,
         match_cases=match_cases,
         patterns=patterns,
         pattern_fields=pattern_fields,
@@ -605,6 +628,14 @@ def to_json_tree(value: Tree) -> Json:
         "arguments": [
             destack._generated.dir.tree.argument.to_json_argument(item_0)
             for item_0 in value.arguments
+        ],
+        "treeAttributes": [
+            destack._generated.dir.tree.literal.to_json_tree_attribute(item_0)
+            for item_0 in value.tree_attributes
+        ],
+        "treeChildren": [
+            destack._generated.dir.tree.literal.to_json_tree_child(item_0)
+            for item_0 in value.tree_children
         ],
         "matchCases": [
             destack._generated.dir.tree.match.to_json_match_case(item_0)
@@ -752,6 +783,14 @@ def from_json_tree(value: Json) -> Tree:
         arguments=[
             destack._generated.dir.tree.argument.from_json_argument(item_0)
             for item_0 in json_array(json_field(object_, "arguments"))
+        ],
+        tree_attributes=[
+            destack._generated.dir.tree.literal.from_json_tree_attribute(item_0)
+            for item_0 in json_array(json_field(object_, "treeAttributes"))
+        ],
+        tree_children=[
+            destack._generated.dir.tree.literal.from_json_tree_child(item_0)
+            for item_0 in json_array(json_field(object_, "treeChildren"))
         ],
         match_cases=[
             destack._generated.dir.tree.match.from_json_match_case(item_0)

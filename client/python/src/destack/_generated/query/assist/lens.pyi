@@ -8,7 +8,7 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.file.model.span
 
 @dataclass(frozen=True, slots=True)
@@ -16,7 +16,7 @@ class CodeLensesRequest:
     """Request code lenses for a document."""
 
     # the queried module
-    module: destack._generated.query.core.target.QueryModule
+    module: destack._generated.query.protocol.target.Module
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod

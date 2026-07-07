@@ -19,7 +19,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +27,7 @@ class InlayHintsRequest:
     """Request inlay hints for a range in a document."""
 
     # the queried range
-    range: destack._generated.query.core.target.QueryRange
+    range: destack._generated.query.protocol.target.Range
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -50,12 +50,12 @@ class InlayHintsRequest:
 
 def encode_inlay_hints_request(writer: BinaryWriter, value: InlayHintsRequest) -> None:
     """Encode one InlayHintsRequest."""
-    destack._generated.query.core.target.encode_query_range(writer, value.range)
+    destack._generated.query.protocol.target.encode_range(writer, value.range)
 
 
 def decode_inlay_hints_request(reader: BinaryReader) -> InlayHintsRequest:
     """Decode one InlayHintsRequest."""
-    range_ = destack._generated.query.core.target.decode_query_range(reader)
+    range_ = destack._generated.query.protocol.target.decode_range(reader)
 
     return InlayHintsRequest(
         range=range_,
@@ -65,7 +65,7 @@ def decode_inlay_hints_request(reader: BinaryReader) -> InlayHintsRequest:
 def to_json_inlay_hints_request(value: InlayHintsRequest) -> Json:
     """Return one JSON value for one InlayHintsRequest."""
     return {
-        "range": destack._generated.query.core.target.to_json_query_range(value.range),
+        "range": destack._generated.query.protocol.target.to_json_range(value.range),
     }
 
 
@@ -74,7 +74,7 @@ def from_json_inlay_hints_request(value: Json) -> InlayHintsRequest:
     object_ = json_object(value)
 
     return InlayHintsRequest(
-        range=destack._generated.query.core.target.from_json_query_range(
+        range=destack._generated.query.protocol.target.from_json_range(
             json_field(object_, "range")
         ),
     )
@@ -145,7 +145,7 @@ def from_json_inlay_hints_response(value: Json) -> InlayHintsResponse:
 
 @dataclass(frozen=True, slots=True)
 class InlayHint:
-    """An inlay hint (virtual text shown inline)."""
+    """An inlay hint."""
 
     # position where the hint should be displayed
     position: int

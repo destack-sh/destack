@@ -17,21 +17,55 @@ from destack.protocol.serde import (
     json_string,
 )
 
+"""One width-less scalar source alias."""
+ScalarAlias: typing.TypeAlias = (
+    typing.Literal["int"] | typing.Literal["uint"] | typing.Literal["float"]
+)
 
-@dataclass(frozen=True, slots=True)
-class IntegerTypeInteger:
-    """The signed or unsigned integer family, `int` or `uint`."""
 
-    is_signed: bool
-    kind: typing.Literal["integer"] = "integer"
+def encode_scalar_alias(writer: BinaryWriter, value: ScalarAlias) -> None:
+    """Encode one ScalarAlias."""
+    if value == "int":
+        writer.write_unsigned(0)
+    elif value == "uint":
+        writer.write_unsigned(1)
+    elif value == "float":
+        writer.write_unsigned(2)
+    else:
+        raise SerdeError("unknown enum variant")
 
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_integer_type(writer, self)
 
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_integer_type(self)
+def decode_scalar_alias(reader: BinaryReader) -> ScalarAlias:
+    """Decode one ScalarAlias."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        return "int"
+    elif variant == 1:
+        return "uint"
+    elif variant == 2:
+        return "float"
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_scalar_alias(value: ScalarAlias) -> Json:
+    """Return one JSON value for one ScalarAlias."""
+    return value
+
+
+def from_json_scalar_alias(value: Json) -> ScalarAlias:
+    """Return one ScalarAlias from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "int":
+        return "int"
+    elif variant == "uint":
+        return "uint"
+    elif variant == "float":
+        return "float"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,22 +102,17 @@ class IntegerTypePointer:
 
 
 """An integer type."""
-IntegerType: typing.TypeAlias = (
-    IntegerTypeInteger | IntegerTypeFixed | IntegerTypePointer
-)
+IntegerType: typing.TypeAlias = IntegerTypeFixed | IntegerTypePointer
 
 
 def encode_integer_type(writer: BinaryWriter, value: IntegerType) -> None:
     """Encode one IntegerType."""
-    if value.kind == "integer":
+    if value.kind == "fixed":
         writer.write_unsigned(0)
-        writer.write_bool(value.is_signed)
-    elif value.kind == "fixed":
-        writer.write_unsigned(1)
         writer.write_unsigned(value.width)
         writer.write_bool(value.is_signed)
     elif value.kind == "pointer":
-        writer.write_unsigned(2)
+        writer.write_unsigned(1)
         writer.write_bool(value.is_signed)
     else:
         raise SerdeError("unknown enum variant")
@@ -94,12 +123,6 @@ def decode_integer_type(reader: BinaryReader) -> IntegerType:
     variant = reader.read_number()
 
     if variant == 0:
-        is_signed = reader.read_bool()
-
-        return IntegerTypeInteger(
-            is_signed=is_signed,
-        )
-    elif variant == 1:
         width = reader.read_number()
         is_signed = reader.read_bool()
 
@@ -107,7 +130,7 @@ def decode_integer_type(reader: BinaryReader) -> IntegerType:
             width=width,
             is_signed=is_signed,
         )
-    elif variant == 2:
+    elif variant == 1:
         is_signed = reader.read_bool()
 
         return IntegerTypePointer(
@@ -119,12 +142,7 @@ def decode_integer_type(reader: BinaryReader) -> IntegerType:
 
 def to_json_integer_type(value: IntegerType) -> Json:
     """Return one JSON value for one IntegerType."""
-    if value.kind == "integer":
-        return {
-            "kind": "integer",
-            "isSigned": value.is_signed,
-        }
-    elif value.kind == "fixed":
+    if value.kind == "fixed":
         return {
             "kind": "fixed",
             "width": value.width,
@@ -144,11 +162,7 @@ def from_json_integer_type(value: Json) -> IntegerType:
     object_ = json_object(value)
     kind = json_string(json_field(object_, "kind"))
 
-    if kind == "integer":
-        return IntegerTypeInteger(
-            is_signed=json_bool(json_field(object_, "isSigned")),
-        )
-    elif kind == "fixed":
+    if kind == "fixed":
         return IntegerTypeFixed(
             width=json_int(json_field(object_, "width")),
             is_signed=json_bool(json_field(object_, "isSigned")),
@@ -163,8 +177,7 @@ def from_json_integer_type(value: Json) -> IntegerType:
 
 """A floating-point type."""
 FloatType: typing.TypeAlias = (
-    typing.Literal["float"]
-    | typing.Literal["float16"]
+    typing.Literal["float16"]
     | typing.Literal["bfloat16"]
     | typing.Literal["float32"]
     | typing.Literal["float64"]
@@ -173,16 +186,14 @@ FloatType: typing.TypeAlias = (
 
 def encode_float_type(writer: BinaryWriter, value: FloatType) -> None:
     """Encode one FloatType."""
-    if value == "float":
+    if value == "float16":
         writer.write_unsigned(0)
-    elif value == "float16":
-        writer.write_unsigned(1)
     elif value == "bfloat16":
-        writer.write_unsigned(2)
+        writer.write_unsigned(1)
     elif value == "float32":
-        writer.write_unsigned(3)
+        writer.write_unsigned(2)
     elif value == "float64":
-        writer.write_unsigned(4)
+        writer.write_unsigned(3)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -192,14 +203,12 @@ def decode_float_type(reader: BinaryReader) -> FloatType:
     variant = reader.read_number()
 
     if variant == 0:
-        return "float"
-    elif variant == 1:
         return "float16"
-    elif variant == 2:
+    elif variant == 1:
         return "bfloat16"
-    elif variant == 3:
+    elif variant == 2:
         return "float32"
-    elif variant == 4:
+    elif variant == 3:
         return "float64"
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -214,9 +223,7 @@ def from_json_float_type(value: Json) -> FloatType:
     """Return one FloatType from one JSON value."""
     variant = json_string(value)
 
-    if variant == "float":
-        return "float"
-    elif variant == "float16":
+    if variant == "float16":
         return "float16"
     elif variant == "bfloat16":
         return "bfloat16"
@@ -485,12 +492,16 @@ def from_json_primitive_type(value: Json) -> PrimitiveType:
 
 
 __all__ = [
+    "ScalarAlias",
+    "encode_scalar_alias",
+    "decode_scalar_alias",
+    "to_json_scalar_alias",
+    "from_json_scalar_alias",
     "IntegerType",
     "encode_integer_type",
     "decode_integer_type",
     "to_json_integer_type",
     "from_json_integer_type",
-    "IntegerTypeInteger",
     "IntegerTypeFixed",
     "IntegerTypePointer",
     "FloatType",

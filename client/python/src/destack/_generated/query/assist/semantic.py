@@ -18,7 +18,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.file.model.span
 
 
@@ -27,7 +27,7 @@ class SemanticTokensRequest:
     """Request semantic tokens for a document."""
 
     # the queried module
-    module: destack._generated.query.core.target.QueryModule
+    module: destack._generated.query.protocol.target.Module
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -52,12 +52,12 @@ def encode_semantic_tokens_request(
     writer: BinaryWriter, value: SemanticTokensRequest
 ) -> None:
     """Encode one SemanticTokensRequest."""
-    destack._generated.query.core.target.encode_query_module(writer, value.module)
+    destack._generated.query.protocol.target.encode_module(writer, value.module)
 
 
 def decode_semantic_tokens_request(reader: BinaryReader) -> SemanticTokensRequest:
     """Decode one SemanticTokensRequest."""
-    module = destack._generated.query.core.target.decode_query_module(reader)
+    module = destack._generated.query.protocol.target.decode_module(reader)
 
     return SemanticTokensRequest(
         module=module,
@@ -67,9 +67,7 @@ def decode_semantic_tokens_request(reader: BinaryReader) -> SemanticTokensReques
 def to_json_semantic_tokens_request(value: SemanticTokensRequest) -> Json:
     """Return one JSON value for one SemanticTokensRequest."""
     return {
-        "module": destack._generated.query.core.target.to_json_query_module(
-            value.module
-        ),
+        "module": destack._generated.query.protocol.target.to_json_module(value.module),
     }
 
 
@@ -78,7 +76,7 @@ def from_json_semantic_tokens_request(value: Json) -> SemanticTokensRequest:
     object_ = json_object(value)
 
     return SemanticTokensRequest(
-        module=destack._generated.query.core.target.from_json_query_module(
+        module=destack._generated.query.protocol.target.from_json_module(
             json_field(object_, "module")
         ),
     )
@@ -89,7 +87,7 @@ class SemanticTokensRangeRequest:
     """Request semantic tokens for a document range."""
 
     # the queried range
-    range: destack._generated.query.core.target.QueryRange
+    range: destack._generated.query.protocol.target.Range
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -114,14 +112,14 @@ def encode_semantic_tokens_range_request(
     writer: BinaryWriter, value: SemanticTokensRangeRequest
 ) -> None:
     """Encode one SemanticTokensRangeRequest."""
-    destack._generated.query.core.target.encode_query_range(writer, value.range)
+    destack._generated.query.protocol.target.encode_range(writer, value.range)
 
 
 def decode_semantic_tokens_range_request(
     reader: BinaryReader,
 ) -> SemanticTokensRangeRequest:
     """Decode one SemanticTokensRangeRequest."""
-    range_ = destack._generated.query.core.target.decode_query_range(reader)
+    range_ = destack._generated.query.protocol.target.decode_range(reader)
 
     return SemanticTokensRangeRequest(
         range=range_,
@@ -131,7 +129,7 @@ def decode_semantic_tokens_range_request(
 def to_json_semantic_tokens_range_request(value: SemanticTokensRangeRequest) -> Json:
     """Return one JSON value for one SemanticTokensRangeRequest."""
     return {
-        "range": destack._generated.query.core.target.to_json_query_range(value.range),
+        "range": destack._generated.query.protocol.target.to_json_range(value.range),
     }
 
 
@@ -140,7 +138,7 @@ def from_json_semantic_tokens_range_request(value: Json) -> SemanticTokensRangeR
     object_ = json_object(value)
 
     return SemanticTokensRangeRequest(
-        range=destack._generated.query.core.target.from_json_query_range(
+        range=destack._generated.query.protocol.target.from_json_range(
             json_field(object_, "range")
         ),
     )
@@ -474,7 +472,7 @@ def from_json_semantic_token_type(value: Json) -> SemanticTokenType:
         raise SerdeError(f"unknown enum variant: {variant}")
 
 
-"""Semantic token modifiers (can be combined as a bitset)."""
+"""Semantic token modifiers."""
 SemanticTokenModifiers: typing.TypeAlias = int
 
 

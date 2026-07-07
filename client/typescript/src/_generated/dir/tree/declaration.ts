@@ -14,6 +14,78 @@ import { decodeMutability, encodeMutability, fromJsonMutability, toJsonMutabilit
 
 import { DeclarationImpl } from "../../../_impl/dir/tree/declaration.js";
 
+/** Explicit source placement modifier. */
+export type PlaceModifier = "local" | "shared";
+
+export const PlaceModifier = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PlaceModifier): void {
+        encodePlaceModifier(writer, value);
+    },
+
+    /** Decode one PlaceModifier. */
+    decode(reader: BinaryReader): PlaceModifier {
+        return decodePlaceModifier(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PlaceModifier): Json {
+        return toJsonPlaceModifier(value);
+    },
+
+    /** Return one PlaceModifier from one JSON value. */
+    fromJson(value: Json): PlaceModifier {
+        return fromJsonPlaceModifier(value);
+    },
+};
+
+/** Encode one PlaceModifier. */
+export function encodePlaceModifier(writer: BinaryWriter, value: PlaceModifier): void {
+    switch (value) {
+        case "local":
+            writer.writeUnsigned(0);
+            return;
+        case "shared":
+            writer.writeUnsigned(1);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one PlaceModifier. */
+export function decodePlaceModifier(reader: BinaryReader): PlaceModifier {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "local";
+        case 1:
+            return "shared";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one PlaceModifier. */
+export function toJsonPlaceModifier(value: PlaceModifier): Json {
+    return value;
+}
+
+/** Return one PlaceModifier from one JSON value. */
+export function fromJsonPlaceModifier(value: Json): PlaceModifier {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "local":
+            return "local";
+        case "shared":
+            return "shared";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
 /** Declaration introduces a type or such into a scope. */
 export type Declaration =
     /** Global declaration block. */
@@ -475,6 +547,8 @@ export type TypeDeclaration = {
     readonly name: Name;
     /** The export kind of the declaration. */
     readonly export?: ExportKind;
+    /** The explicit placement modifier. */
+    readonly place?: PlaceModifier;
     /** The optional mutability qualifier. */
     readonly mutability?: Mutability;
     /** The generic parameters of the declaration. */
@@ -517,16 +591,19 @@ export function encodeTypeDeclaration(writer: BinaryWriter, value: TypeDeclarati
     writer.writeOption(value.export, (value1) => {
         encodeExportKind(writer, value1);
     });
-    writer.writeOption(value.mutability, (value2) => {
-        encodeMutability(writer, value2);
+    writer.writeOption(value.place, (value2) => {
+        encodePlaceModifier(writer, value2);
+    });
+    writer.writeOption(value.mutability, (value3) => {
+        encodeMutability(writer, value3);
     });
     writer.writeUnsigned(value.genericParameters.length);
-    for (const item3 of value.genericParameters) {
-        encodeLocalNodeId(writer, item3);
+    for (const item4 of value.genericParameters) {
+        encodeLocalNodeId(writer, item4);
     }
     writer.writeUnsigned(value.whereClauses.length);
-    for (const item4 of value.whereClauses) {
-        encodeLocalNodeId(writer, item4);
+    for (const item5 of value.whereClauses) {
+        encodeLocalNodeId(writer, item5);
     }
     encodeLocalNodeId(writer, value.value);
     writer.writeBool(value.isAmbient);
@@ -537,9 +614,10 @@ export function encodeTypeDeclaration(writer: BinaryWriter, value: TypeDeclarati
 export function decodeTypeDeclaration(reader: BinaryReader): TypeDeclaration {
     const name = decodeName(reader);
     const export_ = reader.readOption(() => decodeExportKind(reader));
+    const place = reader.readOption(() => decodePlaceModifier(reader));
     const mutability = reader.readOption(() => decodeMutability(reader));
-    const genericParameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
-    const whereClauses = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const genericParameters = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const whereClauses = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
     const value = decodeLocalNodeId(reader);
     const isAmbient = reader.readBool();
     const isNominal = reader.readBool();
@@ -547,6 +625,7 @@ export function decodeTypeDeclaration(reader: BinaryReader): TypeDeclaration {
     return {
         name,
         ...(export_ === undefined ? {} : { export: export_ }),
+        ...(place === undefined ? {} : { place }),
         ...(mutability === undefined ? {} : { mutability }),
         genericParameters,
         whereClauses,
@@ -561,6 +640,7 @@ export function toJsonTypeDeclaration(value: TypeDeclaration): Json {
     return {
         name: toJsonName(value.name),
         ...(value.export === undefined ? {} : { export: toJsonExportKind(value.export) }),
+        ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
         ...(value.mutability === undefined ? {} : { mutability: toJsonMutability(value.mutability) }),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
@@ -577,6 +657,7 @@ export function fromJsonTypeDeclaration(value: Json): TypeDeclaration {
     return {
         name: fromJsonName(jsonField(object, "name")),
         export: jsonOptional(object, "export", (value) => fromJsonExportKind(value)),
+        place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
         mutability: jsonOptional(object, "mutability", (value) => fromJsonMutability(value)),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
@@ -592,6 +673,8 @@ export type StructDeclaration = {
     readonly name: Name;
     /** The export kind of the declaration. */
     readonly export?: ExportKind;
+    /** The explicit placement modifier. */
+    readonly place?: PlaceModifier;
     /** The generic parameters of the declaration. */
     readonly genericParameters: ReadonlyArray<LocalNodeId>;
     /** The where clauses of the declaration. */
@@ -632,21 +715,24 @@ export function encodeStructDeclaration(writer: BinaryWriter, value: StructDecla
     writer.writeOption(value.export, (value1) => {
         encodeExportKind(writer, value1);
     });
+    writer.writeOption(value.place, (value2) => {
+        encodePlaceModifier(writer, value2);
+    });
     writer.writeUnsigned(value.genericParameters.length);
-    for (const item2 of value.genericParameters) {
-        encodeLocalNodeId(writer, item2);
-    }
-    writer.writeUnsigned(value.whereClauses.length);
-    for (const item3 of value.whereClauses) {
+    for (const item3 of value.genericParameters) {
         encodeLocalNodeId(writer, item3);
     }
-    writer.writeUnsigned(value.implementsTypes.length);
-    for (const item4 of value.implementsTypes) {
+    writer.writeUnsigned(value.whereClauses.length);
+    for (const item4 of value.whereClauses) {
         encodeLocalNodeId(writer, item4);
     }
-    writer.writeUnsigned(value.members.length);
-    for (const item5 of value.members) {
+    writer.writeUnsigned(value.implementsTypes.length);
+    for (const item5 of value.implementsTypes) {
         encodeLocalNodeId(writer, item5);
+    }
+    writer.writeUnsigned(value.members.length);
+    for (const item6 of value.members) {
+        encodeLocalNodeId(writer, item6);
     }
     writer.writeBool(value.isAmbient);
 }
@@ -655,15 +741,17 @@ export function encodeStructDeclaration(writer: BinaryWriter, value: StructDecla
 export function decodeStructDeclaration(reader: BinaryReader): StructDeclaration {
     const name = decodeName(reader);
     const export_ = reader.readOption(() => decodeExportKind(reader));
-    const genericParameters = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
-    const whereClauses = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
-    const implementsTypes = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
-    const members = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const place = reader.readOption(() => decodePlaceModifier(reader));
+    const genericParameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
+    const whereClauses = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const implementsTypes = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const members = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
     const isAmbient = reader.readBool();
 
     return {
         name,
         ...(export_ === undefined ? {} : { export: export_ }),
+        ...(place === undefined ? {} : { place }),
         genericParameters,
         whereClauses,
         implementsTypes,
@@ -677,6 +765,7 @@ export function toJsonStructDeclaration(value: StructDeclaration): Json {
     return {
         name: toJsonName(value.name),
         ...(value.export === undefined ? {} : { export: toJsonExportKind(value.export) }),
+        ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
         implementsTypes: value.implementsTypes.map((item0) => toJsonLocalNodeId(item0)),
@@ -692,6 +781,7 @@ export function fromJsonStructDeclaration(value: Json): StructDeclaration {
     return {
         name: fromJsonName(jsonField(object, "name")),
         export: jsonOptional(object, "export", (value) => fromJsonExportKind(value)),
+        place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
         implementsTypes: jsonArray(jsonField(object, "implementsTypes")).map((item0) => fromJsonLocalNodeId(item0)),
@@ -706,6 +796,8 @@ export type ClassDeclaration = {
     readonly name?: Name;
     /** The export kind of the declaration. */
     readonly export?: ExportKind;
+    /** The explicit placement modifier. */
+    readonly place?: PlaceModifier;
     /** The generic parameters of the declaration. */
     readonly genericParameters: ReadonlyArray<LocalNodeId>;
     /** The where clauses of the declaration. */
@@ -754,24 +846,27 @@ export function encodeClassDeclaration(writer: BinaryWriter, value: ClassDeclara
     writer.writeOption(value.export, (value1) => {
         encodeExportKind(writer, value1);
     });
+    writer.writeOption(value.place, (value2) => {
+        encodePlaceModifier(writer, value2);
+    });
     writer.writeUnsigned(value.genericParameters.length);
-    for (const item2 of value.genericParameters) {
-        encodeLocalNodeId(writer, item2);
-    }
-    writer.writeUnsigned(value.whereClauses.length);
-    for (const item3 of value.whereClauses) {
+    for (const item3 of value.genericParameters) {
         encodeLocalNodeId(writer, item3);
     }
-    writer.writeOption(value.extendsType, (value4) => {
-        encodeLocalNodeId(writer, value4);
+    writer.writeUnsigned(value.whereClauses.length);
+    for (const item4 of value.whereClauses) {
+        encodeLocalNodeId(writer, item4);
+    }
+    writer.writeOption(value.extendsType, (value5) => {
+        encodeLocalNodeId(writer, value5);
     });
     writer.writeUnsigned(value.implementsTypes.length);
-    for (const item5 of value.implementsTypes) {
-        encodeLocalNodeId(writer, item5);
+    for (const item6 of value.implementsTypes) {
+        encodeLocalNodeId(writer, item6);
     }
     writer.writeUnsigned(value.members.length);
-    for (const item6 of value.members) {
-        encodeLocalNodeId(writer, item6);
+    for (const item7 of value.members) {
+        encodeLocalNodeId(writer, item7);
     }
     writer.writeBool(value.isAmbient);
     writer.writeBool(value.isAbstract);
@@ -782,11 +877,12 @@ export function encodeClassDeclaration(writer: BinaryWriter, value: ClassDeclara
 export function decodeClassDeclaration(reader: BinaryReader): ClassDeclaration {
     const name = reader.readOption(() => decodeName(reader));
     const export_ = reader.readOption(() => decodeExportKind(reader));
-    const genericParameters = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
-    const whereClauses = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
+    const place = reader.readOption(() => decodePlaceModifier(reader));
+    const genericParameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
+    const whereClauses = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
     const extendsType = reader.readOption(() => decodeLocalNodeId(reader));
-    const implementsTypes = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
-    const members = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
+    const implementsTypes = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
+    const members = (() => { const length7 = reader.readNumber(); const items7: Array<LocalNodeId> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeLocalNodeId(reader)); } return items7; })();
     const isAmbient = reader.readBool();
     const isAbstract = reader.readBool();
     const isFinal = reader.readBool();
@@ -794,6 +890,7 @@ export function decodeClassDeclaration(reader: BinaryReader): ClassDeclaration {
     return {
         ...(name === undefined ? {} : { name }),
         ...(export_ === undefined ? {} : { export: export_ }),
+        ...(place === undefined ? {} : { place }),
         genericParameters,
         whereClauses,
         ...(extendsType === undefined ? {} : { extendsType }),
@@ -810,6 +907,7 @@ export function toJsonClassDeclaration(value: ClassDeclaration): Json {
     return {
         ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
         ...(value.export === undefined ? {} : { export: toJsonExportKind(value.export) }),
+        ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
         ...(value.extendsType === undefined ? {} : { extendsType: toJsonLocalNodeId(value.extendsType) }),
@@ -828,6 +926,7 @@ export function fromJsonClassDeclaration(value: Json): ClassDeclaration {
     return {
         name: jsonOptional(object, "name", (value) => fromJsonName(value)),
         export: jsonOptional(object, "export", (value) => fromJsonExportKind(value)),
+        place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
         extendsType: jsonOptional(object, "extendsType", (value) => fromJsonLocalNodeId(value)),
@@ -845,6 +944,8 @@ export type EnumDeclaration = {
     readonly name?: Name;
     /** The export kind of the declaration. */
     readonly export?: ExportKind;
+    /** The explicit placement modifier. */
+    readonly place?: PlaceModifier;
     /** The enum kind. */
     readonly kind: EnumKind;
     /** The generic parameters of the declaration. */
@@ -891,26 +992,29 @@ export function encodeEnumDeclaration(writer: BinaryWriter, value: EnumDeclarati
     writer.writeOption(value.export, (value1) => {
         encodeExportKind(writer, value1);
     });
+    writer.writeOption(value.place, (value2) => {
+        encodePlaceModifier(writer, value2);
+    });
     encodeEnumKind(writer, value.kind);
     writer.writeUnsigned(value.genericParameters.length);
-    for (const item3 of value.genericParameters) {
-        encodeLocalNodeId(writer, item3);
-    }
-    writer.writeUnsigned(value.whereClauses.length);
-    for (const item4 of value.whereClauses) {
+    for (const item4 of value.genericParameters) {
         encodeLocalNodeId(writer, item4);
     }
-    writer.writeUnsigned(value.implementsTypes.length);
-    for (const item5 of value.implementsTypes) {
+    writer.writeUnsigned(value.whereClauses.length);
+    for (const item5 of value.whereClauses) {
         encodeLocalNodeId(writer, item5);
     }
-    writer.writeUnsigned(value.fields.length);
-    for (const item6 of value.fields) {
+    writer.writeUnsigned(value.implementsTypes.length);
+    for (const item6 of value.implementsTypes) {
         encodeLocalNodeId(writer, item6);
     }
-    writer.writeUnsigned(value.members.length);
-    for (const item7 of value.members) {
+    writer.writeUnsigned(value.fields.length);
+    for (const item7 of value.fields) {
         encodeLocalNodeId(writer, item7);
+    }
+    writer.writeUnsigned(value.members.length);
+    for (const item8 of value.members) {
+        encodeLocalNodeId(writer, item8);
     }
     writer.writeBool(value.isAmbient);
 }
@@ -919,17 +1023,19 @@ export function encodeEnumDeclaration(writer: BinaryWriter, value: EnumDeclarati
 export function decodeEnumDeclaration(reader: BinaryReader): EnumDeclaration {
     const name = reader.readOption(() => decodeName(reader));
     const export_ = reader.readOption(() => decodeExportKind(reader));
+    const place = reader.readOption(() => decodePlaceModifier(reader));
     const kind = decodeEnumKind(reader);
-    const genericParameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
-    const whereClauses = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
-    const implementsTypes = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
-    const fields = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
-    const members = (() => { const length7 = reader.readNumber(); const items7: Array<LocalNodeId> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeLocalNodeId(reader)); } return items7; })();
+    const genericParameters = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const whereClauses = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const implementsTypes = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
+    const fields = (() => { const length7 = reader.readNumber(); const items7: Array<LocalNodeId> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeLocalNodeId(reader)); } return items7; })();
+    const members = (() => { const length8 = reader.readNumber(); const items8: Array<LocalNodeId> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeLocalNodeId(reader)); } return items8; })();
     const isAmbient = reader.readBool();
 
     return {
         ...(name === undefined ? {} : { name }),
         ...(export_ === undefined ? {} : { export: export_ }),
+        ...(place === undefined ? {} : { place }),
         kind,
         genericParameters,
         whereClauses,
@@ -945,6 +1051,7 @@ export function toJsonEnumDeclaration(value: EnumDeclaration): Json {
     return {
         ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
         ...(value.export === undefined ? {} : { export: toJsonExportKind(value.export) }),
+        ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
         kind: toJsonEnumKind(value.kind),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
@@ -962,6 +1069,7 @@ export function fromJsonEnumDeclaration(value: Json): EnumDeclaration {
     return {
         name: jsonOptional(object, "name", (value) => fromJsonName(value)),
         export: jsonOptional(object, "export", (value) => fromJsonExportKind(value)),
+        place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
         kind: fromJsonEnumKind(jsonField(object, "kind")),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
@@ -1050,6 +1158,8 @@ export type InterfaceDeclaration = {
     readonly name?: Name;
     /** The export kind of the declaration. */
     readonly export?: ExportKind;
+    /** The explicit placement modifier. */
+    readonly place?: PlaceModifier;
     /** The generic parameters of the declaration. */
     readonly genericParameters: ReadonlyArray<LocalNodeId>;
     /** The where clauses of the declaration. */
@@ -1094,21 +1204,24 @@ export function encodeInterfaceDeclaration(writer: BinaryWriter, value: Interfac
     writer.writeOption(value.export, (value1) => {
         encodeExportKind(writer, value1);
     });
+    writer.writeOption(value.place, (value2) => {
+        encodePlaceModifier(writer, value2);
+    });
     writer.writeUnsigned(value.genericParameters.length);
-    for (const item2 of value.genericParameters) {
-        encodeLocalNodeId(writer, item2);
-    }
-    writer.writeUnsigned(value.whereClauses.length);
-    for (const item3 of value.whereClauses) {
+    for (const item3 of value.genericParameters) {
         encodeLocalNodeId(writer, item3);
     }
-    writer.writeUnsigned(value.extendsTypes.length);
-    for (const item4 of value.extendsTypes) {
+    writer.writeUnsigned(value.whereClauses.length);
+    for (const item4 of value.whereClauses) {
         encodeLocalNodeId(writer, item4);
     }
-    writer.writeUnsigned(value.members.length);
-    for (const item5 of value.members) {
+    writer.writeUnsigned(value.extendsTypes.length);
+    for (const item5 of value.extendsTypes) {
         encodeLocalNodeId(writer, item5);
+    }
+    writer.writeUnsigned(value.members.length);
+    for (const item6 of value.members) {
+        encodeLocalNodeId(writer, item6);
     }
     writer.writeBool(value.isAmbient);
     writer.writeBool(value.isNominal);
@@ -1118,16 +1231,18 @@ export function encodeInterfaceDeclaration(writer: BinaryWriter, value: Interfac
 export function decodeInterfaceDeclaration(reader: BinaryReader): InterfaceDeclaration {
     const name = reader.readOption(() => decodeName(reader));
     const export_ = reader.readOption(() => decodeExportKind(reader));
-    const genericParameters = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
-    const whereClauses = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
-    const extendsTypes = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
-    const members = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const place = reader.readOption(() => decodePlaceModifier(reader));
+    const genericParameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalNodeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalNodeId(reader)); } return items3; })();
+    const whereClauses = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLocalNodeId(reader)); } return items4; })();
+    const extendsTypes = (() => { const length5 = reader.readNumber(); const items5: Array<LocalNodeId> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeLocalNodeId(reader)); } return items5; })();
+    const members = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
     const isAmbient = reader.readBool();
     const isNominal = reader.readBool();
 
     return {
         ...(name === undefined ? {} : { name }),
         ...(export_ === undefined ? {} : { export: export_ }),
+        ...(place === undefined ? {} : { place }),
         genericParameters,
         whereClauses,
         extendsTypes,
@@ -1142,6 +1257,7 @@ export function toJsonInterfaceDeclaration(value: InterfaceDeclaration): Json {
     return {
         ...(value.name === undefined ? {} : { name: toJsonName(value.name) }),
         ...(value.export === undefined ? {} : { export: toJsonExportKind(value.export) }),
+        ...(value.place === undefined ? {} : { place: toJsonPlaceModifier(value.place) }),
         genericParameters: value.genericParameters.map((item0) => toJsonLocalNodeId(item0)),
         whereClauses: value.whereClauses.map((item0) => toJsonLocalNodeId(item0)),
         extendsTypes: value.extendsTypes.map((item0) => toJsonLocalNodeId(item0)),
@@ -1158,6 +1274,7 @@ export function fromJsonInterfaceDeclaration(value: Json): InterfaceDeclaration 
     return {
         name: jsonOptional(object, "name", (value) => fromJsonName(value)),
         export: jsonOptional(object, "export", (value) => fromJsonExportKind(value)),
+        place: jsonOptional(object, "place", (value) => fromJsonPlaceModifier(value)),
         genericParameters: jsonArray(jsonField(object, "genericParameters")).map((item0) => fromJsonLocalNodeId(item0)),
         whereClauses: jsonArray(jsonField(object, "whereClauses")).map((item0) => fromJsonLocalNodeId(item0)),
         extendsTypes: jsonArray(jsonField(object, "extendsTypes")).map((item0) => fromJsonLocalNodeId(item0)),

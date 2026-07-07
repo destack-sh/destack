@@ -7,8 +7,8 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.mir.metadata.dispatch
-import destack._generated.mir.metadata.profile
+import destack._generated.mir.table.dispatch
+import destack._generated.mir.table.profile
 import destack._generated.mir.tree.call
 import destack._generated.mir.tree.constant
 import destack._generated.mir.tree.immediate
@@ -989,7 +989,7 @@ class InstructionCallVirtual:
     # the class type declaring this dispatch slot
     class_: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["callVirtual"] = "callVirtual"
@@ -1008,7 +1008,7 @@ class InstructionCallDynamic:
     # the dynamic constraint type declaring this dispatch slot
     constraint: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["callDynamic"] = "callDynamic"
@@ -1291,7 +1291,7 @@ class InstructionProfileIncrement:
     """Increment one profile counter."""
 
     # the counter to increment
-    counter: destack._generated.mir.metadata.profile.CounterId
+    counter: destack._generated.mir.table.profile.CounterId
     kind: typing.Literal["profileIncrement"] = "profileIncrement"
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -1302,7 +1302,7 @@ class InstructionProfileValue:
     """Record one profiled runtime value."""
 
     # the counter receiving the sampled value
-    counter: destack._generated.mir.metadata.profile.CounterId
+    counter: destack._generated.mir.table.profile.CounterId
     # the sampled MIR value
     value: destack._generated.mir.tree.value.Value
     kind: typing.Literal["profileValue"] = "profileValue"

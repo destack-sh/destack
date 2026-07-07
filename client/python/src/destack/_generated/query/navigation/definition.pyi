@@ -8,14 +8,14 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 @dataclass(frozen=True, slots=True)
 class GotoDefinitionRequest:
     """Request goto definition at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -36,7 +36,7 @@ class GotoDeclarationRequest:
     """Request goto declaration at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -57,7 +57,7 @@ class GotoTypeDefinitionRequest:
     """Request goto type definition at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -103,7 +103,7 @@ class NavigationTarget:
     """One navigation target."""
 
     # the target location and resolved identity
-    target: destack._generated.query.core.target.QueryTarget
+    target: destack._generated.query.protocol.target.Target
     # the relationship to the query origin
     relation: NavigationRelation
 

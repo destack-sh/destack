@@ -5,22 +5,26 @@ import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { AssignPatternResolution } from "../type/resolution.js";
 import type { CallResolution } from "../type/resolution.js";
 import type { ConstructResolution } from "../type/resolution.js";
+import type { GuardResolution } from "../type/resolution.js";
+import type { InstantiationResolution } from "../type/resolution.js";
 import type { LabelResolution } from "../type/resolution.js";
 import type { MemberResolution } from "../type/resolution.js";
 import type { NameResolution } from "../type/resolution.js";
 import type { PatternResolution } from "../type/resolution.js";
-import type { ReadWriteResolution } from "../type/resolution.js";
+import type { PlaceResolution } from "../type/resolution.js";
 import type { ReceiverResolution } from "../type/resolution.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeAssignPatternResolution, encodeAssignPatternResolution, fromJsonAssignPatternResolution, toJsonAssignPatternResolution } from "../type/resolution.js";
 import { decodeCallResolution, encodeCallResolution, fromJsonCallResolution, toJsonCallResolution } from "../type/resolution.js";
 import { decodeConstructResolution, encodeConstructResolution, fromJsonConstructResolution, toJsonConstructResolution } from "../type/resolution.js";
+import { decodeGuardResolution, encodeGuardResolution, fromJsonGuardResolution, toJsonGuardResolution } from "../type/resolution.js";
+import { decodeInstantiationResolution, encodeInstantiationResolution, fromJsonInstantiationResolution, toJsonInstantiationResolution } from "../type/resolution.js";
 import { decodeLabelResolution, encodeLabelResolution, fromJsonLabelResolution, toJsonLabelResolution } from "../type/resolution.js";
 import { decodeMemberResolution, encodeMemberResolution, fromJsonMemberResolution, toJsonMemberResolution } from "../type/resolution.js";
 import { decodeNameResolution, encodeNameResolution, fromJsonNameResolution, toJsonNameResolution } from "../type/resolution.js";
 import { decodePatternResolution, encodePatternResolution, fromJsonPatternResolution, toJsonPatternResolution } from "../type/resolution.js";
-import { decodeReadWriteResolution, encodeReadWriteResolution, fromJsonReadWriteResolution, toJsonReadWriteResolution } from "../type/resolution.js";
+import { decodePlaceResolution, encodePlaceResolution, fromJsonPlaceResolution, toJsonPlaceResolution } from "../type/resolution.js";
 import { decodeReceiverResolution, encodeReceiverResolution, fromJsonReceiverResolution, toJsonReceiverResolution } from "../type/resolution.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
@@ -30,6 +34,8 @@ export type ResolutionSegment = {
     readonly moduleId: ModuleId;
     /** Checked lexical or path resolutions keyed by DIR node. */
     readonly names: ReadonlyMap<GlobalNodeIdAny, NameResolution>;
+    /** Checked generic instantiations keyed by DIR node. */
+    readonly instantiations: ReadonlyMap<GlobalNodeIdAny, InstantiationResolution>;
     /** Checked label resolutions keyed by DIR node. */
     readonly labels: ReadonlyMap<GlobalNodeIdAny, LabelResolution>;
     /** Checked receiver resolutions keyed by DIR node. */
@@ -38,8 +44,10 @@ export type ResolutionSegment = {
     readonly members: ReadonlyMap<GlobalNodeIdAny, MemberResolution>;
     /** Checked call resolutions keyed by DIR node. */
     readonly calls: ReadonlyMap<GlobalNodeIdAny, CallResolution>;
-    /** Checked paired read-write resolutions keyed by DIR node. */
-    readonly readWrites: ReadonlyMap<GlobalNodeIdAny, ReadWriteResolution>;
+    /** Checked place resolutions keyed by DIR node. */
+    readonly places: ReadonlyMap<GlobalNodeIdAny, PlaceResolution>;
+    /** Checked guard resolutions keyed by DIR node. */
+    readonly guards: ReadonlyMap<GlobalNodeIdAny, GuardResolution>;
     /** Checked construct resolutions keyed by DIR node. */
     readonly constructs: ReadonlyMap<GlobalNodeIdAny, ConstructResolution>;
     /** Checked pattern resolutions keyed by DIR node. */
@@ -85,7 +93,7 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
         encodeGlobalNodeIdAny(writer, entry1.key1);
         encodeNameResolution(writer, entry1.item1);
     }
-    const entries2 = Array.from(value.labels.entries()).map(([key2, item2]) => {
+    const entries2 = Array.from(value.instantiations.entries()).map(([key2, item2]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key2);
         });
@@ -95,9 +103,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries2.length);
     for (const entry2 of entries2) {
         encodeGlobalNodeIdAny(writer, entry2.key2);
-        encodeLabelResolution(writer, entry2.item2);
+        encodeInstantiationResolution(writer, entry2.item2);
     }
-    const entries3 = Array.from(value.receivers.entries()).map(([key3, item3]) => {
+    const entries3 = Array.from(value.labels.entries()).map(([key3, item3]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key3);
         });
@@ -107,9 +115,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries3.length);
     for (const entry3 of entries3) {
         encodeGlobalNodeIdAny(writer, entry3.key3);
-        encodeReceiverResolution(writer, entry3.item3);
+        encodeLabelResolution(writer, entry3.item3);
     }
-    const entries4 = Array.from(value.members.entries()).map(([key4, item4]) => {
+    const entries4 = Array.from(value.receivers.entries()).map(([key4, item4]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key4);
         });
@@ -119,9 +127,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries4.length);
     for (const entry4 of entries4) {
         encodeGlobalNodeIdAny(writer, entry4.key4);
-        encodeMemberResolution(writer, entry4.item4);
+        encodeReceiverResolution(writer, entry4.item4);
     }
-    const entries5 = Array.from(value.calls.entries()).map(([key5, item5]) => {
+    const entries5 = Array.from(value.members.entries()).map(([key5, item5]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key5);
         });
@@ -131,9 +139,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries5.length);
     for (const entry5 of entries5) {
         encodeGlobalNodeIdAny(writer, entry5.key5);
-        encodeCallResolution(writer, entry5.item5);
+        encodeMemberResolution(writer, entry5.item5);
     }
-    const entries6 = Array.from(value.readWrites.entries()).map(([key6, item6]) => {
+    const entries6 = Array.from(value.calls.entries()).map(([key6, item6]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key6);
         });
@@ -143,9 +151,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries6.length);
     for (const entry6 of entries6) {
         encodeGlobalNodeIdAny(writer, entry6.key6);
-        encodeReadWriteResolution(writer, entry6.item6);
+        encodeCallResolution(writer, entry6.item6);
     }
-    const entries7 = Array.from(value.constructs.entries()).map(([key7, item7]) => {
+    const entries7 = Array.from(value.places.entries()).map(([key7, item7]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key7);
         });
@@ -155,9 +163,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries7.length);
     for (const entry7 of entries7) {
         encodeGlobalNodeIdAny(writer, entry7.key7);
-        encodeConstructResolution(writer, entry7.item7);
+        encodePlaceResolution(writer, entry7.item7);
     }
-    const entries8 = Array.from(value.patterns.entries()).map(([key8, item8]) => {
+    const entries8 = Array.from(value.guards.entries()).map(([key8, item8]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key8);
         });
@@ -167,9 +175,9 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries8.length);
     for (const entry8 of entries8) {
         encodeGlobalNodeIdAny(writer, entry8.key8);
-        encodePatternResolution(writer, entry8.item8);
+        encodeGuardResolution(writer, entry8.item8);
     }
-    const entries9 = Array.from(value.assignPatterns.entries()).map(([key9, item9]) => {
+    const entries9 = Array.from(value.constructs.entries()).map(([key9, item9]) => {
         const keyBytes = nestedBytes((writer) => {
             encodeGlobalNodeIdAny(writer, key9);
         });
@@ -179,7 +187,31 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
     writer.writeUnsigned(entries9.length);
     for (const entry9 of entries9) {
         encodeGlobalNodeIdAny(writer, entry9.key9);
-        encodeAssignPatternResolution(writer, entry9.item9);
+        encodeConstructResolution(writer, entry9.item9);
+    }
+    const entries10 = Array.from(value.patterns.entries()).map(([key10, item10]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeGlobalNodeIdAny(writer, key10);
+        });
+        return { key10, item10, keyBytes };
+    });
+    entries10.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries10.length);
+    for (const entry10 of entries10) {
+        encodeGlobalNodeIdAny(writer, entry10.key10);
+        encodePatternResolution(writer, entry10.item10);
+    }
+    const entries11 = Array.from(value.assignPatterns.entries()).map(([key11, item11]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeGlobalNodeIdAny(writer, key11);
+        });
+        return { key11, item11, keyBytes };
+    });
+    entries11.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries11.length);
+    for (const entry11 of entries11) {
+        encodeGlobalNodeIdAny(writer, entry11.key11);
+        encodeAssignPatternResolution(writer, entry11.item11);
     }
 }
 
@@ -187,23 +219,27 @@ export function encodeResolutionSegment(writer: BinaryWriter, value: ResolutionS
 export function decodeResolutionSegment(reader: BinaryReader): ResolutionSegment {
     const moduleId = decodeModuleId(reader);
     const names = (() => { const length1 = reader.readNumber(); const items1 = new Map<GlobalNodeIdAny, NameResolution>(); for (let index = 0; index < length1; index += 1) { items1.set(decodeGlobalNodeIdAny(reader), decodeNameResolution(reader)); } return items1; })();
-    const labels = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalNodeIdAny, LabelResolution>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalNodeIdAny(reader), decodeLabelResolution(reader)); } return items2; })();
-    const receivers = (() => { const length3 = reader.readNumber(); const items3 = new Map<GlobalNodeIdAny, ReceiverResolution>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeGlobalNodeIdAny(reader), decodeReceiverResolution(reader)); } return items3; })();
-    const members = (() => { const length4 = reader.readNumber(); const items4 = new Map<GlobalNodeIdAny, MemberResolution>(); for (let index = 0; index < length4; index += 1) { items4.set(decodeGlobalNodeIdAny(reader), decodeMemberResolution(reader)); } return items4; })();
-    const calls = (() => { const length5 = reader.readNumber(); const items5 = new Map<GlobalNodeIdAny, CallResolution>(); for (let index = 0; index < length5; index += 1) { items5.set(decodeGlobalNodeIdAny(reader), decodeCallResolution(reader)); } return items5; })();
-    const readWrites = (() => { const length6 = reader.readNumber(); const items6 = new Map<GlobalNodeIdAny, ReadWriteResolution>(); for (let index = 0; index < length6; index += 1) { items6.set(decodeGlobalNodeIdAny(reader), decodeReadWriteResolution(reader)); } return items6; })();
-    const constructs = (() => { const length7 = reader.readNumber(); const items7 = new Map<GlobalNodeIdAny, ConstructResolution>(); for (let index = 0; index < length7; index += 1) { items7.set(decodeGlobalNodeIdAny(reader), decodeConstructResolution(reader)); } return items7; })();
-    const patterns = (() => { const length8 = reader.readNumber(); const items8 = new Map<GlobalNodeIdAny, PatternResolution>(); for (let index = 0; index < length8; index += 1) { items8.set(decodeGlobalNodeIdAny(reader), decodePatternResolution(reader)); } return items8; })();
-    const assignPatterns = (() => { const length9 = reader.readNumber(); const items9 = new Map<GlobalNodeIdAny, AssignPatternResolution>(); for (let index = 0; index < length9; index += 1) { items9.set(decodeGlobalNodeIdAny(reader), decodeAssignPatternResolution(reader)); } return items9; })();
+    const instantiations = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalNodeIdAny, InstantiationResolution>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalNodeIdAny(reader), decodeInstantiationResolution(reader)); } return items2; })();
+    const labels = (() => { const length3 = reader.readNumber(); const items3 = new Map<GlobalNodeIdAny, LabelResolution>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeGlobalNodeIdAny(reader), decodeLabelResolution(reader)); } return items3; })();
+    const receivers = (() => { const length4 = reader.readNumber(); const items4 = new Map<GlobalNodeIdAny, ReceiverResolution>(); for (let index = 0; index < length4; index += 1) { items4.set(decodeGlobalNodeIdAny(reader), decodeReceiverResolution(reader)); } return items4; })();
+    const members = (() => { const length5 = reader.readNumber(); const items5 = new Map<GlobalNodeIdAny, MemberResolution>(); for (let index = 0; index < length5; index += 1) { items5.set(decodeGlobalNodeIdAny(reader), decodeMemberResolution(reader)); } return items5; })();
+    const calls = (() => { const length6 = reader.readNumber(); const items6 = new Map<GlobalNodeIdAny, CallResolution>(); for (let index = 0; index < length6; index += 1) { items6.set(decodeGlobalNodeIdAny(reader), decodeCallResolution(reader)); } return items6; })();
+    const places = (() => { const length7 = reader.readNumber(); const items7 = new Map<GlobalNodeIdAny, PlaceResolution>(); for (let index = 0; index < length7; index += 1) { items7.set(decodeGlobalNodeIdAny(reader), decodePlaceResolution(reader)); } return items7; })();
+    const guards = (() => { const length8 = reader.readNumber(); const items8 = new Map<GlobalNodeIdAny, GuardResolution>(); for (let index = 0; index < length8; index += 1) { items8.set(decodeGlobalNodeIdAny(reader), decodeGuardResolution(reader)); } return items8; })();
+    const constructs = (() => { const length9 = reader.readNumber(); const items9 = new Map<GlobalNodeIdAny, ConstructResolution>(); for (let index = 0; index < length9; index += 1) { items9.set(decodeGlobalNodeIdAny(reader), decodeConstructResolution(reader)); } return items9; })();
+    const patterns = (() => { const length10 = reader.readNumber(); const items10 = new Map<GlobalNodeIdAny, PatternResolution>(); for (let index = 0; index < length10; index += 1) { items10.set(decodeGlobalNodeIdAny(reader), decodePatternResolution(reader)); } return items10; })();
+    const assignPatterns = (() => { const length11 = reader.readNumber(); const items11 = new Map<GlobalNodeIdAny, AssignPatternResolution>(); for (let index = 0; index < length11; index += 1) { items11.set(decodeGlobalNodeIdAny(reader), decodeAssignPatternResolution(reader)); } return items11; })();
 
     return {
         moduleId,
         names,
+        instantiations,
         labels,
         receivers,
         members,
         calls,
-        readWrites,
+        places,
+        guards,
         constructs,
         patterns,
         assignPatterns,
@@ -215,11 +251,13 @@ export function toJsonResolutionSegment(value: ResolutionSegment): Json {
     return {
         moduleId: toJsonModuleId(value.moduleId),
         names: Array.from(value.names.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonNameResolution(item0)] as const),
+        instantiations: Array.from(value.instantiations.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonInstantiationResolution(item0)] as const),
         labels: Array.from(value.labels.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonLabelResolution(item0)] as const),
         receivers: Array.from(value.receivers.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonReceiverResolution(item0)] as const),
         members: Array.from(value.members.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonMemberResolution(item0)] as const),
         calls: Array.from(value.calls.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonCallResolution(item0)] as const),
-        readWrites: Array.from(value.readWrites.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonReadWriteResolution(item0)] as const),
+        places: Array.from(value.places.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonPlaceResolution(item0)] as const),
+        guards: Array.from(value.guards.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonGuardResolution(item0)] as const),
         constructs: Array.from(value.constructs.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonConstructResolution(item0)] as const),
         patterns: Array.from(value.patterns.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonPatternResolution(item0)] as const),
         assignPatterns: Array.from(value.assignPatterns.entries()).map(([key0, item0]) => [toJsonGlobalNodeIdAny(key0), toJsonAssignPatternResolution(item0)] as const),
@@ -233,11 +271,13 @@ export function fromJsonResolutionSegment(value: Json): ResolutionSegment {
     return {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         names: new Map(jsonArray(jsonField(object, "names")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonNameResolution(item0)] as const; })),
+        instantiations: new Map(jsonArray(jsonField(object, "instantiations")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonInstantiationResolution(item0)] as const; })),
         labels: new Map(jsonArray(jsonField(object, "labels")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonLabelResolution(item0)] as const; })),
         receivers: new Map(jsonArray(jsonField(object, "receivers")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonReceiverResolution(item0)] as const; })),
         members: new Map(jsonArray(jsonField(object, "members")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonMemberResolution(item0)] as const; })),
         calls: new Map(jsonArray(jsonField(object, "calls")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonCallResolution(item0)] as const; })),
-        readWrites: new Map(jsonArray(jsonField(object, "readWrites")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonReadWriteResolution(item0)] as const; })),
+        places: new Map(jsonArray(jsonField(object, "places")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonPlaceResolution(item0)] as const; })),
+        guards: new Map(jsonArray(jsonField(object, "guards")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonGuardResolution(item0)] as const; })),
         constructs: new Map(jsonArray(jsonField(object, "constructs")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonConstructResolution(item0)] as const; })),
         patterns: new Map(jsonArray(jsonField(object, "patterns")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonPatternResolution(item0)] as const; })),
         assignPatterns: new Map(jsonArray(jsonField(object, "assignPatterns")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalNodeIdAny(key0), fromJsonAssignPatternResolution(item0)] as const; })),

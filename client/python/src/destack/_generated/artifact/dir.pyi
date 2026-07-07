@@ -10,17 +10,16 @@ from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 import destack._generated.artifact.core.dependency
 import destack._generated.dir.source.token
 import destack._generated.dir.symbol.scope
-import destack._generated.dir.table.annotation
+import destack._generated.dir.table.auto
 import destack._generated.dir.table.binding
 import destack._generated.dir.table.capture
 import destack._generated.dir.table.coercion
+import destack._generated.dir.table.decorator
 import destack._generated.dir.table.definition
 import destack._generated.dir.table.export
 import destack._generated.dir.table.generic
 import destack._generated.dir.table.global_
-import destack._generated.dir.table.guard
 import destack._generated.dir.table.import_
-import destack._generated.dir.table.layout
 import destack._generated.dir.table.macro
 import destack._generated.dir.table.module
 import destack._generated.dir.table.reference
@@ -96,8 +95,12 @@ def from_json_dir_checked_component_entry(value: Json) -> DirCheckedComponentEnt
 class DirCheckedModule:
     """Type-checking segment for one profile-scoped module."""
 
-    # new annotation invocations
-    annotations: destack._generated.dir.table.annotation.AnnotationSegment
+    # checked binding segment
+    bindings: destack._generated.dir.table.binding.BindingSegment
+    # new decorator applications
+    decorators: destack._generated.dir.table.decorator.DecoratorSegment
+    # auto-derived implementations
+    auto: destack._generated.dir.table.auto.AutoSegment
     # new types
     types: destack._generated.dir.table.type.TypeSegment
     # new static values
@@ -110,8 +113,6 @@ class DirCheckedModule:
     definitions: destack._generated.dir.table.definition.DefinitionSegment
     # new implicit coercions
     coercions: destack._generated.dir.table.coercion.CoercionSegment
-    # new layouts
-    layouts: destack._generated.dir.table.layout.LayoutSegment
     # new captures
     captures: destack._generated.dir.table.capture.CaptureSegment
 
@@ -214,7 +215,7 @@ class DirExpanded:
     types: destack._generated.dir.table.type.TypeSegment
     # new static values
     statics: destack._generated.dir.table.static.StaticSegment
-    # expanded macro invocations
+    # expanded macro applications
     macros: destack._generated.dir.table.macro.MacroTable
     # top-level expressions
     roots: Sequence[destack._generated.dir.tree.node.LocalNodeId]
@@ -337,8 +338,6 @@ class DirMaterialized:
     coercions: destack._generated.dir.table.coercion.CoercionSegment
     # new captures
     captures: destack._generated.dir.table.capture.CaptureSegment
-    # new layouts
-    layouts: destack._generated.dir.table.layout.LayoutSegment
     # top-level expressions
     roots: Sequence[destack._generated.dir.tree.node.LocalNodeId]
 
@@ -353,45 +352,6 @@ def encode_dir_materialized(writer: BinaryWriter, value: DirMaterialized) -> Non
 def decode_dir_materialized(reader: BinaryReader) -> DirMaterialized: ...
 def to_json_dir_materialized(value: DirMaterialized) -> Json: ...
 def from_json_dir_materialized(value: Json) -> DirMaterialized: ...
-
-@dataclass(frozen=True, slots=True)
-class DirElaborated:
-    """DIR-to-MIR elaboration segment for one profile-scoped module."""
-
-    # tree changes
-    patch: destack._generated.dir.tree.patch.Patch
-    # new bindings
-    bindings: destack._generated.dir.table.binding.BindingSegment
-    # new types
-    types: destack._generated.dir.table.type.TypeSegment
-    # new static values
-    statics: destack._generated.dir.table.static.StaticSegment
-    # new resolutions
-    resolutions: destack._generated.dir.table.resolution.ResolutionSegment
-    # new generic slots and instances
-    generics: destack._generated.dir.table.generic.GenericSegment
-    # new implicit coercions
-    coercions: destack._generated.dir.table.coercion.CoercionSegment
-    # new captures
-    captures: destack._generated.dir.table.capture.CaptureSegment
-    # new layouts
-    layouts: destack._generated.dir.table.layout.LayoutSegment
-    # top-level expressions
-    roots: Sequence[destack._generated.dir.tree.node.LocalNodeId]
-    # new guards
-    guards: destack._generated.dir.table.guard.GuardTable
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> DirElaborated: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> DirElaborated: ...
-
-def encode_dir_elaborated(writer: BinaryWriter, value: DirElaborated) -> None: ...
-def decode_dir_elaborated(reader: BinaryReader) -> DirElaborated: ...
-def to_json_dir_elaborated(value: DirElaborated) -> Json: ...
-def from_json_dir_elaborated(value: Json) -> DirElaborated: ...
 
 __all__ = [
     "DirParsedFile",
@@ -454,9 +414,4 @@ __all__ = [
     "decode_dir_materialized",
     "to_json_dir_materialized",
     "from_json_dir_materialized",
-    "DirElaborated",
-    "encode_dir_elaborated",
-    "decode_dir_elaborated",
-    "to_json_dir_elaborated",
-    "from_json_dir_elaborated",
 ]

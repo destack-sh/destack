@@ -33,12 +33,12 @@ class PatternMust:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class PatternAssign:
-    """Assignment pattern (like `x = 1` or `{ x } = {}`)."""
+class PatternDefault:
+    """Defaulted pattern like `x = 1`."""
 
     pattern: destack._generated.dir.tree.node.LocalNodeId
     value: destack._generated.dir.tree.node.LocalNodeId
-    kind: typing.Literal["assign"] = "assign"
+    kind: typing.Literal["default"] = "default"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -174,7 +174,7 @@ class PatternUnion:
 Pattern: typing.TypeAlias = (
     PatternWildcard
     | PatternMust
-    | PatternAssign
+    | PatternDefault
     | PatternBorrowOf
     | PatternMoveOf
     | PatternDereferenceOf
@@ -261,22 +261,22 @@ def to_json_pattern_field(value: PatternField) -> Json: ...
 def from_json_pattern_field(value: Json) -> PatternField: ...
 
 @dataclass(frozen=True, slots=True)
-class AssignPatternExpression:
-    """Expression target like `x`, `obj.x`, or `obj[key]`."""
+class AssignPatternPlace:
+    """Writable place target like `x`, `obj.x`, or `obj[key]`."""
 
-    value: destack._generated.dir.tree.node.LocalNodeId
-    kind: typing.Literal["expression"] = "expression"
+    expression: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["place"] = "place"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class AssignPatternAssign:
+class AssignPatternDefault:
     """Defaulted destructuring target like `x = 1`."""
 
     pattern: destack._generated.dir.tree.node.LocalNodeId
     value: destack._generated.dir.tree.node.LocalNodeId
-    kind: typing.Literal["assign"] = "assign"
+    kind: typing.Literal["default"] = "default"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -287,6 +287,16 @@ class AssignPatternSequence:
 
     fields: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     kind: typing.Literal["sequence"] = "sequence"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class AssignPatternTuple:
+    """Tuple destructuring target like `(a, b)` or `(a,)`."""
+
+    fields: Sequence[destack._generated.dir.tree.node.LocalNodeId]
+    kind: typing.Literal["tuple"] = "tuple"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -303,9 +313,10 @@ class AssignPatternObject:
 
 """An AssignPattern is one assignment left hand side."""
 AssignPattern: typing.TypeAlias = (
-    AssignPatternExpression
-    | AssignPatternAssign
+    AssignPatternPlace
+    | AssignPatternDefault
     | AssignPatternSequence
+    | AssignPatternTuple
     | AssignPatternObject
 )
 
@@ -319,7 +330,7 @@ class AssignPatternFieldNamed:
     """Named field like `{ x }` or `{ x: y }`."""
 
     name: destack._generated.dir.tree.key.Name
-    pattern: destack._generated.dir.tree.node.LocalNodeId | None
+    pattern: destack._generated.dir.tree.node.LocalNodeId
     is_shorthand: bool
     kind: typing.Literal["named"] = "named"
 
@@ -390,7 +401,7 @@ __all__ = [
     "from_json_pattern",
     "PatternWildcard",
     "PatternMust",
-    "PatternAssign",
+    "PatternDefault",
     "PatternBorrowOf",
     "PatternMoveOf",
     "PatternDereferenceOf",
@@ -418,9 +429,10 @@ __all__ = [
     "decode_assign_pattern",
     "to_json_assign_pattern",
     "from_json_assign_pattern",
-    "AssignPatternExpression",
-    "AssignPatternAssign",
+    "AssignPatternPlace",
+    "AssignPatternDefault",
     "AssignPatternSequence",
+    "AssignPatternTuple",
     "AssignPatternObject",
     "AssignPatternField",
     "encode_assign_pattern_field",

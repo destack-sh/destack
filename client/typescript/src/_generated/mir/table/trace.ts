@@ -2,112 +2,6 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBigint, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 
-/** Stable non-zero identifier for one trace map. */
-export type TraceId = number;
-
-export const TraceId = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceId): void {
-        encodeTraceId(writer, value);
-    },
-
-    /** Decode one TraceId. */
-    decode(reader: BinaryReader): TraceId {
-        return decodeTraceId(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceId): Json {
-        return toJsonTraceId(value);
-    },
-
-    /** Return one TraceId from one JSON value. */
-    fromJson(value: Json): TraceId {
-        return fromJsonTraceId(value);
-    },
-};
-
-/** Encode one TraceId. */
-export function encodeTraceId(writer: BinaryWriter, value: TraceId): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one TraceId. */
-export function decodeTraceId(reader: BinaryReader): TraceId {
-    return reader.readNumber();
-}
-
-/** Return one JSON value for one TraceId. */
-export function toJsonTraceId(value: TraceId): Json {
-    return value;
-}
-
-/** Return one TraceId from one JSON value. */
-export function fromJsonTraceId(value: Json): TraceId {
-    return jsonInteger(value);
-}
-
-/** Shared trace map table for one MIR module or lowered program. */
-export type TraceTable = {
-    /** Trace maps indexed by TraceId. */
-    readonly traces: ReadonlyArray<TraceMap>;
-};
-
-export const TraceTable = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: TraceTable): void {
-        encodeTraceTable(writer, value);
-    },
-
-    /** Decode one TraceTable. */
-    decode(reader: BinaryReader): TraceTable {
-        return decodeTraceTable(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: TraceTable): Json {
-        return toJsonTraceTable(value);
-    },
-
-    /** Return one TraceTable from one JSON value. */
-    fromJson(value: Json): TraceTable {
-        return fromJsonTraceTable(value);
-    },
-};
-
-/** Encode one TraceTable. */
-export function encodeTraceTable(writer: BinaryWriter, value: TraceTable): void {
-    writer.writeUnsigned(value.traces.length);
-    for (const item0 of value.traces) {
-        encodeTraceMap(writer, item0);
-    }
-}
-
-/** Decode one TraceTable. */
-export function decodeTraceTable(reader: BinaryReader): TraceTable {
-    const traces = (() => { const length0 = reader.readNumber(); const items0: Array<TraceMap> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeTraceMap(reader)); } return items0; })();
-
-    return {
-        traces,
-    };
-}
-
-/** Return one JSON value for one TraceTable. */
-export function toJsonTraceTable(value: TraceTable): Json {
-    return {
-        traces: value.traces.map((item0) => toJsonTraceMap(item0)),
-    };
-}
-
-/** Return one TraceTable from one JSON value. */
-export function fromJsonTraceTable(value: Json): TraceTable {
-    const object = jsonObject(value);
-
-    return {
-        traces: jsonArray(jsonField(object, "traces")).map((item0) => fromJsonTraceMap(item0)),
-    };
-}
-
 /** Reference trace map for one value layout. */
 export type TraceMap =
     /** The payload contains no references. */
@@ -121,6 +15,8 @@ export type TraceMap =
           readonly localOffsets: ReadonlyArray<number>;
           /** Byte offsets of encoded shared heap references. */
           readonly sharedOffsets: ReadonlyArray<number>;
+          /** Byte offsets of encoded frame references. */
+          readonly frameOffsets: ReadonlyArray<number>;
       }
     /** The payload stores one nested map at a byte offset. */
     | {
@@ -163,8 +59,8 @@ export const TraceMap = {
     },
 
     /** The payload stores reference words at fixed byte offsets. */
-    fixed(localOffsets: ReadonlyArray<number>, sharedOffsets: ReadonlyArray<number>): TraceMap {
-        return { kind: "fixed", localOffsets, sharedOffsets };
+    fixed(localOffsets: ReadonlyArray<number>, sharedOffsets: ReadonlyArray<number>, frameOffsets: ReadonlyArray<number>): TraceMap {
+        return { kind: "fixed", localOffsets, sharedOffsets, frameOffsets };
     },
 
     /** The payload stores one nested map at a byte offset. */
@@ -224,6 +120,10 @@ export function encodeTraceMap(writer: BinaryWriter, value: TraceMap): void {
             for (const item1 of value.sharedOffsets) {
                 writer.writeUnsigned(item1);
             }
+            writer.writeUnsigned(value.frameOffsets.length);
+            for (const item2 of value.frameOffsets) {
+                writer.writeUnsigned(item2);
+            }
             return;
         case "nested":
             writer.writeUnsigned(2);
@@ -267,11 +167,13 @@ export function decodeTraceMap(reader: BinaryReader): TraceMap {
         case 1: {
             const localOffsets = (() => { const length0 = reader.readNumber(); const items0: Array<number> = []; for (let index = 0; index < length0; index += 1) { items0.push(reader.readNumber()); } return items0; })();
             const sharedOffsets = (() => { const length1 = reader.readNumber(); const items1: Array<number> = []; for (let index = 0; index < length1; index += 1) { items1.push(reader.readNumber()); } return items1; })();
+            const frameOffsets = (() => { const length2 = reader.readNumber(); const items2: Array<number> = []; for (let index = 0; index < length2; index += 1) { items2.push(reader.readNumber()); } return items2; })();
 
             return {
                 kind: "fixed",
                 localOffsets,
                 sharedOffsets,
+                frameOffsets,
             };
         }
         case 2: {
@@ -331,6 +233,7 @@ export function toJsonTraceMap(value: TraceMap): Json {
                 kind: "fixed",
                 localOffsets: value.localOffsets.map((item0) => item0),
                 sharedOffsets: value.sharedOffsets.map((item0) => item0),
+                frameOffsets: value.frameOffsets.map((item0) => item0),
             };
         case "nested":
             return {
@@ -376,6 +279,7 @@ export function fromJsonTraceMap(value: Json): TraceMap {
                 kind,
                 localOffsets: jsonArray(jsonField(object, "localOffsets")).map((item0) => jsonInteger(item0)),
                 sharedOffsets: jsonArray(jsonField(object, "sharedOffsets")).map((item0) => jsonInteger(item0)),
+                frameOffsets: jsonArray(jsonField(object, "frameOffsets")).map((item0) => jsonInteger(item0)),
             };
         case "nested":
             return {

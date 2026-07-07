@@ -47,8 +47,6 @@ class ImportTable:
 
     # the module id of the import table
     module_id: destack._generated.source.file.model.module.ModuleId
-    # modules reached by resolved imports and active globals
-    modules: Sequence[destack._generated.source.file.model.module.ModuleId]
     # imported local symbols keyed to their resolved target
     target_by_symbol: Mapping[
         destack._generated.dir.symbol.symbol.LocalSymbolId, ImportTarget
@@ -57,7 +55,7 @@ class ImportTable:
     global_target_by_key: Mapping[
         destack._generated.dir.symbol.key.StaticKey, Sequence[ImportTarget]
     ]
-    # language item symbols required by compiler syntax
+    # resolved symbols for language items used by this module
     language_symbol_by_item: Mapping[
         destack._generated.dir.symbol.language.LanguageItem,
         destack._generated.dir.symbol.symbol.GlobalSymbolId,

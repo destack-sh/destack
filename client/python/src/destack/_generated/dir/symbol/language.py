@@ -18,12 +18,15 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["asyncGenerator"]
     | typing.Literal["generator"]
     | typing.Literal["generatorResult"]
-    | typing.Literal["generatorReturn"]
-    | typing.Literal["generatorState"]
-    | typing.Literal["generatorYield"]
+    | typing.Literal["asyncGeneratorYield"]
     | typing.Literal["asyncIterable"]
     | typing.Literal["asyncIterator"]
-    | typing.Literal["continuationHandle"]
+    | typing.Literal["continuation"]
+    | typing.Literal["continuationResume"]
+    | typing.Literal["continuationResumeCancel"]
+    | typing.Literal["continuationResumeNext"]
+    | typing.Literal["continuationResumeReturn"]
+    | typing.Literal["continuationParked"]
     | typing.Literal["continuationResult"]
     | typing.Literal["continuationReturn"]
     | typing.Literal["continuationYield"]
@@ -38,6 +41,7 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["map"]
     | typing.Literal["set"]
     | typing.Literal["slice"]
+    | typing.Literal["sequence"]
     | typing.Literal["computeBuffer"]
     | typing.Literal["computeDevice"]
     | typing.Literal["computeMesh"]
@@ -66,8 +70,7 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["tryInto"]
     | typing.Literal["cryptoBinding"]
     | typing.Literal["capture"]
-    | typing.Literal["cloneDerive"]
-    | typing.Literal["debugDerive"]
+    | typing.Literal["derive"]
     | typing.Literal["tagged"]
     | typing.Literal["allow"]
     | typing.Literal["deny"]
@@ -128,6 +131,9 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["fromIterator"]
     | typing.Literal["iterable"]
     | typing.Literal["iterator"]
+    | typing.Literal["iteratorResult"]
+    | typing.Literal["iteratorReturn"]
+    | typing.Literal["iteratorYield"]
     | typing.Literal["eval"]
     | typing.Literal["expansionContext"]
     | typing.Literal["macro"]
@@ -137,6 +143,8 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["complex"]
     | typing.Literal["math"]
     | typing.Literal["number"]
+    | typing.Literal["integer"]
+    | typing.Literal["float"]
     | typing.Literal["vector"]
     | typing.Literal["access"]
     | typing.Literal["dynamic"]
@@ -152,6 +160,7 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["copy"]
     | typing.Literal["default"]
     | typing.Literal["dynamicSafe"]
+    | typing.Literal["overwriteStable"]
     | typing.Literal["send"]
     | typing.Literal["sync"]
     | typing.Literal["unpin"]
@@ -310,7 +319,6 @@ LanguageItem: typing.TypeAlias = (
     | typing.Literal["lowercase"]
     | typing.Literal["uncapitalize"]
     | typing.Literal["uppercase"]
-    | typing.Literal["option"]
     | typing.Literal["symbol"]
 )
 
@@ -325,594 +333,610 @@ def encode_language_item(writer: BinaryWriter, value: LanguageItem) -> None:
         writer.write_unsigned(2)
     elif value == "generatorResult":
         writer.write_unsigned(3)
-    elif value == "generatorReturn":
+    elif value == "asyncGeneratorYield":
         writer.write_unsigned(4)
-    elif value == "generatorState":
-        writer.write_unsigned(5)
-    elif value == "generatorYield":
-        writer.write_unsigned(6)
     elif value == "asyncIterable":
-        writer.write_unsigned(7)
+        writer.write_unsigned(5)
     elif value == "asyncIterator":
+        writer.write_unsigned(6)
+    elif value == "continuation":
+        writer.write_unsigned(7)
+    elif value == "continuationResume":
         writer.write_unsigned(8)
-    elif value == "continuationHandle":
+    elif value == "continuationResumeCancel":
         writer.write_unsigned(9)
-    elif value == "continuationResult":
+    elif value == "continuationResumeNext":
         writer.write_unsigned(10)
-    elif value == "continuationReturn":
+    elif value == "continuationResumeReturn":
         writer.write_unsigned(11)
-    elif value == "continuationYield":
+    elif value == "continuationParked":
         writer.write_unsigned(12)
-    elif value == "queueMicrotask":
+    elif value == "continuationResult":
         writer.write_unsigned(13)
-    elif value == "suspendContinuation":
+    elif value == "continuationReturn":
         writer.write_unsigned(14)
-    elif value == "promise":
+    elif value == "continuationYield":
         writer.write_unsigned(15)
-    elif value == "promiseResolvers":
+    elif value == "queueMicrotask":
         writer.write_unsigned(16)
-    elif value == "audioBinding":
+    elif value == "suspendContinuation":
         writer.write_unsigned(17)
-    elif value == "array":
+    elif value == "promise":
         writer.write_unsigned(18)
-    elif value == "fixedArray":
+    elif value == "promiseResolvers":
         writer.write_unsigned(19)
-    elif value == "readonlyArray":
+    elif value == "audioBinding":
         writer.write_unsigned(20)
-    elif value == "map":
+    elif value == "array":
         writer.write_unsigned(21)
-    elif value == "set":
+    elif value == "fixedArray":
         writer.write_unsigned(22)
-    elif value == "slice":
+    elif value == "readonlyArray":
         writer.write_unsigned(23)
-    elif value == "computeBuffer":
+    elif value == "map":
         writer.write_unsigned(24)
-    elif value == "computeDevice":
+    elif value == "set":
         writer.write_unsigned(25)
-    elif value == "computeMesh":
+    elif value == "slice":
         writer.write_unsigned(26)
-    elif value == "computeKernel":
+    elif value == "sequence":
         writer.write_unsigned(27)
-    elif value == "computeKernelArgument":
+    elif value == "computeBuffer":
         writer.write_unsigned(28)
-    elif value == "computeProgram":
+    elif value == "computeDevice":
         writer.write_unsigned(29)
-    elif value == "computeEvent":
+    elif value == "computeMesh":
         writer.write_unsigned(30)
-    elif value == "computeStream":
+    elif value == "computeKernel":
         writer.write_unsigned(31)
-    elif value == "context":
+    elif value == "computeKernelArgument":
         writer.write_unsigned(32)
-    elif value == "currentContextValue":
+    elif value == "computeProgram":
         writer.write_unsigned(33)
-    elif value == "contextKey":
+    elif value == "computeEvent":
         writer.write_unsigned(34)
-    elif value == "contextPatch":
+    elif value == "computeStream":
         writer.write_unsigned(35)
-    elif value == "contextToken":
+    elif value == "context":
         writer.write_unsigned(36)
-    elif value == "contextEntry":
+    elif value == "currentContextValue":
         writer.write_unsigned(37)
-    elif value == "currentContext":
+    elif value == "contextKey":
         writer.write_unsigned(38)
-    elif value == "getContextValue":
+    elif value == "contextPatch":
         writer.write_unsigned(39)
-    elif value == "popContext":
+    elif value == "contextToken":
         writer.write_unsigned(40)
-    elif value == "pushContext":
+    elif value == "contextEntry":
         writer.write_unsigned(41)
-    elif value == "requireContextValue":
+    elif value == "currentContext":
         writer.write_unsigned(42)
-    elif value == "as":
+    elif value == "getContextValue":
         writer.write_unsigned(43)
-    elif value == "borrow":
+    elif value == "popContext":
         writer.write_unsigned(44)
-    elif value == "toOwned":
+    elif value == "pushContext":
         writer.write_unsigned(45)
-    elif value == "from":
+    elif value == "requireContextValue":
         writer.write_unsigned(46)
-    elif value == "tryFrom":
+    elif value == "as":
         writer.write_unsigned(47)
-    elif value == "into":
+    elif value == "borrow":
         writer.write_unsigned(48)
-    elif value == "tryInto":
+    elif value == "toOwned":
         writer.write_unsigned(49)
-    elif value == "cryptoBinding":
+    elif value == "from":
         writer.write_unsigned(50)
-    elif value == "capture":
+    elif value == "tryFrom":
         writer.write_unsigned(51)
-    elif value == "cloneDerive":
+    elif value == "into":
         writer.write_unsigned(52)
-    elif value == "debugDerive":
+    elif value == "tryInto":
         writer.write_unsigned(53)
-    elif value == "tagged":
+    elif value == "cryptoBinding":
         writer.write_unsigned(54)
-    elif value == "allow":
+    elif value == "capture":
         writer.write_unsigned(55)
-    elif value == "deny":
+    elif value == "derive":
         writer.write_unsigned(56)
-    elif value == "expect":
+    elif value == "tagged":
         writer.write_unsigned(57)
-    elif value == "forbid":
+    elif value == "allow":
         writer.write_unsigned(58)
-    elif value == "warn":
+    elif value == "deny":
         writer.write_unsigned(59)
-    elif value == "extern":
+    elif value == "expect":
         writer.write_unsigned(60)
-    elif value == "intrinsic":
+    elif value == "forbid":
         writer.write_unsigned(61)
-    elif value == "languageItem":
+    elif value == "warn":
         writer.write_unsigned(62)
-    elif value == "reprDecorator":
+    elif value == "extern":
         writer.write_unsigned(63)
-    elif value == "noAliasingMutableBorrows":
+    elif value == "intrinsic":
         writer.write_unsigned(64)
-    elif value == "noDynamicDispatch":
+    elif value == "languageItem":
         writer.write_unsigned(65)
-    elif value == "noHeap":
+    elif value == "reprDecorator":
         writer.write_unsigned(66)
-    elif value == "noImplicitReceivers":
+    elif value == "noAliasingMutableBorrows":
         writer.write_unsigned(67)
-    elif value == "noManaged":
+    elif value == "noDynamicDispatch":
         writer.write_unsigned(68)
-    elif value == "noReflection":
+    elif value == "noHeap":
         writer.write_unsigned(69)
-    elif value == "noRuntime":
+    elif value == "noImplicitReceivers":
         writer.write_unsigned(70)
-    elif value == "noUnsafe":
+    elif value == "noManaged":
         writer.write_unsigned(71)
-    elif value == "noUnwind":
+    elif value == "noReflection":
         writer.write_unsigned(72)
-    elif value == "deprecated":
+    elif value == "noRuntime":
         writer.write_unsigned(73)
-    elif value == "experimental":
+    elif value == "noUnsafe":
         writer.write_unsigned(74)
-    elif value == "cold":
+    elif value == "noUnwind":
         writer.write_unsigned(75)
-    elif value == "hot":
+    elif value == "deprecated":
         writer.write_unsigned(76)
-    elif value == "inline":
+    elif value == "experimental":
         writer.write_unsigned(77)
-    elif value == "likely":
+    elif value == "cold":
         writer.write_unsigned(78)
-    elif value == "mustUse":
+    elif value == "hot":
         writer.write_unsigned(79)
-    elif value == "noinline":
+    elif value == "inline":
         writer.write_unsigned(80)
-    elif value == "pure":
+    elif value == "likely":
         writer.write_unsigned(81)
-    elif value == "tailcall":
+    elif value == "mustUse":
         writer.write_unsigned(82)
-    elif value == "unlikely":
+    elif value == "noinline":
         writer.write_unsigned(83)
-    elif value == "unroll":
+    elif value == "pure":
         writer.write_unsigned(84)
-    elif value == "safe":
+    elif value == "tailcall":
         writer.write_unsigned(85)
-    elif value == "sink":
+    elif value == "unlikely":
         writer.write_unsigned(86)
-    elif value == "source":
+    elif value == "unroll":
         writer.write_unsigned(87)
-    elif value == "taint":
+    elif value == "safe":
         writer.write_unsigned(88)
-    elif value == "unsafe":
+    elif value == "sink":
         writer.write_unsigned(89)
-    elif value == "untaint":
+    elif value == "source":
         writer.write_unsigned(90)
-    elif value == "deviceBinding":
+    elif value == "taint":
         writer.write_unsigned(91)
-    elif value == "displayBinding":
+    elif value == "unsafe":
         writer.write_unsigned(92)
-    elif value == "error":
+    elif value == "untaint":
         writer.write_unsigned(93)
-    elif value == "abort":
+    elif value == "deviceBinding":
         writer.write_unsigned(94)
-    elif value == "panic":
+    elif value == "displayBinding":
         writer.write_unsigned(95)
-    elif value == "panicValue":
+    elif value == "error":
         writer.write_unsigned(96)
-    elif value == "setPanicHook":
+    elif value == "abort":
         writer.write_unsigned(97)
-    elif value == "takePanicHook":
+    elif value == "panic":
         writer.write_unsigned(98)
-    elif value == "todo":
+    elif value == "panicValue":
         writer.write_unsigned(99)
-    elif value == "unreachable":
+    elif value == "setPanicHook":
         writer.write_unsigned(100)
-    elif value == "asyncResult":
+    elif value == "takePanicHook":
         writer.write_unsigned(101)
-    elif value == "err":
+    elif value == "todo":
         writer.write_unsigned(102)
-    elif value == "ok":
+    elif value == "unreachable":
         writer.write_unsigned(103)
-    elif value == "result":
+    elif value == "asyncResult":
         writer.write_unsigned(104)
-    elif value == "fsBinding":
+    elif value == "err":
         writer.write_unsigned(105)
-    elif value == "gpuBinding":
+    elif value == "ok":
         writer.write_unsigned(106)
-    elif value == "inputBinding":
+    elif value == "result":
         writer.write_unsigned(107)
-    elif value == "ioBinding":
+    elif value == "fsBinding":
         writer.write_unsigned(108)
-    elif value == "ipcBinding":
+    elif value == "gpuBinding":
         writer.write_unsigned(109)
-    elif value == "extend":
+    elif value == "inputBinding":
         writer.write_unsigned(110)
-    elif value == "fromIterator":
+    elif value == "ioBinding":
         writer.write_unsigned(111)
-    elif value == "iterable":
+    elif value == "ipcBinding":
         writer.write_unsigned(112)
-    elif value == "iterator":
+    elif value == "extend":
         writer.write_unsigned(113)
-    elif value == "eval":
+    elif value == "fromIterator":
         writer.write_unsigned(114)
-    elif value == "expansionContext":
+    elif value == "iterable":
         writer.write_unsigned(115)
-    elif value == "macro":
+    elif value == "iterator":
         writer.write_unsigned(116)
-    elif value == "macroContext":
+    elif value == "iteratorResult":
         writer.write_unsigned(117)
-    elif value == "materializationContext":
+    elif value == "iteratorReturn":
         writer.write_unsigned(118)
-    elif value == "bigInt":
+    elif value == "iteratorYield":
         writer.write_unsigned(119)
-    elif value == "complex":
+    elif value == "eval":
         writer.write_unsigned(120)
-    elif value == "math":
+    elif value == "expansionContext":
         writer.write_unsigned(121)
-    elif value == "number":
+    elif value == "macro":
         writer.write_unsigned(122)
-    elif value == "vector":
+    elif value == "macroContext":
         writer.write_unsigned(123)
-    elif value == "access":
+    elif value == "materializationContext":
         writer.write_unsigned(124)
-    elif value == "dynamic":
+    elif value == "bigInt":
         writer.write_unsigned(125)
-    elif value == "allocationError":
+    elif value == "complex":
         writer.write_unsigned(126)
-    elif value == "memoryBinding":
+    elif value == "math":
         writer.write_unsigned(127)
-    elif value == "arc":
+    elif value == "number":
         writer.write_unsigned(128)
-    elif value == "arcInner":
+    elif value == "integer":
         writer.write_unsigned(129)
-    elif value == "arcWeak":
+    elif value == "float":
         writer.write_unsigned(130)
-    elif value == "borrowed":
+    elif value == "vector":
         writer.write_unsigned(131)
-    elif value == "box":
+    elif value == "access":
         writer.write_unsigned(132)
-    elif value == "clone":
+    elif value == "dynamic":
         writer.write_unsigned(133)
-    elif value == "concrete":
+    elif value == "allocationError":
         writer.write_unsigned(134)
-    elif value == "copy":
+    elif value == "memoryBinding":
         writer.write_unsigned(135)
-    elif value == "default":
+    elif value == "arc":
         writer.write_unsigned(136)
-    elif value == "dynamicSafe":
+    elif value == "arcInner":
         writer.write_unsigned(137)
-    elif value == "send":
+    elif value == "arcWeak":
         writer.write_unsigned(138)
-    elif value == "sync":
+    elif value == "borrowed":
         writer.write_unsigned(139)
-    elif value == "unpin":
+    elif value == "box":
         writer.write_unsigned(140)
-    elif value == "zeroable":
+    elif value == "clone":
         writer.write_unsigned(141)
-    elif value == "unsafeCell":
+    elif value == "concrete":
         writer.write_unsigned(142)
-    elif value == "asyncDispose":
+    elif value == "copy":
         writer.write_unsigned(143)
-    elif value == "dispose":
+    elif value == "default":
         writer.write_unsigned(144)
-    elif value == "drop":
+    elif value == "dynamicSafe":
         writer.write_unsigned(145)
-    elif value == "forget":
+    elif value == "overwriteStable":
         writer.write_unsigned(146)
-    elif value == "manuallyDrop":
+    elif value == "send":
         writer.write_unsigned(147)
-    elif value == "maybeUninit":
+    elif value == "sync":
         writer.write_unsigned(148)
-    elif value == "lifetime":
+    elif value == "unpin":
         writer.write_unsigned(149)
-    elif value == "managed":
+    elif value == "zeroable":
         writer.write_unsigned(150)
-    elif value == "owned":
+    elif value == "unsafeCell":
         writer.write_unsigned(151)
-    elif value == "phantom":
+    elif value == "asyncDispose":
         writer.write_unsigned(152)
-    elif value == "pin":
+    elif value == "dispose":
         writer.write_unsigned(153)
-    elif value == "place":
+    elif value == "drop":
         writer.write_unsigned(154)
-    elif value == "placed":
+    elif value == "forget":
         writer.write_unsigned(155)
-    elif value == "space":
+    elif value == "manuallyDrop":
         writer.write_unsigned(156)
-    elif value == "raw":
+    elif value == "maybeUninit":
         writer.write_unsigned(157)
-    elif value == "rc":
+    elif value == "lifetime":
         writer.write_unsigned(158)
-    elif value == "rcInner":
+    elif value == "managed":
         writer.write_unsigned(159)
-    elif value == "rcWeak":
+    elif value == "owned":
         writer.write_unsigned(160)
-    elif value == "accessOf":
+    elif value == "phantom":
         writer.write_unsigned(161)
-    elif value == "accessOr":
+    elif value == "pin":
         writer.write_unsigned(162)
-    elif value == "baseOf":
+    elif value == "place":
         writer.write_unsigned(163)
-    elif value == "isBorrowed":
+    elif value == "placed":
         writer.write_unsigned(164)
-    elif value == "isManaged":
+    elif value == "space":
         writer.write_unsigned(165)
-    elif value == "isOwned":
+    elif value == "raw":
         writer.write_unsigned(166)
-    elif value == "isRaw":
+    elif value == "rc":
         writer.write_unsigned(167)
-    elif value == "isShared":
+    elif value == "rcInner":
         writer.write_unsigned(168)
-    elif value == "isSharedIn":
+    elif value == "rcWeak":
         writer.write_unsigned(169)
-    elif value == "lifetimeOf":
+    elif value == "accessOf":
         writer.write_unsigned(170)
-    elif value == "lifetimeOr":
+    elif value == "accessOr":
         writer.write_unsigned(171)
-    elif value == "ownership":
+    elif value == "baseOf":
         writer.write_unsigned(172)
-    elif value == "ownershipOf":
+    elif value == "isBorrowed":
         writer.write_unsigned(173)
-    elif value == "ownershipOr":
+    elif value == "isManaged":
         writer.write_unsigned(174)
-    elif value == "payloadOf":
+    elif value == "isOwned":
         writer.write_unsigned(175)
-    elif value == "placeIn":
+    elif value == "isRaw":
         writer.write_unsigned(176)
-    elif value == "placeOf":
+    elif value == "isShared":
         writer.write_unsigned(177)
-    elif value == "placeOr":
+    elif value == "isSharedIn":
         writer.write_unsigned(178)
-    elif value == "spaceOf":
+    elif value == "lifetimeOf":
         writer.write_unsigned(179)
-    elif value == "spaceOr":
+    elif value == "lifetimeOr":
         writer.write_unsigned(180)
-    elif value == "withAccess":
+    elif value == "ownership":
         writer.write_unsigned(181)
-    elif value == "withBase":
+    elif value == "ownershipOf":
         writer.write_unsigned(182)
-    elif value == "withLifetime":
+    elif value == "ownershipOr":
         writer.write_unsigned(183)
-    elif value == "withOwnership":
+    elif value == "payloadOf":
         writer.write_unsigned(184)
-    elif value == "withPlace":
+    elif value == "placeIn":
         writer.write_unsigned(185)
-    elif value == "withSpace":
+    elif value == "placeOf":
         writer.write_unsigned(186)
-    elif value == "unique":
+    elif value == "placeOr":
         writer.write_unsigned(187)
-    elif value == "importMeta":
+    elif value == "spaceOf":
         writer.write_unsigned(188)
-    elif value == "importMetaEnv":
+    elif value == "spaceOr":
         writer.write_unsigned(189)
-    elif value == "netBinding":
+    elif value == "withAccess":
         writer.write_unsigned(190)
-    elif value == "and":
+    elif value == "withBase":
         writer.write_unsigned(191)
-    elif value == "not":
+    elif value == "withLifetime":
         writer.write_unsigned(192)
-    elif value == "or":
+    elif value == "withOwnership":
         writer.write_unsigned(193)
-    elif value == "xor":
+    elif value == "withPlace":
         writer.write_unsigned(194)
-    elif value == "compare":
+    elif value == "withSpace":
         writer.write_unsigned(195)
-    elif value == "ordering":
+    elif value == "unique":
         writer.write_unsigned(196)
-    elif value == "partialCompare":
+    elif value == "importMeta":
         writer.write_unsigned(197)
-    elif value == "dereference":
+    elif value == "importMetaEnv":
         writer.write_unsigned(198)
-    elif value == "divide":
+    elif value == "netBinding":
         writer.write_unsigned(199)
-    elif value == "equal":
+    elif value == "and":
         writer.write_unsigned(200)
-    elif value == "partialEqual":
+    elif value == "not":
         writer.write_unsigned(201)
-    elif value == "debug":
+    elif value == "or":
         writer.write_unsigned(202)
-    elif value == "display":
+    elif value == "xor":
         writer.write_unsigned(203)
-    elif value == "hash":
+    elif value == "compare":
         writer.write_unsigned(204)
-    elif value == "hasher":
+    elif value == "ordering":
         writer.write_unsigned(205)
-    elif value == "subtract":
+    elif value == "partialCompare":
         writer.write_unsigned(206)
-    elif value == "multiply":
+    elif value == "dereference":
         writer.write_unsigned(207)
-    elif value == "negate":
+    elif value == "divide":
         writer.write_unsigned(208)
-    elif value == "add":
+    elif value == "equal":
         writer.write_unsigned(209)
-    elif value == "plus":
+    elif value == "partialEqual":
         writer.write_unsigned(210)
-    elif value == "power":
+    elif value == "debug":
         writer.write_unsigned(211)
-    elif value == "remainder":
+    elif value == "display":
         writer.write_unsigned(212)
-    elif value == "shiftLeft":
+    elif value == "hash":
         writer.write_unsigned(213)
-    elif value == "shiftRight":
+    elif value == "hasher":
         writer.write_unsigned(214)
-    elif value == "shiftRightUnsigned":
+    elif value == "subtract":
         writer.write_unsigned(215)
-    elif value == "index":
+    elif value == "multiply":
         writer.write_unsigned(216)
-    elif value == "indexSet":
+    elif value == "negate":
         writer.write_unsigned(217)
-    elif value == "fromResidual":
+    elif value == "add":
         writer.write_unsigned(218)
-    elif value == "try":
+    elif value == "plus":
         writer.write_unsigned(219)
-    elif value == "controlFlow":
+    elif value == "power":
         writer.write_unsigned(220)
-    elif value == "osBinding":
+    elif value == "remainder":
         writer.write_unsigned(221)
-    elif value == "processBinding":
+    elif value == "shiftLeft":
         writer.write_unsigned(222)
-    elif value == "randomBinding":
+    elif value == "shiftRight":
         writer.write_unsigned(223)
-    elif value == "bound":
+    elif value == "shiftRightUnsigned":
         writer.write_unsigned(224)
-    elif value == "rangeBounds":
+    elif value == "index":
         writer.write_unsigned(225)
-    elif value == "range":
+    elif value == "indexSet":
         writer.write_unsigned(226)
-    elif value == "rangeFrom":
+    elif value == "fromResidual":
         writer.write_unsigned(227)
-    elif value == "rangeFull":
+    elif value == "try":
         writer.write_unsigned(228)
-    elif value == "rangeInclusive":
+    elif value == "controlFlow":
         writer.write_unsigned(229)
-    elif value == "rangeTo":
+    elif value == "osBinding":
         writer.write_unsigned(230)
-    elif value == "rangeToInclusive":
+    elif value == "processBinding":
         writer.write_unsigned(231)
-    elif value == "step":
+    elif value == "randomBinding":
         writer.write_unsigned(232)
-    elif value == "reflect":
+    elif value == "bound":
         writer.write_unsigned(233)
-    elif value == "alignOf":
+    elif value == "rangeBounds":
         writer.write_unsigned(234)
-    elif value == "layout":
+    elif value == "range":
         writer.write_unsigned(235)
-    elif value == "layoutField":
+    elif value == "rangeFrom":
         writer.write_unsigned(236)
-    elif value == "layoutOf":
+    elif value == "rangeFull":
         writer.write_unsigned(237)
-    elif value == "layoutShape":
+    elif value == "rangeInclusive":
         writer.write_unsigned(238)
-    elif value == "layoutVariant":
+    elif value == "rangeTo":
         writer.write_unsigned(239)
-    elif value == "sizeOf":
+    elif value == "rangeToInclusive":
         writer.write_unsigned(240)
-    elif value == "strideOf":
+    elif value == "step":
         writer.write_unsigned(241)
-    elif value == "type":
+    elif value == "reflect":
         writer.write_unsigned(242)
-    elif value == "typeId":
+    elif value == "alignOf":
         writer.write_unsigned(243)
-    elif value == "typeOf":
+    elif value == "layout":
         writer.write_unsigned(244)
-    elif value == "regExp":
+    elif value == "layoutField":
         writer.write_unsigned(245)
-    elif value == "binding":
+    elif value == "layoutOf":
         writer.write_unsigned(246)
-    elif value == "deserialize":
+    elif value == "layoutShape":
         writer.write_unsigned(247)
-    elif value == "deserializer":
+    elif value == "layoutVariant":
         writer.write_unsigned(248)
-    elif value == "serialize":
+    elif value == "sizeOf":
         writer.write_unsigned(249)
-    elif value == "serializer":
+    elif value == "strideOf":
         writer.write_unsigned(250)
-    elif value == "stringSlice":
+    elif value == "type":
         writer.write_unsigned(251)
-    elif value == "string":
+    elif value == "typeId":
         writer.write_unsigned(252)
-    elif value == "tensorFormat":
+    elif value == "typeOf":
         writer.write_unsigned(253)
-    elif value == "tensorViewFormat":
+    elif value == "regExp":
         writer.write_unsigned(254)
-    elif value == "tensorDense":
+    elif value == "binding":
         writer.write_unsigned(255)
-    elif value == "tensorStrided":
+    elif value == "deserialize":
         writer.write_unsigned(256)
-    elif value == "tensorShape":
+    elif value == "deserializer":
         writer.write_unsigned(257)
-    elif value == "tensorPlacement":
+    elif value == "serialize":
         writer.write_unsigned(258)
-    elif value == "tensorShardingAxis":
+    elif value == "serializer":
         writer.write_unsigned(259)
-    elif value == "tensorUnsharded":
+    elif value == "stringSlice":
         writer.write_unsigned(260)
-    elif value == "tensorShardingAxes":
+    elif value == "string":
         writer.write_unsigned(261)
-    elif value == "tensorShard":
+    elif value == "tensorFormat":
         writer.write_unsigned(262)
-    elif value == "tensorReplicate":
+    elif value == "tensorViewFormat":
         writer.write_unsigned(263)
-    elif value == "tensorPartial":
+    elif value == "tensorDense":
         writer.write_unsigned(264)
-    elif value == "tensor":
+    elif value == "tensorStrided":
         writer.write_unsigned(265)
-    elif value == "tensorView":
+    elif value == "tensorShape":
         writer.write_unsigned(266)
-    elif value == "timeBinding":
+    elif value == "tensorPlacement":
         writer.write_unsigned(267)
-    elif value == "topologyBinding":
+    elif value == "tensorShardingAxis":
         writer.write_unsigned(268)
-    elif value == "tlsBinding":
+    elif value == "tensorUnsharded":
         writer.write_unsigned(269)
-    elif value == "ttyBinding":
+    elif value == "tensorShardingAxes":
         writer.write_unsigned(270)
-    elif value == "constructorParameters":
+    elif value == "tensorShard":
         writer.write_unsigned(271)
-    elif value == "function":
+    elif value == "tensorReplicate":
         writer.write_unsigned(272)
-    elif value == "functionPointer":
+    elif value == "tensorPartial":
         writer.write_unsigned(273)
-    elif value == "instanceType":
+    elif value == "tensor":
         writer.write_unsigned(274)
-    elif value == "omitThisParameter":
+    elif value == "tensorView":
         writer.write_unsigned(275)
-    elif value == "parameters":
+    elif value == "timeBinding":
         writer.write_unsigned(276)
-    elif value == "returnType":
+    elif value == "topologyBinding":
         writer.write_unsigned(277)
-    elif value == "thisParameterType":
+    elif value == "tlsBinding":
         writer.write_unsigned(278)
-    elif value == "awaited":
+    elif value == "ttyBinding":
         writer.write_unsigned(279)
-    elif value == "exclude":
+    elif value == "constructorParameters":
         writer.write_unsigned(280)
-    elif value == "extract":
+    elif value == "function":
         writer.write_unsigned(281)
-    elif value == "nonNullable":
+    elif value == "functionPointer":
         writer.write_unsigned(282)
-    elif value == "noInfer":
+    elif value == "instanceType":
         writer.write_unsigned(283)
-    elif value == "omit":
+    elif value == "omitThisParameter":
         writer.write_unsigned(284)
-    elif value == "partial":
+    elif value == "parameters":
         writer.write_unsigned(285)
-    elif value == "pick":
+    elif value == "returnType":
         writer.write_unsigned(286)
-    elif value == "propertyKey":
+    elif value == "thisParameterType":
         writer.write_unsigned(287)
-    elif value == "readonly":
+    elif value == "awaited":
         writer.write_unsigned(288)
-    elif value == "record":
+    elif value == "exclude":
         writer.write_unsigned(289)
-    elif value == "required":
+    elif value == "extract":
         writer.write_unsigned(290)
-    elif value == "thisType":
+    elif value == "nonNullable":
         writer.write_unsigned(291)
-    elif value == "capitalize":
+    elif value == "noInfer":
         writer.write_unsigned(292)
-    elif value == "lowercase":
+    elif value == "omit":
         writer.write_unsigned(293)
-    elif value == "uncapitalize":
+    elif value == "partial":
         writer.write_unsigned(294)
-    elif value == "uppercase":
+    elif value == "pick":
         writer.write_unsigned(295)
-    elif value == "option":
+    elif value == "propertyKey":
         writer.write_unsigned(296)
-    elif value == "symbol":
+    elif value == "readonly":
         writer.write_unsigned(297)
+    elif value == "record":
+        writer.write_unsigned(298)
+    elif value == "required":
+        writer.write_unsigned(299)
+    elif value == "thisType":
+        writer.write_unsigned(300)
+    elif value == "capitalize":
+        writer.write_unsigned(301)
+    elif value == "lowercase":
+        writer.write_unsigned(302)
+    elif value == "uncapitalize":
+        writer.write_unsigned(303)
+    elif value == "uppercase":
+        writer.write_unsigned(304)
+    elif value == "symbol":
+        writer.write_unsigned(305)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -930,592 +954,608 @@ def decode_language_item(reader: BinaryReader) -> LanguageItem:
     elif variant == 3:
         return "generatorResult"
     elif variant == 4:
-        return "generatorReturn"
+        return "asyncGeneratorYield"
     elif variant == 5:
-        return "generatorState"
-    elif variant == 6:
-        return "generatorYield"
-    elif variant == 7:
         return "asyncIterable"
-    elif variant == 8:
+    elif variant == 6:
         return "asyncIterator"
+    elif variant == 7:
+        return "continuation"
+    elif variant == 8:
+        return "continuationResume"
     elif variant == 9:
-        return "continuationHandle"
+        return "continuationResumeCancel"
     elif variant == 10:
-        return "continuationResult"
+        return "continuationResumeNext"
     elif variant == 11:
-        return "continuationReturn"
+        return "continuationResumeReturn"
     elif variant == 12:
-        return "continuationYield"
+        return "continuationParked"
     elif variant == 13:
-        return "queueMicrotask"
+        return "continuationResult"
     elif variant == 14:
-        return "suspendContinuation"
+        return "continuationReturn"
     elif variant == 15:
-        return "promise"
+        return "continuationYield"
     elif variant == 16:
-        return "promiseResolvers"
+        return "queueMicrotask"
     elif variant == 17:
-        return "audioBinding"
+        return "suspendContinuation"
     elif variant == 18:
-        return "array"
+        return "promise"
     elif variant == 19:
-        return "fixedArray"
+        return "promiseResolvers"
     elif variant == 20:
-        return "readonlyArray"
+        return "audioBinding"
     elif variant == 21:
-        return "map"
+        return "array"
     elif variant == 22:
-        return "set"
+        return "fixedArray"
     elif variant == 23:
-        return "slice"
+        return "readonlyArray"
     elif variant == 24:
-        return "computeBuffer"
+        return "map"
     elif variant == 25:
-        return "computeDevice"
+        return "set"
     elif variant == 26:
-        return "computeMesh"
+        return "slice"
     elif variant == 27:
-        return "computeKernel"
+        return "sequence"
     elif variant == 28:
-        return "computeKernelArgument"
+        return "computeBuffer"
     elif variant == 29:
-        return "computeProgram"
+        return "computeDevice"
     elif variant == 30:
-        return "computeEvent"
+        return "computeMesh"
     elif variant == 31:
-        return "computeStream"
+        return "computeKernel"
     elif variant == 32:
-        return "context"
+        return "computeKernelArgument"
     elif variant == 33:
-        return "currentContextValue"
+        return "computeProgram"
     elif variant == 34:
-        return "contextKey"
+        return "computeEvent"
     elif variant == 35:
-        return "contextPatch"
+        return "computeStream"
     elif variant == 36:
-        return "contextToken"
+        return "context"
     elif variant == 37:
-        return "contextEntry"
+        return "currentContextValue"
     elif variant == 38:
-        return "currentContext"
+        return "contextKey"
     elif variant == 39:
-        return "getContextValue"
+        return "contextPatch"
     elif variant == 40:
-        return "popContext"
+        return "contextToken"
     elif variant == 41:
-        return "pushContext"
+        return "contextEntry"
     elif variant == 42:
-        return "requireContextValue"
+        return "currentContext"
     elif variant == 43:
-        return "as"
+        return "getContextValue"
     elif variant == 44:
-        return "borrow"
+        return "popContext"
     elif variant == 45:
-        return "toOwned"
+        return "pushContext"
     elif variant == 46:
-        return "from"
+        return "requireContextValue"
     elif variant == 47:
-        return "tryFrom"
+        return "as"
     elif variant == 48:
-        return "into"
+        return "borrow"
     elif variant == 49:
-        return "tryInto"
+        return "toOwned"
     elif variant == 50:
-        return "cryptoBinding"
+        return "from"
     elif variant == 51:
-        return "capture"
+        return "tryFrom"
     elif variant == 52:
-        return "cloneDerive"
+        return "into"
     elif variant == 53:
-        return "debugDerive"
+        return "tryInto"
     elif variant == 54:
-        return "tagged"
+        return "cryptoBinding"
     elif variant == 55:
-        return "allow"
+        return "capture"
     elif variant == 56:
-        return "deny"
+        return "derive"
     elif variant == 57:
-        return "expect"
+        return "tagged"
     elif variant == 58:
-        return "forbid"
+        return "allow"
     elif variant == 59:
-        return "warn"
+        return "deny"
     elif variant == 60:
-        return "extern"
+        return "expect"
     elif variant == 61:
-        return "intrinsic"
+        return "forbid"
     elif variant == 62:
-        return "languageItem"
+        return "warn"
     elif variant == 63:
-        return "reprDecorator"
+        return "extern"
     elif variant == 64:
-        return "noAliasingMutableBorrows"
+        return "intrinsic"
     elif variant == 65:
-        return "noDynamicDispatch"
+        return "languageItem"
     elif variant == 66:
-        return "noHeap"
+        return "reprDecorator"
     elif variant == 67:
-        return "noImplicitReceivers"
+        return "noAliasingMutableBorrows"
     elif variant == 68:
-        return "noManaged"
+        return "noDynamicDispatch"
     elif variant == 69:
-        return "noReflection"
+        return "noHeap"
     elif variant == 70:
-        return "noRuntime"
+        return "noImplicitReceivers"
     elif variant == 71:
-        return "noUnsafe"
+        return "noManaged"
     elif variant == 72:
-        return "noUnwind"
+        return "noReflection"
     elif variant == 73:
-        return "deprecated"
+        return "noRuntime"
     elif variant == 74:
-        return "experimental"
+        return "noUnsafe"
     elif variant == 75:
-        return "cold"
+        return "noUnwind"
     elif variant == 76:
-        return "hot"
+        return "deprecated"
     elif variant == 77:
-        return "inline"
+        return "experimental"
     elif variant == 78:
-        return "likely"
+        return "cold"
     elif variant == 79:
-        return "mustUse"
+        return "hot"
     elif variant == 80:
-        return "noinline"
+        return "inline"
     elif variant == 81:
-        return "pure"
+        return "likely"
     elif variant == 82:
-        return "tailcall"
+        return "mustUse"
     elif variant == 83:
-        return "unlikely"
+        return "noinline"
     elif variant == 84:
-        return "unroll"
+        return "pure"
     elif variant == 85:
-        return "safe"
+        return "tailcall"
     elif variant == 86:
-        return "sink"
+        return "unlikely"
     elif variant == 87:
-        return "source"
+        return "unroll"
     elif variant == 88:
-        return "taint"
+        return "safe"
     elif variant == 89:
-        return "unsafe"
+        return "sink"
     elif variant == 90:
-        return "untaint"
+        return "source"
     elif variant == 91:
-        return "deviceBinding"
+        return "taint"
     elif variant == 92:
-        return "displayBinding"
+        return "unsafe"
     elif variant == 93:
-        return "error"
+        return "untaint"
     elif variant == 94:
-        return "abort"
+        return "deviceBinding"
     elif variant == 95:
-        return "panic"
+        return "displayBinding"
     elif variant == 96:
-        return "panicValue"
+        return "error"
     elif variant == 97:
-        return "setPanicHook"
+        return "abort"
     elif variant == 98:
-        return "takePanicHook"
+        return "panic"
     elif variant == 99:
-        return "todo"
+        return "panicValue"
     elif variant == 100:
-        return "unreachable"
+        return "setPanicHook"
     elif variant == 101:
-        return "asyncResult"
+        return "takePanicHook"
     elif variant == 102:
-        return "err"
+        return "todo"
     elif variant == 103:
-        return "ok"
+        return "unreachable"
     elif variant == 104:
-        return "result"
+        return "asyncResult"
     elif variant == 105:
-        return "fsBinding"
+        return "err"
     elif variant == 106:
-        return "gpuBinding"
+        return "ok"
     elif variant == 107:
-        return "inputBinding"
+        return "result"
     elif variant == 108:
-        return "ioBinding"
+        return "fsBinding"
     elif variant == 109:
-        return "ipcBinding"
+        return "gpuBinding"
     elif variant == 110:
-        return "extend"
+        return "inputBinding"
     elif variant == 111:
-        return "fromIterator"
+        return "ioBinding"
     elif variant == 112:
-        return "iterable"
+        return "ipcBinding"
     elif variant == 113:
-        return "iterator"
+        return "extend"
     elif variant == 114:
-        return "eval"
+        return "fromIterator"
     elif variant == 115:
-        return "expansionContext"
+        return "iterable"
     elif variant == 116:
-        return "macro"
+        return "iterator"
     elif variant == 117:
-        return "macroContext"
+        return "iteratorResult"
     elif variant == 118:
-        return "materializationContext"
+        return "iteratorReturn"
     elif variant == 119:
-        return "bigInt"
+        return "iteratorYield"
     elif variant == 120:
-        return "complex"
+        return "eval"
     elif variant == 121:
-        return "math"
+        return "expansionContext"
     elif variant == 122:
-        return "number"
+        return "macro"
     elif variant == 123:
-        return "vector"
+        return "macroContext"
     elif variant == 124:
-        return "access"
+        return "materializationContext"
     elif variant == 125:
-        return "dynamic"
+        return "bigInt"
     elif variant == 126:
-        return "allocationError"
+        return "complex"
     elif variant == 127:
-        return "memoryBinding"
+        return "math"
     elif variant == 128:
-        return "arc"
+        return "number"
     elif variant == 129:
-        return "arcInner"
+        return "integer"
     elif variant == 130:
-        return "arcWeak"
+        return "float"
     elif variant == 131:
-        return "borrowed"
+        return "vector"
     elif variant == 132:
-        return "box"
+        return "access"
     elif variant == 133:
-        return "clone"
+        return "dynamic"
     elif variant == 134:
-        return "concrete"
+        return "allocationError"
     elif variant == 135:
-        return "copy"
+        return "memoryBinding"
     elif variant == 136:
-        return "default"
+        return "arc"
     elif variant == 137:
-        return "dynamicSafe"
+        return "arcInner"
     elif variant == 138:
-        return "send"
+        return "arcWeak"
     elif variant == 139:
-        return "sync"
+        return "borrowed"
     elif variant == 140:
-        return "unpin"
+        return "box"
     elif variant == 141:
-        return "zeroable"
+        return "clone"
     elif variant == 142:
-        return "unsafeCell"
+        return "concrete"
     elif variant == 143:
-        return "asyncDispose"
+        return "copy"
     elif variant == 144:
-        return "dispose"
+        return "default"
     elif variant == 145:
-        return "drop"
+        return "dynamicSafe"
     elif variant == 146:
-        return "forget"
+        return "overwriteStable"
     elif variant == 147:
-        return "manuallyDrop"
+        return "send"
     elif variant == 148:
-        return "maybeUninit"
+        return "sync"
     elif variant == 149:
-        return "lifetime"
+        return "unpin"
     elif variant == 150:
-        return "managed"
+        return "zeroable"
     elif variant == 151:
-        return "owned"
+        return "unsafeCell"
     elif variant == 152:
-        return "phantom"
+        return "asyncDispose"
     elif variant == 153:
-        return "pin"
+        return "dispose"
     elif variant == 154:
-        return "place"
+        return "drop"
     elif variant == 155:
-        return "placed"
+        return "forget"
     elif variant == 156:
-        return "space"
+        return "manuallyDrop"
     elif variant == 157:
-        return "raw"
+        return "maybeUninit"
     elif variant == 158:
-        return "rc"
+        return "lifetime"
     elif variant == 159:
-        return "rcInner"
+        return "managed"
     elif variant == 160:
-        return "rcWeak"
+        return "owned"
     elif variant == 161:
-        return "accessOf"
+        return "phantom"
     elif variant == 162:
-        return "accessOr"
+        return "pin"
     elif variant == 163:
-        return "baseOf"
+        return "place"
     elif variant == 164:
-        return "isBorrowed"
+        return "placed"
     elif variant == 165:
-        return "isManaged"
+        return "space"
     elif variant == 166:
-        return "isOwned"
+        return "raw"
     elif variant == 167:
-        return "isRaw"
+        return "rc"
     elif variant == 168:
-        return "isShared"
+        return "rcInner"
     elif variant == 169:
-        return "isSharedIn"
+        return "rcWeak"
     elif variant == 170:
-        return "lifetimeOf"
+        return "accessOf"
     elif variant == 171:
-        return "lifetimeOr"
+        return "accessOr"
     elif variant == 172:
-        return "ownership"
+        return "baseOf"
     elif variant == 173:
-        return "ownershipOf"
+        return "isBorrowed"
     elif variant == 174:
-        return "ownershipOr"
+        return "isManaged"
     elif variant == 175:
-        return "payloadOf"
+        return "isOwned"
     elif variant == 176:
-        return "placeIn"
+        return "isRaw"
     elif variant == 177:
-        return "placeOf"
+        return "isShared"
     elif variant == 178:
-        return "placeOr"
+        return "isSharedIn"
     elif variant == 179:
-        return "spaceOf"
+        return "lifetimeOf"
     elif variant == 180:
-        return "spaceOr"
+        return "lifetimeOr"
     elif variant == 181:
-        return "withAccess"
+        return "ownership"
     elif variant == 182:
-        return "withBase"
+        return "ownershipOf"
     elif variant == 183:
-        return "withLifetime"
+        return "ownershipOr"
     elif variant == 184:
-        return "withOwnership"
+        return "payloadOf"
     elif variant == 185:
-        return "withPlace"
+        return "placeIn"
     elif variant == 186:
-        return "withSpace"
+        return "placeOf"
     elif variant == 187:
-        return "unique"
+        return "placeOr"
     elif variant == 188:
-        return "importMeta"
+        return "spaceOf"
     elif variant == 189:
-        return "importMetaEnv"
+        return "spaceOr"
     elif variant == 190:
-        return "netBinding"
+        return "withAccess"
     elif variant == 191:
-        return "and"
+        return "withBase"
     elif variant == 192:
-        return "not"
+        return "withLifetime"
     elif variant == 193:
-        return "or"
+        return "withOwnership"
     elif variant == 194:
-        return "xor"
+        return "withPlace"
     elif variant == 195:
-        return "compare"
+        return "withSpace"
     elif variant == 196:
-        return "ordering"
+        return "unique"
     elif variant == 197:
-        return "partialCompare"
+        return "importMeta"
     elif variant == 198:
-        return "dereference"
+        return "importMetaEnv"
     elif variant == 199:
-        return "divide"
+        return "netBinding"
     elif variant == 200:
-        return "equal"
+        return "and"
     elif variant == 201:
-        return "partialEqual"
+        return "not"
     elif variant == 202:
-        return "debug"
+        return "or"
     elif variant == 203:
-        return "display"
+        return "xor"
     elif variant == 204:
-        return "hash"
+        return "compare"
     elif variant == 205:
-        return "hasher"
+        return "ordering"
     elif variant == 206:
-        return "subtract"
+        return "partialCompare"
     elif variant == 207:
-        return "multiply"
+        return "dereference"
     elif variant == 208:
-        return "negate"
+        return "divide"
     elif variant == 209:
-        return "add"
+        return "equal"
     elif variant == 210:
-        return "plus"
+        return "partialEqual"
     elif variant == 211:
-        return "power"
+        return "debug"
     elif variant == 212:
-        return "remainder"
+        return "display"
     elif variant == 213:
-        return "shiftLeft"
+        return "hash"
     elif variant == 214:
-        return "shiftRight"
+        return "hasher"
     elif variant == 215:
-        return "shiftRightUnsigned"
+        return "subtract"
     elif variant == 216:
-        return "index"
+        return "multiply"
     elif variant == 217:
-        return "indexSet"
+        return "negate"
     elif variant == 218:
-        return "fromResidual"
+        return "add"
     elif variant == 219:
-        return "try"
+        return "plus"
     elif variant == 220:
-        return "controlFlow"
+        return "power"
     elif variant == 221:
-        return "osBinding"
+        return "remainder"
     elif variant == 222:
-        return "processBinding"
+        return "shiftLeft"
     elif variant == 223:
-        return "randomBinding"
+        return "shiftRight"
     elif variant == 224:
-        return "bound"
+        return "shiftRightUnsigned"
     elif variant == 225:
-        return "rangeBounds"
+        return "index"
     elif variant == 226:
-        return "range"
+        return "indexSet"
     elif variant == 227:
-        return "rangeFrom"
+        return "fromResidual"
     elif variant == 228:
-        return "rangeFull"
+        return "try"
     elif variant == 229:
-        return "rangeInclusive"
+        return "controlFlow"
     elif variant == 230:
-        return "rangeTo"
+        return "osBinding"
     elif variant == 231:
-        return "rangeToInclusive"
+        return "processBinding"
     elif variant == 232:
-        return "step"
+        return "randomBinding"
     elif variant == 233:
-        return "reflect"
+        return "bound"
     elif variant == 234:
-        return "alignOf"
+        return "rangeBounds"
     elif variant == 235:
-        return "layout"
+        return "range"
     elif variant == 236:
-        return "layoutField"
+        return "rangeFrom"
     elif variant == 237:
-        return "layoutOf"
+        return "rangeFull"
     elif variant == 238:
-        return "layoutShape"
+        return "rangeInclusive"
     elif variant == 239:
-        return "layoutVariant"
+        return "rangeTo"
     elif variant == 240:
-        return "sizeOf"
+        return "rangeToInclusive"
     elif variant == 241:
-        return "strideOf"
+        return "step"
     elif variant == 242:
-        return "type"
+        return "reflect"
     elif variant == 243:
-        return "typeId"
+        return "alignOf"
     elif variant == 244:
-        return "typeOf"
+        return "layout"
     elif variant == 245:
-        return "regExp"
+        return "layoutField"
     elif variant == 246:
-        return "binding"
+        return "layoutOf"
     elif variant == 247:
-        return "deserialize"
+        return "layoutShape"
     elif variant == 248:
-        return "deserializer"
+        return "layoutVariant"
     elif variant == 249:
-        return "serialize"
+        return "sizeOf"
     elif variant == 250:
-        return "serializer"
+        return "strideOf"
     elif variant == 251:
-        return "stringSlice"
+        return "type"
     elif variant == 252:
-        return "string"
+        return "typeId"
     elif variant == 253:
-        return "tensorFormat"
+        return "typeOf"
     elif variant == 254:
-        return "tensorViewFormat"
+        return "regExp"
     elif variant == 255:
-        return "tensorDense"
+        return "binding"
     elif variant == 256:
-        return "tensorStrided"
+        return "deserialize"
     elif variant == 257:
-        return "tensorShape"
+        return "deserializer"
     elif variant == 258:
-        return "tensorPlacement"
+        return "serialize"
     elif variant == 259:
-        return "tensorShardingAxis"
+        return "serializer"
     elif variant == 260:
-        return "tensorUnsharded"
+        return "stringSlice"
     elif variant == 261:
-        return "tensorShardingAxes"
+        return "string"
     elif variant == 262:
-        return "tensorShard"
+        return "tensorFormat"
     elif variant == 263:
-        return "tensorReplicate"
+        return "tensorViewFormat"
     elif variant == 264:
-        return "tensorPartial"
+        return "tensorDense"
     elif variant == 265:
-        return "tensor"
+        return "tensorStrided"
     elif variant == 266:
-        return "tensorView"
+        return "tensorShape"
     elif variant == 267:
-        return "timeBinding"
+        return "tensorPlacement"
     elif variant == 268:
-        return "topologyBinding"
+        return "tensorShardingAxis"
     elif variant == 269:
-        return "tlsBinding"
+        return "tensorUnsharded"
     elif variant == 270:
-        return "ttyBinding"
+        return "tensorShardingAxes"
     elif variant == 271:
-        return "constructorParameters"
+        return "tensorShard"
     elif variant == 272:
-        return "function"
+        return "tensorReplicate"
     elif variant == 273:
-        return "functionPointer"
+        return "tensorPartial"
     elif variant == 274:
-        return "instanceType"
+        return "tensor"
     elif variant == 275:
-        return "omitThisParameter"
+        return "tensorView"
     elif variant == 276:
-        return "parameters"
+        return "timeBinding"
     elif variant == 277:
-        return "returnType"
+        return "topologyBinding"
     elif variant == 278:
-        return "thisParameterType"
+        return "tlsBinding"
     elif variant == 279:
-        return "awaited"
+        return "ttyBinding"
     elif variant == 280:
-        return "exclude"
+        return "constructorParameters"
     elif variant == 281:
-        return "extract"
+        return "function"
     elif variant == 282:
-        return "nonNullable"
+        return "functionPointer"
     elif variant == 283:
-        return "noInfer"
+        return "instanceType"
     elif variant == 284:
-        return "omit"
+        return "omitThisParameter"
     elif variant == 285:
-        return "partial"
+        return "parameters"
     elif variant == 286:
-        return "pick"
+        return "returnType"
     elif variant == 287:
-        return "propertyKey"
+        return "thisParameterType"
     elif variant == 288:
-        return "readonly"
+        return "awaited"
     elif variant == 289:
-        return "record"
+        return "exclude"
     elif variant == 290:
-        return "required"
+        return "extract"
     elif variant == 291:
-        return "thisType"
+        return "nonNullable"
     elif variant == 292:
-        return "capitalize"
+        return "noInfer"
     elif variant == 293:
-        return "lowercase"
+        return "omit"
     elif variant == 294:
-        return "uncapitalize"
+        return "partial"
     elif variant == 295:
-        return "uppercase"
+        return "pick"
     elif variant == 296:
-        return "option"
+        return "propertyKey"
     elif variant == 297:
+        return "readonly"
+    elif variant == 298:
+        return "record"
+    elif variant == 299:
+        return "required"
+    elif variant == 300:
+        return "thisType"
+    elif variant == 301:
+        return "capitalize"
+    elif variant == 302:
+        return "lowercase"
+    elif variant == 303:
+        return "uncapitalize"
+    elif variant == 304:
+        return "uppercase"
+    elif variant == 305:
         return "symbol"
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -1538,18 +1578,24 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "generator"
     elif variant == "generatorResult":
         return "generatorResult"
-    elif variant == "generatorReturn":
-        return "generatorReturn"
-    elif variant == "generatorState":
-        return "generatorState"
-    elif variant == "generatorYield":
-        return "generatorYield"
+    elif variant == "asyncGeneratorYield":
+        return "asyncGeneratorYield"
     elif variant == "asyncIterable":
         return "asyncIterable"
     elif variant == "asyncIterator":
         return "asyncIterator"
-    elif variant == "continuationHandle":
-        return "continuationHandle"
+    elif variant == "continuation":
+        return "continuation"
+    elif variant == "continuationResume":
+        return "continuationResume"
+    elif variant == "continuationResumeCancel":
+        return "continuationResumeCancel"
+    elif variant == "continuationResumeNext":
+        return "continuationResumeNext"
+    elif variant == "continuationResumeReturn":
+        return "continuationResumeReturn"
+    elif variant == "continuationParked":
+        return "continuationParked"
     elif variant == "continuationResult":
         return "continuationResult"
     elif variant == "continuationReturn":
@@ -1578,6 +1624,8 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "set"
     elif variant == "slice":
         return "slice"
+    elif variant == "sequence":
+        return "sequence"
     elif variant == "computeBuffer":
         return "computeBuffer"
     elif variant == "computeDevice":
@@ -1634,10 +1682,8 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "cryptoBinding"
     elif variant == "capture":
         return "capture"
-    elif variant == "cloneDerive":
-        return "cloneDerive"
-    elif variant == "debugDerive":
-        return "debugDerive"
+    elif variant == "derive":
+        return "derive"
     elif variant == "tagged":
         return "tagged"
     elif variant == "allow":
@@ -1758,6 +1804,12 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "iterable"
     elif variant == "iterator":
         return "iterator"
+    elif variant == "iteratorResult":
+        return "iteratorResult"
+    elif variant == "iteratorReturn":
+        return "iteratorReturn"
+    elif variant == "iteratorYield":
+        return "iteratorYield"
     elif variant == "eval":
         return "eval"
     elif variant == "expansionContext":
@@ -1776,6 +1828,10 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "math"
     elif variant == "number":
         return "number"
+    elif variant == "integer":
+        return "integer"
+    elif variant == "float":
+        return "float"
     elif variant == "vector":
         return "vector"
     elif variant == "access":
@@ -1806,6 +1862,8 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "default"
     elif variant == "dynamicSafe":
         return "dynamicSafe"
+    elif variant == "overwriteStable":
+        return "overwriteStable"
     elif variant == "send":
         return "send"
     elif variant == "sync":
@@ -2122,8 +2180,6 @@ def from_json_language_item(value: Json) -> LanguageItem:
         return "uncapitalize"
     elif variant == "uppercase":
         return "uppercase"
-    elif variant == "option":
-        return "option"
     elif variant == "symbol":
         return "symbol"
     else:

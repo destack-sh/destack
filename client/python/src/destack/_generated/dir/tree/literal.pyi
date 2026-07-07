@@ -9,6 +9,7 @@ import typing
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
 import destack._generated.core.string
+import destack._generated.dir.tree.key
 import destack._generated.dir.tree.node
 import destack._generated.dir.type.primitive
 
@@ -259,8 +260,18 @@ class TypeLiteralNumber:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
+class TypeLiteralAlias:
+    """A widthless source alias for a sized scalar, like `int` for `int64`."""
+
+    alias: destack._generated.dir.type.primitive.ScalarAlias
+    kind: typing.Literal["alias"] = "alias"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
 class TypeLiteralInteger:
-    """Integer type."""
+    """Width-spelled integer type, like `int32` or `usize`."""
 
     integer: destack._generated.dir.type.primitive.IntegerType
     kind: typing.Literal["integer"] = "integer"
@@ -270,7 +281,7 @@ class TypeLiteralInteger:
 
 @dataclass(frozen=True, slots=True)
 class TypeLiteralFloat:
-    """Floating-point type."""
+    """Width-spelled floating-point type, like `float32`."""
 
     float: destack._generated.dir.type.primitive.FloatType
     kind: typing.Literal["float"] = "float"
@@ -310,6 +321,7 @@ TypeLiteral: typing.TypeAlias = (
     | TypeLiteralString
     | TypeLiteralBigint
     | TypeLiteralNumber
+    | TypeLiteralAlias
     | TypeLiteralInteger
     | TypeLiteralFloat
     | TypeLiteralSymbol
@@ -320,6 +332,141 @@ def encode_type_literal(writer: BinaryWriter, value: TypeLiteral) -> None: ...
 def decode_type_literal(reader: BinaryReader) -> TypeLiteral: ...
 def to_json_type_literal(value: TypeLiteral) -> Json: ...
 def from_json_type_literal(value: Json) -> TypeLiteral: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeNamed:
+    """Named attribute with an optional value."""
+
+    name: destack._generated.dir.tree.key.Name
+    value: TreeAttributeValue | None
+    kind: typing.Literal["named"] = "named"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeSpread:
+    """Spread attribute."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["spread"] = "spread"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeError:
+    """Malformed attribute slot."""
+
+    kind: typing.Literal["error"] = "error"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+"""A tree tag attribute."""
+TreeAttribute: typing.TypeAlias = (
+    TreeAttributeNamed | TreeAttributeSpread | TreeAttributeError
+)
+
+def encode_tree_attribute(writer: BinaryWriter, value: TreeAttribute) -> None: ...
+def decode_tree_attribute(reader: BinaryReader) -> TreeAttribute: ...
+def to_json_tree_attribute(value: TreeAttribute) -> Json: ...
+def from_json_tree_attribute(value: Json) -> TreeAttribute: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeValueString:
+    """Quoted string attribute value."""
+
+    string: destack._generated.core.string.StringId
+    kind: typing.Literal["string"] = "string"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeValueExpression:
+    """Expression container attribute value."""
+
+    expression: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["expression"] = "expression"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+"""The value form of a tree tag attribute."""
+TreeAttributeValue: typing.TypeAlias = (
+    TreeAttributeValueString | TreeAttributeValueExpression
+)
+
+def encode_tree_attribute_value(
+    writer: BinaryWriter, value: TreeAttributeValue
+) -> None: ...
+def decode_tree_attribute_value(reader: BinaryReader) -> TreeAttributeValue: ...
+def to_json_tree_attribute_value(value: TreeAttributeValue) -> Json: ...
+def from_json_tree_attribute_value(value: Json) -> TreeAttributeValue: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeChildText:
+    """Raw tree text."""
+
+    value: destack._generated.core.string.StringId
+    kind: typing.Literal["text"] = "text"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeChildExpression:
+    """Expression container child."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["expression"] = "expression"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeChildSpread:
+    """Spread expression container child."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["spread"] = "spread"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeChildTree:
+    """Nested tree expression child."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["tree"] = "tree"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class TreeChildError:
+    """Malformed child slot."""
+
+    kind: typing.Literal["error"] = "error"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+"""A tree child."""
+TreeChild: typing.TypeAlias = (
+    TreeChildText
+    | TreeChildExpression
+    | TreeChildSpread
+    | TreeChildTree
+    | TreeChildError
+)
+
+def encode_tree_child(writer: BinaryWriter, value: TreeChild) -> None: ...
+def decode_tree_child(reader: BinaryReader) -> TreeChild: ...
+def to_json_tree_child(value: TreeChild) -> Json: ...
+def from_json_tree_child(value: Json) -> TreeChild: ...
 
 __all__ = [
     "ScalarLiteral",
@@ -360,8 +507,34 @@ __all__ = [
     "TypeLiteralString",
     "TypeLiteralBigint",
     "TypeLiteralNumber",
+    "TypeLiteralAlias",
     "TypeLiteralInteger",
     "TypeLiteralFloat",
     "TypeLiteralSymbol",
     "TypeLiteralUniqueSymbol",
+    "TreeAttribute",
+    "encode_tree_attribute",
+    "decode_tree_attribute",
+    "to_json_tree_attribute",
+    "from_json_tree_attribute",
+    "TreeAttributeNamed",
+    "TreeAttributeSpread",
+    "TreeAttributeError",
+    "TreeAttributeValue",
+    "encode_tree_attribute_value",
+    "decode_tree_attribute_value",
+    "to_json_tree_attribute_value",
+    "from_json_tree_attribute_value",
+    "TreeAttributeValueString",
+    "TreeAttributeValueExpression",
+    "TreeChild",
+    "encode_tree_child",
+    "decode_tree_child",
+    "to_json_tree_child",
+    "from_json_tree_child",
+    "TreeChildText",
+    "TreeChildExpression",
+    "TreeChildSpread",
+    "TreeChildTree",
+    "TreeChildError",
 ]

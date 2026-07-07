@@ -43,22 +43,14 @@ class Function:
     lifetimes: Sequence[destack._generated.mir.tree.lifetime.LifetimeParameter]
     # optional parameter names for diagnostics
     parameter_names: Sequence[destack._generated.core.string.StringId | None]
-    # optional explicit SSA value names keyed by value id
-    value_names: Sequence[destack._generated.core.string.StringId | None]
-    # SSA value types keyed by value id
-    value_types: Sequence[destack._generated.mir.tree.node.LocalNodeId | None]
-    # counter for allocating unique SSA value IDs
-    next_value_id: int
     # the return type
     return_type: destack._generated.mir.tree.node.LocalNodeId
     # the hidden environment type for this function when present
     environment: destack._generated.mir.tree.node.LocalNodeId | None
-    # local variables (stack-allocated slots for mutable bindings)
-    locals: Sequence[destack._generated.mir.tree.node.LocalNodeId]
-    # all basic blocks in this function
-    blocks: Sequence[destack._generated.mir.tree.node.LocalNodeId]
-    # the entry block (execution starts here)
-    entry: destack._generated.mir.tree.node.LocalNodeId | None
+    # runtime binding name when this function has a binding identity
+    binding: destack._generated.core.string.StringId | None
+    # the executable function body when this function is defined
+    body: FunctionBody | None
     # memory allocation restrictions for this function
     allocation: AllocationMode
     # the suspension kind when this function can suspend
@@ -107,46 +99,22 @@ def encode_function(writer: BinaryWriter, value: Function) -> None:
             destack._generated.core.string.encode_string_id(
                 writer, item_value_parameter_names_0
             )
-    writer.write_unsigned(len(value.value_names))
-    for item_value_value_names_0 in value.value_names:
-        if item_value_value_names_0 is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            destack._generated.core.string.encode_string_id(
-                writer, item_value_value_names_0
-            )
-    writer.write_unsigned(len(value.value_types))
-    for item_value_value_types_0 in value.value_types:
-        if item_value_value_types_0 is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            destack._generated.mir.tree.node.encode_local_node_id(
-                writer, item_value_value_types_0
-            )
-    writer.write_unsigned(value.next_value_id)
     destack._generated.mir.tree.node.encode_local_node_id(writer, value.return_type)
     if value.environment is None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.environment)
-    writer.write_unsigned(len(value.locals))
-    for item_value_locals_0 in value.locals:
-        destack._generated.mir.tree.node.encode_local_node_id(
-            writer, item_value_locals_0
-        )
-    writer.write_unsigned(len(value.blocks))
-    for item_value_blocks_0 in value.blocks:
-        destack._generated.mir.tree.node.encode_local_node_id(
-            writer, item_value_blocks_0
-        )
-    if value.entry is None:
+    if value.binding is None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
-        destack._generated.mir.tree.node.encode_local_node_id(writer, value.entry)
+        destack._generated.core.string.encode_string_id(writer, value.binding)
+    if value.body is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_function_body(writer, value.body)
     encode_allocation_mode(writer, value.allocation)
     if value.suspension is None:
         writer.write_byte(0)
@@ -174,34 +142,14 @@ def decode_function(reader: BinaryReader) -> Function:
         )
         for _ in range(reader.read_number())
     ]
-    value_names = [
-        reader.read_option(
-            lambda: destack._generated.core.string.decode_string_id(reader)
-        )
-        for _ in range(reader.read_number())
-    ]
-    value_types = [
-        reader.read_option(
-            lambda: destack._generated.mir.tree.node.decode_local_node_id(reader)
-        )
-        for _ in range(reader.read_number())
-    ]
-    next_value_id = reader.read_number()
     return_type = destack._generated.mir.tree.node.decode_local_node_id(reader)
     environment = reader.read_option(
         lambda: destack._generated.mir.tree.node.decode_local_node_id(reader)
     )
-    locals = [
-        destack._generated.mir.tree.node.decode_local_node_id(reader)
-        for _ in range(reader.read_number())
-    ]
-    blocks = [
-        destack._generated.mir.tree.node.decode_local_node_id(reader)
-        for _ in range(reader.read_number())
-    ]
-    entry = reader.read_option(
-        lambda: destack._generated.mir.tree.node.decode_local_node_id(reader)
+    binding = reader.read_option(
+        lambda: destack._generated.core.string.decode_string_id(reader)
     )
+    body = reader.read_option(lambda: decode_function_body(reader))
     allocation = decode_allocation_mode(reader)
     suspension = reader.read_option(lambda: decode_suspension_kind(reader))
 
@@ -212,14 +160,10 @@ def decode_function(reader: BinaryReader) -> Function:
         parameters=parameters,
         lifetimes=lifetimes,
         parameter_names=parameter_names,
-        value_names=value_names,
-        value_types=value_types,
-        next_value_id=next_value_id,
         return_type=return_type,
         environment=environment,
-        locals=locals,
-        blocks=blocks,
-        entry=entry,
+        binding=binding,
+        body=body,
         allocation=allocation,
         suspension=suspension,
     )
@@ -245,19 +189,6 @@ def to_json_function(value: Function) -> Json:
             else destack._generated.core.string.to_json_string_id(item_0)
             for item_0 in value.parameter_names
         ],
-        "valueNames": [
-            None
-            if item_0 is None
-            else destack._generated.core.string.to_json_string_id(item_0)
-            for item_0 in value.value_names
-        ],
-        "valueTypes": [
-            None
-            if item_0 is None
-            else destack._generated.mir.tree.node.to_json_local_node_id(item_0)
-            for item_0 in value.value_types
-        ],
-        "nextValueId": value.next_value_id,
         "returnType": destack._generated.mir.tree.node.to_json_local_node_id(
             value.return_type
         ),
@@ -270,23 +201,16 @@ def to_json_function(value: Function) -> Json:
                 )
             }
         ),
-        "locals": [
-            destack._generated.mir.tree.node.to_json_local_node_id(item_0)
-            for item_0 in value.locals
-        ],
-        "blocks": [
-            destack._generated.mir.tree.node.to_json_local_node_id(item_0)
-            for item_0 in value.blocks
-        ],
         **(
             {}
-            if value.entry is None
+            if value.binding is None
             else {
-                "entry": destack._generated.mir.tree.node.to_json_local_node_id(
-                    value.entry
+                "binding": destack._generated.core.string.to_json_string_id(
+                    value.binding
                 )
             }
         ),
+        **({} if value.body is None else {"body": to_json_function_body(value.body)}),
         "allocation": to_json_allocation_mode(value.allocation),
         **(
             {}
@@ -324,6 +248,186 @@ def from_json_function(value: Json) -> Function:
             else destack._generated.core.string.from_json_string_id(item_0)
             for item_0 in json_array(json_field(object_, "parameterNames"))
         ],
+        return_type=destack._generated.mir.tree.node.from_json_local_node_id(
+            json_field(object_, "returnType")
+        ),
+        environment=json_optional(
+            object_,
+            "environment",
+            lambda value: destack._generated.mir.tree.node.from_json_local_node_id(
+                value
+            ),
+        ),
+        binding=json_optional(
+            object_,
+            "binding",
+            lambda value: destack._generated.core.string.from_json_string_id(value),
+        ),
+        body=json_optional(
+            object_, "body", lambda value: from_json_function_body(value)
+        ),
+        allocation=from_json_allocation_mode(json_field(object_, "allocation")),
+        suspension=json_optional(
+            object_, "suspension", lambda value: from_json_suspension_kind(value)
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class FunctionBody:
+    """The executable body of one MIR function."""
+
+    # the entry block where execution starts
+    entry: destack._generated.mir.tree.node.LocalNodeId
+    # the function blocks in layout order
+    blocks: Sequence[destack._generated.mir.tree.node.LocalNodeId]
+    # the function locals in slot order
+    locals: Sequence[destack._generated.mir.tree.node.LocalNodeId]
+    # optional explicit SSA value names keyed by value id
+    value_names: Sequence[destack._generated.core.string.StringId | None]
+    # SSA value types keyed by value id
+    value_types: Sequence[destack._generated.mir.tree.node.LocalNodeId | None]
+    # counter for allocating unique SSA value ids
+    next_value_id: int
+    # instruction locations keyed by instruction id
+    instruction_index: InstructionIndex
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_function_body(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> FunctionBody:
+        """Decode one FunctionBody."""
+        return decode_function_body(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_function_body(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> FunctionBody:
+        """Return one FunctionBody from one JSON value."""
+        return from_json_function_body(value)
+
+
+def encode_function_body(writer: BinaryWriter, value: FunctionBody) -> None:
+    """Encode one FunctionBody."""
+    destack._generated.mir.tree.node.encode_local_node_id(writer, value.entry)
+    writer.write_unsigned(len(value.blocks))
+    for item_value_blocks_0 in value.blocks:
+        destack._generated.mir.tree.node.encode_local_node_id(
+            writer, item_value_blocks_0
+        )
+    writer.write_unsigned(len(value.locals))
+    for item_value_locals_0 in value.locals:
+        destack._generated.mir.tree.node.encode_local_node_id(
+            writer, item_value_locals_0
+        )
+    writer.write_unsigned(len(value.value_names))
+    for item_value_value_names_0 in value.value_names:
+        if item_value_value_names_0 is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.core.string.encode_string_id(
+                writer, item_value_value_names_0
+            )
+    writer.write_unsigned(len(value.value_types))
+    for item_value_value_types_0 in value.value_types:
+        if item_value_value_types_0 is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.mir.tree.node.encode_local_node_id(
+                writer, item_value_value_types_0
+            )
+    writer.write_unsigned(value.next_value_id)
+    encode_instruction_index(writer, value.instruction_index)
+
+
+def decode_function_body(reader: BinaryReader) -> FunctionBody:
+    """Decode one FunctionBody."""
+    entry = destack._generated.mir.tree.node.decode_local_node_id(reader)
+    blocks = [
+        destack._generated.mir.tree.node.decode_local_node_id(reader)
+        for _ in range(reader.read_number())
+    ]
+    locals = [
+        destack._generated.mir.tree.node.decode_local_node_id(reader)
+        for _ in range(reader.read_number())
+    ]
+    value_names = [
+        reader.read_option(
+            lambda: destack._generated.core.string.decode_string_id(reader)
+        )
+        for _ in range(reader.read_number())
+    ]
+    value_types = [
+        reader.read_option(
+            lambda: destack._generated.mir.tree.node.decode_local_node_id(reader)
+        )
+        for _ in range(reader.read_number())
+    ]
+    next_value_id = reader.read_number()
+    instruction_index = decode_instruction_index(reader)
+
+    return FunctionBody(
+        entry=entry,
+        blocks=blocks,
+        locals=locals,
+        value_names=value_names,
+        value_types=value_types,
+        next_value_id=next_value_id,
+        instruction_index=instruction_index,
+    )
+
+
+def to_json_function_body(value: FunctionBody) -> Json:
+    """Return one JSON value for one FunctionBody."""
+    return {
+        "entry": destack._generated.mir.tree.node.to_json_local_node_id(value.entry),
+        "blocks": [
+            destack._generated.mir.tree.node.to_json_local_node_id(item_0)
+            for item_0 in value.blocks
+        ],
+        "locals": [
+            destack._generated.mir.tree.node.to_json_local_node_id(item_0)
+            for item_0 in value.locals
+        ],
+        "valueNames": [
+            None
+            if item_0 is None
+            else destack._generated.core.string.to_json_string_id(item_0)
+            for item_0 in value.value_names
+        ],
+        "valueTypes": [
+            None
+            if item_0 is None
+            else destack._generated.mir.tree.node.to_json_local_node_id(item_0)
+            for item_0 in value.value_types
+        ],
+        "nextValueId": value.next_value_id,
+        "instructionIndex": to_json_instruction_index(value.instruction_index),
+    }
+
+
+def from_json_function_body(value: Json) -> FunctionBody:
+    """Return one FunctionBody from one JSON value."""
+    object_ = json_object(value)
+
+    return FunctionBody(
+        entry=destack._generated.mir.tree.node.from_json_local_node_id(
+            json_field(object_, "entry")
+        ),
+        blocks=[
+            destack._generated.mir.tree.node.from_json_local_node_id(item_0)
+            for item_0 in json_array(json_field(object_, "blocks"))
+        ],
+        locals=[
+            destack._generated.mir.tree.node.from_json_local_node_id(item_0)
+            for item_0 in json_array(json_field(object_, "locals"))
+        ],
         value_names=[
             None
             if item_0 is None
@@ -337,35 +441,147 @@ def from_json_function(value: Json) -> Function:
             for item_0 in json_array(json_field(object_, "valueTypes"))
         ],
         next_value_id=json_int(json_field(object_, "nextValueId")),
-        return_type=destack._generated.mir.tree.node.from_json_local_node_id(
-            json_field(object_, "returnType")
+        instruction_index=from_json_instruction_index(
+            json_field(object_, "instructionIndex")
         ),
-        environment=json_optional(
-            object_,
-            "environment",
-            lambda value: destack._generated.mir.tree.node.from_json_local_node_id(
-                value
-            ),
-        ),
-        locals=[
-            destack._generated.mir.tree.node.from_json_local_node_id(item_0)
-            for item_0 in json_array(json_field(object_, "locals"))
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InstructionIndex:
+    """Function-local instruction location index."""
+
+    # instruction locations keyed by instruction id
+    locations: Sequence[InstructionLocation | None]
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_instruction_index(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> InstructionIndex:
+        """Decode one InstructionIndex."""
+        return decode_instruction_index(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_instruction_index(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> InstructionIndex:
+        """Return one InstructionIndex from one JSON value."""
+        return from_json_instruction_index(value)
+
+
+def encode_instruction_index(writer: BinaryWriter, value: InstructionIndex) -> None:
+    """Encode one InstructionIndex."""
+    writer.write_unsigned(len(value.locations))
+    for item_value_locations_0 in value.locations:
+        if item_value_locations_0 is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            encode_instruction_location(writer, item_value_locations_0)
+
+
+def decode_instruction_index(reader: BinaryReader) -> InstructionIndex:
+    """Decode one InstructionIndex."""
+    locations = [
+        reader.read_option(lambda: decode_instruction_location(reader))
+        for _ in range(reader.read_number())
+    ]
+
+    return InstructionIndex(
+        locations=locations,
+    )
+
+
+def to_json_instruction_index(value: InstructionIndex) -> Json:
+    """Return one JSON value for one InstructionIndex."""
+    return {
+        "locations": [
+            None if item_0 is None else to_json_instruction_location(item_0)
+            for item_0 in value.locations
         ],
-        blocks=[
-            destack._generated.mir.tree.node.from_json_local_node_id(item_0)
-            for item_0 in json_array(json_field(object_, "blocks"))
+    }
+
+
+def from_json_instruction_index(value: Json) -> InstructionIndex:
+    """Return one InstructionIndex from one JSON value."""
+    object_ = json_object(value)
+
+    return InstructionIndex(
+        locations=[
+            None if item_0 is None else from_json_instruction_location(item_0)
+            for item_0 in json_array(json_field(object_, "locations"))
         ],
-        entry=json_optional(
-            object_,
-            "entry",
-            lambda value: destack._generated.mir.tree.node.from_json_local_node_id(
-                value
-            ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InstructionLocation:
+    """Location of one instruction in a MIR function body."""
+
+    # the block that owns the instruction
+    block: destack._generated.mir.tree.node.LocalNodeId
+    # the instruction index in the block
+    index: int
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_instruction_location(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> InstructionLocation:
+        """Decode one InstructionLocation."""
+        return decode_instruction_location(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_instruction_location(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> InstructionLocation:
+        """Return one InstructionLocation from one JSON value."""
+        return from_json_instruction_location(value)
+
+
+def encode_instruction_location(
+    writer: BinaryWriter, value: InstructionLocation
+) -> None:
+    """Encode one InstructionLocation."""
+    destack._generated.mir.tree.node.encode_local_node_id(writer, value.block)
+    writer.write_unsigned(value.index)
+
+
+def decode_instruction_location(reader: BinaryReader) -> InstructionLocation:
+    """Decode one InstructionLocation."""
+    block = destack._generated.mir.tree.node.decode_local_node_id(reader)
+    index = reader.read_number()
+
+    return InstructionLocation(
+        block=block,
+        index=index,
+    )
+
+
+def to_json_instruction_location(value: InstructionLocation) -> Json:
+    """Return one JSON value for one InstructionLocation."""
+    return {
+        "block": destack._generated.mir.tree.node.to_json_local_node_id(value.block),
+        "index": value.index,
+    }
+
+
+def from_json_instruction_location(value: Json) -> InstructionLocation:
+    """Return one InstructionLocation from one JSON value."""
+    object_ = json_object(value)
+
+    return InstructionLocation(
+        block=destack._generated.mir.tree.node.from_json_local_node_id(
+            json_field(object_, "block")
         ),
-        allocation=from_json_allocation_mode(json_field(object_, "allocation")),
-        suspension=json_optional(
-            object_, "suspension", lambda value: from_json_suspension_kind(value)
-        ),
+        index=json_int(json_field(object_, "index")),
     )
 
 
@@ -479,6 +695,21 @@ __all__ = [
     "decode_function",
     "to_json_function",
     "from_json_function",
+    "FunctionBody",
+    "encode_function_body",
+    "decode_function_body",
+    "to_json_function_body",
+    "from_json_function_body",
+    "InstructionIndex",
+    "encode_instruction_index",
+    "decode_instruction_index",
+    "to_json_instruction_index",
+    "from_json_instruction_index",
+    "InstructionLocation",
+    "encode_instruction_location",
+    "decode_instruction_location",
+    "to_json_instruction_location",
+    "from_json_instruction_location",
     "AllocationMode",
     "encode_allocation_mode",
     "decode_allocation_mode",

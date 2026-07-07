@@ -14,7 +14,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.file.model.span
 
 
@@ -23,7 +23,7 @@ class HoverRequest:
     """Request hover information at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -46,12 +46,12 @@ class HoverRequest:
 
 def encode_hover_request(writer: BinaryWriter, value: HoverRequest) -> None:
     """Encode one HoverRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_hover_request(reader: BinaryReader) -> HoverRequest:
     """Decode one HoverRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return HoverRequest(
         position=position,
@@ -61,7 +61,7 @@ def decode_hover_request(reader: BinaryReader) -> HoverRequest:
 def to_json_hover_request(value: HoverRequest) -> Json:
     """Return one JSON value for one HoverRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -72,7 +72,7 @@ def from_json_hover_request(value: Json) -> HoverRequest:
     object_ = json_object(value)
 
     return HoverRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
