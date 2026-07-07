@@ -5,7 +5,8 @@ use destack_program::native::{
     NativeResumeEntry, NativeTrap, NativeValue,
 };
 use destack_program::{
-    Continuation, EntryPoint, FrameStateId, FunctionId, Program, ProgramActivation, Value, native,
+    Continuation, EntryPoint, FrameStateId, FunctionId, Program, ProgramActivation, StopReason,
+    Value, native,
 };
 
 use super::{Entry, Error, LibraryHandle, MemoryMapping, Outcome, ResumeEntry};
@@ -306,6 +307,24 @@ impl Code {
         Ok(Outcome::Deoptimized { continuation })
     }
 
+    /// Return one stopped outcome from native continuation state.
+    fn stopped_outcome(&self, exit: NativeExit) -> Result<Outcome, Error> {
+        if exit.continuation.is_empty() {
+            return Err(Error::StoppedWithoutContinuation {
+                safepoint: exit.safepoint,
+            });
+        }
+
+        // SAFETY: generated native code supplies valid exit continuation frame pointers
+        let continuation =
+            unsafe { exit.continuation.to_continuation() }.map_err(Error::InvalidContinuation)?;
+
+        Ok(Outcome::Stopped {
+            continuation,
+            reason: StopReason::Breakpoint,
+        })
+    }
+
     /// Return one native outcome from native exit code and payloads.
     fn outcome_from_exit(
         &self,
@@ -333,6 +352,7 @@ impl Code {
 
                 Err(Error::Panicked { payload })
             }
+            NativeExitKind::Stopped => self.stopped_outcome(exit),
         }
     }
 }

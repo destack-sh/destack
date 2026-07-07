@@ -1,4 +1,4 @@
-use destack_program::{Continuation, Value};
+use destack_program::{Continuation, StopReason, Value};
 
 /// Native execution outcome.
 #[derive(Debug)]
@@ -19,5 +19,12 @@ pub enum Outcome {
     Deoptimized {
         /// The continuation for VM fallback.
         continuation: Continuation,
+    },
+    /// Native execution stopped for host inspection.
+    Stopped {
+        /// The continuation to continue.
+        continuation: Continuation,
+        /// The reason execution stopped.
+        reason: StopReason,
     },
 }

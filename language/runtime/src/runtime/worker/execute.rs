@@ -104,6 +104,7 @@ impl Worker {
 
                 output
             }
+            Outcome::Stopped { .. } => return Err(RuntimeError::execution_stopped().boxed()),
         };
 
         Ok(output)
@@ -495,6 +496,7 @@ impl Worker {
             } => {
                 self.enqueue_task(id, continuation, value)?;
             }
+            Outcome::Stopped { .. } => return Err(RuntimeError::execution_stopped().boxed()),
         }
 
         self.drain_microtasks(
@@ -567,6 +569,7 @@ impl Worker {
                 message: "microtask yielded while running to completion".to_string(),
             }
             .boxed()),
+            Outcome::Stopped { .. } => Err(RuntimeError::execution_stopped().boxed()),
         }
     }
 

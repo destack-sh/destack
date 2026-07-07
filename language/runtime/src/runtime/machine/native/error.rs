@@ -29,6 +29,11 @@ pub enum Error {
         /// The safepoint that requested deoptimization.
         safepoint: u32,
     },
+    /// Native execution stopped without a continuation.
+    StoppedWithoutContinuation {
+        /// The safepoint that stopped.
+        safepoint: u32,
+    },
     /// Native execution reported a language panic.
     Panicked {
         /// The panic payload.
@@ -85,6 +90,12 @@ impl fmt::Display for Error {
                 write!(
                     formatter,
                     "native execution deoptimized at safepoint {safepoint} without a continuation"
+                )
+            }
+            Self::StoppedWithoutContinuation { safepoint } => {
+                write!(
+                    formatter,
+                    "native execution stopped at safepoint {safepoint} without a continuation"
                 )
             }
             Self::Panicked { payload } => {
