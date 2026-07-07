@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_interface_parameter_induces_hidden_generic_constraint() {
+fn test_interface_parameter_erases_to_dynamic_storage() {
     let session = TestSession::single(
         r#"
 interface Drawable {
@@ -23,7 +23,7 @@ interface Drawable {
     draw(): void;
 }
 
-function paint<T0: Drawable>(item: T0): void {
+function paint(item: Dynamic<Drawable>): void {
     item.draw();
 }
 
@@ -39,22 +39,21 @@ interface Drawable {
 }
 
 function paint(item: Drawable): void {
-/// @generic.template symbol=paint parameters=(T0: Drawable origin=induced.parameter_constraint)
-/// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
-/// @type.symbol symbol=item source="item: Drawable" type=paint.T0
+/// @type.symbol symbol=paint type=(Dynamic<Drawable>) => void
+/// @type.symbol symbol=paint.item source="item: Drawable" type=Dynamic<Drawable>
 /// @resolution.name source=Drawable target=Drawable
 
     item.draw();
-    /// @resolution.name source=item target=item
-    /// @resolution.member source=item.draw receiver=paint.T0 kind=symbol target=Drawable.draw
-    /// @resolution.call source=item.draw() parameters=() return=void kind=symbol target=Drawable.draw receiver=paint.T0
+    /// @resolution.name source=item target=paint.item
+    /// @resolution.member source=item.draw receiver=Dynamic<Drawable> kind=symbol target=Drawable.draw adjustments=(dynamic)
+    /// @resolution.call source=item.draw() parameters=() return=void kind=symbol target=Drawable.draw receiver=Drawable adjustments=(dynamic)
 
 }
 "#);
 }
 
 #[test]
-fn test_type_alias_parameter_induces_hidden_generic_constraint() {
+fn test_closed_alias_parameter_stays_direct_storage() {
     let session = TestSession::single(
         r#"
 type Drawable = {
@@ -76,7 +75,7 @@ type Drawable = {
     draw(): void;
 };
 
-function paint<T0: Drawable>(item: T0): void {
+function paint(item: Drawable): void {
     item.draw();
 }
 
@@ -89,14 +88,13 @@ type Drawable = {
 };
 
 function paint(item: Drawable): void {
-/// @generic.template symbol=paint parameters=(T0: Drawable origin=induced.parameter_constraint)
-/// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
-/// @type.symbol symbol=item source="item: Drawable" type=paint.T0
+/// @type.symbol symbol=paint type=(Drawable) => void
+/// @type.symbol symbol=paint.item source="item: Drawable" type=Drawable reduced={ draw(): void }
 /// @resolution.name source=Drawable target=Drawable
 
     item.draw();
-    /// @resolution.name source=item target=item
-    /// @resolution.member source=item.draw receiver=paint.T0 kind=field key=draw
+    /// @resolution.name source=item target=paint.item
+    /// @resolution.member source=item.draw receiver={ draw(): void } kind=field key=draw
     /// @resolution.call source=item.draw() parameters=() return=void kind=expression
 
 }

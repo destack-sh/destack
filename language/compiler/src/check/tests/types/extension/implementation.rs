@@ -49,9 +49,8 @@ extension of User implements Show {
 
 === checked ===
 newtype interface Show {
-/// @generic.template symbol=Show parameters=()
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show template=() nominal=true
+/// @definition.interface symbol=Show nominal=true
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
 
     show(): string;
@@ -127,9 +126,8 @@ extension of User implements Show {}
 
 === checked ===
 newtype interface Show {
-/// @generic.template symbol=Show parameters=()
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show template=() nominal=true
+/// @definition.interface symbol=Show nominal=true
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
 
     show(): string;
@@ -199,9 +197,8 @@ extension of User implements Show {
 
 === checked ===
 newtype interface Named {
-/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named template=() nominal=true
+/// @definition.interface symbol=Named nominal=true
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
 
     name(): string;
@@ -210,9 +207,8 @@ newtype interface Named {
 }
 
 newtype interface Show extends Named {
-/// @generic.template symbol=Show parameters=()
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show template=() nominal=true
+/// @definition.interface symbol=Show nominal=true
 /// @definition.extends symbol=Show source=Named target=Named
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
 /// @resolution.name source=Named target=Named
@@ -243,6 +239,139 @@ extension of User implements Show {
         r#"
 /// @diagnostic.error code=EC203 message="type 'User' does not implement interface 'Show'"
 /// @diagnostic.label line=12 column=30 span="Show" line_source="extension of User implements Show {"
+"#,
+    );
+}
+
+#[test]
+fn test_extension_implementation_satisfies_inherited_interface_relation() {
+    let session = TestSession::single(
+        r#"
+newtype interface PartialEqual<T = this> {
+    equal(other: T): boolean;
+}
+
+newtype interface Equal<T = this> extends PartialEqual<T> {}
+
+struct Badge {}
+
+extension of Badge implements Equal<Badge> {
+    equal(other: Badge): boolean {
+        true
+    }
+}
+
+function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
+    left.equal(right)
+}
+
+const ok = compare(Badge {}, Badge {});
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface PartialEqual<T = this> {
+    equal(other: T): boolean;
+}
+
+newtype interface Equal<T = this> extends PartialEqual<T> {}
+
+struct Badge {}
+
+extension of Badge implements Equal<Badge> {
+    equal(other: Badge): boolean {
+        true
+    }
+}
+
+function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
+    left.equal<T>(right)
+}
+
+const ok: boolean = compare<Badge>(Badge {}, Badge {});
+
+=== checked ===
+newtype interface PartialEqual<T = this> {
+/// @generic.template symbol=PartialEqual parameters=(T#1 = this)
+/// @type.symbol symbol=PartialEqual type=PartialEqual
+/// @definition.interface symbol=PartialEqual template=(T#1 = this) nominal=true
+/// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: PartialEqual<T#1>, T#1) => boolean
+/// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
+
+    equal(other: T): boolean;
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: PartialEqual<T#1>, T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
+    /// @resolution.name source=T target=PartialEqual.T
+
+}
+
+newtype interface Equal<T = this> extends PartialEqual<T> {}
+/// @generic.template symbol=Equal parameters=(T#2 = this)
+/// @type.symbol symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
+/// @definition.interface symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(T#2 = this) nominal=true
+/// @definition.where symbol=Equal source="newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
+/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual arguments=(T#2)
+/// @type.symbol symbol=Equal.T source="T = this" type=T#2
+/// @resolution.name source=PartialEqual target=PartialEqual
+/// @resolution.name source=T target=Equal.T
+
+struct Badge {}
+/// @type.symbol symbol=Badge source="struct Badge {}" type=Badge
+/// @definition.struct symbol=Badge source="struct Badge {}"
+
+extension of Badge implements Equal<Badge> {
+/// @definition.extension symbol=<module>#2 form=local target=Badge
+/// @definition.implements symbol=<module>#2 source=Equal<Badge> target=Equal arguments=(Badge)
+/// @definition.method symbol=equal slot=equal type=(this: Badge, Badge) => boolean
+/// @resolution.name source=Badge target=Badge
+/// @resolution.name source=Equal target=Equal
+/// @resolution.name source=Badge target=Badge
+
+    equal(other: Badge): boolean {
+    /// @type.symbol symbol=equal type=(this: Badge, Badge) => boolean
+    /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
+    /// @resolution.name source=Badge target=Badge
+
+        true
+    }
+}
+
+function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
+/// @generic.template symbol=compare parameters=(T#3: PartialEqual<T#3>)
+/// @type.symbol symbol=compare type=<T#3: PartialEqual<T#3>>(T#3, T#3) => boolean
+/// @type.symbol symbol=compare.T source="T: PartialEqual<T>" type=T#3
+/// @resolution.name source=PartialEqual target=PartialEqual
+/// @resolution.name source=T target=compare.T
+/// @type.symbol symbol=compare.left source="left: T" type=T#3
+/// @resolution.name source=T target=compare.T
+/// @type.symbol symbol=compare.right source="right: T" type=T#3
+/// @resolution.name source=T target=compare.T
+
+    left.equal(right)
+    /// @resolution.name source=left target=compare.left
+    /// @resolution.member source=left.equal receiver=T#3 kind=symbol target=PartialEqual.equal
+    /// @resolution.call source=left.equal(right) parameters=(T#3) arguments=(provided(right) as T#3) return=boolean kind=symbol target=PartialEqual.equal receiver=T#3 instance=PartialEqual<T#3>.equal
+    /// @generic.instance source=left.equal(right) id=PartialEqual<T#3>.equal
+    /// @resolution.name source=right target=compare.right
+
+}
+
+const ok = compare(Badge {}, Badge {});
+/// @type.symbol symbol=ok source=ok type=boolean
+/// @resolution.name source=compare target=compare
+/// @resolution.call source="compare(Badge {}, Badge {})" parameters=(Badge, Badge) arguments=(provided(Badge {}) as Badge, provided(Badge {}) as Badge) return=boolean kind=symbol target=compare instance=compare<Badge>
+/// @generic.instance source="compare(Badge {}, Badge {})" id=compare<Badge>
+/// @resolution.name source=Badge target=Badge
+/// @resolution.name source=Badge target=Badge
+
+/// @generic.instance id=PartialEqual<T#1> template=PartialEqual arguments=(T#1)
+/// @generic.instance id=PartialEqual<T#3>.equal template=PartialEqual.equal arguments=(T#3)
+/// @generic.instance id=compare<Badge> template=compare arguments=(Badge)
 "#,
     );
 }
@@ -330,9 +459,8 @@ struct User {}
 /// @definition.struct symbol=User source="struct User {}"
 
 interface Show {
-/// @generic.template symbol=Show parameters=()
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show template=()
+/// @definition.interface symbol=Show
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
 
     show(): string;
@@ -409,9 +537,8 @@ struct User {}
 /// @definition.struct symbol=User source="struct User {}"
 
 interface Show {
-/// @generic.template symbol=Show parameters=()
 /// @type.symbol symbol=Show type=Show
-/// @definition.interface symbol=Show template=()
+/// @definition.interface symbol=Show
 /// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: Show) => string
 
     show(): string;
@@ -419,9 +546,8 @@ interface Show {
 
 }
 interface Debug {
-/// @generic.template symbol=Debug parameters=()
 /// @type.symbol symbol=Debug type=Debug
-/// @definition.interface symbol=Debug template=()
+/// @definition.interface symbol=Debug
 /// @definition.method symbol=Debug.debug source="debug(): string" slot=debug type=(this: Debug) => string
 
     debug(): string;
@@ -482,15 +608,14 @@ extension of int32 implements Doubling {
     type Output = int32;
 
     double(): int32.Output {
-        todo("double" as string | undefined)
+        todo("double")
     }
 }
 
 === checked ===
 interface Doubling {
-/// @generic.template symbol=Doubling parameters=()
 /// @type.symbol symbol=Doubling type=Doubling
-/// @definition.interface symbol=Doubling template=()
+/// @definition.interface symbol=Doubling
 /// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
 /// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: Doubling) => this.Output
 
@@ -521,6 +646,128 @@ extension of int32 implements Doubling {
     }
 }
 "#);
+}
+
+#[test]
+fn test_extension_implements_inherited_interface_with_associated_argument() {
+    let session = TestSession::single(
+        r#"
+interface Source<T> {
+    static from(value: T): this;
+}
+
+interface Carrier extends Source<this.Error> {
+    type Error;
+}
+
+newtype Result<T, E> = T | E;
+
+extension<T, E> of Result<T, E> implements Source<E>, Carrier {
+    type Error = E;
+
+    static from(value: E): Result<T, E> {
+        todo("from")
+    }
+}
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Source<T> {
+    static from(value: T): this;
+}
+
+interface Carrier extends Source<this.Error> {
+    type Error;
+}
+
+newtype Result<T, E> = T | E;
+
+extension<T, E> of Result<T, E> implements Source<E>, Carrier {
+    type Error = E;
+
+    static from(value: E): Result<T, E> {
+        todo("from")
+    }
+}
+
+=== checked ===
+interface Source<T> {
+/// @generic.template symbol=Source parameters=(T#1)
+/// @type.symbol symbol=Source type=Source
+/// @definition.interface symbol=Source template=(T#1)
+/// @definition.where symbol=Source relation=satisfies left=this right=Source<T#1>
+/// @definition.method symbol=Source.from source="static from(value: T): this" slot=from static=true type=(T#1) => this
+/// @type.symbol symbol=Source.T source=T type=T#1
+
+    static from(value: T): this;
+    /// @type.symbol symbol=Source.from source="static from(value: T): this" type=(T#1) => this
+    /// @type.symbol symbol=Source.from.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Source.T
+
+}
+
+interface Carrier extends Source<this.Error> {
+/// @type.symbol symbol=Carrier type=Carrier
+/// @definition.interface symbol=Carrier
+/// @definition.extends symbol=Carrier source=Source<this.Error> target=Source arguments=(this.Error)
+/// @definition.associated.type symbol=Carrier.Error source="type Error" key=Error
+/// @resolution.name source=Source target=Source
+
+    type Error;
+}
+
+newtype Result<T, E> = T | E;
+/// @generic.template symbol=Result parameters=(T#2, E#1)
+/// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(T#2, E#1) value=T#2 | E#1
+/// @type.symbol symbol=Result.T source=T type=T#2
+/// @type.symbol symbol=Result.E source=E type=E#1
+/// @resolution.name source=T target=Result.T
+/// @resolution.name source=E target=Result.E
+
+extension<T, E> of Result<T, E> implements Source<E>, Carrier {
+/// @generic.template symbol=<module>#2 parameters=(T#3, E#2)
+/// @definition.extension symbol=<module>#2 form=local target=Result<T#3, E#2>
+/// @definition.implements symbol=<module>#2 source=Carrier target=Carrier
+/// @definition.implements symbol=<module>#2 source=Source<E> target=Source arguments=(E#2)
+/// @definition.associated.type symbol=Error source="type Error = E" key=Error value=E#2
+/// @definition.method symbol=from slot=from static=true type=(E#2) => Result<T#3, E#2>
+/// @type.symbol symbol=T source=T type=T#3
+/// @type.symbol symbol=E source=E type=E#2
+/// @resolution.name source=Result target=Result
+/// @resolution.name source=T target=T
+/// @resolution.name source=E target=E
+/// @resolution.name source=Source target=Source
+/// @resolution.name source=E target=E
+/// @resolution.name source=Carrier target=Carrier
+
+    type Error = E;
+    /// @type.symbol symbol=Error source="type Error = E" type=E#2
+    /// @resolution.name source=E target=E
+
+    static from(value: E): Result<T, E> {
+    /// @type.symbol symbol=from type=(E#2) => Result<T#3, E#2>
+    /// @type.symbol symbol=from.value source="value: E" type=E#2
+    /// @resolution.name source=E target=E
+    /// @resolution.name source=Result target=Result
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=E target=E
+
+        todo("from")
+        /// @resolution.name source=todo target=error.panic.todo
+        /// @resolution.call source="todo(\"from\")" parameters=(string | undefined) arguments=(provided("from") as string | undefined) return=never kind=symbol target=error.panic.todo
+
+    }
+}
+
+/// @generic.instance id="Result<T#3, E#2>" template=Result arguments=(T#3, E#2)
+"#,
+    );
 }
 
 #[test]
@@ -555,15 +802,14 @@ extension of int32 implements Halving {
     type Output = int32;
 
     halve(&readonly this): Borrowed<int32, L0, "readonly">.Output {
-        todo("halve" as string | undefined)
+        todo("halve")
     }
 }
 
 === checked ===
 interface Halving {
-/// @generic.template symbol=Halving parameters=()
 /// @type.symbol symbol=Halving type=Halving
-/// @definition.interface symbol=Halving template=()
+/// @definition.interface symbol=Halving
 /// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
 /// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: Halving) => this.Output
 
@@ -661,7 +907,7 @@ extension of Cell implements Reading {
     type Output = int32;
 
     read(): Cell.Output {
-        todo("read" as string | undefined)
+        todo("read")
     }
 }
 
@@ -669,15 +915,14 @@ extension of Cell implements Writing {
     type Output = float64;
 
     write(): Cell.Output {
-        todo("write" as string | undefined)
+        todo("write")
     }
 }
 
 === checked ===
 interface Reading {
-/// @generic.template symbol=Reading parameters=()
 /// @type.symbol symbol=Reading type=Reading
-/// @definition.interface symbol=Reading template=()
+/// @definition.interface symbol=Reading
 /// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
 /// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: Reading) => this.Output
 
@@ -689,9 +934,8 @@ interface Reading {
 }
 
 interface Writing {
-/// @generic.template symbol=Writing parameters=()
 /// @type.symbol symbol=Writing type=Writing
-/// @definition.interface symbol=Writing template=()
+/// @definition.interface symbol=Writing
 /// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
 /// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: Writing) => this.Output
 
@@ -978,9 +1222,8 @@ export extension<T> of Pack<T> implements Has<T> {
 
 === checked ===
 interface Marker {}
-/// @generic.template symbol=Marker parameters=()
 /// @type.symbol symbol=Marker source="interface Marker {}" type=Marker
-/// @definition.interface symbol=Marker source="interface Marker {}" template=()
+/// @definition.interface symbol=Marker source="interface Marker {}"
 
 interface Has<T> {
 /// @generic.template symbol=Has parameters=(T#1)
@@ -991,7 +1234,7 @@ interface Has<T> {
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
-    /// @generic.template symbol=Has.has parent=template#1 parameters=(comptime L0: Lifetime)
+    /// @generic.template symbol=Has.has parent=template#0 parameters=(comptime L0: Lifetime)
     /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.L0, "readonly">
     /// @resolution.name source=T target=Has.T
@@ -1023,7 +1266,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Marker>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, comptime L1: Lifetime)
+    /// @generic.template symbol=has parent=template#2 parameters=(Q: Marker, comptime L1: Lifetime)
     /// @type.symbol symbol=has type=<Q: Marker, comptime has.L1: Lifetime>(this: Pack<T#3>, Borrowed<Q, has.L1, "readonly">) => boolean
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker

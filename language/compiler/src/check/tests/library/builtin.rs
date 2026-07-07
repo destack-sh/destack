@@ -34,8 +34,12 @@ fn test_check_library() {
 /// Check one builtin library module for focused debugging.
 #[test]
 #[ignore = "debug helper for library triage"]
-fn test_check_library_module() {
-    let path = std::env::var("DESTACK_LIBRARY_MODULE").unwrap_or_default();
+fn test_debug_library_module() {
+    let Ok(path) = std::env::var("DESTACK_LIBRARY_MODULE") else {
+        eprintln!("set DESTACK_LIBRARY_MODULE to a builtin module path");
+
+        return;
+    };
     let session = TestSession::builder().build();
     let repository = session.repository();
     let package = repository.builtin_package();
