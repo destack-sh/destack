@@ -74,7 +74,7 @@ impl<'a> DispatchLinker<'a> {
     /// Project one MIR dynamic entry into program ids.
     fn dynamic_entry(&self, entry: &mir::DynamicEntry) -> DynamicEntry {
         match entry {
-            mir::DynamicEntry::FieldOffset { offset } => DynamicEntry::field_offset(*offset),
+            mir::DynamicEntry::Field { offset } => DynamicEntry::field_offset(*offset),
             mir::DynamicEntry::Function { function } => {
                 DynamicEntry::function(self.program.function_id(*function))
             }

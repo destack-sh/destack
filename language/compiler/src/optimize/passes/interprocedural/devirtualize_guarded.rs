@@ -702,7 +702,7 @@ impl DispatchCall {
 
                 match entry {
                     mir::DynamicEntry::Function { function } => Some(*function),
-                    mir::DynamicEntry::FieldOffset { .. } => None,
+                    mir::DynamicEntry::Field { .. } => None,
                 }
             }
         }
