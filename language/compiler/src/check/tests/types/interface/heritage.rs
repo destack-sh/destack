@@ -29,9 +29,8 @@ interface Drawable extends Named {
 
 === checked ===
 interface Named {
-/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named template=()
+/// @definition.interface symbol=Named
 /// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: Named) => string
 
     name(): string;
@@ -40,9 +39,8 @@ interface Named {
 }
 
 interface Drawable extends Named {
-/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable template=()
+/// @definition.interface symbol=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 /// @resolution.name source=Named target=Named
@@ -96,7 +94,7 @@ interface Drawable extends Shape {
 "#,
         r#"
 /// @diagnostic.error code=EC615 message="interface 'Drawable' can only extend interfaces, not 'Shape'"
-/// @diagnostic.label line=4 column=28 source="interface Drawable extends Shape {"
+/// @diagnostic.label line=4 column=28 span="Shape" line_source="interface Drawable extends Shape {"
 "#,
     );
 }
@@ -139,7 +137,7 @@ interface Drawable extends Alias {}
 "#,
         r#"
 /// @diagnostic.error code=EC615 message="interface 'Drawable' can only extend interfaces, not 'Alias'"
-/// @diagnostic.label line=5 column=28 source="interface Drawable extends Alias {}"
+/// @diagnostic.label line=5 column=28 span="Alias" line_source="interface Drawable extends Alias {}"
 "#,
     );
 }
@@ -167,19 +165,16 @@ interface Drawable extends Named | DrawableBase {}
 
 === checked ===
 interface Named {}
-/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named source="interface Named {}" type=Named
-/// @definition.interface symbol=Named source="interface Named {}" template=()
+/// @definition.interface symbol=Named source="interface Named {}"
 
 interface DrawableBase {}
-/// @generic.template symbol=DrawableBase parameters=()
 /// @type.symbol symbol=DrawableBase source="interface DrawableBase {}" type=DrawableBase
-/// @definition.interface symbol=DrawableBase source="interface DrawableBase {}" template=()
+/// @definition.interface symbol=DrawableBase source="interface DrawableBase {}"
 
 interface Drawable extends Named | DrawableBase {}
-/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" type=Drawable
-/// @definition.interface symbol=Drawable source="interface Drawable extends Named | DrawableBase {}" template=()
+/// @definition.interface symbol=Drawable source="interface Drawable extends Named | DrawableBase {}"
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=DrawableBase target=DrawableBase
 "#,
@@ -222,13 +217,14 @@ interface Both extends Left, Right {}
 === checked ===
 interface Base<T> {
 /// @generic.template symbol=Base parameters=(T)
-/// @type.symbol symbol=Base type=Base<T>
-/// @definition.interface symbol=Base template=LocalGenericTemplateId(0)
-/// @definition.method symbol=Base.value source="value(): T" slot=value type=<T>(this: Base<T>) => T
+/// @type.symbol symbol=Base type=Base
+/// @definition.interface symbol=Base template=(T)
+/// @definition.where symbol=Base relation=satisfies left=this right=Base<T>
+/// @definition.method symbol=Base.value source="value(): T" slot=value type=(this: Base<T>) => T
 /// @type.symbol symbol=Base.T source=T type=T
 
     value(): T;
-    /// @type.symbol symbol=Base.value source="value(): T" type=<T>(this: Base<T>) => T
+    /// @type.symbol symbol=Base.value source="value(): T" type=(this: Base<T>) => T
     /// @resolution.name source=T target=Base.T
 
 }
@@ -252,10 +248,12 @@ interface Both extends Left, Right {}
 /// @definition.extends symbol=Both source=Right target=Right
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
+
+/// @generic.instance id=Base<T> template=Base arguments=(T)
 "#,
         r#"
 /// @diagnostic.error code=EC617 message="type 'Both' has conflicting heritage for 'Base'"
-/// @diagnostic.label line=9 column=30 source="interface Both extends Left, Right {}"
+/// @diagnostic.label line=9 column=30 span="Right" line_source="interface Both extends Left, Right {}"
 "#,
     );
 }
@@ -292,9 +290,9 @@ interface Right extends Left {}
 "#,
         r#"
 /// @diagnostic.error code=EC618 message="type 'Left' has circular heritage"
-/// @diagnostic.label line=2 column=24 source="interface Left extends Right {}"
+/// @diagnostic.label line=2 column=24 span="Right" line_source="interface Left extends Right {}"
 /// @diagnostic.error code=EC618 message="type 'Right' has circular heritage"
-/// @diagnostic.label line=3 column=25 source="interface Right extends Left {}"
+/// @diagnostic.label line=3 column=25 span="Left" line_source="interface Right extends Left {}"
 "#,
     );
 }

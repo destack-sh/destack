@@ -112,8 +112,6 @@ const narrow = Index { value: 1 as int32 };
 /// @generic.instance id=Index<int64> template=Index arguments=(int64)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'int64'"
-/// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.error code=EC201 message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
 "#,

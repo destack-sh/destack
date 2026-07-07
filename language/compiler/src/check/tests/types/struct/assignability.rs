@@ -35,9 +35,8 @@ value satisfies HasX;
 
 === checked ===
 interface HasX {
-/// @generic.template symbol=HasX parameters=()
 /// @type.symbol symbol=HasX type=HasX
-/// @definition.interface symbol=HasX template=()
+/// @definition.interface symbol=HasX
 /// @definition.field symbol=HasX.x source="x: int32" key=x type=int32
 
     x: int32;
@@ -154,9 +153,8 @@ counter satisfies HasCount;
 
 === checked ===
 interface HasCount {
-/// @generic.template symbol=HasCount parameters=()
 /// @type.symbol symbol=HasCount type=HasCount
-/// @definition.interface symbol=HasCount template=()
+/// @definition.interface symbol=HasCount
 /// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32 | undefined
 
     count?: int32;
@@ -215,9 +213,8 @@ struct Point implements Drawable {
 
 === checked ===
 interface Drawable {
-/// @generic.template symbol=Drawable parameters=()
 /// @type.symbol symbol=Drawable type=Drawable
-/// @definition.interface symbol=Drawable template=()
+/// @definition.interface symbol=Drawable
 /// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: Drawable) => void
 
     draw(): void;
@@ -226,10 +223,8 @@ interface Drawable {
 }
 
 struct Point implements Drawable {
-/// @generic.template symbol=Point parameters=()
 /// @type.symbol symbol=Point type=Point
-/// @definition.struct symbol=Point template=()
-/// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
+/// @definition.struct symbol=Point
 /// @definition.implements symbol=Point source=Drawable target=Drawable
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @resolution.name source=Drawable target=Drawable
@@ -278,26 +273,21 @@ interface Base<T> {}
 /// @type.symbol symbol=Base.T source=T type=T
 
 interface Left extends Base<string> {}
-/// @generic.template symbol=Left parameters=()
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
-/// @definition.interface symbol=Left source="interface Left extends Base<string> {}" template=()
+/// @definition.interface symbol=Left source="interface Left extends Base<string> {}"
 /// @definition.extends symbol=Left source=Base<string> target=Base arguments=(string)
 /// @resolution.name source=Base target=Base
 
 interface Right extends Base<int32> {}
-/// @generic.template symbol=Right parameters=()
 /// @type.symbol symbol=Right source="interface Right extends Base<int32> {}" type=Right
-/// @definition.interface symbol=Right source="interface Right extends Base<int32> {}" template=()
+/// @definition.interface symbol=Right source="interface Right extends Base<int32> {}"
 /// @definition.extends symbol=Right source=Base<int32> target=Base arguments=(int32)
 /// @resolution.name source=Base target=Base
 
 struct Point implements Left, Right {}
-/// @generic.template symbol=Point parameters=()
 /// @type.symbol symbol=Point source="struct Point implements Left, Right {}" type=Point
-/// @definition.struct symbol=Point source="struct Point implements Left, Right {}" template=()
-/// @definition.where symbol=Point source=Left relation=satisfies left=this right=Left
+/// @definition.struct symbol=Point source="struct Point implements Left, Right {}"
 /// @definition.implements symbol=Point source=Left target=Left
-/// @definition.where symbol=Point source=Right relation=satisfies left=this right=Right
 /// @definition.implements symbol=Point source=Right target=Right
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right
