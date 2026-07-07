@@ -83,70 +83,13 @@ impl Compiler {
         // bind callable type parameters
         for parameter_id in parameters {
             let parameter = tree.get(*parameter_id);
-            self.bind_callable_type_comptime_parameter(state, tree, *parameter_id, parameter);
+            state.visit_parameter(tree, *parameter_id, parameter);
         }
 
         // bind return type
         if let Some(return_type) = return_type {
             let return_type_node = tree.get(return_type);
             state.visit_type_expression(tree, return_type, return_type_node);
-        }
-    }
-
-    /// Bind one comptime parameter in a callable type signature.
-    fn bind_callable_type_comptime_parameter(
-        &self,
-        state: &mut BindState<'_>,
-        tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::Parameter>,
-        parameter: &dir::Parameter,
-    ) {
-        state.bind_node(id.into_any());
-
-        // visit the annotation and default without declaring value bindings
-        match parameter {
-            dir::Parameter::Named {
-                declared_type,
-                default,
-                ..
-            }
-            | dir::Parameter::Pattern {
-                declared_type,
-                default,
-                ..
-            } => {
-                if let Some(declared_type) = declared_type {
-                    let declared_type_node = tree.get(*declared_type);
-                    state.visit_type_expression(tree, *declared_type, declared_type_node);
-                }
-                if let Some(default) = default {
-                    let default_node = tree.get(*default);
-                    state.visit_expression(tree, *default, default_node);
-                }
-            }
-            dir::Parameter::VariadicNamed { declared_type, .. }
-            | dir::Parameter::VariadicPattern { declared_type, .. } => {
-                if let Some(declared_type) = declared_type {
-                    let declared_type_node = tree.get(*declared_type);
-                    state.visit_type_expression(tree, *declared_type, declared_type_node);
-                }
-            }
-            dir::Parameter::Error => {}
-        }
-
-        // bind static value parameters
-        if parameter.is_comptime()
-            && let Some(key) = parameter.symbol_key()
-        {
-            let symbol_id = state.insert_symbol(
-                dir::SymbolRole::Local,
-                dir::SymbolKind::GenericValueParameter,
-                Some(key),
-                None,
-                dir::SymbolVisibility::Forward,
-            );
-
-            state.declare_symbol(symbol_id, id);
         }
     }
 

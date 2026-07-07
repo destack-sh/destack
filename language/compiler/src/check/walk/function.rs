@@ -270,7 +270,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let template = self.walk_signature_template(
             source,
             parent,
-            declaration.declares_generic_template(&self.tree),
+            declaration.declares_generic_scope(),
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
@@ -294,7 +294,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // collect signature parameters
         let mut parameters = Vec::new();
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.walk_signature_parameter_type(template, *parameter)? {
+            if let Some(parameter) = self.walk_signature_parameter_type(*parameter)? {
                 parameters.push(parameter);
             }
         }
@@ -338,7 +338,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let template = self.walk_signature_template(
             source,
             parent,
-            declaration.declares_generic_template(&self.tree),
+            declaration.declares_generic_scope(),
             &declaration.generic_parameters,
             &declaration.where_clauses,
         )?;
@@ -355,7 +355,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // collect signature parameters
         let mut parameters = Vec::new();
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.walk_signature_parameter_type(template, *parameter)? {
+            if let Some(parameter) = self.walk_signature_parameter_type(*parameter)? {
                 parameters.push(parameter);
             }
         }
@@ -401,11 +401,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         source: dir::LocalNodeIdAny,
         parent: Option<GenericTemplateId>,
-        declares_template: bool,
+        declares_scope: bool,
         generic_parameters: &[dir::LocalNodeId<dir::GenericParameter>],
         where_clauses: &[dir::LocalNodeId<dir::WhereClause>],
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        if !declares_template {
+        if !declares_scope {
             return Ok(None);
         }
 
@@ -543,23 +543,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         );
         // defaulted parameters may be omitted at the call site
         let is_optional = parameter.is_optional() || parameter.default_value().is_some();
-        let is_comptime = parameter.is_comptime();
-
-        // comptime parameters supply their generic parameter statically
-        let static_parameter = if is_comptime {
-            let source = id.into_any();
-            let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
-                return Ok(None);
-            };
-
-            self.check.generics.parameter_by_symbol(symbol)
-        } else {
-            None
-        };
 
         Ok(Some(dir::FunctionParameterType {
             ty: ty.argument,
-            static_parameter,
             is_optional,
             is_rest,
         }))
@@ -568,7 +554,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one callable type parameter and return its signature slot.
     fn walk_signature_parameter_type(
         &mut self,
-        template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<dir::FunctionParameterType>> {
         let parameter = self.tree.get(id);
@@ -581,37 +566,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
             dir::Parameter::VariadicNamed { .. } | dir::Parameter::VariadicPattern { .. }
         );
         let is_optional = parameter.is_optional();
-        let is_comptime = parameter.is_comptime();
         let Some(parameter_type) = self.walk_parameter_type(id, false)? else {
             return Ok(None);
         };
 
-        // comptime parameters are static generic parameters at call sites
-        let static_parameter = if is_comptime {
-            let source = id.into_any();
-            let symbol = self.check.module(self.module).declaration_symbol(source);
-            let default = match parameter {
-                dir::Parameter::Named { default, .. } | dir::Parameter::Pattern { default, .. } => {
-                    *default
-                }
-                _ => None,
-            };
-
-            self.walk_comptime_parameter(
-                template,
-                source,
-                symbol,
-                Some(parameter_type.argument),
-                default,
-                is_rest,
-            )?
-        } else {
-            None
-        };
-
         Ok(Some(dir::FunctionParameterType {
             ty: parameter_type.argument,
-            static_parameter,
             is_optional,
             is_rest,
         }))

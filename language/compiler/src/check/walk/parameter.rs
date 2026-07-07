@@ -173,7 +173,6 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_parameter(
         &mut self,
-        template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
         is_annotation_required: bool,
@@ -189,11 +188,9 @@ impl WalkState<'_, '_> {
             dir::Parameter::Named {
                 declared_type,
                 default,
-                is_comptime,
                 ..
             } => {
-                let (declared_type, default, is_comptime) =
-                    (*declared_type, *default, *is_comptime);
+                let (declared_type, default) = (*declared_type, *default);
 
                 // report missing annotations
                 if is_annotation_required && declared_type.is_none() {
@@ -208,19 +205,10 @@ impl WalkState<'_, '_> {
                 let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
 
                 // bind the parameter name to its type
-                if let Some(symbol) = symbol {
-                    if is_comptime {
-                        self.walk_comptime_parameter(
-                            template,
-                            id.into_any(),
-                            Some(symbol),
-                            parameter_type.map(|ty| ty.argument),
-                            default,
-                            false,
-                        )?;
-                    } else if let Some(parameter_type) = parameter_type {
-                        self.bind_symbol_type(symbol, parameter_type.binding)?;
-                    }
+                if let Some(symbol) = symbol
+                    && let Some(parameter_type) = parameter_type
+                {
+                    self.bind_symbol_type(symbol, parameter_type.binding)?;
                 }
 
                 // check default after the parameter type is known
@@ -246,12 +234,8 @@ impl WalkState<'_, '_> {
                 result = parameter_type;
             }
             // (...p: T)
-            dir::Parameter::VariadicNamed {
-                declared_type,
-                is_comptime,
-                ..
-            } => {
-                let (declared_type, is_comptime) = (*declared_type, *is_comptime);
+            dir::Parameter::VariadicNamed { declared_type, .. } => {
+                let declared_type = *declared_type;
 
                 // report missing annotations
                 if is_annotation_required && declared_type.is_none() {
@@ -266,19 +250,10 @@ impl WalkState<'_, '_> {
                 let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
 
                 // bind the variadic parameter name to its type
-                if let Some(symbol) = symbol {
-                    if is_comptime {
-                        self.walk_comptime_parameter(
-                            template,
-                            id.into_any(),
-                            Some(symbol),
-                            parameter_type.map(|ty| ty.argument),
-                            None,
-                            true,
-                        )?;
-                    } else if let Some(parameter_type) = parameter_type {
-                        self.bind_symbol_type(symbol, parameter_type.binding)?;
-                    }
+                if let Some(symbol) = symbol
+                    && let Some(parameter_type) = parameter_type
+                {
+                    self.bind_symbol_type(symbol, parameter_type.binding)?;
                 }
 
                 result = parameter_type;
@@ -368,62 +343,5 @@ impl WalkState<'_, '_> {
         }
 
         Ok(result)
-    }
-
-    /// Walk one comptime parameter as a static generic parameter.
-    ///
-    /// Example:
-    /// ```ds
-    /// function repeat(value: string, comptime count: uint): [string; count]
-    /// ```
-    pub(in crate::check) fn walk_comptime_parameter(
-        &mut self,
-        template: Option<GenericTemplateId>,
-        source: dir::LocalNodeIdAny,
-        symbol: Option<dir::GlobalSymbolId>,
-        argument: Option<dir::GlobalTypeId>,
-        default: Option<dir::LocalNodeId<dir::Expression>>,
-        is_variadic: bool,
-    ) -> CompilerResult<Option<GenericParameterId>> {
-        let Some(template) = template else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "comptime parameter {:?} has no generic template",
-                    source.into_global(self.module)
-                ),
-            });
-        };
-
-        let Some(symbol) = symbol else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "comptime parameter {:?} has no declaration symbol",
-                    source.into_global(self.module)
-                ),
-            });
-        };
-
-        // open the named source parameter
-        let default = default
-            .map(|default| self.walk_static_term(default))
-            .transpose()?;
-        let parameter = self.check.push_generic_parameter(
-            template,
-            Some(symbol),
-            dir::GenericParameterKey::Symbol(symbol),
-            None,
-            argument,
-            default,
-            dir::GenericParameterOrigin::Explicit,
-            is_variadic,
-            false,
-            true,
-        )?;
-
-        // write the parameter name as its own parameter type
-        let ty = self.check.generic_parameter_type(parameter)?;
-        self.bind_symbol_type(symbol, ty)?;
-
-        Ok(Some(parameter))
     }
 }

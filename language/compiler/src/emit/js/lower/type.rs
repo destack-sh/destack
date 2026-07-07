@@ -657,7 +657,6 @@ impl ModuleLowerer<'_> {
                     "this".to_string(),
                     dir::FunctionParameterType {
                         ty: this_type_id,
-                        static_parameter: None,
                         is_optional: false,
                         is_rest: false,
                     },

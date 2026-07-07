@@ -225,7 +225,6 @@ impl Parser {
         }
 
         let is_optional = modifiers.is_optional;
-        let is_comptime = modifiers.is_comptime;
 
         // = value
         let parameter = {
@@ -250,14 +249,12 @@ impl Parser {
                     ParameterBinding::Named { name, .. } => Parameter::Named {
                         name,
                         is_optional,
-                        is_comptime,
                         declared_type,
                         default: Some(value),
                     },
                     ParameterBinding::Pattern(pattern) => Parameter::Pattern {
                         pattern,
                         is_optional,
-                        is_comptime,
                         declared_type,
                         default: Some(value),
                     },
@@ -268,12 +265,10 @@ impl Parser {
                 match binding {
                     ParameterBinding::Named { name, .. } => Parameter::VariadicNamed {
                         name,
-                        is_comptime,
                         declared_type,
                     },
                     ParameterBinding::Pattern(pattern) => Parameter::VariadicPattern {
                         pattern,
-                        is_comptime,
                         declared_type,
                     },
                 }
@@ -285,14 +280,12 @@ impl Parser {
                     ParameterBinding::Named { name, .. } => Parameter::Named {
                         name,
                         is_optional,
-                        is_comptime,
                         declared_type,
                         default: None,
                     },
                     ParameterBinding::Pattern(pattern) => Parameter::Pattern {
                         pattern,
                         is_optional,
-                        is_comptime,
                         declared_type,
                         default: None,
                     },
@@ -341,7 +334,6 @@ impl Parser {
                 declared_type: Some(declared_type),
                 default: None,
                 is_optional: false,
-                is_comptime: false,
             },
             self.range_since(start),
         );

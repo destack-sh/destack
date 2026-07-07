@@ -322,7 +322,6 @@ impl CheckState<'_> {
         } else {
             vec![dir::FunctionParameterType {
                 ty: case.payload,
-                static_parameter: None,
                 is_optional: false,
                 is_rest: false,
             }]

@@ -649,19 +649,7 @@ const value = freeze({ kind: "ready", level: 1 });
 value.kind satisfies "ready";
 ```
 
-Dynamic parameters may _also_ be marked `comptime` when the caller should pass an ordinary argument expression that is still required to be evaluatable as a static term during compile time, mostly as a readability affordance where spelling the value as a generic argument would be awkward or constraining.
-(It also means we can progressively make an argument statically known, without forcing a generic signature, which is nice and ergonomic in some situations.)
-
-```ds
-function repeat<T>(value: T, comptime count: uint): [T; count] {
-    // ...
-}
-
-const values = repeat("x", 3);
-values satisfies [string; 3];
-```
-
-Like dynamic parameters, Destack's generic parameters also support `...` forms:
+Generic parameters also support `...` forms:
 
 ```ds
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;

@@ -726,7 +726,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     declared_type: Some(declared_type),
                     default: None,
                     is_optional: false,
-                    is_comptime: false,
                 };
 
                 Some(self.insert(parameter))
@@ -745,19 +744,11 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             else {
                 return Ok(None);
             };
-            let name = match parameter.static_parameter {
-                Some(parameter) => match self.generic_parameter_name_by_id(parameter) {
-                    Some(name) => name,
-                    None => return Ok(None),
-                },
-                None => self.strings.intern(&format!("arg{index}")),
-            };
-            let is_comptime = parameter.static_parameter.is_some();
+            let name = self.strings.intern(&format!("arg{index}"));
             let parameter = if parameter.is_rest {
                 dir::Parameter::VariadicNamed {
                     name,
                     declared_type: Some(declared_type),
-                    is_comptime,
                 }
             } else {
                 dir::Parameter::Named {
@@ -765,7 +756,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     declared_type: Some(declared_type),
                     default: None,
                     is_optional: parameter.is_optional,
-                    is_comptime,
                 }
             };
 

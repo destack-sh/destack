@@ -1725,7 +1725,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         Parameter::Named {
             name: _,
             is_optional: _,
-            is_comptime: _,
             declared_type,
             default,
         } => {
@@ -1741,7 +1740,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         Parameter::Pattern {
             pattern,
             is_optional: _,
-            is_comptime: _,
             declared_type,
             default,
         } => {
@@ -1758,7 +1756,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         }
         Parameter::VariadicNamed {
             name: _,
-            is_comptime: _,
             declared_type,
         } => {
             if let Some(declared_type) = declared_type {
@@ -1769,7 +1766,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
         Parameter::VariadicPattern {
             pattern,
             declared_type,
-            is_comptime: _,
         } => {
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);

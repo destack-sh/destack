@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
     Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, ThisForm, TupleElement, TypeLiteral, VarianceBound, View, WhereClause,
+    SymbolKind, SymbolSpace, ThisForm, TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -246,24 +246,9 @@ pub struct FunctionTypeExpression {
 }
 
 impl FunctionTypeExpression {
-    /// Return whether this function type declares a generic template.
-    pub fn declares_generic_template(&self, view: &View<'_>) -> bool {
-        // explicit generic header
-        if !self.generic_parameters.is_empty() {
-            return true;
-        }
-
-        // comptime receiver parameter
-        if let Some(parameter) = self.this_parameter
-            && view.get(parameter).is_comptime()
-        {
-            return true;
-        }
-
-        // comptime parameters
-        self.parameters
-            .iter()
-            .any(|parameter| view.get(*parameter).is_comptime())
+    /// Return whether this function type declares a generic scope.
+    pub fn declares_generic_scope(&self) -> bool {
+        !self.generic_parameters.is_empty() || !self.where_clauses.is_empty()
     }
 }
 
@@ -283,17 +268,9 @@ pub struct ConstructorType {
 }
 
 impl ConstructorType {
-    /// Return whether this constructor type declares a generic template.
-    pub fn declares_generic_template(&self, view: &View<'_>) -> bool {
-        // explicit generic header
-        if !self.generic_parameters.is_empty() {
-            return true;
-        }
-
-        // comptime parameters
-        self.parameters
-            .iter()
-            .any(|parameter| view.get(*parameter).is_comptime())
+    /// Return whether this constructor type declares a generic scope.
+    pub fn declares_generic_scope(&self) -> bool {
+        !self.generic_parameters.is_empty() || !self.where_clauses.is_empty()
     }
 }
 

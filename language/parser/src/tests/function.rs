@@ -188,7 +188,7 @@ export function stableLater(): void {}
 
 #[test]
 fn test_parse_comptime_function() {
-    let test = TestParser::new("comptime function layout<T>(comptime value: T): usize {}");
+    let test = TestParser::new("comptime function layout<T>(value: T): usize {}");
     let mut parser = test.prepare();
 
     let start = parser.mark_parse_start();
@@ -202,36 +202,12 @@ fn test_parse_comptime_function() {
         assert_eq!(signature.form, FunctionForm::Function);
         assert_eq!(signature.parameters.len(), 1);
 
-        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_comptime, .. } => {
-            assert_string!(parser, *name, "value");
-            assert!(*is_comptime);
-        });
-    });
-}
-
-#[test]
-fn test_parse_comptime_arrow_parameter() {
-    let test = TestParser::new("(comptime value: int32) => value");
-    let mut parser = test.prepare();
-
-    let start = parser.mark_parse_start();
-    let function_id = parser
-        .parse_function(&start, DeclarationHeader::default(), Default::default())
-        .unwrap();
-
-    assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-        assert_eq!(signature.form, FunctionForm::Lambda);
-        assert_eq!(signature.parameters.len(), 1);
-
-        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_comptime, .. } => {
-            assert_string!(parser, *name, "value");
-            assert!(*is_comptime);
-        });
-
-        assert_node!(parser.tree, *body, Expression::Identifier { name } => {
+        assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
             assert_string!(parser, *name, "value");
         });
     });
+
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]

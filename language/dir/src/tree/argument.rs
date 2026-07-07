@@ -91,7 +91,6 @@ pub enum Parameter {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         is_optional: bool,
-        is_comptime: bool,
     },
     /// Pattern parameter.
     Pattern {
@@ -99,19 +98,16 @@ pub enum Parameter {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
         is_optional: bool,
-        is_comptime: bool,
     },
     /// Variadic named parameter.
     VariadicNamed {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
-        is_comptime: bool,
     },
     /// Variadic pattern parameter.
     VariadicPattern {
         pattern: LocalNodeId<Pattern>,
         declared_type: Option<LocalNodeId<TypeExpression>>,
-        is_comptime: bool,
     },
     /// Malformed parameter.
     Error,
@@ -148,17 +144,6 @@ impl Parameter {
         match self {
             Self::Named { default, .. } | Self::Pattern { default, .. } => *default,
             Self::VariadicNamed { .. } | Self::VariadicPattern { .. } | Self::Error => None,
-        }
-    }
-
-    /// Return whether this parameter must be a static call-site argument.
-    pub fn is_comptime(&self) -> bool {
-        match self {
-            Self::Named { is_comptime, .. }
-            | Self::Pattern { is_comptime, .. }
-            | Self::VariadicNamed { is_comptime, .. }
-            | Self::VariadicPattern { is_comptime, .. } => *is_comptime,
-            Self::Error => false,
         }
     }
 

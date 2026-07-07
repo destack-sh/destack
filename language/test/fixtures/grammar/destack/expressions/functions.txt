@@ -9,7 +9,7 @@ async function* stream<T>(source: Source<T>): AsyncGenerator<T, void, unknown> {
 const map = <T, U>(value: T, project: (value: T) => U): U => project(value);
 //          ^ punctuation.definition.typeparameters.begin.ds
 
-comptime async function load(comptime value: Input): Output {}
+comptime async function load<comptime Value: Input>(): Output {}
 // <- keyword.other.comptime.ds
 
 declare comptime function sizeOf<T>(): usize;
@@ -18,7 +18,7 @@ declare comptime function sizeOf<T>(): usize;
 function specialize(static value: int32): int32 { return value; }
 //                  ^^^^^^ keyword.other.modifier.ds
 
-function allocate<T: static Type, comptime ...Shape: usize>(static allocator: Allocator, comptime count: uint): [T; count] {}
+function allocate<T: static Type, comptime ...Shape: usize, comptime Count: uint>(static allocator: Allocator): [T; Count] {}
 //                   ^^^^^^ keyword.other.modifier.ds
 //                                ^^^^^^^^ keyword.other.comptime.ds
 

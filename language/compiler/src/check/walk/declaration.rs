@@ -1489,7 +1489,6 @@ impl WalkState<'_, '_> {
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
         let this_parameter = if let Some(parameter) = signature.this_parameter {
             self.walk_parameter(
-                template,
                 parameter,
                 self.tree.get(parameter),
                 is_annotation_required,
@@ -1503,7 +1502,6 @@ impl WalkState<'_, '_> {
         let mut parameters = Vec::new();
         for parameter in &signature.parameters {
             let Some(ty) = self.walk_parameter(
-                template,
                 *parameter,
                 self.tree.get(*parameter),
                 is_annotation_required,
@@ -1537,7 +1535,7 @@ impl WalkState<'_, '_> {
         symbol: Option<dir::GlobalSymbolId>,
         signature: &dir::FunctionSignature,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        if !signature.declares_generic_template(&self.tree) {
+        if !signature.declares_generic_scope() {
             return Ok(None);
         }
 

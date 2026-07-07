@@ -322,7 +322,6 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| dir::FunctionParameterType {
                     ty: element.ty,
-                    static_parameter: None,
                     is_optional: element.is_optional,
                     is_rest: element.is_rest,
                 })

@@ -7,25 +7,25 @@
 Comptime-only functions keep their phase marker before `function`.
 
 ```ds
-comptime function layout<T>(comptime value: T): usize { return sizeOf<T>() + value }
+comptime function layout<T, comptime Value: T>(): usize { return sizeOf<T>() + Value }
 ```
 
 ```ds expected
-comptime function layout<T>(comptime value: T): usize {
-    return sizeOf<T>() + value;
+comptime function layout<T, comptime Value: T>(): usize {
+    return sizeOf<T>() + Value;
 }
 ```
 
-### comptime pattern parameter
+### comptime generic parameter
 
-Comptime dynamic parameters keep their marker before the binding pattern.
+Comptime value parameters live in the generic parameter list.
 
 ```ds
-function select(comptime { name }: Config): string { return name }
+function select<comptime Name: string>(): string { return Name }
 ```
 
 ```ds expected
-function select(comptime { name }: Config): string {
-    return name;
+function select<comptime Name: string>(): string {
+    return Name;
 }
 ```

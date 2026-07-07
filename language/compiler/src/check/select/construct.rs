@@ -337,14 +337,12 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| dir::FunctionParameterType {
                     ty: element.ty,
-                    static_parameter: None,
                     is_optional: false,
                     is_rest: false,
                 })
                 .collect::<Vec<_>>(),
             _ => vec![dir::FunctionParameterType {
                 ty: backing,
-                static_parameter: None,
                 is_optional: false,
                 is_rest: false,
             }],

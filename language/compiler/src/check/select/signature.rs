@@ -136,7 +136,6 @@ impl CheckState<'_> {
 
                 Ok(dir::FunctionParameterType {
                     ty,
-                    static_parameter: None,
                     is_optional: parameter.is_optional,
                     is_rest: parameter.is_rest,
                 })
@@ -558,7 +557,6 @@ impl CheckState<'_> {
 
                 Ok(dir::FunctionParameterType {
                     ty,
-                    static_parameter: None,
                     is_optional: parameter.is_optional,
                     is_rest: parameter.is_rest,
                 })

@@ -1681,12 +1681,12 @@ type Buffer<comptime N: number> = uint8[N];
 type Buffer<comptime Size: number> = uint8[Size];
 ```
 
-### Rename comptime dynamic parameter
+### Rename comptime generic parameter
 
-Renaming a comptime dynamic parameter should update body references.
+Renaming a comptime generic parameter should update body references.
 
 ```ds
-function createBuffer(comptime size: int): int {
+function createBuffer<comptime size: int>(): int {
 //                               ^^^^ target:comptime_size
     return size;
 }
@@ -1696,7 +1696,7 @@ function createBuffer(comptime size: int): int {
 ```
 
 ```expected:main
-function createBuffer(comptime count: int): int {
+function createBuffer<comptime count: int>(): int {
     return count;
 }
 ```

@@ -187,9 +187,9 @@ impl ModuleQueryContext<'_> {
             .unwrap_or_else(|| "[computed]".to_string())
     }
 
-    /// Format one parameter label with its phase prefix.
+    /// Format one parameter label.
     fn parameter_hover_name(&self, param: &dir::Parameter) -> String {
-        let name = match param {
+        match param {
             dir::Parameter::Named { name, .. } => self.strings().get(*name).to_string(),
             dir::Parameter::Pattern { .. } => "_".to_string(),
             dir::Parameter::VariadicNamed { name, .. } => {
@@ -198,12 +198,6 @@ impl ModuleQueryContext<'_> {
             }
             dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
             dir::Parameter::Error => panic!("error parameter reached hover formatting"),
-        };
-
-        if param.is_comptime() {
-            format!("comptime {name}")
-        } else {
-            name
         }
     }
 
