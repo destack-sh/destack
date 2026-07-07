@@ -1,0 +1,53 @@
+import { Device } from "../device.ds";
+import { Event, Stream } from "../stream.ds";
+
+/// Compute stream binding family.
+export interface ComputeStreamBinding {
+    /// Return the device that owns `stream`.
+    @binding("destack.compute.stream.device", {
+        provider: "host",
+        effect: "deterministic",
+        requires: ["host.compute.stream.read"],
+    })
+    device(stream: Stream): Device;
+
+    /// Return the default stream for `device`.
+    @binding("destack.compute.stream.default", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.stream.read"],
+    })
+    default(device: Device): Stream;
+
+    /// Create a new stream on `device`.
+    @binding("destack.compute.stream.create", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.stream.create"],
+    })
+    create(device: Device): Stream;
+
+    /// Return whether all queued stream work has completed.
+    @binding("destack.compute.stream.complete", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.stream.read"],
+    })
+    isComplete(stream: Stream): boolean;
+
+    /// Make future work on `stream` wait for `event`.
+    @binding("destack.compute.stream.wait", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.stream.synchronize"],
+    })
+    wait(stream: Stream, event: Event): void;
+
+    /// Wait until all preceding stream work completes.
+    @binding("destack.compute.stream.synchronize", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.stream.synchronize"],
+    })
+    synchronize(stream: Stream): void;
+}

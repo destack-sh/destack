@@ -47,6 +47,9 @@
     "./compute": {
       "path": "./src/compute/index.ds"
     },
+    "./compute/binding": {
+      "path": "./src/compute/binding/index.ds"
+    },
     "./console": {
       "path": "./src/console/index.ds"
     },
