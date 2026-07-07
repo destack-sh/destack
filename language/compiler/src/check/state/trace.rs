@@ -6,6 +6,8 @@ use crate::check::{
     CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task, TypeBound, Widening,
 };
 
+const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
+
 /// Derived size counters for one checked component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct CheckStats {
@@ -32,19 +34,43 @@ pub(in crate::check) struct VariableBounds {
     pub(in crate::check) lower: SmallVec<[TypeBound; 2]>,
     /// Types the variable must be assignable to.
     pub(in crate::check) upper: SmallVec<[TypeBound; 2]>,
-    /// The default solution applied when no bounds arrive.
-    pub(in crate::check) default: Option<dir::GlobalTypeId>,
 }
 
 /// One event emitted by check.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum CheckEvent {
+    /// One speculative probe started.
+    ProbeStarted {
+        /// The number of variables present before the probe.
+        variables: usize,
+    },
+    /// One speculative probe finished.
+    ProbeFinished {
+        /// Whether the probe was committed.
+        is_committed: bool,
+        /// Whether the probe returned pending dependencies.
+        is_pending: bool,
+    },
     /// One variable was allocated.
     VariableAllocated {
         /// The allocated variable.
         variable: dir::TypeVariableId,
         /// The literal widening policy applied when solving.
         widening: Widening,
+    },
+    /// One lower bound was pushed onto an inference variable.
+    LowerBoundPushed {
+        /// The bounded variable.
+        variable: dir::TypeVariableId,
+        /// The pushed bound.
+        bound: TypeBound,
+    },
+    /// One upper bound was pushed onto an inference variable.
+    UpperBoundPushed {
+        /// The bounded variable.
+        variable: dir::TypeVariableId,
+        /// The pushed bound.
+        bound: TypeBound,
     },
     /// The solver started.
     SolveStarted {
@@ -59,6 +85,13 @@ pub(in crate::check) enum CheckEvent {
         step: usize,
         /// The task that ran.
         task: Task,
+    },
+    /// One solver task parked on unresolved dependencies.
+    TaskParked {
+        /// The parked task.
+        task: Task,
+        /// The dependencies blocking the task.
+        blockers: SmallVec<[Dependency; 2]>,
     },
     /// The solver reached an empty queue.
     SolveFinished {
@@ -125,11 +158,26 @@ pub(in crate::check) enum CheckEvent {
 impl CheckState<'_> {
     /// Record one check event.
     pub(in crate::check) fn record_event(&mut self, event: CheckEvent) {
-        if !self.emit_events {
+        if !self.emit_events && !self.stream_events {
             return;
         }
 
-        self.events.push(event);
+        if self.stream_events {
+            self.stream_event(&event);
+        }
+
+        if self.emit_events {
+            self.events.push(event);
+        }
+    }
+
+    /// Print one check event immediately.
+    fn stream_event(&self, event: &CheckEvent) {
+        let context = DumpContext::new(self);
+        let mut log = ArtifactEventLog::new();
+        event.render(&context, &mut log);
+
+        eprint!("{}", log.render_plain());
     }
 
     /// Return rendered event lines for this component.
@@ -177,6 +225,11 @@ impl CheckState<'_> {
             decisions: self.decisions.count(),
         }
     }
+}
+
+/// Return whether check events should stream as they are recorded.
+pub(in crate::check) fn should_stream_check_events() -> bool {
+    std::env::var_os(CHECK_EVENT_STREAM_ENV).is_some_and(|value| !value.is_empty() && value != "0")
 }
 
 impl CheckStats {

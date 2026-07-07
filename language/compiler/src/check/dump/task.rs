@@ -21,9 +21,10 @@ impl Task {
             Self::Oblige(id) => event
                 .text("task", "oblige")
                 .text("obligation", context.obligation_label(*id)),
-            Self::Solve(variable) => event
+            Self::Solve { variable, mode } => event
                 .text("task", "solve")
-                .text("variable", context.variable_label(*variable)),
+                .text("variable", context.variable_label(*variable))
+                .text("mode", format!("{mode:?}")),
             Self::Bind { symbol, source } => {
                 let event = event
                     .text("task", "bind")

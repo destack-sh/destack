@@ -9,7 +9,7 @@ use smallvec::SmallVec;
 
 use crate::check::{
     CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex,
-    GenericScope, GenericTemplateId, Origin, Solver, VarianceEntry,
+    GenericScope, GenericTemplateId, Origin, Solver, VarianceEntry, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -75,8 +75,10 @@ pub(in crate::check) struct CheckState<'a> {
     // tracing
     /// Trace events recorded while checking.
     pub(in crate::check) events: Vec<CheckEvent>,
-    /// Whether check events should print as they are recorded in debug builds.
+    /// Whether check events should be kept for artifact output.
     pub(in crate::check) emit_events: bool,
+    /// Whether check events should print as they are recorded.
+    pub(in crate::check) stream_events: bool,
 }
 
 impl<'a> CheckState<'a> {
@@ -110,6 +112,7 @@ impl<'a> CheckState<'a> {
             solver: Solver::new(),
             events: Vec::new(),
             emit_events,
+            stream_events: should_stream_check_events(),
         }
     }
 

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
 use crate::check::{
-    CheckState, ConstraintId, Dependency, FlowPointId, FlowSite, ObligationId, Origin, Relation,
-    TypeBound, ValueUse, Widening,
+    BoundMode, CheckState, ConstraintId, Dependency, FlowPointId, FlowSite, ObligationId, Origin,
+    Relation, TypeBound, ValueUse, Widening,
 };
 
 /// Rendering context for check trace values.
@@ -99,17 +99,19 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .join(", ")
     }
 
-    /// Return a compact optional type label.
-    pub(in crate::check) fn optional_type_label(&self, ty: Option<dir::GlobalTypeId>) -> String {
-        ty.map(|ty| self.type_label(ty))
-            .unwrap_or_else(|| "none".to_string())
-    }
-
     /// Return a compact widening policy label.
     pub(in crate::check) fn widening_label(&self, widening: Widening) -> &'static str {
         match widening {
             Widening::Preserve => "preserve",
             Widening::Widen => "widen",
+        }
+    }
+
+    /// Return a compact bound mode label.
+    pub(in crate::check) fn bound_mode_label(&self, mode: BoundMode) -> &'static str {
+        match mode {
+            BoundMode::Strong => "strong",
+            BoundMode::Weak => "weak",
         }
     }
 
@@ -134,63 +136,6 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             .map(|dependency| self.dependency_label(*dependency))
             .collect::<Vec<_>>()
             .join(", ")
-    }
-
-    /// Return dependency labels with available solver state.
-    pub(in crate::check) fn dependency_state_list_label(
-        &self,
-        dependencies: &[Dependency],
-    ) -> String {
-        if dependencies.is_empty() {
-            return "none".to_string();
-        }
-
-        dependencies
-            .iter()
-            .map(|dependency| self.dependency_state_label(*dependency))
-            .collect::<Vec<_>>()
-            .join("; ")
-    }
-
-    /// Return one dependency label with available solver state.
-    fn dependency_state_label(&self, dependency: Dependency) -> String {
-        match dependency {
-            Dependency::Variable(variable) => self.variable_state_label(variable),
-            Dependency::NodeType(node) => {
-                format!(
-                    "{} type at {}",
-                    self.node_label(node),
-                    self.node_source_label(node)
-                )
-            }
-            Dependency::SymbolType(symbol) => format!("{} type", self.symbol_label(symbol)),
-            Dependency::Decision(node) => {
-                format!(
-                    "{} at {}",
-                    self.node_label(node),
-                    self.node_source_label(node)
-                )
-            }
-        }
-    }
-
-    /// Return one variable label with current bounds.
-    fn variable_state_label(&self, variable: dir::TypeVariableId) -> String {
-        let label = self.variable_label(variable);
-        let Ok(state) = self.check.solver.variable(variable) else {
-            return label;
-        };
-
-        format!(
-            "{} origin={} at={} lower={} upper={} default={} solution={}",
-            label,
-            self.origin_label(state.origin),
-            self.origin_source_label(state.origin),
-            self.type_bound_list_label(&state.lower),
-            self.type_bound_list_label(&state.upper),
-            self.optional_type_label(state.default),
-            self.optional_type_label(state.solution),
-        )
     }
 
     /// Return one variable's origin label.
