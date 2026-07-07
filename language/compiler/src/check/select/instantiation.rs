@@ -78,7 +78,7 @@ impl CheckState<'_> {
             Some(template) => {
                 let parameters = self.generic_template_parameters(template);
                 let Some(substitution) =
-                    self.apply_template_arguments(origin, template, &applied)?
+                    self.substitute_annotation_arguments(origin, template, &applied)?
                 else {
                     let name = self.format_symbol(symbol);
                     let written_count = self.written_parameter_count(&parameters);
