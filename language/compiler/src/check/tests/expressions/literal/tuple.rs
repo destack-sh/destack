@@ -47,12 +47,12 @@ const value: readonly (1, "two", true) = (1, "two", true) as const;
 const value = (1, "two", true) as const;
 /// @type.symbol symbol=value source=value type=readonly (1, "two", true)
 /// @type.node source="(1, \"two\", true) as const" type=readonly (1, "two", true)
-/// @type.node source=(1, "two", true) type=(1, "two", true)
+/// @type.node source=(1, "two", true) type=readonly (1, "two", true)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

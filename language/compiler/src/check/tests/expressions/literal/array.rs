@@ -75,7 +75,7 @@ const first: 1 = values[0];
 const values = [1, 2] as const;
 /// @type.symbol symbol=values source=values type=readonly [1, 2]
 /// @type.node source="[1, 2] as const" type=readonly [1, 2]
-/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=[1, 2] type=readonly [1, 2]
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -87,7 +87,7 @@ const first = values[0];
 /// @resolution.member source=values[0] receiver=readonly [1, 2] kind=element index=0
 /// @type.node source=0 type=0
 
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
