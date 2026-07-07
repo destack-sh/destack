@@ -126,7 +126,7 @@ impl WalkState<'_, '_> {
                 Ok(Some(AssignedPlace::Member { receiver, key }))
             }
 
-            // dereference writes do not create definite-assignment facts
+            // dereference writes do not update definite assignment
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 ..

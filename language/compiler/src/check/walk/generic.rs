@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use indexmap::IndexMap;
 
-use crate::check::{
-    CheckState, GenericTemplateId, InducedLifetimeSite, Origin, Receiver, WalkState,
-};
+use crate::check::{CheckState, GenericTemplateId, InducedLifetimeSite, Receiver, WalkState};
 use crate::{CompilerError, CompilerResult};
 
 /// One declaration that receives induced lifetime parameters.
@@ -135,45 +133,37 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn represented_open_type(
         &mut self,
-        source: dir::LocalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let node = source.into_global(self.module);
-        let origin = Origin::Node(node, self.flow().template_scope());
-        if !self.needs_dynamic_representation(origin, ty)? {
+        if !self.needs_dynamic_representation(ty)? {
             return Ok(ty);
         }
 
         self.check.intern_type(
-            origin.module(),
+            self.module,
             dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
         )
     }
 
     /// Return whether one written type needs `Dynamic<T>` as its value representation.
+    /// TODO #Suspicious: not _entirely_ sure whether needs_dynamic_representation can be decided at leaf?
     ///
     /// An annotation erases when the type it names is an interface,
     /// which has no value representation of its own.
-    fn needs_dynamic_representation(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let head = self
-            .check
-            .require_reduced_type_head(origin, ty, "open type representation")?;
-        let symbol = match self.check.ty(head)? {
-            dir::Type::Instance(instance) => instance.symbol,
-            _ => return Ok(false),
-        };
+    fn needs_dynamic_representation(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        match self.check.ty(ty)? {
+            // top types have no direct layout in storage
+            dir::Type::Any | dir::Type::Object | dir::Type::Unknown => Ok(true),
 
-        // interfaces need erasure, concrete declarations already have representation
-        Ok(matches!(
-            self.check.symbol_kind(symbol),
-            dir::SymbolKind::AssociatedType
-                | dir::SymbolKind::Interface
-                | dir::SymbolKind::NewtypeInterface
-        ))
+            // direct interface instances are constraints, not represented values
+            dir::Type::Instance(instance) => Ok(matches!(
+                self.check.symbol_kind(instance.symbol),
+                dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
+            )),
+
+            // every other source-built type already has a representation
+            _ => Ok(false),
+        }
     }
 }
 

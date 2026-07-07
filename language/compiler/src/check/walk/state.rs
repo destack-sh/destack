@@ -4,8 +4,7 @@ use indexmap::IndexMap;
 
 use crate::check::{
     BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
-    FlowState, GenericPosition, Origin, PlaceUse, Relation, Task, TypeConstraint, ValueUse,
-    VariableRole, Widening,
+    FlowState, Origin, PlaceUse, Relation, Task, TypeConstraint, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -229,7 +228,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let previous = self.borrow_lifetime_elision;
         let first_tracked = self.return_borrow_lifetimes.len();
         self.borrow_lifetime_elision = BorrowLifetimeElision::TrackReturn;
-        let result = self.walk_type_expression(id, GenericPosition::Annotation);
+        let result = self.walk_type_expression(id);
         self.borrow_lifetime_elision = previous;
         let tracked = self.return_borrow_lifetimes.split_off(first_tracked);
 
@@ -243,7 +242,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let previous = self.borrow_lifetime_elision;
         self.borrow_lifetime_elision = BorrowLifetimeElision::Frame;
-        let result = self.walk_type_expression(id, GenericPosition::Annotation);
+        let result = self.walk_type_expression(id);
         self.borrow_lifetime_elision = previous;
 
         result
@@ -277,44 +276,44 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // open one hidden lifetime parameter
-        let lifetime = self.open_type_hole(source, Widening::Preserve)?;
+        let constraint = self.lifetime_constraint()?;
+        let role = VariableRole::Lifetime { constraint };
+        let lifetime = self.open_type_hole(source, Widening::Preserve, role)?;
         let Some(variable) = self.check.root_variable(lifetime)? else {
             return Ok(lifetime);
         };
 
-        // constrain the induced parameter to the lifetime kind
-        let constraint = match self
+        self.commit_borrow_lifetime_elision(variable)?;
+
+        Ok(lifetime)
+    }
+
+    /// Return the lifetime-kind constraint type.
+    fn lifetime_constraint(&mut self) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(symbol) = self
             .check
             .environment
             .language
             .symbol(dir::LanguageItem::Lifetime)
-        {
-            Some(symbol) => {
-                let arguments = self.intern_type_ids(&[])?;
-
-                Some(self.intern_type(dir::Type::Instance(dir::GenericInstance {
-                    symbol,
-                    arguments,
-                }))?)
-            }
-            None => None,
+        else {
+            return Ok(None);
         };
-        let role = VariableRole::Lifetime { constraint };
-        self.commit_borrow_lifetime_elision(variable, role)?;
+        let arguments = self.intern_type_ids(&[])?;
+        let constraint = self.intern_type(dir::Type::Instance(dir::GenericInstance {
+            symbol,
+            arguments,
+        }))?;
 
-        Ok(lifetime)
+        Ok(Some(constraint))
     }
 
     /// Commit one elided borrow lifetime opened while walking a type.
     fn commit_borrow_lifetime_elision(
         &mut self,
         variable: dir::TypeVariableId,
-        role: VariableRole,
     ) -> CompilerResult<()> {
         match self.borrow_lifetime_elision {
-            BorrowLifetimeElision::Generate => {
-                self.check.set_variable_role(variable, role)?;
-            }
+            BorrowLifetimeElision::Generate => {}
             BorrowLifetimeElision::TrackReturn => {
                 self.return_borrow_lifetimes.push(variable);
             }
@@ -333,12 +332,15 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         source: dir::LocalNodeIdAny,
         widening: Widening,
+        role: VariableRole,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let origin = Origin::Node(
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let variable = self.check.allocate_variable(self.module, origin, widening);
+        let variable = self
+            .check
+            .allocate_variable(self.module, origin, widening, role);
 
         self.check.variable_type(variable)
     }
@@ -527,11 +529,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(ty);
         }
 
-        // infer declaration types on demand for recursive and forward references
+        // infer declaration types when recursive and forward references need a slot
         let origin = Origin::Symbol(symbol);
-        let variable = self
-            .check
-            .allocate_variable(symbol.module_id, origin, widening);
+        let variable =
+            self.check
+                .allocate_variable(symbol.module_id, origin, widening, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_declaration_type(symbol, ty)?;
 
@@ -549,9 +551,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         let origin = Origin::Symbol(symbol);
-        let variable = self
-            .check
-            .allocate_variable(symbol.module_id, origin, widening);
+        let variable =
+            self.check
+                .allocate_variable(symbol.module_id, origin, widening, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_binding_type(symbol, ty)?;
 

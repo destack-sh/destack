@@ -3,9 +3,10 @@ use destack_source::ModuleId;
 
 use crate::check::{
     CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
-    ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericPosition, GenericTemplateId,
+    ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericTemplateId,
     ImplementationCoherenceObligation, InducedLifetimeOwner, Obligation, Origin, Receiver,
-    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, WalkState, Widening,
+    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, VariableRole, WalkState,
+    Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -392,7 +393,7 @@ impl WalkState<'_, '_> {
         let _receiver = receiver.map(|receiver| self.enter_receiver_scope(Some(receiver)));
 
         // walk the written value
-        let value = self.walk_type_expression(declaration.value, GenericPosition::Annotation)?;
+        let value = self.walk_type_expression(declaration.value)?;
         self.push_induced_lifetime_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
@@ -489,7 +490,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
             self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -604,7 +605,7 @@ impl WalkState<'_, '_> {
         let mut extends = None;
         let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
-            let ty = self.walk_type_expression(extends_type, GenericPosition::Annotation)?;
+            let ty = self.walk_type_expression(extends_type)?;
             self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
@@ -634,7 +635,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
             self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -845,7 +846,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
             self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -962,7 +963,7 @@ impl WalkState<'_, '_> {
         // walk inherited interfaces
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
-            let ty = self.walk_type_expression(*extends_type, GenericPosition::Annotation)?;
+            let ty = self.walk_type_expression(*extends_type)?;
             self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -1041,8 +1042,7 @@ impl WalkState<'_, '_> {
         let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
-        let target_type =
-            self.walk_type_expression(declaration.target_type, GenericPosition::Annotation)?;
+        let target_type = self.walk_type_expression(declaration.target_type)?;
         self.push_induced_lifetime_site(induction, target_type);
         let target = self.walk_extension_target(target_type)?;
         let target_name = match &target {
@@ -1059,7 +1059,7 @@ impl WalkState<'_, '_> {
         // walk implemented interfaces
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
-            let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
+            let ty = self.walk_type_expression(*implemented_type)?;
             self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
@@ -1351,16 +1351,12 @@ impl WalkState<'_, '_> {
             return Ok(Vec::new());
         }
 
-        let origin = Origin::Node(source, self.flow().template_scope());
-        let backing =
-            self.check
-                .require_reduced_type_head(origin, value, "tagged newtype backing")?;
-        let arms = match self.check.ty(backing)? {
+        let arms = match self.check.ty(value)? {
             dir::Type::Union(union) => self
                 .check
-                .type_ids(backing.module_id, union.elements)?
+                .type_ids(value.module_id, union.elements)?
                 .to_vec(),
-            _ => vec![backing],
+            _ => vec![value],
         };
 
         // derive one static member per backing arm
@@ -1380,15 +1376,7 @@ impl WalkState<'_, '_> {
         owner: dir::GlobalTypeId,
         arm: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
-        let origin = Origin::Node(source, self.flow().template_scope());
-        let arm = self
-            .check
-            .require_reduced_type_head(origin, arm, "tagged newtype arm")?;
-        let discriminant = self.check.require_tagged_arm_discriminant(
-            origin,
-            arm,
-            "tagged newtype arm discriminant",
-        )?;
+        let discriminant = self.declared_tagged_arm_discriminant(arm)?;
         let Some(discriminant) = discriminant else {
             return Ok(None);
         };
@@ -1414,6 +1402,87 @@ impl WalkState<'_, '_> {
         )))
     }
 
+    /// Return the source-declared tagged discriminant for one backing arm.
+    fn declared_tagged_arm_discriminant(
+        &mut self,
+        arm: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+        let tag_key = self.check.tagged_discriminant_key(self.module);
+
+        match self.check.ty(arm)? {
+            // structural backing arms declare their tag directly
+            dir::Type::Shape(shape) => {
+                self.declared_shape_discriminant(arm.module_id, shape, tag_key)
+            }
+
+            // nominal backing arms expose their declared instance field
+            dir::Type::Instance(instance) => {
+                self.declared_nominal_discriminant(instance.symbol, tag_key)
+            }
+
+            // every other backing arm cannot derive a tagged case
+            _ => Ok(None),
+        }
+    }
+
+    /// Return one source-declared shape discriminant.
+    fn declared_shape_discriminant(
+        &mut self,
+        module: ModuleId,
+        shape: dir::ShapeType,
+        tag_key: dir::StaticKey,
+    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+        let Some(field) = self
+            .check
+            .shape_fields(module, shape.fields)?
+            .iter()
+            .find(|field| field.key == tag_key)
+            .copied()
+        else {
+            return Ok(None);
+        };
+
+        self.declared_discriminant_literal(field.ty)
+    }
+
+    /// Return one source-declared nominal discriminant.
+    fn declared_nominal_discriminant(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        tag_key: dir::StaticKey,
+    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+        let Some(definition) = self.check.definition(symbol) else {
+            return Ok(None);
+        };
+
+        let field = definition.members().iter().find_map(|member| match member {
+            dir::DefinitionMember::Field(field)
+                if field.space == dir::MemberSpace::Instance && field.key == tag_key =>
+            {
+                Some(field)
+            }
+            _ => None,
+        });
+        let Some(field) = field else {
+            return Ok(None);
+        };
+
+        let ty = self.check.require_symbol_type(field.symbol)?;
+
+        self.declared_discriminant_literal(ty)
+    }
+
+    /// Return one literal discriminant type.
+    fn declared_discriminant_literal(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::ScalarLiteral>> {
+        match self.check.ty(ty)? {
+            dir::Type::Literal(literal) => Ok(Some(literal)),
+            _ => Ok(None),
+        }
+    }
+
     /// Walk one where clause onto its declaring template.
     ///
     /// Instantiation sites prove recorded predicates and the template's
@@ -1432,8 +1501,8 @@ impl WalkState<'_, '_> {
         // walk operands
         let clause = self.tree.get(id);
         let (relation, left, right) = (clause.relation, clause.left, clause.right);
-        let left = self.walk_type_expression(left, GenericPosition::Annotation)?;
-        let right = self.walk_type_expression(right, GenericPosition::Annotation)?;
+        let left = self.walk_type_expression(left)?;
+        let right = self.walk_type_expression(right)?;
 
         // check clauses without a template through current bound logic
         let Some(template) = template else {
@@ -1643,7 +1712,7 @@ impl WalkState<'_, '_> {
 
         // open the inferred result
         Ok((
-            Some(self.open_type_hole(source, Widening::Preserve)?),
+            Some(self.open_type_hole(source, Widening::Preserve, VariableRole::Regular)?),
             Vec::new(),
         ))
     }

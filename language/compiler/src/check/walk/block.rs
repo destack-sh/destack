@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{PlaceUse, WalkState};
+use crate::check::{Expectation, PlaceUse, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one block.
@@ -17,6 +17,7 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
+        result: Option<Expectation>,
     ) -> CompilerResult<()> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
@@ -45,11 +46,11 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // walk tail in its value context
+        // walk tail without claiming its value type
         if let Some(expression) = block.tail_expression {
             // update flow through reachable tail
             if is_reachable {
-                self.walk_value_expression(expression, PlaceUse::Read)?;
+                self.walk_expression(expression, self.tree.get(expression))?;
             }
             // check unreachable tail in isolated flow
             else {
@@ -58,7 +59,7 @@ impl WalkState<'_, '_> {
                         .report_unreachable_code(self.module, expression.into_any());
                 }
                 let before = self.fork_flow();
-                self.walk_value_expression(expression, PlaceUse::Read)?;
+                self.walk_expression(expression, self.tree.get(expression))?;
                 self.restore_flow(before);
             }
         }
@@ -69,6 +70,10 @@ impl WalkState<'_, '_> {
             if !is_reachable {
                 let never = self.intern_type(dir::Type::Never)?;
                 self.commit_node_type(id, never)?;
+            }
+            // queue checked blocks through their owner
+            else if let Some(result) = result {
+                self.queue_node_check(id, result)?;
             } else {
                 self.queue_node_task(id, PlaceUse::Read)?;
             }

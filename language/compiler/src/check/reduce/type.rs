@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Reduce one type graph to its simplest available form.
@@ -57,24 +57,7 @@ impl CheckState<'_> {
         Ok(answer)
     }
 
-    /// Reduce one type head that must be ready.
-    pub(in crate::check) fn require_reduced_type_head(
-        &mut self,
-        origin: Origin,
-        id: dir::GlobalTypeId,
-        operation: &'static str,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        match self.reduce_type_head(origin, id)? {
-            Answer::Ready(value) => Ok(value),
-            Answer::Pending(blockers) => Err(CompilerError::Internal {
-                message: format!("{operation} requires a ready type head: {blockers:?}"),
-            }),
-        }
-    }
-
     /// Reduce one settled type head with the active expansion chain tracked.
-    /// Circular aliases and projections report once and poison to the
-    /// error type instead of expanding forever.
     fn reduce_type_chain(
         &mut self,
         origin: Origin,
