@@ -13,6 +13,7 @@ mod variable;
 pub(in crate::check) use answer::*;
 pub(in crate::check) use constraint::*;
 pub(in crate::check) use decision::*;
+pub(in crate::check) use probe::*;
 pub(in crate::check) use relation::*;
 pub(in crate::check) use solver::*;
 pub(in crate::check) use task::*;

@@ -25,6 +25,21 @@ pub(in crate::check) enum Relation {
     Implements,
 }
 
+impl Relation {
+    /// Return whether a union target accepts any successful element relation.
+    pub(in crate::check) fn distributes_over_union_target(self) -> bool {
+        matches!(
+            self,
+            Self::Assignable
+                | Self::Writable
+                | Self::Castable
+                | Self::Satisfies
+                | Self::Extends
+                | Self::Implements
+        )
+    }
+}
+
 /// One relation pair identity over two reduced roots.
 ///
 /// Queries that mention generic parameters key by their assuming

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::Origin;
+use crate::check::{GenericInductionParameter, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// When one bound may choose an inference variable's solution.
@@ -14,17 +14,8 @@ pub(in crate::check) enum BoundMode {
     Weak,
 }
 
-/// Evidence allowed during one variable solve.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum SolveMode {
-    /// Solve from strong evidence only.
-    Strong,
-    /// Solve from strong and weak evidence.
-    Weak,
-}
-
-impl SolveMode {
-    /// Return whether weak evidence may choose a solution.
+impl BoundMode {
+    /// Return whether this solve pass may use weak bounds.
     pub(in crate::check) fn allows_weak(self) -> bool {
         matches!(self, Self::Weak)
     }
@@ -35,6 +26,8 @@ impl SolveMode {
 pub(in crate::check) struct TypeBound {
     /// The bound type.
     pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The relation between the variable and this bound.
+    pub(in crate::check) relation: Relation,
     /// The source occurrence that produced the bound.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// When this bound may choose the variable's solution.
@@ -45,10 +38,16 @@ impl TypeBound {
     /// Return one type bound from a source occurrence.
     pub(in crate::check) fn new(
         ty: dir::GlobalTypeId,
+        relation: Relation,
         source: dir::GlobalNodeIdAny,
         mode: BoundMode,
     ) -> Self {
-        Self { ty, source, mode }
+        Self {
+            ty,
+            relation,
+            source,
+            mode,
+        }
     }
 }
 
@@ -59,14 +58,16 @@ pub(in crate::check) struct VariableState {
     pub(in crate::check) origin: Origin,
     /// The literal widening policy applied when solving.
     pub(in crate::check) widening: Widening,
-    /// Types that must be assignable to the variable.
+    /// Types that must relate to the variable.
     pub(in crate::check) lower: SmallVec<[TypeBound; 2]>,
-    /// Types the variable must be assignable to.
+    /// Types the variable must relate to.
     pub(in crate::check) upper: SmallVec<[TypeBound; 2]>,
     /// The solved type, when solving finished.
     pub(in crate::check) solution: Option<dir::GlobalTypeId>,
     /// The default solution applied when no bounds arrive.
     pub(in crate::check) default: Option<dir::GlobalTypeId>,
+    /// The generated parameter this variable may induce.
+    pub(in crate::check) induction: Option<GenericInductionParameter>,
     /// The union-find representative, when aliased to another variable.
     pub(in crate::check) alias: Option<dir::TypeVariableId>,
 }
@@ -111,6 +112,7 @@ impl VariableTable {
                 upper: SmallVec::new(),
                 solution: None,
                 default: None,
+                induction: None,
                 alias: None,
             },
         );
