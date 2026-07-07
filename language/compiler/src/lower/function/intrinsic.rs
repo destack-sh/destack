@@ -235,6 +235,13 @@ impl FunctionLowerer<'_> {
             );
         }
 
+        // lower breakpoint directly
+        if name == "error.debug.breakpoint" {
+            self.state.builder.breakpoint();
+
+            return Ok((None, result_type));
+        }
+
         // remaining names map to MIR intrinsics
         self.lower_direct_intrinsic(expression_id, name, result_type, arguments)
             .map(|(value, ty)| (Some(value), ty))
@@ -822,15 +829,6 @@ impl FunctionLowerer<'_> {
                 )
             })
             .map_err(CompilerError::from)?;
-
-        if intrinsic.is_comptime_only() {
-            return Err(self
-                .error(
-                    expression_id,
-                    "comptime-only intrinsics cannot be lowered here",
-                )
-                .into());
-        }
 
         let arguments = self.lower_positional_arguments(expression_id, arguments)?;
         let value = self
