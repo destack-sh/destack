@@ -101,10 +101,10 @@ const value = choose(1);
 }
 
 #[test]
-fn test_function_type_comptime_parameter_binds_return_type() {
+fn test_function_type_comptime_generic_binds_return_type() {
     let session = TestSession::single(
         r#"
-type Read = (comptime N: uint) => [uint8; N];
+type Read = <comptime N: uint>() => [uint8; N];
 
 declare const read: Read;
 "#,
@@ -115,53 +115,21 @@ declare const read: Read;
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-type Read = (comptime N: uint) => [uint8; N];
+type Read = <comptime N: uint>() => [uint8; N];
 
 declare const read: Read;
 
 === checked ===
-type Read = (comptime N: uint) => [uint8; N];
-/// @type.symbol symbol=Read source="type Read = (comptime N: uint) => [uint8; N]" type=Function<(uint,), FixedArray<uint8, N>>
-/// @definition.type symbol=Read source="type Read = (comptime N: uint) => [uint8; N]" value=Function<(uint,), FixedArray<uint8, N>>
-/// @generic.template source=type_expression parameters=(comptime N: uint origin=induced.comptime)
+type Read = <comptime N: uint>() => [uint8; N];
+/// @type.symbol symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" type=<N: uint>() => FixedArray<uint8, N>
+/// @definition.type symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" value=<N: uint>() => FixedArray<uint8, N>
+/// @generic.template source=type_expression parameters=(comptime N: uint)
 /// @type.symbol symbol=N source="comptime N: uint" type=N
 /// @resolution.name source=N target=N
 
 declare const read: Read;
 /// @type.symbol symbol=read source=read type=Read
 /// @resolution.name source=Read target=Read
-"#,
-    );
-}
-
-#[test]
-fn test_function_type_comptime_parameter_can_be_anonymous() {
-    let session = TestSession::single(
-        r#"
-type Consume = (comptime uint) => void;
-
-declare const consume: Consume;
-"#,
-    );
-
-    session.assert_dir_checked(
-        "main.ds",
-        DirRows::checked().with_statics(),
-        r#"
-=== annotated ===
-type Consume = (comptime uint) => void;
-
-declare const consume: Consume;
-
-=== checked ===
-type Consume = (comptime uint) => void;
-/// @type.symbol symbol=Consume source="type Consume = (comptime uint) => void" type=Function<(uint,), void>
-/// @definition.type symbol=Consume source="type Consume = (comptime uint) => void" value=Function<(uint,), void>
-/// @generic.template source=type_expression parameters=(comptime C0: uint origin=induced.comptime)
-
-declare const consume: Consume;
-/// @type.symbol symbol=consume source=consume type=Consume
-/// @resolution.name source=Consume target=Consume
 "#,
     );
 }

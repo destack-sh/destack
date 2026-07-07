@@ -792,12 +792,12 @@ main.ds:1:22-1:23
 main.ds:1:41-1:42
 ```
 
-### Find references for comptime dynamic parameters
+### Find references for comptime generic parameters
 
-Find references should include uses of comptime dynamic parameters in function bodies.
+Find references should include uses of comptime generic parameters in function bodies.
 
 ```ds
-function createBuffer(comptime size: int): int {
+function createBuffer<comptime size: int>(): int {
 //                               ^^^^ def:comptime_size
     return size;
 //           ^^^^ use:comptime_size

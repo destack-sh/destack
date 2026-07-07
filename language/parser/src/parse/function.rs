@@ -158,7 +158,6 @@ impl Parser {
         let parameter = Parameter::Named {
             name: parameter_name,
             is_optional: false,
-            is_comptime: false,
             declared_type: None,
             default: None,
         };
@@ -491,7 +490,6 @@ impl Parser {
         let parameter = Parameter::Named {
             name,
             is_optional: false,
-            is_comptime: false,
             declared_type: None,
             default: None,
         };

@@ -270,9 +270,6 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             {
                 continue;
             }
-            if parameter.is_comptime() {
-                continue;
-            }
             if !matches!(
                 parameter,
                 dir::Parameter::Named { .. } | dir::Parameter::VariadicNamed { .. }

@@ -1847,8 +1847,6 @@ pub struct FunctionSignatureType {
 pub struct FunctionParameterType {
     /// The parameter type.
     pub ty: GlobalTypeId,
-    /// The static generic parameter supplied by this runtime argument.
-    pub static_parameter: Option<GlobalGenericParameterId>,
     /// Whether the parameter may be omitted at the call site.
     pub is_optional: bool,
     /// Whether the parameter captures remaining call arguments.

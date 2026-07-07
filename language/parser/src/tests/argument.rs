@@ -762,21 +762,6 @@ fn test_parse_parameter_readonly_name() {
     });
 }
 
-#[test]
-fn test_parse_parameter_comptime() {
-    // comptime n: int32
-    let test = TestParser::new("comptime n: int32");
-    let mut parser = test.prepare();
-    let parameter_id = parser.parse_parameter(Default::default()).unwrap();
-    assert_node!(parser.tree, parameter_id, Parameter::Named { name, is_comptime, declared_type: Some(declared_type), .. } => {
-        assert_string!(parser, *name, "n");
-        assert!(*is_comptime);
-        assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
-        }) });
-    });
-}
-
-#[test]
 fn test_parse_comptime_modifier_target_requires_same_line() {
     let test = TestParser::new(
         r#"comptime

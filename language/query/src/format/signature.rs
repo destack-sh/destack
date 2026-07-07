@@ -273,10 +273,10 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
         format!("{name}: {type_text}")
     }
 
-    /// Format one parameter label with its phase prefix.
+    /// Format one parameter label.
     fn parameter_name(&self, parameter: &dir::Parameter) -> String {
         let strings = self.module.strings();
-        let name = match parameter {
+        match parameter {
             dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
             dir::Parameter::Pattern { .. } => "_".to_string(),
             dir::Parameter::VariadicNamed { name, .. } => {
@@ -285,12 +285,6 @@ impl<'module, 'repo> SignatureFormatter<'module, 'repo> {
             }
             dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
             dir::Parameter::Error => panic!("error parameter reached signature formatting"),
-        };
-
-        if parameter.is_comptime() {
-            format!("comptime {name}")
-        } else {
-            name
         }
     }
 

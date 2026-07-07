@@ -39,6 +39,11 @@ impl BindingModifierGrammar {
         matches!(self, Self::Member)
     }
 
+    /// Return whether this grammar accepts comptime modifiers.
+    const fn accepts_comptime(self) -> bool {
+        matches!(self, Self::Property | Self::Member)
+    }
+
     /// Return whether this grammar accepts variance modifiers.
     const fn accepts_variance(self) -> bool {
         matches!(self, Self::Member)
@@ -207,7 +212,8 @@ impl Parser {
                         | Keyword::Accessor
                 );
                 let is_virtual_modifier = grammar.accepts_virtual() && keyword == Keyword::Virtual;
-                let is_comptime_modifier = keyword == Keyword::Comptime;
+                let is_comptime_modifier =
+                    grammar.accepts_comptime() && keyword == Keyword::Comptime;
 
                 is_standard_modifier || is_virtual_modifier || is_comptime_modifier
             }) || is_out_variance_modifier;
@@ -393,7 +399,10 @@ impl Parser {
             }
 
             // timing modifiers (comptime)
-            if !modifiers.is_comptime && self.peek_is_keyword(Keyword::Comptime) {
+            if grammar.accepts_comptime()
+                && !modifiers.is_comptime
+                && self.peek_is_keyword(Keyword::Comptime)
+            {
                 let peek_next_token = self.peek_next_token();
                 let is_target_after_comptime = peek_next_token.ty() == TokenType::OpenBrace
                     || !peek_next_token.is_on_new_line()
