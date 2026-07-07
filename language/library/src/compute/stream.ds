@@ -1,4 +1,4 @@
-import { todo } from "destack:error";
+import { Context } from "destack:context";
 
 import { Device } from "./device.ds";
 
@@ -8,32 +8,33 @@ export newtype Stream = intrinsic;
 
 export extension of Stream {
     /// Return the device that owns this stream.
-    @intrinsic("compute.stream.device")
-    get device(): Device;
+    get device(): Device {
+        Context.current().compute.stream.device(this)
+    }
 
     /// Return the default stream for `device`.
     static default(device: Device = Device.default()): Stream {
-        todo("Stream.default")
+        Context.current().compute.stream.default(device)
     }
 
     /// Create a new stream on `device`.
     static create(device: Device): Stream {
-        todo("Stream.create")
+        Context.current().compute.stream.create(device)
     }
 
     /// Return whether all queued work has completed.
     isComplete(): boolean {
-        todo("Stream.isComplete")
+        Context.current().compute.stream.isComplete(this)
     }
 
     /// Make future work on this stream wait for `event`.
     wait(event: Event): void {
-        todo("Stream.wait");
+        Context.current().compute.stream.wait(this, event);
     }
 
     /// Wait until all preceding work completes.
     synchronize(): void {
-        todo("Stream.synchronize");
+        Context.current().compute.stream.synchronize(this);
     }
 }
 
@@ -43,26 +44,27 @@ export newtype Event = intrinsic;
 
 export extension of Event {
     /// Return the stream that recorded this event.
-    @intrinsic("compute.event.stream")
-    get stream(): Stream;
+    get stream(): Stream {
+        Context.current().compute.event.stream(this)
+    }
 
     /// Record an event on `stream`.
     static record(stream: Stream): Event {
-        todo("Event.record")
+        Context.current().compute.event.record(stream)
     }
 
     /// Return whether this event has completed.
     isComplete(): boolean {
-        todo("Event.isComplete")
+        Context.current().compute.event.isComplete(this)
     }
 
     /// Wait until this event completes.
     synchronize(): void {
-        todo("Event.synchronize");
+        Context.current().compute.event.synchronize(this);
     }
 
     /// Return milliseconds elapsed since `start`.
     elapsedSince(start: Event): float64 {
-        todo("Event.elapsedSince")
+        Context.current().compute.event.elapsedSince(this, start)
     }
 }

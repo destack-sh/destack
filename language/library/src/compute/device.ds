@@ -1,7 +1,8 @@
 import { Array, Slice } from "destack:collections";
-import { todo } from "destack:error";
+import { Context } from "destack:context";
 
 import { DeviceCapabilities, DeviceFeature } from "./capability.ds";
+import { ComputeError } from "./error.ds";
 
 /// Compute execution and storage device kind.
 export enum DeviceKind {
@@ -71,40 +72,42 @@ export newtype Device = intrinsic;
 export extension of Device {
     /// Return all available devices matching `query`.
     static available(query?: DeviceQuery): ^Array<Device> {
-        todo("Device.available")
+        Context.current().compute.device.available(query)
     }
 
     /// Return the default CPU device.
     static cpu(): Device {
-        todo("Device.cpu")
+        Context.current().compute.device.cpu()
     }
 
     /// Return a GPU device.
     static gpu(index: uint32 = 0): Device {
-        todo("Device.gpu")
+        Context.current().compute.device.gpu(index)
     }
 
     /// Return an accelerator device.
     static accelerator(index: uint32 = 0): Device {
-        todo("Device.accelerator")
+        Context.current().compute.device.accelerator(index)
     }
 
     /// Return the default compute device matching `query`.
     static default(query?: DeviceQuery): Device {
-        todo("Device.default")
+        Context.current().compute.device.default(query)
     }
 
     /// Return the device kind.
-    @intrinsic("compute.device.kind")
-    get kind(): DeviceKind;
+    get kind(): DeviceKind {
+        Context.current().compute.device.kind(this)
+    }
 
     /// Return the human-readable device name.
-    @intrinsic("compute.device.name")
-    get name(): &readonly string;
+    get name(): &readonly string {
+        Context.current().compute.device.name(this)
+    }
 
     /// Return this device's runtime properties.
-    properties(): DeviceProperties {
-        todo("Device.properties")
+    properties(): Result<DeviceProperties, ComputeError> {
+        Context.current().compute.device.properties(this)
     }
 
     /// Return whether this device is the host CPU.

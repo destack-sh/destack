@@ -1,0 +1,23 @@
+import { ComputeBufferBinding } from "./buffer.ds";
+import { ComputeDeviceBinding } from "./device.ds";
+import { ComputeEventBinding } from "./event.ds";
+import { ComputeMeshBinding } from "./mesh.ds";
+import { ComputeProgramBinding } from "./program.ds";
+import { ComputeStreamBinding } from "./stream.ds";
+
+/// Compute binding family.
+@languageItem("compute.ComputeBinding")
+export interface ComputeBinding {
+    /// Buffer bindings.
+    readonly buffer: ComputeBufferBinding;
+    /// Device bindings.
+    readonly device: ComputeDeviceBinding;
+    /// Event bindings.
+    readonly event: ComputeEventBinding;
+    /// Mesh bindings.
+    readonly mesh: ComputeMeshBinding;
+    /// Program bindings.
+    readonly program: ComputeProgramBinding;
+    /// Stream bindings.
+    readonly stream: ComputeStreamBinding;
+}

@@ -1,0 +1,71 @@
+import { Array } from "destack:collections";
+
+import { Device, DeviceKind, DeviceProperties, DeviceQuery } from "../device.ds";
+import { ComputeError } from "../error.ds";
+
+/// Compute device binding family.
+export interface ComputeDeviceBinding {
+    /// Return all available devices matching `query`.
+    @binding("destack.compute.device.available", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.device.read"],
+    })
+    available(query?: DeviceQuery): ^Array<Device>;
+
+    /// Return the default CPU device.
+    @binding("destack.compute.device.cpu", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.device.read"],
+    })
+    cpu(): Device;
+
+    /// Return a GPU device.
+    @binding("destack.compute.device.gpu", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.device.read"],
+    })
+    gpu(index: uint32): Device;
+
+    /// Return an accelerator device.
+    @binding("destack.compute.device.accelerator", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.device.read"],
+    })
+    accelerator(index: uint32): Device;
+
+    /// Return the default compute device matching `query`.
+    @binding("destack.compute.device.default", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.device.read"],
+    })
+    default(query?: DeviceQuery): Device;
+
+    /// Return the device kind.
+    @binding("destack.compute.device.kind", {
+        provider: "host",
+        effect: "deterministic",
+        requires: ["host.compute.device.read"],
+    })
+    kind(device: Device): DeviceKind;
+
+    /// Return the human-readable device name.
+    @binding("destack.compute.device.name", {
+        provider: "host",
+        effect: "deterministic",
+        requires: ["host.compute.device.read"],
+    })
+    name(device: Device): &readonly string;
+
+    /// Return device properties.
+    @binding("destack.compute.device.properties", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.compute.device.read"],
+    })
+    properties(device: Device): Result<DeviceProperties, ComputeError>;
+}

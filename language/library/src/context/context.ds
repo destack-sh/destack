@@ -1,5 +1,6 @@
 import { AccessibilityBinding } from "destack:accessibility/binding";
 import { AudioBinding } from "destack:audio/binding";
+import { ComputeBinding } from "destack:compute/binding";
 import { CryptoBinding } from "destack:crypto/binding";
 import { DeviceBinding } from "destack:device/binding";
 import { DisplayBinding } from "destack:display/binding";
@@ -61,6 +62,10 @@ export class Context {
     /// Current audio binding family.
     @intrinsic("context.audio")
     get audio(): Dynamic<AudioBinding>;
+
+    /// Current compute binding family.
+    @intrinsic("context.compute")
+    get compute(): Dynamic<ComputeBinding>;
 
     /// Current crypto binding family.
     @intrinsic("context.crypto")

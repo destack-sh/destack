@@ -1,5 +1,6 @@
 import { Slice } from "destack:collections";
-import { Result, todo } from "destack:error";
+import { Context } from "destack:context";
+import { Result } from "destack:error";
 
 import { Device } from "./device.ds";
 import { ComputeError } from "./error.ds";
@@ -47,16 +48,19 @@ export newtype Buffer<T> = intrinsic;
 
 export extension<T> of Buffer<T> {
     /// Return the device that owns this buffer.
-    @intrinsic("compute.buffer.device")
-    get device(): Device;
+    get device(): Device {
+        Context.current().compute.buffer.device(this)
+    }
 
     /// Return the element count.
-    @intrinsic("compute.buffer.length")
-    get length(): usize;
+    get length(): usize {
+        Context.current().compute.buffer.length(this)
+    }
 
     /// Return the byte length.
-    @intrinsic("compute.buffer.byteLength")
-    get byteLength(): usize;
+    get byteLength(): usize {
+        Context.current().compute.buffer.byteLength(this)
+    }
 
     /// Allocate a compute buffer.
     static allocate(
@@ -64,7 +68,7 @@ export extension<T> of Buffer<T> {
         length: usize,
         options?: BufferOptions,
     ): Result<Buffer<T>, ComputeError> {
-        todo("Buffer.allocate")
+        Context.current().compute.buffer.allocate(device, length, options)
     }
 
     /// Create a buffer initialized from host values.
@@ -73,26 +77,26 @@ export extension<T> of Buffer<T> {
         values: [T],
         options?: BufferOptions,
     ): Result<Buffer<T>, ComputeError> {
-        todo("Buffer.from")
+        Context.current().compute.buffer.from(device, values, options)
     }
 
     /// Copy this buffer to `destination`.
     copyTo(destination: Buffer<T>, region: BufferCopyRegion, stream?: Stream): Event {
-        todo("Buffer.copyTo")
+        Context.current().compute.buffer.copyTo(this, destination, region, stream)
     }
 
     /// Fill this buffer with `value`.
     fill(value: T, stream?: Stream): Event {
-        todo("Buffer.fill")
+        Context.current().compute.buffer.fill(this, value, stream)
     }
 
     /// Read this buffer into host memory.
     read(stream?: Stream): Result<[T], ComputeError> {
-        todo("Buffer.read")
+        Context.current().compute.buffer.read(this, stream)
     }
 
     /// Write host values into this buffer.
     write(values: [T], stream?: Stream): Event {
-        todo("Buffer.write")
+        Context.current().compute.buffer.write(this, values, stream)
     }
 }

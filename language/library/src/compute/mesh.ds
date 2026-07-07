@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import { todo } from "destack:error";
+import { Context } from "destack:context";
 
 import { Device } from "./device.ds";
 
@@ -19,22 +19,26 @@ export newtype Mesh = intrinsic;
 export extension of Mesh {
     /// Create a mesh from devices and named axes.
     static new(devices: &readonly [Device], axes: &readonly [MeshAxis]): Mesh {
-        todo("Mesh.new")
+        Context.current().compute.mesh.create(devices, axes)
     }
 
     /// Return the mesh axes.
-    @intrinsic("compute.mesh.axes")
-    get axes(): &readonly [MeshAxis];
+    get axes(): &readonly [MeshAxis] {
+        Context.current().compute.mesh.axes(this)
+    }
 
     /// Return the devices in row-major mesh order.
-    @intrinsic("compute.mesh.devices")
-    get devices(): &readonly [Device];
+    get devices(): &readonly [Device] {
+        Context.current().compute.mesh.devices(this)
+    }
 
     /// Return the number of mesh axes.
-    @intrinsic("compute.mesh.rank")
-    get rank(): usize;
+    get rank(): usize {
+        Context.current().compute.mesh.rank(this)
+    }
 
     /// Return the total number of devices.
-    @intrinsic("compute.mesh.size")
-    get size(): usize;
+    get size(): usize {
+        Context.current().compute.mesh.size(this)
+    }
 }

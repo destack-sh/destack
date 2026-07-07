@@ -1,5 +1,6 @@
 import { AccessibilityBinding } from "destack:accessibility/binding";
 import { AudioBinding } from "destack:audio/binding";
+import { ComputeBinding } from "destack:compute/binding";
 import { CryptoBinding } from "destack:crypto/binding";
 import { DeviceBinding } from "destack:device/binding";
 import { DisplayBinding } from "destack:display/binding";
@@ -28,6 +29,8 @@ export struct ContextPatch {
     accessibility?: Dynamic<AccessibilityBinding>;
     /// AudioBinding binding family override.
     audio?: Dynamic<AudioBinding>;
+    /// Compute binding family override.
+    compute?: Dynamic<ComputeBinding>;
     /// CryptoBinding binding family override.
     crypto?: Dynamic<CryptoBinding>;
     /// DeviceBinding binding family override.

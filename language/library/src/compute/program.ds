@@ -1,5 +1,6 @@
 import { Slice } from "destack:collections";
-import { Result, todo } from "destack:error";
+import { Context } from "destack:context";
+import { Result } from "destack:error";
 
 import { Buffer } from "./buffer.ds";
 import { Device } from "./device.ds";
@@ -117,8 +118,9 @@ export newtype Program = intrinsic;
 
 export extension of Program {
     /// Return the device that owns this program.
-    @intrinsic("compute.program.device")
-    get device(): Device;
+    get device(): Device {
+        Context.current().compute.program.device(this)
+    }
 
     /// Compile `source` for `device`.
     static compile(
@@ -126,17 +128,17 @@ export extension of Program {
         source: ProgramSource,
         options?: ProgramOptions,
     ): Result<Program, ComputeError> {
-        todo("Program.compile")
+        Context.current().compute.program.compile(device, source, options)
     }
 
     /// Compile `source` for `device` and return diagnostics.
     static build(device: Device, source: ProgramSource, options?: ProgramOptions): ProgramReport {
-        todo("Program.build")
+        Context.current().compute.program.build(device, source, options)
     }
 
     /// Return a kernel entry point by name.
     kernel(name: string): Result<Kernel, ComputeError> {
-        todo("Program.kernel")
+        Context.current().compute.program.kernel(this, name)
     }
 }
 
@@ -147,18 +149,18 @@ export newtype KernelArgument = intrinsic;
 export extension of KernelArgument {
     /// Encode `value` as one kernel argument.
     static value<T>(value: T): KernelArgument {
-        todo("KernelArgument.value")
+        Context.current().compute.program.argumentValue(value)
     }
 
     /// Encode `buffer` as one kernel argument.
     static buffer<T>(buffer: Buffer<T>): KernelArgument {
-        todo("KernelArgument.buffer")
+        Context.current().compute.program.argumentBuffer(buffer)
     }
 
     /// Encode raw argument bytes.
     @unsafe
     static bytes(bytes: [uint8]): KernelArgument {
-        todo("KernelArgument.bytes")
+        Context.current().compute.program.argumentBytes(bytes)
     }
 }
 
@@ -204,16 +206,18 @@ export newtype Kernel = intrinsic;
 
 export extension of Kernel {
     /// Return the program that owns this kernel.
-    @intrinsic("compute.kernel.program")
-    get program(): Program;
+    get program(): Program {
+        Context.current().compute.program.kernelProgram(this)
+    }
 
     /// Return the kernel entry point name.
-    @intrinsic("compute.kernel.name")
-    get name(): &readonly string;
+    get name(): &readonly string {
+        Context.current().compute.program.kernelName(this)
+    }
 
     /// Return this kernel's signature metadata.
     signature(): KernelSignature {
-        todo("Kernel.signature")
+        Context.current().compute.program.signature(this)
     }
 
     /// Dispatch this kernel on `stream`.
@@ -223,6 +227,12 @@ export extension of Kernel {
         workgroupSize?: WorkgroupSize,
         stream?: Stream,
     ): Event {
-        todo("Kernel.dispatch")
+        Context.current().compute.program.dispatch(
+            this,
+            arguments,
+            workgroups,
+            workgroupSize,
+            stream,
+        )
     }
 }
