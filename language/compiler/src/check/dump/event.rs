@@ -10,6 +10,16 @@ impl CheckEvent {
         log: &mut ArtifactEventLog,
     ) {
         let event = match self {
+            Self::ProbeStarted { variables } => ArtifactEvent::new("probe.started")
+                .debug()
+                .usize("variables", *variables),
+            Self::ProbeFinished {
+                is_committed,
+                is_pending,
+            } => ArtifactEvent::new("probe.finished")
+                .debug()
+                .bool("committed", *is_committed)
+                .bool("pending", *is_pending),
             Self::VariableAllocated { variable, widening } => {
                 ArtifactEvent::new("variable.allocated")
                     .debug()
@@ -18,12 +28,33 @@ impl CheckEvent {
                     .text("at", context.variable_source_label(*variable))
                     .text("widening", context.widening_label(*widening))
             }
+            Self::LowerBoundPushed { variable, bound } => ArtifactEvent::new("variable.lower")
+                .debug()
+                .text("variable", context.variable_label(*variable))
+                .text("bound", context.type_label(bound.ty))
+                .text("relation", context.relation_label(bound.relation))
+                .text("source", context.node_label(bound.source))
+                .text("mode", context.bound_mode_label(bound.mode)),
+            Self::UpperBoundPushed { variable, bound } => ArtifactEvent::new("variable.upper")
+                .debug()
+                .text("variable", context.variable_label(*variable))
+                .text("bound", context.type_label(bound.ty))
+                .text("relation", context.relation_label(bound.relation))
+                .text("source", context.node_label(bound.source))
+                .text("mode", context.bound_mode_label(bound.mode)),
             Self::SolveStarted { tasks, variables } => ArtifactEvent::new("solve.started")
                 .info()
                 .usize("tasks", *tasks)
                 .usize("variables", *variables),
             Self::TaskRan { step, task } => {
                 let event = ArtifactEvent::new("task.ran").info().usize("step", *step);
+
+                task.render_event(event, context)
+            }
+            Self::TaskParked { task, blockers } => {
+                let event = ArtifactEvent::new("task.parked")
+                    .debug()
+                    .text("blockers", context.dependency_list_label(blockers));
 
                 task.render_event(event, context)
             }
@@ -70,7 +101,6 @@ impl CheckEvent {
                 .text("variable", context.variable_label(*variable))
                 .text("lower", context.type_bound_list_label(&bounds.lower))
                 .text("upper", context.type_bound_list_label(&bounds.upper))
-                .text("default", context.optional_type_label(bounds.default))
                 .text("solution", context.type_label(*solution))
                 .usize("waiters", *waiters),
             Self::VariableBlocked {
@@ -82,14 +112,12 @@ impl CheckEvent {
                 .text("variable", context.variable_label(*variable))
                 .text("lower", context.type_bound_list_label(&bounds.lower))
                 .text("upper", context.type_bound_list_label(&bounds.upper))
-                .text("default", context.optional_type_label(bounds.default))
                 .text("blockers", context.dependency_list_label(blockers)),
             Self::VariableUnsolved { variable, bounds } => ArtifactEvent::new("variable.unsolved")
                 .debug()
                 .text("variable", context.variable_label(*variable))
                 .text("lower", context.type_bound_list_label(&bounds.lower))
-                .text("upper", context.type_bound_list_label(&bounds.upper))
-                .text("default", context.optional_type_label(bounds.default)),
+                .text("upper", context.type_bound_list_label(&bounds.upper)),
             Self::VariableAliased {
                 variable,
                 representative,
