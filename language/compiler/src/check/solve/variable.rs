@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{GenericInductionParameter, Origin, Relation};
+use crate::check::{Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
 /// When one bound may choose an inference variable's solution.
@@ -51,6 +51,25 @@ impl TypeBound {
     }
 }
 
+/// Special behavior attached to one inference variable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum VariableRole {
+    /// Ordinary inference variable.
+    Inference,
+    /// Variable that ranges over lifetime terms.
+    Lifetime {
+        /// The lifetime-kind constraint.
+        constraint: Option<dir::GlobalTypeId>,
+    },
+}
+
+impl VariableRole {
+    /// Return whether this role is ordinary inference.
+    pub(in crate::check) fn is_inference(self) -> bool {
+        matches!(self, Self::Inference)
+    }
+}
+
 /// One open inference variable.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct VariableState {
@@ -66,8 +85,8 @@ pub(in crate::check) struct VariableState {
     pub(in crate::check) solution: Option<dir::GlobalTypeId>,
     /// The default solution applied when no bounds arrive.
     pub(in crate::check) default: Option<dir::GlobalTypeId>,
-    /// The generated parameter this variable may induce.
-    pub(in crate::check) induction: Option<GenericInductionParameter>,
+    /// The special behavior attached to this variable.
+    pub(in crate::check) role: VariableRole,
     /// The union-find representative, when aliased to another variable.
     pub(in crate::check) alias: Option<dir::TypeVariableId>,
 }
@@ -112,7 +131,7 @@ impl VariableTable {
                 upper: SmallVec::new(),
                 solution: None,
                 default: None,
-                induction: None,
+                role: VariableRole::Inference,
                 alias: None,
             },
         );

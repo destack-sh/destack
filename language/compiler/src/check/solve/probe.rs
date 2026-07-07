@@ -3,12 +3,22 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Dependency, Origin, Relation, SolveMode, SolverSnapshot};
+use crate::check::{Answer, CheckState, Dependency, DumpContext, SolverSnapshot};
+use crate::{CompilerError, CompilerResult};
+
+/// One outcome from a speculative check.
+enum ProbeOutcome<T> {
+    /// Keep the speculative state and return the value.
+    Commit(T),
+    /// Roll back the speculative state and return the value.
+    Reject(T),
+    /// Roll back the speculative state and return outer dependencies.
+    Pending(SmallVec<[Dependency; 2]>),
+}
 
 /// Check state mark before one probe.
 #[derive(Debug)]
-pub(in crate::check) struct Probe {
+struct Probe {
     /// The solver state before the probe.
     solver: SolverSnapshot,
     /// The node type count before the probe.
@@ -34,60 +44,27 @@ struct ModuleProbeMark {
 
 impl CheckState<'_> {
     /// Run one speculative check and keep it only when its ready value is accepted.
-    pub(in crate::check) fn probe_accept<T>(
+    fn probe<T>(
         &mut self,
-        attempt: impl FnOnce(&mut Self) -> CompilerResult<Answer<T>>,
-        accept: impl FnOnce(&T) -> bool,
+        attempt: impl FnOnce(&mut Self) -> CompilerResult<ProbeOutcome<T>>,
     ) -> CompilerResult<Answer<T>> {
         let probe = self.begin_probe();
         let result = attempt(self);
 
         match result {
-            Ok(Answer::Ready(value)) if accept(&value) => {
+            Ok(ProbeOutcome::Commit(value)) => {
                 self.commit_probe(probe);
 
                 Ok(Answer::Ready(value))
             }
-            Ok(Answer::Ready(value)) => {
+            Ok(ProbeOutcome::Reject(value)) => {
                 self.reject_probe(probe);
 
                 Ok(Answer::Ready(value))
             }
-            Ok(Answer::Pending(blockers)) => {
+            Ok(ProbeOutcome::Pending(blockers)) => {
+                self.require_outer_probe_blockers(&probe, &blockers)?;
                 self.reject_probe(probe);
-
-                Ok(Answer::Pending(self.live_blockers(blockers)))
-            }
-            Err(error) => {
-                self.reject_probe(probe);
-
-                Err(error)
-            }
-        }
-    }
-
-    /// Run one speculative check and keep accepted ready state or pending state.
-    pub(in crate::check) fn probe_accept_or_pending<T>(
-        &mut self,
-        attempt: impl FnOnce(&mut Self) -> CompilerResult<Answer<T>>,
-        accept: impl FnOnce(&T) -> bool,
-    ) -> CompilerResult<Answer<T>> {
-        let probe = self.begin_probe();
-        let result = attempt(self);
-
-        match result {
-            Ok(Answer::Ready(value)) if accept(&value) => {
-                self.commit_probe(probe);
-
-                Ok(Answer::Ready(value))
-            }
-            Ok(Answer::Ready(value)) => {
-                self.reject_probe(probe);
-
-                Ok(Answer::Ready(value))
-            }
-            Ok(Answer::Pending(blockers)) => {
-                self.commit_probe(probe);
 
                 Ok(Answer::Pending(blockers))
             }
@@ -97,6 +74,76 @@ impl CheckState<'_> {
                 Err(error)
             }
         }
+    }
+
+    /// Run one speculative candidate.
+    pub(in crate::check) fn probe_candidate<T>(
+        &mut self,
+        attempt: impl FnOnce(&mut Self) -> CompilerResult<Answer<T>>,
+        accept: impl FnOnce(&T) -> bool,
+    ) -> CompilerResult<Answer<T>> {
+        self.probe(|state| {
+            let answer = attempt(state)?;
+            let outcome = match answer {
+                Answer::Ready(value) if accept(&value) => ProbeOutcome::Commit(value),
+                Answer::Ready(value) => ProbeOutcome::Reject(value),
+                Answer::Pending(blockers) => ProbeOutcome::Pending(blockers),
+            };
+
+            Ok(outcome)
+        })
+    }
+
+    /// Require blockers that survive one rejected probe to come from outside it.
+    fn require_outer_probe_blockers(
+        &self,
+        probe: &Probe,
+        blockers: &[Dependency],
+    ) -> CompilerResult<()> {
+        let local_variables = blockers
+            .iter()
+            .filter_map(|blocker| match blocker {
+                Dependency::Variable(variable) if !probe.solver.contains_variable(*variable) => {
+                    Some(*variable)
+                }
+                _ => None,
+            })
+            .collect::<SmallVec<[dir::TypeVariableId; 2]>>();
+        if local_variables.is_empty() {
+            return Ok(());
+        }
+
+        // include bound origins so the failed candidate owner is visible
+        let context = DumpContext::new(self);
+        let variables = local_variables
+            .iter()
+            .map(|variable| match self.solver.variable(*variable) {
+                Ok(state) => {
+                    let source = context.origin_source_label(state.origin);
+                    let lower = state
+                        .lower
+                        .iter()
+                        .map(|bound| self.format_type(bound.ty))
+                        .collect::<Vec<_>>();
+                    let upper = state
+                        .upper
+                        .iter()
+                        .map(|bound| self.format_type(bound.ty))
+                        .collect::<Vec<_>>();
+                    format!(
+                        "{variable:?}=source({source}) lower({lower:?}) upper({upper:?}) state({state:?})"
+                    )
+                }
+                Err(error) => format!("{variable:?}=<error {error:?}>"),
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        Err(CompilerError::Internal {
+            message: format!(
+                "probe returned blockers on local variables {local_variables:?}: {variables}"
+            ),
+        })
     }
 
     /// Begin one probe.
@@ -143,117 +190,6 @@ impl CheckState<'_> {
     /// Commit one accepted probe.
     fn commit_probe(&mut self, snapshot: Probe) {
         self.solver.commit(snapshot.solver);
-    }
-
-    /// Return dependencies that survived a rejected probe.
-    pub(in crate::check) fn live_blockers(
-        &self,
-        blockers: SmallVec<[Dependency; 2]>,
-    ) -> SmallVec<[Dependency; 2]> {
-        let mut live = SmallVec::<[Dependency; 2]>::new();
-        for blocker in blockers {
-            match blocker {
-                Dependency::Variable(variable) => {
-                    let is_live = self
-                        .solver
-                        .solution(variable)
-                        .is_ok_and(|solution| solution.is_none());
-                    if is_live && !live.contains(&blocker) {
-                        live.push(blocker);
-                    }
-                }
-                Dependency::NodeType(node) => {
-                    if self.node_type_maybe(node).is_none() && !live.contains(&blocker) {
-                        live.push(blocker);
-                    }
-                }
-                Dependency::SymbolType(symbol) => {
-                    if self.symbol_type_maybe(symbol).is_none() && !live.contains(&blocker) {
-                        live.push(blocker);
-                    }
-                }
-                Dependency::Decision(node) => {
-                    if self.decision(node).is_none() && !live.contains(&blocker) {
-                        live.push(blocker);
-                    }
-                }
-            }
-        }
-
-        live
-    }
-
-    /// Solve inference variables opened inside the active probe.
-    pub(in crate::check) fn solve_probe_variables(
-        &mut self,
-        variables: impl IntoIterator<Item = dir::TypeVariableId>,
-    ) -> CompilerResult<Answer<bool>> {
-        let mut all_bounds_hold = true;
-        let mut pending = SmallVec::<[Dependency; 2]>::new();
-        let mut queue = variables.into_iter().collect::<Vec<_>>();
-        let mut attempted = indexmap::IndexSet::new();
-
-        while let Some(variable) = queue.pop() {
-            // attempt each variable once: revisits are inference cycles
-            if !attempted.insert(variable) {
-                let blocker = Dependency::Variable(variable);
-                if !pending.contains(&blocker) {
-                    pending.push(blocker);
-                }
-
-                continue;
-            }
-
-            match self.solve_variable(variable, SolveMode::Weak)? {
-                Answer::Ready(holds) => all_bounds_hold &= holds,
-                Answer::Pending(blockers) => {
-                    let mut blocked_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
-                    for blocker in blockers {
-                        match blocker {
-                            Dependency::Variable(blocker) => {
-                                let blocker = self.solver.representative(blocker)?;
-                                let solution = self.solver.solution(blocker)?;
-                                if solution.is_none() && !blocked_variables.contains(&blocker) {
-                                    blocked_variables.push(blocker);
-                                }
-                            }
-                            Dependency::NodeType(_)
-                            | Dependency::SymbolType(_)
-                            | Dependency::Decision(_) => {
-                                if !pending.contains(&blocker) {
-                                    pending.push(blocker);
-                                }
-                            }
-                        }
-                    }
-                    if pending.is_empty() {
-                        queue.extend(blocked_variables);
-                    }
-                }
-            }
-        }
-
-        let pending = self.live_blockers(pending);
-
-        Ok(Answer::ready_unless_blocked(all_bounds_hold, pending))
-    }
-
-    /// Try to infer variables from an expected type.
-    pub(in crate::check) fn infer_from_expected(
-        &mut self,
-        origin: Origin,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        expected: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        match self.probe_accept(
-            |state| state.constrain(origin, relation, source, expected),
-            |holds| *holds,
-        )? {
-            Answer::Ready(true) => Ok(Answer::Ready(())),
-            Answer::Ready(false) => Ok(Answer::Ready(())),
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-        }
     }
 
     /// Drop state allocated inside a rejected probe.

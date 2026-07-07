@@ -149,7 +149,7 @@ impl<'a> CheckState<'a> {
 
     /// Complete walk-time state before solving.
     pub(in crate::check) fn propagate(&mut self) -> CompilerResult<()> {
-        self.propagate_induced_generics()
+        self.propagate_induced_lifetimes()
     }
 
     /// Load one module into component state.
