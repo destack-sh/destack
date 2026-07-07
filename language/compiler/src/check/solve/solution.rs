@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BoundMode, CheckEvent, CheckState, Constraint, Dependency, GenericInductionParameter,
-    Origin, Relation, SolveMode, Task, TypeBound, VariableBounds, Widening, answer,
+    Answer, BoundMode, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation, Task,
+    TypeBound, VariableBounds, VariableRole, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -43,34 +43,39 @@ impl CheckState<'_> {
         Ok(Dependency::Variable(variable))
     }
 
-    /// Return the generated parameter attached to one open variable.
-    pub(in crate::check) fn variable_induction(
+    /// Return the special role attached to one open variable.
+    pub(in crate::check) fn variable_role(
         &self,
         variable: dir::TypeVariableId,
-    ) -> CompilerResult<Option<GenericInductionParameter>> {
+    ) -> CompilerResult<VariableRole> {
         let Some(variable) = self.open_variable(variable)? else {
-            return Ok(None);
+            return Ok(VariableRole::Inference);
         };
 
-        Ok(self.generics.induction(variable))
+        Ok(self.solver.variable(variable)?.role)
     }
 
-    /// Return the first source occurrence that flowed into one variable.
-    pub(in crate::check) fn variable_lower_bound_source(
-        &self,
+    /// Set one special role on an open variable.
+    pub(in crate::check) fn set_variable_role(
+        &mut self,
         variable: dir::TypeVariableId,
-    ) -> CompilerResult<Option<dir::GlobalNodeIdAny>> {
-        let Some(variable) = self.open_variable(variable)? else {
-            return Ok(None);
-        };
-        let source = self
-            .solver
-            .variable(variable)?
-            .lower
-            .first()
-            .map(|bound| bound.source);
+        role: VariableRole,
+    ) -> CompilerResult<()> {
+        let variable = self.solver.representative(variable)?;
+        let state = self.solver.variable_mut(variable)?;
 
-        Ok(source)
+        if !state.role.is_inference() && state.role != role {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "variable {variable:?} has conflicting roles: {:?} and {:?}",
+                    state.role, role
+                ),
+            });
+        }
+
+        state.role = role;
+
+        Ok(())
     }
 
     /// Set one variable's default solution.
@@ -92,7 +97,10 @@ impl CheckState<'_> {
         }
         state.default = Some(default);
         self.wait_for_bound_variables(representative, default)?;
-        self.queue_task(Task::Solve(representative));
+        self.queue_task(Task::Solve {
+            variable: representative,
+            mode: BoundMode::Strong,
+        });
 
         Ok(())
     }
@@ -101,8 +109,9 @@ impl CheckState<'_> {
     pub(super) fn run_solve(
         &mut self,
         variable: dir::TypeVariableId,
+        mode: BoundMode,
     ) -> CompilerResult<Answer<()>> {
-        match self.solve_variable(variable, SolveMode::Strong)? {
+        match self.solve_variable(variable, mode)? {
             Answer::Ready(_) => Ok(Answer::Ready(())),
             Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
         }
@@ -112,7 +121,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn solve_variable(
         &mut self,
         variable: dir::TypeVariableId,
-        mode: SolveMode,
+        mode: BoundMode,
     ) -> CompilerResult<Answer<bool>> {
         let can_use_weak = mode.allows_weak();
         let representative = self.solver.representative(variable)?;
@@ -136,8 +145,8 @@ impl CheckState<'_> {
             .iter()
             .map(|bound| bound.ty)
             .collect::<SmallVec<[_; 2]>>();
+        let origin = self.solver.variable(representative)?.origin;
         let lower_candidates = Self::candidate_bound_types(&lower, mode);
-        let upper_candidates = Self::candidate_bound_types(&upper, mode);
 
         // propagate errors before waiting on contextual holes
         for bound in &lower_types {
@@ -148,7 +157,10 @@ impl CheckState<'_> {
             }
         }
 
-        let blockers = self.bound_blockers(&lower_types, default)?;
+        let mut bounds_hold =
+            answer!(self.relate_bounds(origin, representative, &lower, &upper)?);
+
+        let blockers = self.bound_blockers(representative, &lower_types, default)?;
         if !blockers.is_empty() {
             self.record_event(CheckEvent::VariableBlocked {
                 variable: representative,
@@ -169,19 +181,21 @@ impl CheckState<'_> {
             && lower_candidates.is_empty()
             && (Self::has_weak_bounds(&lower, &upper) || default.is_some())
         {
-            self.solver.defer_weak_solve(representative);
+            self.queue_task(Task::Solve {
+                variable: representative,
+                mode: BoundMode::Weak,
+            });
 
             return Ok(Answer::Ready(true));
         }
 
-        let candidates = self.upper_solution_candidates(representative, &upper_candidates)?;
+        let candidates = self.upper_solution_candidates(representative, &upper)?;
 
         // solutions derived from every upper bound need no re-check;
         // dropped recursive bounds still verify against the solution
         let verify_uppers = candidates.len() != upper_types.len();
 
-        // solve from lower bounds, falling back to contextual upper bounds
-        let origin = self.solver.variable(representative)?.origin;
+        // solve from lower bounds, then contextual upper bounds
         let (solution, check_upper) = if !lower_candidates.is_empty() {
             let joined = self.best_common(representative, &lower_candidates)?;
             let widened = self.widen_solution(joined, widening)?;
@@ -216,16 +230,18 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         };
         let solution = answer!(self.reduce_type_head(origin, solution)?);
-        let mut bounds_hold = true;
+
+        // publish the candidate before checking bounds that mention it
+        self.commit_solution(representative, solution)?;
 
         // check ignored weak lower bounds against a strong solution
         if !can_use_weak {
             for bound in lower.iter().filter(|bound| bound.mode == BoundMode::Weak) {
-                match self.constrain(origin, Relation::Assignable, bound.ty, solution)? {
+                match self.constrain(origin, bound.relation, bound.ty, solution)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) | Answer::Pending(_) => {
-                        self.push_constraint(Constraint::check(
-                            Relation::Assignable,
+                        self.push_constraint(Constraint::r#type(
+                            bound.relation,
                             bound.ty,
                             solution,
                             origin,
@@ -235,43 +251,91 @@ impl CheckState<'_> {
             }
         }
 
-        // check inferred solutions against their contextual upper bounds,
-        // queueing unfinished checks as ordinary check constraints
+        // check inferred solutions against resolved contextual upper bounds
         if check_upper {
             for bound in upper {
-                match self.constrain_generic_bound(origin, bound.source, solution, bound.ty)? {
+                match self.constrain_bound_relation(origin, solution, bound.ty, &bound)? {
                     Answer::Ready(true) => {}
                     Answer::Ready(false) => {
                         bounds_hold = false;
-                        self.push_constraint(Constraint::check(
-                            Relation::Assignable,
-                            solution,
-                            bound.ty,
-                            origin,
-                        ));
                     }
-                    Answer::Pending(_) => {
-                        self.push_constraint(Constraint::check(
-                            Relation::Assignable,
-                            solution,
-                            bound.ty,
-                            origin,
-                        ));
+                    Answer::Pending(blockers) => {
+                        return Ok(Answer::Pending(blockers));
                     }
                 }
             }
         }
-        // commit from the settled lower bounds: unfinished upper-bound
-        // checks are already queued as check constraints and report there
-        self.commit_solution(representative, solution)?;
 
         Ok(Answer::Ready(bounds_hold))
+    }
+
+    /// Relate every lower bound to every upper bound.
+    fn relate_bounds(
+        &mut self,
+        origin: Origin,
+        variable: dir::TypeVariableId,
+        lower: &[TypeBound],
+        upper: &[TypeBound],
+    ) -> CompilerResult<Answer<bool>> {
+        let mut decision = Answer::Ready(true);
+
+        // push contextual upper bounds into nested lower holes
+        for lower in lower.iter().copied() {
+            for upper in upper.iter().copied() {
+                if self.type_contains_variable(upper.ty, variable)? {
+                    continue;
+                }
+
+                match self.constrain_bound_relation(origin, lower.ty, upper.ty, &upper)? {
+                    Answer::Ready(true) => {}
+                    Answer::Ready(false) => {
+                        decision = Answer::Ready(false);
+                    }
+                    Answer::Pending(blockers) => {
+                        decision = decision.and(Answer::Pending(blockers));
+                    }
+                }
+                if decision.is_ready_false() {
+                    return Ok(decision);
+                }
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Return whether one type contains a variable representative.
+    fn type_contains_variable(
+        &self,
+        ty: dir::GlobalTypeId,
+        variable: dir::TypeVariableId,
+    ) -> CompilerResult<bool> {
+        for inner in self.type_variables(ty)? {
+            if self.solver.representative(inner)? == variable {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Check one solved type against one collected upper bound.
+    fn constrain_bound_relation(
+        &mut self,
+        origin: Origin,
+        solution: dir::GlobalTypeId,
+        bound: dir::GlobalTypeId,
+        source: &TypeBound,
+    ) -> CompilerResult<Answer<bool>> {
+        let origin = self.origin_at(origin, source.source);
+
+        self.constrain(origin, source.relation, solution, bound)
     }
 
     /// Return bound types that may choose a solution in one solve mode.
     fn candidate_bound_types(
         bounds: &[TypeBound],
-        mode: SolveMode,
+        mode: BoundMode,
     ) -> SmallVec<[dir::GlobalTypeId; 2]> {
         bounds
             .iter()
@@ -292,20 +356,16 @@ impl CheckState<'_> {
     fn upper_solution_candidates(
         &mut self,
         variable: dir::TypeVariableId,
-        upper: &[dir::GlobalTypeId],
+        upper: &[TypeBound],
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
         let mut candidates = SmallVec::new();
         for bound in upper {
-            let mut recursive = false;
-            for inner in self.type_variables(*bound)? {
-                if self.solver.representative(inner)? == variable {
-                    recursive = true;
-
-                    break;
-                }
+            if bound.relation == Relation::Satisfies {
+                continue;
             }
-            if !recursive {
-                candidates.push(*bound);
+
+            if !self.type_contains_variable(bound.ty, variable)? {
+                candidates.push(bound.ty);
             }
         }
 
@@ -340,6 +400,7 @@ impl CheckState<'_> {
     /// Return open variables that block one variable's solution.
     pub(in crate::check) fn bound_blockers(
         &self,
+        variable: dir::TypeVariableId,
         lower: &[dir::GlobalTypeId],
         default: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[Dependency; 2]>> {
@@ -347,9 +408,11 @@ impl CheckState<'_> {
         let bounds = lower.iter().chain(default.iter());
         for bound in bounds {
             for open in self.type_variables(*bound)? {
-                if self.solver.variable(open).is_ok()
-                    && !blockers.contains(&Dependency::Variable(open))
-                {
+                let open = self.solver.representative(open)?;
+                if open == variable {
+                    continue;
+                }
+                if !blockers.contains(&Dependency::Variable(open)) {
                     blockers.push(Dependency::Variable(open));
                 }
             }
@@ -374,7 +437,7 @@ impl CheckState<'_> {
         let representative = self.solver.representative(variable)?;
 
         // circular solutions poison the variable with an error type
-        if self.solution_mentions_variable(representative, solution)? {
+        if self.type_contains_variable(solution, representative)? {
             let origin = self.solver.variable(representative)?.origin;
             let error = self.circular_type_error(origin)?;
             self.module_mut(origin.module())
@@ -438,25 +501,6 @@ impl CheckState<'_> {
         Ok(true)
     }
 
-    /// Return whether a solution mentions the variable it solves.
-    fn solution_mentions_variable(
-        &self,
-        variable: dir::TypeVariableId,
-        solution: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        if !self.type_flags(solution)?.has_variable() {
-            return Ok(false);
-        }
-
-        for inner in self.type_variables(solution)? {
-            if self.solver.representative(inner)? == variable {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
     /// Alias one open variable to another, merging bounds.
     pub(in crate::check) fn alias_variables(
         &mut self,
@@ -475,14 +519,16 @@ impl CheckState<'_> {
         let state = self.solver.variable_mut(variable)?;
         let lower = std::mem::take(&mut state.lower);
         let upper = std::mem::take(&mut state.upper);
+        let role = state.role;
+        state.role = VariableRole::Inference;
         state.alias = Some(target);
 
         // push moved bounds through the checked paths
         for bound in lower {
-            self.push_lower_bound(target, bound.source, bound.ty, bound.mode)?;
+            self.push_lower_bound(target, bound.source, bound.ty, bound.relation, bound.mode)?;
         }
         for bound in upper {
-            self.push_upper_bound(target, bound.source, bound.ty, bound.mode)?;
+            self.push_upper_bound(target, bound.source, bound.ty, bound.relation, bound.mode)?;
         }
 
         // move tasks parked on the old representative
@@ -491,8 +537,20 @@ impl CheckState<'_> {
             self.solver.wait_for(Dependency::Variable(target), waiter);
         }
 
-        // move the induced parameter onto the representative
-        self.generics.merge_induction(variable, target);
+        // move special variable behavior onto the representative
+        if !role.is_inference() {
+            let target = self.solver.variable_mut(target)?;
+            if target.role.is_inference() {
+                target.role = role;
+            } else if target.role != role {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "variable {variable:?} and {target:?} have conflicting roles: {:?} and {:?}",
+                        role, target.role
+                    ),
+                });
+            }
+        }
 
         self.record_event(CheckEvent::VariableAliased {
             variable,
@@ -508,6 +566,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         source: dir::GlobalNodeIdAny,
         bound: dir::GlobalTypeId,
+        relation: Relation,
         mode: BoundMode,
     ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
@@ -518,17 +577,12 @@ impl CheckState<'_> {
         // late bounds against a solved variable become relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
             let origin = self.solver.variable(representative)?.origin;
-            self.push_constraint(Constraint::check(
-                Relation::Assignable,
-                bound,
-                solution,
-                origin,
-            ));
+            self.push_constraint(Constraint::r#type(relation, bound, solution, origin));
 
             return Ok(());
         }
 
-        let bound = TypeBound::new(bound, source, mode);
+        let bound = TypeBound::new(bound, relation, source, mode);
         let pushed = {
             let state = self.solver.variable_mut(representative)?;
             if state.lower.contains(&bound) {
@@ -540,7 +594,10 @@ impl CheckState<'_> {
         };
         if pushed {
             self.wait_for_bound_variables(representative, bound.ty)?;
-            self.queue_task(Task::Solve(representative));
+            self.queue_task(Task::Solve {
+                variable: representative,
+                mode: BoundMode::Strong,
+            });
         }
 
         Ok(())
@@ -552,6 +609,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         source: dir::GlobalNodeIdAny,
         bound: dir::GlobalTypeId,
+        relation: Relation,
         mode: BoundMode,
     ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
@@ -562,22 +620,18 @@ impl CheckState<'_> {
         // late bounds against a solved variable become relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
             let origin = self.solver.variable(representative)?.origin;
-            match self.constrain_generic_bound(origin, source, solution, bound)? {
+            let source = TypeBound::new(bound, relation, source, mode);
+            match self.constrain_bound_relation(origin, solution, bound, &source)? {
                 Answer::Ready(true) => {}
                 Answer::Ready(false) | Answer::Pending(_) => {
-                    self.push_constraint(Constraint::check(
-                        Relation::Assignable,
-                        solution,
-                        bound,
-                        origin,
-                    ));
+                    self.push_constraint(Constraint::r#type(relation, solution, bound, origin));
                 }
             }
 
             return Ok(());
         }
 
-        let bound = TypeBound::new(bound, source, mode);
+        let bound = TypeBound::new(bound, relation, source, mode);
         let pushed = {
             let state = self.solver.variable_mut(representative)?;
             if state.upper.contains(&bound) {
@@ -589,7 +643,10 @@ impl CheckState<'_> {
         };
         if pushed {
             self.wait_for_bound_variables(representative, bound.ty)?;
-            self.queue_task(Task::Solve(representative));
+            self.queue_task(Task::Solve {
+                variable: representative,
+                mode: BoundMode::Strong,
+            });
         }
 
         Ok(())
@@ -601,7 +658,10 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         bound: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        let task = Task::Solve(variable);
+        let task = Task::Solve {
+            variable,
+            mode: BoundMode::Strong,
+        };
         for blocker in self.type_variables(bound)? {
             if blocker != variable {
                 self.park_task(&task, &[Dependency::Variable(blocker)])?;

@@ -4,7 +4,7 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, Origin};
+use crate::check::{CheckState, Origin, VariableRole};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -22,10 +22,10 @@ pub(in crate::check) struct GenericScope {
     pub(in crate::check) predicates: SmallVec<[dir::WherePredicate; 4]>,
 }
 
-/// One declaration operand scanned for induced template generics.
+/// One declaration type scanned for elided lifetime variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct GenericInductionSite {
-    /// The declaration node that receives induced generic parameters.
+pub(in crate::check) struct InducedLifetimeSite {
+    /// The declaration node that receives induced lifetime parameters.
     pub(in crate::check) declaration: dir::GlobalNodeIdAny,
     /// The enclosing generic template.
     pub(in crate::check) parent: Option<GenericTemplateId>,
@@ -33,19 +33,6 @@ pub(in crate::check) struct GenericInductionSite {
     pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
     /// The declaration type to traverse.
     pub(in crate::check) ty: dir::GlobalTypeId,
-}
-
-/// One generic parameter induced from a declaration type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct GenericInductionParameter {
-    /// The generated parameter name prefix.
-    pub(in crate::check) name_prefix: &'static str,
-    /// The optional generated parameter constraint.
-    pub(in crate::check) constraint: Option<dir::GlobalTypeId>,
-    /// Whether arguments must solve to singleton types.
-    pub(in crate::check) is_comptime: bool,
-    /// The reason this parameter was induced.
-    pub(in crate::check) induction: dir::GenericParameterInduction,
 }
 
 /// Generic declaration index over working generic segments.
@@ -57,10 +44,8 @@ pub(in crate::check) struct GenericIndex {
     templates_by_symbol: IndexMap<dir::GlobalSymbolId, GenericTemplateId>,
     /// Parameter ids keyed by parameter symbol.
     parameters_by_symbol: IndexMap<dir::GlobalSymbolId, GenericParameterId>,
-    /// Declaration types scanned for induced template generics.
-    induction_sites: Vec<GenericInductionSite>,
-    /// Variables that can induce template generics.
-    inductions: IndexMap<dir::TypeVariableId, GenericInductionParameter>,
+    /// Declaration types scanned for elided lifetime variables.
+    induced_lifetime_sites: Vec<InducedLifetimeSite>,
 }
 
 impl GenericIndex {
@@ -70,8 +55,7 @@ impl GenericIndex {
             templates_by_source: IndexMap::new(),
             templates_by_symbol: IndexMap::new(),
             parameters_by_symbol: IndexMap::new(),
-            induction_sites: Vec::new(),
-            inductions: IndexMap::new(),
+            induced_lifetime_sites: Vec::new(),
         }
     }
 
@@ -99,53 +83,16 @@ impl GenericIndex {
         self.parameters_by_symbol.get(&symbol).copied()
     }
 
-    /// Push one induction site.
-    pub(in crate::check) fn push_induction_site(&mut self, site: GenericInductionSite) {
-        self.induction_sites.push(site);
+    /// Push one induced lifetime site.
+    pub(in crate::check) fn push_induced_lifetime_site(&mut self, site: InducedLifetimeSite) {
+        self.induced_lifetime_sites.push(site);
     }
 
-    /// Iterate induction sites in component order.
-    pub(in crate::check) fn induction_sites(
+    /// Iterate induced lifetime sites in component order.
+    pub(in crate::check) fn induced_lifetime_sites(
         &self,
-    ) -> impl Iterator<Item = &GenericInductionSite> + '_ {
-        self.induction_sites.iter()
-    }
-
-    /// Mark one variable as able to induce a template generic.
-    pub(in crate::check) fn insert_induction(
-        &mut self,
-        variable: dir::TypeVariableId,
-        parameter: GenericInductionParameter,
-    ) -> CompilerResult<()> {
-        let previous = self.inductions.insert(variable, parameter);
-
-        if previous.is_some() {
-            return Err(CompilerError::Internal {
-                message: format!("variable {variable:?} has conflicting generic induction"),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Move one variable's induced parameter onto its representative.
-    pub(in crate::check) fn merge_induction(
-        &mut self,
-        variable: dir::TypeVariableId,
-        target: dir::TypeVariableId,
-    ) {
-        let Some(induction) = self.inductions.swap_remove(&variable) else {
-            return;
-        };
-        self.inductions.entry(target).or_insert(induction);
-    }
-
-    /// Return the generic parameter induced by one variable.
-    pub(in crate::check) fn induction(
-        &self,
-        variable: dir::TypeVariableId,
-    ) -> Option<GenericInductionParameter> {
-        self.inductions.get(&variable).copied()
+    ) -> impl Iterator<Item = &InducedLifetimeSite> + '_ {
+        self.induced_lifetime_sites.iter()
     }
 }
 
@@ -204,6 +151,18 @@ impl CheckState<'_> {
         }
 
         None
+    }
+
+    /// Return the canonical type denoting one generic parameter.
+    pub(in crate::check) fn generic_parameter_type(
+        &self,
+        id: GenericParameterId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.generic_parameter(id)
+            .map(|parameter| parameter.ty)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("generic parameter {id:?} is not bound"),
+            })
     }
 
     /// Collect one template's parameter ids in declaration order.
@@ -287,7 +246,7 @@ impl CheckState<'_> {
 
     /// Return applied generic argument bindings for one ordered parameter list.
     pub(in crate::check) fn generic_argument_bindings(
-        &self,
+        &mut self,
         parameters: &[GenericParameterId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
@@ -301,19 +260,18 @@ impl CheckState<'_> {
             });
         }
 
-        let bindings = parameters
-            .iter()
-            .copied()
-            .zip(arguments.iter().copied())
-            .map(|(parameter, argument)| dir::GenericArgumentBinding::new(parameter, argument))
-            .collect();
+        let mut bindings = Vec::with_capacity(parameters.len());
+        for (parameter, argument) in parameters.iter().copied().zip(arguments.iter().copied()) {
+            let argument = self.generic_argument(parameter, argument)?;
+            bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
+        }
 
         Ok(bindings)
     }
 
     /// Return applied generic argument bindings for one symbol template.
     pub(in crate::check) fn symbol_generic_argument_bindings(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
@@ -329,6 +287,34 @@ impl CheckState<'_> {
         let parameters = self.generic_template_parameters(template);
 
         self.generic_argument_bindings(&parameters, arguments)
+    }
+
+    /// Return one finalized generic argument.
+    fn generic_argument(
+        &mut self,
+        parameter: GenericParameterId,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let argument = self.settled_root(argument)?;
+        let Some(variable) = self.root_variable(argument)? else {
+            return Ok(argument);
+        };
+
+        // preserve selected declaration parameters that did not receive evidence
+        let state = self.solver.variable(variable)?;
+        if !state.lower.is_empty() || state.default.is_some() {
+            return Ok(argument);
+        }
+        if state.role.is_inference() {
+            let Some(binding) = self.generic_parameter(parameter) else {
+                return Ok(argument);
+            };
+            if !matches!(binding.origin, dir::GenericParameterOrigin::InducedLifetime) {
+                return Ok(argument);
+            }
+        }
+
+        self.generic_parameter_type(parameter)
     }
 
     /// Open the generic template at one source node.
@@ -377,11 +363,18 @@ impl CheckState<'_> {
     /// Push one generic parameter onto its template.
     pub(in crate::check) fn push_generic_parameter(
         &mut self,
-        binding: dir::GenericParameterBinding,
         template: GenericTemplateId,
         symbol: Option<dir::GlobalSymbolId>,
+        key: dir::GenericParameterKey,
+        variance: Option<dir::VarianceModifier>,
+        constraint: Option<dir::GlobalTypeId>,
+        default: Option<dir::GlobalTypeId>,
+        origin: dir::GenericParameterOrigin,
+        is_variadic: bool,
+        is_const: bool,
+        is_comptime: bool,
     ) -> CompilerResult<GenericParameterId> {
-        // allocate the parameter in its template's working segment
+        // precompute the parameter id before allocating its canonical type
         let module = template.module_id;
         let working = self
             .modules
@@ -389,8 +382,35 @@ impl CheckState<'_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check module {module:?} has no working generics"),
             })?;
-        let local = working.generics.push_template_parameter(binding);
+        let local = dir::LocalGenericParameterId::new(working.generics.parameter_count());
         let id = local.into_global(module);
+        let ty = working
+            .types_tail
+            .intern_type(dir::Type::Parameter(id), dir::TypeFlags::EMPTY)
+            .into_global(module);
+        let binding = dir::GenericParameterBinding {
+            template: template.local_id,
+            ty,
+            key,
+            variance,
+            constraint,
+            default,
+            origin,
+            is_variadic,
+            is_const,
+            is_comptime,
+        };
+
+        // allocate the parameter in its template's working segment
+        let local = working.generics.push_template_parameter(binding);
+        if local != id.local_id {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "generic parameter allocation changed from {:?} to {:?}",
+                    id.local_id, local
+                ),
+            });
+        }
 
         if let Some(symbol) = symbol {
             self.generics.parameters_by_symbol.insert(symbol, id);
@@ -399,12 +419,18 @@ impl CheckState<'_> {
         Ok(id)
     }
 
-    /// Push one induced generic parameter.
-    pub(in crate::check) fn push_induced_generic_parameter(
+    /// Push one induced lifetime parameter.
+    pub(in crate::check) fn push_induced_lifetime_parameter(
         &mut self,
         template: GenericTemplateId,
-        parameter: GenericInductionParameter,
+        role: VariableRole,
     ) -> CompilerResult<GenericParameterId> {
+        let VariableRole::Lifetime { constraint } = role else {
+            return Err(CompilerError::Internal {
+                message: "ordinary inference variable cannot become a lifetime parameter".into(),
+            });
+        };
+
         // generate the parameter name from its template position
         let number = self
             .generic_template(template)
@@ -412,21 +438,20 @@ impl CheckState<'_> {
         let name = self
             .module_mut(template.module_id)
             .strings
-            .intern(&format!("{}{number}", parameter.name_prefix));
+            .intern(&format!("L{number}"));
 
-        let binding = dir::GenericParameterBinding {
-            template: template.local_id,
-            key: dir::GenericParameterKey::Generated(name),
-            origin: dir::GenericParameterOrigin::Induced(parameter.induction),
-            variance: None,
-            constraint: parameter.constraint,
-            default: None,
-            is_variadic: false,
-            is_const: false,
-            is_comptime: parameter.is_comptime,
-        };
-
-        self.push_generic_parameter(binding, template, None)
+        self.push_generic_parameter(
+            template,
+            None,
+            dir::GenericParameterKey::Generated(name),
+            None,
+            constraint,
+            None,
+            dir::GenericParameterOrigin::InducedLifetime,
+            false,
+            false,
+            true,
+        )
     }
 }
 

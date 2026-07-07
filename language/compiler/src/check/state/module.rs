@@ -441,7 +441,14 @@ impl CheckState<'_> {
         use_: ValueUse,
     ) -> CompilerResult<Answer<()>> {
         let source = answer!(self.node_type_at(site)?);
-        self.push_constraint(Constraint::value(relation, source, target, origin, use_));
+        self.push_constraint(Constraint::value(
+            relation,
+            source,
+            target,
+            origin,
+            origin,
+            Some(use_),
+        ));
 
         Ok(Answer::Ready(()))
     }
@@ -544,7 +551,7 @@ impl CheckState<'_> {
         };
 
         if let Some(existing) = existing {
-            self.push_constraint(Constraint::check(
+            self.push_constraint(Constraint::r#type(
                 Relation::Equal,
                 existing,
                 ty,

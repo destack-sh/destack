@@ -160,7 +160,7 @@ impl ConstraintCheck {
 
 impl Constraint {
     /// Create a pure relation between two types.
-    pub(in crate::check) fn type_relation(
+    pub(in crate::check) fn r#type(
         relation: Relation,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,

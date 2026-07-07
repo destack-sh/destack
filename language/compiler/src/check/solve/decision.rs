@@ -92,10 +92,12 @@ impl DecisionTable {
     ) -> CompilerResult<bool> {
         match self.decisions.get(&node) {
             // collapse identical re-derivations
-            Some(previous) if previous == &decision => Ok(false),
+            Some(previous) if *previous == decision => Ok(false),
             // a node must decide exactly once
-            Some(_) => Err(CompilerError::Internal {
-                message: format!("check node {message} was decided twice"),
+            Some(previous) => Err(CompilerError::Internal {
+                message: format!(
+                    "check node {message} was decided twice: previous = {previous:?}, new = {decision:?}",
+                ),
             }),
             // insert the first decision
             None => {

@@ -3,7 +3,7 @@ use indexmap::IndexSet;
 
 use crate::check::{
     Answer, BindSource, CheckEvent, CheckState, Constraint, ConstraintCheck, ConstraintId,
-    Dependency, ExpectedType, Origin, PlaceUse, SolveMode, Task, Widening, answer,
+    Dependency, ExpectedType, Origin, PlaceUse, Task, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -37,12 +37,7 @@ impl CheckState<'_> {
                 steps += 1;
             }
 
-            // after the regular queue drains, apply one weak solution
-            // and let any strong work it wakes run before the next
-            let Some(variable) = self.solver.pop_weak_solve() else {
-                break;
-            };
-            self.solve_variable(variable, SolveMode::Weak)?;
+            break;
         }
 
         // report work still parked after every solve path has run
@@ -148,7 +143,7 @@ impl CheckState<'_> {
             Task::Relate(constraint) => self.run_relate(*constraint),
             Task::Propagate(propagation) => self.run_propagate(propagation.clone()),
             Task::Oblige(obligation) => self.run_obligation(*obligation),
-            Task::Solve(variable) => self.run_solve(*variable),
+            Task::Solve { variable, mode } => self.run_solve(*variable, *mode),
             Task::Infer { site, use_ } => self.infer_node(*site, *use_),
             Task::Check {
                 site,
@@ -173,7 +168,7 @@ impl CheckState<'_> {
 
         let constraint = self.solver.constraints.get(id)?.clone();
         let check = match &constraint {
-            Constraint::Check(constraint) => self.check_type_constraint(
+            Constraint::Type(constraint) => self.check_type_constraint(
                 constraint.origin,
                 constraint.relation,
                 constraint.subject,
@@ -182,9 +177,11 @@ impl CheckState<'_> {
             )?,
             Constraint::Value(constraint) => self.check_value_constraint(
                 constraint.origin,
+                constraint.value_origin,
                 constraint.relation,
                 constraint.source,
                 constraint.target,
+                constraint.use_,
             )?,
         };
 

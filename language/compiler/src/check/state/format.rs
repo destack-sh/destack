@@ -617,6 +617,16 @@ impl CheckState<'_> {
         module: Option<ModuleId>,
         symbol: dir::GlobalSymbolId,
     ) -> String {
+        if let Some(name) = self.language_item_symbol_name(symbol) {
+            return name;
+        }
+
+        if let Some(name) =
+            module.and_then(|module| self.visible_global_symbol_name(module, symbol))
+        {
+            return name;
+        }
+
         let path = self.format_symbol_path(symbol);
         if module.is_some_and(|module| module == symbol.module_id) {
             return path;
@@ -626,6 +636,42 @@ impl CheckState<'_> {
             Some(_) => format!("{}.{}", self.format_module_label(symbol.module_id), path),
             None => path,
         }
+    }
+
+    /// Return the compact language item name for one symbol.
+    fn language_item_symbol_name(&self, symbol: dir::GlobalSymbolId) -> Option<String> {
+        let item = self.environment.language.item(symbol)?;
+        let key = item.key();
+
+        if let Some((_, name)) = key.rsplit_once('.') {
+            Some(name.to_string())
+        } else {
+            Some(key)
+        }
+    }
+
+    /// Return the visible global name for one imported symbol.
+    fn visible_global_symbol_name(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<String> {
+        let imports = &self.module(module).resolved.imports;
+
+        // use only unambiguous global symbol imports
+        imports
+            .global_target_by_key
+            .iter()
+            .find_map(|(key, targets)| {
+                let [dir::ImportTarget::Symbol(target)] = targets.as_slice() else {
+                    return None;
+                };
+                if *target == symbol {
+                    Some(self.format_static_key(key))
+                } else {
+                    None
+                }
+            })
     }
 
     /// Format one local symbol path without duplicate suffixes.
