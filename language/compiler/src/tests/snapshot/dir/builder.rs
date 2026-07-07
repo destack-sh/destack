@@ -47,6 +47,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) foreign_bindings: BTreeMap<ModuleId, dir::BindingTable<'a>>,
     /// Foreign generic tables keyed by module.
     pub(super) foreign_generics: BTreeMap<ModuleId, dir::GenericTable<'static>>,
+    /// Foreign definition tables keyed by module.
+    pub(super) foreign_definitions: BTreeMap<ModuleId, dir::DefinitionTable<'static>>,
     /// Foreign type tables keyed by module.
     pub(super) foreign_types: BTreeMap<ModuleId, dir::TypeTable<'static>>,
     /// Foreign static tables keyed by module.
@@ -94,6 +96,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             module_path_by_id: None,
             foreign_bindings: BTreeMap::new(),
             foreign_generics: BTreeMap::new(),
+            foreign_definitions: BTreeMap::new(),
             foreign_types: BTreeMap::new(),
             foreign_statics: BTreeMap::new(),
             foreign_symbol_labels: RefCell::new(BTreeMap::new()),
@@ -128,14 +131,17 @@ impl<'a> DirSnapshotBuilder<'a> {
         mut self,
         foreign_tables: Vec<(
             Option<dir::GenericTable<'static>>,
+            dir::DefinitionTable<'static>,
             dir::TypeTable<'static>,
             dir::StaticTable<'static>,
         )>,
     ) -> Self {
-        for (generics, types, statics) in foreign_tables {
+        for (generics, definitions, types, statics) in foreign_tables {
             if let Some(generics) = generics {
                 self.foreign_generics.insert(generics.module_id, generics);
             }
+            self.foreign_definitions
+                .insert(definitions.module_id, definitions);
             self.foreign_types.insert(types.module_id, types);
             self.foreign_statics.insert(statics.module_id, statics);
         }
@@ -511,19 +517,18 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Return whether one local symbol has no source name.
     pub(crate) fn is_anonymous_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        if symbol_id.module_id != self.tree.module_id {
-            return false;
+        if symbol_id.module_id == self.tree.module_id {
+            return self.symbol(symbol_id.local_id).name().is_none();
         }
 
-        self.symbol(symbol_id.local_id).name().is_none()
+        self.foreign_bindings
+            .get(&symbol_id.module_id)
+            .is_some_and(|bindings| bindings.get_symbol(symbol_id.local_id).name().is_none())
     }
 
     /// Render one anonymous extension path segment.
     pub(crate) fn anonymous_extension_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
-        let definitions = self
-            .definitions
-            .as_ref()
-            .unwrap_or_else(|| panic!("dir snapshot needs definitions"));
+        let definitions = self.definition_table(symbol_id.module_id);
         let mut index = 0;
 
         // count anonymous extensions in definition order
@@ -543,6 +548,12 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         panic!("dir snapshot missing anonymous extension {symbol_id:?}");
+    }
+
+    /// Return one visible checked definition.
+    pub(crate) fn definition(&self, symbol_id: dir::GlobalSymbolId) -> Option<&dir::Definition> {
+        self.definition_table(symbol_id.module_id)
+            .definition(symbol_id)
     }
 
     /// Render the declaration source for one local symbol.
@@ -1128,6 +1139,20 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.binding_names
             .as_ref()
             .unwrap_or_else(|| panic!("dir snapshot needs binding names"))
+    }
+
+    /// Return the checked definition table for one visible module.
+    fn definition_table(&self, module_id: ModuleId) -> &dir::DefinitionTable<'static> {
+        if module_id == self.tree.module_id {
+            return self
+                .definitions
+                .as_ref()
+                .unwrap_or_else(|| panic!("dir snapshot needs definitions"));
+        }
+
+        self.foreign_definitions
+            .get(&module_id)
+            .unwrap_or_else(|| panic!("dir snapshot needs foreign definitions for {module_id:?}"))
     }
 
     /// Return the active binding table.

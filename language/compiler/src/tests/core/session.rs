@@ -966,6 +966,7 @@ impl TestSession {
         entry: &TestModule,
     ) -> Vec<(
         Option<dir::GenericTable<'static>>,
+        dir::DefinitionTable<'static>,
         dir::TypeTable<'static>,
         dir::StaticTable<'static>,
     )> {
@@ -989,10 +990,11 @@ impl TestSession {
                     .expect("test external expanded artifact should exist");
                 let checked = self.dir_checked_module(module_id, entry.profile);
                 let generics = checked.generic_table();
+                let definitions = dir::DefinitionTable::from_segment(checked.definitions.clone());
                 let types = checked.type_table(&bound, &expanded);
                 let statics = checked.static_table(&bound, &expanded);
 
-                (Some(generics), types, statics)
+                (Some(generics), definitions, types, statics)
             })
             .collect()
     }

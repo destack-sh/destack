@@ -1098,6 +1098,7 @@ fn adjustments_label(adjustments: &[dir::Projection]) -> Option<String> {
         .map(|projection| match projection {
             dir::Projection::Dereference { .. } => "dereference",
             dir::Projection::NewtypePayload { .. } => "backing",
+            dir::Projection::DynamicPayload { .. } => "dynamic",
             dir::Projection::Borrow { .. } => "borrow",
             other => panic!("receiver adjustments never project {other:?}"),
         })
@@ -1447,11 +1448,7 @@ fn call_candidate_owner_label(
     arguments: &[dir::GlobalTypeId],
     bindings: &[dir::GenericArgumentBinding],
 ) -> String {
-    let Some(dir::Definition::Extension(extension)) = builder
-        .definitions
-        .as_ref()
-        .and_then(|definitions| definitions.definition(owner))
-    else {
+    let Some(dir::Definition::Extension(extension)) = builder.definition(owner) else {
         return match arguments {
             [] => builder.symbol_path_label(owner),
             _ => builder.generic_instance_label(owner, arguments),
@@ -1572,7 +1569,10 @@ fn call_candidate_member_label(
     let owner = builder.symbol_path_label(owner);
     let symbol = builder.symbol_path_label(symbol);
     let Some(member) = symbol.strip_prefix(&format!("{owner}.")) else {
-        return symbol;
+        return symbol
+            .rsplit_once('.')
+            .map(|(_, member)| member.to_string())
+            .unwrap_or(symbol);
     };
 
     member.to_string()
