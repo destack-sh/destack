@@ -1,8 +1,10 @@
 use destack_dir as dir;
 
-use crate::check::{ConstraintId, FlowSite, ObligationId, Origin, Relation, ValueUse, Widening};
+use crate::check::{
+    BoundMode, ConstraintId, FlowSite, ObligationId, Origin, Relation, ValueUse, Widening,
+};
 
-const TASK_PRIORITY_COUNT: usize = 7;
+const TASK_PRIORITY_COUNT: usize = 8;
 
 /// One syntactic use of a place expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -34,7 +36,12 @@ pub(in crate::check) enum Task {
     /// Check one deferred obligation.
     Oblige(ObligationId),
     /// Solve one variable from its bounds.
-    Solve(dir::TypeVariableId),
+    Solve {
+        /// The variable to solve.
+        variable: dir::TypeVariableId,
+        /// The weakest bounds allowed to choose a solution.
+        mode: BoundMode,
+    },
     /// Infer one expression occurrence.
     Infer {
         /// The inferred source use.
@@ -87,7 +94,14 @@ impl Task {
             Self::Check { .. } => TaskPriority::Check,
             Self::Infer { .. } => TaskPriority::Infer,
             Self::Bind { .. } => TaskPriority::Bind,
-            Self::Solve(_) => TaskPriority::Solve,
+            Self::Solve {
+                mode: BoundMode::Strong,
+                ..
+            } => TaskPriority::Solve,
+            Self::Solve {
+                mode: BoundMode::Weak,
+                ..
+            } => TaskPriority::WeakSolve,
             Self::Oblige(_) => TaskPriority::Oblige,
         }
     }
@@ -98,7 +112,7 @@ impl Task {
             Self::Relate(_) => "relate",
             Self::Propagate(_) => "propagate",
             Self::Oblige(_) => "oblige",
-            Self::Solve(_) => "solve",
+            Self::Solve { .. } => "solve",
             Self::Infer { .. } => "infer",
             Self::Check { .. } => "check",
             Self::Bind { .. } => "bind",
@@ -111,7 +125,7 @@ impl Task {
             Self::Infer { site, .. } => Some(site.node),
             Self::Check { site, .. } => Some(site.node),
             Self::Propagate(propagation) => Some(propagation.source),
-            Self::Relate(_) | Self::Oblige(_) | Self::Solve(_) | Self::Bind { .. } => None,
+            Self::Relate(_) | Self::Oblige(_) | Self::Solve { .. } | Self::Bind { .. } => None,
         }
     }
 
@@ -138,7 +152,7 @@ impl Task {
             Self::Relate(_)
             | Self::Propagate(_)
             | Self::Oblige(_)
-            | Self::Solve(_)
+            | Self::Solve { .. }
             | Self::Bind { .. } => None,
         }
     }
@@ -161,6 +175,8 @@ enum TaskPriority {
     Solve,
     /// Obligations run after inference and solving.
     Oblige,
+    /// Weak variable solving runs after every regular task drains.
+    WeakSolve,
 }
 
 impl TaskPriority {
@@ -174,6 +190,7 @@ impl TaskPriority {
             Self::Bind,
             Self::Solve,
             Self::Oblige,
+            Self::WeakSolve,
         ]
     }
 
@@ -187,6 +204,7 @@ impl TaskPriority {
             Self::Bind => 4,
             Self::Solve => 5,
             Self::Oblige => 6,
+            Self::WeakSolve => 7,
         }
     }
 }

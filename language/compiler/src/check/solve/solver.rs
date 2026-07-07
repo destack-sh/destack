@@ -35,8 +35,6 @@ pub(in crate::check) struct Solver {
 
     /// Tasks parked on unresolved dependencies.
     waiters: IndexMap<Dependency, SmallVec<[Task; 2]>>,
-    /// Variables whose weak solutions wait until the regular queue drains.
-    weak_solves: IndexSet<dir::TypeVariableId>,
     /// Completed source typing task keys.
     completed_keys: IndexSet<TaskKey>,
     /// Undo entries recorded by active snapshots.
@@ -48,6 +46,8 @@ pub(in crate::check) struct Solver {
 /// Snapshot of solver state before one probe.
 #[derive(Debug)]
 pub(in crate::check) struct SolverSnapshot {
+    /// The next variable id before the probe.
+    next_variable: u32,
     /// The next constraint id before the probe.
     next_constraint: u32,
     /// The next obligation id before the probe.
@@ -112,21 +112,10 @@ impl Solver {
             obligations: ObligationTable::new(),
             opened_substitutions: IndexMap::new(),
             waiters: IndexMap::new(),
-            weak_solves: IndexSet::new(),
             completed_keys: IndexSet::new(),
             undo: Vec::new(),
             snapshot_depth: 0,
         }
-    }
-
-    /// Defer one variable's weak solution until the regular queue drains.
-    pub(in crate::check) fn defer_weak_solve(&mut self, variable: dir::TypeVariableId) {
-        self.weak_solves.insert(variable);
-    }
-
-    /// Take the next variable whose weak solution can run after the regular queue drains.
-    pub(in crate::check) fn pop_weak_solve(&mut self) -> Option<dir::TypeVariableId> {
-        self.weak_solves.shift_remove_index(0)
     }
 
     /// Snapshot the solver before one probe.
@@ -135,6 +124,7 @@ impl Solver {
 
         SolverSnapshot {
             next_constraint: self.next_constraint,
+            next_variable: self.next_variable,
             next_obligation: self.next_obligation,
             queue: self.queue.mark(),
             undo: self.undo.len(),
@@ -154,6 +144,7 @@ impl Solver {
         self.queue.rollback(snapshot.queue);
         self.remove_constraints_from(snapshot.next_constraint);
         self.remove_obligations_from(snapshot.next_obligation);
+        self.next_variable = snapshot.next_variable;
         self.next_constraint = snapshot.next_constraint;
         self.next_obligation = snapshot.next_obligation;
         self.snapshot_depth -= 1;
@@ -457,5 +448,12 @@ impl Solver {
         for index in next..self.next_obligation {
             self.obligations.remove(ObligationId::at(index as usize));
         }
+    }
+}
+
+impl SolverSnapshot {
+    /// Return whether one variable existed before this snapshot.
+    pub(in crate::check) fn contains_variable(&self, variable: dir::TypeVariableId) -> bool {
+        variable.0 < self.next_variable
     }
 }

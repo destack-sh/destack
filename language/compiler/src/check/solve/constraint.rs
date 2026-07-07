@@ -22,13 +22,13 @@ impl ConstraintId {
 /// One solver constraint.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Constraint {
-    /// Pure type relation without a value constraint.
-    Check(TypeConstraint),
-    /// Runtime value checked against a target type.
+    /// Pure relation between two types.
+    Type(TypeConstraint),
+    /// Relation between one source value occurrence and one target type.
     Value(ValueConstraint),
 }
 
-/// Pure type relation without a value constraint.
+/// Pure relation between two types.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct TypeConstraint {
     /// The relation to enforce.
@@ -43,7 +43,7 @@ pub(in crate::check) struct TypeConstraint {
     pub(in crate::check) subject: Option<ConstraintSubject>,
 }
 
-/// Relation attached to a runtime value use.
+/// Relation between one source value occurrence and one target type.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct ValueConstraint {
     /// The relation to enforce.
@@ -52,10 +52,12 @@ pub(in crate::check) struct ValueConstraint {
     pub(in crate::check) source: dir::GlobalTypeId,
     /// The target value type.
     pub(in crate::check) target: dir::GlobalTypeId,
-    /// The source that produced the value.
+    /// The source value occurrence used for value materialization.
+    pub(in crate::check) value_origin: Origin,
+    /// The source that produced the relation.
     pub(in crate::check) origin: Origin,
-    /// The checked value use.
-    pub(in crate::check) use_: ValueUse,
+    /// The checked value role.
+    pub(in crate::check) use_: Option<ValueUse>,
 }
 
 /// Source subject blamed by one type constraint.
@@ -157,14 +159,14 @@ impl ConstraintCheck {
 }
 
 impl Constraint {
-    /// Create a pure type relation.
-    pub(in crate::check) fn check(
+    /// Create a pure relation between two types.
+    pub(in crate::check) fn type_relation(
         relation: Relation,
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
         origin: Origin,
     ) -> Self {
-        Self::Check(TypeConstraint {
+        Self::Type(TypeConstraint {
             relation,
             left,
             right,
@@ -178,13 +180,15 @@ impl Constraint {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
+        value_origin: Origin,
         origin: Origin,
-        use_: ValueUse,
+        use_: Option<ValueUse>,
     ) -> Self {
         Self::Value(ValueConstraint {
             relation,
             source,
             target,
+            value_origin,
             origin,
             use_,
         })
@@ -193,7 +197,7 @@ impl Constraint {
     /// Return the relation to enforce.
     pub(in crate::check) fn relation(&self) -> Relation {
         match self {
-            Self::Check(constraint) => constraint.relation,
+            Self::Type(constraint) => constraint.relation,
             Self::Value(constraint) => constraint.relation,
         }
     }
@@ -201,7 +205,7 @@ impl Constraint {
     /// Return the left operand, the source for directed relations.
     pub(in crate::check) fn left(&self) -> dir::GlobalTypeId {
         match self {
-            Self::Check(constraint) => constraint.left,
+            Self::Type(constraint) => constraint.left,
             Self::Value(constraint) => constraint.source,
         }
     }
@@ -209,7 +213,7 @@ impl Constraint {
     /// Return the right operand, the target for directed relations.
     pub(in crate::check) fn right(&self) -> dir::GlobalTypeId {
         match self {
-            Self::Check(constraint) => constraint.right,
+            Self::Type(constraint) => constraint.right,
             Self::Value(constraint) => constraint.target,
         }
     }
@@ -217,7 +221,7 @@ impl Constraint {
     /// Return the source that produced the relation.
     pub(in crate::check) fn origin(&self) -> Origin {
         match self {
-            Self::Check(constraint) => constraint.origin,
+            Self::Type(constraint) => constraint.origin,
             Self::Value(constraint) => constraint.origin,
         }
     }
@@ -225,8 +229,8 @@ impl Constraint {
     /// Return the checked value use when this relation is a value constraint.
     pub(in crate::check) fn value_use(&self) -> Option<ValueUse> {
         match self {
-            Self::Check(_) => None,
-            Self::Value(constraint) => Some(constraint.use_),
+            Self::Type(_) => None,
+            Self::Value(constraint) => constraint.use_,
         }
     }
 }
