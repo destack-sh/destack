@@ -17,7 +17,14 @@ from destack.protocol.serde import (
 
 import destack._generated.core.bitset
 import destack._generated.mir.analyses.link_graph
-import destack._generated.mir.tree.patch
+import destack._generated.mir.table.dispatch
+import destack._generated.mir.table.drop
+import destack._generated.mir.table.effect
+import destack._generated.mir.table.layout
+import destack._generated.mir.table.memory
+import destack._generated.mir.table.profile
+import destack._generated.mir.table.target
+import destack._generated.mir.table.type
 import destack._generated.mir.tree.symbol
 import destack._generated.mir.tree.tree
 
@@ -28,6 +35,22 @@ class MirLowered:
 
     # the MIR tree
     tree: destack._generated.mir.tree.tree.Tree
+    # target ABI layout
+    target: destack._generated.mir.table.target.TargetLayout
+    # canonical MIR type table
+    types: destack._generated.mir.table.type.TypeTable
+    # canonical MIR layout table
+    layouts: destack._generated.mir.table.layout.LayoutTable
+    # canonical MIR dispatch table
+    dispatch: destack._generated.mir.table.dispatch.DispatchTable
+    # canonical MIR drop table
+    drops: destack._generated.mir.table.drop.DropTable
+    # explicit MIR memory access table
+    memory: destack._generated.mir.table.memory.MemoryTable
+    # function and call effect table
+    effects: destack._generated.mir.table.effect.EffectTable
+    # static profile counter table
+    profile: destack._generated.mir.table.profile.ProfileTable
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -51,14 +74,38 @@ class MirLowered:
 def encode_mir_lowered(writer: BinaryWriter, value: MirLowered) -> None:
     """Encode one MirLowered."""
     destack._generated.mir.tree.tree.encode_tree(writer, value.tree)
+    destack._generated.mir.table.target.encode_target_layout(writer, value.target)
+    destack._generated.mir.table.type.encode_type_table(writer, value.types)
+    destack._generated.mir.table.layout.encode_layout_table(writer, value.layouts)
+    destack._generated.mir.table.dispatch.encode_dispatch_table(writer, value.dispatch)
+    destack._generated.mir.table.drop.encode_drop_table(writer, value.drops)
+    destack._generated.mir.table.memory.encode_memory_table(writer, value.memory)
+    destack._generated.mir.table.effect.encode_effect_table(writer, value.effects)
+    destack._generated.mir.table.profile.encode_profile_table(writer, value.profile)
 
 
 def decode_mir_lowered(reader: BinaryReader) -> MirLowered:
     """Decode one MirLowered."""
     tree = destack._generated.mir.tree.tree.decode_tree(reader)
+    target = destack._generated.mir.table.target.decode_target_layout(reader)
+    types = destack._generated.mir.table.type.decode_type_table(reader)
+    layouts = destack._generated.mir.table.layout.decode_layout_table(reader)
+    dispatch = destack._generated.mir.table.dispatch.decode_dispatch_table(reader)
+    drops = destack._generated.mir.table.drop.decode_drop_table(reader)
+    memory = destack._generated.mir.table.memory.decode_memory_table(reader)
+    effects = destack._generated.mir.table.effect.decode_effect_table(reader)
+    profile = destack._generated.mir.table.profile.decode_profile_table(reader)
 
     return MirLowered(
         tree=tree,
+        target=target,
+        types=types,
+        layouts=layouts,
+        dispatch=dispatch,
+        drops=drops,
+        memory=memory,
+        effects=effects,
+        profile=profile,
     )
 
 
@@ -66,6 +113,26 @@ def to_json_mir_lowered(value: MirLowered) -> Json:
     """Return one JSON value for one MirLowered."""
     return {
         "tree": destack._generated.mir.tree.tree.to_json_tree(value.tree),
+        "target": destack._generated.mir.table.target.to_json_target_layout(
+            value.target
+        ),
+        "types": destack._generated.mir.table.type.to_json_type_table(value.types),
+        "layouts": destack._generated.mir.table.layout.to_json_layout_table(
+            value.layouts
+        ),
+        "dispatch": destack._generated.mir.table.dispatch.to_json_dispatch_table(
+            value.dispatch
+        ),
+        "drops": destack._generated.mir.table.drop.to_json_drop_table(value.drops),
+        "memory": destack._generated.mir.table.memory.to_json_memory_table(
+            value.memory
+        ),
+        "effects": destack._generated.mir.table.effect.to_json_effect_table(
+            value.effects
+        ),
+        "profile": destack._generated.mir.table.profile.to_json_profile_table(
+            value.profile
+        ),
     }
 
 
@@ -77,15 +144,55 @@ def from_json_mir_lowered(value: Json) -> MirLowered:
         tree=destack._generated.mir.tree.tree.from_json_tree(
             json_field(object_, "tree")
         ),
+        target=destack._generated.mir.table.target.from_json_target_layout(
+            json_field(object_, "target")
+        ),
+        types=destack._generated.mir.table.type.from_json_type_table(
+            json_field(object_, "types")
+        ),
+        layouts=destack._generated.mir.table.layout.from_json_layout_table(
+            json_field(object_, "layouts")
+        ),
+        dispatch=destack._generated.mir.table.dispatch.from_json_dispatch_table(
+            json_field(object_, "dispatch")
+        ),
+        drops=destack._generated.mir.table.drop.from_json_drop_table(
+            json_field(object_, "drops")
+        ),
+        memory=destack._generated.mir.table.memory.from_json_memory_table(
+            json_field(object_, "memory")
+        ),
+        effects=destack._generated.mir.table.effect.from_json_effect_table(
+            json_field(object_, "effects")
+        ),
+        profile=destack._generated.mir.table.profile.from_json_profile_table(
+            json_field(object_, "profile")
+        ),
     )
 
 
 @dataclass(frozen=True, slots=True)
 class MirVerified:
-    """Verified MIR patch after required semantic verification."""
+    """Verified MIR after required semantic verification."""
 
-    # required verification patch
-    patch: destack._generated.mir.tree.patch.Patch
+    # the verified MIR tree
+    tree: destack._generated.mir.tree.tree.Tree
+    # target ABI layout
+    target: destack._generated.mir.table.target.TargetLayout
+    # canonical MIR type table
+    types: destack._generated.mir.table.type.TypeTable
+    # canonical MIR layout table
+    layouts: destack._generated.mir.table.layout.LayoutTable
+    # canonical MIR dispatch table
+    dispatch: destack._generated.mir.table.dispatch.DispatchTable
+    # canonical MIR drop table
+    drops: destack._generated.mir.table.drop.DropTable
+    # explicit MIR memory access table
+    memory: destack._generated.mir.table.memory.MemoryTable
+    # function and call effect table
+    effects: destack._generated.mir.table.effect.EffectTable
+    # static profile counter table
+    profile: destack._generated.mir.table.profile.ProfileTable
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -108,22 +215,66 @@ class MirVerified:
 
 def encode_mir_verified(writer: BinaryWriter, value: MirVerified) -> None:
     """Encode one MirVerified."""
-    destack._generated.mir.tree.patch.encode_patch(writer, value.patch)
+    destack._generated.mir.tree.tree.encode_tree(writer, value.tree)
+    destack._generated.mir.table.target.encode_target_layout(writer, value.target)
+    destack._generated.mir.table.type.encode_type_table(writer, value.types)
+    destack._generated.mir.table.layout.encode_layout_table(writer, value.layouts)
+    destack._generated.mir.table.dispatch.encode_dispatch_table(writer, value.dispatch)
+    destack._generated.mir.table.drop.encode_drop_table(writer, value.drops)
+    destack._generated.mir.table.memory.encode_memory_table(writer, value.memory)
+    destack._generated.mir.table.effect.encode_effect_table(writer, value.effects)
+    destack._generated.mir.table.profile.encode_profile_table(writer, value.profile)
 
 
 def decode_mir_verified(reader: BinaryReader) -> MirVerified:
     """Decode one MirVerified."""
-    patch = destack._generated.mir.tree.patch.decode_patch(reader)
+    tree = destack._generated.mir.tree.tree.decode_tree(reader)
+    target = destack._generated.mir.table.target.decode_target_layout(reader)
+    types = destack._generated.mir.table.type.decode_type_table(reader)
+    layouts = destack._generated.mir.table.layout.decode_layout_table(reader)
+    dispatch = destack._generated.mir.table.dispatch.decode_dispatch_table(reader)
+    drops = destack._generated.mir.table.drop.decode_drop_table(reader)
+    memory = destack._generated.mir.table.memory.decode_memory_table(reader)
+    effects = destack._generated.mir.table.effect.decode_effect_table(reader)
+    profile = destack._generated.mir.table.profile.decode_profile_table(reader)
 
     return MirVerified(
-        patch=patch,
+        tree=tree,
+        target=target,
+        types=types,
+        layouts=layouts,
+        dispatch=dispatch,
+        drops=drops,
+        memory=memory,
+        effects=effects,
+        profile=profile,
     )
 
 
 def to_json_mir_verified(value: MirVerified) -> Json:
     """Return one JSON value for one MirVerified."""
     return {
-        "patch": destack._generated.mir.tree.patch.to_json_patch(value.patch),
+        "tree": destack._generated.mir.tree.tree.to_json_tree(value.tree),
+        "target": destack._generated.mir.table.target.to_json_target_layout(
+            value.target
+        ),
+        "types": destack._generated.mir.table.type.to_json_type_table(value.types),
+        "layouts": destack._generated.mir.table.layout.to_json_layout_table(
+            value.layouts
+        ),
+        "dispatch": destack._generated.mir.table.dispatch.to_json_dispatch_table(
+            value.dispatch
+        ),
+        "drops": destack._generated.mir.table.drop.to_json_drop_table(value.drops),
+        "memory": destack._generated.mir.table.memory.to_json_memory_table(
+            value.memory
+        ),
+        "effects": destack._generated.mir.table.effect.to_json_effect_table(
+            value.effects
+        ),
+        "profile": destack._generated.mir.table.profile.to_json_profile_table(
+            value.profile
+        ),
     }
 
 
@@ -132,8 +283,32 @@ def from_json_mir_verified(value: Json) -> MirVerified:
     object_ = json_object(value)
 
     return MirVerified(
-        patch=destack._generated.mir.tree.patch.from_json_patch(
-            json_field(object_, "patch")
+        tree=destack._generated.mir.tree.tree.from_json_tree(
+            json_field(object_, "tree")
+        ),
+        target=destack._generated.mir.table.target.from_json_target_layout(
+            json_field(object_, "target")
+        ),
+        types=destack._generated.mir.table.type.from_json_type_table(
+            json_field(object_, "types")
+        ),
+        layouts=destack._generated.mir.table.layout.from_json_layout_table(
+            json_field(object_, "layouts")
+        ),
+        dispatch=destack._generated.mir.table.dispatch.from_json_dispatch_table(
+            json_field(object_, "dispatch")
+        ),
+        drops=destack._generated.mir.table.drop.from_json_drop_table(
+            json_field(object_, "drops")
+        ),
+        memory=destack._generated.mir.table.memory.from_json_memory_table(
+            json_field(object_, "memory")
+        ),
+        effects=destack._generated.mir.table.effect.from_json_effect_table(
+            json_field(object_, "effects")
+        ),
+        profile=destack._generated.mir.table.profile.from_json_profile_table(
+            json_field(object_, "profile")
         ),
     )
 
@@ -142,8 +317,24 @@ def from_json_mir_verified(value: Json) -> MirVerified:
 class MirOptimized:
     """Optimized MIR payload after pipeline transforms."""
 
-    # ordered optimization patches
-    patches: Sequence[destack._generated.mir.tree.patch.Patch]
+    # the optimized MIR tree
+    tree: destack._generated.mir.tree.tree.Tree
+    # target ABI layout
+    target: destack._generated.mir.table.target.TargetLayout
+    # canonical MIR type table
+    types: destack._generated.mir.table.type.TypeTable
+    # canonical MIR layout table
+    layouts: destack._generated.mir.table.layout.LayoutTable
+    # canonical MIR dispatch table
+    dispatch: destack._generated.mir.table.dispatch.DispatchTable
+    # canonical MIR drop table
+    drops: destack._generated.mir.table.drop.DropTable
+    # explicit MIR memory access table
+    memory: destack._generated.mir.table.memory.MemoryTable
+    # function and call effect table
+    effects: destack._generated.mir.table.effect.EffectTable
+    # static profile counter table
+    profile: destack._generated.mir.table.profile.ProfileTable
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -166,30 +357,66 @@ class MirOptimized:
 
 def encode_mir_optimized(writer: BinaryWriter, value: MirOptimized) -> None:
     """Encode one MirOptimized."""
-    writer.write_unsigned(len(value.patches))
-    for item_value_patches_0 in value.patches:
-        destack._generated.mir.tree.patch.encode_patch(writer, item_value_patches_0)
+    destack._generated.mir.tree.tree.encode_tree(writer, value.tree)
+    destack._generated.mir.table.target.encode_target_layout(writer, value.target)
+    destack._generated.mir.table.type.encode_type_table(writer, value.types)
+    destack._generated.mir.table.layout.encode_layout_table(writer, value.layouts)
+    destack._generated.mir.table.dispatch.encode_dispatch_table(writer, value.dispatch)
+    destack._generated.mir.table.drop.encode_drop_table(writer, value.drops)
+    destack._generated.mir.table.memory.encode_memory_table(writer, value.memory)
+    destack._generated.mir.table.effect.encode_effect_table(writer, value.effects)
+    destack._generated.mir.table.profile.encode_profile_table(writer, value.profile)
 
 
 def decode_mir_optimized(reader: BinaryReader) -> MirOptimized:
     """Decode one MirOptimized."""
-    patches = [
-        destack._generated.mir.tree.patch.decode_patch(reader)
-        for _ in range(reader.read_number())
-    ]
+    tree = destack._generated.mir.tree.tree.decode_tree(reader)
+    target = destack._generated.mir.table.target.decode_target_layout(reader)
+    types = destack._generated.mir.table.type.decode_type_table(reader)
+    layouts = destack._generated.mir.table.layout.decode_layout_table(reader)
+    dispatch = destack._generated.mir.table.dispatch.decode_dispatch_table(reader)
+    drops = destack._generated.mir.table.drop.decode_drop_table(reader)
+    memory = destack._generated.mir.table.memory.decode_memory_table(reader)
+    effects = destack._generated.mir.table.effect.decode_effect_table(reader)
+    profile = destack._generated.mir.table.profile.decode_profile_table(reader)
 
     return MirOptimized(
-        patches=patches,
+        tree=tree,
+        target=target,
+        types=types,
+        layouts=layouts,
+        dispatch=dispatch,
+        drops=drops,
+        memory=memory,
+        effects=effects,
+        profile=profile,
     )
 
 
 def to_json_mir_optimized(value: MirOptimized) -> Json:
     """Return one JSON value for one MirOptimized."""
     return {
-        "patches": [
-            destack._generated.mir.tree.patch.to_json_patch(item_0)
-            for item_0 in value.patches
-        ],
+        "tree": destack._generated.mir.tree.tree.to_json_tree(value.tree),
+        "target": destack._generated.mir.table.target.to_json_target_layout(
+            value.target
+        ),
+        "types": destack._generated.mir.table.type.to_json_type_table(value.types),
+        "layouts": destack._generated.mir.table.layout.to_json_layout_table(
+            value.layouts
+        ),
+        "dispatch": destack._generated.mir.table.dispatch.to_json_dispatch_table(
+            value.dispatch
+        ),
+        "drops": destack._generated.mir.table.drop.to_json_drop_table(value.drops),
+        "memory": destack._generated.mir.table.memory.to_json_memory_table(
+            value.memory
+        ),
+        "effects": destack._generated.mir.table.effect.to_json_effect_table(
+            value.effects
+        ),
+        "profile": destack._generated.mir.table.profile.to_json_profile_table(
+            value.profile
+        ),
     }
 
 
@@ -198,10 +425,33 @@ def from_json_mir_optimized(value: Json) -> MirOptimized:
     object_ = json_object(value)
 
     return MirOptimized(
-        patches=[
-            destack._generated.mir.tree.patch.from_json_patch(item_0)
-            for item_0 in json_array(json_field(object_, "patches"))
-        ],
+        tree=destack._generated.mir.tree.tree.from_json_tree(
+            json_field(object_, "tree")
+        ),
+        target=destack._generated.mir.table.target.from_json_target_layout(
+            json_field(object_, "target")
+        ),
+        types=destack._generated.mir.table.type.from_json_type_table(
+            json_field(object_, "types")
+        ),
+        layouts=destack._generated.mir.table.layout.from_json_layout_table(
+            json_field(object_, "layouts")
+        ),
+        dispatch=destack._generated.mir.table.dispatch.from_json_dispatch_table(
+            json_field(object_, "dispatch")
+        ),
+        drops=destack._generated.mir.table.drop.from_json_drop_table(
+            json_field(object_, "drops")
+        ),
+        memory=destack._generated.mir.table.memory.from_json_memory_table(
+            json_field(object_, "memory")
+        ),
+        effects=destack._generated.mir.table.effect.from_json_effect_table(
+            json_field(object_, "effects")
+        ),
+        profile=destack._generated.mir.table.profile.from_json_profile_table(
+            json_field(object_, "profile")
+        ),
     )
 
 

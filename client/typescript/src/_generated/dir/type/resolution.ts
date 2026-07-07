@@ -3,21 +3,35 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StaticKey } from "../symbol/key.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { ClassConstructor } from "../table/definition.js";
 import type { ScalarLiteral } from "../tree/literal.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { BinaryOperator } from "../tree/operator.js";
-import type { RangeEnd } from "../tree/operator.js";
 import type { UnaryOperator } from "../tree/operator.js";
-import type { Access } from "./type.js";
+import type { ArgumentBinding } from "./generic.js";
+import type { GenericArgumentBinding } from "./generic.js";
+import type { Predicate } from "./predicate.js";
+import type { Projection } from "./projection.js";
+import type { DereferenceOperation } from "./projection.js";
+import type { ProjectionField } from "./projection.js";
+import type { SubscriptOperation } from "./projection.js";
+import type { VariantCase } from "./projection.js";
 import type { GlobalTypeId } from "./type.js";
 import { decodeStaticKey, encodeStaticKey, fromJsonStaticKey, toJsonStaticKey } from "../symbol/key.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeClassConstructor, encodeClassConstructor, fromJsonClassConstructor, toJsonClassConstructor } from "../table/definition.js";
 import { decodeScalarLiteral, encodeScalarLiteral, fromJsonScalarLiteral, toJsonScalarLiteral } from "../tree/literal.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeBinaryOperator, encodeBinaryOperator, fromJsonBinaryOperator, toJsonBinaryOperator } from "../tree/operator.js";
-import { decodeRangeEnd, encodeRangeEnd, fromJsonRangeEnd, toJsonRangeEnd } from "../tree/operator.js";
 import { decodeUnaryOperator, encodeUnaryOperator, fromJsonUnaryOperator, toJsonUnaryOperator } from "../tree/operator.js";
-import { decodeAccess, encodeAccess, fromJsonAccess, toJsonAccess } from "./type.js";
+import { decodeArgumentBinding, encodeArgumentBinding, fromJsonArgumentBinding, toJsonArgumentBinding } from "./generic.js";
+import { decodeGenericArgumentBinding, encodeGenericArgumentBinding, fromJsonGenericArgumentBinding, toJsonGenericArgumentBinding } from "./generic.js";
+import { decodePredicate, encodePredicate, fromJsonPredicate, toJsonPredicate } from "./predicate.js";
+import { decodeProjection, encodeProjection, fromJsonProjection, toJsonProjection } from "./projection.js";
+import { decodeDereferenceOperation, encodeDereferenceOperation, fromJsonDereferenceOperation, toJsonDereferenceOperation } from "./projection.js";
+import { decodeProjectionField, encodeProjectionField, fromJsonProjectionField, toJsonProjectionField } from "./projection.js";
+import { decodeSubscriptOperation, encodeSubscriptOperation, fromJsonSubscriptOperation, toJsonSubscriptOperation } from "./projection.js";
+import { decodeVariantCase, encodeVariantCase, fromJsonVariantCase, toJsonVariantCase } from "./projection.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
 
 /** Target selected by lexical or path lookup. */
@@ -78,6 +92,74 @@ export function fromJsonNameResolution(value: Json): NameResolution {
 
     return {
         symbols: jsonArray(jsonField(object, "symbols")).map((item0) => fromJsonGlobalSymbolId(item0)),
+    };
+}
+
+/** Explicit generic application selected at a usage site. */
+export type InstantiationResolution = {
+    /** The generic declaration being applied. */
+    readonly symbol: GlobalSymbolId;
+    /** The complete selected generic argument bindings. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
+};
+
+export const InstantiationResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InstantiationResolution): void {
+        encodeInstantiationResolution(writer, value);
+    },
+
+    /** Decode one InstantiationResolution. */
+    decode(reader: BinaryReader): InstantiationResolution {
+        return decodeInstantiationResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InstantiationResolution): Json {
+        return toJsonInstantiationResolution(value);
+    },
+
+    /** Return one InstantiationResolution from one JSON value. */
+    fromJson(value: Json): InstantiationResolution {
+        return fromJsonInstantiationResolution(value);
+    },
+};
+
+/** Encode one InstantiationResolution. */
+export function encodeInstantiationResolution(writer: BinaryWriter, value: InstantiationResolution): void {
+    encodeGlobalSymbolId(writer, value.symbol);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item1 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item1);
+    }
+}
+
+/** Decode one InstantiationResolution. */
+export function decodeInstantiationResolution(reader: BinaryReader): InstantiationResolution {
+    const symbol_ = decodeGlobalSymbolId(reader);
+    const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
+
+    return {
+        symbol: symbol_,
+        genericArguments,
+    };
+}
+
+/** Return one JSON value for one InstantiationResolution. */
+export function toJsonInstantiationResolution(value: InstantiationResolution): Json {
+    return {
+        symbol: toJsonGlobalSymbolId(value.symbol),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
+    };
+}
+
+/** Return one InstantiationResolution from one JSON value. */
+export function fromJsonInstantiationResolution(value: Json): InstantiationResolution {
+    const object = jsonObject(value);
+
+    return {
+        symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -224,7 +306,7 @@ export type ReceiverResolution = {
     /** The receiver syntax kind. */
     readonly kind: ReceiverKind;
     /** The declaration that introduces the receiver. */
-    readonly owner: GlobalSymbolId;
+    readonly declaration: GlobalSymbolId;
     /** The receiver type after inference. */
     readonly ty: GlobalTypeId;
 };
@@ -254,19 +336,19 @@ export const ReceiverResolution = {
 /** Encode one ReceiverResolution. */
 export function encodeReceiverResolution(writer: BinaryWriter, value: ReceiverResolution): void {
     encodeReceiverKind(writer, value.kind);
-    encodeGlobalSymbolId(writer, value.owner);
+    encodeGlobalSymbolId(writer, value.declaration);
     encodeGlobalTypeId(writer, value.ty);
 }
 
 /** Decode one ReceiverResolution. */
 export function decodeReceiverResolution(reader: BinaryReader): ReceiverResolution {
     const kind = decodeReceiverKind(reader);
-    const owner = decodeGlobalSymbolId(reader);
+    const declaration = decodeGlobalSymbolId(reader);
     const ty = decodeGlobalTypeId(reader);
 
     return {
         kind,
-        owner,
+        declaration,
         ty,
     };
 }
@@ -275,7 +357,7 @@ export function decodeReceiverResolution(reader: BinaryReader): ReceiverResoluti
 export function toJsonReceiverResolution(value: ReceiverResolution): Json {
     return {
         kind: toJsonReceiverKind(value.kind),
-        owner: toJsonGlobalSymbolId(value.owner),
+        declaration: toJsonGlobalSymbolId(value.declaration),
         ty: toJsonGlobalTypeId(value.ty),
     };
 }
@@ -286,7 +368,7 @@ export function fromJsonReceiverResolution(value: Json): ReceiverResolution {
 
     return {
         kind: fromJsonReceiverKind(jsonField(object, "kind")),
-        owner: fromJsonGlobalSymbolId(jsonField(object, "owner")),
+        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
         ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
     };
 }
@@ -675,12 +757,16 @@ export function fromJsonMemberTarget(value: Json): MemberTarget {
 export type MemberCandidate = {
     /** The receiver type that selects this candidate. */
     readonly receiver: GlobalTypeId;
+    /** The projection steps. */
+    readonly adjustments: ReadonlyArray<Projection>;
+    /** The declaration that exposed this member. */
+    readonly owner: GlobalSymbolId;
     /** The selected member symbol. */
     readonly symbol: GlobalSymbolId;
     /** The member type applied to the matched receiver. */
     readonly ty: GlobalTypeId;
-    /** The generic arguments of the member symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
+    /** The selected generic argument bindings needed by this member candidate. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
 };
 
 export const MemberCandidate = {
@@ -708,26 +794,35 @@ export const MemberCandidate = {
 /** Encode one MemberCandidate. */
 export function encodeMemberCandidate(writer: BinaryWriter, value: MemberCandidate): void {
     encodeGlobalTypeId(writer, value.receiver);
+    writer.writeUnsigned(value.adjustments.length);
+    for (const item1 of value.adjustments) {
+        encodeProjection(writer, item1);
+    }
+    encodeGlobalSymbolId(writer, value.owner);
     encodeGlobalSymbolId(writer, value.symbol);
     encodeGlobalTypeId(writer, value.ty);
-    writer.writeUnsigned(value.arguments.length);
-    for (const item3 of value.arguments) {
-        encodeGlobalTypeId(writer, item3);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item5 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item5);
     }
 }
 
 /** Decode one MemberCandidate. */
 export function decodeMemberCandidate(reader: BinaryReader): MemberCandidate {
     const receiver = decodeGlobalTypeId(reader);
+    const adjustments = (() => { const length1 = reader.readNumber(); const items1: Array<Projection> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeProjection(reader)); } return items1; })();
+    const owner = decodeGlobalSymbolId(reader);
     const symbol_ = decodeGlobalSymbolId(reader);
     const ty = decodeGlobalTypeId(reader);
-    const arguments_ = (() => { const length3 = reader.readNumber(); const items3: Array<GlobalTypeId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeGlobalTypeId(reader)); } return items3; })();
+    const genericArguments = (() => { const length5 = reader.readNumber(); const items5: Array<GenericArgumentBinding> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeGenericArgumentBinding(reader)); } return items5; })();
 
     return {
         receiver,
+        adjustments,
+        owner,
         symbol: symbol_,
         ty,
-        arguments: arguments_,
+        genericArguments,
     };
 }
 
@@ -735,9 +830,11 @@ export function decodeMemberCandidate(reader: BinaryReader): MemberCandidate {
 export function toJsonMemberCandidate(value: MemberCandidate): Json {
     return {
         receiver: toJsonGlobalTypeId(value.receiver),
+        adjustments: value.adjustments.map((item0) => toJsonProjection(item0)),
+        owner: toJsonGlobalSymbolId(value.owner),
         symbol: toJsonGlobalSymbolId(value.symbol),
         ty: toJsonGlobalTypeId(value.ty),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -747,9 +844,11 @@ export function fromJsonMemberCandidate(value: Json): MemberCandidate {
 
     return {
         receiver: fromJsonGlobalTypeId(jsonField(object, "receiver")),
+        adjustments: jsonArray(jsonField(object, "adjustments")).map((item0) => fromJsonProjection(item0)),
+        owner: fromJsonGlobalSymbolId(jsonField(object, "owner")),
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -757,8 +856,12 @@ export function fromJsonMemberCandidate(value: Json): MemberCandidate {
 export type CallResolution = {
     /** The selected callable target. */
     readonly target: CallTarget;
+    /** The callable type selected at the call site, when one exists. */
+    readonly callableType?: GlobalTypeId;
     /** The dynamic parameter types after static substitutions. */
     readonly parameters: ReadonlyArray<GlobalTypeId>;
+    /** The source arguments bound to selected parameters. */
+    readonly arguments: ReadonlyArray<ArgumentBinding>;
     /** The return type after static substitutions. */
     readonly returnType: GlobalTypeId;
 };
@@ -788,9 +891,16 @@ export const CallResolution = {
 /** Encode one CallResolution. */
 export function encodeCallResolution(writer: BinaryWriter, value: CallResolution): void {
     encodeCallTarget(writer, value.target);
+    writer.writeOption(value.callableType, (value1) => {
+        encodeGlobalTypeId(writer, value1);
+    });
     writer.writeUnsigned(value.parameters.length);
-    for (const item1 of value.parameters) {
-        encodeGlobalTypeId(writer, item1);
+    for (const item2 of value.parameters) {
+        encodeGlobalTypeId(writer, item2);
+    }
+    writer.writeUnsigned(value.arguments.length);
+    for (const item3 of value.arguments) {
+        encodeArgumentBinding(writer, item3);
     }
     encodeGlobalTypeId(writer, value.returnType);
 }
@@ -798,12 +908,16 @@ export function encodeCallResolution(writer: BinaryWriter, value: CallResolution
 /** Decode one CallResolution. */
 export function decodeCallResolution(reader: BinaryReader): CallResolution {
     const target = decodeCallTarget(reader);
-    const parameters = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+    const callableType = reader.readOption(() => decodeGlobalTypeId(reader));
+    const parameters = (() => { const length2 = reader.readNumber(); const items2: Array<GlobalTypeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalTypeId(reader)); } return items2; })();
+    const arguments_ = (() => { const length3 = reader.readNumber(); const items3: Array<ArgumentBinding> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeArgumentBinding(reader)); } return items3; })();
     const returnType = decodeGlobalTypeId(reader);
 
     return {
         target,
+        ...(callableType === undefined ? {} : { callableType }),
         parameters,
+        arguments: arguments_,
         returnType,
     };
 }
@@ -812,7 +926,9 @@ export function decodeCallResolution(reader: BinaryReader): CallResolution {
 export function toJsonCallResolution(value: CallResolution): Json {
     return {
         target: toJsonCallTarget(value.target),
+        ...(value.callableType === undefined ? {} : { callableType: toJsonGlobalTypeId(value.callableType) }),
         parameters: value.parameters.map((item0) => toJsonGlobalTypeId(item0)),
+        arguments: value.arguments.map((item0) => toJsonArgumentBinding(item0)),
         returnType: toJsonGlobalTypeId(value.returnType),
     };
 }
@@ -823,7 +939,9 @@ export function fromJsonCallResolution(value: Json): CallResolution {
 
     return {
         target: fromJsonCallTarget(jsonField(object, "target")),
+        callableType: jsonOptional(object, "callableType", (value) => fromJsonGlobalTypeId(value)),
         parameters: jsonArray(jsonField(object, "parameters")).map((item0) => fromJsonGlobalTypeId(item0)),
+        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonArgumentBinding(item0)),
         returnType: fromJsonGlobalTypeId(jsonField(object, "returnType")),
     };
 }
@@ -838,8 +956,8 @@ export type CallTarget =
     /** Callable expression without a declaration symbol. */
     | {
           readonly kind: "expression";
-          /** The generic arguments of the callable value, empty when not statically applied. */
-          readonly arguments: ReadonlyArray<GlobalTypeId>;
+          /** The selected generic argument bindings, empty when not statically applied. */
+          readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
       }
     /** Exactly one symbol-backed callable selected at compile time. */
     | {
@@ -860,8 +978,8 @@ export const CallTarget = {
     },
 
     /** Callable expression without a declaration symbol. */
-    expression(arguments_: ReadonlyArray<GlobalTypeId>): CallTarget {
-        return { kind: "expression", arguments: arguments_ };
+    expression(genericArguments: ReadonlyArray<GenericArgumentBinding>): CallTarget {
+        return { kind: "expression", genericArguments };
     },
 
     /** Exactly one symbol-backed callable selected at compile time. */
@@ -904,9 +1022,9 @@ export function encodeCallTarget(writer: BinaryWriter, value: CallTarget): void 
             return;
         case "expression":
             writer.writeUnsigned(1);
-            writer.writeUnsigned(value.arguments.length);
-            for (const item0 of value.arguments) {
-                encodeGlobalTypeId(writer, item0);
+            writer.writeUnsigned(value.genericArguments.length);
+            for (const item0 of value.genericArguments) {
+                encodeGenericArgumentBinding(writer, item0);
             }
             return;
         case "symbol":
@@ -936,11 +1054,11 @@ export function decodeCallTarget(reader: BinaryReader): CallTarget {
             return { kind: "builtin", builtin };
         }
         case 1: {
-            const arguments_ = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalTypeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalTypeId(reader)); } return items0; })();
+            const genericArguments = (() => { const length0 = reader.readNumber(); const items0: Array<GenericArgumentBinding> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGenericArgumentBinding(reader)); } return items0; })();
 
             return {
                 kind: "expression",
-                arguments: arguments_,
+                genericArguments,
             };
         }
         case 2: {
@@ -969,7 +1087,7 @@ export function toJsonCallTarget(value: CallTarget): Json {
         case "expression":
             return {
                 kind: "expression",
-                arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
+                genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
             };
         case "symbol":
             return {
@@ -1000,7 +1118,7 @@ export function fromJsonCallTarget(value: Json): CallTarget {
         case "expression":
             return {
                 kind,
-                arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
+                genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
             };
         case "symbol":
             return {
@@ -1150,10 +1268,12 @@ export function fromJsonBuiltinCall(value: Json): BuiltinCall {
 export type CallCandidate = {
     /** The receiver type that selects this candidate. */
     readonly receiver?: GlobalTypeId;
+    /** The projection steps. */
+    readonly adjustments: ReadonlyArray<Projection>;
     /** The selected callable symbol. */
     readonly symbol: GlobalSymbolId;
-    /** The generic arguments of the callable symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
+    /** The selected generic argument bindings needed by this call candidate. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
 };
 
 export const CallCandidate = {
@@ -1183,23 +1303,29 @@ export function encodeCallCandidate(writer: BinaryWriter, value: CallCandidate):
     writer.writeOption(value.receiver, (value0) => {
         encodeGlobalTypeId(writer, value0);
     });
+    writer.writeUnsigned(value.adjustments.length);
+    for (const item1 of value.adjustments) {
+        encodeProjection(writer, item1);
+    }
     encodeGlobalSymbolId(writer, value.symbol);
-    writer.writeUnsigned(value.arguments.length);
-    for (const item2 of value.arguments) {
-        encodeGlobalTypeId(writer, item2);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item3 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item3);
     }
 }
 
 /** Decode one CallCandidate. */
 export function decodeCallCandidate(reader: BinaryReader): CallCandidate {
     const receiver = reader.readOption(() => decodeGlobalTypeId(reader));
+    const adjustments = (() => { const length1 = reader.readNumber(); const items1: Array<Projection> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeProjection(reader)); } return items1; })();
     const symbol_ = decodeGlobalSymbolId(reader);
-    const arguments_ = (() => { const length2 = reader.readNumber(); const items2: Array<GlobalTypeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalTypeId(reader)); } return items2; })();
+    const genericArguments = (() => { const length3 = reader.readNumber(); const items3: Array<GenericArgumentBinding> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeGenericArgumentBinding(reader)); } return items3; })();
 
     return {
         ...(receiver === undefined ? {} : { receiver }),
+        adjustments,
         symbol: symbol_,
-        arguments: arguments_,
+        genericArguments,
     };
 }
 
@@ -1207,8 +1333,9 @@ export function decodeCallCandidate(reader: BinaryReader): CallCandidate {
 export function toJsonCallCandidate(value: CallCandidate): Json {
     return {
         ...(value.receiver === undefined ? {} : { receiver: toJsonGlobalTypeId(value.receiver) }),
+        adjustments: value.adjustments.map((item0) => toJsonProjection(item0)),
         symbol: toJsonGlobalSymbolId(value.symbol),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -1218,73 +1345,723 @@ export function fromJsonCallCandidate(value: Json): CallCandidate {
 
     return {
         receiver: jsonOptional(object, "receiver", (value) => fromJsonGlobalTypeId(value)),
+        adjustments: jsonArray(jsonField(object, "adjustments")).map((item0) => fromJsonProjection(item0)),
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
     };
 }
 
-/** Paired accessor calls for one place read and written together. */
-export type ReadWriteResolution = {
-    /** The read accessor call. */
-    readonly read: CallResolution;
-    /** The write accessor call. */
-    readonly write: CallResolution;
+/** Place selected by a checked expression. */
+export type PlaceResolution = {
+    /** The expression node that designates the place. */
+    readonly source: GlobalNodeIdAny;
+    /** The selected storage location. */
+    readonly storage: Storage;
+    /** The value type stored in the place. */
+    readonly ty: GlobalTypeId;
 };
 
-export const ReadWriteResolution = {
+export const PlaceResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: ReadWriteResolution): void {
-        encodeReadWriteResolution(writer, value);
+    encode(writer: BinaryWriter, value: PlaceResolution): void {
+        encodePlaceResolution(writer, value);
     },
 
-    /** Decode one ReadWriteResolution. */
-    decode(reader: BinaryReader): ReadWriteResolution {
-        return decodeReadWriteResolution(reader);
+    /** Decode one PlaceResolution. */
+    decode(reader: BinaryReader): PlaceResolution {
+        return decodePlaceResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: ReadWriteResolution): Json {
-        return toJsonReadWriteResolution(value);
+    toJson(value: PlaceResolution): Json {
+        return toJsonPlaceResolution(value);
     },
 
-    /** Return one ReadWriteResolution from one JSON value. */
-    fromJson(value: Json): ReadWriteResolution {
-        return fromJsonReadWriteResolution(value);
+    /** Return one PlaceResolution from one JSON value. */
+    fromJson(value: Json): PlaceResolution {
+        return fromJsonPlaceResolution(value);
     },
 };
 
-/** Encode one ReadWriteResolution. */
-export function encodeReadWriteResolution(writer: BinaryWriter, value: ReadWriteResolution): void {
-    encodeCallResolution(writer, value.read);
-    encodeCallResolution(writer, value.write);
+/** Encode one PlaceResolution. */
+export function encodePlaceResolution(writer: BinaryWriter, value: PlaceResolution): void {
+    encodeGlobalNodeIdAny(writer, value.source);
+    encodeStorage(writer, value.storage);
+    encodeGlobalTypeId(writer, value.ty);
 }
 
-/** Decode one ReadWriteResolution. */
-export function decodeReadWriteResolution(reader: BinaryReader): ReadWriteResolution {
-    const read = decodeCallResolution(reader);
-    const write = decodeCallResolution(reader);
+/** Decode one PlaceResolution. */
+export function decodePlaceResolution(reader: BinaryReader): PlaceResolution {
+    const source = decodeGlobalNodeIdAny(reader);
+    const storage = decodeStorage(reader);
+    const ty = decodeGlobalTypeId(reader);
 
     return {
-        read,
-        write,
+        source,
+        storage,
+        ty,
     };
 }
 
-/** Return one JSON value for one ReadWriteResolution. */
-export function toJsonReadWriteResolution(value: ReadWriteResolution): Json {
+/** Return one JSON value for one PlaceResolution. */
+export function toJsonPlaceResolution(value: PlaceResolution): Json {
     return {
-        read: toJsonCallResolution(value.read),
-        write: toJsonCallResolution(value.write),
+        source: toJsonGlobalNodeIdAny(value.source),
+        storage: toJsonStorage(value.storage),
+        ty: toJsonGlobalTypeId(value.ty),
     };
 }
 
-/** Return one ReadWriteResolution from one JSON value. */
-export function fromJsonReadWriteResolution(value: Json): ReadWriteResolution {
+/** Return one PlaceResolution from one JSON value. */
+export function fromJsonPlaceResolution(value: Json): PlaceResolution {
     const object = jsonObject(value);
 
     return {
-        read: fromJsonCallResolution(jsonField(object, "read")),
-        write: fromJsonCallResolution(jsonField(object, "write")),
+        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
+        storage: fromJsonStorage(jsonField(object, "storage")),
+        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
+    };
+}
+
+/** Writable storage location selected by a place expression. */
+export type Storage =
+    /** Local or imported value binding. */
+    | {
+          readonly kind: "binding";
+          /** The selected binding symbol. */
+          readonly symbol: GlobalSymbolId;
+      }
+    /** Structural or nominal field storage. */
+    | {
+          readonly kind: "field";
+          /** The receiver type. */
+          readonly receiver: GlobalTypeId;
+          /** The selected field. */
+          readonly field: ProjectionField;
+      }
+    /** Accessor-backed property storage. */
+    | {
+          readonly kind: "property";
+          /** The selected getter member, when the source operator reads first. */
+          readonly read?: MemberResolution;
+          /** The selected setter member. */
+          readonly write: MemberResolution;
+      }
+    /** Subscript-selected storage. */
+    | {
+          readonly kind: "subscript";
+          /** The source node providing the subscript key. */
+          readonly index: GlobalNodeIdAny;
+          /** The selected subscript operation, when the source operator reads first. */
+          readonly read?: SubscriptOperation;
+          /** The selected write operation. */
+          readonly write: SubscriptOperation;
+      }
+    /** Dereferenced storage. */
+    | {
+          readonly kind: "dereference";
+          /** The selected dereference operation, when the source operator reads first. */
+          readonly read?: DereferenceOperation;
+          /** The selected write operation. */
+          readonly write: DereferenceOperation;
+      }
+;
+
+export const Storage = {
+    /** Local or imported value binding. */
+    binding(symbol_: GlobalSymbolId): Storage {
+        return { kind: "binding", symbol: symbol_ };
+    },
+
+    /** Structural or nominal field storage. */
+    field(receiver: GlobalTypeId, field: ProjectionField): Storage {
+        return { kind: "field", receiver, field };
+    },
+
+    /** Accessor-backed property storage. */
+    property(read: MemberResolution | undefined, write: MemberResolution): Storage {
+        return { kind: "property", read, write };
+    },
+
+    /** Subscript-selected storage. */
+    subscript(index: GlobalNodeIdAny, read: SubscriptOperation | undefined, write: SubscriptOperation): Storage {
+        return { kind: "subscript", index, read, write };
+    },
+
+    /** Dereferenced storage. */
+    dereference(read: DereferenceOperation | undefined, write: DereferenceOperation): Storage {
+        return { kind: "dereference", read, write };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Storage): void {
+        encodeStorage(writer, value);
+    },
+
+    /** Decode one Storage. */
+    decode(reader: BinaryReader): Storage {
+        return decodeStorage(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Storage): Json {
+        return toJsonStorage(value);
+    },
+
+    /** Return one Storage from one JSON value. */
+    fromJson(value: Json): Storage {
+        return fromJsonStorage(value);
+    },
+};
+
+/** Encode one Storage. */
+export function encodeStorage(writer: BinaryWriter, value: Storage): void {
+    switch (value.kind) {
+        case "binding":
+            writer.writeUnsigned(0);
+            encodeGlobalSymbolId(writer, value.symbol);
+            return;
+        case "field":
+            writer.writeUnsigned(1);
+            encodeGlobalTypeId(writer, value.receiver);
+            encodeProjectionField(writer, value.field);
+            return;
+        case "property":
+            writer.writeUnsigned(2);
+            writer.writeOption(value.read, (value0) => {
+                encodeMemberResolution(writer, value0);
+            });
+            encodeMemberResolution(writer, value.write);
+            return;
+        case "subscript":
+            writer.writeUnsigned(3);
+            encodeGlobalNodeIdAny(writer, value.index);
+            writer.writeOption(value.read, (value1) => {
+                encodeSubscriptOperation(writer, value1);
+            });
+            encodeSubscriptOperation(writer, value.write);
+            return;
+        case "dereference":
+            writer.writeUnsigned(4);
+            writer.writeOption(value.read, (value0) => {
+                encodeDereferenceOperation(writer, value0);
+            });
+            encodeDereferenceOperation(writer, value.write);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one Storage. */
+export function decodeStorage(reader: BinaryReader): Storage {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const symbol_ = decodeGlobalSymbolId(reader);
+
+            return {
+                kind: "binding",
+                symbol: symbol_,
+            };
+        }
+        case 1: {
+            const receiver = decodeGlobalTypeId(reader);
+            const field = decodeProjectionField(reader);
+
+            return {
+                kind: "field",
+                receiver,
+                field,
+            };
+        }
+        case 2: {
+            const read = reader.readOption(() => decodeMemberResolution(reader));
+            const write = decodeMemberResolution(reader);
+
+            return {
+                kind: "property",
+                ...(read === undefined ? {} : { read }),
+                write,
+            };
+        }
+        case 3: {
+            const index = decodeGlobalNodeIdAny(reader);
+            const read = reader.readOption(() => decodeSubscriptOperation(reader));
+            const write = decodeSubscriptOperation(reader);
+
+            return {
+                kind: "subscript",
+                index,
+                ...(read === undefined ? {} : { read }),
+                write,
+            };
+        }
+        case 4: {
+            const read = reader.readOption(() => decodeDereferenceOperation(reader));
+            const write = decodeDereferenceOperation(reader);
+
+            return {
+                kind: "dereference",
+                ...(read === undefined ? {} : { read }),
+                write,
+            };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one Storage. */
+export function toJsonStorage(value: Storage): Json {
+    switch (value.kind) {
+        case "binding":
+            return {
+                kind: "binding",
+                symbol: toJsonGlobalSymbolId(value.symbol),
+            };
+        case "field":
+            return {
+                kind: "field",
+                receiver: toJsonGlobalTypeId(value.receiver),
+                field: toJsonProjectionField(value.field),
+            };
+        case "property":
+            return {
+                kind: "property",
+                ...(value.read === undefined ? {} : { read: toJsonMemberResolution(value.read) }),
+                write: toJsonMemberResolution(value.write),
+            };
+        case "subscript":
+            return {
+                kind: "subscript",
+                index: toJsonGlobalNodeIdAny(value.index),
+                ...(value.read === undefined ? {} : { read: toJsonSubscriptOperation(value.read) }),
+                write: toJsonSubscriptOperation(value.write),
+            };
+        case "dereference":
+            return {
+                kind: "dereference",
+                ...(value.read === undefined ? {} : { read: toJsonDereferenceOperation(value.read) }),
+                write: toJsonDereferenceOperation(value.write),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one Storage from one JSON value. */
+export function fromJsonStorage(value: Json): Storage {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "binding":
+            return {
+                kind,
+                symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
+            };
+        case "field":
+            return {
+                kind,
+                receiver: fromJsonGlobalTypeId(jsonField(object, "receiver")),
+                field: fromJsonProjectionField(jsonField(object, "field")),
+            };
+        case "property":
+            return {
+                kind,
+                read: jsonOptional(object, "read", (value) => fromJsonMemberResolution(value)),
+                write: fromJsonMemberResolution(jsonField(object, "write")),
+            };
+        case "subscript":
+            return {
+                kind,
+                index: fromJsonGlobalNodeIdAny(jsonField(object, "index")),
+                read: jsonOptional(object, "read", (value) => fromJsonSubscriptOperation(value)),
+                write: fromJsonSubscriptOperation(jsonField(object, "write")),
+            };
+        case "dereference":
+            return {
+                kind,
+                read: jsonOptional(object, "read", (value) => fromJsonDereferenceOperation(value)),
+                write: fromJsonDereferenceOperation(jsonField(object, "write")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** Guard expression selected during checking. */
+export type GuardResolution =
+    /** `is` guard, like `value is T`. */
+    | {
+          readonly kind: "is";
+          readonly is: IsGuardResolution;
+      }
+    /** `instanceof` guard, like `value instanceof User`. */
+    | {
+          readonly kind: "instanceOf";
+          readonly instance_of: InstanceOfGuardResolution;
+      }
+    /** `in` guard, like `"name" in value`. */
+    | {
+          readonly kind: "in";
+          readonly in: InGuardResolution;
+      }
+;
+
+export const GuardResolution = {
+    /** `is` guard, like `value is T`. */
+    "is"(is_: IsGuardResolution): GuardResolution {
+        return { kind: "is", is: is_ };
+    },
+
+    /** `instanceof` guard, like `value instanceof User`. */
+    instanceOf(instance_of: InstanceOfGuardResolution): GuardResolution {
+        return { kind: "instanceOf", instance_of };
+    },
+
+    /** `in` guard, like `"name" in value`. */
+    "in"(in_: InGuardResolution): GuardResolution {
+        return { kind: "in", in: in_ };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: GuardResolution): void {
+        encodeGuardResolution(writer, value);
+    },
+
+    /** Decode one GuardResolution. */
+    decode(reader: BinaryReader): GuardResolution {
+        return decodeGuardResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: GuardResolution): Json {
+        return toJsonGuardResolution(value);
+    },
+
+    /** Return one GuardResolution from one JSON value. */
+    fromJson(value: Json): GuardResolution {
+        return fromJsonGuardResolution(value);
+    },
+};
+
+/** Encode one GuardResolution. */
+export function encodeGuardResolution(writer: BinaryWriter, value: GuardResolution): void {
+    switch (value.kind) {
+        case "is":
+            writer.writeUnsigned(0);
+            encodeIsGuardResolution(writer, value.is);
+            return;
+        case "instanceOf":
+            writer.writeUnsigned(1);
+            encodeInstanceOfGuardResolution(writer, value.instance_of);
+            return;
+        case "in":
+            writer.writeUnsigned(2);
+            encodeInGuardResolution(writer, value.in);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one GuardResolution. */
+export function decodeGuardResolution(reader: BinaryReader): GuardResolution {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const is_ = decodeIsGuardResolution(reader);
+
+            return { kind: "is", is: is_ };
+        }
+        case 1: {
+            const instance_of = decodeInstanceOfGuardResolution(reader);
+
+            return { kind: "instanceOf", instance_of };
+        }
+        case 2: {
+            const in_ = decodeInGuardResolution(reader);
+
+            return { kind: "in", in: in_ };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one GuardResolution. */
+export function toJsonGuardResolution(value: GuardResolution): Json {
+    switch (value.kind) {
+        case "is":
+            return {
+                kind: "is",
+                is: toJsonIsGuardResolution(value.is),
+            };
+        case "instanceOf":
+            return {
+                kind: "instanceOf",
+                instance_of: toJsonInstanceOfGuardResolution(value.instance_of),
+            };
+        case "in":
+            return {
+                kind: "in",
+                in: toJsonInGuardResolution(value.in),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one GuardResolution from one JSON value. */
+export function fromJsonGuardResolution(value: Json): GuardResolution {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "is":
+            return {
+                kind,
+                is: fromJsonIsGuardResolution(jsonField(object, "is")),
+            };
+        case "instanceOf":
+            return {
+                kind,
+                instance_of: fromJsonInstanceOfGuardResolution(jsonField(object, "instance_of")),
+            };
+        case "in":
+            return {
+                kind,
+                in: fromJsonInGuardResolution(jsonField(object, "in")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** `is` guard selected during checking. */
+export type IsGuardResolution = {
+    /** The tested value type. */
+    readonly valueType: GlobalTypeId;
+    /** The tested target type. */
+    readonly targetType: GlobalTypeId;
+    /** The executable predicate. */
+    readonly predicate: Predicate;
+};
+
+export const IsGuardResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: IsGuardResolution): void {
+        encodeIsGuardResolution(writer, value);
+    },
+
+    /** Decode one IsGuardResolution. */
+    decode(reader: BinaryReader): IsGuardResolution {
+        return decodeIsGuardResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: IsGuardResolution): Json {
+        return toJsonIsGuardResolution(value);
+    },
+
+    /** Return one IsGuardResolution from one JSON value. */
+    fromJson(value: Json): IsGuardResolution {
+        return fromJsonIsGuardResolution(value);
+    },
+};
+
+/** Encode one IsGuardResolution. */
+export function encodeIsGuardResolution(writer: BinaryWriter, value: IsGuardResolution): void {
+    encodeGlobalTypeId(writer, value.valueType);
+    encodeGlobalTypeId(writer, value.targetType);
+    encodePredicate(writer, value.predicate);
+}
+
+/** Decode one IsGuardResolution. */
+export function decodeIsGuardResolution(reader: BinaryReader): IsGuardResolution {
+    const valueType = decodeGlobalTypeId(reader);
+    const targetType = decodeGlobalTypeId(reader);
+    const predicate = decodePredicate(reader);
+
+    return {
+        valueType,
+        targetType,
+        predicate,
+    };
+}
+
+/** Return one JSON value for one IsGuardResolution. */
+export function toJsonIsGuardResolution(value: IsGuardResolution): Json {
+    return {
+        valueType: toJsonGlobalTypeId(value.valueType),
+        targetType: toJsonGlobalTypeId(value.targetType),
+        predicate: toJsonPredicate(value.predicate),
+    };
+}
+
+/** Return one IsGuardResolution from one JSON value. */
+export function fromJsonIsGuardResolution(value: Json): IsGuardResolution {
+    const object = jsonObject(value);
+
+    return {
+        valueType: fromJsonGlobalTypeId(jsonField(object, "valueType")),
+        targetType: fromJsonGlobalTypeId(jsonField(object, "targetType")),
+        predicate: fromJsonPredicate(jsonField(object, "predicate")),
+    };
+}
+
+/** `instanceof` guard selected during checking. */
+export type InstanceOfGuardResolution = {
+    /** The tested value type. */
+    readonly valueType: GlobalTypeId;
+    /** The selected right-hand-side declaration. */
+    readonly target: GlobalSymbolId;
+    /** The selected instance type tested at runtime. */
+    readonly targetType: GlobalTypeId;
+    /** The executable predicate. */
+    readonly predicate: Predicate;
+};
+
+export const InstanceOfGuardResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InstanceOfGuardResolution): void {
+        encodeInstanceOfGuardResolution(writer, value);
+    },
+
+    /** Decode one InstanceOfGuardResolution. */
+    decode(reader: BinaryReader): InstanceOfGuardResolution {
+        return decodeInstanceOfGuardResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InstanceOfGuardResolution): Json {
+        return toJsonInstanceOfGuardResolution(value);
+    },
+
+    /** Return one InstanceOfGuardResolution from one JSON value. */
+    fromJson(value: Json): InstanceOfGuardResolution {
+        return fromJsonInstanceOfGuardResolution(value);
+    },
+};
+
+/** Encode one InstanceOfGuardResolution. */
+export function encodeInstanceOfGuardResolution(writer: BinaryWriter, value: InstanceOfGuardResolution): void {
+    encodeGlobalTypeId(writer, value.valueType);
+    encodeGlobalSymbolId(writer, value.target);
+    encodeGlobalTypeId(writer, value.targetType);
+    encodePredicate(writer, value.predicate);
+}
+
+/** Decode one InstanceOfGuardResolution. */
+export function decodeInstanceOfGuardResolution(reader: BinaryReader): InstanceOfGuardResolution {
+    const valueType = decodeGlobalTypeId(reader);
+    const target = decodeGlobalSymbolId(reader);
+    const targetType = decodeGlobalTypeId(reader);
+    const predicate = decodePredicate(reader);
+
+    return {
+        valueType,
+        target,
+        targetType,
+        predicate,
+    };
+}
+
+/** Return one JSON value for one InstanceOfGuardResolution. */
+export function toJsonInstanceOfGuardResolution(value: InstanceOfGuardResolution): Json {
+    return {
+        valueType: toJsonGlobalTypeId(value.valueType),
+        target: toJsonGlobalSymbolId(value.target),
+        targetType: toJsonGlobalTypeId(value.targetType),
+        predicate: toJsonPredicate(value.predicate),
+    };
+}
+
+/** Return one InstanceOfGuardResolution from one JSON value. */
+export function fromJsonInstanceOfGuardResolution(value: Json): InstanceOfGuardResolution {
+    const object = jsonObject(value);
+
+    return {
+        valueType: fromJsonGlobalTypeId(jsonField(object, "valueType")),
+        target: fromJsonGlobalSymbolId(jsonField(object, "target")),
+        targetType: fromJsonGlobalTypeId(jsonField(object, "targetType")),
+        predicate: fromJsonPredicate(jsonField(object, "predicate")),
+    };
+}
+
+/** `in` guard selected during checking. */
+export type InGuardResolution = {
+    /** The tested key type. */
+    readonly keyType: GlobalTypeId;
+    /** The tested receiver type. */
+    readonly receiverType: GlobalTypeId;
+    /** The executable predicate. */
+    readonly predicate: Predicate;
+};
+
+export const InGuardResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InGuardResolution): void {
+        encodeInGuardResolution(writer, value);
+    },
+
+    /** Decode one InGuardResolution. */
+    decode(reader: BinaryReader): InGuardResolution {
+        return decodeInGuardResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InGuardResolution): Json {
+        return toJsonInGuardResolution(value);
+    },
+
+    /** Return one InGuardResolution from one JSON value. */
+    fromJson(value: Json): InGuardResolution {
+        return fromJsonInGuardResolution(value);
+    },
+};
+
+/** Encode one InGuardResolution. */
+export function encodeInGuardResolution(writer: BinaryWriter, value: InGuardResolution): void {
+    encodeGlobalTypeId(writer, value.keyType);
+    encodeGlobalTypeId(writer, value.receiverType);
+    encodePredicate(writer, value.predicate);
+}
+
+/** Decode one InGuardResolution. */
+export function decodeInGuardResolution(reader: BinaryReader): InGuardResolution {
+    const keyType = decodeGlobalTypeId(reader);
+    const receiverType = decodeGlobalTypeId(reader);
+    const predicate = decodePredicate(reader);
+
+    return {
+        keyType,
+        receiverType,
+        predicate,
+    };
+}
+
+/** Return one JSON value for one InGuardResolution. */
+export function toJsonInGuardResolution(value: InGuardResolution): Json {
+    return {
+        keyType: toJsonGlobalTypeId(value.keyType),
+        receiverType: toJsonGlobalTypeId(value.receiverType),
+        predicate: toJsonPredicate(value.predicate),
+    };
+}
+
+/** Return one InGuardResolution from one JSON value. */
+export function fromJsonInGuardResolution(value: Json): InGuardResolution {
+    const object = jsonObject(value);
+
+    return {
+        keyType: fromJsonGlobalTypeId(jsonField(object, "keyType")),
+        receiverType: fromJsonGlobalTypeId(jsonField(object, "receiverType")),
+        predicate: fromJsonPredicate(jsonField(object, "predicate")),
     };
 }
 
@@ -1294,6 +2071,8 @@ export type ConstructResolution = {
     readonly target: ConstructTarget;
     /** The dynamic parameter types after static substitutions. */
     readonly parameters: ReadonlyArray<GlobalTypeId>;
+    /** The source arguments bound to selected parameters. */
+    readonly arguments: ReadonlyArray<ArgumentBinding>;
     /** The return type after static substitutions. */
     readonly returnType: GlobalTypeId;
 };
@@ -1327,6 +2106,10 @@ export function encodeConstructResolution(writer: BinaryWriter, value: Construct
     for (const item1 of value.parameters) {
         encodeGlobalTypeId(writer, item1);
     }
+    writer.writeUnsigned(value.arguments.length);
+    for (const item2 of value.arguments) {
+        encodeArgumentBinding(writer, item2);
+    }
     encodeGlobalTypeId(writer, value.returnType);
 }
 
@@ -1334,11 +2117,13 @@ export function encodeConstructResolution(writer: BinaryWriter, value: Construct
 export function decodeConstructResolution(reader: BinaryReader): ConstructResolution {
     const target = decodeConstructTarget(reader);
     const parameters = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+    const arguments_ = (() => { const length2 = reader.readNumber(); const items2: Array<ArgumentBinding> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeArgumentBinding(reader)); } return items2; })();
     const returnType = decodeGlobalTypeId(reader);
 
     return {
         target,
         parameters,
+        arguments: arguments_,
         returnType,
     };
 }
@@ -1348,6 +2133,7 @@ export function toJsonConstructResolution(value: ConstructResolution): Json {
     return {
         target: toJsonConstructTarget(value.target),
         parameters: value.parameters.map((item0) => toJsonGlobalTypeId(item0)),
+        arguments: value.arguments.map((item0) => toJsonArgumentBinding(item0)),
         returnType: toJsonGlobalTypeId(value.returnType),
     };
 }
@@ -1359,6 +2145,7 @@ export function fromJsonConstructResolution(value: Json): ConstructResolution {
     return {
         target: fromJsonConstructTarget(jsonField(object, "target")),
         parameters: jsonArray(jsonField(object, "parameters")).map((item0) => fromJsonGlobalTypeId(item0)),
+        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonArgumentBinding(item0)),
         returnType: fromJsonGlobalTypeId(jsonField(object, "returnType")),
     };
 }
@@ -1375,6 +2162,11 @@ export type ConstructTarget =
           readonly kind: "newtype";
           readonly newtype: NewtypeConstructCandidate;
       }
+    /** Tagged union variant constructor selected at compile time. */
+    | {
+          readonly kind: "variant";
+          readonly variant: VariantConstructCandidate;
+      }
 ;
 
 export const ConstructTarget = {
@@ -1386,6 +2178,11 @@ export const ConstructTarget = {
     /** Newtype wrapper constructor selected at compile time. */
     newtype(newtype: NewtypeConstructCandidate): ConstructTarget {
         return { kind: "newtype", newtype };
+    },
+
+    /** Tagged union variant constructor selected at compile time. */
+    variant(variant: VariantConstructCandidate): ConstructTarget {
+        return { kind: "variant", variant };
     },
 
     /** Encode this value. */
@@ -1420,6 +2217,10 @@ export function encodeConstructTarget(writer: BinaryWriter, value: ConstructTarg
             writer.writeUnsigned(1);
             encodeNewtypeConstructCandidate(writer, value.newtype);
             return;
+        case "variant":
+            writer.writeUnsigned(2);
+            encodeVariantConstructCandidate(writer, value.variant);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -1440,6 +2241,11 @@ export function decodeConstructTarget(reader: BinaryReader): ConstructTarget {
 
             return { kind: "newtype", newtype };
         }
+        case 2: {
+            const variant = decodeVariantConstructCandidate(reader);
+
+            return { kind: "variant", variant };
+        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -1457,6 +2263,11 @@ export function toJsonConstructTarget(value: ConstructTarget): Json {
             return {
                 kind: "newtype",
                 newtype: toJsonNewtypeConstructCandidate(value.newtype),
+            };
+        case "variant":
+            return {
+                kind: "variant",
+                variant: toJsonVariantConstructCandidate(value.variant),
             };
     }
 
@@ -1479,6 +2290,11 @@ export function fromJsonConstructTarget(value: Json): ConstructTarget {
                 kind,
                 newtype: fromJsonNewtypeConstructCandidate(jsonField(object, "newtype")),
             };
+        case "variant":
+            return {
+                kind,
+                variant: fromJsonVariantConstructCandidate(jsonField(object, "variant")),
+            };
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
@@ -1488,10 +2304,10 @@ export function fromJsonConstructTarget(value: Json): ConstructTarget {
 export type ClassConstructCandidate = {
     /** The selected class symbol. */
     readonly symbol: GlobalSymbolId;
-    /** The selected explicit constructor symbol, when declared. */
-    readonly constructor?: GlobalSymbolId;
-    /** The generic arguments of the class symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
+    /** The selected class constructor. */
+    readonly constructor: ClassConstructor;
+    /** The selected generic argument bindings for the class symbol. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
 };
 
 export const ClassConstructCandidate = {
@@ -1519,25 +2335,23 @@ export const ClassConstructCandidate = {
 /** Encode one ClassConstructCandidate. */
 export function encodeClassConstructCandidate(writer: BinaryWriter, value: ClassConstructCandidate): void {
     encodeGlobalSymbolId(writer, value.symbol);
-    writer.writeOption(value.constructor, (value1) => {
-        encodeGlobalSymbolId(writer, value1);
-    });
-    writer.writeUnsigned(value.arguments.length);
-    for (const item2 of value.arguments) {
-        encodeGlobalTypeId(writer, item2);
+    encodeClassConstructor(writer, value.constructor);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item2 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item2);
     }
 }
 
 /** Decode one ClassConstructCandidate. */
 export function decodeClassConstructCandidate(reader: BinaryReader): ClassConstructCandidate {
     const symbol_ = decodeGlobalSymbolId(reader);
-    const constructor_ = reader.readOption(() => decodeGlobalSymbolId(reader));
-    const arguments_ = (() => { const length2 = reader.readNumber(); const items2: Array<GlobalTypeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalTypeId(reader)); } return items2; })();
+    const constructor_ = decodeClassConstructor(reader);
+    const genericArguments = (() => { const length2 = reader.readNumber(); const items2: Array<GenericArgumentBinding> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGenericArgumentBinding(reader)); } return items2; })();
 
     return {
         symbol: symbol_,
-        ...(constructor_ === undefined ? {} : { constructor: constructor_ }),
-        arguments: arguments_,
+        constructor: constructor_,
+        genericArguments,
     };
 }
 
@@ -1545,8 +2359,8 @@ export function decodeClassConstructCandidate(reader: BinaryReader): ClassConstr
 export function toJsonClassConstructCandidate(value: ClassConstructCandidate): Json {
     return {
         symbol: toJsonGlobalSymbolId(value.symbol),
-        ...(value.constructor === undefined ? {} : { constructor: toJsonGlobalSymbolId(value.constructor) }),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
+        constructor: toJsonClassConstructor(value.constructor),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -1556,8 +2370,8 @@ export function fromJsonClassConstructCandidate(value: Json): ClassConstructCand
 
     return {
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-        constructor: jsonOptional(object, "constructor", (value) => fromJsonGlobalSymbolId(value)),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
+        constructor: fromJsonClassConstructor(jsonField(object, "constructor")),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -1565,8 +2379,8 @@ export function fromJsonClassConstructCandidate(value: Json): ClassConstructCand
 export type NewtypeConstructCandidate = {
     /** The selected newtype symbol. */
     readonly symbol: GlobalSymbolId;
-    /** The generic arguments of the newtype symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
+    /** The selected generic argument bindings for the newtype symbol. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
 };
 
 export const NewtypeConstructCandidate = {
@@ -1594,20 +2408,20 @@ export const NewtypeConstructCandidate = {
 /** Encode one NewtypeConstructCandidate. */
 export function encodeNewtypeConstructCandidate(writer: BinaryWriter, value: NewtypeConstructCandidate): void {
     encodeGlobalSymbolId(writer, value.symbol);
-    writer.writeUnsigned(value.arguments.length);
-    for (const item1 of value.arguments) {
-        encodeGlobalTypeId(writer, item1);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item1 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item1);
     }
 }
 
 /** Decode one NewtypeConstructCandidate. */
 export function decodeNewtypeConstructCandidate(reader: BinaryReader): NewtypeConstructCandidate {
     const symbol_ = decodeGlobalSymbolId(reader);
-    const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+    const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
 
     return {
         symbol: symbol_,
-        arguments: arguments_,
+        genericArguments,
     };
 }
 
@@ -1615,7 +2429,7 @@ export function decodeNewtypeConstructCandidate(reader: BinaryReader): NewtypeCo
 export function toJsonNewtypeConstructCandidate(value: NewtypeConstructCandidate): Json {
     return {
         symbol: toJsonGlobalSymbolId(value.symbol),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
     };
 }
 
@@ -1625,7 +2439,82 @@ export function fromJsonNewtypeConstructCandidate(value: Json): NewtypeConstruct
 
     return {
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
+    };
+}
+
+/** One tagged variant construction candidate after checking. */
+export type VariantConstructCandidate = {
+    /** The selected tagged case. */
+    readonly case: VariantCase;
+    /** The selected generic argument bindings for the owner symbol. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
+    /** The discriminant value injected by the constructor. */
+    readonly discriminant: ScalarLiteral;
+};
+
+export const VariantConstructCandidate = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: VariantConstructCandidate): void {
+        encodeVariantConstructCandidate(writer, value);
+    },
+
+    /** Decode one VariantConstructCandidate. */
+    decode(reader: BinaryReader): VariantConstructCandidate {
+        return decodeVariantConstructCandidate(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: VariantConstructCandidate): Json {
+        return toJsonVariantConstructCandidate(value);
+    },
+
+    /** Return one VariantConstructCandidate from one JSON value. */
+    fromJson(value: Json): VariantConstructCandidate {
+        return fromJsonVariantConstructCandidate(value);
+    },
+};
+
+/** Encode one VariantConstructCandidate. */
+export function encodeVariantConstructCandidate(writer: BinaryWriter, value: VariantConstructCandidate): void {
+    encodeVariantCase(writer, value.case);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item1 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item1);
+    }
+    encodeScalarLiteral(writer, value.discriminant);
+}
+
+/** Decode one VariantConstructCandidate. */
+export function decodeVariantConstructCandidate(reader: BinaryReader): VariantConstructCandidate {
+    const case_ = decodeVariantCase(reader);
+    const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
+    const discriminant = decodeScalarLiteral(reader);
+
+    return {
+        case: case_,
+        genericArguments,
+        discriminant,
+    };
+}
+
+/** Return one JSON value for one VariantConstructCandidate. */
+export function toJsonVariantConstructCandidate(value: VariantConstructCandidate): Json {
+    return {
+        case: toJsonVariantCase(value.case),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
+        discriminant: toJsonScalarLiteral(value.discriminant),
+    };
+}
+
+/** Return one VariantConstructCandidate from one JSON value. */
+export function fromJsonVariantConstructCandidate(value: Json): VariantConstructCandidate {
+    const object = jsonObject(value);
+
+    return {
+        case: fromJsonVariantCase(jsonField(object, "case")),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
+        discriminant: fromJsonScalarLiteral(jsonField(object, "discriminant")),
     };
 }
 
@@ -1633,144 +2522,84 @@ export function fromJsonNewtypeConstructCandidate(value: Json): NewtypeConstruct
 export type PatternResolution =
     /** Pattern that accepts the input without binding, like `_`. */
     | {
-          readonly kind: "wildcard";
+          readonly kind: "ignore";
       }
     /** Pattern that binds a symbol, like `value`. */
     | {
-          readonly kind: "binding";
-          readonly binding: PatternBindingResolution;
+          readonly kind: "bind";
+          readonly bind: PatternBindingResolution;
       }
-    /** Pattern that accepts one static literal value, like `"ok"` or `0`. */
+    /** Pattern that requires a successful nested match, like `value!`. */
     | {
-          readonly kind: "literal";
-          readonly literal: PatternLiteralResolution;
+          readonly kind: "must";
+          readonly must: PatternMustResolution;
       }
-    /** Pattern that accepts one scalar interval, like `0..10` or `..=255`. */
+    /** Pattern that uses a default value when the selected value is undefined. */
     | {
-          readonly kind: "range";
-          readonly range: PatternRangeResolution;
+          readonly kind: "default";
+          readonly default: PatternDefaultResolution;
       }
-    /** Pattern that destructures a tuple-shaped input, like `(x, y)`. */
+    /** Pattern that tests one executable predicate. */
     | {
-          readonly kind: "tuple";
-          readonly tuple: PatternTupleResolution;
+          readonly kind: "test";
+          readonly test: PatternPredicateResolution;
       }
-    /** Pattern that destructures an ordered collection, like `[head, ...tail]`. */
+    /** Pattern that projects the input before matching, like `*Point { x, y }`. */
     | {
-          readonly kind: "sequence";
-          readonly sequence: PatternSequenceResolution;
+          readonly kind: "project";
+          readonly project: PatternProjectionResolution;
       }
-    /** Pattern that destructures a structural input, like `{ kind: "ok", value }`. */
+    /** Pattern that destructures projected child values. */
     | {
-          readonly kind: "shape";
-          readonly shape: PatternShapeResolution;
+          readonly kind: "destructure";
+          readonly destructure: PatternDestructureResolution;
       }
-    /** Pattern that destructures a symbol-backed nominal input, like `Point { x, y }`. */
+    /** Pattern that accepts one of several branches, like `0 | 1 | 2`. */
     | {
-          readonly kind: "nominal";
-          readonly nominal: PatternNominalResolution;
-      }
-    /** Pattern that unwraps a symbol-backed newtype input, like `UserId(value)`. */
-    | {
-          readonly kind: "newtype";
-          readonly newtype: PatternNewtypeResolution;
-      }
-    /** Pattern that selects a symbol-backed variant input, like `State.Ready`. */
-    | {
-          readonly kind: "variant";
-          readonly variant: PatternVariantResolution;
-      }
-    /** Pattern that accepts one of several alternatives, like `0 | 1 | 2`. */
-    | {
-          readonly kind: "union";
-          readonly union: PatternUnionResolution;
-      }
-    /** Pattern that borrows the input before matching, like `&readonly value`. */
-    | {
-          readonly kind: "borrow";
-          readonly borrow: PatternBorrowResolution;
-      }
-    /** Pattern that moves the input before matching, like `^value`. */
-    | {
-          readonly kind: "move";
-          readonly move_file: PatternMoveResolution;
-      }
-    /** Pattern that dereferences the input before matching, like `*Point { x, y }`. */
-    | {
-          readonly kind: "dereference";
-          readonly dereference: PatternDereferenceResolution;
+          readonly kind: "or";
+          readonly or: PatternOrResolution;
       }
 ;
 
 export const PatternResolution = {
     /** Pattern that accepts the input without binding, like `_`. */
-    wildcard(): PatternResolution {
-        return { kind: "wildcard" };
+    ignore(): PatternResolution {
+        return { kind: "ignore" };
     },
 
     /** Pattern that binds a symbol, like `value`. */
-    binding(binding: PatternBindingResolution): PatternResolution {
-        return { kind: "binding", binding };
+    bind(bind: PatternBindingResolution): PatternResolution {
+        return { kind: "bind", bind };
     },
 
-    /** Pattern that accepts one static literal value, like `"ok"` or `0`. */
-    literal(literal: PatternLiteralResolution): PatternResolution {
-        return { kind: "literal", literal };
+    /** Pattern that requires a successful nested match, like `value!`. */
+    must(must: PatternMustResolution): PatternResolution {
+        return { kind: "must", must };
     },
 
-    /** Pattern that accepts one scalar interval, like `0..10` or `..=255`. */
-    range(range: PatternRangeResolution): PatternResolution {
-        return { kind: "range", range };
+    /** Pattern that uses a default value when the selected value is undefined. */
+    "default"(default_: PatternDefaultResolution): PatternResolution {
+        return { kind: "default", default: default_ };
     },
 
-    /** Pattern that destructures a tuple-shaped input, like `(x, y)`. */
-    tuple(tuple: PatternTupleResolution): PatternResolution {
-        return { kind: "tuple", tuple };
+    /** Pattern that tests one executable predicate. */
+    test(test: PatternPredicateResolution): PatternResolution {
+        return { kind: "test", test };
     },
 
-    /** Pattern that destructures an ordered collection, like `[head, ...tail]`. */
-    sequence(sequence: PatternSequenceResolution): PatternResolution {
-        return { kind: "sequence", sequence };
+    /** Pattern that projects the input before matching, like `*Point { x, y }`. */
+    project(project: PatternProjectionResolution): PatternResolution {
+        return { kind: "project", project };
     },
 
-    /** Pattern that destructures a structural input, like `{ kind: "ok", value }`. */
-    shape(shape: PatternShapeResolution): PatternResolution {
-        return { kind: "shape", shape };
+    /** Pattern that destructures projected child values. */
+    destructure(destructure: PatternDestructureResolution): PatternResolution {
+        return { kind: "destructure", destructure };
     },
 
-    /** Pattern that destructures a symbol-backed nominal input, like `Point { x, y }`. */
-    nominal(nominal: PatternNominalResolution): PatternResolution {
-        return { kind: "nominal", nominal };
-    },
-
-    /** Pattern that unwraps a symbol-backed newtype input, like `UserId(value)`. */
-    newtype(newtype: PatternNewtypeResolution): PatternResolution {
-        return { kind: "newtype", newtype };
-    },
-
-    /** Pattern that selects a symbol-backed variant input, like `State.Ready`. */
-    variant(variant: PatternVariantResolution): PatternResolution {
-        return { kind: "variant", variant };
-    },
-
-    /** Pattern that accepts one of several alternatives, like `0 | 1 | 2`. */
-    union(union: PatternUnionResolution): PatternResolution {
-        return { kind: "union", union };
-    },
-
-    /** Pattern that borrows the input before matching, like `&readonly value`. */
-    borrow(borrow: PatternBorrowResolution): PatternResolution {
-        return { kind: "borrow", borrow };
-    },
-
-    /** Pattern that moves the input before matching, like `^value`. */
-    move(move_file: PatternMoveResolution): PatternResolution {
-        return { kind: "move", move_file };
-    },
-
-    /** Pattern that dereferences the input before matching, like `*Point { x, y }`. */
-    dereference(dereference: PatternDereferenceResolution): PatternResolution {
-        return { kind: "dereference", dereference };
+    /** Pattern that accepts one of several branches, like `0 | 1 | 2`. */
+    or(or: PatternOrResolution): PatternResolution {
+        return { kind: "or", or };
     },
 
     /** Encode this value. */
@@ -1797,60 +2626,36 @@ export const PatternResolution = {
 /** Encode one PatternResolution. */
 export function encodePatternResolution(writer: BinaryWriter, value: PatternResolution): void {
     switch (value.kind) {
-        case "wildcard":
+        case "ignore":
             writer.writeUnsigned(0);
             return;
-        case "binding":
+        case "bind":
             writer.writeUnsigned(1);
-            encodePatternBindingResolution(writer, value.binding);
+            encodePatternBindingResolution(writer, value.bind);
             return;
-        case "literal":
+        case "must":
             writer.writeUnsigned(2);
-            encodePatternLiteralResolution(writer, value.literal);
+            encodePatternMustResolution(writer, value.must);
             return;
-        case "range":
+        case "default":
             writer.writeUnsigned(3);
-            encodePatternRangeResolution(writer, value.range);
+            encodePatternDefaultResolution(writer, value.default);
             return;
-        case "tuple":
+        case "test":
             writer.writeUnsigned(4);
-            encodePatternTupleResolution(writer, value.tuple);
+            encodePatternPredicateResolution(writer, value.test);
             return;
-        case "sequence":
+        case "project":
             writer.writeUnsigned(5);
-            encodePatternSequenceResolution(writer, value.sequence);
+            encodePatternProjectionResolution(writer, value.project);
             return;
-        case "shape":
+        case "destructure":
             writer.writeUnsigned(6);
-            encodePatternShapeResolution(writer, value.shape);
+            encodePatternDestructureResolution(writer, value.destructure);
             return;
-        case "nominal":
+        case "or":
             writer.writeUnsigned(7);
-            encodePatternNominalResolution(writer, value.nominal);
-            return;
-        case "newtype":
-            writer.writeUnsigned(8);
-            encodePatternNewtypeResolution(writer, value.newtype);
-            return;
-        case "variant":
-            writer.writeUnsigned(9);
-            encodePatternVariantResolution(writer, value.variant);
-            return;
-        case "union":
-            writer.writeUnsigned(10);
-            encodePatternUnionResolution(writer, value.union);
-            return;
-        case "borrow":
-            writer.writeUnsigned(11);
-            encodePatternBorrowResolution(writer, value.borrow);
-            return;
-        case "move":
-            writer.writeUnsigned(12);
-            encodePatternMoveResolution(writer, value.move_file);
-            return;
-        case "dereference":
-            writer.writeUnsigned(13);
-            encodePatternDereferenceResolution(writer, value.dereference);
+            encodePatternOrResolution(writer, value.or);
             return;
     }
 
@@ -1863,72 +2668,42 @@ export function decodePatternResolution(reader: BinaryReader): PatternResolution
 
     switch (variant) {
         case 0: {
-            return { kind: "wildcard" };
+            return { kind: "ignore" };
         }
         case 1: {
-            const binding = decodePatternBindingResolution(reader);
+            const bind = decodePatternBindingResolution(reader);
 
-            return { kind: "binding", binding };
+            return { kind: "bind", bind };
         }
         case 2: {
-            const literal = decodePatternLiteralResolution(reader);
+            const must = decodePatternMustResolution(reader);
 
-            return { kind: "literal", literal };
+            return { kind: "must", must };
         }
         case 3: {
-            const range = decodePatternRangeResolution(reader);
+            const default_ = decodePatternDefaultResolution(reader);
 
-            return { kind: "range", range };
+            return { kind: "default", default: default_ };
         }
         case 4: {
-            const tuple = decodePatternTupleResolution(reader);
+            const test = decodePatternPredicateResolution(reader);
 
-            return { kind: "tuple", tuple };
+            return { kind: "test", test };
         }
         case 5: {
-            const sequence = decodePatternSequenceResolution(reader);
+            const project = decodePatternProjectionResolution(reader);
 
-            return { kind: "sequence", sequence };
+            return { kind: "project", project };
         }
         case 6: {
-            const shape = decodePatternShapeResolution(reader);
+            const destructure = decodePatternDestructureResolution(reader);
 
-            return { kind: "shape", shape };
+            return { kind: "destructure", destructure };
         }
         case 7: {
-            const nominal = decodePatternNominalResolution(reader);
+            const or = decodePatternOrResolution(reader);
 
-            return { kind: "nominal", nominal };
-        }
-        case 8: {
-            const newtype = decodePatternNewtypeResolution(reader);
-
-            return { kind: "newtype", newtype };
-        }
-        case 9: {
-            const variant = decodePatternVariantResolution(reader);
-
-            return { kind: "variant", variant };
-        }
-        case 10: {
-            const union = decodePatternUnionResolution(reader);
-
-            return { kind: "union", union };
-        }
-        case 11: {
-            const borrow = decodePatternBorrowResolution(reader);
-
-            return { kind: "borrow", borrow };
-        }
-        case 12: {
-            const move_file = decodePatternMoveResolution(reader);
-
-            return { kind: "move", move_file };
-        }
-        case 13: {
-            const dereference = decodePatternDereferenceResolution(reader);
-
-            return { kind: "dereference", dereference };
+            return { kind: "or", or };
         }
     }
 
@@ -1938,74 +2713,44 @@ export function decodePatternResolution(reader: BinaryReader): PatternResolution
 /** Return one JSON value for one PatternResolution. */
 export function toJsonPatternResolution(value: PatternResolution): Json {
     switch (value.kind) {
-        case "wildcard":
+        case "ignore":
             return {
-                kind: "wildcard",
+                kind: "ignore",
             };
-        case "binding":
+        case "bind":
             return {
-                kind: "binding",
-                binding: toJsonPatternBindingResolution(value.binding),
+                kind: "bind",
+                bind: toJsonPatternBindingResolution(value.bind),
             };
-        case "literal":
+        case "must":
             return {
-                kind: "literal",
-                literal: toJsonPatternLiteralResolution(value.literal),
+                kind: "must",
+                must: toJsonPatternMustResolution(value.must),
             };
-        case "range":
+        case "default":
             return {
-                kind: "range",
-                range: toJsonPatternRangeResolution(value.range),
+                kind: "default",
+                default: toJsonPatternDefaultResolution(value.default),
             };
-        case "tuple":
+        case "test":
             return {
-                kind: "tuple",
-                tuple: toJsonPatternTupleResolution(value.tuple),
+                kind: "test",
+                test: toJsonPatternPredicateResolution(value.test),
             };
-        case "sequence":
+        case "project":
             return {
-                kind: "sequence",
-                sequence: toJsonPatternSequenceResolution(value.sequence),
+                kind: "project",
+                project: toJsonPatternProjectionResolution(value.project),
             };
-        case "shape":
+        case "destructure":
             return {
-                kind: "shape",
-                shape: toJsonPatternShapeResolution(value.shape),
+                kind: "destructure",
+                destructure: toJsonPatternDestructureResolution(value.destructure),
             };
-        case "nominal":
+        case "or":
             return {
-                kind: "nominal",
-                nominal: toJsonPatternNominalResolution(value.nominal),
-            };
-        case "newtype":
-            return {
-                kind: "newtype",
-                newtype: toJsonPatternNewtypeResolution(value.newtype),
-            };
-        case "variant":
-            return {
-                kind: "variant",
-                variant: toJsonPatternVariantResolution(value.variant),
-            };
-        case "union":
-            return {
-                kind: "union",
-                union: toJsonPatternUnionResolution(value.union),
-            };
-        case "borrow":
-            return {
-                kind: "borrow",
-                borrow: toJsonPatternBorrowResolution(value.borrow),
-            };
-        case "move":
-            return {
-                kind: "move",
-                move_file: toJsonPatternMoveResolution(value.move_file),
-            };
-        case "dereference":
-            return {
-                kind: "dereference",
-                dereference: toJsonPatternDereferenceResolution(value.dereference),
+                kind: "or",
+                or: toJsonPatternOrResolution(value.or),
             };
     }
 
@@ -2018,74 +2763,44 @@ export function fromJsonPatternResolution(value: Json): PatternResolution {
     const kind = jsonString(jsonField(object, "kind"));
 
     switch (kind) {
-        case "wildcard":
+        case "ignore":
             return {
                 kind,
             };
-        case "binding":
+        case "bind":
             return {
                 kind,
-                binding: fromJsonPatternBindingResolution(jsonField(object, "binding")),
+                bind: fromJsonPatternBindingResolution(jsonField(object, "bind")),
             };
-        case "literal":
+        case "must":
             return {
                 kind,
-                literal: fromJsonPatternLiteralResolution(jsonField(object, "literal")),
+                must: fromJsonPatternMustResolution(jsonField(object, "must")),
             };
-        case "range":
+        case "default":
             return {
                 kind,
-                range: fromJsonPatternRangeResolution(jsonField(object, "range")),
+                default: fromJsonPatternDefaultResolution(jsonField(object, "default")),
             };
-        case "tuple":
+        case "test":
             return {
                 kind,
-                tuple: fromJsonPatternTupleResolution(jsonField(object, "tuple")),
+                test: fromJsonPatternPredicateResolution(jsonField(object, "test")),
             };
-        case "sequence":
+        case "project":
             return {
                 kind,
-                sequence: fromJsonPatternSequenceResolution(jsonField(object, "sequence")),
+                project: fromJsonPatternProjectionResolution(jsonField(object, "project")),
             };
-        case "shape":
+        case "destructure":
             return {
                 kind,
-                shape: fromJsonPatternShapeResolution(jsonField(object, "shape")),
+                destructure: fromJsonPatternDestructureResolution(jsonField(object, "destructure")),
             };
-        case "nominal":
+        case "or":
             return {
                 kind,
-                nominal: fromJsonPatternNominalResolution(jsonField(object, "nominal")),
-            };
-        case "newtype":
-            return {
-                kind,
-                newtype: fromJsonPatternNewtypeResolution(jsonField(object, "newtype")),
-            };
-        case "variant":
-            return {
-                kind,
-                variant: fromJsonPatternVariantResolution(jsonField(object, "variant")),
-            };
-        case "union":
-            return {
-                kind,
-                union: fromJsonPatternUnionResolution(jsonField(object, "union")),
-            };
-        case "borrow":
-            return {
-                kind,
-                borrow: fromJsonPatternBorrowResolution(jsonField(object, "borrow")),
-            };
-        case "move":
-            return {
-                kind,
-                move_file: fromJsonPatternMoveResolution(jsonField(object, "move_file")),
-            };
-        case "dereference":
-            return {
-                kind,
-                dereference: fromJsonPatternDereferenceResolution(jsonField(object, "dereference")),
+                or: fromJsonPatternOrResolution(jsonField(object, "or")),
             };
     }
 
@@ -2161,185 +2876,500 @@ export function fromJsonPatternBindingResolution(value: Json): PatternBindingRes
     };
 }
 
-/** Static literal selected by one pattern. */
-export type PatternLiteralResolution = {
-    /** The committed literal value. */
-    readonly value: ScalarLiteral;
+/** Required nested pattern selected during checking. */
+export type PatternMustResolution = {
+    /** The nested pattern that must match. */
+    readonly pattern: GlobalNodeIdAny;
 };
 
-export const PatternLiteralResolution = {
+export const PatternMustResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternLiteralResolution): void {
-        encodePatternLiteralResolution(writer, value);
+    encode(writer: BinaryWriter, value: PatternMustResolution): void {
+        encodePatternMustResolution(writer, value);
     },
 
-    /** Decode one PatternLiteralResolution. */
-    decode(reader: BinaryReader): PatternLiteralResolution {
-        return decodePatternLiteralResolution(reader);
+    /** Decode one PatternMustResolution. */
+    decode(reader: BinaryReader): PatternMustResolution {
+        return decodePatternMustResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: PatternLiteralResolution): Json {
-        return toJsonPatternLiteralResolution(value);
+    toJson(value: PatternMustResolution): Json {
+        return toJsonPatternMustResolution(value);
     },
 
-    /** Return one PatternLiteralResolution from one JSON value. */
-    fromJson(value: Json): PatternLiteralResolution {
-        return fromJsonPatternLiteralResolution(value);
+    /** Return one PatternMustResolution from one JSON value. */
+    fromJson(value: Json): PatternMustResolution {
+        return fromJsonPatternMustResolution(value);
     },
 };
 
-/** Encode one PatternLiteralResolution. */
-export function encodePatternLiteralResolution(writer: BinaryWriter, value: PatternLiteralResolution): void {
-    encodeScalarLiteral(writer, value.value);
+/** Encode one PatternMustResolution. */
+export function encodePatternMustResolution(writer: BinaryWriter, value: PatternMustResolution): void {
+    encodeGlobalNodeIdAny(writer, value.pattern);
 }
 
-/** Decode one PatternLiteralResolution. */
-export function decodePatternLiteralResolution(reader: BinaryReader): PatternLiteralResolution {
-    const value = decodeScalarLiteral(reader);
+/** Decode one PatternMustResolution. */
+export function decodePatternMustResolution(reader: BinaryReader): PatternMustResolution {
+    const pattern = decodeGlobalNodeIdAny(reader);
 
     return {
+        pattern,
+    };
+}
+
+/** Return one JSON value for one PatternMustResolution. */
+export function toJsonPatternMustResolution(value: PatternMustResolution): Json {
+    return {
+        pattern: toJsonGlobalNodeIdAny(value.pattern),
+    };
+}
+
+/** Return one PatternMustResolution from one JSON value. */
+export function fromJsonPatternMustResolution(value: Json): PatternMustResolution {
+    const object = jsonObject(value);
+
+    return {
+        pattern: fromJsonGlobalNodeIdAny(jsonField(object, "pattern")),
+    };
+}
+
+/** Defaulted nested pattern selected during checking. */
+export type PatternDefaultResolution = {
+    /** The nested pattern. */
+    readonly pattern: GlobalNodeIdAny;
+    /** The default expression. */
+    readonly value: GlobalNodeIdAny;
+};
+
+export const PatternDefaultResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternDefaultResolution): void {
+        encodePatternDefaultResolution(writer, value);
+    },
+
+    /** Decode one PatternDefaultResolution. */
+    decode(reader: BinaryReader): PatternDefaultResolution {
+        return decodePatternDefaultResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternDefaultResolution): Json {
+        return toJsonPatternDefaultResolution(value);
+    },
+
+    /** Return one PatternDefaultResolution from one JSON value. */
+    fromJson(value: Json): PatternDefaultResolution {
+        return fromJsonPatternDefaultResolution(value);
+    },
+};
+
+/** Encode one PatternDefaultResolution. */
+export function encodePatternDefaultResolution(writer: BinaryWriter, value: PatternDefaultResolution): void {
+    encodeGlobalNodeIdAny(writer, value.pattern);
+    encodeGlobalNodeIdAny(writer, value.value);
+}
+
+/** Decode one PatternDefaultResolution. */
+export function decodePatternDefaultResolution(reader: BinaryReader): PatternDefaultResolution {
+    const pattern = decodeGlobalNodeIdAny(reader);
+    const value = decodeGlobalNodeIdAny(reader);
+
+    return {
+        pattern,
         value,
     };
 }
 
-/** Return one JSON value for one PatternLiteralResolution. */
-export function toJsonPatternLiteralResolution(value: PatternLiteralResolution): Json {
+/** Return one JSON value for one PatternDefaultResolution. */
+export function toJsonPatternDefaultResolution(value: PatternDefaultResolution): Json {
     return {
-        value: toJsonScalarLiteral(value.value),
+        pattern: toJsonGlobalNodeIdAny(value.pattern),
+        value: toJsonGlobalNodeIdAny(value.value),
     };
 }
 
-/** Return one PatternLiteralResolution from one JSON value. */
-export function fromJsonPatternLiteralResolution(value: Json): PatternLiteralResolution {
+/** Return one PatternDefaultResolution from one JSON value. */
+export function fromJsonPatternDefaultResolution(value: Json): PatternDefaultResolution {
     const object = jsonObject(value);
 
     return {
-        value: fromJsonScalarLiteral(jsonField(object, "value")),
+        pattern: fromJsonGlobalNodeIdAny(jsonField(object, "pattern")),
+        value: fromJsonGlobalNodeIdAny(jsonField(object, "value")),
     };
 }
 
-/** Scalar range selected by one pattern. */
-export type PatternRangeResolution = {
-    /** The scalar domain constrained by the range. */
-    readonly domain: GlobalTypeId;
-    /** The optional committed lower bound. */
-    readonly start?: ScalarLiteral;
-    /** The optional committed upper bound. */
-    readonly end?: ScalarLiteral;
-    /** Whether the upper bound is inclusive. */
-    readonly endBound: RangeEnd;
+/** Executable predicate selected by one pattern. */
+export type PatternPredicateResolution = {
+    /** The executable predicate. */
+    readonly predicate: Predicate;
 };
 
-export const PatternRangeResolution = {
+export const PatternPredicateResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternRangeResolution): void {
-        encodePatternRangeResolution(writer, value);
+    encode(writer: BinaryWriter, value: PatternPredicateResolution): void {
+        encodePatternPredicateResolution(writer, value);
     },
 
-    /** Decode one PatternRangeResolution. */
-    decode(reader: BinaryReader): PatternRangeResolution {
-        return decodePatternRangeResolution(reader);
+    /** Decode one PatternPredicateResolution. */
+    decode(reader: BinaryReader): PatternPredicateResolution {
+        return decodePatternPredicateResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: PatternRangeResolution): Json {
-        return toJsonPatternRangeResolution(value);
+    toJson(value: PatternPredicateResolution): Json {
+        return toJsonPatternPredicateResolution(value);
     },
 
-    /** Return one PatternRangeResolution from one JSON value. */
-    fromJson(value: Json): PatternRangeResolution {
-        return fromJsonPatternRangeResolution(value);
+    /** Return one PatternPredicateResolution from one JSON value. */
+    fromJson(value: Json): PatternPredicateResolution {
+        return fromJsonPatternPredicateResolution(value);
     },
 };
 
-/** Encode one PatternRangeResolution. */
-export function encodePatternRangeResolution(writer: BinaryWriter, value: PatternRangeResolution): void {
-    encodeGlobalTypeId(writer, value.domain);
-    writer.writeOption(value.start, (value1) => {
-        encodeScalarLiteral(writer, value1);
-    });
-    writer.writeOption(value.end, (value2) => {
-        encodeScalarLiteral(writer, value2);
-    });
-    encodeRangeEnd(writer, value.endBound);
+/** Encode one PatternPredicateResolution. */
+export function encodePatternPredicateResolution(writer: BinaryWriter, value: PatternPredicateResolution): void {
+    encodePredicate(writer, value.predicate);
 }
 
-/** Decode one PatternRangeResolution. */
-export function decodePatternRangeResolution(reader: BinaryReader): PatternRangeResolution {
-    const domain = decodeGlobalTypeId(reader);
-    const start = reader.readOption(() => decodeScalarLiteral(reader));
-    const end = reader.readOption(() => decodeScalarLiteral(reader));
-    const endBound = decodeRangeEnd(reader);
+/** Decode one PatternPredicateResolution. */
+export function decodePatternPredicateResolution(reader: BinaryReader): PatternPredicateResolution {
+    const predicate = decodePredicate(reader);
 
     return {
-        domain,
-        ...(start === undefined ? {} : { start }),
-        ...(end === undefined ? {} : { end }),
-        endBound,
+        predicate,
     };
 }
 
-/** Return one JSON value for one PatternRangeResolution. */
-export function toJsonPatternRangeResolution(value: PatternRangeResolution): Json {
+/** Return one JSON value for one PatternPredicateResolution. */
+export function toJsonPatternPredicateResolution(value: PatternPredicateResolution): Json {
     return {
-        domain: toJsonGlobalTypeId(value.domain),
-        ...(value.start === undefined ? {} : { start: toJsonScalarLiteral(value.start) }),
-        ...(value.end === undefined ? {} : { end: toJsonScalarLiteral(value.end) }),
-        endBound: toJsonRangeEnd(value.endBound),
+        predicate: toJsonPredicate(value.predicate),
     };
 }
 
-/** Return one PatternRangeResolution from one JSON value. */
-export function fromJsonPatternRangeResolution(value: Json): PatternRangeResolution {
+/** Return one PatternPredicateResolution from one JSON value. */
+export function fromJsonPatternPredicateResolution(value: Json): PatternPredicateResolution {
     const object = jsonObject(value);
 
     return {
-        domain: fromJsonGlobalTypeId(jsonField(object, "domain")),
-        start: jsonOptional(object, "start", (value) => fromJsonScalarLiteral(value)),
-        end: jsonOptional(object, "end", (value) => fromJsonScalarLiteral(value)),
-        endBound: fromJsonRangeEnd(jsonField(object, "endBound")),
+        predicate: fromJsonPredicate(jsonField(object, "predicate")),
     };
 }
 
-/** Tuple fields selected by one pattern. */
-export type PatternTupleResolution = {
-    /** The tuple field mapping in source order. */
+/** Projection selected by one pattern. */
+export type PatternProjectionResolution = {
+    /** The selected projection. */
+    readonly projection: Projection;
+    /** The pattern matched after projection. */
+    readonly pattern?: GlobalNodeIdAny;
+};
+
+export const PatternProjectionResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternProjectionResolution): void {
+        encodePatternProjectionResolution(writer, value);
+    },
+
+    /** Decode one PatternProjectionResolution. */
+    decode(reader: BinaryReader): PatternProjectionResolution {
+        return decodePatternProjectionResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternProjectionResolution): Json {
+        return toJsonPatternProjectionResolution(value);
+    },
+
+    /** Return one PatternProjectionResolution from one JSON value. */
+    fromJson(value: Json): PatternProjectionResolution {
+        return fromJsonPatternProjectionResolution(value);
+    },
+};
+
+/** Encode one PatternProjectionResolution. */
+export function encodePatternProjectionResolution(writer: BinaryWriter, value: PatternProjectionResolution): void {
+    encodeProjection(writer, value.projection);
+    writer.writeOption(value.pattern, (value1) => {
+        encodeGlobalNodeIdAny(writer, value1);
+    });
+}
+
+/** Decode one PatternProjectionResolution. */
+export function decodePatternProjectionResolution(reader: BinaryReader): PatternProjectionResolution {
+    const projection = decodeProjection(reader);
+    const pattern = reader.readOption(() => decodeGlobalNodeIdAny(reader));
+
+    return {
+        projection,
+        ...(pattern === undefined ? {} : { pattern }),
+    };
+}
+
+/** Return one JSON value for one PatternProjectionResolution. */
+export function toJsonPatternProjectionResolution(value: PatternProjectionResolution): Json {
+    return {
+        projection: toJsonProjection(value.projection),
+        ...(value.pattern === undefined ? {} : { pattern: toJsonGlobalNodeIdAny(value.pattern) }),
+    };
+}
+
+/** Return one PatternProjectionResolution from one JSON value. */
+export function fromJsonPatternProjectionResolution(value: Json): PatternProjectionResolution {
+    const object = jsonObject(value);
+
+    return {
+        projection: fromJsonProjection(jsonField(object, "projection")),
+        pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
+    };
+}
+
+/** Destructuring selected by one pattern. */
+export type PatternDestructureResolution =
+    /** Tuple-shaped destructuring, like `(x, y)`. */
+    | {
+          readonly kind: "tuple";
+          readonly tuple: PatternTupleDestructureResolution;
+      }
+    /** Object-shaped destructuring, like `{ name }`. */
+    | {
+          readonly kind: "object";
+          readonly object: PatternObjectDestructureResolution;
+      }
+    /** Symbol-backed nominal destructuring, like `Point { x, y }`. */
+    | {
+          readonly kind: "nominal";
+          readonly nominal: PatternNominalDestructureResolution;
+      }
+    /** Sequence destructuring, like `[head, ...tail]`. */
+    | {
+          readonly kind: "sequence";
+          readonly sequence: PatternSequenceDestructureResolution;
+      }
+    /** Tagged variant destructuring, like `Status.Ok(value)`. */
+    | {
+          readonly kind: "variant";
+          readonly variant: PatternVariantDestructureResolution;
+      }
+;
+
+export const PatternDestructureResolution = {
+    /** Tuple-shaped destructuring, like `(x, y)`. */
+    tuple(tuple: PatternTupleDestructureResolution): PatternDestructureResolution {
+        return { kind: "tuple", tuple };
+    },
+
+    /** Object-shaped destructuring, like `{ name }`. */
+    "object"(object_: PatternObjectDestructureResolution): PatternDestructureResolution {
+        return { kind: "object", object: object_ };
+    },
+
+    /** Symbol-backed nominal destructuring, like `Point { x, y }`. */
+    nominal(nominal: PatternNominalDestructureResolution): PatternDestructureResolution {
+        return { kind: "nominal", nominal };
+    },
+
+    /** Sequence destructuring, like `[head, ...tail]`. */
+    sequence(sequence: PatternSequenceDestructureResolution): PatternDestructureResolution {
+        return { kind: "sequence", sequence };
+    },
+
+    /** Tagged variant destructuring, like `Status.Ok(value)`. */
+    variant(variant: PatternVariantDestructureResolution): PatternDestructureResolution {
+        return { kind: "variant", variant };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternDestructureResolution): void {
+        encodePatternDestructureResolution(writer, value);
+    },
+
+    /** Decode one PatternDestructureResolution. */
+    decode(reader: BinaryReader): PatternDestructureResolution {
+        return decodePatternDestructureResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternDestructureResolution): Json {
+        return toJsonPatternDestructureResolution(value);
+    },
+
+    /** Return one PatternDestructureResolution from one JSON value. */
+    fromJson(value: Json): PatternDestructureResolution {
+        return fromJsonPatternDestructureResolution(value);
+    },
+};
+
+/** Encode one PatternDestructureResolution. */
+export function encodePatternDestructureResolution(writer: BinaryWriter, value: PatternDestructureResolution): void {
+    switch (value.kind) {
+        case "tuple":
+            writer.writeUnsigned(0);
+            encodePatternTupleDestructureResolution(writer, value.tuple);
+            return;
+        case "object":
+            writer.writeUnsigned(1);
+            encodePatternObjectDestructureResolution(writer, value.object);
+            return;
+        case "nominal":
+            writer.writeUnsigned(2);
+            encodePatternNominalDestructureResolution(writer, value.nominal);
+            return;
+        case "sequence":
+            writer.writeUnsigned(3);
+            encodePatternSequenceDestructureResolution(writer, value.sequence);
+            return;
+        case "variant":
+            writer.writeUnsigned(4);
+            encodePatternVariantDestructureResolution(writer, value.variant);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one PatternDestructureResolution. */
+export function decodePatternDestructureResolution(reader: BinaryReader): PatternDestructureResolution {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const tuple = decodePatternTupleDestructureResolution(reader);
+
+            return { kind: "tuple", tuple };
+        }
+        case 1: {
+            const object_ = decodePatternObjectDestructureResolution(reader);
+
+            return { kind: "object", object: object_ };
+        }
+        case 2: {
+            const nominal = decodePatternNominalDestructureResolution(reader);
+
+            return { kind: "nominal", nominal };
+        }
+        case 3: {
+            const sequence = decodePatternSequenceDestructureResolution(reader);
+
+            return { kind: "sequence", sequence };
+        }
+        case 4: {
+            const variant = decodePatternVariantDestructureResolution(reader);
+
+            return { kind: "variant", variant };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one PatternDestructureResolution. */
+export function toJsonPatternDestructureResolution(value: PatternDestructureResolution): Json {
+    switch (value.kind) {
+        case "tuple":
+            return {
+                kind: "tuple",
+                tuple: toJsonPatternTupleDestructureResolution(value.tuple),
+            };
+        case "object":
+            return {
+                kind: "object",
+                object: toJsonPatternObjectDestructureResolution(value.object),
+            };
+        case "nominal":
+            return {
+                kind: "nominal",
+                nominal: toJsonPatternNominalDestructureResolution(value.nominal),
+            };
+        case "sequence":
+            return {
+                kind: "sequence",
+                sequence: toJsonPatternSequenceDestructureResolution(value.sequence),
+            };
+        case "variant":
+            return {
+                kind: "variant",
+                variant: toJsonPatternVariantDestructureResolution(value.variant),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one PatternDestructureResolution from one JSON value. */
+export function fromJsonPatternDestructureResolution(value: Json): PatternDestructureResolution {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "tuple":
+            return {
+                kind,
+                tuple: fromJsonPatternTupleDestructureResolution(jsonField(object, "tuple")),
+            };
+        case "object":
+            return {
+                kind,
+                object: fromJsonPatternObjectDestructureResolution(jsonField(object, "object")),
+            };
+        case "nominal":
+            return {
+                kind,
+                nominal: fromJsonPatternNominalDestructureResolution(jsonField(object, "nominal")),
+            };
+        case "sequence":
+            return {
+                kind,
+                sequence: fromJsonPatternSequenceDestructureResolution(jsonField(object, "sequence")),
+            };
+        case "variant":
+            return {
+                kind,
+                variant: fromJsonPatternVariantDestructureResolution(jsonField(object, "variant")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** Tuple destructuring selected by one pattern. */
+export type PatternTupleDestructureResolution = {
+    /** The tuple fields in source order. */
     readonly fields: ReadonlyArray<PatternFieldResolution>;
 };
 
-export const PatternTupleResolution = {
+export const PatternTupleDestructureResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternTupleResolution): void {
-        encodePatternTupleResolution(writer, value);
+    encode(writer: BinaryWriter, value: PatternTupleDestructureResolution): void {
+        encodePatternTupleDestructureResolution(writer, value);
     },
 
-    /** Decode one PatternTupleResolution. */
-    decode(reader: BinaryReader): PatternTupleResolution {
-        return decodePatternTupleResolution(reader);
+    /** Decode one PatternTupleDestructureResolution. */
+    decode(reader: BinaryReader): PatternTupleDestructureResolution {
+        return decodePatternTupleDestructureResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: PatternTupleResolution): Json {
-        return toJsonPatternTupleResolution(value);
+    toJson(value: PatternTupleDestructureResolution): Json {
+        return toJsonPatternTupleDestructureResolution(value);
     },
 
-    /** Return one PatternTupleResolution from one JSON value. */
-    fromJson(value: Json): PatternTupleResolution {
-        return fromJsonPatternTupleResolution(value);
+    /** Return one PatternTupleDestructureResolution from one JSON value. */
+    fromJson(value: Json): PatternTupleDestructureResolution {
+        return fromJsonPatternTupleDestructureResolution(value);
     },
 };
 
-/** Encode one PatternTupleResolution. */
-export function encodePatternTupleResolution(writer: BinaryWriter, value: PatternTupleResolution): void {
+/** Encode one PatternTupleDestructureResolution. */
+export function encodePatternTupleDestructureResolution(writer: BinaryWriter, value: PatternTupleDestructureResolution): void {
     writer.writeUnsigned(value.fields.length);
     for (const item0 of value.fields) {
         encodePatternFieldResolution(writer, item0);
     }
 }
 
-/** Decode one PatternTupleResolution. */
-export function decodePatternTupleResolution(reader: BinaryReader): PatternTupleResolution {
+/** Decode one PatternTupleDestructureResolution. */
+export function decodePatternTupleDestructureResolution(reader: BinaryReader): PatternTupleDestructureResolution {
     const fields = (() => { const length0 = reader.readNumber(); const items0: Array<PatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodePatternFieldResolution(reader)); } return items0; })();
 
     return {
@@ -2347,15 +3377,15 @@ export function decodePatternTupleResolution(reader: BinaryReader): PatternTuple
     };
 }
 
-/** Return one JSON value for one PatternTupleResolution. */
-export function toJsonPatternTupleResolution(value: PatternTupleResolution): Json {
+/** Return one JSON value for one PatternTupleDestructureResolution. */
+export function toJsonPatternTupleDestructureResolution(value: PatternTupleDestructureResolution): Json {
     return {
         fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
     };
 }
 
-/** Return one PatternTupleResolution from one JSON value. */
-export function fromJsonPatternTupleResolution(value: Json): PatternTupleResolution {
+/** Return one PatternTupleDestructureResolution from one JSON value. */
+export function fromJsonPatternTupleDestructureResolution(value: Json): PatternTupleDestructureResolution {
     const object = jsonObject(value);
 
     return {
@@ -2367,8 +3397,8 @@ export function fromJsonPatternTupleResolution(value: Json): PatternTupleResolut
 export type PatternFieldResolution = {
     /** The source node that introduces the field. */
     readonly source: GlobalNodeIdAny;
-    /** The selected field target. */
-    readonly target: PatternFieldTarget;
+    /** The selected field projection. */
+    readonly projection: Projection;
     /** The nested pattern matched for the field. */
     readonly pattern?: GlobalNodeIdAny;
 };
@@ -2398,7 +3428,7 @@ export const PatternFieldResolution = {
 /** Encode one PatternFieldResolution. */
 export function encodePatternFieldResolution(writer: BinaryWriter, value: PatternFieldResolution): void {
     encodeGlobalNodeIdAny(writer, value.source);
-    encodePatternFieldTarget(writer, value.target);
+    encodeProjection(writer, value.projection);
     writer.writeOption(value.pattern, (value2) => {
         encodeGlobalNodeIdAny(writer, value2);
     });
@@ -2407,12 +3437,12 @@ export function encodePatternFieldResolution(writer: BinaryWriter, value: Patter
 /** Decode one PatternFieldResolution. */
 export function decodePatternFieldResolution(reader: BinaryReader): PatternFieldResolution {
     const source = decodeGlobalNodeIdAny(reader);
-    const target = decodePatternFieldTarget(reader);
+    const projection = decodeProjection(reader);
     const pattern = reader.readOption(() => decodeGlobalNodeIdAny(reader));
 
     return {
         source,
-        target,
+        projection,
         ...(pattern === undefined ? {} : { pattern }),
     };
 }
@@ -2421,7 +3451,7 @@ export function decodePatternFieldResolution(reader: BinaryReader): PatternField
 export function toJsonPatternFieldResolution(value: PatternFieldResolution): Json {
     return {
         source: toJsonGlobalNodeIdAny(value.source),
-        target: toJsonPatternFieldTarget(value.target),
+        projection: toJsonProjection(value.projection),
         ...(value.pattern === undefined ? {} : { pattern: toJsonGlobalNodeIdAny(value.pattern) }),
     };
 }
@@ -2432,953 +3462,445 @@ export function fromJsonPatternFieldResolution(value: Json): PatternFieldResolut
 
     return {
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
-        target: fromJsonPatternFieldTarget(jsonField(object, "target")),
+        projection: fromJsonProjection(jsonField(object, "projection")),
         pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
     };
 }
 
-/** Field target selected by one destructuring pattern. */
-export type PatternFieldTarget =
-    /** Named or symbolic field target. */
-    | {
-          readonly kind: "key";
-          readonly key: StaticKey;
-      }
-    /** Positional field target. */
-    | {
-          readonly kind: "index";
-          readonly index: number;
-      }
-;
-
-export const PatternFieldTarget = {
-    /** Named or symbolic field target. */
-    key(key: StaticKey): PatternFieldTarget {
-        return { kind: "key", key };
-    },
-
-    /** Positional field target. */
-    index(index: number): PatternFieldTarget {
-        return { kind: "index", index };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternFieldTarget): void {
-        encodePatternFieldTarget(writer, value);
-    },
-
-    /** Decode one PatternFieldTarget. */
-    decode(reader: BinaryReader): PatternFieldTarget {
-        return decodePatternFieldTarget(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternFieldTarget): Json {
-        return toJsonPatternFieldTarget(value);
-    },
-
-    /** Return one PatternFieldTarget from one JSON value. */
-    fromJson(value: Json): PatternFieldTarget {
-        return fromJsonPatternFieldTarget(value);
-    },
-};
-
-/** Encode one PatternFieldTarget. */
-export function encodePatternFieldTarget(writer: BinaryWriter, value: PatternFieldTarget): void {
-    switch (value.kind) {
-        case "key":
-            writer.writeUnsigned(0);
-            encodeStaticKey(writer, value.key);
-            return;
-        case "index":
-            writer.writeUnsigned(1);
-            writer.writeUnsigned(value.index);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one PatternFieldTarget. */
-export function decodePatternFieldTarget(reader: BinaryReader): PatternFieldTarget {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            const key = decodeStaticKey(reader);
-
-            return { kind: "key", key };
-        }
-        case 1: {
-            const index = reader.readNumber();
-
-            return { kind: "index", index };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one PatternFieldTarget. */
-export function toJsonPatternFieldTarget(value: PatternFieldTarget): Json {
-    switch (value.kind) {
-        case "key":
-            return {
-                kind: "key",
-                key: toJsonStaticKey(value.key),
-            };
-        case "index":
-            return {
-                kind: "index",
-                index: value.index,
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one PatternFieldTarget from one JSON value. */
-export function fromJsonPatternFieldTarget(value: Json): PatternFieldTarget {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "key":
-            return {
-                kind,
-                key: fromJsonStaticKey(jsonField(object, "key")),
-            };
-        case "index":
-            return {
-                kind,
-                index: jsonInteger(jsonField(object, "index")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** Ordered collection selected by one pattern. */
-export type PatternSequenceResolution =
-    /** Dynamically sized array pattern, like `[head, ...tail]` over `T[]`. */
-    | {
-          readonly kind: "array";
-          /** The fixed prefix and suffix fields. */
-          readonly fields: ReadonlyArray<PatternFieldResolution>;
-          /** The rest field, when present. */
-          readonly rest?: PatternRestResolution;
-      }
-    /** Borrowed slice pattern, like `[head, ...tail]` over `[T]`. */
-    | {
-          readonly kind: "slice";
-          /** The fixed prefix and suffix fields. */
-          readonly fields: ReadonlyArray<PatternFieldResolution>;
-          /** The rest field, when present. */
-          readonly rest?: PatternRestResolution;
-      }
-    /** Fixed-size array pattern, like `[a, b, c]` over `[T; 3]`. */
-    | {
-          readonly kind: "fixedArray";
-          /** The fixed element fields. */
-          readonly fields: ReadonlyArray<PatternFieldResolution>;
-          /** The committed array length singleton. */
-          readonly length: GlobalTypeId;
-      }
-;
-
-export const PatternSequenceResolution = {
-    /** Dynamically sized array pattern, like `[head, ...tail]` over `T[]`. */
-    array(fields: ReadonlyArray<PatternFieldResolution>, rest: PatternRestResolution | undefined): PatternSequenceResolution {
-        return { kind: "array", fields, rest };
-    },
-
-    /** Borrowed slice pattern, like `[head, ...tail]` over `[T]`. */
-    slice(fields: ReadonlyArray<PatternFieldResolution>, rest: PatternRestResolution | undefined): PatternSequenceResolution {
-        return { kind: "slice", fields, rest };
-    },
-
-    /** Fixed-size array pattern, like `[a, b, c]` over `[T; 3]`. */
-    fixedArray(fields: ReadonlyArray<PatternFieldResolution>, length: GlobalTypeId): PatternSequenceResolution {
-        return { kind: "fixedArray", fields, length };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternSequenceResolution): void {
-        encodePatternSequenceResolution(writer, value);
-    },
-
-    /** Decode one PatternSequenceResolution. */
-    decode(reader: BinaryReader): PatternSequenceResolution {
-        return decodePatternSequenceResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternSequenceResolution): Json {
-        return toJsonPatternSequenceResolution(value);
-    },
-
-    /** Return one PatternSequenceResolution from one JSON value. */
-    fromJson(value: Json): PatternSequenceResolution {
-        return fromJsonPatternSequenceResolution(value);
-    },
-};
-
-/** Encode one PatternSequenceResolution. */
-export function encodePatternSequenceResolution(writer: BinaryWriter, value: PatternSequenceResolution): void {
-    switch (value.kind) {
-        case "array":
-            writer.writeUnsigned(0);
-            writer.writeUnsigned(value.fields.length);
-            for (const item0 of value.fields) {
-                encodePatternFieldResolution(writer, item0);
-            }
-            writer.writeOption(value.rest, (value1) => {
-                encodePatternRestResolution(writer, value1);
-            });
-            return;
-        case "slice":
-            writer.writeUnsigned(1);
-            writer.writeUnsigned(value.fields.length);
-            for (const item0 of value.fields) {
-                encodePatternFieldResolution(writer, item0);
-            }
-            writer.writeOption(value.rest, (value1) => {
-                encodePatternRestResolution(writer, value1);
-            });
-            return;
-        case "fixedArray":
-            writer.writeUnsigned(2);
-            writer.writeUnsigned(value.fields.length);
-            for (const item0 of value.fields) {
-                encodePatternFieldResolution(writer, item0);
-            }
-            encodeGlobalTypeId(writer, value.length);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one PatternSequenceResolution. */
-export function decodePatternSequenceResolution(reader: BinaryReader): PatternSequenceResolution {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            const fields = (() => { const length0 = reader.readNumber(); const items0: Array<PatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodePatternFieldResolution(reader)); } return items0; })();
-            const rest = reader.readOption(() => decodePatternRestResolution(reader));
-
-            return {
-                kind: "array",
-                fields,
-                ...(rest === undefined ? {} : { rest }),
-            };
-        }
-        case 1: {
-            const fields = (() => { const length0 = reader.readNumber(); const items0: Array<PatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodePatternFieldResolution(reader)); } return items0; })();
-            const rest = reader.readOption(() => decodePatternRestResolution(reader));
-
-            return {
-                kind: "slice",
-                fields,
-                ...(rest === undefined ? {} : { rest }),
-            };
-        }
-        case 2: {
-            const fields = (() => { const length0 = reader.readNumber(); const items0: Array<PatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodePatternFieldResolution(reader)); } return items0; })();
-            const length = decodeGlobalTypeId(reader);
-
-            return {
-                kind: "fixedArray",
-                fields,
-                length,
-            };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one PatternSequenceResolution. */
-export function toJsonPatternSequenceResolution(value: PatternSequenceResolution): Json {
-    switch (value.kind) {
-        case "array":
-            return {
-                kind: "array",
-                fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
-                ...(value.rest === undefined ? {} : { rest: toJsonPatternRestResolution(value.rest) }),
-            };
-        case "slice":
-            return {
-                kind: "slice",
-                fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
-                ...(value.rest === undefined ? {} : { rest: toJsonPatternRestResolution(value.rest) }),
-            };
-        case "fixedArray":
-            return {
-                kind: "fixedArray",
-                fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
-                length: toJsonGlobalTypeId(value.length),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one PatternSequenceResolution from one JSON value. */
-export function fromJsonPatternSequenceResolution(value: Json): PatternSequenceResolution {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "array":
-            return {
-                kind,
-                fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
-                rest: jsonOptional(object, "rest", (value) => fromJsonPatternRestResolution(value)),
-            };
-        case "slice":
-            return {
-                kind,
-                fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
-                rest: jsonOptional(object, "rest", (value) => fromJsonPatternRestResolution(value)),
-            };
-        case "fixedArray":
-            return {
-                kind,
-                fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
-                length: fromJsonGlobalTypeId(jsonField(object, "length")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** Rest field selected by one ordered pattern. */
-export type PatternRestResolution = {
-    /** The source node that introduces the rest field. */
-    readonly source: GlobalNodeIdAny;
-    /** The nested pattern matched for the rest field. */
-    readonly pattern?: GlobalNodeIdAny;
-};
-
-export const PatternRestResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternRestResolution): void {
-        encodePatternRestResolution(writer, value);
-    },
-
-    /** Decode one PatternRestResolution. */
-    decode(reader: BinaryReader): PatternRestResolution {
-        return decodePatternRestResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternRestResolution): Json {
-        return toJsonPatternRestResolution(value);
-    },
-
-    /** Return one PatternRestResolution from one JSON value. */
-    fromJson(value: Json): PatternRestResolution {
-        return fromJsonPatternRestResolution(value);
-    },
-};
-
-/** Encode one PatternRestResolution. */
-export function encodePatternRestResolution(writer: BinaryWriter, value: PatternRestResolution): void {
-    encodeGlobalNodeIdAny(writer, value.source);
-    writer.writeOption(value.pattern, (value1) => {
-        encodeGlobalNodeIdAny(writer, value1);
-    });
-}
-
-/** Decode one PatternRestResolution. */
-export function decodePatternRestResolution(reader: BinaryReader): PatternRestResolution {
-    const source = decodeGlobalNodeIdAny(reader);
-    const pattern = reader.readOption(() => decodeGlobalNodeIdAny(reader));
-
-    return {
-        source,
-        ...(pattern === undefined ? {} : { pattern }),
-    };
-}
-
-/** Return one JSON value for one PatternRestResolution. */
-export function toJsonPatternRestResolution(value: PatternRestResolution): Json {
-    return {
-        source: toJsonGlobalNodeIdAny(value.source),
-        ...(value.pattern === undefined ? {} : { pattern: toJsonGlobalNodeIdAny(value.pattern) }),
-    };
-}
-
-/** Return one PatternRestResolution from one JSON value. */
-export function fromJsonPatternRestResolution(value: Json): PatternRestResolution {
-    const object = jsonObject(value);
-
-    return {
-        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
-        pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
-    };
-}
-
-/** Structural fields selected by one pattern. */
-export type PatternShapeResolution = {
-    /** The structural field mapping in source order. */
+/** Object destructuring selected by one pattern. */
+export type PatternObjectDestructureResolution = {
+    /** The object fields in source order. */
     readonly fields: ReadonlyArray<PatternFieldResolution>;
+    /** The rest field, when present. */
+    readonly rest?: PatternFieldResolution;
 };
 
-export const PatternShapeResolution = {
+export const PatternObjectDestructureResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternShapeResolution): void {
-        encodePatternShapeResolution(writer, value);
+    encode(writer: BinaryWriter, value: PatternObjectDestructureResolution): void {
+        encodePatternObjectDestructureResolution(writer, value);
     },
 
-    /** Decode one PatternShapeResolution. */
-    decode(reader: BinaryReader): PatternShapeResolution {
-        return decodePatternShapeResolution(reader);
+    /** Decode one PatternObjectDestructureResolution. */
+    decode(reader: BinaryReader): PatternObjectDestructureResolution {
+        return decodePatternObjectDestructureResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: PatternShapeResolution): Json {
-        return toJsonPatternShapeResolution(value);
+    toJson(value: PatternObjectDestructureResolution): Json {
+        return toJsonPatternObjectDestructureResolution(value);
     },
 
-    /** Return one PatternShapeResolution from one JSON value. */
-    fromJson(value: Json): PatternShapeResolution {
-        return fromJsonPatternShapeResolution(value);
+    /** Return one PatternObjectDestructureResolution from one JSON value. */
+    fromJson(value: Json): PatternObjectDestructureResolution {
+        return fromJsonPatternObjectDestructureResolution(value);
     },
 };
 
-/** Encode one PatternShapeResolution. */
-export function encodePatternShapeResolution(writer: BinaryWriter, value: PatternShapeResolution): void {
+/** Encode one PatternObjectDestructureResolution. */
+export function encodePatternObjectDestructureResolution(writer: BinaryWriter, value: PatternObjectDestructureResolution): void {
     writer.writeUnsigned(value.fields.length);
     for (const item0 of value.fields) {
         encodePatternFieldResolution(writer, item0);
     }
+    writer.writeOption(value.rest, (value1) => {
+        encodePatternFieldResolution(writer, value1);
+    });
 }
 
-/** Decode one PatternShapeResolution. */
-export function decodePatternShapeResolution(reader: BinaryReader): PatternShapeResolution {
+/** Decode one PatternObjectDestructureResolution. */
+export function decodePatternObjectDestructureResolution(reader: BinaryReader): PatternObjectDestructureResolution {
     const fields = (() => { const length0 = reader.readNumber(); const items0: Array<PatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodePatternFieldResolution(reader)); } return items0; })();
+    const rest = reader.readOption(() => decodePatternFieldResolution(reader));
 
     return {
         fields,
+        ...(rest === undefined ? {} : { rest }),
     };
 }
 
-/** Return one JSON value for one PatternShapeResolution. */
-export function toJsonPatternShapeResolution(value: PatternShapeResolution): Json {
+/** Return one JSON value for one PatternObjectDestructureResolution. */
+export function toJsonPatternObjectDestructureResolution(value: PatternObjectDestructureResolution): Json {
     return {
         fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
+        ...(value.rest === undefined ? {} : { rest: toJsonPatternFieldResolution(value.rest) }),
     };
 }
 
-/** Return one PatternShapeResolution from one JSON value. */
-export function fromJsonPatternShapeResolution(value: Json): PatternShapeResolution {
+/** Return one PatternObjectDestructureResolution from one JSON value. */
+export function fromJsonPatternObjectDestructureResolution(value: Json): PatternObjectDestructureResolution {
     const object = jsonObject(value);
 
     return {
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
+        rest: jsonOptional(object, "rest", (value) => fromJsonPatternFieldResolution(value)),
     };
 }
 
-/** Symbol-backed nominal pattern selected during checking. */
-export type PatternNominalResolution = {
+/** Nominal destructuring selected by one pattern. */
+export type PatternNominalDestructureResolution = {
     /** The selected nominal symbol. */
     readonly symbol: GlobalSymbolId;
-    /** The generic arguments of the nominal symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
-    /** The nominal field mapping in source order. */
+    /** The selected generic argument bindings for the nominal symbol. */
+    readonly genericArguments: ReadonlyArray<GenericArgumentBinding>;
+    /** The nominal fields in source order. */
     readonly fields: ReadonlyArray<PatternFieldResolution>;
+    /** The rest field, when present. */
+    readonly rest?: PatternFieldResolution;
 };
 
-export const PatternNominalResolution = {
+export const PatternNominalDestructureResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternNominalResolution): void {
-        encodePatternNominalResolution(writer, value);
+    encode(writer: BinaryWriter, value: PatternNominalDestructureResolution): void {
+        encodePatternNominalDestructureResolution(writer, value);
     },
 
-    /** Decode one PatternNominalResolution. */
-    decode(reader: BinaryReader): PatternNominalResolution {
-        return decodePatternNominalResolution(reader);
+    /** Decode one PatternNominalDestructureResolution. */
+    decode(reader: BinaryReader): PatternNominalDestructureResolution {
+        return decodePatternNominalDestructureResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: PatternNominalResolution): Json {
-        return toJsonPatternNominalResolution(value);
+    toJson(value: PatternNominalDestructureResolution): Json {
+        return toJsonPatternNominalDestructureResolution(value);
     },
 
-    /** Return one PatternNominalResolution from one JSON value. */
-    fromJson(value: Json): PatternNominalResolution {
-        return fromJsonPatternNominalResolution(value);
+    /** Return one PatternNominalDestructureResolution from one JSON value. */
+    fromJson(value: Json): PatternNominalDestructureResolution {
+        return fromJsonPatternNominalDestructureResolution(value);
     },
 };
 
-/** Encode one PatternNominalResolution. */
-export function encodePatternNominalResolution(writer: BinaryWriter, value: PatternNominalResolution): void {
+/** Encode one PatternNominalDestructureResolution. */
+export function encodePatternNominalDestructureResolution(writer: BinaryWriter, value: PatternNominalDestructureResolution): void {
     encodeGlobalSymbolId(writer, value.symbol);
-    writer.writeUnsigned(value.arguments.length);
-    for (const item1 of value.arguments) {
-        encodeGlobalTypeId(writer, item1);
+    writer.writeUnsigned(value.genericArguments.length);
+    for (const item1 of value.genericArguments) {
+        encodeGenericArgumentBinding(writer, item1);
     }
+    writer.writeUnsigned(value.fields.length);
+    for (const item2 of value.fields) {
+        encodePatternFieldResolution(writer, item2);
+    }
+    writer.writeOption(value.rest, (value3) => {
+        encodePatternFieldResolution(writer, value3);
+    });
+}
+
+/** Decode one PatternNominalDestructureResolution. */
+export function decodePatternNominalDestructureResolution(reader: BinaryReader): PatternNominalDestructureResolution {
+    const symbol_ = decodeGlobalSymbolId(reader);
+    const genericArguments = (() => { const length1 = reader.readNumber(); const items1: Array<GenericArgumentBinding> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGenericArgumentBinding(reader)); } return items1; })();
+    const fields = (() => { const length2 = reader.readNumber(); const items2: Array<PatternFieldResolution> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodePatternFieldResolution(reader)); } return items2; })();
+    const rest = reader.readOption(() => decodePatternFieldResolution(reader));
+
+    return {
+        symbol: symbol_,
+        genericArguments,
+        fields,
+        ...(rest === undefined ? {} : { rest }),
+    };
+}
+
+/** Return one JSON value for one PatternNominalDestructureResolution. */
+export function toJsonPatternNominalDestructureResolution(value: PatternNominalDestructureResolution): Json {
+    return {
+        symbol: toJsonGlobalSymbolId(value.symbol),
+        genericArguments: value.genericArguments.map((item0) => toJsonGenericArgumentBinding(item0)),
+        fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
+        ...(value.rest === undefined ? {} : { rest: toJsonPatternFieldResolution(value.rest) }),
+    };
+}
+
+/** Return one PatternNominalDestructureResolution from one JSON value. */
+export function fromJsonPatternNominalDestructureResolution(value: Json): PatternNominalDestructureResolution {
+    const object = jsonObject(value);
+
+    return {
+        symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
+        genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgumentBinding(item0)),
+        fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
+        rest: jsonOptional(object, "rest", (value) => fromJsonPatternFieldResolution(value)),
+    };
+}
+
+/** Sequence destructuring selected by one pattern. */
+export type PatternSequenceDestructureResolution = {
+    /** The arity requirement introduced by the pattern. */
+    readonly arity: PatternSequenceArity;
+    /** The fixed fields in source order. */
+    readonly fields: ReadonlyArray<PatternFieldResolution>;
+    /** The rest field, when present. */
+    readonly rest?: PatternFieldResolution;
+};
+
+export const PatternSequenceDestructureResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternSequenceDestructureResolution): void {
+        encodePatternSequenceDestructureResolution(writer, value);
+    },
+
+    /** Decode one PatternSequenceDestructureResolution. */
+    decode(reader: BinaryReader): PatternSequenceDestructureResolution {
+        return decodePatternSequenceDestructureResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternSequenceDestructureResolution): Json {
+        return toJsonPatternSequenceDestructureResolution(value);
+    },
+
+    /** Return one PatternSequenceDestructureResolution from one JSON value. */
+    fromJson(value: Json): PatternSequenceDestructureResolution {
+        return fromJsonPatternSequenceDestructureResolution(value);
+    },
+};
+
+/** Encode one PatternSequenceDestructureResolution. */
+export function encodePatternSequenceDestructureResolution(writer: BinaryWriter, value: PatternSequenceDestructureResolution): void {
+    encodePatternSequenceArity(writer, value.arity);
+    writer.writeUnsigned(value.fields.length);
+    for (const item1 of value.fields) {
+        encodePatternFieldResolution(writer, item1);
+    }
+    writer.writeOption(value.rest, (value2) => {
+        encodePatternFieldResolution(writer, value2);
+    });
+}
+
+/** Decode one PatternSequenceDestructureResolution. */
+export function decodePatternSequenceDestructureResolution(reader: BinaryReader): PatternSequenceDestructureResolution {
+    const arity = decodePatternSequenceArity(reader);
+    const fields = (() => { const length1 = reader.readNumber(); const items1: Array<PatternFieldResolution> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodePatternFieldResolution(reader)); } return items1; })();
+    const rest = reader.readOption(() => decodePatternFieldResolution(reader));
+
+    return {
+        arity,
+        fields,
+        ...(rest === undefined ? {} : { rest }),
+    };
+}
+
+/** Return one JSON value for one PatternSequenceDestructureResolution. */
+export function toJsonPatternSequenceDestructureResolution(value: PatternSequenceDestructureResolution): Json {
+    return {
+        arity: toJsonPatternSequenceArity(value.arity),
+        fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
+        ...(value.rest === undefined ? {} : { rest: toJsonPatternFieldResolution(value.rest) }),
+    };
+}
+
+/** Return one PatternSequenceDestructureResolution from one JSON value. */
+export function fromJsonPatternSequenceDestructureResolution(value: Json): PatternSequenceDestructureResolution {
+    const object = jsonObject(value);
+
+    return {
+        arity: fromJsonPatternSequenceArity(jsonField(object, "arity")),
+        fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
+        rest: jsonOptional(object, "rest", (value) => fromJsonPatternFieldResolution(value)),
+    };
+}
+
+/** Arity requirement introduced by one sequence pattern. */
+export type PatternSequenceArity = {
+    /** The minimum accepted source length. */
+    readonly minimum: number;
+    /** The maximum accepted source length, when bounded. */
+    readonly maximum?: number;
+};
+
+export const PatternSequenceArity = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternSequenceArity): void {
+        encodePatternSequenceArity(writer, value);
+    },
+
+    /** Decode one PatternSequenceArity. */
+    decode(reader: BinaryReader): PatternSequenceArity {
+        return decodePatternSequenceArity(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternSequenceArity): Json {
+        return toJsonPatternSequenceArity(value);
+    },
+
+    /** Return one PatternSequenceArity from one JSON value. */
+    fromJson(value: Json): PatternSequenceArity {
+        return fromJsonPatternSequenceArity(value);
+    },
+};
+
+/** Encode one PatternSequenceArity. */
+export function encodePatternSequenceArity(writer: BinaryWriter, value: PatternSequenceArity): void {
+    writer.writeUnsigned(value.minimum);
+    writer.writeOption(value.maximum, (value1) => {
+        writer.writeUnsigned(value1);
+    });
+}
+
+/** Decode one PatternSequenceArity. */
+export function decodePatternSequenceArity(reader: BinaryReader): PatternSequenceArity {
+    const minimum = reader.readNumber();
+    const maximum = reader.readOption(() => reader.readNumber());
+
+    return {
+        minimum,
+        ...(maximum === undefined ? {} : { maximum }),
+    };
+}
+
+/** Return one JSON value for one PatternSequenceArity. */
+export function toJsonPatternSequenceArity(value: PatternSequenceArity): Json {
+    return {
+        minimum: value.minimum,
+        ...(value.maximum === undefined ? {} : { maximum: value.maximum }),
+    };
+}
+
+/** Return one PatternSequenceArity from one JSON value. */
+export function fromJsonPatternSequenceArity(value: Json): PatternSequenceArity {
+    const object = jsonObject(value);
+
+    return {
+        minimum: jsonInteger(jsonField(object, "minimum")),
+        maximum: jsonOptional(object, "maximum", (value) => jsonInteger(value)),
+    };
+}
+
+/** Tagged variant destructuring selected by one pattern. */
+export type PatternVariantDestructureResolution = {
+    /** The selected variant predicate. */
+    readonly predicate: Predicate;
+    /** The selected variant payload projection. */
+    readonly projection: Projection;
+    /** The payload fields in source order. */
+    readonly fields: ReadonlyArray<PatternFieldResolution>;
+};
+
+export const PatternVariantDestructureResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: PatternVariantDestructureResolution): void {
+        encodePatternVariantDestructureResolution(writer, value);
+    },
+
+    /** Decode one PatternVariantDestructureResolution. */
+    decode(reader: BinaryReader): PatternVariantDestructureResolution {
+        return decodePatternVariantDestructureResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: PatternVariantDestructureResolution): Json {
+        return toJsonPatternVariantDestructureResolution(value);
+    },
+
+    /** Return one PatternVariantDestructureResolution from one JSON value. */
+    fromJson(value: Json): PatternVariantDestructureResolution {
+        return fromJsonPatternVariantDestructureResolution(value);
+    },
+};
+
+/** Encode one PatternVariantDestructureResolution. */
+export function encodePatternVariantDestructureResolution(writer: BinaryWriter, value: PatternVariantDestructureResolution): void {
+    encodePredicate(writer, value.predicate);
+    encodeProjection(writer, value.projection);
     writer.writeUnsigned(value.fields.length);
     for (const item2 of value.fields) {
         encodePatternFieldResolution(writer, item2);
     }
 }
 
-/** Decode one PatternNominalResolution. */
-export function decodePatternNominalResolution(reader: BinaryReader): PatternNominalResolution {
-    const symbol_ = decodeGlobalSymbolId(reader);
-    const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+/** Decode one PatternVariantDestructureResolution. */
+export function decodePatternVariantDestructureResolution(reader: BinaryReader): PatternVariantDestructureResolution {
+    const predicate = decodePredicate(reader);
+    const projection = decodeProjection(reader);
     const fields = (() => { const length2 = reader.readNumber(); const items2: Array<PatternFieldResolution> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodePatternFieldResolution(reader)); } return items2; })();
 
     return {
-        symbol: symbol_,
-        arguments: arguments_,
+        predicate,
+        projection,
         fields,
     };
 }
 
-/** Return one JSON value for one PatternNominalResolution. */
-export function toJsonPatternNominalResolution(value: PatternNominalResolution): Json {
+/** Return one JSON value for one PatternVariantDestructureResolution. */
+export function toJsonPatternVariantDestructureResolution(value: PatternVariantDestructureResolution): Json {
     return {
-        symbol: toJsonGlobalSymbolId(value.symbol),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
+        predicate: toJsonPredicate(value.predicate),
+        projection: toJsonProjection(value.projection),
         fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
     };
 }
 
-/** Return one PatternNominalResolution from one JSON value. */
-export function fromJsonPatternNominalResolution(value: Json): PatternNominalResolution {
+/** Return one PatternVariantDestructureResolution from one JSON value. */
+export function fromJsonPatternVariantDestructureResolution(value: Json): PatternVariantDestructureResolution {
     const object = jsonObject(value);
 
     return {
-        symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
+        predicate: fromJsonPredicate(jsonField(object, "predicate")),
+        projection: fromJsonProjection(jsonField(object, "projection")),
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
     };
 }
 
-/** Symbol-backed newtype pattern selected during checking. */
-export type PatternNewtypeResolution = {
-    /** The selected newtype symbol. */
-    readonly symbol: GlobalSymbolId;
-    /** The generic arguments of the newtype symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
-    /** The wrapped value pattern. */
-    readonly value?: GlobalNodeIdAny;
+/** Or-pattern branches selected during checking. */
+export type PatternOrResolution = {
+    /** The branch pattern nodes. */
+    readonly patterns: ReadonlyArray<GlobalNodeIdAny>;
 };
 
-export const PatternNewtypeResolution = {
+export const PatternOrResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternNewtypeResolution): void {
-        encodePatternNewtypeResolution(writer, value);
+    encode(writer: BinaryWriter, value: PatternOrResolution): void {
+        encodePatternOrResolution(writer, value);
     },
 
-    /** Decode one PatternNewtypeResolution. */
-    decode(reader: BinaryReader): PatternNewtypeResolution {
-        return decodePatternNewtypeResolution(reader);
+    /** Decode one PatternOrResolution. */
+    decode(reader: BinaryReader): PatternOrResolution {
+        return decodePatternOrResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: PatternNewtypeResolution): Json {
-        return toJsonPatternNewtypeResolution(value);
+    toJson(value: PatternOrResolution): Json {
+        return toJsonPatternOrResolution(value);
     },
 
-    /** Return one PatternNewtypeResolution from one JSON value. */
-    fromJson(value: Json): PatternNewtypeResolution {
-        return fromJsonPatternNewtypeResolution(value);
-    },
-};
-
-/** Encode one PatternNewtypeResolution. */
-export function encodePatternNewtypeResolution(writer: BinaryWriter, value: PatternNewtypeResolution): void {
-    encodeGlobalSymbolId(writer, value.symbol);
-    writer.writeUnsigned(value.arguments.length);
-    for (const item1 of value.arguments) {
-        encodeGlobalTypeId(writer, item1);
-    }
-    writer.writeOption(value.value, (value2) => {
-        encodeGlobalNodeIdAny(writer, value2);
-    });
-}
-
-/** Decode one PatternNewtypeResolution. */
-export function decodePatternNewtypeResolution(reader: BinaryReader): PatternNewtypeResolution {
-    const symbol_ = decodeGlobalSymbolId(reader);
-    const arguments_ = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
-    const value = reader.readOption(() => decodeGlobalNodeIdAny(reader));
-
-    return {
-        symbol: symbol_,
-        arguments: arguments_,
-        ...(value === undefined ? {} : { value }),
-    };
-}
-
-/** Return one JSON value for one PatternNewtypeResolution. */
-export function toJsonPatternNewtypeResolution(value: PatternNewtypeResolution): Json {
-    return {
-        symbol: toJsonGlobalSymbolId(value.symbol),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
-        ...(value.value === undefined ? {} : { value: toJsonGlobalNodeIdAny(value.value) }),
-    };
-}
-
-/** Return one PatternNewtypeResolution from one JSON value. */
-export function fromJsonPatternNewtypeResolution(value: Json): PatternNewtypeResolution {
-    const object = jsonObject(value);
-
-    return {
-        symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
-        value: jsonOptional(object, "value", (value) => fromJsonGlobalNodeIdAny(value)),
-    };
-}
-
-/** Symbol-backed variant pattern selected during checking. */
-export type PatternVariantResolution = {
-    /** The selected variant family symbol. */
-    readonly owner: GlobalSymbolId;
-    /** The selected variant symbol. */
-    readonly variant: GlobalSymbolId;
-    /** The generic arguments of the variant symbol, empty when not statically applied. */
-    readonly arguments: ReadonlyArray<GlobalTypeId>;
-    /** The discriminant value. */
-    readonly discriminant: ScalarLiteral;
-    /** The variant field mapping in source order. */
-    readonly fields: ReadonlyArray<PatternFieldResolution>;
-};
-
-export const PatternVariantResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternVariantResolution): void {
-        encodePatternVariantResolution(writer, value);
-    },
-
-    /** Decode one PatternVariantResolution. */
-    decode(reader: BinaryReader): PatternVariantResolution {
-        return decodePatternVariantResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternVariantResolution): Json {
-        return toJsonPatternVariantResolution(value);
-    },
-
-    /** Return one PatternVariantResolution from one JSON value. */
-    fromJson(value: Json): PatternVariantResolution {
-        return fromJsonPatternVariantResolution(value);
+    /** Return one PatternOrResolution from one JSON value. */
+    fromJson(value: Json): PatternOrResolution {
+        return fromJsonPatternOrResolution(value);
     },
 };
 
-/** Encode one PatternVariantResolution. */
-export function encodePatternVariantResolution(writer: BinaryWriter, value: PatternVariantResolution): void {
-    encodeGlobalSymbolId(writer, value.owner);
-    encodeGlobalSymbolId(writer, value.variant);
-    writer.writeUnsigned(value.arguments.length);
-    for (const item2 of value.arguments) {
-        encodeGlobalTypeId(writer, item2);
-    }
-    encodeScalarLiteral(writer, value.discriminant);
-    writer.writeUnsigned(value.fields.length);
-    for (const item4 of value.fields) {
-        encodePatternFieldResolution(writer, item4);
-    }
-}
-
-/** Decode one PatternVariantResolution. */
-export function decodePatternVariantResolution(reader: BinaryReader): PatternVariantResolution {
-    const owner = decodeGlobalSymbolId(reader);
-    const variant = decodeGlobalSymbolId(reader);
-    const arguments_ = (() => { const length2 = reader.readNumber(); const items2: Array<GlobalTypeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalTypeId(reader)); } return items2; })();
-    const discriminant = decodeScalarLiteral(reader);
-    const fields = (() => { const length4 = reader.readNumber(); const items4: Array<PatternFieldResolution> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodePatternFieldResolution(reader)); } return items4; })();
-
-    return {
-        owner,
-        variant,
-        arguments: arguments_,
-        discriminant,
-        fields,
-    };
-}
-
-/** Return one JSON value for one PatternVariantResolution. */
-export function toJsonPatternVariantResolution(value: PatternVariantResolution): Json {
-    return {
-        owner: toJsonGlobalSymbolId(value.owner),
-        variant: toJsonGlobalSymbolId(value.variant),
-        arguments: value.arguments.map((item0) => toJsonGlobalTypeId(item0)),
-        discriminant: toJsonScalarLiteral(value.discriminant),
-        fields: value.fields.map((item0) => toJsonPatternFieldResolution(item0)),
-    };
-}
-
-/** Return one PatternVariantResolution from one JSON value. */
-export function fromJsonPatternVariantResolution(value: Json): PatternVariantResolution {
-    const object = jsonObject(value);
-
-    return {
-        owner: fromJsonGlobalSymbolId(jsonField(object, "owner")),
-        variant: fromJsonGlobalSymbolId(jsonField(object, "variant")),
-        arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonGlobalTypeId(item0)),
-        discriminant: fromJsonScalarLiteral(jsonField(object, "discriminant")),
-        fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonPatternFieldResolution(item0)),
-    };
-}
-
-/** Alternative patterns selected during checking. */
-export type PatternUnionResolution = {
-    /** The alternative pattern nodes. */
-    readonly alternatives: ReadonlyArray<GlobalNodeIdAny>;
-};
-
-export const PatternUnionResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternUnionResolution): void {
-        encodePatternUnionResolution(writer, value);
-    },
-
-    /** Decode one PatternUnionResolution. */
-    decode(reader: BinaryReader): PatternUnionResolution {
-        return decodePatternUnionResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternUnionResolution): Json {
-        return toJsonPatternUnionResolution(value);
-    },
-
-    /** Return one PatternUnionResolution from one JSON value. */
-    fromJson(value: Json): PatternUnionResolution {
-        return fromJsonPatternUnionResolution(value);
-    },
-};
-
-/** Encode one PatternUnionResolution. */
-export function encodePatternUnionResolution(writer: BinaryWriter, value: PatternUnionResolution): void {
-    writer.writeUnsigned(value.alternatives.length);
-    for (const item0 of value.alternatives) {
+/** Encode one PatternOrResolution. */
+export function encodePatternOrResolution(writer: BinaryWriter, value: PatternOrResolution): void {
+    writer.writeUnsigned(value.patterns.length);
+    for (const item0 of value.patterns) {
         encodeGlobalNodeIdAny(writer, item0);
     }
 }
 
-/** Decode one PatternUnionResolution. */
-export function decodePatternUnionResolution(reader: BinaryReader): PatternUnionResolution {
-    const alternatives = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalNodeIdAny> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalNodeIdAny(reader)); } return items0; })();
+/** Decode one PatternOrResolution. */
+export function decodePatternOrResolution(reader: BinaryReader): PatternOrResolution {
+    const patterns = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalNodeIdAny> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalNodeIdAny(reader)); } return items0; })();
 
     return {
-        alternatives,
+        patterns,
     };
 }
 
-/** Return one JSON value for one PatternUnionResolution. */
-export function toJsonPatternUnionResolution(value: PatternUnionResolution): Json {
+/** Return one JSON value for one PatternOrResolution. */
+export function toJsonPatternOrResolution(value: PatternOrResolution): Json {
     return {
-        alternatives: value.alternatives.map((item0) => toJsonGlobalNodeIdAny(item0)),
+        patterns: value.patterns.map((item0) => toJsonGlobalNodeIdAny(item0)),
     };
 }
 
-/** Return one PatternUnionResolution from one JSON value. */
-export function fromJsonPatternUnionResolution(value: Json): PatternUnionResolution {
+/** Return one PatternOrResolution from one JSON value. */
+export function fromJsonPatternOrResolution(value: Json): PatternOrResolution {
     const object = jsonObject(value);
 
     return {
-        alternatives: jsonArray(jsonField(object, "alternatives")).map((item0) => fromJsonGlobalNodeIdAny(item0)),
-    };
-}
-
-/** Borrow operation selected by one pattern. */
-export type PatternBorrowResolution = {
-    /** The requested borrow access, if source explicit. */
-    readonly access?: Access;
-    /** The pattern matched through the borrow. */
-    readonly pattern: GlobalNodeIdAny;
-};
-
-export const PatternBorrowResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternBorrowResolution): void {
-        encodePatternBorrowResolution(writer, value);
-    },
-
-    /** Decode one PatternBorrowResolution. */
-    decode(reader: BinaryReader): PatternBorrowResolution {
-        return decodePatternBorrowResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternBorrowResolution): Json {
-        return toJsonPatternBorrowResolution(value);
-    },
-
-    /** Return one PatternBorrowResolution from one JSON value. */
-    fromJson(value: Json): PatternBorrowResolution {
-        return fromJsonPatternBorrowResolution(value);
-    },
-};
-
-/** Encode one PatternBorrowResolution. */
-export function encodePatternBorrowResolution(writer: BinaryWriter, value: PatternBorrowResolution): void {
-    writer.writeOption(value.access, (value0) => {
-        encodeAccess(writer, value0);
-    });
-    encodeGlobalNodeIdAny(writer, value.pattern);
-}
-
-/** Decode one PatternBorrowResolution. */
-export function decodePatternBorrowResolution(reader: BinaryReader): PatternBorrowResolution {
-    const access = reader.readOption(() => decodeAccess(reader));
-    const pattern = decodeGlobalNodeIdAny(reader);
-
-    return {
-        ...(access === undefined ? {} : { access }),
-        pattern,
-    };
-}
-
-/** Return one JSON value for one PatternBorrowResolution. */
-export function toJsonPatternBorrowResolution(value: PatternBorrowResolution): Json {
-    return {
-        ...(value.access === undefined ? {} : { access: toJsonAccess(value.access) }),
-        pattern: toJsonGlobalNodeIdAny(value.pattern),
-    };
-}
-
-/** Return one PatternBorrowResolution from one JSON value. */
-export function fromJsonPatternBorrowResolution(value: Json): PatternBorrowResolution {
-    const object = jsonObject(value);
-
-    return {
-        access: jsonOptional(object, "access", (value) => fromJsonAccess(value)),
-        pattern: fromJsonGlobalNodeIdAny(jsonField(object, "pattern")),
-    };
-}
-
-/** Move operation selected by one pattern. */
-export type PatternMoveResolution = {
-    /** The requested move access, if source explicit. */
-    readonly access?: Access;
-    /** The pattern matched after moving. */
-    readonly pattern: GlobalNodeIdAny;
-};
-
-export const PatternMoveResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternMoveResolution): void {
-        encodePatternMoveResolution(writer, value);
-    },
-
-    /** Decode one PatternMoveResolution. */
-    decode(reader: BinaryReader): PatternMoveResolution {
-        return decodePatternMoveResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternMoveResolution): Json {
-        return toJsonPatternMoveResolution(value);
-    },
-
-    /** Return one PatternMoveResolution from one JSON value. */
-    fromJson(value: Json): PatternMoveResolution {
-        return fromJsonPatternMoveResolution(value);
-    },
-};
-
-/** Encode one PatternMoveResolution. */
-export function encodePatternMoveResolution(writer: BinaryWriter, value: PatternMoveResolution): void {
-    writer.writeOption(value.access, (value0) => {
-        encodeAccess(writer, value0);
-    });
-    encodeGlobalNodeIdAny(writer, value.pattern);
-}
-
-/** Decode one PatternMoveResolution. */
-export function decodePatternMoveResolution(reader: BinaryReader): PatternMoveResolution {
-    const access = reader.readOption(() => decodeAccess(reader));
-    const pattern = decodeGlobalNodeIdAny(reader);
-
-    return {
-        ...(access === undefined ? {} : { access }),
-        pattern,
-    };
-}
-
-/** Return one JSON value for one PatternMoveResolution. */
-export function toJsonPatternMoveResolution(value: PatternMoveResolution): Json {
-    return {
-        ...(value.access === undefined ? {} : { access: toJsonAccess(value.access) }),
-        pattern: toJsonGlobalNodeIdAny(value.pattern),
-    };
-}
-
-/** Return one PatternMoveResolution from one JSON value. */
-export function fromJsonPatternMoveResolution(value: Json): PatternMoveResolution {
-    const object = jsonObject(value);
-
-    return {
-        access: jsonOptional(object, "access", (value) => fromJsonAccess(value)),
-        pattern: fromJsonGlobalNodeIdAny(jsonField(object, "pattern")),
-    };
-}
-
-/** Dereference operation selected by one pattern. */
-export type PatternDereferenceResolution = {
-    /** The pattern matched through the dereference. */
-    readonly pattern: GlobalNodeIdAny;
-};
-
-export const PatternDereferenceResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: PatternDereferenceResolution): void {
-        encodePatternDereferenceResolution(writer, value);
-    },
-
-    /** Decode one PatternDereferenceResolution. */
-    decode(reader: BinaryReader): PatternDereferenceResolution {
-        return decodePatternDereferenceResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: PatternDereferenceResolution): Json {
-        return toJsonPatternDereferenceResolution(value);
-    },
-
-    /** Return one PatternDereferenceResolution from one JSON value. */
-    fromJson(value: Json): PatternDereferenceResolution {
-        return fromJsonPatternDereferenceResolution(value);
-    },
-};
-
-/** Encode one PatternDereferenceResolution. */
-export function encodePatternDereferenceResolution(writer: BinaryWriter, value: PatternDereferenceResolution): void {
-    encodeGlobalNodeIdAny(writer, value.pattern);
-}
-
-/** Decode one PatternDereferenceResolution. */
-export function decodePatternDereferenceResolution(reader: BinaryReader): PatternDereferenceResolution {
-    const pattern = decodeGlobalNodeIdAny(reader);
-
-    return {
-        pattern,
-    };
-}
-
-/** Return one JSON value for one PatternDereferenceResolution. */
-export function toJsonPatternDereferenceResolution(value: PatternDereferenceResolution): Json {
-    return {
-        pattern: toJsonGlobalNodeIdAny(value.pattern),
-    };
-}
-
-/** Return one PatternDereferenceResolution from one JSON value. */
-export function fromJsonPatternDereferenceResolution(value: Json): PatternDereferenceResolution {
-    const object = jsonObject(value);
-
-    return {
-        pattern: fromJsonGlobalNodeIdAny(jsonField(object, "pattern")),
+        patterns: jsonArray(jsonField(object, "patterns")).map((item0) => fromJsonGlobalNodeIdAny(item0)),
     };
 }
 
@@ -3387,7 +3909,7 @@ export type AssignPatternResolution =
     /** Direct writable place target, like `value` or `object.field`. */
     | {
           readonly kind: "place";
-          readonly place: AssignPatternPlaceResolution;
+          readonly place: PlaceResolution;
       }
     /** Defaulted assignment target, like `value = fallback`. */
     | {
@@ -3399,6 +3921,11 @@ export type AssignPatternResolution =
           readonly kind: "sequence";
           readonly sequence: AssignPatternSequenceResolution;
       }
+    /** Tuple destructuring target, like `(x, y)` or `(x,)`. */
+    | {
+          readonly kind: "tuple";
+          readonly tuple: AssignPatternTupleResolution;
+      }
     /** Object destructuring target, like `{ name, age: years }`. */
     | {
           readonly kind: "object";
@@ -3408,7 +3935,7 @@ export type AssignPatternResolution =
 
 export const AssignPatternResolution = {
     /** Direct writable place target, like `value` or `object.field`. */
-    place(place: AssignPatternPlaceResolution): AssignPatternResolution {
+    place(place: PlaceResolution): AssignPatternResolution {
         return { kind: "place", place };
     },
 
@@ -3420,6 +3947,11 @@ export const AssignPatternResolution = {
     /** Ordered destructuring target, like `[head, ...tail]`. */
     sequence(sequence: AssignPatternSequenceResolution): AssignPatternResolution {
         return { kind: "sequence", sequence };
+    },
+
+    /** Tuple destructuring target, like `(x, y)` or `(x,)`. */
+    tuple(tuple: AssignPatternTupleResolution): AssignPatternResolution {
+        return { kind: "tuple", tuple };
     },
 
     /** Object destructuring target, like `{ name, age: years }`. */
@@ -3453,7 +3985,7 @@ export function encodeAssignPatternResolution(writer: BinaryWriter, value: Assig
     switch (value.kind) {
         case "place":
             writer.writeUnsigned(0);
-            encodeAssignPatternPlaceResolution(writer, value.place);
+            encodePlaceResolution(writer, value.place);
             return;
         case "default":
             writer.writeUnsigned(1);
@@ -3463,8 +3995,12 @@ export function encodeAssignPatternResolution(writer: BinaryWriter, value: Assig
             writer.writeUnsigned(2);
             encodeAssignPatternSequenceResolution(writer, value.sequence);
             return;
-        case "object":
+        case "tuple":
             writer.writeUnsigned(3);
+            encodeAssignPatternTupleResolution(writer, value.tuple);
+            return;
+        case "object":
+            writer.writeUnsigned(4);
             encodeAssignPatternObjectResolution(writer, value.object);
             return;
     }
@@ -3478,7 +4014,7 @@ export function decodeAssignPatternResolution(reader: BinaryReader): AssignPatte
 
     switch (variant) {
         case 0: {
-            const place = decodeAssignPatternPlaceResolution(reader);
+            const place = decodePlaceResolution(reader);
 
             return { kind: "place", place };
         }
@@ -3493,6 +4029,11 @@ export function decodeAssignPatternResolution(reader: BinaryReader): AssignPatte
             return { kind: "sequence", sequence };
         }
         case 3: {
+            const tuple = decodeAssignPatternTupleResolution(reader);
+
+            return { kind: "tuple", tuple };
+        }
+        case 4: {
             const object_ = decodeAssignPatternObjectResolution(reader);
 
             return { kind: "object", object: object_ };
@@ -3508,7 +4049,7 @@ export function toJsonAssignPatternResolution(value: AssignPatternResolution): J
         case "place":
             return {
                 kind: "place",
-                place: toJsonAssignPatternPlaceResolution(value.place),
+                place: toJsonPlaceResolution(value.place),
             };
         case "default":
             return {
@@ -3519,6 +4060,11 @@ export function toJsonAssignPatternResolution(value: AssignPatternResolution): J
             return {
                 kind: "sequence",
                 sequence: toJsonAssignPatternSequenceResolution(value.sequence),
+            };
+        case "tuple":
+            return {
+                kind: "tuple",
+                tuple: toJsonAssignPatternTupleResolution(value.tuple),
             };
         case "object":
             return {
@@ -3539,7 +4085,7 @@ export function fromJsonAssignPatternResolution(value: Json): AssignPatternResol
         case "place":
             return {
                 kind,
-                place: fromJsonAssignPatternPlaceResolution(jsonField(object, "place")),
+                place: fromJsonPlaceResolution(jsonField(object, "place")),
             };
         case "default":
             return {
@@ -3551,6 +4097,11 @@ export function fromJsonAssignPatternResolution(value: Json): AssignPatternResol
                 kind,
                 sequence: fromJsonAssignPatternSequenceResolution(jsonField(object, "sequence")),
             };
+        case "tuple":
+            return {
+                kind,
+                tuple: fromJsonAssignPatternTupleResolution(jsonField(object, "tuple")),
+            };
         case "object":
             return {
                 kind,
@@ -3559,64 +4110,6 @@ export function fromJsonAssignPatternResolution(value: Json): AssignPatternResol
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** Direct assignment place selected during checking. */
-export type AssignPatternPlaceResolution = {
-    /** The expression node that designates the writable place. */
-    readonly target: GlobalNodeIdAny;
-};
-
-export const AssignPatternPlaceResolution = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: AssignPatternPlaceResolution): void {
-        encodeAssignPatternPlaceResolution(writer, value);
-    },
-
-    /** Decode one AssignPatternPlaceResolution. */
-    decode(reader: BinaryReader): AssignPatternPlaceResolution {
-        return decodeAssignPatternPlaceResolution(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: AssignPatternPlaceResolution): Json {
-        return toJsonAssignPatternPlaceResolution(value);
-    },
-
-    /** Return one AssignPatternPlaceResolution from one JSON value. */
-    fromJson(value: Json): AssignPatternPlaceResolution {
-        return fromJsonAssignPatternPlaceResolution(value);
-    },
-};
-
-/** Encode one AssignPatternPlaceResolution. */
-export function encodeAssignPatternPlaceResolution(writer: BinaryWriter, value: AssignPatternPlaceResolution): void {
-    encodeGlobalNodeIdAny(writer, value.target);
-}
-
-/** Decode one AssignPatternPlaceResolution. */
-export function decodeAssignPatternPlaceResolution(reader: BinaryReader): AssignPatternPlaceResolution {
-    const target = decodeGlobalNodeIdAny(reader);
-
-    return {
-        target,
-    };
-}
-
-/** Return one JSON value for one AssignPatternPlaceResolution. */
-export function toJsonAssignPatternPlaceResolution(value: AssignPatternPlaceResolution): Json {
-    return {
-        target: toJsonGlobalNodeIdAny(value.target),
-    };
-}
-
-/** Return one AssignPatternPlaceResolution from one JSON value. */
-export function fromJsonAssignPatternPlaceResolution(value: Json): AssignPatternPlaceResolution {
-    const object = jsonObject(value);
-
-    return {
-        target: fromJsonGlobalNodeIdAny(jsonField(object, "target")),
-    };
 }
 
 /** Defaulted assignment target selected during checking. */
@@ -3686,10 +4179,12 @@ export function fromJsonAssignPatternDefaultResolution(value: Json): AssignPatte
 
 /** Ordered assignment destructuring selected during checking. */
 export type AssignPatternSequenceResolution = {
+    /** The sequence arity required by the assignment target. */
+    readonly arity: PatternSequenceArity;
     /** The fixed fields in source order. */
     readonly fields: ReadonlyArray<AssignPatternFieldResolution>;
     /** The rest target, when present. */
-    readonly rest?: AssignPatternRestResolution;
+    readonly rest?: AssignPatternFieldResolution;
 };
 
 export const AssignPatternSequenceResolution = {
@@ -3716,21 +4211,24 @@ export const AssignPatternSequenceResolution = {
 
 /** Encode one AssignPatternSequenceResolution. */
 export function encodeAssignPatternSequenceResolution(writer: BinaryWriter, value: AssignPatternSequenceResolution): void {
+    encodePatternSequenceArity(writer, value.arity);
     writer.writeUnsigned(value.fields.length);
-    for (const item0 of value.fields) {
-        encodeAssignPatternFieldResolution(writer, item0);
+    for (const item1 of value.fields) {
+        encodeAssignPatternFieldResolution(writer, item1);
     }
-    writer.writeOption(value.rest, (value1) => {
-        encodeAssignPatternRestResolution(writer, value1);
+    writer.writeOption(value.rest, (value2) => {
+        encodeAssignPatternFieldResolution(writer, value2);
     });
 }
 
 /** Decode one AssignPatternSequenceResolution. */
 export function decodeAssignPatternSequenceResolution(reader: BinaryReader): AssignPatternSequenceResolution {
-    const fields = (() => { const length0 = reader.readNumber(); const items0: Array<AssignPatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeAssignPatternFieldResolution(reader)); } return items0; })();
-    const rest = reader.readOption(() => decodeAssignPatternRestResolution(reader));
+    const arity = decodePatternSequenceArity(reader);
+    const fields = (() => { const length1 = reader.readNumber(); const items1: Array<AssignPatternFieldResolution> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeAssignPatternFieldResolution(reader)); } return items1; })();
+    const rest = reader.readOption(() => decodeAssignPatternFieldResolution(reader));
 
     return {
+        arity,
         fields,
         ...(rest === undefined ? {} : { rest }),
     };
@@ -3739,8 +4237,9 @@ export function decodeAssignPatternSequenceResolution(reader: BinaryReader): Ass
 /** Return one JSON value for one AssignPatternSequenceResolution. */
 export function toJsonAssignPatternSequenceResolution(value: AssignPatternSequenceResolution): Json {
     return {
+        arity: toJsonPatternSequenceArity(value.arity),
         fields: value.fields.map((item0) => toJsonAssignPatternFieldResolution(item0)),
-        ...(value.rest === undefined ? {} : { rest: toJsonAssignPatternRestResolution(value.rest) }),
+        ...(value.rest === undefined ? {} : { rest: toJsonAssignPatternFieldResolution(value.rest) }),
     };
 }
 
@@ -3749,8 +4248,9 @@ export function fromJsonAssignPatternSequenceResolution(value: Json): AssignPatt
     const object = jsonObject(value);
 
     return {
+        arity: fromJsonPatternSequenceArity(jsonField(object, "arity")),
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonAssignPatternFieldResolution(item0)),
-        rest: jsonOptional(object, "rest", (value) => fromJsonAssignPatternRestResolution(value)),
+        rest: jsonOptional(object, "rest", (value) => fromJsonAssignPatternFieldResolution(value)),
     };
 }
 
@@ -3758,8 +4258,8 @@ export function fromJsonAssignPatternSequenceResolution(value: Json): AssignPatt
 export type AssignPatternFieldResolution = {
     /** The source node that introduces the field. */
     readonly source: GlobalNodeIdAny;
-    /** The selected field target. */
-    readonly target: PatternFieldTarget;
+    /** The selected field projection. */
+    readonly projection: Projection;
     /** The nested assignment target. */
     readonly pattern?: GlobalNodeIdAny;
 };
@@ -3789,7 +4289,7 @@ export const AssignPatternFieldResolution = {
 /** Encode one AssignPatternFieldResolution. */
 export function encodeAssignPatternFieldResolution(writer: BinaryWriter, value: AssignPatternFieldResolution): void {
     encodeGlobalNodeIdAny(writer, value.source);
-    encodePatternFieldTarget(writer, value.target);
+    encodeProjection(writer, value.projection);
     writer.writeOption(value.pattern, (value2) => {
         encodeGlobalNodeIdAny(writer, value2);
     });
@@ -3798,12 +4298,12 @@ export function encodeAssignPatternFieldResolution(writer: BinaryWriter, value: 
 /** Decode one AssignPatternFieldResolution. */
 export function decodeAssignPatternFieldResolution(reader: BinaryReader): AssignPatternFieldResolution {
     const source = decodeGlobalNodeIdAny(reader);
-    const target = decodePatternFieldTarget(reader);
+    const projection = decodeProjection(reader);
     const pattern = reader.readOption(() => decodeGlobalNodeIdAny(reader));
 
     return {
         source,
-        target,
+        projection,
         ...(pattern === undefined ? {} : { pattern }),
     };
 }
@@ -3812,7 +4312,7 @@ export function decodeAssignPatternFieldResolution(reader: BinaryReader): Assign
 export function toJsonAssignPatternFieldResolution(value: AssignPatternFieldResolution): Json {
     return {
         source: toJsonGlobalNodeIdAny(value.source),
-        target: toJsonPatternFieldTarget(value.target),
+        projection: toJsonProjection(value.projection),
         ...(value.pattern === undefined ? {} : { pattern: toJsonGlobalNodeIdAny(value.pattern) }),
     };
 }
@@ -3823,75 +4323,69 @@ export function fromJsonAssignPatternFieldResolution(value: Json): AssignPattern
 
     return {
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
-        target: fromJsonPatternFieldTarget(jsonField(object, "target")),
+        projection: fromJsonProjection(jsonField(object, "projection")),
         pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
     };
 }
 
-/** Rest field selected by one assignment destructuring pattern. */
-export type AssignPatternRestResolution = {
-    /** The source node that introduces the rest field. */
-    readonly source: GlobalNodeIdAny;
-    /** The nested assignment target. */
-    readonly pattern?: GlobalNodeIdAny;
+/** Tuple assignment destructuring selected during checking. */
+export type AssignPatternTupleResolution = {
+    /** The projected tuple fields in source order. */
+    readonly fields: ReadonlyArray<AssignPatternFieldResolution>;
 };
 
-export const AssignPatternRestResolution = {
+export const AssignPatternTupleResolution = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: AssignPatternRestResolution): void {
-        encodeAssignPatternRestResolution(writer, value);
+    encode(writer: BinaryWriter, value: AssignPatternTupleResolution): void {
+        encodeAssignPatternTupleResolution(writer, value);
     },
 
-    /** Decode one AssignPatternRestResolution. */
-    decode(reader: BinaryReader): AssignPatternRestResolution {
-        return decodeAssignPatternRestResolution(reader);
+    /** Decode one AssignPatternTupleResolution. */
+    decode(reader: BinaryReader): AssignPatternTupleResolution {
+        return decodeAssignPatternTupleResolution(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: AssignPatternRestResolution): Json {
-        return toJsonAssignPatternRestResolution(value);
+    toJson(value: AssignPatternTupleResolution): Json {
+        return toJsonAssignPatternTupleResolution(value);
     },
 
-    /** Return one AssignPatternRestResolution from one JSON value. */
-    fromJson(value: Json): AssignPatternRestResolution {
-        return fromJsonAssignPatternRestResolution(value);
+    /** Return one AssignPatternTupleResolution from one JSON value. */
+    fromJson(value: Json): AssignPatternTupleResolution {
+        return fromJsonAssignPatternTupleResolution(value);
     },
 };
 
-/** Encode one AssignPatternRestResolution. */
-export function encodeAssignPatternRestResolution(writer: BinaryWriter, value: AssignPatternRestResolution): void {
-    encodeGlobalNodeIdAny(writer, value.source);
-    writer.writeOption(value.pattern, (value1) => {
-        encodeGlobalNodeIdAny(writer, value1);
-    });
+/** Encode one AssignPatternTupleResolution. */
+export function encodeAssignPatternTupleResolution(writer: BinaryWriter, value: AssignPatternTupleResolution): void {
+    writer.writeUnsigned(value.fields.length);
+    for (const item0 of value.fields) {
+        encodeAssignPatternFieldResolution(writer, item0);
+    }
 }
 
-/** Decode one AssignPatternRestResolution. */
-export function decodeAssignPatternRestResolution(reader: BinaryReader): AssignPatternRestResolution {
-    const source = decodeGlobalNodeIdAny(reader);
-    const pattern = reader.readOption(() => decodeGlobalNodeIdAny(reader));
+/** Decode one AssignPatternTupleResolution. */
+export function decodeAssignPatternTupleResolution(reader: BinaryReader): AssignPatternTupleResolution {
+    const fields = (() => { const length0 = reader.readNumber(); const items0: Array<AssignPatternFieldResolution> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeAssignPatternFieldResolution(reader)); } return items0; })();
 
     return {
-        source,
-        ...(pattern === undefined ? {} : { pattern }),
+        fields,
     };
 }
 
-/** Return one JSON value for one AssignPatternRestResolution. */
-export function toJsonAssignPatternRestResolution(value: AssignPatternRestResolution): Json {
+/** Return one JSON value for one AssignPatternTupleResolution. */
+export function toJsonAssignPatternTupleResolution(value: AssignPatternTupleResolution): Json {
     return {
-        source: toJsonGlobalNodeIdAny(value.source),
-        ...(value.pattern === undefined ? {} : { pattern: toJsonGlobalNodeIdAny(value.pattern) }),
+        fields: value.fields.map((item0) => toJsonAssignPatternFieldResolution(item0)),
     };
 }
 
-/** Return one AssignPatternRestResolution from one JSON value. */
-export function fromJsonAssignPatternRestResolution(value: Json): AssignPatternRestResolution {
+/** Return one AssignPatternTupleResolution from one JSON value. */
+export function fromJsonAssignPatternTupleResolution(value: Json): AssignPatternTupleResolution {
     const object = jsonObject(value);
 
     return {
-        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
-        pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
+        fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonAssignPatternFieldResolution(item0)),
     };
 }
 
@@ -3962,5 +4456,79 @@ export function fromJsonAssignPatternObjectResolution(value: Json): AssignPatter
     return {
         fields: jsonArray(jsonField(object, "fields")).map((item0) => fromJsonAssignPatternFieldResolution(item0)),
         rest: jsonOptional(object, "rest", (value) => fromJsonAssignPatternRestResolution(value)),
+    };
+}
+
+/** Rest field selected by one assignment destructuring pattern. */
+export type AssignPatternRestResolution = {
+    /** The source node that introduces the rest field. */
+    readonly source: GlobalNodeIdAny;
+    /** The materialized rest projection. */
+    readonly projection: Projection;
+    /** The nested assignment target. */
+    readonly pattern?: GlobalNodeIdAny;
+};
+
+export const AssignPatternRestResolution = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: AssignPatternRestResolution): void {
+        encodeAssignPatternRestResolution(writer, value);
+    },
+
+    /** Decode one AssignPatternRestResolution. */
+    decode(reader: BinaryReader): AssignPatternRestResolution {
+        return decodeAssignPatternRestResolution(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: AssignPatternRestResolution): Json {
+        return toJsonAssignPatternRestResolution(value);
+    },
+
+    /** Return one AssignPatternRestResolution from one JSON value. */
+    fromJson(value: Json): AssignPatternRestResolution {
+        return fromJsonAssignPatternRestResolution(value);
+    },
+};
+
+/** Encode one AssignPatternRestResolution. */
+export function encodeAssignPatternRestResolution(writer: BinaryWriter, value: AssignPatternRestResolution): void {
+    encodeGlobalNodeIdAny(writer, value.source);
+    encodeProjection(writer, value.projection);
+    writer.writeOption(value.pattern, (value2) => {
+        encodeGlobalNodeIdAny(writer, value2);
+    });
+}
+
+/** Decode one AssignPatternRestResolution. */
+export function decodeAssignPatternRestResolution(reader: BinaryReader): AssignPatternRestResolution {
+    const source = decodeGlobalNodeIdAny(reader);
+    const projection = decodeProjection(reader);
+    const pattern = reader.readOption(() => decodeGlobalNodeIdAny(reader));
+
+    return {
+        source,
+        projection,
+        ...(pattern === undefined ? {} : { pattern }),
+    };
+}
+
+/** Return one JSON value for one AssignPatternRestResolution. */
+export function toJsonAssignPatternRestResolution(value: AssignPatternRestResolution): Json {
+    return {
+        source: toJsonGlobalNodeIdAny(value.source),
+        projection: toJsonProjection(value.projection),
+        ...(value.pattern === undefined ? {} : { pattern: toJsonGlobalNodeIdAny(value.pattern) }),
+    };
+}
+
+/** Return one AssignPatternRestResolution from one JSON value. */
+export function fromJsonAssignPatternRestResolution(value: Json): AssignPatternRestResolution {
+    const object = jsonObject(value);
+
+    return {
+        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
+        projection: fromJsonProjection(jsonField(object, "projection")),
+        pattern: jsonOptional(object, "pattern", (value) => fromJsonGlobalNodeIdAny(value)),
     };
 }

@@ -157,6 +157,8 @@ class Symbol:
     role: SymbolRole
     # the declaration kind of the symbol
     kind: SymbolKind
+    # the lexical visibility extent of this symbol
+    visibility: SymbolVisibility
     # the mutability for value bindings when known
     binding_mutability: destack._generated.dir.tree.node.Mutability | None
     # where this symbol was introduced
@@ -193,6 +195,7 @@ def encode_symbol(writer: BinaryWriter, value: Symbol) -> None:
     """Encode one Symbol."""
     encode_symbol_role(writer, value.role)
     encode_symbol_kind(writer, value.kind)
+    encode_symbol_visibility(writer, value.visibility)
     if value.binding_mutability is None:
         writer.write_byte(0)
     else:
@@ -227,6 +230,7 @@ def decode_symbol(reader: BinaryReader) -> Symbol:
     """Decode one Symbol."""
     role = decode_symbol_role(reader)
     kind = decode_symbol_kind(reader)
+    visibility = decode_symbol_visibility(reader)
     binding_mutability = reader.read_option(
         lambda: destack._generated.dir.tree.node.decode_mutability(reader)
     )
@@ -245,6 +249,7 @@ def decode_symbol(reader: BinaryReader) -> Symbol:
     return Symbol(
         role=role,
         kind=kind,
+        visibility=visibility,
         binding_mutability=binding_mutability,
         origin=origin,
         key=key,
@@ -259,6 +264,7 @@ def to_json_symbol(value: Symbol) -> Json:
     return {
         "role": to_json_symbol_role(value.role),
         "kind": to_json_symbol_kind(value.kind),
+        "visibility": to_json_symbol_visibility(value.visibility),
         **(
             {}
             if value.binding_mutability is None
@@ -305,6 +311,7 @@ def from_json_symbol(value: Json) -> Symbol:
     return Symbol(
         role=from_json_symbol_role(json_field(object_, "role")),
         kind=from_json_symbol_kind(json_field(object_, "kind")),
+        visibility=from_json_symbol_visibility(json_field(object_, "visibility")),
         binding_mutability=json_optional(
             object_,
             "bindingMutability",
@@ -538,6 +545,57 @@ def from_json_symbol_kind(value: Json) -> SymbolKind:
         raise SerdeError(f"unknown enum variant: {variant}")
 
 
+"""The lexical visibility extent of a symbol."""
+SymbolVisibility: typing.TypeAlias = (
+    typing.Literal["forward"] | typing.Literal["scope"] | typing.Literal["member"]
+)
+
+
+def encode_symbol_visibility(writer: BinaryWriter, value: SymbolVisibility) -> None:
+    """Encode one SymbolVisibility."""
+    if value == "forward":
+        writer.write_unsigned(0)
+    elif value == "scope":
+        writer.write_unsigned(1)
+    elif value == "member":
+        writer.write_unsigned(2)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_symbol_visibility(reader: BinaryReader) -> SymbolVisibility:
+    """Decode one SymbolVisibility."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        return "forward"
+    elif variant == 1:
+        return "scope"
+    elif variant == 2:
+        return "member"
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_symbol_visibility(value: SymbolVisibility) -> Json:
+    """Return one JSON value for one SymbolVisibility."""
+    return value
+
+
+def from_json_symbol_visibility(value: Json) -> SymbolVisibility:
+    """Return one SymbolVisibility from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "forward":
+        return "forward"
+    elif variant == "scope":
+        return "scope"
+    elif variant == "member":
+        return "member"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
+
+
 """Where a symbol originated in the source."""
 SymbolOrigin: typing.TypeAlias = typing.Literal["module"] | typing.Literal["global"]
 
@@ -581,57 +639,6 @@ def from_json_symbol_origin(value: Json) -> SymbolOrigin:
         raise SerdeError(f"unknown enum variant: {variant}")
 
 
-"""The space of a symbol."""
-SymbolSpace: typing.TypeAlias = (
-    typing.Literal["type"] | typing.Literal["value"] | typing.Literal["label"]
-)
-
-
-def encode_symbol_space(writer: BinaryWriter, value: SymbolSpace) -> None:
-    """Encode one SymbolSpace."""
-    if value == "type":
-        writer.write_unsigned(0)
-    elif value == "value":
-        writer.write_unsigned(1)
-    elif value == "label":
-        writer.write_unsigned(2)
-    else:
-        raise SerdeError("unknown enum variant")
-
-
-def decode_symbol_space(reader: BinaryReader) -> SymbolSpace:
-    """Decode one SymbolSpace."""
-    variant = reader.read_number()
-
-    if variant == 0:
-        return "type"
-    elif variant == 1:
-        return "value"
-    elif variant == 2:
-        return "label"
-    else:
-        raise SerdeError(f"unknown enum variant index: {variant}")
-
-
-def to_json_symbol_space(value: SymbolSpace) -> Json:
-    """Return one JSON value for one SymbolSpace."""
-    return value
-
-
-def from_json_symbol_space(value: Json) -> SymbolSpace:
-    """Return one SymbolSpace from one JSON value."""
-    variant = json_string(value)
-
-    if variant == "type":
-        return "type"
-    elif variant == "value":
-        return "value"
-    elif variant == "label":
-        return "label"
-    else:
-        raise SerdeError(f"unknown enum variant: {variant}")
-
-
 __all__ = [
     "GlobalSymbolId",
     "encode_global_symbol_id",
@@ -658,14 +665,14 @@ __all__ = [
     "decode_symbol_kind",
     "to_json_symbol_kind",
     "from_json_symbol_kind",
+    "SymbolVisibility",
+    "encode_symbol_visibility",
+    "decode_symbol_visibility",
+    "to_json_symbol_visibility",
+    "from_json_symbol_visibility",
     "SymbolOrigin",
     "encode_symbol_origin",
     "decode_symbol_origin",
     "to_json_symbol_origin",
     "from_json_symbol_origin",
-    "SymbolSpace",
-    "encode_symbol_space",
-    "decode_symbol_space",
-    "to_json_symbol_space",
-    "from_json_symbol_space",
 ]

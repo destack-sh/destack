@@ -10,7 +10,6 @@ from destack.protocol.serde import (
     BinaryWriter,
     Json,
     SerdeError,
-    json_bool,
     json_field,
     json_int,
     json_object,
@@ -24,10 +23,8 @@ class AtomicAccess:
 
     # the memory ordering
     ordering: MemoryOrdering
-    # the synchronization scope
-    scope: SyncScope
-    # whether the access must be preserved as a volatile operation
-    is_volatile: bool
+    # the execution scope
+    scope: ExecutionScope
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -51,20 +48,17 @@ class AtomicAccess:
 def encode_atomic_access(writer: BinaryWriter, value: AtomicAccess) -> None:
     """Encode one AtomicAccess."""
     encode_memory_ordering(writer, value.ordering)
-    encode_sync_scope(writer, value.scope)
-    writer.write_bool(value.is_volatile)
+    encode_execution_scope(writer, value.scope)
 
 
 def decode_atomic_access(reader: BinaryReader) -> AtomicAccess:
     """Decode one AtomicAccess."""
     ordering = decode_memory_ordering(reader)
-    scope = decode_sync_scope(reader)
-    is_volatile = reader.read_bool()
+    scope = decode_execution_scope(reader)
 
     return AtomicAccess(
         ordering=ordering,
         scope=scope,
-        is_volatile=is_volatile,
     )
 
 
@@ -72,8 +66,7 @@ def to_json_atomic_access(value: AtomicAccess) -> Json:
     """Return one JSON value for one AtomicAccess."""
     return {
         "ordering": to_json_memory_ordering(value.ordering),
-        "scope": to_json_sync_scope(value.scope),
-        "isVolatile": value.is_volatile,
+        "scope": to_json_execution_scope(value.scope),
     }
 
 
@@ -83,8 +76,7 @@ def from_json_atomic_access(value: Json) -> AtomicAccess:
 
     return AtomicAccess(
         ordering=from_json_memory_ordering(json_field(object_, "ordering")),
-        scope=from_json_sync_scope(json_field(object_, "scope")),
-        is_volatile=json_bool(json_field(object_, "isVolatile")),
+        scope=from_json_execution_scope(json_field(object_, "scope")),
     )
 
 
@@ -155,8 +147,8 @@ def from_json_memory_ordering(value: Json) -> MemoryOrdering:
         raise SerdeError(f"unknown enum variant: {variant}")
 
 
-"""Synchronization scope for atomic operations and fences."""
-SyncScope: typing.TypeAlias = (
+"""Execution scope for atomic operations and fences."""
+ExecutionScope: typing.TypeAlias = (
     typing.Literal["invocation"]
     | typing.Literal["subgroup"]
     | typing.Literal["workgroup"]
@@ -165,8 +157,8 @@ SyncScope: typing.TypeAlias = (
 )
 
 
-def encode_sync_scope(writer: BinaryWriter, value: SyncScope) -> None:
-    """Encode one SyncScope."""
+def encode_execution_scope(writer: BinaryWriter, value: ExecutionScope) -> None:
+    """Encode one ExecutionScope."""
     if value == "invocation":
         writer.write_unsigned(0)
     elif value == "subgroup":
@@ -181,8 +173,8 @@ def encode_sync_scope(writer: BinaryWriter, value: SyncScope) -> None:
         raise SerdeError("unknown enum variant")
 
 
-def decode_sync_scope(reader: BinaryReader) -> SyncScope:
-    """Decode one SyncScope."""
+def decode_execution_scope(reader: BinaryReader) -> ExecutionScope:
+    """Decode one ExecutionScope."""
     variant = reader.read_number()
 
     if variant == 0:
@@ -199,13 +191,13 @@ def decode_sync_scope(reader: BinaryReader) -> SyncScope:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
-def to_json_sync_scope(value: SyncScope) -> Json:
-    """Return one JSON value for one SyncScope."""
+def to_json_execution_scope(value: ExecutionScope) -> Json:
+    """Return one JSON value for one ExecutionScope."""
     return value
 
 
-def from_json_sync_scope(value: Json) -> SyncScope:
-    """Return one SyncScope from one JSON value."""
+def from_json_execution_scope(value: Json) -> ExecutionScope:
+    """Return one ExecutionScope from one JSON value."""
     variant = json_string(value)
 
     if variant == "invocation":
@@ -414,16 +406,14 @@ def from_json_atomic_rmw_operator(value: Json) -> AtomicRmwOperator:
 
 @dataclass(frozen=True, slots=True)
 class FenceAccess:
-    """Fence ordering, scope, and memory visibility."""
+    """Fence ordering, scope, and storage."""
 
     # the memory ordering
     ordering: MemoryOrdering
-    # the synchronization scope
-    scope: SyncScope
-    # the memory visibility scope
-    memory_scope: MemoryScope
-    # the memory flags
-    flags: MemoryFlags
+    # the execution scope
+    scope: ExecutionScope
+    # the ordered storage regions
+    storage: StorageSet
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -447,23 +437,20 @@ class FenceAccess:
 def encode_fence_access(writer: BinaryWriter, value: FenceAccess) -> None:
     """Encode one FenceAccess."""
     encode_memory_ordering(writer, value.ordering)
-    encode_sync_scope(writer, value.scope)
-    encode_memory_scope(writer, value.memory_scope)
-    encode_memory_flags(writer, value.flags)
+    encode_execution_scope(writer, value.scope)
+    encode_storage_set(writer, value.storage)
 
 
 def decode_fence_access(reader: BinaryReader) -> FenceAccess:
     """Decode one FenceAccess."""
     ordering = decode_memory_ordering(reader)
-    scope = decode_sync_scope(reader)
-    memory_scope = decode_memory_scope(reader)
-    flags = decode_memory_flags(reader)
+    scope = decode_execution_scope(reader)
+    storage = decode_storage_set(reader)
 
     return FenceAccess(
         ordering=ordering,
         scope=scope,
-        memory_scope=memory_scope,
-        flags=flags,
+        storage=storage,
     )
 
 
@@ -471,9 +458,8 @@ def to_json_fence_access(value: FenceAccess) -> Json:
     """Return one JSON value for one FenceAccess."""
     return {
         "ordering": to_json_memory_ordering(value.ordering),
-        "scope": to_json_sync_scope(value.scope),
-        "memoryScope": to_json_memory_scope(value.memory_scope),
-        "flags": to_json_memory_flags(value.flags),
+        "scope": to_json_execution_scope(value.scope),
+        "storage": to_json_storage_set(value.storage),
     }
 
 
@@ -483,170 +469,32 @@ def from_json_fence_access(value: Json) -> FenceAccess:
 
     return FenceAccess(
         ordering=from_json_memory_ordering(json_field(object_, "ordering")),
-        scope=from_json_sync_scope(json_field(object_, "scope")),
-        memory_scope=from_json_memory_scope(json_field(object_, "memoryScope")),
-        flags=from_json_memory_flags(json_field(object_, "flags")),
+        scope=from_json_execution_scope(json_field(object_, "scope")),
+        storage=from_json_storage_set(json_field(object_, "storage")),
     )
 
 
-"""Memory scope for fences."""
-MemoryScope: typing.TypeAlias = (
-    typing.Literal["invocation"]
-    | typing.Literal["subgroup"]
-    | typing.Literal["workgroup"]
-    | typing.Literal["device"]
-    | typing.Literal["system"]
-)
+"""Set of backing storage regions that an operation may access."""
+StorageSet: typing.TypeAlias = int
 
 
-def encode_memory_scope(writer: BinaryWriter, value: MemoryScope) -> None:
-    """Encode one MemoryScope."""
-    if value == "invocation":
-        writer.write_unsigned(0)
-    elif value == "subgroup":
-        writer.write_unsigned(1)
-    elif value == "workgroup":
-        writer.write_unsigned(2)
-    elif value == "device":
-        writer.write_unsigned(3)
-    elif value == "system":
-        writer.write_unsigned(4)
-    else:
-        raise SerdeError("unknown enum variant")
-
-
-def decode_memory_scope(reader: BinaryReader) -> MemoryScope:
-    """Decode one MemoryScope."""
-    variant = reader.read_number()
-
-    if variant == 0:
-        return "invocation"
-    elif variant == 1:
-        return "subgroup"
-    elif variant == 2:
-        return "workgroup"
-    elif variant == 3:
-        return "device"
-    elif variant == 4:
-        return "system"
-    else:
-        raise SerdeError(f"unknown enum variant index: {variant}")
-
-
-def to_json_memory_scope(value: MemoryScope) -> Json:
-    """Return one JSON value for one MemoryScope."""
-    return value
-
-
-def from_json_memory_scope(value: Json) -> MemoryScope:
-    """Return one MemoryScope from one JSON value."""
-    variant = json_string(value)
-
-    if variant == "invocation":
-        return "invocation"
-    elif variant == "subgroup":
-        return "subgroup"
-    elif variant == "workgroup":
-        return "workgroup"
-    elif variant == "device":
-        return "device"
-    elif variant == "system":
-        return "system"
-    else:
-        raise SerdeError(f"unknown enum variant: {variant}")
-
-
-@dataclass(frozen=True, slots=True)
-class MemoryFlags:
-    """Memory flags for fences."""
-
-    # the memory spaces affected by the fence
-    spaces: SpaceSet
-    # whether this makes writes available to other scopes
-    makes_available: bool
-    # whether this makes writes visible to other scopes
-    makes_visible: bool
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_memory_flags(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> MemoryFlags:
-        """Decode one MemoryFlags."""
-        return decode_memory_flags(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_memory_flags(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> MemoryFlags:
-        """Return one MemoryFlags from one JSON value."""
-        return from_json_memory_flags(value)
-
-
-def encode_memory_flags(writer: BinaryWriter, value: MemoryFlags) -> None:
-    """Encode one MemoryFlags."""
-    encode_space_set(writer, value.spaces)
-    writer.write_bool(value.makes_available)
-    writer.write_bool(value.makes_visible)
-
-
-def decode_memory_flags(reader: BinaryReader) -> MemoryFlags:
-    """Decode one MemoryFlags."""
-    spaces = decode_space_set(reader)
-    makes_available = reader.read_bool()
-    makes_visible = reader.read_bool()
-
-    return MemoryFlags(
-        spaces=spaces,
-        makes_available=makes_available,
-        makes_visible=makes_visible,
-    )
-
-
-def to_json_memory_flags(value: MemoryFlags) -> Json:
-    """Return one JSON value for one MemoryFlags."""
-    return {
-        "spaces": to_json_space_set(value.spaces),
-        "makesAvailable": value.makes_available,
-        "makesVisible": value.makes_visible,
-    }
-
-
-def from_json_memory_flags(value: Json) -> MemoryFlags:
-    """Return one MemoryFlags from one JSON value."""
-    object_ = json_object(value)
-
-    return MemoryFlags(
-        spaces=from_json_space_set(json_field(object_, "spaces")),
-        makes_available=json_bool(json_field(object_, "makesAvailable")),
-        makes_visible=json_bool(json_field(object_, "makesVisible")),
-    )
-
-
-"""Set of backing memory spaces that an operation may access."""
-SpaceSet: typing.TypeAlias = int
-
-
-def encode_space_set(writer: BinaryWriter, value: SpaceSet) -> None:
-    """Encode one SpaceSet."""
+def encode_storage_set(writer: BinaryWriter, value: StorageSet) -> None:
+    """Encode one StorageSet."""
     writer.write_unsigned(value)
 
 
-def decode_space_set(reader: BinaryReader) -> SpaceSet:
-    """Decode one SpaceSet."""
+def decode_storage_set(reader: BinaryReader) -> StorageSet:
+    """Decode one StorageSet."""
     return reader.read_number()
 
 
-def to_json_space_set(value: SpaceSet) -> Json:
-    """Return one JSON value for one SpaceSet."""
+def to_json_storage_set(value: StorageSet) -> Json:
+    """Return one JSON value for one StorageSet."""
     return value
 
 
-def from_json_space_set(value: Json) -> SpaceSet:
-    """Return one SpaceSet from one JSON value."""
+def from_json_storage_set(value: Json) -> StorageSet:
+    """Return one StorageSet from one JSON value."""
     return json_int(value)
 
 
@@ -661,11 +509,11 @@ __all__ = [
     "decode_memory_ordering",
     "to_json_memory_ordering",
     "from_json_memory_ordering",
-    "SyncScope",
-    "encode_sync_scope",
-    "decode_sync_scope",
-    "to_json_sync_scope",
-    "from_json_sync_scope",
+    "ExecutionScope",
+    "encode_execution_scope",
+    "decode_execution_scope",
+    "to_json_execution_scope",
+    "from_json_execution_scope",
     "CompareExchangeAccess",
     "encode_compare_exchange_access",
     "decode_compare_exchange_access",
@@ -681,19 +529,9 @@ __all__ = [
     "decode_fence_access",
     "to_json_fence_access",
     "from_json_fence_access",
-    "MemoryScope",
-    "encode_memory_scope",
-    "decode_memory_scope",
-    "to_json_memory_scope",
-    "from_json_memory_scope",
-    "MemoryFlags",
-    "encode_memory_flags",
-    "decode_memory_flags",
-    "to_json_memory_flags",
-    "from_json_memory_flags",
-    "SpaceSet",
-    "encode_space_set",
-    "decode_space_set",
-    "to_json_space_set",
-    "from_json_space_set",
+    "StorageSet",
+    "encode_storage_set",
+    "decode_storage_set",
+    "to_json_storage_set",
+    "from_json_storage_set",
 ]

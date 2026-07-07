@@ -2,13 +2,87 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonBool, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 
+/** One width-less scalar source alias. */
+export type ScalarAlias = "int" | "uint" | "float";
+
+export const ScalarAlias = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ScalarAlias): void {
+        encodeScalarAlias(writer, value);
+    },
+
+    /** Decode one ScalarAlias. */
+    decode(reader: BinaryReader): ScalarAlias {
+        return decodeScalarAlias(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ScalarAlias): Json {
+        return toJsonScalarAlias(value);
+    },
+
+    /** Return one ScalarAlias from one JSON value. */
+    fromJson(value: Json): ScalarAlias {
+        return fromJsonScalarAlias(value);
+    },
+};
+
+/** Encode one ScalarAlias. */
+export function encodeScalarAlias(writer: BinaryWriter, value: ScalarAlias): void {
+    switch (value) {
+        case "int":
+            writer.writeUnsigned(0);
+            return;
+        case "uint":
+            writer.writeUnsigned(1);
+            return;
+        case "float":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one ScalarAlias. */
+export function decodeScalarAlias(reader: BinaryReader): ScalarAlias {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "int";
+        case 1:
+            return "uint";
+        case 2:
+            return "float";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one ScalarAlias. */
+export function toJsonScalarAlias(value: ScalarAlias): Json {
+    return value;
+}
+
+/** Return one ScalarAlias from one JSON value. */
+export function fromJsonScalarAlias(value: Json): ScalarAlias {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "int":
+            return "int";
+        case "uint":
+            return "uint";
+        case "float":
+            return "float";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
 /** An integer type. */
 export type IntegerType =
-    /** The signed or unsigned integer family, `int` or `uint`. */
-    | {
-          readonly kind: "integer";
-          readonly isSigned: boolean;
-      }
     /** A fixed-width signed or unsigned integer, like `int32` or `uint8`. */
     | {
           readonly kind: "fixed";
@@ -23,11 +97,6 @@ export type IntegerType =
 ;
 
 export const IntegerType = {
-    /** The signed or unsigned integer family, `int` or `uint`. */
-    integer(isSigned: boolean): IntegerType {
-        return { kind: "integer", isSigned };
-    },
-
     /** A fixed-width signed or unsigned integer, like `int32` or `uint8`. */
     fixed(width: number, isSigned: boolean): IntegerType {
         return { kind: "fixed", width, isSigned };
@@ -62,17 +131,13 @@ export const IntegerType = {
 /** Encode one IntegerType. */
 export function encodeIntegerType(writer: BinaryWriter, value: IntegerType): void {
     switch (value.kind) {
-        case "integer":
-            writer.writeUnsigned(0);
-            writer.writeBool(value.isSigned);
-            return;
         case "fixed":
-            writer.writeUnsigned(1);
+            writer.writeUnsigned(0);
             writer.writeUnsigned(value.width);
             writer.writeBool(value.isSigned);
             return;
         case "pointer":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(1);
             writer.writeBool(value.isSigned);
             return;
     }
@@ -86,14 +151,6 @@ export function decodeIntegerType(reader: BinaryReader): IntegerType {
 
     switch (variant) {
         case 0: {
-            const isSigned = reader.readBool();
-
-            return {
-                kind: "integer",
-                isSigned,
-            };
-        }
-        case 1: {
             const width = reader.readNumber();
             const isSigned = reader.readBool();
 
@@ -103,7 +160,7 @@ export function decodeIntegerType(reader: BinaryReader): IntegerType {
                 isSigned,
             };
         }
-        case 2: {
+        case 1: {
             const isSigned = reader.readBool();
 
             return {
@@ -119,11 +176,6 @@ export function decodeIntegerType(reader: BinaryReader): IntegerType {
 /** Return one JSON value for one IntegerType. */
 export function toJsonIntegerType(value: IntegerType): Json {
     switch (value.kind) {
-        case "integer":
-            return {
-                kind: "integer",
-                isSigned: value.isSigned,
-            };
         case "fixed":
             return {
                 kind: "fixed",
@@ -146,11 +198,6 @@ export function fromJsonIntegerType(value: Json): IntegerType {
     const kind = jsonString(jsonField(object, "kind"));
 
     switch (kind) {
-        case "integer":
-            return {
-                kind,
-                isSigned: jsonBool(jsonField(object, "isSigned")),
-            };
         case "fixed":
             return {
                 kind,
@@ -168,7 +215,7 @@ export function fromJsonIntegerType(value: Json): IntegerType {
 }
 
 /** A floating-point type. */
-export type FloatType = "float" | "float16" | "bfloat16" | "float32" | "float64";
+export type FloatType = "float16" | "bfloat16" | "float32" | "float64";
 
 export const FloatType = {
     /** Encode this value. */
@@ -195,20 +242,17 @@ export const FloatType = {
 /** Encode one FloatType. */
 export function encodeFloatType(writer: BinaryWriter, value: FloatType): void {
     switch (value) {
-        case "float":
+        case "float16":
             writer.writeUnsigned(0);
             return;
-        case "float16":
+        case "bfloat16":
             writer.writeUnsigned(1);
             return;
-        case "bfloat16":
+        case "float32":
             writer.writeUnsigned(2);
             return;
-        case "float32":
-            writer.writeUnsigned(3);
-            return;
         case "float64":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(3);
             return;
     }
 
@@ -221,14 +265,12 @@ export function decodeFloatType(reader: BinaryReader): FloatType {
 
     switch (variant) {
         case 0:
-            return "float";
-        case 1:
             return "float16";
-        case 2:
+        case 1:
             return "bfloat16";
-        case 3:
+        case 2:
             return "float32";
-        case 4:
+        case 3:
             return "float64";
     }
 
@@ -245,8 +287,6 @@ export function fromJsonFloatType(value: Json): FloatType {
     const variant = jsonString(value);
 
     switch (variant) {
-        case "float":
-            return "float";
         case "float16":
             return "float16";
         case "bfloat16":

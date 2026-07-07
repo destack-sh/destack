@@ -18,8 +18,8 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.mir.metadata.dispatch
-import destack._generated.mir.metadata.profile
+import destack._generated.mir.table.dispatch
+import destack._generated.mir.table.profile
 import destack._generated.mir.tree.call
 import destack._generated.mir.tree.constant
 import destack._generated.mir.tree.immediate
@@ -1373,7 +1373,7 @@ class InstructionCallVirtual:
     # the class type declaring this dispatch slot
     class_: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["callVirtual"] = "callVirtual"
@@ -1398,7 +1398,7 @@ class InstructionCallDynamic:
     # the dynamic constraint type declaring this dispatch slot
     constraint: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["callDynamic"] = "callDynamic"
@@ -1795,7 +1795,7 @@ class InstructionProfileIncrement:
     """Increment one profile counter."""
 
     # the counter to increment
-    counter: destack._generated.mir.metadata.profile.CounterId
+    counter: destack._generated.mir.table.profile.CounterId
     kind: typing.Literal["profileIncrement"] = "profileIncrement"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -1812,7 +1812,7 @@ class InstructionProfileValue:
     """Record one profiled runtime value."""
 
     # the counter receiving the sampled value
-    counter: destack._generated.mir.metadata.profile.CounterId
+    counter: destack._generated.mir.table.profile.CounterId
     # the sampled MIR value
     value: destack._generated.mir.tree.value.Value
     kind: typing.Literal["profileValue"] = "profileValue"
@@ -2310,9 +2310,7 @@ def encode_instruction(writer: BinaryWriter, value: Instruction) -> None:
             destack._generated.mir.tree.value.encode_value(writer, value.destination)
         destack._generated.mir.tree.value.encode_value(writer, value.receiver)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.class_)
-        destack._generated.mir.metadata.dispatch.encode_dispatch_slot(
-            writer, value.slot
-        )
+        destack._generated.mir.table.dispatch.encode_dispatch_slot(writer, value.slot)
         destack._generated.mir.tree.call.encode_call(writer, value.call)
     elif value.kind == "callDynamic":
         writer.write_unsigned(63)
@@ -2323,9 +2321,7 @@ def encode_instruction(writer: BinaryWriter, value: Instruction) -> None:
             destack._generated.mir.tree.value.encode_value(writer, value.destination)
         destack._generated.mir.tree.value.encode_value(writer, value.receiver)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.constraint)
-        destack._generated.mir.metadata.dispatch.encode_dispatch_slot(
-            writer, value.slot
-        )
+        destack._generated.mir.table.dispatch.encode_dispatch_slot(writer, value.slot)
         destack._generated.mir.tree.call.encode_call(writer, value.call)
     elif value.kind == "callIndirect":
         writer.write_unsigned(64)
@@ -2427,10 +2423,10 @@ def encode_instruction(writer: BinaryWriter, value: Instruction) -> None:
         destack._generated.mir.tree.value.encode_value(writer, value.condition)
     elif value.kind == "profileIncrement":
         writer.write_unsigned(82)
-        destack._generated.mir.metadata.profile.encode_counter_id(writer, value.counter)
+        destack._generated.mir.table.profile.encode_counter_id(writer, value.counter)
     elif value.kind == "profileValue":
         writer.write_unsigned(83)
-        destack._generated.mir.metadata.profile.encode_counter_id(writer, value.counter)
+        destack._generated.mir.table.profile.encode_counter_id(writer, value.counter)
         destack._generated.mir.tree.value.encode_value(writer, value.value)
     elif value.kind == "intrinsic":
         writer.write_unsigned(84)
@@ -3121,7 +3117,7 @@ def decode_instruction(reader: BinaryReader) -> Instruction:
         )
         receiver = destack._generated.mir.tree.value.decode_value(reader)
         class_ = destack._generated.mir.tree.node.decode_local_node_id(reader)
-        slot = destack._generated.mir.metadata.dispatch.decode_dispatch_slot(reader)
+        slot = destack._generated.mir.table.dispatch.decode_dispatch_slot(reader)
         call = destack._generated.mir.tree.call.decode_call(reader)
 
         return InstructionCallVirtual(
@@ -3137,7 +3133,7 @@ def decode_instruction(reader: BinaryReader) -> Instruction:
         )
         receiver = destack._generated.mir.tree.value.decode_value(reader)
         constraint = destack._generated.mir.tree.node.decode_local_node_id(reader)
-        slot = destack._generated.mir.metadata.dispatch.decode_dispatch_slot(reader)
+        slot = destack._generated.mir.table.dispatch.decode_dispatch_slot(reader)
         call = destack._generated.mir.tree.call.decode_call(reader)
 
         return InstructionCallDynamic(
@@ -3332,13 +3328,13 @@ def decode_instruction(reader: BinaryReader) -> Instruction:
             condition=condition,
         )
     elif variant == 82:
-        counter = destack._generated.mir.metadata.profile.decode_counter_id(reader)
+        counter = destack._generated.mir.table.profile.decode_counter_id(reader)
 
         return InstructionProfileIncrement(
             counter=counter,
         )
     elif variant == 83:
-        counter = destack._generated.mir.metadata.profile.decode_counter_id(reader)
+        counter = destack._generated.mir.table.profile.decode_counter_id(reader)
         value_ = destack._generated.mir.tree.value.decode_value(reader)
 
         return InstructionProfileValue(
@@ -4055,7 +4051,7 @@ def to_json_instruction(value: Instruction) -> Json:
             "class": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.class_
             ),
-            "slot": destack._generated.mir.metadata.dispatch.to_json_dispatch_slot(
+            "slot": destack._generated.mir.table.dispatch.to_json_dispatch_slot(
                 value.slot
             ),
             "call": destack._generated.mir.tree.call.to_json_call(value.call),
@@ -4076,7 +4072,7 @@ def to_json_instruction(value: Instruction) -> Json:
             "constraint": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.constraint
             ),
-            "slot": destack._generated.mir.metadata.dispatch.to_json_dispatch_slot(
+            "slot": destack._generated.mir.table.dispatch.to_json_dispatch_slot(
                 value.slot
             ),
             "call": destack._generated.mir.tree.call.to_json_call(value.call),
@@ -4286,14 +4282,14 @@ def to_json_instruction(value: Instruction) -> Json:
     elif value.kind == "profileIncrement":
         return {
             "kind": "profileIncrement",
-            "counter": destack._generated.mir.metadata.profile.to_json_counter_id(
+            "counter": destack._generated.mir.table.profile.to_json_counter_id(
                 value.counter
             ),
         }
     elif value.kind == "profileValue":
         return {
             "kind": "profileValue",
-            "counter": destack._generated.mir.metadata.profile.to_json_counter_id(
+            "counter": destack._generated.mir.table.profile.to_json_counter_id(
                 value.counter
             ),
             "value": destack._generated.mir.tree.value.to_json_value(value.value),
@@ -5096,7 +5092,7 @@ def from_json_instruction(value: Json) -> Instruction:
             class_=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "class")
             ),
-            slot=destack._generated.mir.metadata.dispatch.from_json_dispatch_slot(
+            slot=destack._generated.mir.table.dispatch.from_json_dispatch_slot(
                 json_field(object_, "slot")
             ),
             call=destack._generated.mir.tree.call.from_json_call(
@@ -5116,7 +5112,7 @@ def from_json_instruction(value: Json) -> Instruction:
             constraint=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "constraint")
             ),
-            slot=destack._generated.mir.metadata.dispatch.from_json_dispatch_slot(
+            slot=destack._generated.mir.table.dispatch.from_json_dispatch_slot(
                 json_field(object_, "slot")
             ),
             call=destack._generated.mir.tree.call.from_json_call(
@@ -5341,13 +5337,13 @@ def from_json_instruction(value: Json) -> Instruction:
         )
     elif kind == "profileIncrement":
         return InstructionProfileIncrement(
-            counter=destack._generated.mir.metadata.profile.from_json_counter_id(
+            counter=destack._generated.mir.table.profile.from_json_counter_id(
                 json_field(object_, "counter")
             ),
         )
     elif kind == "profileValue":
         return InstructionProfileValue(
-            counter=destack._generated.mir.metadata.profile.from_json_counter_id(
+            counter=destack._generated.mir.table.profile.from_json_counter_id(
                 json_field(object_, "counter")
             ),
             value=destack._generated.mir.tree.value.from_json_value(

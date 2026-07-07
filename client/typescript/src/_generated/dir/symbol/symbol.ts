@@ -143,6 +143,8 @@ export type Symbol = {
     readonly role: SymbolRole;
     /** The declaration kind of the symbol. */
     readonly kind: SymbolKind;
+    /** The lexical visibility extent of this symbol. */
+    readonly visibility: SymbolVisibility;
     /** The mutability for value bindings when known. */
     readonly bindingMutability?: Mutability;
     /** Where this symbol was introduced. */
@@ -183,19 +185,20 @@ export const Symbol = {
 export function encodeSymbol(writer: BinaryWriter, value: Symbol): void {
     encodeSymbolRole(writer, value.role);
     encodeSymbolKind(writer, value.kind);
-    writer.writeOption(value.bindingMutability, (value2) => {
-        encodeMutability(writer, value2);
+    encodeSymbolVisibility(writer, value.visibility);
+    writer.writeOption(value.bindingMutability, (value3) => {
+        encodeMutability(writer, value3);
     });
     encodeSymbolOrigin(writer, value.origin);
-    writer.writeOption(value.key, (value4) => {
-        encodeStaticKey(writer, value4);
+    writer.writeOption(value.key, (value5) => {
+        encodeStaticKey(writer, value5);
     });
     encodeLocalScope(writer, value.scope);
-    writer.writeOption(value.exportKind, (value6) => {
-        encodeExportKind(writer, value6);
+    writer.writeOption(value.exportKind, (value7) => {
+        encodeExportKind(writer, value7);
     });
-    writer.writeOption(value.declaration, (value7) => {
-        encodeGlobalNodeIdAny(writer, value7);
+    writer.writeOption(value.declaration, (value8) => {
+        encodeGlobalNodeIdAny(writer, value8);
     });
 }
 
@@ -203,6 +206,7 @@ export function encodeSymbol(writer: BinaryWriter, value: Symbol): void {
 export function decodeSymbol(reader: BinaryReader): Symbol {
     const role = decodeSymbolRole(reader);
     const kind = decodeSymbolKind(reader);
+    const visibility = decodeSymbolVisibility(reader);
     const bindingMutability = reader.readOption(() => decodeMutability(reader));
     const origin = decodeSymbolOrigin(reader);
     const key = reader.readOption(() => decodeStaticKey(reader));
@@ -213,6 +217,7 @@ export function decodeSymbol(reader: BinaryReader): Symbol {
     return {
         role,
         kind,
+        visibility,
         ...(bindingMutability === undefined ? {} : { bindingMutability }),
         origin,
         ...(key === undefined ? {} : { key }),
@@ -227,6 +232,7 @@ export function toJsonSymbol(value: Symbol): Json {
     return {
         role: toJsonSymbolRole(value.role),
         kind: toJsonSymbolKind(value.kind),
+        visibility: toJsonSymbolVisibility(value.visibility),
         ...(value.bindingMutability === undefined ? {} : { bindingMutability: toJsonMutability(value.bindingMutability) }),
         origin: toJsonSymbolOrigin(value.origin),
         ...(value.key === undefined ? {} : { key: toJsonStaticKey(value.key) }),
@@ -243,6 +249,7 @@ export function fromJsonSymbol(value: Json): Symbol {
     return {
         role: fromJsonSymbolRole(jsonField(object, "role")),
         kind: fromJsonSymbolKind(jsonField(object, "kind")),
+        visibility: fromJsonSymbolVisibility(jsonField(object, "visibility")),
         bindingMutability: jsonOptional(object, "bindingMutability", (value) => fromJsonMutability(value)),
         origin: fromJsonSymbolOrigin(jsonField(object, "origin")),
         key: jsonOptional(object, "key", (value) => fromJsonStaticKey(value)),
@@ -508,6 +515,85 @@ export function fromJsonSymbolKind(value: Json): SymbolKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
+/** The lexical visibility extent of a symbol. */
+export type SymbolVisibility = "forward" | "scope" | "member";
+
+export const SymbolVisibility = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: SymbolVisibility): void {
+        encodeSymbolVisibility(writer, value);
+    },
+
+    /** Decode one SymbolVisibility. */
+    decode(reader: BinaryReader): SymbolVisibility {
+        return decodeSymbolVisibility(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: SymbolVisibility): Json {
+        return toJsonSymbolVisibility(value);
+    },
+
+    /** Return one SymbolVisibility from one JSON value. */
+    fromJson(value: Json): SymbolVisibility {
+        return fromJsonSymbolVisibility(value);
+    },
+};
+
+/** Encode one SymbolVisibility. */
+export function encodeSymbolVisibility(writer: BinaryWriter, value: SymbolVisibility): void {
+    switch (value) {
+        case "forward":
+            writer.writeUnsigned(0);
+            return;
+        case "scope":
+            writer.writeUnsigned(1);
+            return;
+        case "member":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one SymbolVisibility. */
+export function decodeSymbolVisibility(reader: BinaryReader): SymbolVisibility {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "forward";
+        case 1:
+            return "scope";
+        case 2:
+            return "member";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one SymbolVisibility. */
+export function toJsonSymbolVisibility(value: SymbolVisibility): Json {
+    return value;
+}
+
+/** Return one SymbolVisibility from one JSON value. */
+export function fromJsonSymbolVisibility(value: Json): SymbolVisibility {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "forward":
+            return "forward";
+        case "scope":
+            return "scope";
+        case "member":
+            return "member";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
 /** Where a symbol originated in the source. */
 export type SymbolOrigin = "module" | "global";
 
@@ -575,85 +661,6 @@ export function fromJsonSymbolOrigin(value: Json): SymbolOrigin {
             return "module";
         case "global":
             return "global";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
-/** The space of a symbol. */
-export type SymbolSpace = "type" | "value" | "label";
-
-export const SymbolSpace = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: SymbolSpace): void {
-        encodeSymbolSpace(writer, value);
-    },
-
-    /** Decode one SymbolSpace. */
-    decode(reader: BinaryReader): SymbolSpace {
-        return decodeSymbolSpace(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: SymbolSpace): Json {
-        return toJsonSymbolSpace(value);
-    },
-
-    /** Return one SymbolSpace from one JSON value. */
-    fromJson(value: Json): SymbolSpace {
-        return fromJsonSymbolSpace(value);
-    },
-};
-
-/** Encode one SymbolSpace. */
-export function encodeSymbolSpace(writer: BinaryWriter, value: SymbolSpace): void {
-    switch (value) {
-        case "type":
-            writer.writeUnsigned(0);
-            return;
-        case "value":
-            writer.writeUnsigned(1);
-            return;
-        case "label":
-            writer.writeUnsigned(2);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one SymbolSpace. */
-export function decodeSymbolSpace(reader: BinaryReader): SymbolSpace {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "type";
-        case 1:
-            return "value";
-        case 2:
-            return "label";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one SymbolSpace. */
-export function toJsonSymbolSpace(value: SymbolSpace): Json {
-    return value;
-}
-
-/** Return one SymbolSpace from one JSON value. */
-export function fromJsonSymbolSpace(value: Json): SymbolSpace {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "type":
-            return "type";
-        case "value":
-            return "value";
-        case "label":
-            return "label";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

@@ -25,10 +25,204 @@ import destack._generated.dir.symbol.symbol
 import destack._generated.dir.tree.node
 import destack._generated.dir.tree.property
 import destack._generated.dir.tree.static
-import destack._generated.dir.type.extension
 import destack._generated.dir.type.generic
 import destack._generated.dir.type.type
 import destack._generated.source.file.model.module
+
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorDeclared:
+    """Constructor explicitly declared by this class."""
+
+    # the declared constructor symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["declared"] = "declared"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_class_constructor(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_class_constructor(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorDefault:
+    """Default `new T()` candidate for a class with no declared constructor."""
+
+    kind: typing.Literal["default"] = "default"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_class_constructor(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_class_constructor(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorForwardedDeclared:
+    """Constructor forwarded to an explicit base class constructor."""
+
+    # the base class symbol
+    base: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the selected base constructor symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["forwardedDeclared"] = "forwardedDeclared"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_class_constructor(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_class_constructor(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorForwardedDefault:
+    """Constructor forwarded to a base class default constructor."""
+
+    # the base class symbol
+    base: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["forwardedDefault"] = "forwardedDefault"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_class_constructor(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_class_constructor(self)
+
+
+"""Class construct candidate origin."""
+ClassConstructor: typing.TypeAlias = (
+    ClassConstructorDeclared
+    | ClassConstructorDefault
+    | ClassConstructorForwardedDeclared
+    | ClassConstructorForwardedDefault
+)
+
+
+def encode_class_constructor(writer: BinaryWriter, value: ClassConstructor) -> None:
+    """Encode one ClassConstructor."""
+    if value.kind == "declared":
+        writer.write_unsigned(0)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(
+            writer, value.symbol
+        )
+    elif value.kind == "default":
+        writer.write_unsigned(1)
+    elif value.kind == "forwardedDeclared":
+        writer.write_unsigned(2)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.base)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(
+            writer, value.symbol
+        )
+    elif value.kind == "forwardedDefault":
+        writer.write_unsigned(3)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.base)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_class_constructor(reader: BinaryReader) -> ClassConstructor:
+    """Decode one ClassConstructor."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+
+        return ClassConstructorDeclared(
+            symbol=symbol,
+        )
+    elif variant == 1:
+        return ClassConstructorDefault()
+    elif variant == 2:
+        base = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+        symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+
+        return ClassConstructorForwardedDeclared(
+            base=base,
+            symbol=symbol,
+        )
+    elif variant == 3:
+        base = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+
+        return ClassConstructorForwardedDefault(
+            base=base,
+        )
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_class_constructor(value: ClassConstructor) -> Json:
+    """Return one JSON value for one ClassConstructor."""
+    if value.kind == "declared":
+        return {
+            "kind": "declared",
+            "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                value.symbol
+            ),
+        }
+    elif value.kind == "default":
+        return {
+            "kind": "default",
+        }
+    elif value.kind == "forwardedDeclared":
+        return {
+            "kind": "forwardedDeclared",
+            "base": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                value.base
+            ),
+            "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                value.symbol
+            ),
+        }
+    elif value.kind == "forwardedDefault":
+        return {
+            "kind": "forwardedDefault",
+            "base": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                value.base
+            ),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_class_constructor(value: Json) -> ClassConstructor:
+    """Return one ClassConstructor from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "declared":
+        return ClassConstructorDeclared(
+            symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+                json_field(object_, "symbol")
+            ),
+        )
+    elif kind == "default":
+        return ClassConstructorDefault()
+    elif kind == "forwardedDeclared":
+        return ClassConstructorForwardedDeclared(
+            base=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+                json_field(object_, "base")
+            ),
+            symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+                json_field(object_, "symbol")
+            ),
+        )
+    elif kind == "forwardedDefault":
+        return ClassConstructorForwardedDefault(
+            base=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+                json_field(object_, "base")
+            ),
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -370,7 +564,7 @@ class DefinitionNewtype:
 class DefinitionExtension:
     """Extension declaration."""
 
-    extension: destack._generated.dir.type.extension.Extension
+    extension: ExtensionDefinition
     kind: typing.Literal["extension"] = "extension"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -416,7 +610,7 @@ def encode_definition(writer: BinaryWriter, value: Definition) -> None:
         encode_newtype_definition(writer, value.newtype)
     elif value.kind == "extension":
         writer.write_unsigned(6)
-        destack._generated.dir.type.extension.encode_extension(writer, value.extension)
+        encode_extension_definition(writer, value.extension)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -450,7 +644,7 @@ def decode_definition(reader: BinaryReader) -> Definition:
 
         return DefinitionNewtype(newtype=newtype)
     elif variant == 6:
-        extension = destack._generated.dir.type.extension.decode_extension(reader)
+        extension = decode_extension_definition(reader)
 
         return DefinitionExtension(extension=extension)
     else:
@@ -492,9 +686,7 @@ def to_json_definition(value: Definition) -> Json:
     elif value.kind == "extension":
         return {
             "kind": "extension",
-            "extension": destack._generated.dir.type.extension.to_json_extension(
-                value.extension
-            ),
+            "extension": to_json_extension_definition(value.extension),
         }
     else:
         raise SerdeError("unknown enum variant")
@@ -533,9 +725,7 @@ def from_json_definition(value: Json) -> Definition:
         )
     elif kind == "extension":
         return DefinitionExtension(
-            extension=destack._generated.dir.type.extension.from_json_extension(
-                json_field(object_, "extension")
-            )
+            extension=from_json_extension_definition(json_field(object_, "extension"))
         )
     else:
         raise SerdeError(f"unknown enum variant: {kind}")
@@ -833,7 +1023,7 @@ def from_json_nominal_heritage(value: Json) -> NominalHeritage:
 
 @dataclass(frozen=True, slots=True)
 class DefinitionMemberField:
-    """Field member with a checked type."""
+    """Field member."""
 
     field: FieldDefinition
     kind: typing.Literal["field"] = "field"
@@ -849,7 +1039,7 @@ class DefinitionMemberField:
 
 @dataclass(frozen=True, slots=True)
 class DefinitionMemberMethod:
-    """Method member with a checked type."""
+    """Method member."""
 
     method: MethodDefinition
     kind: typing.Literal["method"] = "method"
@@ -1159,14 +1349,14 @@ class FieldDefinition:
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the field key
     key: destack._generated.dir.symbol.key.StaticKey
-    # the checked field type
-    ty: destack._generated.dir.type.type.GlobalTypeId
+    # the field initializer expression, when one is declared
+    initializer: destack._generated.dir.tree.node.GlobalNodeIdAny | None
+    # whether the field asserts definite assignment outside constructors
+    is_definite: bool
     # whether subclasses must provide the field
     is_abstract: bool
     # whether the field overrides an inherited member
     is_override: bool
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1193,14 +1383,16 @@ def encode_field_definition(writer: BinaryWriter, value: FieldDefinition) -> Non
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
     destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
     destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
-    destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
-    writer.write_bool(value.is_abstract)
-    writer.write_bool(value.is_override)
-    if value.condition is None:
+    if value.initializer is None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.condition)
+        destack._generated.dir.tree.node.encode_global_node_id_any(
+            writer, value.initializer
+        )
+    writer.write_bool(value.is_definite)
+    writer.write_bool(value.is_abstract)
+    writer.write_bool(value.is_override)
 
 
 def decode_field_definition(reader: BinaryReader) -> FieldDefinition:
@@ -1209,22 +1401,22 @@ def decode_field_definition(reader: BinaryReader) -> FieldDefinition:
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
     source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
     key = destack._generated.dir.symbol.key.decode_static_key(reader)
-    ty = destack._generated.dir.type.type.decode_global_type_id(reader)
+    initializer = reader.read_option(
+        lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    )
+    is_definite = reader.read_bool()
     is_abstract = reader.read_bool()
     is_override = reader.read_bool()
-    condition = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
-    )
 
     return FieldDefinition(
         space=space,
         symbol=symbol,
         source=source,
         key=key,
-        ty=ty,
+        initializer=initializer,
+        is_definite=is_definite,
         is_abstract=is_abstract,
         is_override=is_override,
-        condition=condition,
     )
 
 
@@ -1239,18 +1431,18 @@ def to_json_field_definition(value: FieldDefinition) -> Json:
             value.source
         ),
         "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
-        "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
-        "isAbstract": value.is_abstract,
-        "isOverride": value.is_override,
         **(
             {}
-            if value.condition is None
+            if value.initializer is None
             else {
-                "condition": destack._generated.dir.type.type.to_json_global_type_id(
-                    value.condition
+                "initializer": destack._generated.dir.tree.node.to_json_global_node_id_any(
+                    value.initializer
                 )
             }
         ),
+        "isDefinite": value.is_definite,
+        "isAbstract": value.is_abstract,
+        "isOverride": value.is_override,
     }
 
 
@@ -1269,18 +1461,16 @@ def from_json_field_definition(value: Json) -> FieldDefinition:
         key=destack._generated.dir.symbol.key.from_json_static_key(
             json_field(object_, "key")
         ),
-        ty=destack._generated.dir.type.type.from_json_global_type_id(
-            json_field(object_, "ty")
-        ),
-        is_abstract=json_bool(json_field(object_, "isAbstract")),
-        is_override=json_bool(json_field(object_, "isOverride")),
-        condition=json_optional(
+        initializer=json_optional(
             object_,
-            "condition",
-            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
+            "initializer",
+            lambda value: destack._generated.dir.tree.node.from_json_global_node_id_any(
                 value
             ),
         ),
+        is_definite=json_bool(json_field(object_, "isDefinite")),
+        is_abstract=json_bool(json_field(object_, "isAbstract")),
+        is_override=json_bool(json_field(object_, "isOverride")),
     )
 
 
@@ -1334,21 +1524,19 @@ class MethodDefinition:
     # the member space declaring the method
     space: MemberSpace
     # the method symbol
-    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId | None
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
     # the source member node
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the nominal member slot
     slot: destack._generated.dir.tree.property.MemberSlot
     # the method role
     role: destack._generated.dir.tree.property.FunctionRole | None
-    # the checked method type
-    ty: destack._generated.dir.type.type.GlobalTypeId
     # the abstraction mode governing overrides
     abstraction: destack._generated.dir.tree.property.MethodAbstraction
     # whether the method overrides an inherited member
     is_override: bool
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
+    # how the method receives its implementation
+    implementation: MethodImplementation
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1372,13 +1560,7 @@ class MethodDefinition:
 def encode_method_definition(writer: BinaryWriter, value: MethodDefinition) -> None:
     """Encode one MethodDefinition."""
     encode_member_space(writer, value.space)
-    if value.symbol is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.symbol.symbol.encode_global_symbol_id(
-            writer, value.symbol
-        )
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
     destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
     destack._generated.dir.tree.property.encode_member_slot(writer, value.slot)
     if value.role is None:
@@ -1386,35 +1568,25 @@ def encode_method_definition(writer: BinaryWriter, value: MethodDefinition) -> N
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.property.encode_function_role(writer, value.role)
-    destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
     destack._generated.dir.tree.property.encode_method_abstraction(
         writer, value.abstraction
     )
     writer.write_bool(value.is_override)
-    if value.condition is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.condition)
+    encode_method_implementation(writer, value.implementation)
 
 
 def decode_method_definition(reader: BinaryReader) -> MethodDefinition:
     """Decode one MethodDefinition."""
     space = decode_member_space(reader)
-    symbol = reader.read_option(
-        lambda: destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    )
+    symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
     source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
     slot = destack._generated.dir.tree.property.decode_member_slot(reader)
     role = reader.read_option(
         lambda: destack._generated.dir.tree.property.decode_function_role(reader)
     )
-    ty = destack._generated.dir.type.type.decode_global_type_id(reader)
     abstraction = destack._generated.dir.tree.property.decode_method_abstraction(reader)
     is_override = reader.read_bool()
-    condition = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
-    )
+    implementation = decode_method_implementation(reader)
 
     return MethodDefinition(
         space=space,
@@ -1422,10 +1594,9 @@ def decode_method_definition(reader: BinaryReader) -> MethodDefinition:
         source=source,
         slot=slot,
         role=role,
-        ty=ty,
         abstraction=abstraction,
         is_override=is_override,
-        condition=condition,
+        implementation=implementation,
     )
 
 
@@ -1433,14 +1604,8 @@ def to_json_method_definition(value: MethodDefinition) -> Json:
     """Return one JSON value for one MethodDefinition."""
     return {
         "space": to_json_member_space(value.space),
-        **(
-            {}
-            if value.symbol is None
-            else {
-                "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
-                    value.symbol
-                )
-            }
+        "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.symbol
         ),
         "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
             value.source
@@ -1455,20 +1620,11 @@ def to_json_method_definition(value: MethodDefinition) -> Json:
                 )
             }
         ),
-        "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
         "abstraction": destack._generated.dir.tree.property.to_json_method_abstraction(
             value.abstraction
         ),
         "isOverride": value.is_override,
-        **(
-            {}
-            if value.condition is None
-            else {
-                "condition": destack._generated.dir.type.type.to_json_global_type_id(
-                    value.condition
-                )
-            }
-        ),
+        "implementation": to_json_method_implementation(value.implementation),
     }
 
 
@@ -1478,12 +1634,8 @@ def from_json_method_definition(value: Json) -> MethodDefinition:
 
     return MethodDefinition(
         space=from_json_member_space(json_field(object_, "space")),
-        symbol=json_optional(
-            object_,
-            "symbol",
-            lambda value: (
-                destack._generated.dir.symbol.symbol.from_json_global_symbol_id(value)
-            ),
+        symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "symbol")
         ),
         source=destack._generated.dir.tree.node.from_json_global_node_id_any(
             json_field(object_, "source")
@@ -1498,21 +1650,76 @@ def from_json_method_definition(value: Json) -> MethodDefinition:
                 value
             ),
         ),
-        ty=destack._generated.dir.type.type.from_json_global_type_id(
-            json_field(object_, "ty")
-        ),
         abstraction=destack._generated.dir.tree.property.from_json_method_abstraction(
             json_field(object_, "abstraction")
         ),
         is_override=json_bool(json_field(object_, "isOverride")),
-        condition=json_optional(
-            object_,
-            "condition",
-            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
-                value
-            ),
+        implementation=from_json_method_implementation(
+            json_field(object_, "implementation")
         ),
     )
+
+
+"""How one method receives its implementation."""
+MethodImplementation: typing.TypeAlias = (
+    typing.Literal["required"]
+    | typing.Literal["body"]
+    | typing.Literal["default"]
+    | typing.Literal["intrinsic"]
+)
+
+
+def encode_method_implementation(
+    writer: BinaryWriter, value: MethodImplementation
+) -> None:
+    """Encode one MethodImplementation."""
+    if value == "required":
+        writer.write_unsigned(0)
+    elif value == "body":
+        writer.write_unsigned(1)
+    elif value == "default":
+        writer.write_unsigned(2)
+    elif value == "intrinsic":
+        writer.write_unsigned(3)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_method_implementation(reader: BinaryReader) -> MethodImplementation:
+    """Decode one MethodImplementation."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        return "required"
+    elif variant == 1:
+        return "body"
+    elif variant == 2:
+        return "default"
+    elif variant == 3:
+        return "intrinsic"
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_method_implementation(value: MethodImplementation) -> Json:
+    """Return one JSON value for one MethodImplementation."""
+    return value
+
+
+def from_json_method_implementation(value: Json) -> MethodImplementation:
+    """Return one MethodImplementation from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "required":
+        return "required"
+    elif variant == "body":
+        return "body"
+    elif variant == "default":
+        return "default"
+    elif variant == "intrinsic":
+        return "intrinsic"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -1529,8 +1736,6 @@ class AssociatedTypeDefinition:
     constraint: destack._generated.dir.type.type.GlobalTypeId | None
     # the concrete associated type value
     value: destack._generated.dir.type.type.GlobalTypeId | None
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1568,11 +1773,6 @@ def encode_associated_type_definition(
     else:
         writer.write_byte(1)
         destack._generated.dir.type.type.encode_global_type_id(writer, value.value)
-    if value.condition is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.condition)
 
 
 def decode_associated_type_definition(reader: BinaryReader) -> AssociatedTypeDefinition:
@@ -1586,9 +1786,6 @@ def decode_associated_type_definition(reader: BinaryReader) -> AssociatedTypeDef
     value_ = reader.read_option(
         lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
     )
-    condition = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
-    )
 
     return AssociatedTypeDefinition(
         symbol=symbol,
@@ -1596,7 +1793,6 @@ def decode_associated_type_definition(reader: BinaryReader) -> AssociatedTypeDef
         key=key,
         constraint=constraint,
         value=value_,
-        condition=condition,
     )
 
 
@@ -1625,15 +1821,6 @@ def to_json_associated_type_definition(value: AssociatedTypeDefinition) -> Json:
             else {
                 "value": destack._generated.dir.type.type.to_json_global_type_id(
                     value.value
-                )
-            }
-        ),
-        **(
-            {}
-            if value.condition is None
-            else {
-                "condition": destack._generated.dir.type.type.to_json_global_type_id(
-                    value.condition
                 )
             }
         ),
@@ -1668,13 +1855,6 @@ def from_json_associated_type_definition(value: Json) -> AssociatedTypeDefinitio
                 value
             ),
         ),
-        condition=json_optional(
-            object_,
-            "condition",
-            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
-                value
-            ),
-        ),
     )
 
 
@@ -1688,12 +1868,8 @@ class AssociatedConstDefinition:
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the associated const key
     key: destack._generated.dir.symbol.key.StaticKey
-    # the checked static type
-    ty: destack._generated.dir.type.type.GlobalTypeId
     # the checked static value
     value: destack._generated.dir.tree.static.GlobalStaticId | None
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1721,17 +1897,11 @@ def encode_associated_const_definition(
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
     destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
     destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
-    destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
     if value.value is None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.static.encode_global_static_id(writer, value.value)
-    if value.condition is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.condition)
 
 
 def decode_associated_const_definition(
@@ -1741,21 +1911,15 @@ def decode_associated_const_definition(
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
     source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
     key = destack._generated.dir.symbol.key.decode_static_key(reader)
-    ty = destack._generated.dir.type.type.decode_global_type_id(reader)
     value_ = reader.read_option(
         lambda: destack._generated.dir.tree.static.decode_global_static_id(reader)
-    )
-    condition = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
     )
 
     return AssociatedConstDefinition(
         symbol=symbol,
         source=source,
         key=key,
-        ty=ty,
         value=value_,
-        condition=condition,
     )
 
 
@@ -1769,22 +1933,12 @@ def to_json_associated_const_definition(value: AssociatedConstDefinition) -> Jso
             value.source
         ),
         "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
-        "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
         **(
             {}
             if value.value is None
             else {
                 "value": destack._generated.dir.tree.static.to_json_global_static_id(
                     value.value
-                )
-            }
-        ),
-        **(
-            {}
-            if value.condition is None
-            else {
-                "condition": destack._generated.dir.type.type.to_json_global_type_id(
-                    value.condition
                 )
             }
         ),
@@ -1805,20 +1959,10 @@ def from_json_associated_const_definition(value: Json) -> AssociatedConstDefinit
         key=destack._generated.dir.symbol.key.from_json_static_key(
             json_field(object_, "key")
         ),
-        ty=destack._generated.dir.type.type.from_json_global_type_id(
-            json_field(object_, "ty")
-        ),
         value=json_optional(
             object_,
             "value",
             lambda value: destack._generated.dir.tree.static.from_json_global_static_id(
-                value
-            ),
-        ),
-        condition=json_optional(
-            object_,
-            "condition",
-            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
                 value
             ),
         ),
@@ -1837,8 +1981,6 @@ class VariantDefinition:
     key: destack._generated.dir.symbol.key.StaticKey
     # the checked variant value
     value: destack._generated.dir.tree.static.GlobalStaticId | None
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1869,11 +2011,6 @@ def encode_variant_definition(writer: BinaryWriter, value: VariantDefinition) ->
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.static.encode_global_static_id(writer, value.value)
-    if value.condition is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.condition)
 
 
 def decode_variant_definition(reader: BinaryReader) -> VariantDefinition:
@@ -1884,16 +2021,12 @@ def decode_variant_definition(reader: BinaryReader) -> VariantDefinition:
     value_ = reader.read_option(
         lambda: destack._generated.dir.tree.static.decode_global_static_id(reader)
     )
-    condition = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
-    )
 
     return VariantDefinition(
         symbol=symbol,
         source=source,
         key=key,
         value=value_,
-        condition=condition,
     )
 
 
@@ -1913,15 +2046,6 @@ def to_json_variant_definition(value: VariantDefinition) -> Json:
             else {
                 "value": destack._generated.dir.tree.static.to_json_global_static_id(
                     value.value
-                )
-            }
-        ),
-        **(
-            {}
-            if value.condition is None
-            else {
-                "condition": destack._generated.dir.type.type.to_json_global_type_id(
-                    value.condition
                 )
             }
         ),
@@ -1949,13 +2073,6 @@ def from_json_variant_definition(value: Json) -> VariantDefinition:
                 value
             ),
         ),
-        condition=json_optional(
-            object_,
-            "condition",
-            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
-                value
-            ),
-        ),
     )
 
 
@@ -1967,8 +2084,6 @@ class SignatureDefinition:
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the checked signature type
     ty: destack._generated.dir.type.type.GlobalTypeId
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1995,25 +2110,16 @@ def encode_signature_definition(
     """Encode one SignatureDefinition."""
     destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
     destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
-    if value.condition is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.condition)
 
 
 def decode_signature_definition(reader: BinaryReader) -> SignatureDefinition:
     """Decode one SignatureDefinition."""
     source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
     ty = destack._generated.dir.type.type.decode_global_type_id(reader)
-    condition = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
-    )
 
     return SignatureDefinition(
         source=source,
         ty=ty,
-        condition=condition,
     )
 
 
@@ -2024,15 +2130,6 @@ def to_json_signature_definition(value: SignatureDefinition) -> Json:
             value.source
         ),
         "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
-        **(
-            {}
-            if value.condition is None
-            else {
-                "condition": destack._generated.dir.type.type.to_json_global_type_id(
-                    value.condition
-                )
-            }
-        ),
     }
 
 
@@ -2046,13 +2143,6 @@ def from_json_signature_definition(value: Json) -> SignatureDefinition:
         ),
         ty=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "ty")
-        ),
-        condition=json_optional(
-            object_,
-            "condition",
-            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
-                value
-            ),
         ),
     )
 
@@ -2071,6 +2161,8 @@ class ClassDefinition:
     extends: NominalHeritage | None
     # the implemented interfaces
     implements: Sequence[NominalHeritage]
+    # the class's direct construct candidates
+    constructors: Sequence[ClassConstructorDefinition]
     # the members in declaration order
     members: Sequence[DefinitionMember]
 
@@ -2112,6 +2204,9 @@ def encode_class_definition(writer: BinaryWriter, value: ClassDefinition) -> Non
     writer.write_unsigned(len(value.implements))
     for item_value_implements_0 in value.implements:
         encode_nominal_heritage(writer, item_value_implements_0)
+    writer.write_unsigned(len(value.constructors))
+    for item_value_constructors_0 in value.constructors:
+        encode_class_constructor_definition(writer, item_value_constructors_0)
     writer.write_unsigned(len(value.members))
     for item_value_members_0 in value.members:
         encode_definition_member(writer, item_value_members_0)
@@ -2128,6 +2223,9 @@ def decode_class_definition(reader: BinaryReader) -> ClassDefinition:
     is_final = reader.read_bool()
     extends = reader.read_option(lambda: decode_nominal_heritage(reader))
     implements = [decode_nominal_heritage(reader) for _ in range(reader.read_number())]
+    constructors = [
+        decode_class_constructor_definition(reader) for _ in range(reader.read_number())
+    ]
     members = [decode_definition_member(reader) for _ in range(reader.read_number())]
 
     return ClassDefinition(
@@ -2136,6 +2234,7 @@ def decode_class_definition(reader: BinaryReader) -> ClassDefinition:
         is_final=is_final,
         extends=extends,
         implements=implements,
+        constructors=constructors,
         members=members,
     )
 
@@ -2160,6 +2259,10 @@ def to_json_class_definition(value: ClassDefinition) -> Json:
             else {"extends": to_json_nominal_heritage(value.extends)}
         ),
         "implements": [to_json_nominal_heritage(item_0) for item_0 in value.implements],
+        "constructors": [
+            to_json_class_constructor_definition(item_0)
+            for item_0 in value.constructors
+        ],
         "members": [to_json_definition_member(item_0) for item_0 in value.members],
     }
 
@@ -2187,10 +2290,83 @@ def from_json_class_definition(value: Json) -> ClassDefinition:
             from_json_nominal_heritage(item_0)
             for item_0 in json_array(json_field(object_, "implements"))
         ],
+        constructors=[
+            from_json_class_constructor_definition(item_0)
+            for item_0 in json_array(json_field(object_, "constructors"))
+        ],
         members=[
             from_json_definition_member(item_0)
             for item_0 in json_array(json_field(object_, "members"))
         ],
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorDefinition:
+    """One class construct candidate."""
+
+    # the selected constructor
+    constructor: ClassConstructor
+    # the checked constructor signature
+    ty: destack._generated.dir.type.type.GlobalTypeId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_class_constructor_definition(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ClassConstructorDefinition:
+        """Decode one ClassConstructorDefinition."""
+        return decode_class_constructor_definition(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_class_constructor_definition(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> ClassConstructorDefinition:
+        """Return one ClassConstructorDefinition from one JSON value."""
+        return from_json_class_constructor_definition(value)
+
+
+def encode_class_constructor_definition(
+    writer: BinaryWriter, value: ClassConstructorDefinition
+) -> None:
+    """Encode one ClassConstructorDefinition."""
+    encode_class_constructor(writer, value.constructor)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
+
+
+def decode_class_constructor_definition(
+    reader: BinaryReader,
+) -> ClassConstructorDefinition:
+    """Decode one ClassConstructorDefinition."""
+    constructor = decode_class_constructor(reader)
+    ty = destack._generated.dir.type.type.decode_global_type_id(reader)
+
+    return ClassConstructorDefinition(
+        constructor=constructor,
+        ty=ty,
+    )
+
+
+def to_json_class_constructor_definition(value: ClassConstructorDefinition) -> Json:
+    """Return one JSON value for one ClassConstructorDefinition."""
+    return {
+        "constructor": to_json_class_constructor(value.constructor),
+        "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
+    }
+
+
+def from_json_class_constructor_definition(value: Json) -> ClassConstructorDefinition:
+    """Return one ClassConstructorDefinition from one JSON value."""
+    object_ = json_object(value)
+
+    return ClassConstructorDefinition(
+        constructor=from_json_class_constructor(json_field(object_, "constructor")),
+        ty=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "ty")
+        ),
     )
 
 
@@ -2423,6 +2599,8 @@ class NewtypeDefinition:
     template: destack._generated.dir.type.generic.LocalGenericTemplateId | None
     # the nominal backing type
     value: destack._generated.dir.type.type.GlobalTypeId
+    # the members in declaration order
+    members: Sequence[DefinitionMember]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -2453,6 +2631,9 @@ def encode_newtype_definition(writer: BinaryWriter, value: NewtypeDefinition) ->
             writer, value.template
         )
     destack._generated.dir.type.type.encode_global_type_id(writer, value.value)
+    writer.write_unsigned(len(value.members))
+    for item_value_members_0 in value.members:
+        encode_definition_member(writer, item_value_members_0)
 
 
 def decode_newtype_definition(reader: BinaryReader) -> NewtypeDefinition:
@@ -2463,10 +2644,12 @@ def decode_newtype_definition(reader: BinaryReader) -> NewtypeDefinition:
         )
     )
     value_ = destack._generated.dir.type.type.decode_global_type_id(reader)
+    members = [decode_definition_member(reader) for _ in range(reader.read_number())]
 
     return NewtypeDefinition(
         template=template,
         value=value_,
+        members=members,
     )
 
 
@@ -2483,6 +2666,7 @@ def to_json_newtype_definition(value: NewtypeDefinition) -> Json:
             }
         ),
         "value": destack._generated.dir.type.type.to_json_global_type_id(value.value),
+        "members": [to_json_definition_member(item_0) for item_0 in value.members],
     }
 
 
@@ -2503,10 +2687,317 @@ def from_json_newtype_definition(value: Json) -> NewtypeDefinition:
         value=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "value")
         ),
+        members=[
+            from_json_definition_member(item_0)
+            for item_0 in json_array(json_field(object_, "members"))
+        ],
     )
 
 
+@dataclass(frozen=True, slots=True)
+class ExtensionDefinition:
+    """Checked declaration data for one extension."""
+
+    # the extension declaration's symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the extension declaration form
+    form: ExtensionForm
+    # the extension's generic template
+    template: destack._generated.dir.type.generic.LocalGenericTemplateId | None
+    # the checked receiver target
+    target: ExtensionTarget
+    # the implemented interfaces
+    implements: Sequence[NominalHeritage]
+    # the members in declaration order
+    members: Sequence[DefinitionMember]
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_extension_definition(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ExtensionDefinition:
+        """Decode one ExtensionDefinition."""
+        return decode_extension_definition(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_extension_definition(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> ExtensionDefinition:
+        """Return one ExtensionDefinition from one JSON value."""
+        return from_json_extension_definition(value)
+
+
+def encode_extension_definition(
+    writer: BinaryWriter, value: ExtensionDefinition
+) -> None:
+    """Encode one ExtensionDefinition."""
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
+    encode_extension_form(writer, value.form)
+    if value.template is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        destack._generated.dir.type.generic.encode_local_generic_template_id(
+            writer, value.template
+        )
+    encode_extension_target(writer, value.target)
+    writer.write_unsigned(len(value.implements))
+    for item_value_implements_0 in value.implements:
+        encode_nominal_heritage(writer, item_value_implements_0)
+    writer.write_unsigned(len(value.members))
+    for item_value_members_0 in value.members:
+        encode_definition_member(writer, item_value_members_0)
+
+
+def decode_extension_definition(reader: BinaryReader) -> ExtensionDefinition:
+    """Decode one ExtensionDefinition."""
+    symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+    form = decode_extension_form(reader)
+    template = reader.read_option(
+        lambda: destack._generated.dir.type.generic.decode_local_generic_template_id(
+            reader
+        )
+    )
+    target = decode_extension_target(reader)
+    implements = [decode_nominal_heritage(reader) for _ in range(reader.read_number())]
+    members = [decode_definition_member(reader) for _ in range(reader.read_number())]
+
+    return ExtensionDefinition(
+        symbol=symbol,
+        form=form,
+        template=template,
+        target=target,
+        implements=implements,
+        members=members,
+    )
+
+
+def to_json_extension_definition(value: ExtensionDefinition) -> Json:
+    """Return one JSON value for one ExtensionDefinition."""
+    return {
+        "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.symbol
+        ),
+        "form": to_json_extension_form(value.form),
+        **(
+            {}
+            if value.template is None
+            else {
+                "template": destack._generated.dir.type.generic.to_json_local_generic_template_id(
+                    value.template
+                )
+            }
+        ),
+        "target": to_json_extension_target(value.target),
+        "implements": [to_json_nominal_heritage(item_0) for item_0 in value.implements],
+        "members": [to_json_definition_member(item_0) for item_0 in value.members],
+    }
+
+
+def from_json_extension_definition(value: Json) -> ExtensionDefinition:
+    """Return one ExtensionDefinition from one JSON value."""
+    object_ = json_object(value)
+
+    return ExtensionDefinition(
+        symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "symbol")
+        ),
+        form=from_json_extension_form(json_field(object_, "form")),
+        template=json_optional(
+            object_,
+            "template",
+            lambda value: (
+                destack._generated.dir.type.generic.from_json_local_generic_template_id(
+                    value
+                )
+            ),
+        ),
+        target=from_json_extension_target(json_field(object_, "target")),
+        implements=[
+            from_json_nominal_heritage(item_0)
+            for item_0 in json_array(json_field(object_, "implements"))
+        ],
+        members=[
+            from_json_definition_member(item_0)
+            for item_0 in json_array(json_field(object_, "members"))
+        ],
+    )
+
+
+"""How an extension declaration relates to its target type."""
+ExtensionForm: typing.TypeAlias = typing.Literal["local"] | typing.Literal["exported"]
+
+
+def encode_extension_form(writer: BinaryWriter, value: ExtensionForm) -> None:
+    """Encode one ExtensionForm."""
+    if value == "local":
+        writer.write_unsigned(0)
+    elif value == "exported":
+        writer.write_unsigned(1)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_extension_form(reader: BinaryReader) -> ExtensionForm:
+    """Decode one ExtensionForm."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        return "local"
+    elif variant == 1:
+        return "exported"
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_extension_form(value: ExtensionForm) -> Json:
+    """Return one JSON value for one ExtensionForm."""
+    return value
+
+
+def from_json_extension_form(value: Json) -> ExtensionForm:
+    """Return one ExtensionForm from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "local":
+        return "local"
+    elif variant == "exported":
+        return "exported"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
+
+
+@dataclass(frozen=True, slots=True)
+class ExtensionTargetRooted:
+    """Extension whose receiver type has a lookup root."""
+
+    # the declaration root used for member lookup
+    root: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the checked receiver type
+    ty: destack._generated.dir.type.type.GlobalTypeId
+    kind: typing.Literal["rooted"] = "rooted"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_extension_target(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_extension_target(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ExtensionTargetBlanket:
+    """Extension over an open receiver type."""
+
+    # the checked receiver type
+    ty: destack._generated.dir.type.type.GlobalTypeId
+    kind: typing.Literal["blanket"] = "blanket"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_extension_target(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_extension_target(self)
+
+
+"""Extension lookup target."""
+ExtensionTarget: typing.TypeAlias = ExtensionTargetRooted | ExtensionTargetBlanket
+
+
+def encode_extension_target(writer: BinaryWriter, value: ExtensionTarget) -> None:
+    """Encode one ExtensionTarget."""
+    if value.kind == "rooted":
+        writer.write_unsigned(0)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.root)
+        destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
+    elif value.kind == "blanket":
+        writer.write_unsigned(1)
+        destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_extension_target(reader: BinaryReader) -> ExtensionTarget:
+    """Decode one ExtensionTarget."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        root = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+        ty = destack._generated.dir.type.type.decode_global_type_id(reader)
+
+        return ExtensionTargetRooted(
+            root=root,
+            ty=ty,
+        )
+    elif variant == 1:
+        ty = destack._generated.dir.type.type.decode_global_type_id(reader)
+
+        return ExtensionTargetBlanket(
+            ty=ty,
+        )
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_extension_target(value: ExtensionTarget) -> Json:
+    """Return one JSON value for one ExtensionTarget."""
+    if value.kind == "rooted":
+        return {
+            "kind": "rooted",
+            "root": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                value.root
+            ),
+            "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
+        }
+    elif value.kind == "blanket":
+        return {
+            "kind": "blanket",
+            "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_extension_target(value: Json) -> ExtensionTarget:
+    """Return one ExtensionTarget from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "rooted":
+        return ExtensionTargetRooted(
+            root=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+                json_field(object_, "root")
+            ),
+            ty=destack._generated.dir.type.type.from_json_global_type_id(
+                json_field(object_, "ty")
+            ),
+        )
+    elif kind == "blanket":
+        return ExtensionTargetBlanket(
+            ty=destack._generated.dir.type.type.from_json_global_type_id(
+                json_field(object_, "ty")
+            ),
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
 __all__ = [
+    "ClassConstructor",
+    "encode_class_constructor",
+    "decode_class_constructor",
+    "to_json_class_constructor",
+    "from_json_class_constructor",
+    "ClassConstructorDeclared",
+    "ClassConstructorDefault",
+    "ClassConstructorForwardedDeclared",
+    "ClassConstructorForwardedDefault",
     "DefinitionSegment",
     "encode_definition_segment",
     "decode_definition_segment",
@@ -2567,6 +3058,11 @@ __all__ = [
     "decode_method_definition",
     "to_json_method_definition",
     "from_json_method_definition",
+    "MethodImplementation",
+    "encode_method_implementation",
+    "decode_method_implementation",
+    "to_json_method_implementation",
+    "from_json_method_implementation",
     "AssociatedTypeDefinition",
     "encode_associated_type_definition",
     "decode_associated_type_definition",
@@ -2592,6 +3088,11 @@ __all__ = [
     "decode_class_definition",
     "to_json_class_definition",
     "from_json_class_definition",
+    "ClassConstructorDefinition",
+    "encode_class_constructor_definition",
+    "decode_class_constructor_definition",
+    "to_json_class_constructor_definition",
+    "from_json_class_constructor_definition",
     "InterfaceDefinition",
     "encode_interface_definition",
     "decode_interface_definition",
@@ -2607,4 +3108,21 @@ __all__ = [
     "decode_newtype_definition",
     "to_json_newtype_definition",
     "from_json_newtype_definition",
+    "ExtensionDefinition",
+    "encode_extension_definition",
+    "decode_extension_definition",
+    "to_json_extension_definition",
+    "from_json_extension_definition",
+    "ExtensionForm",
+    "encode_extension_form",
+    "decode_extension_form",
+    "to_json_extension_form",
+    "from_json_extension_form",
+    "ExtensionTarget",
+    "encode_extension_target",
+    "decode_extension_target",
+    "to_json_extension_target",
+    "from_json_extension_target",
+    "ExtensionTargetRooted",
+    "ExtensionTargetBlanket",
 ]

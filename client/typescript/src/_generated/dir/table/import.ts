@@ -137,13 +137,11 @@ export function fromJsonImportTarget(value: Json): ImportTarget {
 export type ImportTable = {
     /** The module id of the import table. */
     readonly moduleId: ModuleId;
-    /** Modules reached by resolved imports and active globals. */
-    readonly modules: ReadonlyArray<ModuleId>;
     /** Imported local symbols keyed to their resolved target. */
     readonly targetBySymbol: ReadonlyMap<LocalSymbolId, ImportTarget>;
     /** Global targets made visible by the active profile. */
     readonly globalTargetByKey: ReadonlyMap<StaticKey, ReadonlyArray<ImportTarget>>;
-    /** Language item symbols required by compiler syntax. */
+    /** Resolved symbols for language items used by this module. */
     readonly languageSymbolByItem: ReadonlyMap<LanguageItem, GlobalSymbolId>;
 };
 
@@ -172,62 +170,56 @@ export const ImportTable = {
 /** Encode one ImportTable. */
 export function encodeImportTable(writer: BinaryWriter, value: ImportTable): void {
     encodeModuleId(writer, value.moduleId);
-    writer.writeUnsigned(value.modules.length);
-    for (const item1 of value.modules) {
-        encodeModuleId(writer, item1);
-    }
-    const entries2 = Array.from(value.targetBySymbol.entries()).map(([key2, item2]) => {
+    const entries1 = Array.from(value.targetBySymbol.entries()).map(([key1, item1]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeLocalSymbolId(writer, key2);
+            encodeLocalSymbolId(writer, key1);
+        });
+        return { key1, item1, keyBytes };
+    });
+    entries1.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries1.length);
+    for (const entry1 of entries1) {
+        encodeLocalSymbolId(writer, entry1.key1);
+        encodeImportTarget(writer, entry1.item1);
+    }
+    const entries2 = Array.from(value.globalTargetByKey.entries()).map(([key2, item2]) => {
+        const keyBytes = nestedBytes((writer) => {
+            encodeStaticKey(writer, key2);
         });
         return { key2, item2, keyBytes };
     });
     entries2.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries2.length);
     for (const entry2 of entries2) {
-        encodeLocalSymbolId(writer, entry2.key2);
-        encodeImportTarget(writer, entry2.item2);
+        encodeStaticKey(writer, entry2.key2);
+        writer.writeUnsigned(entry2.item2.length);
+        for (const item3 of entry2.item2) {
+            encodeImportTarget(writer, item3);
+        }
     }
-    const entries3 = Array.from(value.globalTargetByKey.entries()).map(([key3, item3]) => {
+    const entries3 = Array.from(value.languageSymbolByItem.entries()).map(([key3, item3]) => {
         const keyBytes = nestedBytes((writer) => {
-            encodeStaticKey(writer, key3);
+            encodeLanguageItem(writer, key3);
         });
         return { key3, item3, keyBytes };
     });
     entries3.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
     writer.writeUnsigned(entries3.length);
     for (const entry3 of entries3) {
-        encodeStaticKey(writer, entry3.key3);
-        writer.writeUnsigned(entry3.item3.length);
-        for (const item4 of entry3.item3) {
-            encodeImportTarget(writer, item4);
-        }
-    }
-    const entries4 = Array.from(value.languageSymbolByItem.entries()).map(([key4, item4]) => {
-        const keyBytes = nestedBytes((writer) => {
-            encodeLanguageItem(writer, key4);
-        });
-        return { key4, item4, keyBytes };
-    });
-    entries4.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries4.length);
-    for (const entry4 of entries4) {
-        encodeLanguageItem(writer, entry4.key4);
-        encodeGlobalSymbolId(writer, entry4.item4);
+        encodeLanguageItem(writer, entry3.key3);
+        encodeGlobalSymbolId(writer, entry3.item3);
     }
 }
 
 /** Decode one ImportTable. */
 export function decodeImportTable(reader: BinaryReader): ImportTable {
     const moduleId = decodeModuleId(reader);
-    const modules = (() => { const length1 = reader.readNumber(); const items1: Array<ModuleId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeModuleId(reader)); } return items1; })();
-    const targetBySymbol = (() => { const length2 = reader.readNumber(); const items2 = new Map<LocalSymbolId, ImportTarget>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeLocalSymbolId(reader), decodeImportTarget(reader)); } return items2; })();
-    const globalTargetByKey = (() => { const length3 = reader.readNumber(); const items3 = new Map<StaticKey, ReadonlyArray<ImportTarget>>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeStaticKey(reader), (() => { const length5 = reader.readNumber(); const items5: Array<ImportTarget> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeImportTarget(reader)); } return items5; })()); } return items3; })();
-    const languageSymbolByItem = (() => { const length4 = reader.readNumber(); const items4 = new Map<LanguageItem, GlobalSymbolId>(); for (let index = 0; index < length4; index += 1) { items4.set(decodeLanguageItem(reader), decodeGlobalSymbolId(reader)); } return items4; })();
+    const targetBySymbol = (() => { const length1 = reader.readNumber(); const items1 = new Map<LocalSymbolId, ImportTarget>(); for (let index = 0; index < length1; index += 1) { items1.set(decodeLocalSymbolId(reader), decodeImportTarget(reader)); } return items1; })();
+    const globalTargetByKey = (() => { const length2 = reader.readNumber(); const items2 = new Map<StaticKey, ReadonlyArray<ImportTarget>>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeStaticKey(reader), (() => { const length4 = reader.readNumber(); const items4: Array<ImportTarget> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeImportTarget(reader)); } return items4; })()); } return items2; })();
+    const languageSymbolByItem = (() => { const length3 = reader.readNumber(); const items3 = new Map<LanguageItem, GlobalSymbolId>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeLanguageItem(reader), decodeGlobalSymbolId(reader)); } return items3; })();
 
     return {
         moduleId,
-        modules,
         targetBySymbol,
         globalTargetByKey,
         languageSymbolByItem,
@@ -238,7 +230,6 @@ export function decodeImportTable(reader: BinaryReader): ImportTable {
 export function toJsonImportTable(value: ImportTable): Json {
     return {
         moduleId: toJsonModuleId(value.moduleId),
-        modules: value.modules.map((item0) => toJsonModuleId(item0)),
         targetBySymbol: Array.from(value.targetBySymbol.entries()).map(([key0, item0]) => [toJsonLocalSymbolId(key0), toJsonImportTarget(item0)] as const),
         globalTargetByKey: Array.from(value.globalTargetByKey.entries()).map(([key0, item0]) => [toJsonStaticKey(key0), item0.map((item1) => toJsonImportTarget(item1))] as const),
         languageSymbolByItem: Array.from(value.languageSymbolByItem.entries()).map(([key0, item0]) => [toJsonLanguageItem(key0), toJsonGlobalSymbolId(item0)] as const),
@@ -251,7 +242,6 @@ export function fromJsonImportTable(value: Json): ImportTable {
 
     return {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
-        modules: jsonArray(jsonField(object, "modules")).map((item0) => fromJsonModuleId(item0)),
         targetBySymbol: new Map(jsonArray(jsonField(object, "targetBySymbol")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLocalSymbolId(key0), fromJsonImportTarget(item0)] as const; })),
         globalTargetByKey: new Map(jsonArray(jsonField(object, "globalTargetByKey")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonStaticKey(key0), jsonArray(item0).map((item1) => fromJsonImportTarget(item1))] as const; })),
         languageSymbolByItem: new Map(jsonArray(jsonField(object, "languageSymbolByItem")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonLanguageItem(key0), fromJsonGlobalSymbolId(item0)] as const; })),

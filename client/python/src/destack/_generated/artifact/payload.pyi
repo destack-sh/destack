@@ -14,14 +14,14 @@ import destack._generated.artifact.component
 import destack._generated.artifact.data
 import destack._generated.artifact.dir
 import destack._generated.artifact.environment
+import destack._generated.artifact.index
 import destack._generated.artifact.lint
 import destack._generated.artifact.mir
 import destack._generated.artifact.object
 import destack._generated.artifact.package
 import destack._generated.artifact.product
-import destack._generated.artifact.query
 import destack._generated.artifact.script
-import destack._generated.program.program
+import destack._generated.program.model
 
 @dataclass(frozen=True, slots=True)
 class ArtifactPayloadDirParsed:
@@ -164,16 +164,6 @@ class ArtifactPayloadDirMaterialized:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class ArtifactPayloadDirElaborated:
-    """Elaborated DIR."""
-
-    dir_elaborated: destack._generated.artifact.dir.DirElaborated
-    kind: typing.Literal["dirElaborated"] = "dirElaborated"
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    def to_json(self) -> Json: ...
-
-@dataclass(frozen=True, slots=True)
 class ArtifactPayloadMirLowered:
     """Lowered MIR before optimization."""
 
@@ -214,21 +204,21 @@ class ArtifactPayloadMirOptimized:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class ArtifactPayloadModuleQueryIndex:
-    """Query index for one module profile."""
+class ArtifactPayloadModuleIndex:
+    """Index for one module profile."""
 
-    module_query_index: destack._generated.artifact.query.ModuleQueryIndex
-    kind: typing.Literal["moduleQueryIndex"] = "moduleQueryIndex"
+    module_index: destack._generated.artifact.index.ModuleIndex
+    kind: typing.Literal["moduleIndex"] = "moduleIndex"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class ArtifactPayloadWorkspaceQueryIndex:
-    """Query index for one workspace profile."""
+class ArtifactPayloadProgramIndex:
+    """Index for one program profile."""
 
-    workspace_query_index: destack._generated.artifact.query.WorkspaceQueryIndex
-    kind: typing.Literal["workspaceQueryIndex"] = "workspaceQueryIndex"
+    program_index: destack._generated.artifact.index.ProgramIndex
+    kind: typing.Literal["programIndex"] = "programIndex"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -287,7 +277,7 @@ class ArtifactPayloadBundle:
 class ArtifactPayloadProgram:
     """Program for one package target."""
 
-    program: destack._generated.program.program.Program
+    program: destack._generated.program.model.Program
     kind: typing.Literal["program"] = "program"
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -349,13 +339,12 @@ ArtifactPayload: typing.TypeAlias = (
     | ArtifactPayloadDirCheckedComponent
     | ArtifactPayloadDirChecked
     | ArtifactPayloadDirMaterialized
-    | ArtifactPayloadDirElaborated
     | ArtifactPayloadMirLowered
     | ArtifactPayloadMirVerified
     | ArtifactPayloadMirAnalyzed
     | ArtifactPayloadMirOptimized
-    | ArtifactPayloadModuleQueryIndex
-    | ArtifactPayloadWorkspaceQueryIndex
+    | ArtifactPayloadModuleIndex
+    | ArtifactPayloadProgramIndex
     | ArtifactPayloadScript
     | ArtifactPayloadObject
     | ArtifactPayloadAsset
@@ -393,13 +382,12 @@ __all__ = [
     "ArtifactPayloadDirCheckedComponent",
     "ArtifactPayloadDirChecked",
     "ArtifactPayloadDirMaterialized",
-    "ArtifactPayloadDirElaborated",
     "ArtifactPayloadMirLowered",
     "ArtifactPayloadMirVerified",
     "ArtifactPayloadMirAnalyzed",
     "ArtifactPayloadMirOptimized",
-    "ArtifactPayloadModuleQueryIndex",
-    "ArtifactPayloadWorkspaceQueryIndex",
+    "ArtifactPayloadModuleIndex",
+    "ArtifactPayloadProgramIndex",
     "ArtifactPayloadScript",
     "ArtifactPayloadObject",
     "ArtifactPayloadAsset",

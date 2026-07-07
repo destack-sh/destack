@@ -2,13 +2,13 @@
 
 import { BinaryReader, BinaryWriter, Json, SerdeError, compareBytes, jsonArray, jsonBool, jsonField, jsonInteger, jsonObject, jsonString, nestedBytes } from "../../../protocol/serde.js";
 import type { BitSet } from "../../core/bitset.js";
-import type { FunctionBehavior } from "../metadata/effect.js";
-import type { MemoryEffect } from "../metadata/effect.js";
+import type { FunctionBehavior } from "../table/effect.js";
+import type { MemoryEffect } from "../table/effect.js";
 import type { Linkage } from "../tree/global.js";
 import type { Symbol } from "../tree/symbol.js";
 import { decodeBitSet, encodeBitSet, fromJsonBitSet, toJsonBitSet } from "../../core/bitset.js";
-import { decodeFunctionBehavior, encodeFunctionBehavior, fromJsonFunctionBehavior, toJsonFunctionBehavior } from "../metadata/effect.js";
-import { decodeMemoryEffect, encodeMemoryEffect, fromJsonMemoryEffect, toJsonMemoryEffect } from "../metadata/effect.js";
+import { decodeFunctionBehavior, encodeFunctionBehavior, fromJsonFunctionBehavior, toJsonFunctionBehavior } from "../table/effect.js";
+import { decodeMemoryEffect, encodeMemoryEffect, fromJsonMemoryEffect, toJsonMemoryEffect } from "../table/effect.js";
 import { decodeLinkage, encodeLinkage, fromJsonLinkage, toJsonLinkage } from "../tree/global.js";
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../tree/symbol.js";
 
@@ -188,7 +188,7 @@ export type LinkNode =
           readonly memory: MemoryEffect;
           /** Behavioral effects (unwind, determinism, allocation, and so on). */
           readonly behavior: FunctionBehavior;
-          /** Inline cost approximation. */
+          /** Estimated inline cost. */
           readonly inlineCost: number;
           /** True when the function makes indirect or virtual calls. */
           readonly indirect: boolean;

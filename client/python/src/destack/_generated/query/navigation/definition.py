@@ -17,7 +17,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +25,7 @@ class GotoDefinitionRequest:
     """Request goto definition at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -50,12 +50,12 @@ def encode_goto_definition_request(
     writer: BinaryWriter, value: GotoDefinitionRequest
 ) -> None:
     """Encode one GotoDefinitionRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_goto_definition_request(reader: BinaryReader) -> GotoDefinitionRequest:
     """Decode one GotoDefinitionRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return GotoDefinitionRequest(
         position=position,
@@ -65,7 +65,7 @@ def decode_goto_definition_request(reader: BinaryReader) -> GotoDefinitionReques
 def to_json_goto_definition_request(value: GotoDefinitionRequest) -> Json:
     """Return one JSON value for one GotoDefinitionRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -76,7 +76,7 @@ def from_json_goto_definition_request(value: Json) -> GotoDefinitionRequest:
     object_ = json_object(value)
 
     return GotoDefinitionRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
@@ -87,7 +87,7 @@ class GotoDeclarationRequest:
     """Request goto declaration at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -112,12 +112,12 @@ def encode_goto_declaration_request(
     writer: BinaryWriter, value: GotoDeclarationRequest
 ) -> None:
     """Encode one GotoDeclarationRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_goto_declaration_request(reader: BinaryReader) -> GotoDeclarationRequest:
     """Decode one GotoDeclarationRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return GotoDeclarationRequest(
         position=position,
@@ -127,7 +127,7 @@ def decode_goto_declaration_request(reader: BinaryReader) -> GotoDeclarationRequ
 def to_json_goto_declaration_request(value: GotoDeclarationRequest) -> Json:
     """Return one JSON value for one GotoDeclarationRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -138,7 +138,7 @@ def from_json_goto_declaration_request(value: Json) -> GotoDeclarationRequest:
     object_ = json_object(value)
 
     return GotoDeclarationRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
@@ -149,7 +149,7 @@ class GotoTypeDefinitionRequest:
     """Request goto type definition at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -174,14 +174,14 @@ def encode_goto_type_definition_request(
     writer: BinaryWriter, value: GotoTypeDefinitionRequest
 ) -> None:
     """Encode one GotoTypeDefinitionRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_goto_type_definition_request(
     reader: BinaryReader,
 ) -> GotoTypeDefinitionRequest:
     """Decode one GotoTypeDefinitionRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return GotoTypeDefinitionRequest(
         position=position,
@@ -191,7 +191,7 @@ def decode_goto_type_definition_request(
 def to_json_goto_type_definition_request(value: GotoTypeDefinitionRequest) -> Json:
     """Return one JSON value for one GotoTypeDefinitionRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -202,7 +202,7 @@ def from_json_goto_type_definition_request(value: Json) -> GotoTypeDefinitionReq
     object_ = json_object(value)
 
     return GotoTypeDefinitionRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
@@ -276,7 +276,7 @@ class NavigationTarget:
     """One navigation target."""
 
     # the target location and resolved identity
-    target: destack._generated.query.core.target.QueryTarget
+    target: destack._generated.query.protocol.target.Target
     # the relationship to the query origin
     relation: NavigationRelation
 
@@ -301,13 +301,13 @@ class NavigationTarget:
 
 def encode_navigation_target(writer: BinaryWriter, value: NavigationTarget) -> None:
     """Encode one NavigationTarget."""
-    destack._generated.query.core.target.encode_query_target(writer, value.target)
+    destack._generated.query.protocol.target.encode_target(writer, value.target)
     encode_navigation_relation(writer, value.relation)
 
 
 def decode_navigation_target(reader: BinaryReader) -> NavigationTarget:
     """Decode one NavigationTarget."""
-    target = destack._generated.query.core.target.decode_query_target(reader)
+    target = destack._generated.query.protocol.target.decode_target(reader)
     relation = decode_navigation_relation(reader)
 
     return NavigationTarget(
@@ -319,9 +319,7 @@ def decode_navigation_target(reader: BinaryReader) -> NavigationTarget:
 def to_json_navigation_target(value: NavigationTarget) -> Json:
     """Return one JSON value for one NavigationTarget."""
     return {
-        "target": destack._generated.query.core.target.to_json_query_target(
-            value.target
-        ),
+        "target": destack._generated.query.protocol.target.to_json_target(value.target),
         "relation": to_json_navigation_relation(value.relation),
     }
 
@@ -331,7 +329,7 @@ def from_json_navigation_target(value: Json) -> NavigationTarget:
     object_ = json_object(value)
 
     return NavigationTarget(
-        target=destack._generated.query.core.target.from_json_query_target(
+        target=destack._generated.query.protocol.target.from_json_target(
             json_field(object_, "target")
         ),
         relation=from_json_navigation_relation(json_field(object_, "relation")),

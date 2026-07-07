@@ -21,9 +21,13 @@ from destack.protocol.serde import (
 
 import destack._generated.dir.symbol.key
 import destack._generated.dir.symbol.symbol
+import destack._generated.dir.table.definition
 import destack._generated.dir.tree.literal
 import destack._generated.dir.tree.node
 import destack._generated.dir.tree.operator
+import destack._generated.dir.type.generic
+import destack._generated.dir.type.predicate
+import destack._generated.dir.type.projection
 import destack._generated.dir.type.type
 
 
@@ -92,6 +96,92 @@ def from_json_name_resolution(value: Json) -> NameResolution:
         symbols=[
             destack._generated.dir.symbol.symbol.from_json_global_symbol_id(item_0)
             for item_0 in json_array(json_field(object_, "symbols"))
+        ],
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InstantiationResolution:
+    """Explicit generic application selected at a usage site."""
+
+    # the generic declaration being applied
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the complete selected generic argument bindings
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_instantiation_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> InstantiationResolution:
+        """Decode one InstantiationResolution."""
+        return decode_instantiation_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_instantiation_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> InstantiationResolution:
+        """Return one InstantiationResolution from one JSON value."""
+        return from_json_instantiation_resolution(value)
+
+
+def encode_instantiation_resolution(
+    writer: BinaryWriter, value: InstantiationResolution
+) -> None:
+    """Encode one InstantiationResolution."""
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
+        )
+
+
+def decode_instantiation_resolution(reader: BinaryReader) -> InstantiationResolution:
+    """Decode one InstantiationResolution."""
+    symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
+        for _ in range(reader.read_number())
+    ]
+
+    return InstantiationResolution(
+        symbol=symbol,
+        generic_arguments=generic_arguments,
+    )
+
+
+def to_json_instantiation_resolution(value: InstantiationResolution) -> Json:
+    """Return one JSON value for one InstantiationResolution."""
+    return {
+        "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.symbol
+        ),
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
+        ],
+    }
+
+
+def from_json_instantiation_resolution(value: Json) -> InstantiationResolution:
+    """Return one InstantiationResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return InstantiationResolution(
+        symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "symbol")
+        ),
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
         ],
     )
 
@@ -226,7 +316,7 @@ class ReceiverResolution:
     # the receiver syntax kind
     kind: ReceiverKind
     # the declaration that introduces the receiver
-    owner: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    declaration: destack._generated.dir.symbol.symbol.GlobalSymbolId
     # the receiver type after inference
     ty: destack._generated.dir.type.type.GlobalTypeId
 
@@ -252,19 +342,21 @@ class ReceiverResolution:
 def encode_receiver_resolution(writer: BinaryWriter, value: ReceiverResolution) -> None:
     """Encode one ReceiverResolution."""
     encode_receiver_kind(writer, value.kind)
-    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.owner)
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(
+        writer, value.declaration
+    )
     destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
 
 
 def decode_receiver_resolution(reader: BinaryReader) -> ReceiverResolution:
     """Decode one ReceiverResolution."""
     kind = decode_receiver_kind(reader)
-    owner = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+    declaration = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
     ty = destack._generated.dir.type.type.decode_global_type_id(reader)
 
     return ReceiverResolution(
         kind=kind,
-        owner=owner,
+        declaration=declaration,
         ty=ty,
     )
 
@@ -273,8 +365,8 @@ def to_json_receiver_resolution(value: ReceiverResolution) -> Json:
     """Return one JSON value for one ReceiverResolution."""
     return {
         "kind": to_json_receiver_kind(value.kind),
-        "owner": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
-            value.owner
+        "declaration": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.declaration
         ),
         "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
     }
@@ -286,8 +378,8 @@ def from_json_receiver_resolution(value: Json) -> ReceiverResolution:
 
     return ReceiverResolution(
         kind=from_json_receiver_kind(json_field(object_, "kind")),
-        owner=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
-            json_field(object_, "owner")
+        declaration=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "declaration")
         ),
         ty=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "ty")
@@ -665,12 +757,18 @@ class MemberCandidate:
 
     # the receiver type that selects this candidate
     receiver: destack._generated.dir.type.type.GlobalTypeId
+    # the projection steps
+    adjustments: Sequence[destack._generated.dir.type.projection.Projection]
+    # the declaration that exposed this member
+    owner: destack._generated.dir.symbol.symbol.GlobalSymbolId
     # the selected member symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
     # the member type applied to the matched receiver
     ty: destack._generated.dir.type.type.GlobalTypeId
-    # the generic arguments of the member symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the selected generic argument bindings needed by this member candidate
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -694,30 +792,43 @@ class MemberCandidate:
 def encode_member_candidate(writer: BinaryWriter, value: MemberCandidate) -> None:
     """Encode one MemberCandidate."""
     destack._generated.dir.type.type.encode_global_type_id(writer, value.receiver)
+    writer.write_unsigned(len(value.adjustments))
+    for item_value_adjustments_0 in value.adjustments:
+        destack._generated.dir.type.projection.encode_projection(
+            writer, item_value_adjustments_0
+        )
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.owner)
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
     destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
         )
 
 
 def decode_member_candidate(reader: BinaryReader) -> MemberCandidate:
     """Decode one MemberCandidate."""
     receiver = destack._generated.dir.type.type.decode_global_type_id(reader)
+    adjustments = [
+        destack._generated.dir.type.projection.decode_projection(reader)
+        for _ in range(reader.read_number())
+    ]
+    owner = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
     ty = destack._generated.dir.type.type.decode_global_type_id(reader)
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
         for _ in range(reader.read_number())
     ]
 
     return MemberCandidate(
         receiver=receiver,
+        adjustments=adjustments,
+        owner=owner,
         symbol=symbol,
         ty=ty,
-        arguments=arguments,
+        generic_arguments=generic_arguments,
     )
 
 
@@ -727,13 +838,20 @@ def to_json_member_candidate(value: MemberCandidate) -> Json:
         "receiver": destack._generated.dir.type.type.to_json_global_type_id(
             value.receiver
         ),
+        "adjustments": [
+            destack._generated.dir.type.projection.to_json_projection(item_0)
+            for item_0 in value.adjustments
+        ],
+        "owner": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.owner
+        ),
         "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
             value.symbol
         ),
         "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
         ],
     }
 
@@ -746,15 +864,24 @@ def from_json_member_candidate(value: Json) -> MemberCandidate:
         receiver=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "receiver")
         ),
+        adjustments=[
+            destack._generated.dir.type.projection.from_json_projection(item_0)
+            for item_0 in json_array(json_field(object_, "adjustments"))
+        ],
+        owner=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "owner")
+        ),
         symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
             json_field(object_, "symbol")
         ),
         ty=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "ty")
         ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
         ],
     )
 
@@ -765,8 +892,12 @@ class CallResolution:
 
     # the selected callable target
     target: CallTarget
+    # the callable type selected at the call site, when one exists
+    callable_type: destack._generated.dir.type.type.GlobalTypeId | None
     # the dynamic parameter types after static substitutions
     parameters: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the source arguments bound to selected parameters
+    arguments: Sequence[destack._generated.dir.type.generic.ArgumentBinding]
     # the return type after static substitutions
     return_type: destack._generated.dir.type.type.GlobalTypeId
 
@@ -792,10 +923,22 @@ class CallResolution:
 def encode_call_resolution(writer: BinaryWriter, value: CallResolution) -> None:
     """Encode one CallResolution."""
     encode_call_target(writer, value.target)
+    if value.callable_type is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        destack._generated.dir.type.type.encode_global_type_id(
+            writer, value.callable_type
+        )
     writer.write_unsigned(len(value.parameters))
     for item_value_parameters_0 in value.parameters:
         destack._generated.dir.type.type.encode_global_type_id(
             writer, item_value_parameters_0
+        )
+    writer.write_unsigned(len(value.arguments))
+    for item_value_arguments_0 in value.arguments:
+        destack._generated.dir.type.generic.encode_argument_binding(
+            writer, item_value_arguments_0
         )
     destack._generated.dir.type.type.encode_global_type_id(writer, value.return_type)
 
@@ -803,15 +946,24 @@ def encode_call_resolution(writer: BinaryWriter, value: CallResolution) -> None:
 def decode_call_resolution(reader: BinaryReader) -> CallResolution:
     """Decode one CallResolution."""
     target = decode_call_target(reader)
+    callable_type = reader.read_option(
+        lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
+    )
     parameters = [
         destack._generated.dir.type.type.decode_global_type_id(reader)
+        for _ in range(reader.read_number())
+    ]
+    arguments = [
+        destack._generated.dir.type.generic.decode_argument_binding(reader)
         for _ in range(reader.read_number())
     ]
     return_type = destack._generated.dir.type.type.decode_global_type_id(reader)
 
     return CallResolution(
         target=target,
+        callable_type=callable_type,
         parameters=parameters,
+        arguments=arguments,
         return_type=return_type,
     )
 
@@ -820,9 +972,22 @@ def to_json_call_resolution(value: CallResolution) -> Json:
     """Return one JSON value for one CallResolution."""
     return {
         "target": to_json_call_target(value.target),
+        **(
+            {}
+            if value.callable_type is None
+            else {
+                "callableType": destack._generated.dir.type.type.to_json_global_type_id(
+                    value.callable_type
+                )
+            }
+        ),
         "parameters": [
             destack._generated.dir.type.type.to_json_global_type_id(item_0)
             for item_0 in value.parameters
+        ],
+        "arguments": [
+            destack._generated.dir.type.generic.to_json_argument_binding(item_0)
+            for item_0 in value.arguments
         ],
         "returnType": destack._generated.dir.type.type.to_json_global_type_id(
             value.return_type
@@ -836,9 +1001,20 @@ def from_json_call_resolution(value: Json) -> CallResolution:
 
     return CallResolution(
         target=from_json_call_target(json_field(object_, "target")),
+        callable_type=json_optional(
+            object_,
+            "callableType",
+            lambda value: destack._generated.dir.type.type.from_json_global_type_id(
+                value
+            ),
+        ),
         parameters=[
             destack._generated.dir.type.type.from_json_global_type_id(item_0)
             for item_0 in json_array(json_field(object_, "parameters"))
+        ],
+        arguments=[
+            destack._generated.dir.type.generic.from_json_argument_binding(item_0)
+            for item_0 in json_array(json_field(object_, "arguments"))
         ],
         return_type=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "returnType")
@@ -866,8 +1042,10 @@ class CallTargetBuiltin:
 class CallTargetExpression:
     """Callable expression without a declaration symbol."""
 
-    # the generic arguments of the callable value, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the selected generic argument bindings, empty when not statically applied
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
     kind: typing.Literal["expression"] = "expression"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -924,10 +1102,10 @@ def encode_call_target(writer: BinaryWriter, value: CallTarget) -> None:
         encode_builtin_call(writer, value.builtin)
     elif value.kind == "expression":
         writer.write_unsigned(1)
-        writer.write_unsigned(len(value.arguments))
-        for item_value_arguments_0 in value.arguments:
-            destack._generated.dir.type.type.encode_global_type_id(
-                writer, item_value_arguments_0
+        writer.write_unsigned(len(value.generic_arguments))
+        for item_value_generic_arguments_0 in value.generic_arguments:
+            destack._generated.dir.type.generic.encode_generic_argument_binding(
+                writer, item_value_generic_arguments_0
             )
     elif value.kind == "symbol":
         writer.write_unsigned(2)
@@ -950,13 +1128,13 @@ def decode_call_target(reader: BinaryReader) -> CallTarget:
 
         return CallTargetBuiltin(builtin=builtin)
     elif variant == 1:
-        arguments = [
-            destack._generated.dir.type.type.decode_global_type_id(reader)
+        generic_arguments = [
+            destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
             for _ in range(reader.read_number())
         ]
 
         return CallTargetExpression(
-            arguments=arguments,
+            generic_arguments=generic_arguments,
         )
     elif variant == 2:
         symbol = decode_call_candidate(reader)
@@ -980,9 +1158,11 @@ def to_json_call_target(value: CallTarget) -> Json:
     elif value.kind == "expression":
         return {
             "kind": "expression",
-            "arguments": [
-                destack._generated.dir.type.type.to_json_global_type_id(item_0)
-                for item_0 in value.arguments
+            "genericArguments": [
+                destack._generated.dir.type.generic.to_json_generic_argument_binding(
+                    item_0
+                )
+                for item_0 in value.generic_arguments
             ],
         }
     elif value.kind == "symbol":
@@ -1010,9 +1190,11 @@ def from_json_call_target(value: Json) -> CallTarget:
         )
     elif kind == "expression":
         return CallTargetExpression(
-            arguments=[
-                destack._generated.dir.type.type.from_json_global_type_id(item_0)
-                for item_0 in json_array(json_field(object_, "arguments"))
+            generic_arguments=[
+                destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                    item_0
+                )
+                for item_0 in json_array(json_field(object_, "genericArguments"))
             ],
         )
     elif kind == "symbol":
@@ -1151,10 +1333,14 @@ class CallCandidate:
 
     # the receiver type that selects this candidate
     receiver: destack._generated.dir.type.type.GlobalTypeId | None
+    # the projection steps
+    adjustments: Sequence[destack._generated.dir.type.projection.Projection]
     # the selected callable symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the generic arguments of the callable symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the selected generic argument bindings needed by this call candidate
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1182,11 +1368,16 @@ def encode_call_candidate(writer: BinaryWriter, value: CallCandidate) -> None:
     else:
         writer.write_byte(1)
         destack._generated.dir.type.type.encode_global_type_id(writer, value.receiver)
+    writer.write_unsigned(len(value.adjustments))
+    for item_value_adjustments_0 in value.adjustments:
+        destack._generated.dir.type.projection.encode_projection(
+            writer, item_value_adjustments_0
+        )
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
         )
 
 
@@ -1195,16 +1386,21 @@ def decode_call_candidate(reader: BinaryReader) -> CallCandidate:
     receiver = reader.read_option(
         lambda: destack._generated.dir.type.type.decode_global_type_id(reader)
     )
+    adjustments = [
+        destack._generated.dir.type.projection.decode_projection(reader)
+        for _ in range(reader.read_number())
+    ]
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
         for _ in range(reader.read_number())
     ]
 
     return CallCandidate(
         receiver=receiver,
+        adjustments=adjustments,
         symbol=symbol,
-        arguments=arguments,
+        generic_arguments=generic_arguments,
     )
 
 
@@ -1220,12 +1416,16 @@ def to_json_call_candidate(value: CallCandidate) -> Json:
                 )
             }
         ),
+        "adjustments": [
+            destack._generated.dir.type.projection.to_json_projection(item_0)
+            for item_0 in value.adjustments
+        ],
         "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
             value.symbol
         ),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
         ],
     }
 
@@ -1242,78 +1442,836 @@ def from_json_call_candidate(value: Json) -> CallCandidate:
                 value
             ),
         ),
+        adjustments=[
+            destack._generated.dir.type.projection.from_json_projection(item_0)
+            for item_0 in json_array(json_field(object_, "adjustments"))
+        ],
         symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
             json_field(object_, "symbol")
         ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
         ],
     )
 
 
 @dataclass(frozen=True, slots=True)
-class ReadWriteResolution:
-    """Paired accessor calls for one place read and written together."""
+class PlaceResolution:
+    """Place selected by a checked expression."""
 
-    # the read accessor call
-    read: CallResolution
-    # the write accessor call
-    write: CallResolution
+    # the expression node that designates the place
+    source: destack._generated.dir.tree.node.GlobalNodeIdAny
+    # the selected storage location
+    storage: Storage
+    # the value type stored in the place
+    ty: destack._generated.dir.type.type.GlobalTypeId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_read_write_resolution(writer, self)
+        encode_place_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> ReadWriteResolution:
-        """Decode one ReadWriteResolution."""
-        return decode_read_write_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PlaceResolution:
+        """Decode one PlaceResolution."""
+        return decode_place_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_read_write_resolution(self)
+        return to_json_place_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> ReadWriteResolution:
-        """Return one ReadWriteResolution from one JSON value."""
-        return from_json_read_write_resolution(value)
+    def from_json(cls, value: Json) -> PlaceResolution:
+        """Return one PlaceResolution from one JSON value."""
+        return from_json_place_resolution(value)
 
 
-def encode_read_write_resolution(
-    writer: BinaryWriter, value: ReadWriteResolution
-) -> None:
-    """Encode one ReadWriteResolution."""
-    encode_call_resolution(writer, value.read)
-    encode_call_resolution(writer, value.write)
+def encode_place_resolution(writer: BinaryWriter, value: PlaceResolution) -> None:
+    """Encode one PlaceResolution."""
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
+    encode_storage(writer, value.storage)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
 
 
-def decode_read_write_resolution(reader: BinaryReader) -> ReadWriteResolution:
-    """Decode one ReadWriteResolution."""
-    read = decode_call_resolution(reader)
-    write = decode_call_resolution(reader)
+def decode_place_resolution(reader: BinaryReader) -> PlaceResolution:
+    """Decode one PlaceResolution."""
+    source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    storage = decode_storage(reader)
+    ty = destack._generated.dir.type.type.decode_global_type_id(reader)
 
-    return ReadWriteResolution(
-        read=read,
-        write=write,
+    return PlaceResolution(
+        source=source,
+        storage=storage,
+        ty=ty,
     )
 
 
-def to_json_read_write_resolution(value: ReadWriteResolution) -> Json:
-    """Return one JSON value for one ReadWriteResolution."""
+def to_json_place_resolution(value: PlaceResolution) -> Json:
+    """Return one JSON value for one PlaceResolution."""
     return {
-        "read": to_json_call_resolution(value.read),
-        "write": to_json_call_resolution(value.write),
+        "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
+            value.source
+        ),
+        "storage": to_json_storage(value.storage),
+        "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
     }
 
 
-def from_json_read_write_resolution(value: Json) -> ReadWriteResolution:
-    """Return one ReadWriteResolution from one JSON value."""
+def from_json_place_resolution(value: Json) -> PlaceResolution:
+    """Return one PlaceResolution from one JSON value."""
     object_ = json_object(value)
 
-    return ReadWriteResolution(
-        read=from_json_call_resolution(json_field(object_, "read")),
-        write=from_json_call_resolution(json_field(object_, "write")),
+    return PlaceResolution(
+        source=destack._generated.dir.tree.node.from_json_global_node_id_any(
+            json_field(object_, "source")
+        ),
+        storage=from_json_storage(json_field(object_, "storage")),
+        ty=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "ty")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class StorageBinding:
+    """Local or imported value binding."""
+
+    # the selected binding symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["binding"] = "binding"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_storage(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_storage(self)
+
+
+@dataclass(frozen=True, slots=True)
+class StorageField:
+    """Structural or nominal field storage."""
+
+    # the receiver type
+    receiver: destack._generated.dir.type.type.GlobalTypeId
+    # the selected field
+    field: destack._generated.dir.type.projection.ProjectionField
+    kind: typing.Literal["field"] = "field"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_storage(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_storage(self)
+
+
+@dataclass(frozen=True, slots=True)
+class StorageProperty:
+    """Accessor-backed property storage."""
+
+    # the selected getter member, when the source operator reads first
+    read: MemberResolution | None
+    # the selected setter member
+    write: MemberResolution
+    kind: typing.Literal["property"] = "property"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_storage(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_storage(self)
+
+
+@dataclass(frozen=True, slots=True)
+class StorageSubscript:
+    """Subscript-selected storage."""
+
+    # the source node providing the subscript key
+    index: destack._generated.dir.tree.node.GlobalNodeIdAny
+    # the selected subscript operation, when the source operator reads first
+    read: destack._generated.dir.type.projection.SubscriptOperation | None
+    # the selected write operation
+    write: destack._generated.dir.type.projection.SubscriptOperation
+    kind: typing.Literal["subscript"] = "subscript"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_storage(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_storage(self)
+
+
+@dataclass(frozen=True, slots=True)
+class StorageDereference:
+    """Dereferenced storage."""
+
+    # the selected dereference operation, when the source operator reads first
+    read: destack._generated.dir.type.projection.DereferenceOperation | None
+    # the selected write operation
+    write: destack._generated.dir.type.projection.DereferenceOperation
+    kind: typing.Literal["dereference"] = "dereference"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_storage(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_storage(self)
+
+
+"""Writable storage location selected by a place expression."""
+Storage: typing.TypeAlias = (
+    StorageBinding
+    | StorageField
+    | StorageProperty
+    | StorageSubscript
+    | StorageDereference
+)
+
+
+def encode_storage(writer: BinaryWriter, value: Storage) -> None:
+    """Encode one Storage."""
+    if value.kind == "binding":
+        writer.write_unsigned(0)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(
+            writer, value.symbol
+        )
+    elif value.kind == "field":
+        writer.write_unsigned(1)
+        destack._generated.dir.type.type.encode_global_type_id(writer, value.receiver)
+        destack._generated.dir.type.projection.encode_projection_field(
+            writer, value.field
+        )
+    elif value.kind == "property":
+        writer.write_unsigned(2)
+        if value.read is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            encode_member_resolution(writer, value.read)
+        encode_member_resolution(writer, value.write)
+    elif value.kind == "subscript":
+        writer.write_unsigned(3)
+        destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.index)
+        if value.read is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.dir.type.projection.encode_subscript_operation(
+                writer, value.read
+            )
+        destack._generated.dir.type.projection.encode_subscript_operation(
+            writer, value.write
+        )
+    elif value.kind == "dereference":
+        writer.write_unsigned(4)
+        if value.read is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.dir.type.projection.encode_dereference_operation(
+                writer, value.read
+            )
+        destack._generated.dir.type.projection.encode_dereference_operation(
+            writer, value.write
+        )
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_storage(reader: BinaryReader) -> Storage:
+    """Decode one Storage."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+
+        return StorageBinding(
+            symbol=symbol,
+        )
+    elif variant == 1:
+        receiver = destack._generated.dir.type.type.decode_global_type_id(reader)
+        field = destack._generated.dir.type.projection.decode_projection_field(reader)
+
+        return StorageField(
+            receiver=receiver,
+            field=field,
+        )
+    elif variant == 2:
+        read = reader.read_option(lambda: decode_member_resolution(reader))
+        write = decode_member_resolution(reader)
+
+        return StorageProperty(
+            read=read,
+            write=write,
+        )
+    elif variant == 3:
+        index = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+        read = reader.read_option(
+            lambda: destack._generated.dir.type.projection.decode_subscript_operation(
+                reader
+            )
+        )
+        write = destack._generated.dir.type.projection.decode_subscript_operation(
+            reader
+        )
+
+        return StorageSubscript(
+            index=index,
+            read=read,
+            write=write,
+        )
+    elif variant == 4:
+        read = reader.read_option(
+            lambda: destack._generated.dir.type.projection.decode_dereference_operation(
+                reader
+            )
+        )
+        write = destack._generated.dir.type.projection.decode_dereference_operation(
+            reader
+        )
+
+        return StorageDereference(
+            read=read,
+            write=write,
+        )
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_storage(value: Storage) -> Json:
+    """Return one JSON value for one Storage."""
+    if value.kind == "binding":
+        return {
+            "kind": "binding",
+            "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                value.symbol
+            ),
+        }
+    elif value.kind == "field":
+        return {
+            "kind": "field",
+            "receiver": destack._generated.dir.type.type.to_json_global_type_id(
+                value.receiver
+            ),
+            "field": destack._generated.dir.type.projection.to_json_projection_field(
+                value.field
+            ),
+        }
+    elif value.kind == "property":
+        return {
+            "kind": "property",
+            **(
+                {}
+                if value.read is None
+                else {"read": to_json_member_resolution(value.read)}
+            ),
+            "write": to_json_member_resolution(value.write),
+        }
+    elif value.kind == "subscript":
+        return {
+            "kind": "subscript",
+            "index": destack._generated.dir.tree.node.to_json_global_node_id_any(
+                value.index
+            ),
+            **(
+                {}
+                if value.read is None
+                else {
+                    "read": destack._generated.dir.type.projection.to_json_subscript_operation(
+                        value.read
+                    )
+                }
+            ),
+            "write": destack._generated.dir.type.projection.to_json_subscript_operation(
+                value.write
+            ),
+        }
+    elif value.kind == "dereference":
+        return {
+            "kind": "dereference",
+            **(
+                {}
+                if value.read is None
+                else {
+                    "read": destack._generated.dir.type.projection.to_json_dereference_operation(
+                        value.read
+                    )
+                }
+            ),
+            "write": destack._generated.dir.type.projection.to_json_dereference_operation(
+                value.write
+            ),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_storage(value: Json) -> Storage:
+    """Return one Storage from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "binding":
+        return StorageBinding(
+            symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+                json_field(object_, "symbol")
+            ),
+        )
+    elif kind == "field":
+        return StorageField(
+            receiver=destack._generated.dir.type.type.from_json_global_type_id(
+                json_field(object_, "receiver")
+            ),
+            field=destack._generated.dir.type.projection.from_json_projection_field(
+                json_field(object_, "field")
+            ),
+        )
+    elif kind == "property":
+        return StorageProperty(
+            read=json_optional(
+                object_, "read", lambda value: from_json_member_resolution(value)
+            ),
+            write=from_json_member_resolution(json_field(object_, "write")),
+        )
+    elif kind == "subscript":
+        return StorageSubscript(
+            index=destack._generated.dir.tree.node.from_json_global_node_id_any(
+                json_field(object_, "index")
+            ),
+            read=json_optional(
+                object_,
+                "read",
+                lambda value: (
+                    destack._generated.dir.type.projection.from_json_subscript_operation(
+                        value
+                    )
+                ),
+            ),
+            write=destack._generated.dir.type.projection.from_json_subscript_operation(
+                json_field(object_, "write")
+            ),
+        )
+    elif kind == "dereference":
+        return StorageDereference(
+            read=json_optional(
+                object_,
+                "read",
+                lambda value: (
+                    destack._generated.dir.type.projection.from_json_dereference_operation(
+                        value
+                    )
+                ),
+            ),
+            write=destack._generated.dir.type.projection.from_json_dereference_operation(
+                json_field(object_, "write")
+            ),
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class GuardResolutionIs:
+    """`is` guard, like `value is T`."""
+
+    is_: IsGuardResolution
+    kind: typing.Literal["is"] = "is"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_guard_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_guard_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
+class GuardResolutionInstanceOf:
+    """`instanceof` guard, like `value instanceof User`."""
+
+    instance_of: InstanceOfGuardResolution
+    kind: typing.Literal["instanceOf"] = "instanceOf"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_guard_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_guard_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
+class GuardResolutionIn:
+    """`in` guard, like `"name" in value`."""
+
+    in_: InGuardResolution
+    kind: typing.Literal["in"] = "in"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_guard_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_guard_resolution(self)
+
+
+"""Guard expression selected during checking."""
+GuardResolution: typing.TypeAlias = (
+    GuardResolutionIs | GuardResolutionInstanceOf | GuardResolutionIn
+)
+
+
+def encode_guard_resolution(writer: BinaryWriter, value: GuardResolution) -> None:
+    """Encode one GuardResolution."""
+    if value.kind == "is":
+        writer.write_unsigned(0)
+        encode_is_guard_resolution(writer, value.is_)
+    elif value.kind == "instanceOf":
+        writer.write_unsigned(1)
+        encode_instance_of_guard_resolution(writer, value.instance_of)
+    elif value.kind == "in":
+        writer.write_unsigned(2)
+        encode_in_guard_resolution(writer, value.in_)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_guard_resolution(reader: BinaryReader) -> GuardResolution:
+    """Decode one GuardResolution."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        is_ = decode_is_guard_resolution(reader)
+
+        return GuardResolutionIs(is_=is_)
+    elif variant == 1:
+        instance_of = decode_instance_of_guard_resolution(reader)
+
+        return GuardResolutionInstanceOf(instance_of=instance_of)
+    elif variant == 2:
+        in_ = decode_in_guard_resolution(reader)
+
+        return GuardResolutionIn(in_=in_)
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_guard_resolution(value: GuardResolution) -> Json:
+    """Return one JSON value for one GuardResolution."""
+    if value.kind == "is":
+        return {
+            "kind": "is",
+            "is": to_json_is_guard_resolution(value.is_),
+        }
+    elif value.kind == "instanceOf":
+        return {
+            "kind": "instanceOf",
+            "instance_of": to_json_instance_of_guard_resolution(value.instance_of),
+        }
+    elif value.kind == "in":
+        return {
+            "kind": "in",
+            "in": to_json_in_guard_resolution(value.in_),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_guard_resolution(value: Json) -> GuardResolution:
+    """Return one GuardResolution from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "is":
+        return GuardResolutionIs(
+            is_=from_json_is_guard_resolution(json_field(object_, "is"))
+        )
+    elif kind == "instanceOf":
+        return GuardResolutionInstanceOf(
+            instance_of=from_json_instance_of_guard_resolution(
+                json_field(object_, "instance_of")
+            )
+        )
+    elif kind == "in":
+        return GuardResolutionIn(
+            in_=from_json_in_guard_resolution(json_field(object_, "in"))
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class IsGuardResolution:
+    """`is` guard selected during checking."""
+
+    # the tested value type
+    value_type: destack._generated.dir.type.type.GlobalTypeId
+    # the tested target type
+    target_type: destack._generated.dir.type.type.GlobalTypeId
+    # the executable predicate
+    predicate: destack._generated.dir.type.predicate.Predicate
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_is_guard_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> IsGuardResolution:
+        """Decode one IsGuardResolution."""
+        return decode_is_guard_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_is_guard_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> IsGuardResolution:
+        """Return one IsGuardResolution from one JSON value."""
+        return from_json_is_guard_resolution(value)
+
+
+def encode_is_guard_resolution(writer: BinaryWriter, value: IsGuardResolution) -> None:
+    """Encode one IsGuardResolution."""
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.value_type)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.target_type)
+    destack._generated.dir.type.predicate.encode_predicate(writer, value.predicate)
+
+
+def decode_is_guard_resolution(reader: BinaryReader) -> IsGuardResolution:
+    """Decode one IsGuardResolution."""
+    value_type = destack._generated.dir.type.type.decode_global_type_id(reader)
+    target_type = destack._generated.dir.type.type.decode_global_type_id(reader)
+    predicate = destack._generated.dir.type.predicate.decode_predicate(reader)
+
+    return IsGuardResolution(
+        value_type=value_type,
+        target_type=target_type,
+        predicate=predicate,
+    )
+
+
+def to_json_is_guard_resolution(value: IsGuardResolution) -> Json:
+    """Return one JSON value for one IsGuardResolution."""
+    return {
+        "valueType": destack._generated.dir.type.type.to_json_global_type_id(
+            value.value_type
+        ),
+        "targetType": destack._generated.dir.type.type.to_json_global_type_id(
+            value.target_type
+        ),
+        "predicate": destack._generated.dir.type.predicate.to_json_predicate(
+            value.predicate
+        ),
+    }
+
+
+def from_json_is_guard_resolution(value: Json) -> IsGuardResolution:
+    """Return one IsGuardResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return IsGuardResolution(
+        value_type=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "valueType")
+        ),
+        target_type=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "targetType")
+        ),
+        predicate=destack._generated.dir.type.predicate.from_json_predicate(
+            json_field(object_, "predicate")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InstanceOfGuardResolution:
+    """`instanceof` guard selected during checking."""
+
+    # the tested value type
+    value_type: destack._generated.dir.type.type.GlobalTypeId
+    # the selected right-hand-side declaration
+    target: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the selected instance type tested at runtime
+    target_type: destack._generated.dir.type.type.GlobalTypeId
+    # the executable predicate
+    predicate: destack._generated.dir.type.predicate.Predicate
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_instance_of_guard_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> InstanceOfGuardResolution:
+        """Decode one InstanceOfGuardResolution."""
+        return decode_instance_of_guard_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_instance_of_guard_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> InstanceOfGuardResolution:
+        """Return one InstanceOfGuardResolution from one JSON value."""
+        return from_json_instance_of_guard_resolution(value)
+
+
+def encode_instance_of_guard_resolution(
+    writer: BinaryWriter, value: InstanceOfGuardResolution
+) -> None:
+    """Encode one InstanceOfGuardResolution."""
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.value_type)
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.target)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.target_type)
+    destack._generated.dir.type.predicate.encode_predicate(writer, value.predicate)
+
+
+def decode_instance_of_guard_resolution(
+    reader: BinaryReader,
+) -> InstanceOfGuardResolution:
+    """Decode one InstanceOfGuardResolution."""
+    value_type = destack._generated.dir.type.type.decode_global_type_id(reader)
+    target = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+    target_type = destack._generated.dir.type.type.decode_global_type_id(reader)
+    predicate = destack._generated.dir.type.predicate.decode_predicate(reader)
+
+    return InstanceOfGuardResolution(
+        value_type=value_type,
+        target=target,
+        target_type=target_type,
+        predicate=predicate,
+    )
+
+
+def to_json_instance_of_guard_resolution(value: InstanceOfGuardResolution) -> Json:
+    """Return one JSON value for one InstanceOfGuardResolution."""
+    return {
+        "valueType": destack._generated.dir.type.type.to_json_global_type_id(
+            value.value_type
+        ),
+        "target": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.target
+        ),
+        "targetType": destack._generated.dir.type.type.to_json_global_type_id(
+            value.target_type
+        ),
+        "predicate": destack._generated.dir.type.predicate.to_json_predicate(
+            value.predicate
+        ),
+    }
+
+
+def from_json_instance_of_guard_resolution(value: Json) -> InstanceOfGuardResolution:
+    """Return one InstanceOfGuardResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return InstanceOfGuardResolution(
+        value_type=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "valueType")
+        ),
+        target=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "target")
+        ),
+        target_type=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "targetType")
+        ),
+        predicate=destack._generated.dir.type.predicate.from_json_predicate(
+            json_field(object_, "predicate")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class InGuardResolution:
+    """`in` guard selected during checking."""
+
+    # the tested key type
+    key_type: destack._generated.dir.type.type.GlobalTypeId
+    # the tested receiver type
+    receiver_type: destack._generated.dir.type.type.GlobalTypeId
+    # the executable predicate
+    predicate: destack._generated.dir.type.predicate.Predicate
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_in_guard_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> InGuardResolution:
+        """Decode one InGuardResolution."""
+        return decode_in_guard_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_in_guard_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> InGuardResolution:
+        """Return one InGuardResolution from one JSON value."""
+        return from_json_in_guard_resolution(value)
+
+
+def encode_in_guard_resolution(writer: BinaryWriter, value: InGuardResolution) -> None:
+    """Encode one InGuardResolution."""
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.key_type)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.receiver_type)
+    destack._generated.dir.type.predicate.encode_predicate(writer, value.predicate)
+
+
+def decode_in_guard_resolution(reader: BinaryReader) -> InGuardResolution:
+    """Decode one InGuardResolution."""
+    key_type = destack._generated.dir.type.type.decode_global_type_id(reader)
+    receiver_type = destack._generated.dir.type.type.decode_global_type_id(reader)
+    predicate = destack._generated.dir.type.predicate.decode_predicate(reader)
+
+    return InGuardResolution(
+        key_type=key_type,
+        receiver_type=receiver_type,
+        predicate=predicate,
+    )
+
+
+def to_json_in_guard_resolution(value: InGuardResolution) -> Json:
+    """Return one JSON value for one InGuardResolution."""
+    return {
+        "keyType": destack._generated.dir.type.type.to_json_global_type_id(
+            value.key_type
+        ),
+        "receiverType": destack._generated.dir.type.type.to_json_global_type_id(
+            value.receiver_type
+        ),
+        "predicate": destack._generated.dir.type.predicate.to_json_predicate(
+            value.predicate
+        ),
+    }
+
+
+def from_json_in_guard_resolution(value: Json) -> InGuardResolution:
+    """Return one InGuardResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return InGuardResolution(
+        key_type=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "keyType")
+        ),
+        receiver_type=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "receiverType")
+        ),
+        predicate=destack._generated.dir.type.predicate.from_json_predicate(
+            json_field(object_, "predicate")
+        ),
     )
 
 
@@ -1325,6 +2283,8 @@ class ConstructResolution:
     target: ConstructTarget
     # the dynamic parameter types after static substitutions
     parameters: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the source arguments bound to selected parameters
+    arguments: Sequence[destack._generated.dir.type.generic.ArgumentBinding]
     # the return type after static substitutions
     return_type: destack._generated.dir.type.type.GlobalTypeId
 
@@ -1357,6 +2317,11 @@ def encode_construct_resolution(
         destack._generated.dir.type.type.encode_global_type_id(
             writer, item_value_parameters_0
         )
+    writer.write_unsigned(len(value.arguments))
+    for item_value_arguments_0 in value.arguments:
+        destack._generated.dir.type.generic.encode_argument_binding(
+            writer, item_value_arguments_0
+        )
     destack._generated.dir.type.type.encode_global_type_id(writer, value.return_type)
 
 
@@ -1367,11 +2332,16 @@ def decode_construct_resolution(reader: BinaryReader) -> ConstructResolution:
         destack._generated.dir.type.type.decode_global_type_id(reader)
         for _ in range(reader.read_number())
     ]
+    arguments = [
+        destack._generated.dir.type.generic.decode_argument_binding(reader)
+        for _ in range(reader.read_number())
+    ]
     return_type = destack._generated.dir.type.type.decode_global_type_id(reader)
 
     return ConstructResolution(
         target=target,
         parameters=parameters,
+        arguments=arguments,
         return_type=return_type,
     )
 
@@ -1383,6 +2353,10 @@ def to_json_construct_resolution(value: ConstructResolution) -> Json:
         "parameters": [
             destack._generated.dir.type.type.to_json_global_type_id(item_0)
             for item_0 in value.parameters
+        ],
+        "arguments": [
+            destack._generated.dir.type.generic.to_json_argument_binding(item_0)
+            for item_0 in value.arguments
         ],
         "returnType": destack._generated.dir.type.type.to_json_global_type_id(
             value.return_type
@@ -1399,6 +2373,10 @@ def from_json_construct_resolution(value: Json) -> ConstructResolution:
         parameters=[
             destack._generated.dir.type.type.from_json_global_type_id(item_0)
             for item_0 in json_array(json_field(object_, "parameters"))
+        ],
+        arguments=[
+            destack._generated.dir.type.generic.from_json_argument_binding(item_0)
+            for item_0 in json_array(json_field(object_, "arguments"))
         ],
         return_type=destack._generated.dir.type.type.from_json_global_type_id(
             json_field(object_, "returnType")
@@ -1438,8 +2416,26 @@ class ConstructTargetNewtype:
         return to_json_construct_target(self)
 
 
+@dataclass(frozen=True, slots=True)
+class ConstructTargetVariant:
+    """Tagged union variant constructor selected at compile time."""
+
+    variant: VariantConstructCandidate
+    kind: typing.Literal["variant"] = "variant"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_construct_target(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_construct_target(self)
+
+
 """Construct target selected at a usage site."""
-ConstructTarget: typing.TypeAlias = ConstructTargetClass | ConstructTargetNewtype
+ConstructTarget: typing.TypeAlias = (
+    ConstructTargetClass | ConstructTargetNewtype | ConstructTargetVariant
+)
 
 
 def encode_construct_target(writer: BinaryWriter, value: ConstructTarget) -> None:
@@ -1450,6 +2446,9 @@ def encode_construct_target(writer: BinaryWriter, value: ConstructTarget) -> Non
     elif value.kind == "newtype":
         writer.write_unsigned(1)
         encode_newtype_construct_candidate(writer, value.newtype)
+    elif value.kind == "variant":
+        writer.write_unsigned(2)
+        encode_variant_construct_candidate(writer, value.variant)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -1466,6 +2465,10 @@ def decode_construct_target(reader: BinaryReader) -> ConstructTarget:
         newtype = decode_newtype_construct_candidate(reader)
 
         return ConstructTargetNewtype(newtype=newtype)
+    elif variant == 2:
+        variant = decode_variant_construct_candidate(reader)
+
+        return ConstructTargetVariant(variant=variant)
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
@@ -1481,6 +2484,11 @@ def to_json_construct_target(value: ConstructTarget) -> Json:
         return {
             "kind": "newtype",
             "newtype": to_json_newtype_construct_candidate(value.newtype),
+        }
+    elif value.kind == "variant":
+        return {
+            "kind": "variant",
+            "variant": to_json_variant_construct_candidate(value.variant),
         }
     else:
         raise SerdeError("unknown enum variant")
@@ -1501,6 +2509,12 @@ def from_json_construct_target(value: Json) -> ConstructTarget:
                 json_field(object_, "newtype")
             )
         )
+    elif kind == "variant":
+        return ConstructTargetVariant(
+            variant=from_json_variant_construct_candidate(
+                json_field(object_, "variant")
+            )
+        )
     else:
         raise SerdeError(f"unknown enum variant: {kind}")
 
@@ -1511,10 +2525,12 @@ class ClassConstructCandidate:
 
     # the selected class symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the selected explicit constructor symbol, when declared
-    constructor: destack._generated.dir.symbol.symbol.GlobalSymbolId | None
-    # the generic arguments of the class symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the selected class constructor
+    constructor: destack._generated.dir.table.definition.ClassConstructor
+    # the selected generic argument bindings for the class symbol
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1540,35 +2556,31 @@ def encode_class_construct_candidate(
 ) -> None:
     """Encode one ClassConstructCandidate."""
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
-    if value.constructor is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.symbol.symbol.encode_global_symbol_id(
-            writer, value.constructor
-        )
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
+    destack._generated.dir.table.definition.encode_class_constructor(
+        writer, value.constructor
+    )
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
         )
 
 
 def decode_class_construct_candidate(reader: BinaryReader) -> ClassConstructCandidate:
     """Decode one ClassConstructCandidate."""
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    constructor = reader.read_option(
-        lambda: destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+    constructor = destack._generated.dir.table.definition.decode_class_constructor(
+        reader
     )
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
         for _ in range(reader.read_number())
     ]
 
     return ClassConstructCandidate(
         symbol=symbol,
         constructor=constructor,
-        arguments=arguments,
+        generic_arguments=generic_arguments,
     )
 
 
@@ -1578,18 +2590,12 @@ def to_json_class_construct_candidate(value: ClassConstructCandidate) -> Json:
         "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
             value.symbol
         ),
-        **(
-            {}
-            if value.constructor is None
-            else {
-                "constructor": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
-                    value.constructor
-                )
-            }
+        "constructor": destack._generated.dir.table.definition.to_json_class_constructor(
+            value.constructor
         ),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
         ],
     }
 
@@ -1602,16 +2608,14 @@ def from_json_class_construct_candidate(value: Json) -> ClassConstructCandidate:
         symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
             json_field(object_, "symbol")
         ),
-        constructor=json_optional(
-            object_,
-            "constructor",
-            lambda value: (
-                destack._generated.dir.symbol.symbol.from_json_global_symbol_id(value)
-            ),
+        constructor=destack._generated.dir.table.definition.from_json_class_constructor(
+            json_field(object_, "constructor")
         ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
         ],
     )
 
@@ -1622,8 +2626,10 @@ class NewtypeConstructCandidate:
 
     # the selected newtype symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the generic arguments of the newtype symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
+    # the selected generic argument bindings for the newtype symbol
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1649,10 +2655,10 @@ def encode_newtype_construct_candidate(
 ) -> None:
     """Encode one NewtypeConstructCandidate."""
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
         )
 
 
@@ -1661,14 +2667,14 @@ def decode_newtype_construct_candidate(
 ) -> NewtypeConstructCandidate:
     """Decode one NewtypeConstructCandidate."""
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
         for _ in range(reader.read_number())
     ]
 
     return NewtypeConstructCandidate(
         symbol=symbol,
-        arguments=arguments,
+        generic_arguments=generic_arguments,
     )
 
 
@@ -1678,9 +2684,9 @@ def to_json_newtype_construct_candidate(value: NewtypeConstructCandidate) -> Jso
         "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
             value.symbol
         ),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
         ],
     }
 
@@ -1693,18 +2699,119 @@ def from_json_newtype_construct_candidate(value: Json) -> NewtypeConstructCandid
         symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
             json_field(object_, "symbol")
         ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
         ],
     )
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionWildcard:
+class VariantConstructCandidate:
+    """One tagged variant construction candidate after checking."""
+
+    # the selected tagged case
+    case: destack._generated.dir.type.projection.VariantCase
+    # the selected generic argument bindings for the owner symbol
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
+    # the discriminant value injected by the constructor
+    discriminant: destack._generated.dir.tree.literal.ScalarLiteral
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_variant_construct_candidate(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> VariantConstructCandidate:
+        """Decode one VariantConstructCandidate."""
+        return decode_variant_construct_candidate(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_variant_construct_candidate(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> VariantConstructCandidate:
+        """Return one VariantConstructCandidate from one JSON value."""
+        return from_json_variant_construct_candidate(value)
+
+
+def encode_variant_construct_candidate(
+    writer: BinaryWriter, value: VariantConstructCandidate
+) -> None:
+    """Encode one VariantConstructCandidate."""
+    destack._generated.dir.type.projection.encode_variant_case(writer, value.case)
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
+        )
+    destack._generated.dir.tree.literal.encode_scalar_literal(
+        writer, value.discriminant
+    )
+
+
+def decode_variant_construct_candidate(
+    reader: BinaryReader,
+) -> VariantConstructCandidate:
+    """Decode one VariantConstructCandidate."""
+    case = destack._generated.dir.type.projection.decode_variant_case(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
+        for _ in range(reader.read_number())
+    ]
+    discriminant = destack._generated.dir.tree.literal.decode_scalar_literal(reader)
+
+    return VariantConstructCandidate(
+        case=case,
+        generic_arguments=generic_arguments,
+        discriminant=discriminant,
+    )
+
+
+def to_json_variant_construct_candidate(value: VariantConstructCandidate) -> Json:
+    """Return one JSON value for one VariantConstructCandidate."""
+    return {
+        "case": destack._generated.dir.type.projection.to_json_variant_case(value.case),
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
+        ],
+        "discriminant": destack._generated.dir.tree.literal.to_json_scalar_literal(
+            value.discriminant
+        ),
+    }
+
+
+def from_json_variant_construct_candidate(value: Json) -> VariantConstructCandidate:
+    """Return one VariantConstructCandidate from one JSON value."""
+    object_ = json_object(value)
+
+    return VariantConstructCandidate(
+        case=destack._generated.dir.type.projection.from_json_variant_case(
+            json_field(object_, "case")
+        ),
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
+        ],
+        discriminant=destack._generated.dir.tree.literal.from_json_scalar_literal(
+            json_field(object_, "discriminant")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PatternResolutionIgnore:
     """Pattern that accepts the input without binding, like `_`."""
 
-    kind: typing.Literal["wildcard"] = "wildcard"
+    kind: typing.Literal["ignore"] = "ignore"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1716,11 +2823,11 @@ class PatternResolutionWildcard:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionBinding:
+class PatternResolutionBind:
     """Pattern that binds a symbol, like `value`."""
 
-    binding: PatternBindingResolution
-    kind: typing.Literal["binding"] = "binding"
+    bind: PatternBindingResolution
+    kind: typing.Literal["bind"] = "bind"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1732,27 +2839,11 @@ class PatternResolutionBinding:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionLiteral:
-    """Pattern that accepts one static literal value, like `"ok"` or `0`."""
+class PatternResolutionMust:
+    """Pattern that requires a successful nested match, like `value!`."""
 
-    literal: PatternLiteralResolution
-    kind: typing.Literal["literal"] = "literal"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternResolutionRange:
-    """Pattern that accepts one scalar interval, like `0..10` or `..=255`."""
-
-    range: PatternRangeResolution
-    kind: typing.Literal["range"] = "range"
+    must: PatternMustResolution
+    kind: typing.Literal["must"] = "must"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1764,27 +2855,11 @@ class PatternResolutionRange:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionTuple:
-    """Pattern that destructures a tuple-shaped input, like `(x, y)`."""
+class PatternResolutionDefault:
+    """Pattern that uses a default value when the selected value is undefined."""
 
-    tuple: PatternTupleResolution
-    kind: typing.Literal["tuple"] = "tuple"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternResolutionSequence:
-    """Pattern that destructures an ordered collection, like `[head, ...tail]`."""
-
-    sequence: PatternSequenceResolution
-    kind: typing.Literal["sequence"] = "sequence"
+    default: PatternDefaultResolution
+    kind: typing.Literal["default"] = "default"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1796,27 +2871,11 @@ class PatternResolutionSequence:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionShape:
-    """Pattern that destructures a structural input, like `{ kind: "ok", value }`."""
+class PatternResolutionTest:
+    """Pattern that tests one executable predicate."""
 
-    shape: PatternShapeResolution
-    kind: typing.Literal["shape"] = "shape"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternResolutionNominal:
-    """Pattern that destructures a symbol-backed nominal input, like `Point { x, y }`."""
-
-    nominal: PatternNominalResolution
-    kind: typing.Literal["nominal"] = "nominal"
+    test: PatternPredicateResolution
+    kind: typing.Literal["test"] = "test"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1828,27 +2887,11 @@ class PatternResolutionNominal:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionNewtype:
-    """Pattern that unwraps a symbol-backed newtype input, like `UserId(value)`."""
+class PatternResolutionProject:
+    """Pattern that projects the input before matching, like `*Point { x, y }`."""
 
-    newtype: PatternNewtypeResolution
-    kind: typing.Literal["newtype"] = "newtype"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternResolutionVariant:
-    """Pattern that selects a symbol-backed variant input, like `State.Ready`."""
-
-    variant: PatternVariantResolution
-    kind: typing.Literal["variant"] = "variant"
+    project: PatternProjectionResolution
+    kind: typing.Literal["project"] = "project"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1860,27 +2903,11 @@ class PatternResolutionVariant:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionUnion:
-    """Pattern that accepts one of several alternatives, like `0 | 1 | 2`."""
+class PatternResolutionDestructure:
+    """Pattern that destructures projected child values."""
 
-    union: PatternUnionResolution
-    kind: typing.Literal["union"] = "union"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternResolutionBorrow:
-    """Pattern that borrows the input before matching, like `&readonly value`."""
-
-    borrow: PatternBorrowResolution
-    kind: typing.Literal["borrow"] = "borrow"
+    destructure: PatternDestructureResolution
+    kind: typing.Literal["destructure"] = "destructure"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1892,27 +2919,11 @@ class PatternResolutionBorrow:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternResolutionMove:
-    """Pattern that moves the input before matching, like `^value`."""
+class PatternResolutionOr:
+    """Pattern that accepts one of several branches, like `0 | 1 | 2`."""
 
-    move_file: PatternMoveResolution
-    kind: typing.Literal["move"] = "move"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternResolutionDereference:
-    """Pattern that dereferences the input before matching, like `*Point { x, y }`."""
-
-    dereference: PatternDereferenceResolution
-    kind: typing.Literal["dereference"] = "dereference"
+    or_: PatternOrResolution
+    kind: typing.Literal["or"] = "or"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1925,66 +2936,42 @@ class PatternResolutionDereference:
 
 """Pattern meaning selected during checking."""
 PatternResolution: typing.TypeAlias = (
-    PatternResolutionWildcard
-    | PatternResolutionBinding
-    | PatternResolutionLiteral
-    | PatternResolutionRange
-    | PatternResolutionTuple
-    | PatternResolutionSequence
-    | PatternResolutionShape
-    | PatternResolutionNominal
-    | PatternResolutionNewtype
-    | PatternResolutionVariant
-    | PatternResolutionUnion
-    | PatternResolutionBorrow
-    | PatternResolutionMove
-    | PatternResolutionDereference
+    PatternResolutionIgnore
+    | PatternResolutionBind
+    | PatternResolutionMust
+    | PatternResolutionDefault
+    | PatternResolutionTest
+    | PatternResolutionProject
+    | PatternResolutionDestructure
+    | PatternResolutionOr
 )
 
 
 def encode_pattern_resolution(writer: BinaryWriter, value: PatternResolution) -> None:
     """Encode one PatternResolution."""
-    if value.kind == "wildcard":
+    if value.kind == "ignore":
         writer.write_unsigned(0)
-    elif value.kind == "binding":
+    elif value.kind == "bind":
         writer.write_unsigned(1)
-        encode_pattern_binding_resolution(writer, value.binding)
-    elif value.kind == "literal":
+        encode_pattern_binding_resolution(writer, value.bind)
+    elif value.kind == "must":
         writer.write_unsigned(2)
-        encode_pattern_literal_resolution(writer, value.literal)
-    elif value.kind == "range":
+        encode_pattern_must_resolution(writer, value.must)
+    elif value.kind == "default":
         writer.write_unsigned(3)
-        encode_pattern_range_resolution(writer, value.range)
-    elif value.kind == "tuple":
+        encode_pattern_default_resolution(writer, value.default)
+    elif value.kind == "test":
         writer.write_unsigned(4)
-        encode_pattern_tuple_resolution(writer, value.tuple)
-    elif value.kind == "sequence":
+        encode_pattern_predicate_resolution(writer, value.test)
+    elif value.kind == "project":
         writer.write_unsigned(5)
-        encode_pattern_sequence_resolution(writer, value.sequence)
-    elif value.kind == "shape":
+        encode_pattern_projection_resolution(writer, value.project)
+    elif value.kind == "destructure":
         writer.write_unsigned(6)
-        encode_pattern_shape_resolution(writer, value.shape)
-    elif value.kind == "nominal":
+        encode_pattern_destructure_resolution(writer, value.destructure)
+    elif value.kind == "or":
         writer.write_unsigned(7)
-        encode_pattern_nominal_resolution(writer, value.nominal)
-    elif value.kind == "newtype":
-        writer.write_unsigned(8)
-        encode_pattern_newtype_resolution(writer, value.newtype)
-    elif value.kind == "variant":
-        writer.write_unsigned(9)
-        encode_pattern_variant_resolution(writer, value.variant)
-    elif value.kind == "union":
-        writer.write_unsigned(10)
-        encode_pattern_union_resolution(writer, value.union)
-    elif value.kind == "borrow":
-        writer.write_unsigned(11)
-        encode_pattern_borrow_resolution(writer, value.borrow)
-    elif value.kind == "move":
-        writer.write_unsigned(12)
-        encode_pattern_move_resolution(writer, value.move_file)
-    elif value.kind == "dereference":
-        writer.write_unsigned(13)
-        encode_pattern_dereference_resolution(writer, value.dereference)
+        encode_pattern_or_resolution(writer, value.or_)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -1994,133 +2981,79 @@ def decode_pattern_resolution(reader: BinaryReader) -> PatternResolution:
     variant = reader.read_number()
 
     if variant == 0:
-        return PatternResolutionWildcard()
+        return PatternResolutionIgnore()
     elif variant == 1:
-        binding = decode_pattern_binding_resolution(reader)
+        bind = decode_pattern_binding_resolution(reader)
 
-        return PatternResolutionBinding(binding=binding)
+        return PatternResolutionBind(bind=bind)
     elif variant == 2:
-        literal = decode_pattern_literal_resolution(reader)
+        must = decode_pattern_must_resolution(reader)
 
-        return PatternResolutionLiteral(literal=literal)
+        return PatternResolutionMust(must=must)
     elif variant == 3:
-        range_ = decode_pattern_range_resolution(reader)
+        default = decode_pattern_default_resolution(reader)
 
-        return PatternResolutionRange(range=range_)
+        return PatternResolutionDefault(default=default)
     elif variant == 4:
-        tuple = decode_pattern_tuple_resolution(reader)
+        test = decode_pattern_predicate_resolution(reader)
 
-        return PatternResolutionTuple(tuple=tuple)
+        return PatternResolutionTest(test=test)
     elif variant == 5:
-        sequence = decode_pattern_sequence_resolution(reader)
+        project = decode_pattern_projection_resolution(reader)
 
-        return PatternResolutionSequence(sequence=sequence)
+        return PatternResolutionProject(project=project)
     elif variant == 6:
-        shape = decode_pattern_shape_resolution(reader)
+        destructure = decode_pattern_destructure_resolution(reader)
 
-        return PatternResolutionShape(shape=shape)
+        return PatternResolutionDestructure(destructure=destructure)
     elif variant == 7:
-        nominal = decode_pattern_nominal_resolution(reader)
+        or_ = decode_pattern_or_resolution(reader)
 
-        return PatternResolutionNominal(nominal=nominal)
-    elif variant == 8:
-        newtype = decode_pattern_newtype_resolution(reader)
-
-        return PatternResolutionNewtype(newtype=newtype)
-    elif variant == 9:
-        variant = decode_pattern_variant_resolution(reader)
-
-        return PatternResolutionVariant(variant=variant)
-    elif variant == 10:
-        union = decode_pattern_union_resolution(reader)
-
-        return PatternResolutionUnion(union=union)
-    elif variant == 11:
-        borrow = decode_pattern_borrow_resolution(reader)
-
-        return PatternResolutionBorrow(borrow=borrow)
-    elif variant == 12:
-        move_file = decode_pattern_move_resolution(reader)
-
-        return PatternResolutionMove(move_file=move_file)
-    elif variant == 13:
-        dereference = decode_pattern_dereference_resolution(reader)
-
-        return PatternResolutionDereference(dereference=dereference)
+        return PatternResolutionOr(or_=or_)
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
 
 
 def to_json_pattern_resolution(value: PatternResolution) -> Json:
     """Return one JSON value for one PatternResolution."""
-    if value.kind == "wildcard":
+    if value.kind == "ignore":
         return {
-            "kind": "wildcard",
+            "kind": "ignore",
         }
-    elif value.kind == "binding":
+    elif value.kind == "bind":
         return {
-            "kind": "binding",
-            "binding": to_json_pattern_binding_resolution(value.binding),
+            "kind": "bind",
+            "bind": to_json_pattern_binding_resolution(value.bind),
         }
-    elif value.kind == "literal":
+    elif value.kind == "must":
         return {
-            "kind": "literal",
-            "literal": to_json_pattern_literal_resolution(value.literal),
+            "kind": "must",
+            "must": to_json_pattern_must_resolution(value.must),
         }
-    elif value.kind == "range":
+    elif value.kind == "default":
         return {
-            "kind": "range",
-            "range": to_json_pattern_range_resolution(value.range),
+            "kind": "default",
+            "default": to_json_pattern_default_resolution(value.default),
         }
-    elif value.kind == "tuple":
+    elif value.kind == "test":
         return {
-            "kind": "tuple",
-            "tuple": to_json_pattern_tuple_resolution(value.tuple),
+            "kind": "test",
+            "test": to_json_pattern_predicate_resolution(value.test),
         }
-    elif value.kind == "sequence":
+    elif value.kind == "project":
         return {
-            "kind": "sequence",
-            "sequence": to_json_pattern_sequence_resolution(value.sequence),
+            "kind": "project",
+            "project": to_json_pattern_projection_resolution(value.project),
         }
-    elif value.kind == "shape":
+    elif value.kind == "destructure":
         return {
-            "kind": "shape",
-            "shape": to_json_pattern_shape_resolution(value.shape),
+            "kind": "destructure",
+            "destructure": to_json_pattern_destructure_resolution(value.destructure),
         }
-    elif value.kind == "nominal":
+    elif value.kind == "or":
         return {
-            "kind": "nominal",
-            "nominal": to_json_pattern_nominal_resolution(value.nominal),
-        }
-    elif value.kind == "newtype":
-        return {
-            "kind": "newtype",
-            "newtype": to_json_pattern_newtype_resolution(value.newtype),
-        }
-    elif value.kind == "variant":
-        return {
-            "kind": "variant",
-            "variant": to_json_pattern_variant_resolution(value.variant),
-        }
-    elif value.kind == "union":
-        return {
-            "kind": "union",
-            "union": to_json_pattern_union_resolution(value.union),
-        }
-    elif value.kind == "borrow":
-        return {
-            "kind": "borrow",
-            "borrow": to_json_pattern_borrow_resolution(value.borrow),
-        }
-    elif value.kind == "move":
-        return {
-            "kind": "move",
-            "move_file": to_json_pattern_move_resolution(value.move_file),
-        }
-    elif value.kind == "dereference":
-        return {
-            "kind": "dereference",
-            "dereference": to_json_pattern_dereference_resolution(value.dereference),
+            "kind": "or",
+            "or": to_json_pattern_or_resolution(value.or_),
         }
     else:
         raise SerdeError("unknown enum variant")
@@ -2131,65 +3064,39 @@ def from_json_pattern_resolution(value: Json) -> PatternResolution:
     object_ = json_object(value)
     kind = json_string(json_field(object_, "kind"))
 
-    if kind == "wildcard":
-        return PatternResolutionWildcard()
-    elif kind == "binding":
-        return PatternResolutionBinding(
-            binding=from_json_pattern_binding_resolution(json_field(object_, "binding"))
+    if kind == "ignore":
+        return PatternResolutionIgnore()
+    elif kind == "bind":
+        return PatternResolutionBind(
+            bind=from_json_pattern_binding_resolution(json_field(object_, "bind"))
         )
-    elif kind == "literal":
-        return PatternResolutionLiteral(
-            literal=from_json_pattern_literal_resolution(json_field(object_, "literal"))
+    elif kind == "must":
+        return PatternResolutionMust(
+            must=from_json_pattern_must_resolution(json_field(object_, "must"))
         )
-    elif kind == "range":
-        return PatternResolutionRange(
-            range=from_json_pattern_range_resolution(json_field(object_, "range"))
+    elif kind == "default":
+        return PatternResolutionDefault(
+            default=from_json_pattern_default_resolution(json_field(object_, "default"))
         )
-    elif kind == "tuple":
-        return PatternResolutionTuple(
-            tuple=from_json_pattern_tuple_resolution(json_field(object_, "tuple"))
+    elif kind == "test":
+        return PatternResolutionTest(
+            test=from_json_pattern_predicate_resolution(json_field(object_, "test"))
         )
-    elif kind == "sequence":
-        return PatternResolutionSequence(
-            sequence=from_json_pattern_sequence_resolution(
-                json_field(object_, "sequence")
+    elif kind == "project":
+        return PatternResolutionProject(
+            project=from_json_pattern_projection_resolution(
+                json_field(object_, "project")
             )
         )
-    elif kind == "shape":
-        return PatternResolutionShape(
-            shape=from_json_pattern_shape_resolution(json_field(object_, "shape"))
-        )
-    elif kind == "nominal":
-        return PatternResolutionNominal(
-            nominal=from_json_pattern_nominal_resolution(json_field(object_, "nominal"))
-        )
-    elif kind == "newtype":
-        return PatternResolutionNewtype(
-            newtype=from_json_pattern_newtype_resolution(json_field(object_, "newtype"))
-        )
-    elif kind == "variant":
-        return PatternResolutionVariant(
-            variant=from_json_pattern_variant_resolution(json_field(object_, "variant"))
-        )
-    elif kind == "union":
-        return PatternResolutionUnion(
-            union=from_json_pattern_union_resolution(json_field(object_, "union"))
-        )
-    elif kind == "borrow":
-        return PatternResolutionBorrow(
-            borrow=from_json_pattern_borrow_resolution(json_field(object_, "borrow"))
-        )
-    elif kind == "move":
-        return PatternResolutionMove(
-            move_file=from_json_pattern_move_resolution(
-                json_field(object_, "move_file")
+    elif kind == "destructure":
+        return PatternResolutionDestructure(
+            destructure=from_json_pattern_destructure_resolution(
+                json_field(object_, "destructure")
             )
         )
-    elif kind == "dereference":
-        return PatternResolutionDereference(
-            dereference=from_json_pattern_dereference_resolution(
-                json_field(object_, "dereference")
-            )
+    elif kind == "or":
+        return PatternResolutionOr(
+            or_=from_json_pattern_or_resolution(json_field(object_, "or"))
         )
     else:
         raise SerdeError(f"unknown enum variant: {kind}")
@@ -2305,250 +3212,576 @@ def from_json_pattern_binding_resolution(value: Json) -> PatternBindingResolutio
 
 
 @dataclass(frozen=True, slots=True)
-class PatternLiteralResolution:
-    """Static literal selected by one pattern."""
+class PatternMustResolution:
+    """Required nested pattern selected during checking."""
 
-    # the committed literal value
-    value: destack._generated.dir.tree.literal.ScalarLiteral
+    # the nested pattern that must match
+    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_literal_resolution(writer, self)
+        encode_pattern_must_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternLiteralResolution:
-        """Decode one PatternLiteralResolution."""
-        return decode_pattern_literal_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternMustResolution:
+        """Decode one PatternMustResolution."""
+        return decode_pattern_must_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_literal_resolution(self)
+        return to_json_pattern_must_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternLiteralResolution:
-        """Return one PatternLiteralResolution from one JSON value."""
-        return from_json_pattern_literal_resolution(value)
+    def from_json(cls, value: Json) -> PatternMustResolution:
+        """Return one PatternMustResolution from one JSON value."""
+        return from_json_pattern_must_resolution(value)
 
 
-def encode_pattern_literal_resolution(
-    writer: BinaryWriter, value: PatternLiteralResolution
+def encode_pattern_must_resolution(
+    writer: BinaryWriter, value: PatternMustResolution
 ) -> None:
-    """Encode one PatternLiteralResolution."""
-    destack._generated.dir.tree.literal.encode_scalar_literal(writer, value.value)
+    """Encode one PatternMustResolution."""
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.pattern)
 
 
-def decode_pattern_literal_resolution(reader: BinaryReader) -> PatternLiteralResolution:
-    """Decode one PatternLiteralResolution."""
-    value_ = destack._generated.dir.tree.literal.decode_scalar_literal(reader)
+def decode_pattern_must_resolution(reader: BinaryReader) -> PatternMustResolution:
+    """Decode one PatternMustResolution."""
+    pattern = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
 
-    return PatternLiteralResolution(
+    return PatternMustResolution(
+        pattern=pattern,
+    )
+
+
+def to_json_pattern_must_resolution(value: PatternMustResolution) -> Json:
+    """Return one JSON value for one PatternMustResolution."""
+    return {
+        "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
+            value.pattern
+        ),
+    }
+
+
+def from_json_pattern_must_resolution(value: Json) -> PatternMustResolution:
+    """Return one PatternMustResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return PatternMustResolution(
+        pattern=destack._generated.dir.tree.node.from_json_global_node_id_any(
+            json_field(object_, "pattern")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PatternDefaultResolution:
+    """Defaulted nested pattern selected during checking."""
+
+    # the nested pattern
+    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny
+    # the default expression
+    value: destack._generated.dir.tree.node.GlobalNodeIdAny
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_default_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> PatternDefaultResolution:
+        """Decode one PatternDefaultResolution."""
+        return decode_pattern_default_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_default_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> PatternDefaultResolution:
+        """Return one PatternDefaultResolution from one JSON value."""
+        return from_json_pattern_default_resolution(value)
+
+
+def encode_pattern_default_resolution(
+    writer: BinaryWriter, value: PatternDefaultResolution
+) -> None:
+    """Encode one PatternDefaultResolution."""
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.pattern)
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.value)
+
+
+def decode_pattern_default_resolution(reader: BinaryReader) -> PatternDefaultResolution:
+    """Decode one PatternDefaultResolution."""
+    pattern = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    value_ = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+
+    return PatternDefaultResolution(
+        pattern=pattern,
         value=value_,
     )
 
 
-def to_json_pattern_literal_resolution(value: PatternLiteralResolution) -> Json:
-    """Return one JSON value for one PatternLiteralResolution."""
+def to_json_pattern_default_resolution(value: PatternDefaultResolution) -> Json:
+    """Return one JSON value for one PatternDefaultResolution."""
     return {
-        "value": destack._generated.dir.tree.literal.to_json_scalar_literal(
+        "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
+            value.pattern
+        ),
+        "value": destack._generated.dir.tree.node.to_json_global_node_id_any(
             value.value
         ),
     }
 
 
-def from_json_pattern_literal_resolution(value: Json) -> PatternLiteralResolution:
-    """Return one PatternLiteralResolution from one JSON value."""
+def from_json_pattern_default_resolution(value: Json) -> PatternDefaultResolution:
+    """Return one PatternDefaultResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternLiteralResolution(
-        value=destack._generated.dir.tree.literal.from_json_scalar_literal(
+    return PatternDefaultResolution(
+        pattern=destack._generated.dir.tree.node.from_json_global_node_id_any(
+            json_field(object_, "pattern")
+        ),
+        value=destack._generated.dir.tree.node.from_json_global_node_id_any(
             json_field(object_, "value")
         ),
     )
 
 
 @dataclass(frozen=True, slots=True)
-class PatternRangeResolution:
-    """Scalar range selected by one pattern."""
+class PatternPredicateResolution:
+    """Executable predicate selected by one pattern."""
 
-    # the scalar domain constrained by the range
-    domain: destack._generated.dir.type.type.GlobalTypeId
-    # the optional committed lower bound
-    start: destack._generated.dir.tree.literal.ScalarLiteral | None
-    # the optional committed upper bound
-    end: destack._generated.dir.tree.literal.ScalarLiteral | None
-    # whether the upper bound is inclusive
-    end_bound: destack._generated.dir.tree.operator.RangeEnd
+    # the executable predicate
+    predicate: destack._generated.dir.type.predicate.Predicate
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_range_resolution(writer, self)
+        encode_pattern_predicate_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternRangeResolution:
-        """Decode one PatternRangeResolution."""
-        return decode_pattern_range_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternPredicateResolution:
+        """Decode one PatternPredicateResolution."""
+        return decode_pattern_predicate_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_range_resolution(self)
+        return to_json_pattern_predicate_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternRangeResolution:
-        """Return one PatternRangeResolution from one JSON value."""
-        return from_json_pattern_range_resolution(value)
+    def from_json(cls, value: Json) -> PatternPredicateResolution:
+        """Return one PatternPredicateResolution from one JSON value."""
+        return from_json_pattern_predicate_resolution(value)
 
 
-def encode_pattern_range_resolution(
-    writer: BinaryWriter, value: PatternRangeResolution
+def encode_pattern_predicate_resolution(
+    writer: BinaryWriter, value: PatternPredicateResolution
 ) -> None:
-    """Encode one PatternRangeResolution."""
-    destack._generated.dir.type.type.encode_global_type_id(writer, value.domain)
-    if value.start is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.tree.literal.encode_scalar_literal(writer, value.start)
-    if value.end is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.tree.literal.encode_scalar_literal(writer, value.end)
-    destack._generated.dir.tree.operator.encode_range_end(writer, value.end_bound)
+    """Encode one PatternPredicateResolution."""
+    destack._generated.dir.type.predicate.encode_predicate(writer, value.predicate)
 
 
-def decode_pattern_range_resolution(reader: BinaryReader) -> PatternRangeResolution:
-    """Decode one PatternRangeResolution."""
-    domain = destack._generated.dir.type.type.decode_global_type_id(reader)
-    start = reader.read_option(
-        lambda: destack._generated.dir.tree.literal.decode_scalar_literal(reader)
-    )
-    end = reader.read_option(
-        lambda: destack._generated.dir.tree.literal.decode_scalar_literal(reader)
-    )
-    end_bound = destack._generated.dir.tree.operator.decode_range_end(reader)
+def decode_pattern_predicate_resolution(
+    reader: BinaryReader,
+) -> PatternPredicateResolution:
+    """Decode one PatternPredicateResolution."""
+    predicate = destack._generated.dir.type.predicate.decode_predicate(reader)
 
-    return PatternRangeResolution(
-        domain=domain,
-        start=start,
-        end=end,
-        end_bound=end_bound,
+    return PatternPredicateResolution(
+        predicate=predicate,
     )
 
 
-def to_json_pattern_range_resolution(value: PatternRangeResolution) -> Json:
-    """Return one JSON value for one PatternRangeResolution."""
+def to_json_pattern_predicate_resolution(value: PatternPredicateResolution) -> Json:
+    """Return one JSON value for one PatternPredicateResolution."""
     return {
-        "domain": destack._generated.dir.type.type.to_json_global_type_id(value.domain),
-        **(
-            {}
-            if value.start is None
-            else {
-                "start": destack._generated.dir.tree.literal.to_json_scalar_literal(
-                    value.start
-                )
-            }
-        ),
-        **(
-            {}
-            if value.end is None
-            else {
-                "end": destack._generated.dir.tree.literal.to_json_scalar_literal(
-                    value.end
-                )
-            }
-        ),
-        "endBound": destack._generated.dir.tree.operator.to_json_range_end(
-            value.end_bound
+        "predicate": destack._generated.dir.type.predicate.to_json_predicate(
+            value.predicate
         ),
     }
 
 
-def from_json_pattern_range_resolution(value: Json) -> PatternRangeResolution:
-    """Return one PatternRangeResolution from one JSON value."""
+def from_json_pattern_predicate_resolution(value: Json) -> PatternPredicateResolution:
+    """Return one PatternPredicateResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternRangeResolution(
-        domain=destack._generated.dir.type.type.from_json_global_type_id(
-            json_field(object_, "domain")
-        ),
-        start=json_optional(
-            object_,
-            "start",
-            lambda value: destack._generated.dir.tree.literal.from_json_scalar_literal(
-                value
-            ),
-        ),
-        end=json_optional(
-            object_,
-            "end",
-            lambda value: destack._generated.dir.tree.literal.from_json_scalar_literal(
-                value
-            ),
-        ),
-        end_bound=destack._generated.dir.tree.operator.from_json_range_end(
-            json_field(object_, "endBound")
+    return PatternPredicateResolution(
+        predicate=destack._generated.dir.type.predicate.from_json_predicate(
+            json_field(object_, "predicate")
         ),
     )
 
 
 @dataclass(frozen=True, slots=True)
-class PatternTupleResolution:
-    """Tuple fields selected by one pattern."""
+class PatternProjectionResolution:
+    """Projection selected by one pattern."""
 
-    # the tuple field mapping in source order
+    # the selected projection
+    projection: destack._generated.dir.type.projection.Projection
+    # the pattern matched after projection
+    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny | None
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_projection_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> PatternProjectionResolution:
+        """Decode one PatternProjectionResolution."""
+        return decode_pattern_projection_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_projection_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> PatternProjectionResolution:
+        """Return one PatternProjectionResolution from one JSON value."""
+        return from_json_pattern_projection_resolution(value)
+
+
+def encode_pattern_projection_resolution(
+    writer: BinaryWriter, value: PatternProjectionResolution
+) -> None:
+    """Encode one PatternProjectionResolution."""
+    destack._generated.dir.type.projection.encode_projection(writer, value.projection)
+    if value.pattern is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        destack._generated.dir.tree.node.encode_global_node_id_any(
+            writer, value.pattern
+        )
+
+
+def decode_pattern_projection_resolution(
+    reader: BinaryReader,
+) -> PatternProjectionResolution:
+    """Decode one PatternProjectionResolution."""
+    projection = destack._generated.dir.type.projection.decode_projection(reader)
+    pattern = reader.read_option(
+        lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    )
+
+    return PatternProjectionResolution(
+        projection=projection,
+        pattern=pattern,
+    )
+
+
+def to_json_pattern_projection_resolution(value: PatternProjectionResolution) -> Json:
+    """Return one JSON value for one PatternProjectionResolution."""
+    return {
+        "projection": destack._generated.dir.type.projection.to_json_projection(
+            value.projection
+        ),
+        **(
+            {}
+            if value.pattern is None
+            else {
+                "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
+                    value.pattern
+                )
+            }
+        ),
+    }
+
+
+def from_json_pattern_projection_resolution(value: Json) -> PatternProjectionResolution:
+    """Return one PatternProjectionResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return PatternProjectionResolution(
+        projection=destack._generated.dir.type.projection.from_json_projection(
+            json_field(object_, "projection")
+        ),
+        pattern=json_optional(
+            object_,
+            "pattern",
+            lambda value: destack._generated.dir.tree.node.from_json_global_node_id_any(
+                value
+            ),
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PatternDestructureResolutionTuple:
+    """Tuple-shaped destructuring, like `(x, y)`."""
+
+    tuple: PatternTupleDestructureResolution
+    kind: typing.Literal["tuple"] = "tuple"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_destructure_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_destructure_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PatternDestructureResolutionObject:
+    """Object-shaped destructuring, like `{ name }`."""
+
+    object: PatternObjectDestructureResolution
+    kind: typing.Literal["object"] = "object"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_destructure_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_destructure_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PatternDestructureResolutionNominal:
+    """Symbol-backed nominal destructuring, like `Point { x, y }`."""
+
+    nominal: PatternNominalDestructureResolution
+    kind: typing.Literal["nominal"] = "nominal"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_destructure_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_destructure_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PatternDestructureResolutionSequence:
+    """Sequence destructuring, like `[head, ...tail]`."""
+
+    sequence: PatternSequenceDestructureResolution
+    kind: typing.Literal["sequence"] = "sequence"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_destructure_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_destructure_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PatternDestructureResolutionVariant:
+    """Tagged variant destructuring, like `Status.Ok(value)`."""
+
+    variant: PatternVariantDestructureResolution
+    kind: typing.Literal["variant"] = "variant"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_destructure_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_destructure_resolution(self)
+
+
+"""Destructuring selected by one pattern."""
+PatternDestructureResolution: typing.TypeAlias = (
+    PatternDestructureResolutionTuple
+    | PatternDestructureResolutionObject
+    | PatternDestructureResolutionNominal
+    | PatternDestructureResolutionSequence
+    | PatternDestructureResolutionVariant
+)
+
+
+def encode_pattern_destructure_resolution(
+    writer: BinaryWriter, value: PatternDestructureResolution
+) -> None:
+    """Encode one PatternDestructureResolution."""
+    if value.kind == "tuple":
+        writer.write_unsigned(0)
+        encode_pattern_tuple_destructure_resolution(writer, value.tuple)
+    elif value.kind == "object":
+        writer.write_unsigned(1)
+        encode_pattern_object_destructure_resolution(writer, value.object)
+    elif value.kind == "nominal":
+        writer.write_unsigned(2)
+        encode_pattern_nominal_destructure_resolution(writer, value.nominal)
+    elif value.kind == "sequence":
+        writer.write_unsigned(3)
+        encode_pattern_sequence_destructure_resolution(writer, value.sequence)
+    elif value.kind == "variant":
+        writer.write_unsigned(4)
+        encode_pattern_variant_destructure_resolution(writer, value.variant)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_pattern_destructure_resolution(
+    reader: BinaryReader,
+) -> PatternDestructureResolution:
+    """Decode one PatternDestructureResolution."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        tuple = decode_pattern_tuple_destructure_resolution(reader)
+
+        return PatternDestructureResolutionTuple(tuple=tuple)
+    elif variant == 1:
+        object = decode_pattern_object_destructure_resolution(reader)
+
+        return PatternDestructureResolutionObject(object=object)
+    elif variant == 2:
+        nominal = decode_pattern_nominal_destructure_resolution(reader)
+
+        return PatternDestructureResolutionNominal(nominal=nominal)
+    elif variant == 3:
+        sequence = decode_pattern_sequence_destructure_resolution(reader)
+
+        return PatternDestructureResolutionSequence(sequence=sequence)
+    elif variant == 4:
+        variant = decode_pattern_variant_destructure_resolution(reader)
+
+        return PatternDestructureResolutionVariant(variant=variant)
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_pattern_destructure_resolution(value: PatternDestructureResolution) -> Json:
+    """Return one JSON value for one PatternDestructureResolution."""
+    if value.kind == "tuple":
+        return {
+            "kind": "tuple",
+            "tuple": to_json_pattern_tuple_destructure_resolution(value.tuple),
+        }
+    elif value.kind == "object":
+        return {
+            "kind": "object",
+            "object": to_json_pattern_object_destructure_resolution(value.object),
+        }
+    elif value.kind == "nominal":
+        return {
+            "kind": "nominal",
+            "nominal": to_json_pattern_nominal_destructure_resolution(value.nominal),
+        }
+    elif value.kind == "sequence":
+        return {
+            "kind": "sequence",
+            "sequence": to_json_pattern_sequence_destructure_resolution(value.sequence),
+        }
+    elif value.kind == "variant":
+        return {
+            "kind": "variant",
+            "variant": to_json_pattern_variant_destructure_resolution(value.variant),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_pattern_destructure_resolution(
+    value: Json,
+) -> PatternDestructureResolution:
+    """Return one PatternDestructureResolution from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "tuple":
+        return PatternDestructureResolutionTuple(
+            tuple=from_json_pattern_tuple_destructure_resolution(
+                json_field(object_, "tuple")
+            )
+        )
+    elif kind == "object":
+        return PatternDestructureResolutionObject(
+            object=from_json_pattern_object_destructure_resolution(
+                json_field(object_, "object")
+            )
+        )
+    elif kind == "nominal":
+        return PatternDestructureResolutionNominal(
+            nominal=from_json_pattern_nominal_destructure_resolution(
+                json_field(object_, "nominal")
+            )
+        )
+    elif kind == "sequence":
+        return PatternDestructureResolutionSequence(
+            sequence=from_json_pattern_sequence_destructure_resolution(
+                json_field(object_, "sequence")
+            )
+        )
+    elif kind == "variant":
+        return PatternDestructureResolutionVariant(
+            variant=from_json_pattern_variant_destructure_resolution(
+                json_field(object_, "variant")
+            )
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class PatternTupleDestructureResolution:
+    """Tuple destructuring selected by one pattern."""
+
+    # the tuple fields in source order
     fields: Sequence[PatternFieldResolution]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_tuple_resolution(writer, self)
+        encode_pattern_tuple_destructure_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternTupleResolution:
-        """Decode one PatternTupleResolution."""
-        return decode_pattern_tuple_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternTupleDestructureResolution:
+        """Decode one PatternTupleDestructureResolution."""
+        return decode_pattern_tuple_destructure_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_tuple_resolution(self)
+        return to_json_pattern_tuple_destructure_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternTupleResolution:
-        """Return one PatternTupleResolution from one JSON value."""
-        return from_json_pattern_tuple_resolution(value)
+    def from_json(cls, value: Json) -> PatternTupleDestructureResolution:
+        """Return one PatternTupleDestructureResolution from one JSON value."""
+        return from_json_pattern_tuple_destructure_resolution(value)
 
 
-def encode_pattern_tuple_resolution(
-    writer: BinaryWriter, value: PatternTupleResolution
+def encode_pattern_tuple_destructure_resolution(
+    writer: BinaryWriter, value: PatternTupleDestructureResolution
 ) -> None:
-    """Encode one PatternTupleResolution."""
+    """Encode one PatternTupleDestructureResolution."""
     writer.write_unsigned(len(value.fields))
     for item_value_fields_0 in value.fields:
         encode_pattern_field_resolution(writer, item_value_fields_0)
 
 
-def decode_pattern_tuple_resolution(reader: BinaryReader) -> PatternTupleResolution:
-    """Decode one PatternTupleResolution."""
+def decode_pattern_tuple_destructure_resolution(
+    reader: BinaryReader,
+) -> PatternTupleDestructureResolution:
+    """Decode one PatternTupleDestructureResolution."""
     fields = [
         decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
     ]
 
-    return PatternTupleResolution(
+    return PatternTupleDestructureResolution(
         fields=fields,
     )
 
 
-def to_json_pattern_tuple_resolution(value: PatternTupleResolution) -> Json:
-    """Return one JSON value for one PatternTupleResolution."""
+def to_json_pattern_tuple_destructure_resolution(
+    value: PatternTupleDestructureResolution,
+) -> Json:
+    """Return one JSON value for one PatternTupleDestructureResolution."""
     return {
         "fields": [to_json_pattern_field_resolution(item_0) for item_0 in value.fields],
     }
 
 
-def from_json_pattern_tuple_resolution(value: Json) -> PatternTupleResolution:
-    """Return one PatternTupleResolution from one JSON value."""
+def from_json_pattern_tuple_destructure_resolution(
+    value: Json,
+) -> PatternTupleDestructureResolution:
+    """Return one PatternTupleDestructureResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternTupleResolution(
+    return PatternTupleDestructureResolution(
         fields=[
             from_json_pattern_field_resolution(item_0)
             for item_0 in json_array(json_field(object_, "fields"))
@@ -2562,8 +3795,8 @@ class PatternFieldResolution:
 
     # the source node that introduces the field
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
-    # the selected field target
-    target: PatternFieldTarget
+    # the selected field projection
+    projection: destack._generated.dir.type.projection.Projection
     # the nested pattern matched for the field
     pattern: destack._generated.dir.tree.node.GlobalNodeIdAny | None
 
@@ -2591,7 +3824,7 @@ def encode_pattern_field_resolution(
 ) -> None:
     """Encode one PatternFieldResolution."""
     destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
-    encode_pattern_field_target(writer, value.target)
+    destack._generated.dir.type.projection.encode_projection(writer, value.projection)
     if value.pattern is None:
         writer.write_byte(0)
     else:
@@ -2604,14 +3837,14 @@ def encode_pattern_field_resolution(
 def decode_pattern_field_resolution(reader: BinaryReader) -> PatternFieldResolution:
     """Decode one PatternFieldResolution."""
     source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-    target = decode_pattern_field_target(reader)
+    projection = destack._generated.dir.type.projection.decode_projection(reader)
     pattern = reader.read_option(
         lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
     )
 
     return PatternFieldResolution(
         source=source,
-        target=target,
+        projection=projection,
         pattern=pattern,
     )
 
@@ -2622,7 +3855,9 @@ def to_json_pattern_field_resolution(value: PatternFieldResolution) -> Json:
         "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
             value.source
         ),
-        "target": to_json_pattern_field_target(value.target),
+        "projection": destack._generated.dir.type.projection.to_json_projection(
+            value.projection
+        ),
         **(
             {}
             if value.pattern is None
@@ -2643,414 +3878,8 @@ def from_json_pattern_field_resolution(value: Json) -> PatternFieldResolution:
         source=destack._generated.dir.tree.node.from_json_global_node_id_any(
             json_field(object_, "source")
         ),
-        target=from_json_pattern_field_target(json_field(object_, "target")),
-        pattern=json_optional(
-            object_,
-            "pattern",
-            lambda value: destack._generated.dir.tree.node.from_json_global_node_id_any(
-                value
-            ),
-        ),
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class PatternFieldTargetKey:
-    """Named or symbolic field target."""
-
-    key: destack._generated.dir.symbol.key.StaticKey
-    kind: typing.Literal["key"] = "key"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_field_target(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_field_target(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternFieldTargetIndex:
-    """Positional field target."""
-
-    index: int
-    kind: typing.Literal["index"] = "index"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_field_target(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_field_target(self)
-
-
-"""Field target selected by one destructuring pattern."""
-PatternFieldTarget: typing.TypeAlias = PatternFieldTargetKey | PatternFieldTargetIndex
-
-
-def encode_pattern_field_target(
-    writer: BinaryWriter, value: PatternFieldTarget
-) -> None:
-    """Encode one PatternFieldTarget."""
-    if value.kind == "key":
-        writer.write_unsigned(0)
-        destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
-    elif value.kind == "index":
-        writer.write_unsigned(1)
-        writer.write_unsigned(value.index)
-    else:
-        raise SerdeError("unknown enum variant")
-
-
-def decode_pattern_field_target(reader: BinaryReader) -> PatternFieldTarget:
-    """Decode one PatternFieldTarget."""
-    variant = reader.read_number()
-
-    if variant == 0:
-        key = destack._generated.dir.symbol.key.decode_static_key(reader)
-
-        return PatternFieldTargetKey(key=key)
-    elif variant == 1:
-        index = reader.read_number()
-
-        return PatternFieldTargetIndex(index=index)
-    else:
-        raise SerdeError(f"unknown enum variant index: {variant}")
-
-
-def to_json_pattern_field_target(value: PatternFieldTarget) -> Json:
-    """Return one JSON value for one PatternFieldTarget."""
-    if value.kind == "key":
-        return {
-            "kind": "key",
-            "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
-        }
-    elif value.kind == "index":
-        return {
-            "kind": "index",
-            "index": value.index,
-        }
-    else:
-        raise SerdeError("unknown enum variant")
-
-
-def from_json_pattern_field_target(value: Json) -> PatternFieldTarget:
-    """Return one PatternFieldTarget from one JSON value."""
-    object_ = json_object(value)
-    kind = json_string(json_field(object_, "kind"))
-
-    if kind == "key":
-        return PatternFieldTargetKey(
-            key=destack._generated.dir.symbol.key.from_json_static_key(
-                json_field(object_, "key")
-            )
-        )
-    elif kind == "index":
-        return PatternFieldTargetIndex(index=json_int(json_field(object_, "index")))
-    else:
-        raise SerdeError(f"unknown enum variant: {kind}")
-
-
-@dataclass(frozen=True, slots=True)
-class PatternSequenceResolutionArray:
-    """Dynamically sized array pattern, like `[head, ...tail]` over `T[]`."""
-
-    # the fixed prefix and suffix fields
-    fields: Sequence[PatternFieldResolution]
-    # the rest field, when present
-    rest: PatternRestResolution | None
-    kind: typing.Literal["array"] = "array"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_sequence_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_sequence_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternSequenceResolutionSlice:
-    """Borrowed slice pattern, like `[head, ...tail]` over `[T]`."""
-
-    # the fixed prefix and suffix fields
-    fields: Sequence[PatternFieldResolution]
-    # the rest field, when present
-    rest: PatternRestResolution | None
-    kind: typing.Literal["slice"] = "slice"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_sequence_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_sequence_resolution(self)
-
-
-@dataclass(frozen=True, slots=True)
-class PatternSequenceResolutionFixedArray:
-    """Fixed-size array pattern, like `[a, b, c]` over `[T; 3]`."""
-
-    # the fixed element fields
-    fields: Sequence[PatternFieldResolution]
-    # the committed array length singleton
-    length: destack._generated.dir.type.type.GlobalTypeId
-    kind: typing.Literal["fixedArray"] = "fixedArray"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_sequence_resolution(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_sequence_resolution(self)
-
-
-"""Ordered collection selected by one pattern."""
-PatternSequenceResolution: typing.TypeAlias = (
-    PatternSequenceResolutionArray
-    | PatternSequenceResolutionSlice
-    | PatternSequenceResolutionFixedArray
-)
-
-
-def encode_pattern_sequence_resolution(
-    writer: BinaryWriter, value: PatternSequenceResolution
-) -> None:
-    """Encode one PatternSequenceResolution."""
-    if value.kind == "array":
-        writer.write_unsigned(0)
-        writer.write_unsigned(len(value.fields))
-        for item_value_fields_0 in value.fields:
-            encode_pattern_field_resolution(writer, item_value_fields_0)
-        if value.rest is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            encode_pattern_rest_resolution(writer, value.rest)
-    elif value.kind == "slice":
-        writer.write_unsigned(1)
-        writer.write_unsigned(len(value.fields))
-        for item_value_fields_0 in value.fields:
-            encode_pattern_field_resolution(writer, item_value_fields_0)
-        if value.rest is None:
-            writer.write_byte(0)
-        else:
-            writer.write_byte(1)
-            encode_pattern_rest_resolution(writer, value.rest)
-    elif value.kind == "fixedArray":
-        writer.write_unsigned(2)
-        writer.write_unsigned(len(value.fields))
-        for item_value_fields_0 in value.fields:
-            encode_pattern_field_resolution(writer, item_value_fields_0)
-        destack._generated.dir.type.type.encode_global_type_id(writer, value.length)
-    else:
-        raise SerdeError("unknown enum variant")
-
-
-def decode_pattern_sequence_resolution(
-    reader: BinaryReader,
-) -> PatternSequenceResolution:
-    """Decode one PatternSequenceResolution."""
-    variant = reader.read_number()
-
-    if variant == 0:
-        fields = [
-            decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
-        ]
-        rest = reader.read_option(lambda: decode_pattern_rest_resolution(reader))
-
-        return PatternSequenceResolutionArray(
-            fields=fields,
-            rest=rest,
-        )
-    elif variant == 1:
-        fields = [
-            decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
-        ]
-        rest = reader.read_option(lambda: decode_pattern_rest_resolution(reader))
-
-        return PatternSequenceResolutionSlice(
-            fields=fields,
-            rest=rest,
-        )
-    elif variant == 2:
-        fields = [
-            decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
-        ]
-        length = destack._generated.dir.type.type.decode_global_type_id(reader)
-
-        return PatternSequenceResolutionFixedArray(
-            fields=fields,
-            length=length,
-        )
-    else:
-        raise SerdeError(f"unknown enum variant index: {variant}")
-
-
-def to_json_pattern_sequence_resolution(value: PatternSequenceResolution) -> Json:
-    """Return one JSON value for one PatternSequenceResolution."""
-    if value.kind == "array":
-        return {
-            "kind": "array",
-            "fields": [
-                to_json_pattern_field_resolution(item_0) for item_0 in value.fields
-            ],
-            **(
-                {}
-                if value.rest is None
-                else {"rest": to_json_pattern_rest_resolution(value.rest)}
-            ),
-        }
-    elif value.kind == "slice":
-        return {
-            "kind": "slice",
-            "fields": [
-                to_json_pattern_field_resolution(item_0) for item_0 in value.fields
-            ],
-            **(
-                {}
-                if value.rest is None
-                else {"rest": to_json_pattern_rest_resolution(value.rest)}
-            ),
-        }
-    elif value.kind == "fixedArray":
-        return {
-            "kind": "fixedArray",
-            "fields": [
-                to_json_pattern_field_resolution(item_0) for item_0 in value.fields
-            ],
-            "length": destack._generated.dir.type.type.to_json_global_type_id(
-                value.length
-            ),
-        }
-    else:
-        raise SerdeError("unknown enum variant")
-
-
-def from_json_pattern_sequence_resolution(value: Json) -> PatternSequenceResolution:
-    """Return one PatternSequenceResolution from one JSON value."""
-    object_ = json_object(value)
-    kind = json_string(json_field(object_, "kind"))
-
-    if kind == "array":
-        return PatternSequenceResolutionArray(
-            fields=[
-                from_json_pattern_field_resolution(item_0)
-                for item_0 in json_array(json_field(object_, "fields"))
-            ],
-            rest=json_optional(
-                object_, "rest", lambda value: from_json_pattern_rest_resolution(value)
-            ),
-        )
-    elif kind == "slice":
-        return PatternSequenceResolutionSlice(
-            fields=[
-                from_json_pattern_field_resolution(item_0)
-                for item_0 in json_array(json_field(object_, "fields"))
-            ],
-            rest=json_optional(
-                object_, "rest", lambda value: from_json_pattern_rest_resolution(value)
-            ),
-        )
-    elif kind == "fixedArray":
-        return PatternSequenceResolutionFixedArray(
-            fields=[
-                from_json_pattern_field_resolution(item_0)
-                for item_0 in json_array(json_field(object_, "fields"))
-            ],
-            length=destack._generated.dir.type.type.from_json_global_type_id(
-                json_field(object_, "length")
-            ),
-        )
-    else:
-        raise SerdeError(f"unknown enum variant: {kind}")
-
-
-@dataclass(frozen=True, slots=True)
-class PatternRestResolution:
-    """Rest field selected by one ordered pattern."""
-
-    # the source node that introduces the rest field
-    source: destack._generated.dir.tree.node.GlobalNodeIdAny
-    # the nested pattern matched for the rest field
-    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny | None
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_rest_resolution(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternRestResolution:
-        """Decode one PatternRestResolution."""
-        return decode_pattern_rest_resolution(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_rest_resolution(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> PatternRestResolution:
-        """Return one PatternRestResolution from one JSON value."""
-        return from_json_pattern_rest_resolution(value)
-
-
-def encode_pattern_rest_resolution(
-    writer: BinaryWriter, value: PatternRestResolution
-) -> None:
-    """Encode one PatternRestResolution."""
-    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
-    if value.pattern is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.tree.node.encode_global_node_id_any(
-            writer, value.pattern
-        )
-
-
-def decode_pattern_rest_resolution(reader: BinaryReader) -> PatternRestResolution:
-    """Decode one PatternRestResolution."""
-    source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-    pattern = reader.read_option(
-        lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-    )
-
-    return PatternRestResolution(
-        source=source,
-        pattern=pattern,
-    )
-
-
-def to_json_pattern_rest_resolution(value: PatternRestResolution) -> Json:
-    """Return one JSON value for one PatternRestResolution."""
-    return {
-        "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
-            value.source
-        ),
-        **(
-            {}
-            if value.pattern is None
-            else {
-                "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
-                    value.pattern
-                )
-            }
-        ),
-    }
-
-
-def from_json_pattern_rest_resolution(value: Json) -> PatternRestResolution:
-    """Return one PatternRestResolution from one JSON value."""
-    object_ = json_object(value)
-
-    return PatternRestResolution(
-        source=destack._generated.dir.tree.node.from_json_global_node_id_any(
-            json_field(object_, "source")
+        projection=destack._generated.dir.type.projection.from_json_projection(
+            json_field(object_, "projection")
         ),
         pattern=json_optional(
             object_,
@@ -3063,387 +3892,465 @@ def from_json_pattern_rest_resolution(value: Json) -> PatternRestResolution:
 
 
 @dataclass(frozen=True, slots=True)
-class PatternShapeResolution:
-    """Structural fields selected by one pattern."""
+class PatternObjectDestructureResolution:
+    """Object destructuring selected by one pattern."""
 
-    # the structural field mapping in source order
+    # the object fields in source order
     fields: Sequence[PatternFieldResolution]
+    # the rest field, when present
+    rest: PatternFieldResolution | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_shape_resolution(writer, self)
+        encode_pattern_object_destructure_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternShapeResolution:
-        """Decode one PatternShapeResolution."""
-        return decode_pattern_shape_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternObjectDestructureResolution:
+        """Decode one PatternObjectDestructureResolution."""
+        return decode_pattern_object_destructure_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_shape_resolution(self)
+        return to_json_pattern_object_destructure_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternShapeResolution:
-        """Return one PatternShapeResolution from one JSON value."""
-        return from_json_pattern_shape_resolution(value)
+    def from_json(cls, value: Json) -> PatternObjectDestructureResolution:
+        """Return one PatternObjectDestructureResolution from one JSON value."""
+        return from_json_pattern_object_destructure_resolution(value)
 
 
-def encode_pattern_shape_resolution(
-    writer: BinaryWriter, value: PatternShapeResolution
+def encode_pattern_object_destructure_resolution(
+    writer: BinaryWriter, value: PatternObjectDestructureResolution
 ) -> None:
-    """Encode one PatternShapeResolution."""
+    """Encode one PatternObjectDestructureResolution."""
     writer.write_unsigned(len(value.fields))
     for item_value_fields_0 in value.fields:
         encode_pattern_field_resolution(writer, item_value_fields_0)
+    if value.rest is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_pattern_field_resolution(writer, value.rest)
 
 
-def decode_pattern_shape_resolution(reader: BinaryReader) -> PatternShapeResolution:
-    """Decode one PatternShapeResolution."""
+def decode_pattern_object_destructure_resolution(
+    reader: BinaryReader,
+) -> PatternObjectDestructureResolution:
+    """Decode one PatternObjectDestructureResolution."""
     fields = [
         decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
     ]
+    rest = reader.read_option(lambda: decode_pattern_field_resolution(reader))
 
-    return PatternShapeResolution(
+    return PatternObjectDestructureResolution(
         fields=fields,
+        rest=rest,
     )
 
 
-def to_json_pattern_shape_resolution(value: PatternShapeResolution) -> Json:
-    """Return one JSON value for one PatternShapeResolution."""
+def to_json_pattern_object_destructure_resolution(
+    value: PatternObjectDestructureResolution,
+) -> Json:
+    """Return one JSON value for one PatternObjectDestructureResolution."""
     return {
         "fields": [to_json_pattern_field_resolution(item_0) for item_0 in value.fields],
+        **(
+            {}
+            if value.rest is None
+            else {"rest": to_json_pattern_field_resolution(value.rest)}
+        ),
     }
 
 
-def from_json_pattern_shape_resolution(value: Json) -> PatternShapeResolution:
-    """Return one PatternShapeResolution from one JSON value."""
+def from_json_pattern_object_destructure_resolution(
+    value: Json,
+) -> PatternObjectDestructureResolution:
+    """Return one PatternObjectDestructureResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternShapeResolution(
+    return PatternObjectDestructureResolution(
         fields=[
             from_json_pattern_field_resolution(item_0)
             for item_0 in json_array(json_field(object_, "fields"))
         ],
+        rest=json_optional(
+            object_, "rest", lambda value: from_json_pattern_field_resolution(value)
+        ),
     )
 
 
 @dataclass(frozen=True, slots=True)
-class PatternNominalResolution:
-    """Symbol-backed nominal pattern selected during checking."""
+class PatternNominalDestructureResolution:
+    """Nominal destructuring selected by one pattern."""
 
     # the selected nominal symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the generic arguments of the nominal symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
-    # the nominal field mapping in source order
+    # the selected generic argument bindings for the nominal symbol
+    generic_arguments: Sequence[
+        destack._generated.dir.type.generic.GenericArgumentBinding
+    ]
+    # the nominal fields in source order
     fields: Sequence[PatternFieldResolution]
+    # the rest field, when present
+    rest: PatternFieldResolution | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_nominal_resolution(writer, self)
+        encode_pattern_nominal_destructure_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternNominalResolution:
-        """Decode one PatternNominalResolution."""
-        return decode_pattern_nominal_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternNominalDestructureResolution:
+        """Decode one PatternNominalDestructureResolution."""
+        return decode_pattern_nominal_destructure_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_nominal_resolution(self)
+        return to_json_pattern_nominal_destructure_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternNominalResolution:
-        """Return one PatternNominalResolution from one JSON value."""
-        return from_json_pattern_nominal_resolution(value)
+    def from_json(cls, value: Json) -> PatternNominalDestructureResolution:
+        """Return one PatternNominalDestructureResolution from one JSON value."""
+        return from_json_pattern_nominal_destructure_resolution(value)
 
 
-def encode_pattern_nominal_resolution(
-    writer: BinaryWriter, value: PatternNominalResolution
+def encode_pattern_nominal_destructure_resolution(
+    writer: BinaryWriter, value: PatternNominalDestructureResolution
 ) -> None:
-    """Encode one PatternNominalResolution."""
+    """Encode one PatternNominalDestructureResolution."""
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
+    writer.write_unsigned(len(value.generic_arguments))
+    for item_value_generic_arguments_0 in value.generic_arguments:
+        destack._generated.dir.type.generic.encode_generic_argument_binding(
+            writer, item_value_generic_arguments_0
         )
     writer.write_unsigned(len(value.fields))
     for item_value_fields_0 in value.fields:
         encode_pattern_field_resolution(writer, item_value_fields_0)
-
-
-def decode_pattern_nominal_resolution(reader: BinaryReader) -> PatternNominalResolution:
-    """Decode one PatternNominalResolution."""
-    symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
-        for _ in range(reader.read_number())
-    ]
-    fields = [
-        decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
-    ]
-
-    return PatternNominalResolution(
-        symbol=symbol,
-        arguments=arguments,
-        fields=fields,
-    )
-
-
-def to_json_pattern_nominal_resolution(value: PatternNominalResolution) -> Json:
-    """Return one JSON value for one PatternNominalResolution."""
-    return {
-        "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
-            value.symbol
-        ),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
-        ],
-        "fields": [to_json_pattern_field_resolution(item_0) for item_0 in value.fields],
-    }
-
-
-def from_json_pattern_nominal_resolution(value: Json) -> PatternNominalResolution:
-    """Return one PatternNominalResolution from one JSON value."""
-    object_ = json_object(value)
-
-    return PatternNominalResolution(
-        symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
-            json_field(object_, "symbol")
-        ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
-        ],
-        fields=[
-            from_json_pattern_field_resolution(item_0)
-            for item_0 in json_array(json_field(object_, "fields"))
-        ],
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class PatternNewtypeResolution:
-    """Symbol-backed newtype pattern selected during checking."""
-
-    # the selected newtype symbol
-    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the generic arguments of the newtype symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
-    # the wrapped value pattern
-    value: destack._generated.dir.tree.node.GlobalNodeIdAny | None
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_newtype_resolution(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternNewtypeResolution:
-        """Decode one PatternNewtypeResolution."""
-        return decode_pattern_newtype_resolution(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_newtype_resolution(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> PatternNewtypeResolution:
-        """Return one PatternNewtypeResolution from one JSON value."""
-        return from_json_pattern_newtype_resolution(value)
-
-
-def encode_pattern_newtype_resolution(
-    writer: BinaryWriter, value: PatternNewtypeResolution
-) -> None:
-    """Encode one PatternNewtypeResolution."""
-    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
-        )
-    if value.value is None:
+    if value.rest is None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
-        destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.value)
+        encode_pattern_field_resolution(writer, value.rest)
 
 
-def decode_pattern_newtype_resolution(reader: BinaryReader) -> PatternNewtypeResolution:
-    """Decode one PatternNewtypeResolution."""
+def decode_pattern_nominal_destructure_resolution(
+    reader: BinaryReader,
+) -> PatternNominalDestructureResolution:
+    """Decode one PatternNominalDestructureResolution."""
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
+    generic_arguments = [
+        destack._generated.dir.type.generic.decode_generic_argument_binding(reader)
         for _ in range(reader.read_number())
     ]
-    value_ = reader.read_option(
-        lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-    )
+    fields = [
+        decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
+    ]
+    rest = reader.read_option(lambda: decode_pattern_field_resolution(reader))
 
-    return PatternNewtypeResolution(
+    return PatternNominalDestructureResolution(
         symbol=symbol,
-        arguments=arguments,
-        value=value_,
+        generic_arguments=generic_arguments,
+        fields=fields,
+        rest=rest,
     )
 
 
-def to_json_pattern_newtype_resolution(value: PatternNewtypeResolution) -> Json:
-    """Return one JSON value for one PatternNewtypeResolution."""
+def to_json_pattern_nominal_destructure_resolution(
+    value: PatternNominalDestructureResolution,
+) -> Json:
+    """Return one JSON value for one PatternNominalDestructureResolution."""
     return {
         "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
             value.symbol
         ),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
+        "genericArguments": [
+            destack._generated.dir.type.generic.to_json_generic_argument_binding(item_0)
+            for item_0 in value.generic_arguments
         ],
+        "fields": [to_json_pattern_field_resolution(item_0) for item_0 in value.fields],
         **(
             {}
-            if value.value is None
-            else {
-                "value": destack._generated.dir.tree.node.to_json_global_node_id_any(
-                    value.value
-                )
-            }
+            if value.rest is None
+            else {"rest": to_json_pattern_field_resolution(value.rest)}
         ),
     }
 
 
-def from_json_pattern_newtype_resolution(value: Json) -> PatternNewtypeResolution:
-    """Return one PatternNewtypeResolution from one JSON value."""
+def from_json_pattern_nominal_destructure_resolution(
+    value: Json,
+) -> PatternNominalDestructureResolution:
+    """Return one PatternNominalDestructureResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternNewtypeResolution(
+    return PatternNominalDestructureResolution(
         symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
             json_field(object_, "symbol")
         ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
+        generic_arguments=[
+            destack._generated.dir.type.generic.from_json_generic_argument_binding(
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "genericArguments"))
         ],
-        value=json_optional(
-            object_,
-            "value",
-            lambda value: destack._generated.dir.tree.node.from_json_global_node_id_any(
-                value
-            ),
+        fields=[
+            from_json_pattern_field_resolution(item_0)
+            for item_0 in json_array(json_field(object_, "fields"))
+        ],
+        rest=json_optional(
+            object_, "rest", lambda value: from_json_pattern_field_resolution(value)
         ),
     )
 
 
 @dataclass(frozen=True, slots=True)
-class PatternVariantResolution:
-    """Symbol-backed variant pattern selected during checking."""
+class PatternSequenceDestructureResolution:
+    """Sequence destructuring selected by one pattern."""
 
-    # the selected variant family symbol
-    owner: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the selected variant symbol
-    variant: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the generic arguments of the variant symbol, empty when not statically applied
-    arguments: Sequence[destack._generated.dir.type.type.GlobalTypeId]
-    # the discriminant value
-    discriminant: destack._generated.dir.tree.literal.ScalarLiteral
-    # the variant field mapping in source order
+    # the arity requirement introduced by the pattern
+    arity: PatternSequenceArity
+    # the fixed fields in source order
+    fields: Sequence[PatternFieldResolution]
+    # the rest field, when present
+    rest: PatternFieldResolution | None
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_sequence_destructure_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> PatternSequenceDestructureResolution:
+        """Decode one PatternSequenceDestructureResolution."""
+        return decode_pattern_sequence_destructure_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_sequence_destructure_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> PatternSequenceDestructureResolution:
+        """Return one PatternSequenceDestructureResolution from one JSON value."""
+        return from_json_pattern_sequence_destructure_resolution(value)
+
+
+def encode_pattern_sequence_destructure_resolution(
+    writer: BinaryWriter, value: PatternSequenceDestructureResolution
+) -> None:
+    """Encode one PatternSequenceDestructureResolution."""
+    encode_pattern_sequence_arity(writer, value.arity)
+    writer.write_unsigned(len(value.fields))
+    for item_value_fields_0 in value.fields:
+        encode_pattern_field_resolution(writer, item_value_fields_0)
+    if value.rest is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_pattern_field_resolution(writer, value.rest)
+
+
+def decode_pattern_sequence_destructure_resolution(
+    reader: BinaryReader,
+) -> PatternSequenceDestructureResolution:
+    """Decode one PatternSequenceDestructureResolution."""
+    arity = decode_pattern_sequence_arity(reader)
+    fields = [
+        decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
+    ]
+    rest = reader.read_option(lambda: decode_pattern_field_resolution(reader))
+
+    return PatternSequenceDestructureResolution(
+        arity=arity,
+        fields=fields,
+        rest=rest,
+    )
+
+
+def to_json_pattern_sequence_destructure_resolution(
+    value: PatternSequenceDestructureResolution,
+) -> Json:
+    """Return one JSON value for one PatternSequenceDestructureResolution."""
+    return {
+        "arity": to_json_pattern_sequence_arity(value.arity),
+        "fields": [to_json_pattern_field_resolution(item_0) for item_0 in value.fields],
+        **(
+            {}
+            if value.rest is None
+            else {"rest": to_json_pattern_field_resolution(value.rest)}
+        ),
+    }
+
+
+def from_json_pattern_sequence_destructure_resolution(
+    value: Json,
+) -> PatternSequenceDestructureResolution:
+    """Return one PatternSequenceDestructureResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return PatternSequenceDestructureResolution(
+        arity=from_json_pattern_sequence_arity(json_field(object_, "arity")),
+        fields=[
+            from_json_pattern_field_resolution(item_0)
+            for item_0 in json_array(json_field(object_, "fields"))
+        ],
+        rest=json_optional(
+            object_, "rest", lambda value: from_json_pattern_field_resolution(value)
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PatternSequenceArity:
+    """Arity requirement introduced by one sequence pattern."""
+
+    # the minimum accepted source length
+    minimum: int
+    # the maximum accepted source length, when bounded
+    maximum: int | None
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_pattern_sequence_arity(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> PatternSequenceArity:
+        """Decode one PatternSequenceArity."""
+        return decode_pattern_sequence_arity(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_pattern_sequence_arity(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> PatternSequenceArity:
+        """Return one PatternSequenceArity from one JSON value."""
+        return from_json_pattern_sequence_arity(value)
+
+
+def encode_pattern_sequence_arity(
+    writer: BinaryWriter, value: PatternSequenceArity
+) -> None:
+    """Encode one PatternSequenceArity."""
+    writer.write_unsigned(value.minimum)
+    if value.maximum is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        writer.write_unsigned(value.maximum)
+
+
+def decode_pattern_sequence_arity(reader: BinaryReader) -> PatternSequenceArity:
+    """Decode one PatternSequenceArity."""
+    minimum = reader.read_number()
+    maximum = reader.read_option(lambda: reader.read_number())
+
+    return PatternSequenceArity(
+        minimum=minimum,
+        maximum=maximum,
+    )
+
+
+def to_json_pattern_sequence_arity(value: PatternSequenceArity) -> Json:
+    """Return one JSON value for one PatternSequenceArity."""
+    return {
+        "minimum": value.minimum,
+        **({} if value.maximum is None else {"maximum": value.maximum}),
+    }
+
+
+def from_json_pattern_sequence_arity(value: Json) -> PatternSequenceArity:
+    """Return one PatternSequenceArity from one JSON value."""
+    object_ = json_object(value)
+
+    return PatternSequenceArity(
+        minimum=json_int(json_field(object_, "minimum")),
+        maximum=json_optional(object_, "maximum", lambda value: json_int(value)),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class PatternVariantDestructureResolution:
+    """Tagged variant destructuring selected by one pattern."""
+
+    # the selected variant predicate
+    predicate: destack._generated.dir.type.predicate.Predicate
+    # the selected variant payload projection
+    projection: destack._generated.dir.type.projection.Projection
+    # the payload fields in source order
     fields: Sequence[PatternFieldResolution]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_variant_resolution(writer, self)
+        encode_pattern_variant_destructure_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternVariantResolution:
-        """Decode one PatternVariantResolution."""
-        return decode_pattern_variant_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternVariantDestructureResolution:
+        """Decode one PatternVariantDestructureResolution."""
+        return decode_pattern_variant_destructure_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_variant_resolution(self)
+        return to_json_pattern_variant_destructure_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternVariantResolution:
-        """Return one PatternVariantResolution from one JSON value."""
-        return from_json_pattern_variant_resolution(value)
+    def from_json(cls, value: Json) -> PatternVariantDestructureResolution:
+        """Return one PatternVariantDestructureResolution from one JSON value."""
+        return from_json_pattern_variant_destructure_resolution(value)
 
 
-def encode_pattern_variant_resolution(
-    writer: BinaryWriter, value: PatternVariantResolution
+def encode_pattern_variant_destructure_resolution(
+    writer: BinaryWriter, value: PatternVariantDestructureResolution
 ) -> None:
-    """Encode one PatternVariantResolution."""
-    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.owner)
-    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.variant)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        destack._generated.dir.type.type.encode_global_type_id(
-            writer, item_value_arguments_0
-        )
-    destack._generated.dir.tree.literal.encode_scalar_literal(
-        writer, value.discriminant
-    )
+    """Encode one PatternVariantDestructureResolution."""
+    destack._generated.dir.type.predicate.encode_predicate(writer, value.predicate)
+    destack._generated.dir.type.projection.encode_projection(writer, value.projection)
     writer.write_unsigned(len(value.fields))
     for item_value_fields_0 in value.fields:
         encode_pattern_field_resolution(writer, item_value_fields_0)
 
 
-def decode_pattern_variant_resolution(reader: BinaryReader) -> PatternVariantResolution:
-    """Decode one PatternVariantResolution."""
-    owner = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    variant = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    arguments = [
-        destack._generated.dir.type.type.decode_global_type_id(reader)
-        for _ in range(reader.read_number())
-    ]
-    discriminant = destack._generated.dir.tree.literal.decode_scalar_literal(reader)
+def decode_pattern_variant_destructure_resolution(
+    reader: BinaryReader,
+) -> PatternVariantDestructureResolution:
+    """Decode one PatternVariantDestructureResolution."""
+    predicate = destack._generated.dir.type.predicate.decode_predicate(reader)
+    projection = destack._generated.dir.type.projection.decode_projection(reader)
     fields = [
         decode_pattern_field_resolution(reader) for _ in range(reader.read_number())
     ]
 
-    return PatternVariantResolution(
-        owner=owner,
-        variant=variant,
-        arguments=arguments,
-        discriminant=discriminant,
+    return PatternVariantDestructureResolution(
+        predicate=predicate,
+        projection=projection,
         fields=fields,
     )
 
 
-def to_json_pattern_variant_resolution(value: PatternVariantResolution) -> Json:
-    """Return one JSON value for one PatternVariantResolution."""
+def to_json_pattern_variant_destructure_resolution(
+    value: PatternVariantDestructureResolution,
+) -> Json:
+    """Return one JSON value for one PatternVariantDestructureResolution."""
     return {
-        "owner": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
-            value.owner
+        "predicate": destack._generated.dir.type.predicate.to_json_predicate(
+            value.predicate
         ),
-        "variant": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
-            value.variant
-        ),
-        "arguments": [
-            destack._generated.dir.type.type.to_json_global_type_id(item_0)
-            for item_0 in value.arguments
-        ],
-        "discriminant": destack._generated.dir.tree.literal.to_json_scalar_literal(
-            value.discriminant
+        "projection": destack._generated.dir.type.projection.to_json_projection(
+            value.projection
         ),
         "fields": [to_json_pattern_field_resolution(item_0) for item_0 in value.fields],
     }
 
 
-def from_json_pattern_variant_resolution(value: Json) -> PatternVariantResolution:
-    """Return one PatternVariantResolution from one JSON value."""
+def from_json_pattern_variant_destructure_resolution(
+    value: Json,
+) -> PatternVariantDestructureResolution:
+    """Return one PatternVariantDestructureResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternVariantResolution(
-        owner=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
-            json_field(object_, "owner")
+    return PatternVariantDestructureResolution(
+        predicate=destack._generated.dir.type.predicate.from_json_predicate(
+            json_field(object_, "predicate")
         ),
-        variant=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
-            json_field(object_, "variant")
-        ),
-        arguments=[
-            destack._generated.dir.type.type.from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
-        ],
-        discriminant=destack._generated.dir.tree.literal.from_json_scalar_literal(
-            json_field(object_, "discriminant")
+        projection=destack._generated.dir.type.projection.from_json_projection(
+            json_field(object_, "projection")
         ),
         fields=[
             from_json_pattern_field_resolution(item_0)
@@ -3453,309 +4360,73 @@ def from_json_pattern_variant_resolution(value: Json) -> PatternVariantResolutio
 
 
 @dataclass(frozen=True, slots=True)
-class PatternUnionResolution:
-    """Alternative patterns selected during checking."""
+class PatternOrResolution:
+    """Or-pattern branches selected during checking."""
 
-    # the alternative pattern nodes
-    alternatives: Sequence[destack._generated.dir.tree.node.GlobalNodeIdAny]
+    # the branch pattern nodes
+    patterns: Sequence[destack._generated.dir.tree.node.GlobalNodeIdAny]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_pattern_union_resolution(writer, self)
+        encode_pattern_or_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternUnionResolution:
-        """Decode one PatternUnionResolution."""
-        return decode_pattern_union_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> PatternOrResolution:
+        """Decode one PatternOrResolution."""
+        return decode_pattern_or_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_pattern_union_resolution(self)
+        return to_json_pattern_or_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> PatternUnionResolution:
-        """Return one PatternUnionResolution from one JSON value."""
-        return from_json_pattern_union_resolution(value)
+    def from_json(cls, value: Json) -> PatternOrResolution:
+        """Return one PatternOrResolution from one JSON value."""
+        return from_json_pattern_or_resolution(value)
 
 
-def encode_pattern_union_resolution(
-    writer: BinaryWriter, value: PatternUnionResolution
+def encode_pattern_or_resolution(
+    writer: BinaryWriter, value: PatternOrResolution
 ) -> None:
-    """Encode one PatternUnionResolution."""
-    writer.write_unsigned(len(value.alternatives))
-    for item_value_alternatives_0 in value.alternatives:
+    """Encode one PatternOrResolution."""
+    writer.write_unsigned(len(value.patterns))
+    for item_value_patterns_0 in value.patterns:
         destack._generated.dir.tree.node.encode_global_node_id_any(
-            writer, item_value_alternatives_0
+            writer, item_value_patterns_0
         )
 
 
-def decode_pattern_union_resolution(reader: BinaryReader) -> PatternUnionResolution:
-    """Decode one PatternUnionResolution."""
-    alternatives = [
+def decode_pattern_or_resolution(reader: BinaryReader) -> PatternOrResolution:
+    """Decode one PatternOrResolution."""
+    patterns = [
         destack._generated.dir.tree.node.decode_global_node_id_any(reader)
         for _ in range(reader.read_number())
     ]
 
-    return PatternUnionResolution(
-        alternatives=alternatives,
+    return PatternOrResolution(
+        patterns=patterns,
     )
 
 
-def to_json_pattern_union_resolution(value: PatternUnionResolution) -> Json:
-    """Return one JSON value for one PatternUnionResolution."""
+def to_json_pattern_or_resolution(value: PatternOrResolution) -> Json:
+    """Return one JSON value for one PatternOrResolution."""
     return {
-        "alternatives": [
+        "patterns": [
             destack._generated.dir.tree.node.to_json_global_node_id_any(item_0)
-            for item_0 in value.alternatives
+            for item_0 in value.patterns
         ],
     }
 
 
-def from_json_pattern_union_resolution(value: Json) -> PatternUnionResolution:
-    """Return one PatternUnionResolution from one JSON value."""
+def from_json_pattern_or_resolution(value: Json) -> PatternOrResolution:
+    """Return one PatternOrResolution from one JSON value."""
     object_ = json_object(value)
 
-    return PatternUnionResolution(
-        alternatives=[
+    return PatternOrResolution(
+        patterns=[
             destack._generated.dir.tree.node.from_json_global_node_id_any(item_0)
-            for item_0 in json_array(json_field(object_, "alternatives"))
+            for item_0 in json_array(json_field(object_, "patterns"))
         ],
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class PatternBorrowResolution:
-    """Borrow operation selected by one pattern."""
-
-    # the requested borrow access, if source explicit
-    access: destack._generated.dir.type.type.Access | None
-    # the pattern matched through the borrow
-    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_borrow_resolution(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternBorrowResolution:
-        """Decode one PatternBorrowResolution."""
-        return decode_pattern_borrow_resolution(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_borrow_resolution(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> PatternBorrowResolution:
-        """Return one PatternBorrowResolution from one JSON value."""
-        return from_json_pattern_borrow_resolution(value)
-
-
-def encode_pattern_borrow_resolution(
-    writer: BinaryWriter, value: PatternBorrowResolution
-) -> None:
-    """Encode one PatternBorrowResolution."""
-    if value.access is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_access(writer, value.access)
-    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.pattern)
-
-
-def decode_pattern_borrow_resolution(reader: BinaryReader) -> PatternBorrowResolution:
-    """Decode one PatternBorrowResolution."""
-    access = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_access(reader)
-    )
-    pattern = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-
-    return PatternBorrowResolution(
-        access=access,
-        pattern=pattern,
-    )
-
-
-def to_json_pattern_borrow_resolution(value: PatternBorrowResolution) -> Json:
-    """Return one JSON value for one PatternBorrowResolution."""
-    return {
-        **(
-            {}
-            if value.access is None
-            else {
-                "access": destack._generated.dir.type.type.to_json_access(value.access)
-            }
-        ),
-        "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
-            value.pattern
-        ),
-    }
-
-
-def from_json_pattern_borrow_resolution(value: Json) -> PatternBorrowResolution:
-    """Return one PatternBorrowResolution from one JSON value."""
-    object_ = json_object(value)
-
-    return PatternBorrowResolution(
-        access=json_optional(
-            object_,
-            "access",
-            lambda value: destack._generated.dir.type.type.from_json_access(value),
-        ),
-        pattern=destack._generated.dir.tree.node.from_json_global_node_id_any(
-            json_field(object_, "pattern")
-        ),
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class PatternMoveResolution:
-    """Move operation selected by one pattern."""
-
-    # the requested move access, if source explicit
-    access: destack._generated.dir.type.type.Access | None
-    # the pattern matched after moving
-    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_move_resolution(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternMoveResolution:
-        """Decode one PatternMoveResolution."""
-        return decode_pattern_move_resolution(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_move_resolution(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> PatternMoveResolution:
-        """Return one PatternMoveResolution from one JSON value."""
-        return from_json_pattern_move_resolution(value)
-
-
-def encode_pattern_move_resolution(
-    writer: BinaryWriter, value: PatternMoveResolution
-) -> None:
-    """Encode one PatternMoveResolution."""
-    if value.access is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.type.encode_access(writer, value.access)
-    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.pattern)
-
-
-def decode_pattern_move_resolution(reader: BinaryReader) -> PatternMoveResolution:
-    """Decode one PatternMoveResolution."""
-    access = reader.read_option(
-        lambda: destack._generated.dir.type.type.decode_access(reader)
-    )
-    pattern = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-
-    return PatternMoveResolution(
-        access=access,
-        pattern=pattern,
-    )
-
-
-def to_json_pattern_move_resolution(value: PatternMoveResolution) -> Json:
-    """Return one JSON value for one PatternMoveResolution."""
-    return {
-        **(
-            {}
-            if value.access is None
-            else {
-                "access": destack._generated.dir.type.type.to_json_access(value.access)
-            }
-        ),
-        "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
-            value.pattern
-        ),
-    }
-
-
-def from_json_pattern_move_resolution(value: Json) -> PatternMoveResolution:
-    """Return one PatternMoveResolution from one JSON value."""
-    object_ = json_object(value)
-
-    return PatternMoveResolution(
-        access=json_optional(
-            object_,
-            "access",
-            lambda value: destack._generated.dir.type.type.from_json_access(value),
-        ),
-        pattern=destack._generated.dir.tree.node.from_json_global_node_id_any(
-            json_field(object_, "pattern")
-        ),
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class PatternDereferenceResolution:
-    """Dereference operation selected by one pattern."""
-
-    # the pattern matched through the dereference
-    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_pattern_dereference_resolution(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> PatternDereferenceResolution:
-        """Decode one PatternDereferenceResolution."""
-        return decode_pattern_dereference_resolution(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_pattern_dereference_resolution(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> PatternDereferenceResolution:
-        """Return one PatternDereferenceResolution from one JSON value."""
-        return from_json_pattern_dereference_resolution(value)
-
-
-def encode_pattern_dereference_resolution(
-    writer: BinaryWriter, value: PatternDereferenceResolution
-) -> None:
-    """Encode one PatternDereferenceResolution."""
-    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.pattern)
-
-
-def decode_pattern_dereference_resolution(
-    reader: BinaryReader,
-) -> PatternDereferenceResolution:
-    """Decode one PatternDereferenceResolution."""
-    pattern = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-
-    return PatternDereferenceResolution(
-        pattern=pattern,
-    )
-
-
-def to_json_pattern_dereference_resolution(value: PatternDereferenceResolution) -> Json:
-    """Return one JSON value for one PatternDereferenceResolution."""
-    return {
-        "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
-            value.pattern
-        ),
-    }
-
-
-def from_json_pattern_dereference_resolution(
-    value: Json,
-) -> PatternDereferenceResolution:
-    """Return one PatternDereferenceResolution from one JSON value."""
-    object_ = json_object(value)
-
-    return PatternDereferenceResolution(
-        pattern=destack._generated.dir.tree.node.from_json_global_node_id_any(
-            json_field(object_, "pattern")
-        ),
     )
 
 
@@ -3763,7 +4434,7 @@ def from_json_pattern_dereference_resolution(
 class AssignPatternResolutionPlace:
     """Direct writable place target, like `value` or `object.field`."""
 
-    place: AssignPatternPlaceResolution
+    place: PlaceResolution
     kind: typing.Literal["place"] = "place"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -3808,6 +4479,22 @@ class AssignPatternResolutionSequence:
 
 
 @dataclass(frozen=True, slots=True)
+class AssignPatternResolutionTuple:
+    """Tuple destructuring target, like `(x, y)` or `(x,)`."""
+
+    tuple: AssignPatternTupleResolution
+    kind: typing.Literal["tuple"] = "tuple"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_assign_pattern_resolution(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_assign_pattern_resolution(self)
+
+
+@dataclass(frozen=True, slots=True)
 class AssignPatternResolutionObject:
     """Object destructuring target, like `{ name, age: years }`."""
 
@@ -3828,6 +4515,7 @@ AssignPatternResolution: typing.TypeAlias = (
     AssignPatternResolutionPlace
     | AssignPatternResolutionDefault
     | AssignPatternResolutionSequence
+    | AssignPatternResolutionTuple
     | AssignPatternResolutionObject
 )
 
@@ -3838,15 +4526,18 @@ def encode_assign_pattern_resolution(
     """Encode one AssignPatternResolution."""
     if value.kind == "place":
         writer.write_unsigned(0)
-        encode_assign_pattern_place_resolution(writer, value.place)
+        encode_place_resolution(writer, value.place)
     elif value.kind == "default":
         writer.write_unsigned(1)
         encode_assign_pattern_default_resolution(writer, value.default)
     elif value.kind == "sequence":
         writer.write_unsigned(2)
         encode_assign_pattern_sequence_resolution(writer, value.sequence)
-    elif value.kind == "object":
+    elif value.kind == "tuple":
         writer.write_unsigned(3)
+        encode_assign_pattern_tuple_resolution(writer, value.tuple)
+    elif value.kind == "object":
+        writer.write_unsigned(4)
         encode_assign_pattern_object_resolution(writer, value.object)
     else:
         raise SerdeError("unknown enum variant")
@@ -3857,7 +4548,7 @@ def decode_assign_pattern_resolution(reader: BinaryReader) -> AssignPatternResol
     variant = reader.read_number()
 
     if variant == 0:
-        place = decode_assign_pattern_place_resolution(reader)
+        place = decode_place_resolution(reader)
 
         return AssignPatternResolutionPlace(place=place)
     elif variant == 1:
@@ -3869,6 +4560,10 @@ def decode_assign_pattern_resolution(reader: BinaryReader) -> AssignPatternResol
 
         return AssignPatternResolutionSequence(sequence=sequence)
     elif variant == 3:
+        tuple = decode_assign_pattern_tuple_resolution(reader)
+
+        return AssignPatternResolutionTuple(tuple=tuple)
+    elif variant == 4:
         object = decode_assign_pattern_object_resolution(reader)
 
         return AssignPatternResolutionObject(object=object)
@@ -3881,7 +4576,7 @@ def to_json_assign_pattern_resolution(value: AssignPatternResolution) -> Json:
     if value.kind == "place":
         return {
             "kind": "place",
-            "place": to_json_assign_pattern_place_resolution(value.place),
+            "place": to_json_place_resolution(value.place),
         }
     elif value.kind == "default":
         return {
@@ -3892,6 +4587,11 @@ def to_json_assign_pattern_resolution(value: AssignPatternResolution) -> Json:
         return {
             "kind": "sequence",
             "sequence": to_json_assign_pattern_sequence_resolution(value.sequence),
+        }
+    elif value.kind == "tuple":
+        return {
+            "kind": "tuple",
+            "tuple": to_json_assign_pattern_tuple_resolution(value.tuple),
         }
     elif value.kind == "object":
         return {
@@ -3909,9 +4609,7 @@ def from_json_assign_pattern_resolution(value: Json) -> AssignPatternResolution:
 
     if kind == "place":
         return AssignPatternResolutionPlace(
-            place=from_json_assign_pattern_place_resolution(
-                json_field(object_, "place")
-            )
+            place=from_json_place_resolution(json_field(object_, "place"))
         )
     elif kind == "default":
         return AssignPatternResolutionDefault(
@@ -3925,6 +4623,12 @@ def from_json_assign_pattern_resolution(value: Json) -> AssignPatternResolution:
                 json_field(object_, "sequence")
             )
         )
+    elif kind == "tuple":
+        return AssignPatternResolutionTuple(
+            tuple=from_json_assign_pattern_tuple_resolution(
+                json_field(object_, "tuple")
+            )
+        )
     elif kind == "object":
         return AssignPatternResolutionObject(
             object=from_json_assign_pattern_object_resolution(
@@ -3933,74 +4637,6 @@ def from_json_assign_pattern_resolution(value: Json) -> AssignPatternResolution:
         )
     else:
         raise SerdeError(f"unknown enum variant: {kind}")
-
-
-@dataclass(frozen=True, slots=True)
-class AssignPatternPlaceResolution:
-    """Direct assignment place selected during checking."""
-
-    # the expression node that designates the writable place
-    target: destack._generated.dir.tree.node.GlobalNodeIdAny
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_assign_pattern_place_resolution(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> AssignPatternPlaceResolution:
-        """Decode one AssignPatternPlaceResolution."""
-        return decode_assign_pattern_place_resolution(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_assign_pattern_place_resolution(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> AssignPatternPlaceResolution:
-        """Return one AssignPatternPlaceResolution from one JSON value."""
-        return from_json_assign_pattern_place_resolution(value)
-
-
-def encode_assign_pattern_place_resolution(
-    writer: BinaryWriter, value: AssignPatternPlaceResolution
-) -> None:
-    """Encode one AssignPatternPlaceResolution."""
-    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.target)
-
-
-def decode_assign_pattern_place_resolution(
-    reader: BinaryReader,
-) -> AssignPatternPlaceResolution:
-    """Decode one AssignPatternPlaceResolution."""
-    target = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-
-    return AssignPatternPlaceResolution(
-        target=target,
-    )
-
-
-def to_json_assign_pattern_place_resolution(
-    value: AssignPatternPlaceResolution,
-) -> Json:
-    """Return one JSON value for one AssignPatternPlaceResolution."""
-    return {
-        "target": destack._generated.dir.tree.node.to_json_global_node_id_any(
-            value.target
-        ),
-    }
-
-
-def from_json_assign_pattern_place_resolution(
-    value: Json,
-) -> AssignPatternPlaceResolution:
-    """Return one AssignPatternPlaceResolution from one JSON value."""
-    object_ = json_object(value)
-
-    return AssignPatternPlaceResolution(
-        target=destack._generated.dir.tree.node.from_json_global_node_id_any(
-            json_field(object_, "target")
-        ),
-    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -4086,10 +4722,12 @@ def from_json_assign_pattern_default_resolution(
 class AssignPatternSequenceResolution:
     """Ordered assignment destructuring selected during checking."""
 
+    # the sequence arity required by the assignment target
+    arity: PatternSequenceArity
     # the fixed fields in source order
     fields: Sequence[AssignPatternFieldResolution]
     # the rest target, when present
-    rest: AssignPatternRestResolution | None
+    rest: AssignPatternFieldResolution | None
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -4114,6 +4752,7 @@ def encode_assign_pattern_sequence_resolution(
     writer: BinaryWriter, value: AssignPatternSequenceResolution
 ) -> None:
     """Encode one AssignPatternSequenceResolution."""
+    encode_pattern_sequence_arity(writer, value.arity)
     writer.write_unsigned(len(value.fields))
     for item_value_fields_0 in value.fields:
         encode_assign_pattern_field_resolution(writer, item_value_fields_0)
@@ -4121,20 +4760,22 @@ def encode_assign_pattern_sequence_resolution(
         writer.write_byte(0)
     else:
         writer.write_byte(1)
-        encode_assign_pattern_rest_resolution(writer, value.rest)
+        encode_assign_pattern_field_resolution(writer, value.rest)
 
 
 def decode_assign_pattern_sequence_resolution(
     reader: BinaryReader,
 ) -> AssignPatternSequenceResolution:
     """Decode one AssignPatternSequenceResolution."""
+    arity = decode_pattern_sequence_arity(reader)
     fields = [
         decode_assign_pattern_field_resolution(reader)
         for _ in range(reader.read_number())
     ]
-    rest = reader.read_option(lambda: decode_assign_pattern_rest_resolution(reader))
+    rest = reader.read_option(lambda: decode_assign_pattern_field_resolution(reader))
 
     return AssignPatternSequenceResolution(
+        arity=arity,
         fields=fields,
         rest=rest,
     )
@@ -4145,13 +4786,14 @@ def to_json_assign_pattern_sequence_resolution(
 ) -> Json:
     """Return one JSON value for one AssignPatternSequenceResolution."""
     return {
+        "arity": to_json_pattern_sequence_arity(value.arity),
         "fields": [
             to_json_assign_pattern_field_resolution(item_0) for item_0 in value.fields
         ],
         **(
             {}
             if value.rest is None
-            else {"rest": to_json_assign_pattern_rest_resolution(value.rest)}
+            else {"rest": to_json_assign_pattern_field_resolution(value.rest)}
         ),
     }
 
@@ -4163,6 +4805,7 @@ def from_json_assign_pattern_sequence_resolution(
     object_ = json_object(value)
 
     return AssignPatternSequenceResolution(
+        arity=from_json_pattern_sequence_arity(json_field(object_, "arity")),
         fields=[
             from_json_assign_pattern_field_resolution(item_0)
             for item_0 in json_array(json_field(object_, "fields"))
@@ -4170,7 +4813,7 @@ def from_json_assign_pattern_sequence_resolution(
         rest=json_optional(
             object_,
             "rest",
-            lambda value: from_json_assign_pattern_rest_resolution(value),
+            lambda value: from_json_assign_pattern_field_resolution(value),
         ),
     )
 
@@ -4181,8 +4824,8 @@ class AssignPatternFieldResolution:
 
     # the source node that introduces the field
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
-    # the selected field target
-    target: PatternFieldTarget
+    # the selected field projection
+    projection: destack._generated.dir.type.projection.Projection
     # the nested assignment target
     pattern: destack._generated.dir.tree.node.GlobalNodeIdAny | None
 
@@ -4210,7 +4853,7 @@ def encode_assign_pattern_field_resolution(
 ) -> None:
     """Encode one AssignPatternFieldResolution."""
     destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
-    encode_pattern_field_target(writer, value.target)
+    destack._generated.dir.type.projection.encode_projection(writer, value.projection)
     if value.pattern is None:
         writer.write_byte(0)
     else:
@@ -4225,14 +4868,14 @@ def decode_assign_pattern_field_resolution(
 ) -> AssignPatternFieldResolution:
     """Decode one AssignPatternFieldResolution."""
     source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-    target = decode_pattern_field_target(reader)
+    projection = destack._generated.dir.type.projection.decode_projection(reader)
     pattern = reader.read_option(
         lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
     )
 
     return AssignPatternFieldResolution(
         source=source,
-        target=target,
+        projection=projection,
         pattern=pattern,
     )
 
@@ -4245,7 +4888,9 @@ def to_json_assign_pattern_field_resolution(
         "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
             value.source
         ),
-        "target": to_json_pattern_field_target(value.target),
+        "projection": destack._generated.dir.type.projection.to_json_projection(
+            value.projection
+        ),
         **(
             {}
             if value.pattern is None
@@ -4268,7 +4913,9 @@ def from_json_assign_pattern_field_resolution(
         source=destack._generated.dir.tree.node.from_json_global_node_id_any(
             json_field(object_, "source")
         ),
-        target=from_json_pattern_field_target(json_field(object_, "target")),
+        projection=destack._generated.dir.type.projection.from_json_projection(
+            json_field(object_, "projection")
+        ),
         pattern=json_optional(
             object_,
             "pattern",
@@ -4280,97 +4927,76 @@ def from_json_assign_pattern_field_resolution(
 
 
 @dataclass(frozen=True, slots=True)
-class AssignPatternRestResolution:
-    """Rest field selected by one assignment destructuring pattern."""
+class AssignPatternTupleResolution:
+    """Tuple assignment destructuring selected during checking."""
 
-    # the source node that introduces the rest field
-    source: destack._generated.dir.tree.node.GlobalNodeIdAny
-    # the nested assignment target
-    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny | None
+    # the projected tuple fields in source order
+    fields: Sequence[AssignPatternFieldResolution]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_assign_pattern_rest_resolution(writer, self)
+        encode_assign_pattern_tuple_resolution(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> AssignPatternRestResolution:
-        """Decode one AssignPatternRestResolution."""
-        return decode_assign_pattern_rest_resolution(reader)
+    def decode(cls, reader: BinaryReader) -> AssignPatternTupleResolution:
+        """Decode one AssignPatternTupleResolution."""
+        return decode_assign_pattern_tuple_resolution(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_assign_pattern_rest_resolution(self)
+        return to_json_assign_pattern_tuple_resolution(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> AssignPatternRestResolution:
-        """Return one AssignPatternRestResolution from one JSON value."""
-        return from_json_assign_pattern_rest_resolution(value)
+    def from_json(cls, value: Json) -> AssignPatternTupleResolution:
+        """Return one AssignPatternTupleResolution from one JSON value."""
+        return from_json_assign_pattern_tuple_resolution(value)
 
 
-def encode_assign_pattern_rest_resolution(
-    writer: BinaryWriter, value: AssignPatternRestResolution
+def encode_assign_pattern_tuple_resolution(
+    writer: BinaryWriter, value: AssignPatternTupleResolution
 ) -> None:
-    """Encode one AssignPatternRestResolution."""
-    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
-    if value.pattern is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.tree.node.encode_global_node_id_any(
-            writer, value.pattern
-        )
+    """Encode one AssignPatternTupleResolution."""
+    writer.write_unsigned(len(value.fields))
+    for item_value_fields_0 in value.fields:
+        encode_assign_pattern_field_resolution(writer, item_value_fields_0)
 
 
-def decode_assign_pattern_rest_resolution(
+def decode_assign_pattern_tuple_resolution(
     reader: BinaryReader,
-) -> AssignPatternRestResolution:
-    """Decode one AssignPatternRestResolution."""
-    source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
-    pattern = reader.read_option(
-        lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+) -> AssignPatternTupleResolution:
+    """Decode one AssignPatternTupleResolution."""
+    fields = [
+        decode_assign_pattern_field_resolution(reader)
+        for _ in range(reader.read_number())
+    ]
+
+    return AssignPatternTupleResolution(
+        fields=fields,
     )
 
-    return AssignPatternRestResolution(
-        source=source,
-        pattern=pattern,
-    )
 
-
-def to_json_assign_pattern_rest_resolution(value: AssignPatternRestResolution) -> Json:
-    """Return one JSON value for one AssignPatternRestResolution."""
+def to_json_assign_pattern_tuple_resolution(
+    value: AssignPatternTupleResolution,
+) -> Json:
+    """Return one JSON value for one AssignPatternTupleResolution."""
     return {
-        "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
-            value.source
-        ),
-        **(
-            {}
-            if value.pattern is None
-            else {
-                "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
-                    value.pattern
-                )
-            }
-        ),
+        "fields": [
+            to_json_assign_pattern_field_resolution(item_0) for item_0 in value.fields
+        ],
     }
 
 
-def from_json_assign_pattern_rest_resolution(
+def from_json_assign_pattern_tuple_resolution(
     value: Json,
-) -> AssignPatternRestResolution:
-    """Return one AssignPatternRestResolution from one JSON value."""
+) -> AssignPatternTupleResolution:
+    """Return one AssignPatternTupleResolution from one JSON value."""
     object_ = json_object(value)
 
-    return AssignPatternRestResolution(
-        source=destack._generated.dir.tree.node.from_json_global_node_id_any(
-            json_field(object_, "source")
-        ),
-        pattern=json_optional(
-            object_,
-            "pattern",
-            lambda value: destack._generated.dir.tree.node.from_json_global_node_id_any(
-                value
-            ),
-        ),
+    return AssignPatternTupleResolution(
+        fields=[
+            from_json_assign_pattern_field_resolution(item_0)
+            for item_0 in json_array(json_field(object_, "fields"))
+        ],
     )
 
 
@@ -4467,12 +5093,123 @@ def from_json_assign_pattern_object_resolution(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class AssignPatternRestResolution:
+    """Rest field selected by one assignment destructuring pattern."""
+
+    # the source node that introduces the rest field
+    source: destack._generated.dir.tree.node.GlobalNodeIdAny
+    # the materialized rest projection
+    projection: destack._generated.dir.type.projection.Projection
+    # the nested assignment target
+    pattern: destack._generated.dir.tree.node.GlobalNodeIdAny | None
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_assign_pattern_rest_resolution(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> AssignPatternRestResolution:
+        """Decode one AssignPatternRestResolution."""
+        return decode_assign_pattern_rest_resolution(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_assign_pattern_rest_resolution(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> AssignPatternRestResolution:
+        """Return one AssignPatternRestResolution from one JSON value."""
+        return from_json_assign_pattern_rest_resolution(value)
+
+
+def encode_assign_pattern_rest_resolution(
+    writer: BinaryWriter, value: AssignPatternRestResolution
+) -> None:
+    """Encode one AssignPatternRestResolution."""
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
+    destack._generated.dir.type.projection.encode_projection(writer, value.projection)
+    if value.pattern is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        destack._generated.dir.tree.node.encode_global_node_id_any(
+            writer, value.pattern
+        )
+
+
+def decode_assign_pattern_rest_resolution(
+    reader: BinaryReader,
+) -> AssignPatternRestResolution:
+    """Decode one AssignPatternRestResolution."""
+    source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    projection = destack._generated.dir.type.projection.decode_projection(reader)
+    pattern = reader.read_option(
+        lambda: destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    )
+
+    return AssignPatternRestResolution(
+        source=source,
+        projection=projection,
+        pattern=pattern,
+    )
+
+
+def to_json_assign_pattern_rest_resolution(value: AssignPatternRestResolution) -> Json:
+    """Return one JSON value for one AssignPatternRestResolution."""
+    return {
+        "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
+            value.source
+        ),
+        "projection": destack._generated.dir.type.projection.to_json_projection(
+            value.projection
+        ),
+        **(
+            {}
+            if value.pattern is None
+            else {
+                "pattern": destack._generated.dir.tree.node.to_json_global_node_id_any(
+                    value.pattern
+                )
+            }
+        ),
+    }
+
+
+def from_json_assign_pattern_rest_resolution(
+    value: Json,
+) -> AssignPatternRestResolution:
+    """Return one AssignPatternRestResolution from one JSON value."""
+    object_ = json_object(value)
+
+    return AssignPatternRestResolution(
+        source=destack._generated.dir.tree.node.from_json_global_node_id_any(
+            json_field(object_, "source")
+        ),
+        projection=destack._generated.dir.type.projection.from_json_projection(
+            json_field(object_, "projection")
+        ),
+        pattern=json_optional(
+            object_,
+            "pattern",
+            lambda value: destack._generated.dir.tree.node.from_json_global_node_id_any(
+                value
+            ),
+        ),
+    )
+
+
 __all__ = [
     "NameResolution",
     "encode_name_resolution",
     "decode_name_resolution",
     "to_json_name_resolution",
     "from_json_name_resolution",
+    "InstantiationResolution",
+    "encode_instantiation_resolution",
+    "decode_instantiation_resolution",
+    "to_json_instantiation_resolution",
+    "from_json_instantiation_resolution",
     "LabelResolution",
     "encode_label_resolution",
     "decode_label_resolution",
@@ -4538,11 +5275,44 @@ __all__ = [
     "decode_call_candidate",
     "to_json_call_candidate",
     "from_json_call_candidate",
-    "ReadWriteResolution",
-    "encode_read_write_resolution",
-    "decode_read_write_resolution",
-    "to_json_read_write_resolution",
-    "from_json_read_write_resolution",
+    "PlaceResolution",
+    "encode_place_resolution",
+    "decode_place_resolution",
+    "to_json_place_resolution",
+    "from_json_place_resolution",
+    "Storage",
+    "encode_storage",
+    "decode_storage",
+    "to_json_storage",
+    "from_json_storage",
+    "StorageBinding",
+    "StorageField",
+    "StorageProperty",
+    "StorageSubscript",
+    "StorageDereference",
+    "GuardResolution",
+    "encode_guard_resolution",
+    "decode_guard_resolution",
+    "to_json_guard_resolution",
+    "from_json_guard_resolution",
+    "GuardResolutionIs",
+    "GuardResolutionInstanceOf",
+    "GuardResolutionIn",
+    "IsGuardResolution",
+    "encode_is_guard_resolution",
+    "decode_is_guard_resolution",
+    "to_json_is_guard_resolution",
+    "from_json_is_guard_resolution",
+    "InstanceOfGuardResolution",
+    "encode_instance_of_guard_resolution",
+    "decode_instance_of_guard_resolution",
+    "to_json_instance_of_guard_resolution",
+    "from_json_instance_of_guard_resolution",
+    "InGuardResolution",
+    "encode_in_guard_resolution",
+    "decode_in_guard_resolution",
+    "to_json_in_guard_resolution",
+    "from_json_in_guard_resolution",
     "ConstructResolution",
     "encode_construct_resolution",
     "decode_construct_resolution",
@@ -4555,6 +5325,7 @@ __all__ = [
     "from_json_construct_target",
     "ConstructTargetClass",
     "ConstructTargetNewtype",
+    "ConstructTargetVariant",
     "ClassConstructCandidate",
     "encode_class_construct_candidate",
     "decode_class_construct_candidate",
@@ -4565,110 +5336,99 @@ __all__ = [
     "decode_newtype_construct_candidate",
     "to_json_newtype_construct_candidate",
     "from_json_newtype_construct_candidate",
+    "VariantConstructCandidate",
+    "encode_variant_construct_candidate",
+    "decode_variant_construct_candidate",
+    "to_json_variant_construct_candidate",
+    "from_json_variant_construct_candidate",
     "PatternResolution",
     "encode_pattern_resolution",
     "decode_pattern_resolution",
     "to_json_pattern_resolution",
     "from_json_pattern_resolution",
-    "PatternResolutionWildcard",
-    "PatternResolutionBinding",
-    "PatternResolutionLiteral",
-    "PatternResolutionRange",
-    "PatternResolutionTuple",
-    "PatternResolutionSequence",
-    "PatternResolutionShape",
-    "PatternResolutionNominal",
-    "PatternResolutionNewtype",
-    "PatternResolutionVariant",
-    "PatternResolutionUnion",
-    "PatternResolutionBorrow",
-    "PatternResolutionMove",
-    "PatternResolutionDereference",
+    "PatternResolutionIgnore",
+    "PatternResolutionBind",
+    "PatternResolutionMust",
+    "PatternResolutionDefault",
+    "PatternResolutionTest",
+    "PatternResolutionProject",
+    "PatternResolutionDestructure",
+    "PatternResolutionOr",
     "PatternBindingResolution",
     "encode_pattern_binding_resolution",
     "decode_pattern_binding_resolution",
     "to_json_pattern_binding_resolution",
     "from_json_pattern_binding_resolution",
-    "PatternLiteralResolution",
-    "encode_pattern_literal_resolution",
-    "decode_pattern_literal_resolution",
-    "to_json_pattern_literal_resolution",
-    "from_json_pattern_literal_resolution",
-    "PatternRangeResolution",
-    "encode_pattern_range_resolution",
-    "decode_pattern_range_resolution",
-    "to_json_pattern_range_resolution",
-    "from_json_pattern_range_resolution",
-    "PatternTupleResolution",
-    "encode_pattern_tuple_resolution",
-    "decode_pattern_tuple_resolution",
-    "to_json_pattern_tuple_resolution",
-    "from_json_pattern_tuple_resolution",
+    "PatternMustResolution",
+    "encode_pattern_must_resolution",
+    "decode_pattern_must_resolution",
+    "to_json_pattern_must_resolution",
+    "from_json_pattern_must_resolution",
+    "PatternDefaultResolution",
+    "encode_pattern_default_resolution",
+    "decode_pattern_default_resolution",
+    "to_json_pattern_default_resolution",
+    "from_json_pattern_default_resolution",
+    "PatternPredicateResolution",
+    "encode_pattern_predicate_resolution",
+    "decode_pattern_predicate_resolution",
+    "to_json_pattern_predicate_resolution",
+    "from_json_pattern_predicate_resolution",
+    "PatternProjectionResolution",
+    "encode_pattern_projection_resolution",
+    "decode_pattern_projection_resolution",
+    "to_json_pattern_projection_resolution",
+    "from_json_pattern_projection_resolution",
+    "PatternDestructureResolution",
+    "encode_pattern_destructure_resolution",
+    "decode_pattern_destructure_resolution",
+    "to_json_pattern_destructure_resolution",
+    "from_json_pattern_destructure_resolution",
+    "PatternDestructureResolutionTuple",
+    "PatternDestructureResolutionObject",
+    "PatternDestructureResolutionNominal",
+    "PatternDestructureResolutionSequence",
+    "PatternDestructureResolutionVariant",
+    "PatternTupleDestructureResolution",
+    "encode_pattern_tuple_destructure_resolution",
+    "decode_pattern_tuple_destructure_resolution",
+    "to_json_pattern_tuple_destructure_resolution",
+    "from_json_pattern_tuple_destructure_resolution",
     "PatternFieldResolution",
     "encode_pattern_field_resolution",
     "decode_pattern_field_resolution",
     "to_json_pattern_field_resolution",
     "from_json_pattern_field_resolution",
-    "PatternFieldTarget",
-    "encode_pattern_field_target",
-    "decode_pattern_field_target",
-    "to_json_pattern_field_target",
-    "from_json_pattern_field_target",
-    "PatternFieldTargetKey",
-    "PatternFieldTargetIndex",
-    "PatternSequenceResolution",
-    "encode_pattern_sequence_resolution",
-    "decode_pattern_sequence_resolution",
-    "to_json_pattern_sequence_resolution",
-    "from_json_pattern_sequence_resolution",
-    "PatternSequenceResolutionArray",
-    "PatternSequenceResolutionSlice",
-    "PatternSequenceResolutionFixedArray",
-    "PatternRestResolution",
-    "encode_pattern_rest_resolution",
-    "decode_pattern_rest_resolution",
-    "to_json_pattern_rest_resolution",
-    "from_json_pattern_rest_resolution",
-    "PatternShapeResolution",
-    "encode_pattern_shape_resolution",
-    "decode_pattern_shape_resolution",
-    "to_json_pattern_shape_resolution",
-    "from_json_pattern_shape_resolution",
-    "PatternNominalResolution",
-    "encode_pattern_nominal_resolution",
-    "decode_pattern_nominal_resolution",
-    "to_json_pattern_nominal_resolution",
-    "from_json_pattern_nominal_resolution",
-    "PatternNewtypeResolution",
-    "encode_pattern_newtype_resolution",
-    "decode_pattern_newtype_resolution",
-    "to_json_pattern_newtype_resolution",
-    "from_json_pattern_newtype_resolution",
-    "PatternVariantResolution",
-    "encode_pattern_variant_resolution",
-    "decode_pattern_variant_resolution",
-    "to_json_pattern_variant_resolution",
-    "from_json_pattern_variant_resolution",
-    "PatternUnionResolution",
-    "encode_pattern_union_resolution",
-    "decode_pattern_union_resolution",
-    "to_json_pattern_union_resolution",
-    "from_json_pattern_union_resolution",
-    "PatternBorrowResolution",
-    "encode_pattern_borrow_resolution",
-    "decode_pattern_borrow_resolution",
-    "to_json_pattern_borrow_resolution",
-    "from_json_pattern_borrow_resolution",
-    "PatternMoveResolution",
-    "encode_pattern_move_resolution",
-    "decode_pattern_move_resolution",
-    "to_json_pattern_move_resolution",
-    "from_json_pattern_move_resolution",
-    "PatternDereferenceResolution",
-    "encode_pattern_dereference_resolution",
-    "decode_pattern_dereference_resolution",
-    "to_json_pattern_dereference_resolution",
-    "from_json_pattern_dereference_resolution",
+    "PatternObjectDestructureResolution",
+    "encode_pattern_object_destructure_resolution",
+    "decode_pattern_object_destructure_resolution",
+    "to_json_pattern_object_destructure_resolution",
+    "from_json_pattern_object_destructure_resolution",
+    "PatternNominalDestructureResolution",
+    "encode_pattern_nominal_destructure_resolution",
+    "decode_pattern_nominal_destructure_resolution",
+    "to_json_pattern_nominal_destructure_resolution",
+    "from_json_pattern_nominal_destructure_resolution",
+    "PatternSequenceDestructureResolution",
+    "encode_pattern_sequence_destructure_resolution",
+    "decode_pattern_sequence_destructure_resolution",
+    "to_json_pattern_sequence_destructure_resolution",
+    "from_json_pattern_sequence_destructure_resolution",
+    "PatternSequenceArity",
+    "encode_pattern_sequence_arity",
+    "decode_pattern_sequence_arity",
+    "to_json_pattern_sequence_arity",
+    "from_json_pattern_sequence_arity",
+    "PatternVariantDestructureResolution",
+    "encode_pattern_variant_destructure_resolution",
+    "decode_pattern_variant_destructure_resolution",
+    "to_json_pattern_variant_destructure_resolution",
+    "from_json_pattern_variant_destructure_resolution",
+    "PatternOrResolution",
+    "encode_pattern_or_resolution",
+    "decode_pattern_or_resolution",
+    "to_json_pattern_or_resolution",
+    "from_json_pattern_or_resolution",
     "AssignPatternResolution",
     "encode_assign_pattern_resolution",
     "decode_assign_pattern_resolution",
@@ -4677,12 +5437,8 @@ __all__ = [
     "AssignPatternResolutionPlace",
     "AssignPatternResolutionDefault",
     "AssignPatternResolutionSequence",
+    "AssignPatternResolutionTuple",
     "AssignPatternResolutionObject",
-    "AssignPatternPlaceResolution",
-    "encode_assign_pattern_place_resolution",
-    "decode_assign_pattern_place_resolution",
-    "to_json_assign_pattern_place_resolution",
-    "from_json_assign_pattern_place_resolution",
     "AssignPatternDefaultResolution",
     "encode_assign_pattern_default_resolution",
     "decode_assign_pattern_default_resolution",
@@ -4698,14 +5454,19 @@ __all__ = [
     "decode_assign_pattern_field_resolution",
     "to_json_assign_pattern_field_resolution",
     "from_json_assign_pattern_field_resolution",
-    "AssignPatternRestResolution",
-    "encode_assign_pattern_rest_resolution",
-    "decode_assign_pattern_rest_resolution",
-    "to_json_assign_pattern_rest_resolution",
-    "from_json_assign_pattern_rest_resolution",
+    "AssignPatternTupleResolution",
+    "encode_assign_pattern_tuple_resolution",
+    "decode_assign_pattern_tuple_resolution",
+    "to_json_assign_pattern_tuple_resolution",
+    "from_json_assign_pattern_tuple_resolution",
     "AssignPatternObjectResolution",
     "encode_assign_pattern_object_resolution",
     "decode_assign_pattern_object_resolution",
     "to_json_assign_pattern_object_resolution",
     "from_json_assign_pattern_object_resolution",
+    "AssignPatternRestResolution",
+    "encode_assign_pattern_rest_resolution",
+    "decode_assign_pattern_rest_resolution",
+    "to_json_assign_pattern_rest_resolution",
+    "from_json_assign_pattern_rest_resolution",
 ]

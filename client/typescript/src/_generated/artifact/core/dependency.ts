@@ -3,12 +3,14 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonBigint, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { ArtifactKey } from "./key.js";
 import type { ArtifactVersion } from "./version.js";
+import type { ModuleIndexProjection } from "../index.js";
 import type { ComponentId } from "../../source/file/model/component.js";
 import type { ContentId } from "../../source/file/model/file.js";
 import type { FileId } from "../../source/file/model/file.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeArtifactKey, encodeArtifactKey, fromJsonArtifactKey, toJsonArtifactKey } from "./key.js";
 import { decodeArtifactVersion, encodeArtifactVersion, fromJsonArtifactVersion, toJsonArtifactVersion } from "./version.js";
+import { decodeModuleIndexProjection, encodeModuleIndexProjection, fromJsonModuleIndexProjection, toJsonModuleIndexProjection } from "../index.js";
 import { decodeComponentId, encodeComponentId, fromJsonComponentId, toJsonComponentId } from "../../source/file/model/component.js";
 import { decodeContentId, encodeContentId, fromJsonContentId, toJsonContentId } from "../../source/file/model/file.js";
 import { decodeFileId, encodeFileId, fromJsonFileId, toJsonFileId } from "../../source/file/model/file.js";
@@ -163,6 +165,11 @@ export type ArtifactProjectionKey =
           readonly kind: "dirChecked";
           readonly dir_checked: ModuleId;
       }
+    /** A module index projection. */
+    | {
+          readonly kind: "moduleIndex";
+          readonly module_index: ModuleIndexProjection;
+      }
 ;
 
 export const ArtifactProjectionKey = {
@@ -174,6 +181,11 @@ export const ArtifactProjectionKey = {
     /** A checked DIR module inside a checked component. */
     dirChecked(dir_checked: ModuleId): ArtifactProjectionKey {
         return { kind: "dirChecked", dir_checked };
+    },
+
+    /** A module index projection. */
+    moduleIndex(module_index: ModuleIndexProjection): ArtifactProjectionKey {
+        return { kind: "moduleIndex", module_index };
     },
 
     /** Encode this value. */
@@ -208,6 +220,10 @@ export function encodeArtifactProjectionKey(writer: BinaryWriter, value: Artifac
             writer.writeUnsigned(1);
             encodeModuleId(writer, value.dir_checked);
             return;
+        case "moduleIndex":
+            writer.writeUnsigned(2);
+            encodeModuleIndexProjection(writer, value.module_index);
+            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -228,6 +244,11 @@ export function decodeArtifactProjectionKey(reader: BinaryReader): ArtifactProje
 
             return { kind: "dirChecked", dir_checked };
         }
+        case 2: {
+            const module_index = decodeModuleIndexProjection(reader);
+
+            return { kind: "moduleIndex", module_index };
+        }
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -245,6 +266,11 @@ export function toJsonArtifactProjectionKey(value: ArtifactProjectionKey): Json 
             return {
                 kind: "dirChecked",
                 dir_checked: toJsonModuleId(value.dir_checked),
+            };
+        case "moduleIndex":
+            return {
+                kind: "moduleIndex",
+                module_index: toJsonModuleIndexProjection(value.module_index),
             };
     }
 
@@ -266,6 +292,11 @@ export function fromJsonArtifactProjectionKey(value: Json): ArtifactProjectionKe
             return {
                 kind,
                 dir_checked: fromJsonModuleId(jsonField(object, "dir_checked")),
+            };
+        case "moduleIndex":
+            return {
+                kind,
+                module_index: fromJsonModuleIndexProjection(jsonField(object, "module_index")),
             };
     }
 

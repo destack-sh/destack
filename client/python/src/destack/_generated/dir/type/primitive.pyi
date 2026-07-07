@@ -7,15 +7,15 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-@dataclass(frozen=True, slots=True)
-class IntegerTypeInteger:
-    """The signed or unsigned integer family, `int` or `uint`."""
+"""One width-less scalar source alias."""
+ScalarAlias: typing.TypeAlias = (
+    typing.Literal["int"] | typing.Literal["uint"] | typing.Literal["float"]
+)
 
-    is_signed: bool
-    kind: typing.Literal["integer"] = "integer"
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    def to_json(self) -> Json: ...
+def encode_scalar_alias(writer: BinaryWriter, value: ScalarAlias) -> None: ...
+def decode_scalar_alias(reader: BinaryReader) -> ScalarAlias: ...
+def to_json_scalar_alias(value: ScalarAlias) -> Json: ...
+def from_json_scalar_alias(value: Json) -> ScalarAlias: ...
 
 @dataclass(frozen=True, slots=True)
 class IntegerTypeFixed:
@@ -39,9 +39,7 @@ class IntegerTypePointer:
     def to_json(self) -> Json: ...
 
 """An integer type."""
-IntegerType: typing.TypeAlias = (
-    IntegerTypeInteger | IntegerTypeFixed | IntegerTypePointer
-)
+IntegerType: typing.TypeAlias = IntegerTypeFixed | IntegerTypePointer
 
 def encode_integer_type(writer: BinaryWriter, value: IntegerType) -> None: ...
 def decode_integer_type(reader: BinaryReader) -> IntegerType: ...
@@ -50,8 +48,7 @@ def from_json_integer_type(value: Json) -> IntegerType: ...
 
 """A floating-point type."""
 FloatType: typing.TypeAlias = (
-    typing.Literal["float"]
-    | typing.Literal["float16"]
+    typing.Literal["float16"]
     | typing.Literal["bfloat16"]
     | typing.Literal["float32"]
     | typing.Literal["float64"]
@@ -154,12 +151,16 @@ def to_json_primitive_type(value: PrimitiveType) -> Json: ...
 def from_json_primitive_type(value: Json) -> PrimitiveType: ...
 
 __all__ = [
+    "ScalarAlias",
+    "encode_scalar_alias",
+    "decode_scalar_alias",
+    "to_json_scalar_alias",
+    "from_json_scalar_alias",
     "IntegerType",
     "encode_integer_type",
     "decode_integer_type",
     "to_json_integer_type",
     "from_json_integer_type",
-    "IntegerTypeInteger",
     "IntegerTypeFixed",
     "IntegerTypePointer",
     "FloatType",

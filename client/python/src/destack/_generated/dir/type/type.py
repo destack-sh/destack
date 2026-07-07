@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 import typing
 
@@ -11,7 +10,6 @@ from destack.protocol.serde import (
     BinaryWriter,
     Json,
     SerdeError,
-    json_array,
     json_bool,
     json_field,
     json_int,
@@ -31,74 +29,28 @@ import destack._generated.dir.type.generic
 import destack._generated.dir.type.primitive
 import destack._generated.source.file.model.module
 
-
-@dataclass(frozen=True, slots=True)
-class TypeVariableId:
-    """Identifier for one open inference variable inside a checked component."""
-
-    # the module that allocated the variable
-    module_id: destack._generated.source.file.model.module.ModuleId
-    # the variable index inside the module
-    index: int
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_type_variable_id(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeVariableId:
-        """Decode one TypeVariableId."""
-        return decode_type_variable_id(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_type_variable_id(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> TypeVariableId:
-        """Return one TypeVariableId from one JSON value."""
-        return from_json_type_variable_id(value)
+"""One open inference variable inside a checked component."""
+TypeVariableId: typing.TypeAlias = int
 
 
 def encode_type_variable_id(writer: BinaryWriter, value: TypeVariableId) -> None:
     """Encode one TypeVariableId."""
-    destack._generated.source.file.model.module.encode_module_id(
-        writer, value.module_id
-    )
-    writer.write_unsigned(value.index)
+    writer.write_unsigned(value)
 
 
 def decode_type_variable_id(reader: BinaryReader) -> TypeVariableId:
     """Decode one TypeVariableId."""
-    module_id = destack._generated.source.file.model.module.decode_module_id(reader)
-    index = reader.read_number()
-
-    return TypeVariableId(
-        module_id=module_id,
-        index=index,
-    )
+    return reader.read_number()
 
 
 def to_json_type_variable_id(value: TypeVariableId) -> Json:
     """Return one JSON value for one TypeVariableId."""
-    return {
-        "moduleId": destack._generated.source.file.model.module.to_json_module_id(
-            value.module_id
-        ),
-        "index": value.index,
-    }
+    return value
 
 
 def from_json_type_variable_id(value: Json) -> TypeVariableId:
     """Return one TypeVariableId from one JSON value."""
-    object_ = json_object(value)
-
-    return TypeVariableId(
-        module_id=destack._generated.source.file.model.module.from_json_module_id(
-            json_field(object_, "moduleId")
-        ),
-        index=json_int(json_field(object_, "index")),
-    )
+    return json_int(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -405,7 +357,7 @@ class PlaceSpace:
         return to_json_place(self)
 
 
-"""Normalized place value."""
+"""Normalized memory placement value."""
 Place: typing.TypeAlias = PlaceAmbient | PlaceSpace
 
 
@@ -584,13 +536,73 @@ def from_json_lifetime(value: Json) -> Lifetime:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeReference:
+    """One written reference to a type declaration before application."""
+
+    # the referenced declaration symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_reference(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> TypeReference:
+        """Decode one TypeReference."""
+        return decode_type_reference(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_reference(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> TypeReference:
+        """Return one TypeReference from one JSON value."""
+        return from_json_type_reference(value)
+
+
+def encode_type_reference(writer: BinaryWriter, value: TypeReference) -> None:
+    """Encode one TypeReference."""
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
+
+
+def decode_type_reference(reader: BinaryReader) -> TypeReference:
+    """Decode one TypeReference."""
+    symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+
+    return TypeReference(
+        symbol=symbol,
+    )
+
+
+def to_json_type_reference(value: TypeReference) -> Json:
+    """Return one JSON value for one TypeReference."""
+    return {
+        "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.symbol
+        ),
+    }
+
+
+def from_json_type_reference(value: Json) -> TypeReference:
+    """Return one TypeReference from one JSON value."""
+    object_ = json_object(value)
+
+    return TypeReference(
+        symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "symbol")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class GenericInstance:
     """One declaration applied to its complete positional arguments."""
 
     # the referenced declaration symbol
     symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
-    # the complete positional arguments in declaration order
-    arguments: Sequence[GlobalTypeId]
+    # the complete positional argument list in declaration order
+    arguments: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -614,15 +626,13 @@ class GenericInstance:
 def encode_generic_instance(writer: BinaryWriter, value: GenericInstance) -> None:
     """Encode one GenericInstance."""
     destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.symbol)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        encode_global_type_id(writer, item_value_arguments_0)
+    encode_type_list_id(writer, value.arguments)
 
 
 def decode_generic_instance(reader: BinaryReader) -> GenericInstance:
     """Decode one GenericInstance."""
     symbol = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
-    arguments = [decode_global_type_id(reader) for _ in range(reader.read_number())]
+    arguments = decode_type_list_id(reader)
 
     return GenericInstance(
         symbol=symbol,
@@ -636,7 +646,7 @@ def to_json_generic_instance(value: GenericInstance) -> Json:
         "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
             value.symbol
         ),
-        "arguments": [to_json_global_type_id(item_0) for item_0 in value.arguments],
+        "arguments": to_json_type_list_id(value.arguments),
     }
 
 
@@ -648,10 +658,159 @@ def from_json_generic_instance(value: Json) -> GenericInstance:
         symbol=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
             json_field(object_, "symbol")
         ),
-        arguments=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
-        ],
+        arguments=from_json_type_list_id(json_field(object_, "arguments")),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class TypeListId:
+    """One interned list inside the owning module's type storage."""
+
+    # the first element of the list
+    start: int
+    # the number of elements in the list
+    count: int
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_list_id(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> TypeListId:
+        """Decode one TypeListId."""
+        return decode_type_list_id(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_list_id(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> TypeListId:
+        """Return one TypeListId from one JSON value."""
+        return from_json_type_list_id(value)
+
+
+def encode_type_list_id(writer: BinaryWriter, value: TypeListId) -> None:
+    """Encode one TypeListId."""
+    writer.write_unsigned(value.start)
+    writer.write_unsigned(value.count)
+
+
+def decode_type_list_id(reader: BinaryReader) -> TypeListId:
+    """Decode one TypeListId."""
+    start = reader.read_number()
+    count = reader.read_number()
+
+    return TypeListId(
+        start=start,
+        count=count,
+    )
+
+
+def to_json_type_list_id(value: TypeListId) -> Json:
+    """Return one JSON value for one TypeListId."""
+    return {
+        "start": value.start,
+        "count": value.count,
+    }
+
+
+def from_json_type_list_id(value: Json) -> TypeListId:
+    """Return one TypeListId from one JSON value."""
+    object_ = json_object(value)
+
+    return TypeListId(
+        start=json_int(json_field(object_, "start")),
+        count=json_int(json_field(object_, "count")),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class MemberType:
+    """Member type selected from an owner type."""
+
+    # the owner type
+    owner: GlobalTypeId
+    # the selected member key
+    key: destack._generated.dir.symbol.key.StaticKey
+    # the complete positional argument list applied to the member
+    arguments: TypeListId
+    # the declaring scope qualifying the projection
+    qualifier: GlobalTypeId | None
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_member_type(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> MemberType:
+        """Decode one MemberType."""
+        return decode_member_type(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_member_type(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> MemberType:
+        """Return one MemberType from one JSON value."""
+        return from_json_member_type(value)
+
+
+def encode_member_type(writer: BinaryWriter, value: MemberType) -> None:
+    """Encode one MemberType."""
+    encode_global_type_id(writer, value.owner)
+    destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
+    encode_type_list_id(writer, value.arguments)
+    if value.qualifier is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_global_type_id(writer, value.qualifier)
+
+
+def decode_member_type(reader: BinaryReader) -> MemberType:
+    """Decode one MemberType."""
+    owner = decode_global_type_id(reader)
+    key = destack._generated.dir.symbol.key.decode_static_key(reader)
+    arguments = decode_type_list_id(reader)
+    qualifier = reader.read_option(lambda: decode_global_type_id(reader))
+
+    return MemberType(
+        owner=owner,
+        key=key,
+        arguments=arguments,
+        qualifier=qualifier,
+    )
+
+
+def to_json_member_type(value: MemberType) -> Json:
+    """Return one JSON value for one MemberType."""
+    return {
+        "owner": to_json_global_type_id(value.owner),
+        "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
+        "arguments": to_json_type_list_id(value.arguments),
+        **(
+            {}
+            if value.qualifier is None
+            else {"qualifier": to_json_global_type_id(value.qualifier)}
+        ),
+    }
+
+
+def from_json_member_type(value: Json) -> MemberType:
+    """Return one MemberType from one JSON value."""
+    object_ = json_object(value)
+
+    return MemberType(
+        owner=from_json_global_type_id(json_field(object_, "owner")),
+        key=destack._generated.dir.symbol.key.from_json_static_key(
+            json_field(object_, "key")
+        ),
+        arguments=from_json_type_list_id(json_field(object_, "arguments")),
+        qualifier=json_optional(
+            object_, "qualifier", lambda value: from_json_global_type_id(value)
+        ),
     )
 
 
@@ -749,79 +908,69 @@ def from_json_local_type_id(value: Json) -> LocalTypeId:
 
 
 @dataclass(frozen=True, slots=True)
-class MemberType:
-    """Member type selected from an owner type."""
+class EnumMemberType:
+    """Singleton type of one enum member."""
 
-    # the owner type
+    # the enum declaration instance
     owner: GlobalTypeId
-    # the selected member key
-    key: destack._generated.dir.symbol.key.StaticKey
-    # the complete positional arguments applied to the member
-    arguments: Sequence[GlobalTypeId]
+    # the selected enum variant symbol
+    member: destack._generated.dir.symbol.symbol.GlobalSymbolId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
-        encode_member_type(writer, self)
+        encode_enum_member_type(writer, self)
 
     @classmethod
-    def decode(cls, reader: BinaryReader) -> MemberType:
-        """Decode one MemberType."""
-        return decode_member_type(reader)
+    def decode(cls, reader: BinaryReader) -> EnumMemberType:
+        """Decode one EnumMemberType."""
+        return decode_enum_member_type(reader)
 
     def to_json(self) -> Json:
         """Return this value as JSON."""
-        return to_json_member_type(self)
+        return to_json_enum_member_type(self)
 
     @classmethod
-    def from_json(cls, value: Json) -> MemberType:
-        """Return one MemberType from one JSON value."""
-        return from_json_member_type(value)
+    def from_json(cls, value: Json) -> EnumMemberType:
+        """Return one EnumMemberType from one JSON value."""
+        return from_json_enum_member_type(value)
 
 
-def encode_member_type(writer: BinaryWriter, value: MemberType) -> None:
-    """Encode one MemberType."""
+def encode_enum_member_type(writer: BinaryWriter, value: EnumMemberType) -> None:
+    """Encode one EnumMemberType."""
     encode_global_type_id(writer, value.owner)
-    destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
-    writer.write_unsigned(len(value.arguments))
-    for item_value_arguments_0 in value.arguments:
-        encode_global_type_id(writer, item_value_arguments_0)
+    destack._generated.dir.symbol.symbol.encode_global_symbol_id(writer, value.member)
 
 
-def decode_member_type(reader: BinaryReader) -> MemberType:
-    """Decode one MemberType."""
+def decode_enum_member_type(reader: BinaryReader) -> EnumMemberType:
+    """Decode one EnumMemberType."""
     owner = decode_global_type_id(reader)
-    key = destack._generated.dir.symbol.key.decode_static_key(reader)
-    arguments = [decode_global_type_id(reader) for _ in range(reader.read_number())]
+    member = destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
 
-    return MemberType(
+    return EnumMemberType(
         owner=owner,
-        key=key,
-        arguments=arguments,
+        member=member,
     )
 
 
-def to_json_member_type(value: MemberType) -> Json:
-    """Return one JSON value for one MemberType."""
+def to_json_enum_member_type(value: EnumMemberType) -> Json:
+    """Return one JSON value for one EnumMemberType."""
     return {
         "owner": to_json_global_type_id(value.owner),
-        "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
-        "arguments": [to_json_global_type_id(item_0) for item_0 in value.arguments],
+        "member": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+            value.member
+        ),
     }
 
 
-def from_json_member_type(value: Json) -> MemberType:
-    """Return one MemberType from one JSON value."""
+def from_json_enum_member_type(value: Json) -> EnumMemberType:
+    """Return one EnumMemberType from one JSON value."""
     object_ = json_object(value)
 
-    return MemberType(
+    return EnumMemberType(
         owner=from_json_global_type_id(json_field(object_, "owner")),
-        key=destack._generated.dir.symbol.key.from_json_static_key(
-            json_field(object_, "key")
+        member=destack._generated.dir.symbol.symbol.from_json_global_symbol_id(
+            json_field(object_, "member")
         ),
-        arguments=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "arguments"))
-        ],
     )
 
 
@@ -1192,6 +1341,22 @@ class TypeOperationConditional:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeOperationNarrow:
+    """Runtime guard narrowing, like the true or false branch of `value is T`."""
+
+    narrow: NarrowType
+    kind: typing.Literal["narrow"] = "narrow"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_operation(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_operation(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TypeOperationMapped:
     """Mapped type expression, like `{ [K in keyof T]: T[K] }`."""
 
@@ -1256,11 +1421,59 @@ class TypeOperationInfer:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeOperationTypeOf:
+    """Type query expression, like `typeof value`."""
+
+    type_of: TypeOfType
+    kind: typing.Literal["typeOf"] = "typeOf"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_operation(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_operation(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TypeOperationKeyOf:
     """`keyof T`."""
 
     key_of: UnaryType
     kind: typing.Literal["keyOf"] = "keyOf"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_operation(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_operation(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TypeOperationNoInfer:
+    """Inference blocker like `NoInfer<T>`."""
+
+    no_infer: UnaryType
+    kind: typing.Literal["noInfer"] = "noInfer"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_operation(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_operation(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TypeOperationAwaited:
+    """Awaited value type, like `Awaited<Promise<T>>`."""
+
+    awaited: UnaryType
+    kind: typing.Literal["awaited"] = "awaited"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1341,11 +1554,15 @@ class TypeOperationStaticUnary:
 TypeOperation: typing.TypeAlias = (
     TypeOperationStringMapping
     | TypeOperationConditional
+    | TypeOperationNarrow
     | TypeOperationMapped
     | TypeOperationIndex
     | TypeOperationTemplateLiteral
     | TypeOperationInfer
+    | TypeOperationTypeOf
     | TypeOperationKeyOf
+    | TypeOperationNoInfer
+    | TypeOperationAwaited
     | TypeOperationTryOutput
     | TypeOperationTryResidual
     | TypeOperationStaticBinary
@@ -1362,32 +1579,44 @@ def encode_type_operation(writer: BinaryWriter, value: TypeOperation) -> None:
     elif value.kind == "conditional":
         writer.write_unsigned(1)
         encode_conditional_type(writer, value.conditional)
-    elif value.kind == "mapped":
+    elif value.kind == "narrow":
         writer.write_unsigned(2)
+        encode_narrow_type(writer, value.narrow)
+    elif value.kind == "mapped":
+        writer.write_unsigned(3)
         encode_mapped_type(writer, value.mapped)
     elif value.kind == "index":
-        writer.write_unsigned(3)
+        writer.write_unsigned(4)
         encode_index_type(writer, value.index)
     elif value.kind == "templateLiteral":
-        writer.write_unsigned(4)
+        writer.write_unsigned(5)
         encode_template_literal_type(writer, value.template_literal)
     elif value.kind == "infer":
-        writer.write_unsigned(5)
-        encode_infer_type(writer, value.infer)
-    elif value.kind == "keyOf":
         writer.write_unsigned(6)
-        encode_unary_type(writer, value.key_of)
-    elif value.kind == "tryOutput":
+        encode_infer_type(writer, value.infer)
+    elif value.kind == "typeOf":
         writer.write_unsigned(7)
+        encode_type_of_type(writer, value.type_of)
+    elif value.kind == "keyOf":
+        writer.write_unsigned(8)
+        encode_unary_type(writer, value.key_of)
+    elif value.kind == "noInfer":
+        writer.write_unsigned(9)
+        encode_unary_type(writer, value.no_infer)
+    elif value.kind == "awaited":
+        writer.write_unsigned(10)
+        encode_unary_type(writer, value.awaited)
+    elif value.kind == "tryOutput":
+        writer.write_unsigned(11)
         encode_global_type_id(writer, value.value)
     elif value.kind == "tryResidual":
-        writer.write_unsigned(8)
+        writer.write_unsigned(12)
         encode_global_type_id(writer, value.value)
     elif value.kind == "staticBinary":
-        writer.write_unsigned(9)
+        writer.write_unsigned(13)
         encode_static_binary_type(writer, value.static_binary)
     elif value.kind == "staticUnary":
-        writer.write_unsigned(10)
+        writer.write_unsigned(14)
         encode_static_unary_type(writer, value.static_unary)
     else:
         raise SerdeError("unknown enum variant")
@@ -1410,42 +1639,58 @@ def decode_type_operation(reader: BinaryReader) -> TypeOperation:
 
         return TypeOperationConditional(conditional=conditional)
     elif variant == 2:
+        narrow = decode_narrow_type(reader)
+
+        return TypeOperationNarrow(narrow=narrow)
+    elif variant == 3:
         mapped = decode_mapped_type(reader)
 
         return TypeOperationMapped(mapped=mapped)
-    elif variant == 3:
+    elif variant == 4:
         index = decode_index_type(reader)
 
         return TypeOperationIndex(index=index)
-    elif variant == 4:
+    elif variant == 5:
         template_literal = decode_template_literal_type(reader)
 
         return TypeOperationTemplateLiteral(template_literal=template_literal)
-    elif variant == 5:
+    elif variant == 6:
         infer = decode_infer_type(reader)
 
         return TypeOperationInfer(infer=infer)
-    elif variant == 6:
+    elif variant == 7:
+        type_of = decode_type_of_type(reader)
+
+        return TypeOperationTypeOf(type_of=type_of)
+    elif variant == 8:
         key_of = decode_unary_type(reader)
 
         return TypeOperationKeyOf(key_of=key_of)
-    elif variant == 7:
+    elif variant == 9:
+        no_infer = decode_unary_type(reader)
+
+        return TypeOperationNoInfer(no_infer=no_infer)
+    elif variant == 10:
+        awaited = decode_unary_type(reader)
+
+        return TypeOperationAwaited(awaited=awaited)
+    elif variant == 11:
         value_ = decode_global_type_id(reader)
 
         return TypeOperationTryOutput(
             value=value_,
         )
-    elif variant == 8:
+    elif variant == 12:
         value_ = decode_global_type_id(reader)
 
         return TypeOperationTryResidual(
             value=value_,
         )
-    elif variant == 9:
+    elif variant == 13:
         static_binary = decode_static_binary_type(reader)
 
         return TypeOperationStaticBinary(static_binary=static_binary)
-    elif variant == 10:
+    elif variant == 14:
         static_unary = decode_static_unary_type(reader)
 
         return TypeOperationStaticUnary(static_unary=static_unary)
@@ -1465,6 +1710,11 @@ def to_json_type_operation(value: TypeOperation) -> Json:
         return {
             "kind": "conditional",
             "conditional": to_json_conditional_type(value.conditional),
+        }
+    elif value.kind == "narrow":
+        return {
+            "kind": "narrow",
+            "narrow": to_json_narrow_type(value.narrow),
         }
     elif value.kind == "mapped":
         return {
@@ -1486,10 +1736,25 @@ def to_json_type_operation(value: TypeOperation) -> Json:
             "kind": "infer",
             "infer": to_json_infer_type(value.infer),
         }
+    elif value.kind == "typeOf":
+        return {
+            "kind": "typeOf",
+            "type_of": to_json_type_of_type(value.type_of),
+        }
     elif value.kind == "keyOf":
         return {
             "kind": "keyOf",
             "key_of": to_json_unary_type(value.key_of),
+        }
+    elif value.kind == "noInfer":
+        return {
+            "kind": "noInfer",
+            "no_infer": to_json_unary_type(value.no_infer),
+        }
+    elif value.kind == "awaited":
+        return {
+            "kind": "awaited",
+            "awaited": to_json_unary_type(value.awaited),
         }
     elif value.kind == "tryOutput":
         return {
@@ -1529,6 +1794,10 @@ def from_json_type_operation(value: Json) -> TypeOperation:
         return TypeOperationConditional(
             conditional=from_json_conditional_type(json_field(object_, "conditional"))
         )
+    elif kind == "narrow":
+        return TypeOperationNarrow(
+            narrow=from_json_narrow_type(json_field(object_, "narrow"))
+        )
     elif kind == "mapped":
         return TypeOperationMapped(
             mapped=from_json_mapped_type(json_field(object_, "mapped"))
@@ -1547,9 +1816,21 @@ def from_json_type_operation(value: Json) -> TypeOperation:
         return TypeOperationInfer(
             infer=from_json_infer_type(json_field(object_, "infer"))
         )
+    elif kind == "typeOf":
+        return TypeOperationTypeOf(
+            type_of=from_json_type_of_type(json_field(object_, "type_of"))
+        )
     elif kind == "keyOf":
         return TypeOperationKeyOf(
             key_of=from_json_unary_type(json_field(object_, "key_of"))
+        )
+    elif kind == "noInfer":
+        return TypeOperationNoInfer(
+            no_infer=from_json_unary_type(json_field(object_, "no_infer"))
+        )
+    elif kind == "awaited":
+        return TypeOperationAwaited(
+            awaited=from_json_unary_type(json_field(object_, "awaited"))
         )
     elif kind == "tryOutput":
         return TypeOperationTryOutput(
@@ -1716,6 +1997,76 @@ def from_json_conditional_type(value: Json) -> ConditionalType:
         then_type=from_json_global_type_id(json_field(object_, "thenType")),
         else_type=from_json_global_type_id(json_field(object_, "elseType")),
         is_distributive=json_bool(json_field(object_, "isDistributive")),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class NarrowType:
+    """A runtime guard narrowing applied to one source type."""
+
+    # the source type being narrowed
+    source: GlobalTypeId
+    # the runtime-tested target type
+    target: GlobalTypeId
+    # whether matching arms are kept or removed
+    is_positive: bool
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_narrow_type(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> NarrowType:
+        """Decode one NarrowType."""
+        return decode_narrow_type(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_narrow_type(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> NarrowType:
+        """Return one NarrowType from one JSON value."""
+        return from_json_narrow_type(value)
+
+
+def encode_narrow_type(writer: BinaryWriter, value: NarrowType) -> None:
+    """Encode one NarrowType."""
+    encode_global_type_id(writer, value.source)
+    encode_global_type_id(writer, value.target)
+    writer.write_bool(value.is_positive)
+
+
+def decode_narrow_type(reader: BinaryReader) -> NarrowType:
+    """Decode one NarrowType."""
+    source = decode_global_type_id(reader)
+    target = decode_global_type_id(reader)
+    is_positive = reader.read_bool()
+
+    return NarrowType(
+        source=source,
+        target=target,
+        is_positive=is_positive,
+    )
+
+
+def to_json_narrow_type(value: NarrowType) -> Json:
+    """Return one JSON value for one NarrowType."""
+    return {
+        "source": to_json_global_type_id(value.source),
+        "target": to_json_global_type_id(value.target),
+        "isPositive": value.is_positive,
+    }
+
+
+def from_json_narrow_type(value: Json) -> NarrowType:
+    """Return one NarrowType from one JSON value."""
+    object_ = json_object(value)
+
+    return NarrowType(
+        source=from_json_global_type_id(json_field(object_, "source")),
+        target=from_json_global_type_id(json_field(object_, "target")),
+        is_positive=json_bool(json_field(object_, "isPositive")),
     )
 
 
@@ -2028,10 +2379,10 @@ def from_json_index_type(value: Json) -> IndexType:
 class TemplateLiteralType:
     """A template literal type."""
 
-    # the literal string segments
-    strings: Sequence[destack._generated.core.string.StringId]
-    # the interpolated type spans
-    spans: Sequence[GlobalTypeId]
+    # the literal string segment list
+    strings: TypeListId
+    # the interpolated type span list
+    spans: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -2056,21 +2407,14 @@ def encode_template_literal_type(
     writer: BinaryWriter, value: TemplateLiteralType
 ) -> None:
     """Encode one TemplateLiteralType."""
-    writer.write_unsigned(len(value.strings))
-    for item_value_strings_0 in value.strings:
-        destack._generated.core.string.encode_string_id(writer, item_value_strings_0)
-    writer.write_unsigned(len(value.spans))
-    for item_value_spans_0 in value.spans:
-        encode_global_type_id(writer, item_value_spans_0)
+    encode_type_list_id(writer, value.strings)
+    encode_type_list_id(writer, value.spans)
 
 
 def decode_template_literal_type(reader: BinaryReader) -> TemplateLiteralType:
     """Decode one TemplateLiteralType."""
-    strings = [
-        destack._generated.core.string.decode_string_id(reader)
-        for _ in range(reader.read_number())
-    ]
-    spans = [decode_global_type_id(reader) for _ in range(reader.read_number())]
+    strings = decode_type_list_id(reader)
+    spans = decode_type_list_id(reader)
 
     return TemplateLiteralType(
         strings=strings,
@@ -2081,11 +2425,8 @@ def decode_template_literal_type(reader: BinaryReader) -> TemplateLiteralType:
 def to_json_template_literal_type(value: TemplateLiteralType) -> Json:
     """Return one JSON value for one TemplateLiteralType."""
     return {
-        "strings": [
-            destack._generated.core.string.to_json_string_id(item_0)
-            for item_0 in value.strings
-        ],
-        "spans": [to_json_global_type_id(item_0) for item_0 in value.spans],
+        "strings": to_json_type_list_id(value.strings),
+        "spans": to_json_type_list_id(value.spans),
     }
 
 
@@ -2094,14 +2435,8 @@ def from_json_template_literal_type(value: Json) -> TemplateLiteralType:
     object_ = json_object(value)
 
     return TemplateLiteralType(
-        strings=[
-            destack._generated.core.string.from_json_string_id(item_0)
-            for item_0 in json_array(json_field(object_, "strings"))
-        ],
-        spans=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "spans"))
-        ],
+        strings=from_json_type_list_id(json_field(object_, "strings")),
+        spans=from_json_type_list_id(json_field(object_, "spans")),
     )
 
 
@@ -2111,6 +2446,8 @@ class InferType:
 
     # the inferred binding name
     name: destack._generated.core.string.StringId | None
+    # the inferred binding symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId | None
     # the optional inferred constraint
     constraint: GlobalTypeId | None
 
@@ -2140,6 +2477,13 @@ def encode_infer_type(writer: BinaryWriter, value: InferType) -> None:
     else:
         writer.write_byte(1)
         destack._generated.core.string.encode_string_id(writer, value.name)
+    if value.symbol is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        destack._generated.dir.symbol.symbol.encode_global_symbol_id(
+            writer, value.symbol
+        )
     if value.constraint is None:
         writer.write_byte(0)
     else:
@@ -2152,10 +2496,14 @@ def decode_infer_type(reader: BinaryReader) -> InferType:
     name = reader.read_option(
         lambda: destack._generated.core.string.decode_string_id(reader)
     )
+    symbol = reader.read_option(
+        lambda: destack._generated.dir.symbol.symbol.decode_global_symbol_id(reader)
+    )
     constraint = reader.read_option(lambda: decode_global_type_id(reader))
 
     return InferType(
         name=name,
+        symbol=symbol,
         constraint=constraint,
     )
 
@@ -2167,6 +2515,15 @@ def to_json_infer_type(value: InferType) -> Json:
             {}
             if value.name is None
             else {"name": destack._generated.core.string.to_json_string_id(value.name)}
+        ),
+        **(
+            {}
+            if value.symbol is None
+            else {
+                "symbol": destack._generated.dir.symbol.symbol.to_json_global_symbol_id(
+                    value.symbol
+                )
+            }
         ),
         **(
             {}
@@ -2186,8 +2543,75 @@ def from_json_infer_type(value: Json) -> InferType:
             "name",
             lambda value: destack._generated.core.string.from_json_string_id(value),
         ),
+        symbol=json_optional(
+            object_,
+            "symbol",
+            lambda value: (
+                destack._generated.dir.symbol.symbol.from_json_global_symbol_id(value)
+            ),
+        ),
         constraint=json_optional(
             object_, "constraint", lambda value: from_json_global_type_id(value)
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class TypeOfType:
+    """Type query expression, like `typeof value`."""
+
+    # the queried value reference
+    value: destack._generated.dir.tree.node.GlobalNodeIdAny
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_of_type(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> TypeOfType:
+        """Decode one TypeOfType."""
+        return decode_type_of_type(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_of_type(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> TypeOfType:
+        """Return one TypeOfType from one JSON value."""
+        return from_json_type_of_type(value)
+
+
+def encode_type_of_type(writer: BinaryWriter, value: TypeOfType) -> None:
+    """Encode one TypeOfType."""
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.value)
+
+
+def decode_type_of_type(reader: BinaryReader) -> TypeOfType:
+    """Decode one TypeOfType."""
+    value_ = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+
+    return TypeOfType(
+        value=value_,
+    )
+
+
+def to_json_type_of_type(value: TypeOfType) -> Json:
+    """Return one JSON value for one TypeOfType."""
+    return {
+        "value": destack._generated.dir.tree.node.to_json_global_node_id_any(
+            value.value
+        ),
+    }
+
+
+def from_json_type_of_type(value: Json) -> TypeOfType:
+    """Return one TypeOfType from one JSON value."""
+    object_ = json_object(value)
+
+    return TypeOfType(
+        value=destack._generated.dir.tree.node.from_json_global_node_id_any(
+            json_field(object_, "value")
         ),
     )
 
@@ -2743,7 +3167,7 @@ def from_json_fixed_array_type(value: Json) -> FixedArrayType:
 
 @dataclass(frozen=True, slots=True)
 class RangeType:
-    """Compact scalar interval type."""
+    """Compact discrete scalar interval type."""
 
     # the inclusive lower bound
     start: destack._generated.dir.tree.literal.ScalarLiteral | None
@@ -2913,8 +3337,8 @@ class TupleType:
 
     # the tuple source form
     form: TupleForm
-    # the tuple elements
-    elements: Sequence[TypeElement]
+    # the tuple element list
+    elements: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -2938,15 +3362,13 @@ class TupleType:
 def encode_tuple_type(writer: BinaryWriter, value: TupleType) -> None:
     """Encode one TupleType."""
     encode_tuple_form(writer, value.form)
-    writer.write_unsigned(len(value.elements))
-    for item_value_elements_0 in value.elements:
-        encode_type_element(writer, item_value_elements_0)
+    encode_type_list_id(writer, value.elements)
 
 
 def decode_tuple_type(reader: BinaryReader) -> TupleType:
     """Decode one TupleType."""
     form = decode_tuple_form(reader)
-    elements = [decode_type_element(reader) for _ in range(reader.read_number())]
+    elements = decode_type_list_id(reader)
 
     return TupleType(
         form=form,
@@ -2958,7 +3380,7 @@ def to_json_tuple_type(value: TupleType) -> Json:
     """Return one JSON value for one TupleType."""
     return {
         "form": to_json_tuple_form(value.form),
-        "elements": [to_json_type_element(item_0) for item_0 in value.elements],
+        "elements": to_json_type_list_id(value.elements),
     }
 
 
@@ -2968,10 +3390,7 @@ def from_json_tuple_type(value: Json) -> TupleType:
 
     return TupleType(
         form=from_json_tuple_form(json_field(object_, "form")),
-        elements=[
-            from_json_type_element(item_0)
-            for item_0 in json_array(json_field(object_, "elements"))
-        ],
+        elements=from_json_type_list_id(json_field(object_, "elements")),
     )
 
 
@@ -3019,117 +3438,17 @@ def from_json_tuple_form(value: Json) -> TupleForm:
 
 
 @dataclass(frozen=True, slots=True)
-class TypeElement:
-    """An element in a tuple type."""
-
-    # the optional label for the element
-    label: destack._generated.core.string.StringId | None
-    # the element type
-    ty: GlobalTypeId
-    # whether the element is optional
-    is_optional: bool
-    # whether the element is readonly
-    is_readonly: bool
-    # whether the element is a rest element
-    is_rest: bool
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_type_element(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeElement:
-        """Decode one TypeElement."""
-        return decode_type_element(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_type_element(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> TypeElement:
-        """Return one TypeElement from one JSON value."""
-        return from_json_type_element(value)
-
-
-def encode_type_element(writer: BinaryWriter, value: TypeElement) -> None:
-    """Encode one TypeElement."""
-    if value.label is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.core.string.encode_string_id(writer, value.label)
-    encode_global_type_id(writer, value.ty)
-    writer.write_bool(value.is_optional)
-    writer.write_bool(value.is_readonly)
-    writer.write_bool(value.is_rest)
-
-
-def decode_type_element(reader: BinaryReader) -> TypeElement:
-    """Decode one TypeElement."""
-    label = reader.read_option(
-        lambda: destack._generated.core.string.decode_string_id(reader)
-    )
-    ty = decode_global_type_id(reader)
-    is_optional = reader.read_bool()
-    is_readonly = reader.read_bool()
-    is_rest = reader.read_bool()
-
-    return TypeElement(
-        label=label,
-        ty=ty,
-        is_optional=is_optional,
-        is_readonly=is_readonly,
-        is_rest=is_rest,
-    )
-
-
-def to_json_type_element(value: TypeElement) -> Json:
-    """Return one JSON value for one TypeElement."""
-    return {
-        **(
-            {}
-            if value.label is None
-            else {
-                "label": destack._generated.core.string.to_json_string_id(value.label)
-            }
-        ),
-        "ty": to_json_global_type_id(value.ty),
-        "isOptional": value.is_optional,
-        "isReadonly": value.is_readonly,
-        "isRest": value.is_rest,
-    }
-
-
-def from_json_type_element(value: Json) -> TypeElement:
-    """Return one TypeElement from one JSON value."""
-    object_ = json_object(value)
-
-    return TypeElement(
-        label=json_optional(
-            object_,
-            "label",
-            lambda value: destack._generated.core.string.from_json_string_id(value),
-        ),
-        ty=from_json_global_type_id(json_field(object_, "ty")),
-        is_optional=json_bool(json_field(object_, "isOptional")),
-        is_readonly=json_bool(json_field(object_, "isReadonly")),
-        is_rest=json_bool(json_field(object_, "isRest")),
-    )
-
-
-@dataclass(frozen=True, slots=True)
 class ShapeType:
     """A structural object shape type."""
 
-    # the shape fields
-    fields: Sequence[TypeField]
-    # the call signatures
-    call_signatures: Sequence[GlobalTypeId]
-    # the construct signatures
-    construct_signatures: Sequence[GlobalTypeId]
-    # the index signatures
-    index_signatures: Sequence[TypeIndexSignature]
+    # the shape field list
+    fields: TypeListId
+    # the call signature list
+    call_signatures: TypeListId
+    # the construct signature list
+    construct_signatures: TypeListId
+    # the index signature list
+    index_signatures: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -3152,32 +3471,18 @@ class ShapeType:
 
 def encode_shape_type(writer: BinaryWriter, value: ShapeType) -> None:
     """Encode one ShapeType."""
-    writer.write_unsigned(len(value.fields))
-    for item_value_fields_0 in value.fields:
-        encode_type_field(writer, item_value_fields_0)
-    writer.write_unsigned(len(value.call_signatures))
-    for item_value_call_signatures_0 in value.call_signatures:
-        encode_global_type_id(writer, item_value_call_signatures_0)
-    writer.write_unsigned(len(value.construct_signatures))
-    for item_value_construct_signatures_0 in value.construct_signatures:
-        encode_global_type_id(writer, item_value_construct_signatures_0)
-    writer.write_unsigned(len(value.index_signatures))
-    for item_value_index_signatures_0 in value.index_signatures:
-        encode_type_index_signature(writer, item_value_index_signatures_0)
+    encode_type_list_id(writer, value.fields)
+    encode_type_list_id(writer, value.call_signatures)
+    encode_type_list_id(writer, value.construct_signatures)
+    encode_type_list_id(writer, value.index_signatures)
 
 
 def decode_shape_type(reader: BinaryReader) -> ShapeType:
     """Decode one ShapeType."""
-    fields = [decode_type_field(reader) for _ in range(reader.read_number())]
-    call_signatures = [
-        decode_global_type_id(reader) for _ in range(reader.read_number())
-    ]
-    construct_signatures = [
-        decode_global_type_id(reader) for _ in range(reader.read_number())
-    ]
-    index_signatures = [
-        decode_type_index_signature(reader) for _ in range(reader.read_number())
-    ]
+    fields = decode_type_list_id(reader)
+    call_signatures = decode_type_list_id(reader)
+    construct_signatures = decode_type_list_id(reader)
+    index_signatures = decode_type_list_id(reader)
 
     return ShapeType(
         fields=fields,
@@ -3190,16 +3495,10 @@ def decode_shape_type(reader: BinaryReader) -> ShapeType:
 def to_json_shape_type(value: ShapeType) -> Json:
     """Return one JSON value for one ShapeType."""
     return {
-        "fields": [to_json_type_field(item_0) for item_0 in value.fields],
-        "callSignatures": [
-            to_json_global_type_id(item_0) for item_0 in value.call_signatures
-        ],
-        "constructSignatures": [
-            to_json_global_type_id(item_0) for item_0 in value.construct_signatures
-        ],
-        "indexSignatures": [
-            to_json_type_index_signature(item_0) for item_0 in value.index_signatures
-        ],
+        "fields": to_json_type_list_id(value.fields),
+        "callSignatures": to_json_type_list_id(value.call_signatures),
+        "constructSignatures": to_json_type_list_id(value.construct_signatures),
+        "indexSignatures": to_json_type_list_id(value.index_signatures),
     }
 
 
@@ -3208,189 +3507,12 @@ def from_json_shape_type(value: Json) -> ShapeType:
     object_ = json_object(value)
 
     return ShapeType(
-        fields=[
-            from_json_type_field(item_0)
-            for item_0 in json_array(json_field(object_, "fields"))
-        ],
-        call_signatures=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "callSignatures"))
-        ],
-        construct_signatures=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "constructSignatures"))
-        ],
-        index_signatures=[
-            from_json_type_index_signature(item_0)
-            for item_0 in json_array(json_field(object_, "indexSignatures"))
-        ],
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class TypeField:
-    """A field in an object-like type."""
-
-    # the key of the field
-    key: destack._generated.dir.symbol.key.StaticKey
-    # the type of the field
-    ty: GlobalTypeId
-    # whether the field is optional
-    is_optional: bool
-    # whether the field is readonly
-    is_readonly: bool
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_type_field(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeField:
-        """Decode one TypeField."""
-        return decode_type_field(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_type_field(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> TypeField:
-        """Return one TypeField from one JSON value."""
-        return from_json_type_field(value)
-
-
-def encode_type_field(writer: BinaryWriter, value: TypeField) -> None:
-    """Encode one TypeField."""
-    destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
-    encode_global_type_id(writer, value.ty)
-    writer.write_bool(value.is_optional)
-    writer.write_bool(value.is_readonly)
-
-
-def decode_type_field(reader: BinaryReader) -> TypeField:
-    """Decode one TypeField."""
-    key = destack._generated.dir.symbol.key.decode_static_key(reader)
-    ty = decode_global_type_id(reader)
-    is_optional = reader.read_bool()
-    is_readonly = reader.read_bool()
-
-    return TypeField(
-        key=key,
-        ty=ty,
-        is_optional=is_optional,
-        is_readonly=is_readonly,
-    )
-
-
-def to_json_type_field(value: TypeField) -> Json:
-    """Return one JSON value for one TypeField."""
-    return {
-        "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
-        "ty": to_json_global_type_id(value.ty),
-        "isOptional": value.is_optional,
-        "isReadonly": value.is_readonly,
-    }
-
-
-def from_json_type_field(value: Json) -> TypeField:
-    """Return one TypeField from one JSON value."""
-    object_ = json_object(value)
-
-    return TypeField(
-        key=destack._generated.dir.symbol.key.from_json_static_key(
-            json_field(object_, "key")
+        fields=from_json_type_list_id(json_field(object_, "fields")),
+        call_signatures=from_json_type_list_id(json_field(object_, "callSignatures")),
+        construct_signatures=from_json_type_list_id(
+            json_field(object_, "constructSignatures")
         ),
-        ty=from_json_global_type_id(json_field(object_, "ty")),
-        is_optional=json_bool(json_field(object_, "isOptional")),
-        is_readonly=json_bool(json_field(object_, "isReadonly")),
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class TypeIndexSignature:
-    """An index signature in an object type."""
-
-    # the parameter name like `K`
-    name: destack._generated.core.string.StringId
-    # the key type
-    key_type: GlobalTypeId
-    # the value type
-    value_type: GlobalTypeId
-    # whether the index signature is optional
-    is_optional: bool
-    # whether the index signature is readonly
-    is_readonly: bool
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_type_index_signature(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> TypeIndexSignature:
-        """Decode one TypeIndexSignature."""
-        return decode_type_index_signature(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_type_index_signature(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> TypeIndexSignature:
-        """Return one TypeIndexSignature from one JSON value."""
-        return from_json_type_index_signature(value)
-
-
-def encode_type_index_signature(
-    writer: BinaryWriter, value: TypeIndexSignature
-) -> None:
-    """Encode one TypeIndexSignature."""
-    destack._generated.core.string.encode_string_id(writer, value.name)
-    encode_global_type_id(writer, value.key_type)
-    encode_global_type_id(writer, value.value_type)
-    writer.write_bool(value.is_optional)
-    writer.write_bool(value.is_readonly)
-
-
-def decode_type_index_signature(reader: BinaryReader) -> TypeIndexSignature:
-    """Decode one TypeIndexSignature."""
-    name = destack._generated.core.string.decode_string_id(reader)
-    key_type = decode_global_type_id(reader)
-    value_type = decode_global_type_id(reader)
-    is_optional = reader.read_bool()
-    is_readonly = reader.read_bool()
-
-    return TypeIndexSignature(
-        name=name,
-        key_type=key_type,
-        value_type=value_type,
-        is_optional=is_optional,
-        is_readonly=is_readonly,
-    )
-
-
-def to_json_type_index_signature(value: TypeIndexSignature) -> Json:
-    """Return one JSON value for one TypeIndexSignature."""
-    return {
-        "name": destack._generated.core.string.to_json_string_id(value.name),
-        "keyType": to_json_global_type_id(value.key_type),
-        "valueType": to_json_global_type_id(value.value_type),
-        "isOptional": value.is_optional,
-        "isReadonly": value.is_readonly,
-    }
-
-
-def from_json_type_index_signature(value: Json) -> TypeIndexSignature:
-    """Return one TypeIndexSignature from one JSON value."""
-    object_ = json_object(value)
-
-    return TypeIndexSignature(
-        name=destack._generated.core.string.from_json_string_id(
-            json_field(object_, "name")
-        ),
-        key_type=from_json_global_type_id(json_field(object_, "keyType")),
-        value_type=from_json_global_type_id(json_field(object_, "valueType")),
-        is_optional=json_bool(json_field(object_, "isOptional")),
-        is_readonly=json_bool(json_field(object_, "isReadonly")),
+        index_signatures=from_json_type_list_id(json_field(object_, "indexSignatures")),
     )
 
 
@@ -3400,12 +3522,12 @@ class FunctionSignatureType:
 
     # the function asynchrony
     asynchrony: destack._generated.dir.tree.node.Asynchrony
-    # the generic parameter types
-    generic_parameters: Sequence[GlobalTypeId]
+    # the template that owns this signature's generic parameters
+    template: destack._generated.dir.type.generic.GlobalGenericTemplateId | None
     # the optional `this` parameter type
     this_parameter: GlobalTypeId | None
-    # the runtime parameters
-    parameters: Sequence[FunctionParameterType]
+    # the runtime parameter list
+    parameters: TypeListId
     # the optional return type
     return_type: GlobalTypeId | None
     # whether this is a generator function
@@ -3435,17 +3557,19 @@ def encode_function_signature_type(
 ) -> None:
     """Encode one FunctionSignatureType."""
     destack._generated.dir.tree.node.encode_asynchrony(writer, value.asynchrony)
-    writer.write_unsigned(len(value.generic_parameters))
-    for item_value_generic_parameters_0 in value.generic_parameters:
-        encode_global_type_id(writer, item_value_generic_parameters_0)
+    if value.template is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        destack._generated.dir.type.generic.encode_global_generic_template_id(
+            writer, value.template
+        )
     if value.this_parameter is None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
         encode_global_type_id(writer, value.this_parameter)
-    writer.write_unsigned(len(value.parameters))
-    for item_value_parameters_0 in value.parameters:
-        encode_function_parameter_type(writer, item_value_parameters_0)
+    encode_type_list_id(writer, value.parameters)
     if value.return_type is None:
         writer.write_byte(0)
     else:
@@ -3457,19 +3581,19 @@ def encode_function_signature_type(
 def decode_function_signature_type(reader: BinaryReader) -> FunctionSignatureType:
     """Decode one FunctionSignatureType."""
     asynchrony = destack._generated.dir.tree.node.decode_asynchrony(reader)
-    generic_parameters = [
-        decode_global_type_id(reader) for _ in range(reader.read_number())
-    ]
+    template = reader.read_option(
+        lambda: destack._generated.dir.type.generic.decode_global_generic_template_id(
+            reader
+        )
+    )
     this_parameter = reader.read_option(lambda: decode_global_type_id(reader))
-    parameters = [
-        decode_function_parameter_type(reader) for _ in range(reader.read_number())
-    ]
+    parameters = decode_type_list_id(reader)
     return_type = reader.read_option(lambda: decode_global_type_id(reader))
     is_generator = reader.read_bool()
 
     return FunctionSignatureType(
         asynchrony=asynchrony,
-        generic_parameters=generic_parameters,
+        template=template,
         this_parameter=this_parameter,
         parameters=parameters,
         return_type=return_type,
@@ -3483,17 +3607,21 @@ def to_json_function_signature_type(value: FunctionSignatureType) -> Json:
         "asynchrony": destack._generated.dir.tree.node.to_json_asynchrony(
             value.asynchrony
         ),
-        "genericParameters": [
-            to_json_global_type_id(item_0) for item_0 in value.generic_parameters
-        ],
+        **(
+            {}
+            if value.template is None
+            else {
+                "template": destack._generated.dir.type.generic.to_json_global_generic_template_id(
+                    value.template
+                )
+            }
+        ),
         **(
             {}
             if value.this_parameter is None
             else {"thisParameter": to_json_global_type_id(value.this_parameter)}
         ),
-        "parameters": [
-            to_json_function_parameter_type(item_0) for item_0 in value.parameters
-        ],
+        "parameters": to_json_type_list_id(value.parameters),
         **(
             {}
             if value.return_type is None
@@ -3511,128 +3639,23 @@ def from_json_function_signature_type(value: Json) -> FunctionSignatureType:
         asynchrony=destack._generated.dir.tree.node.from_json_asynchrony(
             json_field(object_, "asynchrony")
         ),
-        generic_parameters=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "genericParameters"))
-        ],
-        this_parameter=json_optional(
-            object_, "thisParameter", lambda value: from_json_global_type_id(value)
-        ),
-        parameters=[
-            from_json_function_parameter_type(item_0)
-            for item_0 in json_array(json_field(object_, "parameters"))
-        ],
-        return_type=json_optional(
-            object_, "returnType", lambda value: from_json_global_type_id(value)
-        ),
-        is_generator=json_bool(json_field(object_, "isGenerator")),
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class FunctionParameterType:
-    """A runtime parameter in a function type."""
-
-    # the parameter type
-    ty: GlobalTypeId
-    # the static generic parameter supplied by this runtime argument
-    static_parameter: (
-        destack._generated.dir.type.generic.GlobalGenericParameterId | None
-    )
-    # whether the parameter may be omitted at the call site
-    is_optional: bool
-    # whether the parameter captures remaining call arguments
-    is_rest: bool
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_function_parameter_type(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> FunctionParameterType:
-        """Decode one FunctionParameterType."""
-        return decode_function_parameter_type(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_function_parameter_type(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> FunctionParameterType:
-        """Return one FunctionParameterType from one JSON value."""
-        return from_json_function_parameter_type(value)
-
-
-def encode_function_parameter_type(
-    writer: BinaryWriter, value: FunctionParameterType
-) -> None:
-    """Encode one FunctionParameterType."""
-    encode_global_type_id(writer, value.ty)
-    if value.static_parameter is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        destack._generated.dir.type.generic.encode_global_generic_parameter_id(
-            writer, value.static_parameter
-        )
-    writer.write_bool(value.is_optional)
-    writer.write_bool(value.is_rest)
-
-
-def decode_function_parameter_type(reader: BinaryReader) -> FunctionParameterType:
-    """Decode one FunctionParameterType."""
-    ty = decode_global_type_id(reader)
-    static_parameter = reader.read_option(
-        lambda: destack._generated.dir.type.generic.decode_global_generic_parameter_id(
-            reader
-        )
-    )
-    is_optional = reader.read_bool()
-    is_rest = reader.read_bool()
-
-    return FunctionParameterType(
-        ty=ty,
-        static_parameter=static_parameter,
-        is_optional=is_optional,
-        is_rest=is_rest,
-    )
-
-
-def to_json_function_parameter_type(value: FunctionParameterType) -> Json:
-    """Return one JSON value for one FunctionParameterType."""
-    return {
-        "ty": to_json_global_type_id(value.ty),
-        **(
-            {}
-            if value.static_parameter is None
-            else {
-                "staticParameter": destack._generated.dir.type.generic.to_json_global_generic_parameter_id(
-                    value.static_parameter
-                )
-            }
-        ),
-        "isOptional": value.is_optional,
-        "isRest": value.is_rest,
-    }
-
-
-def from_json_function_parameter_type(value: Json) -> FunctionParameterType:
-    """Return one FunctionParameterType from one JSON value."""
-    object_ = json_object(value)
-
-    return FunctionParameterType(
-        ty=from_json_global_type_id(json_field(object_, "ty")),
-        static_parameter=json_optional(
+        template=json_optional(
             object_,
-            "staticParameter",
+            "template",
             lambda value: (
-                destack._generated.dir.type.generic.from_json_global_generic_parameter_id(
+                destack._generated.dir.type.generic.from_json_global_generic_template_id(
                     value
                 )
             ),
         ),
-        is_optional=json_bool(json_field(object_, "isOptional")),
-        is_rest=json_bool(json_field(object_, "isRest")),
+        this_parameter=json_optional(
+            object_, "thisParameter", lambda value: from_json_global_type_id(value)
+        ),
+        parameters=from_json_type_list_id(json_field(object_, "parameters")),
+        return_type=json_optional(
+            object_, "returnType", lambda value: from_json_global_type_id(value)
+        ),
+        is_generator=json_bool(json_field(object_, "isGenerator")),
     )
 
 
@@ -3761,8 +3784,8 @@ def from_json_function_pointer_type(value: Json) -> FunctionPointerType:
 class UnionType:
     """A union type."""
 
-    # the union elements
-    elements: Sequence[GlobalTypeId]
+    # the union element list
+    elements: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -3785,14 +3808,12 @@ class UnionType:
 
 def encode_union_type(writer: BinaryWriter, value: UnionType) -> None:
     """Encode one UnionType."""
-    writer.write_unsigned(len(value.elements))
-    for item_value_elements_0 in value.elements:
-        encode_global_type_id(writer, item_value_elements_0)
+    encode_type_list_id(writer, value.elements)
 
 
 def decode_union_type(reader: BinaryReader) -> UnionType:
     """Decode one UnionType."""
-    elements = [decode_global_type_id(reader) for _ in range(reader.read_number())]
+    elements = decode_type_list_id(reader)
 
     return UnionType(
         elements=elements,
@@ -3802,7 +3823,7 @@ def decode_union_type(reader: BinaryReader) -> UnionType:
 def to_json_union_type(value: UnionType) -> Json:
     """Return one JSON value for one UnionType."""
     return {
-        "elements": [to_json_global_type_id(item_0) for item_0 in value.elements],
+        "elements": to_json_type_list_id(value.elements),
     }
 
 
@@ -3811,10 +3832,7 @@ def from_json_union_type(value: Json) -> UnionType:
     object_ = json_object(value)
 
     return UnionType(
-        elements=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "elements"))
-        ],
+        elements=from_json_type_list_id(json_field(object_, "elements")),
     )
 
 
@@ -3822,8 +3840,8 @@ def from_json_union_type(value: Json) -> UnionType:
 class IntersectionType:
     """An intersection type."""
 
-    # the intersection elements
-    elements: Sequence[GlobalTypeId]
+    # the intersection element list
+    elements: TypeListId
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -3846,14 +3864,12 @@ class IntersectionType:
 
 def encode_intersection_type(writer: BinaryWriter, value: IntersectionType) -> None:
     """Encode one IntersectionType."""
-    writer.write_unsigned(len(value.elements))
-    for item_value_elements_0 in value.elements:
-        encode_global_type_id(writer, item_value_elements_0)
+    encode_type_list_id(writer, value.elements)
 
 
 def decode_intersection_type(reader: BinaryReader) -> IntersectionType:
     """Decode one IntersectionType."""
-    elements = [decode_global_type_id(reader) for _ in range(reader.read_number())]
+    elements = decode_type_list_id(reader)
 
     return IntersectionType(
         elements=elements,
@@ -3863,7 +3879,7 @@ def decode_intersection_type(reader: BinaryReader) -> IntersectionType:
 def to_json_intersection_type(value: IntersectionType) -> Json:
     """Return one JSON value for one IntersectionType."""
     return {
-        "elements": [to_json_global_type_id(item_0) for item_0 in value.elements],
+        "elements": to_json_type_list_id(value.elements),
     }
 
 
@@ -3872,10 +3888,7 @@ def from_json_intersection_type(value: Json) -> IntersectionType:
     object_ = json_object(value)
 
     return IntersectionType(
-        elements=[
-            from_json_global_type_id(item_0)
-            for item_0 in json_array(json_field(object_, "elements"))
-        ],
+        elements=from_json_type_list_id(json_field(object_, "elements")),
     )
 
 
@@ -4048,6 +4061,22 @@ class TypeLiteral:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeKey:
+    """Singleton property key type, like `Symbol.for("id")`."""
+
+    key: destack._generated.dir.symbol.key.StaticKey
+    kind: typing.Literal["key"] = "key"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TypeMemory:
     """Singleton type of one normalized memory value."""
 
@@ -4095,6 +4124,22 @@ class TypeIntrinsic:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeErased:
+    """Erased generic argument captured by a runtime head test."""
+
+    erased: destack._generated.dir.type.generic.GlobalGenericParameterId
+    kind: typing.Literal["erased"] = "erased"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TypeParameter:
     """Generic parameter, like the `T` in `class Box<T>`."""
 
@@ -4111,11 +4156,27 @@ class TypeParameter:
 
 
 @dataclass(frozen=True, slots=True)
-class TypeReference:
-    """Type declaration reference, like `User` or `Map<string, User>`."""
+class TypeReferenceVariant:
+    """Type declaration reference before application, like `Box` in `Box.empty`."""
 
-    reference: GenericInstance
+    reference: TypeReference
     kind: typing.Literal["reference"] = "reference"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TypeInstance:
+    """Applied type declaration, like `User` or `Map<string, User>`."""
+
+    instance: GenericInstance
+    kind: typing.Literal["instance"] = "instance"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -4147,6 +4208,22 @@ class TypeMember:
 
     member: MemberType
     kind: typing.Literal["member"] = "member"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TypeEnumMember:
+    """Singleton enum member type, like `Mode.Read`."""
+
+    enum_member: EnumMemberType
+    kind: typing.Literal["enumMember"] = "enumMember"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -4394,13 +4471,17 @@ Type: typing.TypeAlias = (
     | TypeObject
     | TypePrimitive
     | TypeLiteral
+    | TypeKey
     | TypeMemory
     | TypeStatic
     | TypeIntrinsic
+    | TypeErased
     | TypeParameter
-    | TypeReference
+    | TypeReferenceVariant
+    | TypeInstance
     | TypeThis
     | TypeMember
+    | TypeEnumMember
     | TypeForm
     | TypeDynamic
     | TypeOperationVariant
@@ -4447,68 +4528,82 @@ def encode_type(writer: BinaryWriter, value: Type) -> None:
     elif value.kind == "literal":
         writer.write_unsigned(10)
         destack._generated.dir.tree.literal.encode_scalar_literal(writer, value.literal)
-    elif value.kind == "memory":
+    elif value.kind == "key":
         writer.write_unsigned(11)
+        destack._generated.dir.symbol.key.encode_static_key(writer, value.key)
+    elif value.kind == "memory":
+        writer.write_unsigned(12)
         encode_memory_literal(writer, value.memory)
     elif value.kind == "static":
-        writer.write_unsigned(12)
+        writer.write_unsigned(13)
         destack._generated.dir.tree.static.encode_global_static_id(writer, value.static)
     elif value.kind == "intrinsic":
-        writer.write_unsigned(13)
-    elif value.kind == "parameter":
         writer.write_unsigned(14)
+    elif value.kind == "erased":
+        writer.write_unsigned(15)
+        destack._generated.dir.type.generic.encode_global_generic_parameter_id(
+            writer, value.erased
+        )
+    elif value.kind == "parameter":
+        writer.write_unsigned(16)
         destack._generated.dir.type.generic.encode_global_generic_parameter_id(
             writer, value.parameter
         )
     elif value.kind == "reference":
-        writer.write_unsigned(15)
-        encode_generic_instance(writer, value.reference)
-    elif value.kind == "this":
-        writer.write_unsigned(16)
-    elif value.kind == "member":
         writer.write_unsigned(17)
-        encode_member_type(writer, value.member)
-    elif value.kind == "form":
+        encode_type_reference(writer, value.reference)
+    elif value.kind == "instance":
         writer.write_unsigned(18)
+        encode_generic_instance(writer, value.instance)
+    elif value.kind == "this":
+        writer.write_unsigned(19)
+    elif value.kind == "member":
+        writer.write_unsigned(20)
+        encode_member_type(writer, value.member)
+    elif value.kind == "enumMember":
+        writer.write_unsigned(21)
+        encode_enum_member_type(writer, value.enum_member)
+    elif value.kind == "form":
+        writer.write_unsigned(22)
         encode_form_type(writer, value.form)
     elif value.kind == "dynamic":
-        writer.write_unsigned(19)
+        writer.write_unsigned(23)
         encode_dynamic_type(writer, value.dynamic)
     elif value.kind == "operation":
-        writer.write_unsigned(20)
+        writer.write_unsigned(24)
         encode_type_operation(writer, value.operation)
     elif value.kind == "array":
-        writer.write_unsigned(21)
+        writer.write_unsigned(25)
         encode_array_type(writer, value.array)
     elif value.kind == "fixedArray":
-        writer.write_unsigned(22)
+        writer.write_unsigned(26)
         encode_fixed_array_type(writer, value.fixed_array)
     elif value.kind == "range":
-        writer.write_unsigned(23)
+        writer.write_unsigned(27)
         encode_range_type(writer, value.range)
     elif value.kind == "slice":
-        writer.write_unsigned(24)
+        writer.write_unsigned(28)
         encode_slice_type(writer, value.slice)
     elif value.kind == "tuple":
-        writer.write_unsigned(25)
+        writer.write_unsigned(29)
         encode_tuple_type(writer, value.tuple)
     elif value.kind == "shape":
-        writer.write_unsigned(26)
+        writer.write_unsigned(30)
         encode_shape_type(writer, value.shape)
     elif value.kind == "functionSignature":
-        writer.write_unsigned(27)
+        writer.write_unsigned(31)
         encode_function_signature_type(writer, value.function_signature)
     elif value.kind == "function":
-        writer.write_unsigned(28)
+        writer.write_unsigned(32)
         encode_function_type(writer, value.function)
     elif value.kind == "functionPointer":
-        writer.write_unsigned(29)
+        writer.write_unsigned(33)
         encode_function_pointer_type(writer, value.function_pointer)
     elif value.kind == "union":
-        writer.write_unsigned(30)
+        writer.write_unsigned(34)
         encode_union_type(writer, value.union)
     elif value.kind == "intersection":
-        writer.write_unsigned(31)
+        writer.write_unsigned(35)
         encode_intersection_type(writer, value.intersection)
     else:
         raise SerdeError("unknown enum variant")
@@ -4547,16 +4642,26 @@ def decode_type(reader: BinaryReader) -> Type:
 
         return TypeLiteral(literal=literal)
     elif variant == 11:
+        key = destack._generated.dir.symbol.key.decode_static_key(reader)
+
+        return TypeKey(key=key)
+    elif variant == 12:
         memory = decode_memory_literal(reader)
 
         return TypeMemory(memory=memory)
-    elif variant == 12:
+    elif variant == 13:
         static = destack._generated.dir.tree.static.decode_global_static_id(reader)
 
         return TypeStatic(static=static)
-    elif variant == 13:
-        return TypeIntrinsic()
     elif variant == 14:
+        return TypeIntrinsic()
+    elif variant == 15:
+        erased = destack._generated.dir.type.generic.decode_global_generic_parameter_id(
+            reader
+        )
+
+        return TypeErased(erased=erased)
+    elif variant == 16:
         parameter = (
             destack._generated.dir.type.generic.decode_global_generic_parameter_id(
                 reader
@@ -4564,69 +4669,77 @@ def decode_type(reader: BinaryReader) -> Type:
         )
 
         return TypeParameter(parameter=parameter)
-    elif variant == 15:
-        reference = decode_generic_instance(reader)
-
-        return TypeReference(reference=reference)
-    elif variant == 16:
-        return TypeThis()
     elif variant == 17:
+        reference = decode_type_reference(reader)
+
+        return TypeReferenceVariant(reference=reference)
+    elif variant == 18:
+        instance = decode_generic_instance(reader)
+
+        return TypeInstance(instance=instance)
+    elif variant == 19:
+        return TypeThis()
+    elif variant == 20:
         member = decode_member_type(reader)
 
         return TypeMember(member=member)
-    elif variant == 18:
+    elif variant == 21:
+        enum_member = decode_enum_member_type(reader)
+
+        return TypeEnumMember(enum_member=enum_member)
+    elif variant == 22:
         form = decode_form_type(reader)
 
         return TypeForm(form=form)
-    elif variant == 19:
+    elif variant == 23:
         dynamic = decode_dynamic_type(reader)
 
         return TypeDynamic(dynamic=dynamic)
-    elif variant == 20:
+    elif variant == 24:
         operation = decode_type_operation(reader)
 
         return TypeOperationVariant(operation=operation)
-    elif variant == 21:
+    elif variant == 25:
         array = decode_array_type(reader)
 
         return TypeArray(array=array)
-    elif variant == 22:
+    elif variant == 26:
         fixed_array = decode_fixed_array_type(reader)
 
         return TypeFixedArray(fixed_array=fixed_array)
-    elif variant == 23:
+    elif variant == 27:
         range_ = decode_range_type(reader)
 
         return TypeRange(range=range_)
-    elif variant == 24:
+    elif variant == 28:
         slice = decode_slice_type(reader)
 
         return TypeSlice(slice=slice)
-    elif variant == 25:
+    elif variant == 29:
         tuple = decode_tuple_type(reader)
 
         return TypeTuple(tuple=tuple)
-    elif variant == 26:
+    elif variant == 30:
         shape = decode_shape_type(reader)
 
         return TypeShape(shape=shape)
-    elif variant == 27:
+    elif variant == 31:
         function_signature = decode_function_signature_type(reader)
 
         return TypeFunctionSignature(function_signature=function_signature)
-    elif variant == 28:
+    elif variant == 32:
         function = decode_function_type(reader)
 
         return TypeFunction(function=function)
-    elif variant == 29:
+    elif variant == 33:
         function_pointer = decode_function_pointer_type(reader)
 
         return TypeFunctionPointer(function_pointer=function_pointer)
-    elif variant == 30:
+    elif variant == 34:
         union = decode_union_type(reader)
 
         return TypeUnion(union=union)
-    elif variant == 31:
+    elif variant == 35:
         intersection = decode_intersection_type(reader)
 
         return TypeIntersection(intersection=intersection)
@@ -4687,6 +4800,11 @@ def to_json_type(value: Type) -> Json:
                 value.literal
             ),
         }
+    elif value.kind == "key":
+        return {
+            "kind": "key",
+            "key": destack._generated.dir.symbol.key.to_json_static_key(value.key),
+        }
     elif value.kind == "memory":
         return {
             "kind": "memory",
@@ -4703,6 +4821,13 @@ def to_json_type(value: Type) -> Json:
         return {
             "kind": "intrinsic",
         }
+    elif value.kind == "erased":
+        return {
+            "kind": "erased",
+            "erased": destack._generated.dir.type.generic.to_json_global_generic_parameter_id(
+                value.erased
+            ),
+        }
     elif value.kind == "parameter":
         return {
             "kind": "parameter",
@@ -4713,7 +4838,12 @@ def to_json_type(value: Type) -> Json:
     elif value.kind == "reference":
         return {
             "kind": "reference",
-            "reference": to_json_generic_instance(value.reference),
+            "reference": to_json_type_reference(value.reference),
+        }
+    elif value.kind == "instance":
+        return {
+            "kind": "instance",
+            "instance": to_json_generic_instance(value.instance),
         }
     elif value.kind == "this":
         return {
@@ -4723,6 +4853,11 @@ def to_json_type(value: Type) -> Json:
         return {
             "kind": "member",
             "member": to_json_member_type(value.member),
+        }
+    elif value.kind == "enumMember":
+        return {
+            "kind": "enumMember",
+            "enum_member": to_json_enum_member_type(value.enum_member),
         }
     elif value.kind == "form":
         return {
@@ -4837,6 +4972,12 @@ def from_json_type(value: Json) -> Type:
                 json_field(object_, "literal")
             )
         )
+    elif kind == "key":
+        return TypeKey(
+            key=destack._generated.dir.symbol.key.from_json_static_key(
+                json_field(object_, "key")
+            )
+        )
     elif kind == "memory":
         return TypeMemory(
             memory=from_json_memory_literal(json_field(object_, "memory"))
@@ -4849,6 +4990,12 @@ def from_json_type(value: Json) -> Type:
         )
     elif kind == "intrinsic":
         return TypeIntrinsic()
+    elif kind == "erased":
+        return TypeErased(
+            erased=destack._generated.dir.type.generic.from_json_global_generic_parameter_id(
+                json_field(object_, "erased")
+            )
+        )
     elif kind == "parameter":
         return TypeParameter(
             parameter=destack._generated.dir.type.generic.from_json_global_generic_parameter_id(
@@ -4856,13 +5003,21 @@ def from_json_type(value: Json) -> Type:
             )
         )
     elif kind == "reference":
-        return TypeReference(
-            reference=from_json_generic_instance(json_field(object_, "reference"))
+        return TypeReferenceVariant(
+            reference=from_json_type_reference(json_field(object_, "reference"))
+        )
+    elif kind == "instance":
+        return TypeInstance(
+            instance=from_json_generic_instance(json_field(object_, "instance"))
         )
     elif kind == "this":
         return TypeThis()
     elif kind == "member":
         return TypeMember(member=from_json_member_type(json_field(object_, "member")))
+    elif kind == "enumMember":
+        return TypeEnumMember(
+            enum_member=from_json_enum_member_type(json_field(object_, "enum_member"))
+        )
     elif kind == "form":
         return TypeForm(form=from_json_form_type(json_field(object_, "form")))
     elif kind == "dynamic":
@@ -4915,6 +5070,30 @@ def from_json_type(value: Json) -> Type:
         raise SerdeError(f"unknown enum variant: {kind}")
 
 
+"""The symbolic leaf kinds contained in one type graph, computed once at intern time."""
+TypeFlags: typing.TypeAlias = int
+
+
+def encode_type_flags(writer: BinaryWriter, value: TypeFlags) -> None:
+    """Encode one TypeFlags."""
+    writer.write_byte(value)
+
+
+def decode_type_flags(reader: BinaryReader) -> TypeFlags:
+    """Decode one TypeFlags."""
+    return reader.read_byte()
+
+
+def to_json_type_flags(value: TypeFlags) -> Json:
+    """Return one JSON value for one TypeFlags."""
+    return value
+
+
+def from_json_type_flags(value: Json) -> TypeFlags:
+    """Return one TypeFlags from one JSON value."""
+    return json_int(value)
+
+
 __all__ = [
     "TypeVariableId",
     "encode_type_variable_id",
@@ -4955,11 +5134,26 @@ __all__ = [
     "LifetimeStatic",
     "LifetimeFrame",
     "LifetimeSymbol",
+    "TypeReference",
+    "encode_type_reference",
+    "decode_type_reference",
+    "to_json_type_reference",
+    "from_json_type_reference",
     "GenericInstance",
     "encode_generic_instance",
     "decode_generic_instance",
     "to_json_generic_instance",
     "from_json_generic_instance",
+    "TypeListId",
+    "encode_type_list_id",
+    "decode_type_list_id",
+    "to_json_type_list_id",
+    "from_json_type_list_id",
+    "MemberType",
+    "encode_member_type",
+    "decode_member_type",
+    "to_json_member_type",
+    "from_json_member_type",
     "GlobalTypeId",
     "encode_global_type_id",
     "decode_global_type_id",
@@ -4970,11 +5164,11 @@ __all__ = [
     "decode_local_type_id",
     "to_json_local_type_id",
     "from_json_local_type_id",
-    "MemberType",
-    "encode_member_type",
-    "decode_member_type",
-    "to_json_member_type",
-    "from_json_member_type",
+    "EnumMemberType",
+    "encode_enum_member_type",
+    "decode_enum_member_type",
+    "to_json_enum_member_type",
+    "from_json_enum_member_type",
     "FormType",
     "encode_form_type",
     "decode_form_type",
@@ -5003,11 +5197,15 @@ __all__ = [
     "from_json_type_operation",
     "TypeOperationStringMapping",
     "TypeOperationConditional",
+    "TypeOperationNarrow",
     "TypeOperationMapped",
     "TypeOperationIndex",
     "TypeOperationTemplateLiteral",
     "TypeOperationInfer",
+    "TypeOperationTypeOf",
     "TypeOperationKeyOf",
+    "TypeOperationNoInfer",
+    "TypeOperationAwaited",
     "TypeOperationTryOutput",
     "TypeOperationTryResidual",
     "TypeOperationStaticBinary",
@@ -5022,6 +5220,11 @@ __all__ = [
     "decode_conditional_type",
     "to_json_conditional_type",
     "from_json_conditional_type",
+    "NarrowType",
+    "encode_narrow_type",
+    "decode_narrow_type",
+    "to_json_narrow_type",
+    "from_json_narrow_type",
     "MappedType",
     "encode_mapped_type",
     "decode_mapped_type",
@@ -5052,6 +5255,11 @@ __all__ = [
     "decode_infer_type",
     "to_json_infer_type",
     "from_json_infer_type",
+    "TypeOfType",
+    "encode_type_of_type",
+    "decode_type_of_type",
+    "to_json_type_of_type",
+    "from_json_type_of_type",
     "UnaryType",
     "encode_unary_type",
     "decode_unary_type",
@@ -5107,36 +5315,16 @@ __all__ = [
     "decode_tuple_form",
     "to_json_tuple_form",
     "from_json_tuple_form",
-    "TypeElement",
-    "encode_type_element",
-    "decode_type_element",
-    "to_json_type_element",
-    "from_json_type_element",
     "ShapeType",
     "encode_shape_type",
     "decode_shape_type",
     "to_json_shape_type",
     "from_json_shape_type",
-    "TypeField",
-    "encode_type_field",
-    "decode_type_field",
-    "to_json_type_field",
-    "from_json_type_field",
-    "TypeIndexSignature",
-    "encode_type_index_signature",
-    "decode_type_index_signature",
-    "to_json_type_index_signature",
-    "from_json_type_index_signature",
     "FunctionSignatureType",
     "encode_function_signature_type",
     "decode_function_signature_type",
     "to_json_function_signature_type",
     "from_json_function_signature_type",
-    "FunctionParameterType",
-    "encode_function_parameter_type",
-    "decode_function_parameter_type",
-    "to_json_function_parameter_type",
-    "from_json_function_parameter_type",
     "FunctionType",
     "encode_function_type",
     "decode_function_type",
@@ -5173,13 +5361,17 @@ __all__ = [
     "TypeObject",
     "TypePrimitive",
     "TypeLiteral",
+    "TypeKey",
     "TypeMemory",
     "TypeStatic",
     "TypeIntrinsic",
+    "TypeErased",
     "TypeParameter",
-    "TypeReference",
+    "TypeReferenceVariant",
+    "TypeInstance",
     "TypeThis",
     "TypeMember",
+    "TypeEnumMember",
     "TypeForm",
     "TypeDynamic",
     "TypeOperationVariant",
@@ -5194,4 +5386,9 @@ __all__ = [
     "TypeFunctionPointer",
     "TypeUnion",
     "TypeIntersection",
+    "TypeFlags",
+    "encode_type_flags",
+    "decode_type_flags",
+    "to_json_type_flags",
+    "from_json_type_flags",
 ]

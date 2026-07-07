@@ -10,7 +10,6 @@ from . import (
     js,
     mir,
     program,
-    qir,
     query,
     repository,
     source,

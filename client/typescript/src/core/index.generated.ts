@@ -4,6 +4,17 @@ export {
     BitSet,
 } from "../_generated/core/bitset.js";
 export {
+    Section,
+    SectionDirectory,
+    SectionId,
+    SectionSlice,
+    SectionTable,
+    Segment,
+    SegmentAccess,
+    SegmentId,
+    SegmentTable,
+} from "../_generated/core/section.js";
+export {
     StringId,
     StringPoolData,
 } from "../_generated/core/string.js";

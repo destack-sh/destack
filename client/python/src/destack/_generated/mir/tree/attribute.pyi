@@ -17,7 +17,7 @@ import destack._generated.mir.tree.node
 
 @dataclass(frozen=True, slots=True)
 class Attribute:
-    """A metadata attribute attached to a MIR node."""
+    """A tables attribute attached to a MIR node."""
 
     # the attribute name
     name: AttributeIdentifier

@@ -7,14 +7,14 @@ from dataclasses import dataclass
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 @dataclass(frozen=True, slots=True)
 class SignatureHelpRequest:
     """Request signature help at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -57,9 +57,9 @@ class SignatureHelp:
 
     # available signatures
     signatures: Sequence[SignatureItem]
-    # the active signature (index into signatures)
+    # the active signature
     active_signature: int
-    # the active parameter (index into parameters)
+    # the active parameter
     active_parameter: int
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -76,7 +76,7 @@ def from_json_signature_help(value: Json) -> SignatureHelp: ...
 
 @dataclass(frozen=True, slots=True)
 class SignatureItem:
-    """A single signature (for overloaded functions, there may be multiple)."""
+    """A single callable signature."""
 
     # the full signature label
     label: str
@@ -101,7 +101,7 @@ def from_json_signature_item(value: Json) -> SignatureItem: ...
 class SignatureParameter:
     """A parameter in a signature."""
 
-    # the parameter label (e.g., "name: string")
+    # the parameter label
     label: str
     # documentation for this parameter
     documentation: str | None

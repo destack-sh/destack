@@ -14,8 +14,8 @@ from destack.protocol.serde import (
     json_object,
 )
 
-import destack._generated.query.core.target
 import destack._generated.query.navigation.definition
+import destack._generated.query.protocol.target
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,7 +23,7 @@ class GotoImplementationRequest:
     """Request goto implementation at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -48,14 +48,14 @@ def encode_goto_implementation_request(
     writer: BinaryWriter, value: GotoImplementationRequest
 ) -> None:
     """Encode one GotoImplementationRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_goto_implementation_request(
     reader: BinaryReader,
 ) -> GotoImplementationRequest:
     """Decode one GotoImplementationRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return GotoImplementationRequest(
         position=position,
@@ -65,7 +65,7 @@ def decode_goto_implementation_request(
 def to_json_goto_implementation_request(value: GotoImplementationRequest) -> Json:
     """Return one JSON value for one GotoImplementationRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -76,7 +76,7 @@ def from_json_goto_implementation_request(value: Json) -> GotoImplementationRequ
     object_ = json_object(value)
 
     return GotoImplementationRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )

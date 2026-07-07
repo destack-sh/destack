@@ -24,6 +24,7 @@ from destack._impl.dir.tree.expression import (
 )
 
 import destack._generated.core.string
+import destack._generated.dir.tree.declaration
 import destack._generated.dir.tree.dependency
 import destack._generated.dir.tree.import_
 import destack._generated.dir.tree.literal
@@ -128,7 +129,7 @@ class ExpressionLet(ExpressionImpl):
     mutability: destack._generated.dir.tree.node.Mutability
     declarators: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     is_ambient: bool
-    is_shared: bool
+    place: destack._generated.dir.tree.declaration.PlaceModifier | None
     kind: typing.Literal["let"] = "let"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -698,12 +699,12 @@ class ExpressionStructExpression(ExpressionImpl):
 
 @dataclass(frozen=True, slots=True)
 class ExpressionTreeExpression(ExpressionImpl):
-    """A TreeExpression constructs a tree fragment with arguments and children."""
+    """A TreeExpression constructs a tree fragment with attributes and children."""
 
     left: destack._generated.dir.tree.node.LocalNodeId | None
     generic_arguments: Sequence[destack._generated.dir.tree.node.LocalNodeId]
-    arguments: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
-    elements: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
+    attributes: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
+    children: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
     kind: typing.Literal["treeExpression"] = "treeExpression"
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -1279,7 +1280,13 @@ def encode_expression(writer: BinaryWriter, value: Expression) -> None:
                 writer, item_value_declarators_0
             )
         writer.write_bool(value.is_ambient)
-        writer.write_bool(value.is_shared)
+        if value.place is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            destack._generated.dir.tree.declaration.encode_place_modifier(
+                writer, value.place
+            )
     elif value.kind == "letElse":
         writer.write_unsigned(6)
         encode_let_kind(writer, value.kind_value)
@@ -1521,23 +1528,23 @@ def encode_expression(writer: BinaryWriter, value: Expression) -> None:
             destack._generated.dir.tree.node.encode_local_node_id(
                 writer, item_value_generic_arguments_0
             )
-        if value.arguments is None:
+        if value.attributes is None:
             writer.write_byte(0)
         else:
             writer.write_byte(1)
-            writer.write_unsigned(len(value.arguments))
-            for item_value_arguments_1 in value.arguments:
+            writer.write_unsigned(len(value.attributes))
+            for item_value_attributes_1 in value.attributes:
                 destack._generated.dir.tree.node.encode_local_node_id(
-                    writer, item_value_arguments_1
+                    writer, item_value_attributes_1
                 )
-        if value.elements is None:
+        if value.children is None:
             writer.write_byte(0)
         else:
             writer.write_byte(1)
-            writer.write_unsigned(len(value.elements))
-            for item_value_elements_1 in value.elements:
+            writer.write_unsigned(len(value.children))
+            for item_value_children_1 in value.children:
                 destack._generated.dir.tree.node.encode_local_node_id(
-                    writer, item_value_elements_1
+                    writer, item_value_children_1
                 )
     elif value.kind == "parenthesized":
         writer.write_unsigned(40)
@@ -1766,7 +1773,11 @@ def decode_expression(reader: BinaryReader) -> Expression:
             for _ in range(reader.read_number())
         ]
         is_ambient = reader.read_bool()
-        is_shared = reader.read_bool()
+        place = reader.read_option(
+            lambda: destack._generated.dir.tree.declaration.decode_place_modifier(
+                reader
+            )
+        )
 
         return ExpressionLet(
             kind_value=kind_value,
@@ -1774,7 +1785,7 @@ def decode_expression(reader: BinaryReader) -> Expression:
             mutability=mutability,
             declarators=declarators,
             is_ambient=is_ambient,
-            is_shared=is_shared,
+            place=place,
         )
     elif variant == 6:
         kind_value = decode_let_kind(reader)
@@ -2078,13 +2089,13 @@ def decode_expression(reader: BinaryReader) -> Expression:
             destack._generated.dir.tree.node.decode_local_node_id(reader)
             for _ in range(reader.read_number())
         ]
-        arguments = reader.read_option(
+        attributes = reader.read_option(
             lambda: [
                 destack._generated.dir.tree.node.decode_local_node_id(reader)
                 for _ in range(reader.read_number())
             ]
         )
-        elements = reader.read_option(
+        children = reader.read_option(
             lambda: [
                 destack._generated.dir.tree.node.decode_local_node_id(reader)
                 for _ in range(reader.read_number())
@@ -2094,8 +2105,8 @@ def decode_expression(reader: BinaryReader) -> Expression:
         return ExpressionTreeExpression(
             left=left,
             generic_arguments=generic_arguments,
-            arguments=arguments,
-            elements=elements,
+            attributes=attributes,
+            children=children,
         )
     elif variant == 40:
         expression = destack._generated.dir.tree.node.decode_local_node_id(reader)
@@ -2409,7 +2420,15 @@ def to_json_expression(value: Expression) -> Json:
                 for item_0 in value.declarators
             ],
             "isAmbient": value.is_ambient,
-            "isShared": value.is_shared,
+            **(
+                {}
+                if value.place is None
+                else {
+                    "place": destack._generated.dir.tree.declaration.to_json_place_modifier(
+                        value.place
+                    )
+                }
+            ),
         }
     elif value.kind == "letElse":
         return {
@@ -2794,21 +2813,21 @@ def to_json_expression(value: Expression) -> Json:
             ],
             **(
                 {}
-                if value.arguments is None
+                if value.attributes is None
                 else {
-                    "arguments": [
+                    "attributes": [
                         destack._generated.dir.tree.node.to_json_local_node_id(item_0)
-                        for item_0 in value.arguments
+                        for item_0 in value.attributes
                     ]
                 }
             ),
             **(
                 {}
-                if value.elements is None
+                if value.children is None
                 else {
-                    "elements": [
+                    "children": [
                         destack._generated.dir.tree.node.to_json_local_node_id(item_0)
-                        for item_0 in value.elements
+                        for item_0 in value.children
                     ]
                 }
             ),
@@ -3152,7 +3171,15 @@ def from_json_expression(value: Json) -> Expression:
                 for item_0 in json_array(json_field(object_, "declarators"))
             ],
             is_ambient=json_bool(json_field(object_, "isAmbient")),
-            is_shared=json_bool(json_field(object_, "isShared")),
+            place=json_optional(
+                object_,
+                "place",
+                lambda value: (
+                    destack._generated.dir.tree.declaration.from_json_place_modifier(
+                        value
+                    )
+                ),
+            ),
         )
     elif kind == "letElse":
         return ExpressionLetElse(
@@ -3483,17 +3510,17 @@ def from_json_expression(value: Json) -> Expression:
                 destack._generated.dir.tree.node.from_json_local_node_id(item_0)
                 for item_0 in json_array(json_field(object_, "genericArguments"))
             ],
-            arguments=json_optional(
+            attributes=json_optional(
                 object_,
-                "arguments",
+                "attributes",
                 lambda value: [
                     destack._generated.dir.tree.node.from_json_local_node_id(item_0)
                     for item_0 in json_array(value)
                 ],
             ),
-            elements=json_optional(
+            children=json_optional(
                 object_,
-                "elements",
+                "children",
                 lambda value: [
                     destack._generated.dir.tree.node.from_json_local_node_id(item_0)
                     for item_0 in json_array(value)
@@ -4522,9 +4549,11 @@ def from_json_catch(value: Json) -> Catch:
 class WhereClause:
     """A WhereClause is a single clause in a where type declaration."""
 
-    # the target type to constrain (like `T` in `T: int32`)
+    # the relation between the two operands
+    relation: WhereRelation
+    # the left relation operand, like `T` in `T: int32`
     left: destack._generated.dir.tree.node.LocalNodeId
-    # the constraint type (like `int32` in `T: int32`)
+    # the right relation operand, like `int32` in `T: int32`
     right: destack._generated.dir.tree.node.LocalNodeId
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -4548,16 +4577,19 @@ class WhereClause:
 
 def encode_where_clause(writer: BinaryWriter, value: WhereClause) -> None:
     """Encode one WhereClause."""
+    encode_where_relation(writer, value.relation)
     destack._generated.dir.tree.node.encode_local_node_id(writer, value.left)
     destack._generated.dir.tree.node.encode_local_node_id(writer, value.right)
 
 
 def decode_where_clause(reader: BinaryReader) -> WhereClause:
     """Decode one WhereClause."""
+    relation = decode_where_relation(reader)
     left = destack._generated.dir.tree.node.decode_local_node_id(reader)
     right = destack._generated.dir.tree.node.decode_local_node_id(reader)
 
     return WhereClause(
+        relation=relation,
         left=left,
         right=right,
     )
@@ -4566,6 +4598,7 @@ def decode_where_clause(reader: BinaryReader) -> WhereClause:
 def to_json_where_clause(value: WhereClause) -> Json:
     """Return one JSON value for one WhereClause."""
     return {
+        "relation": to_json_where_relation(value.relation),
         "left": destack._generated.dir.tree.node.to_json_local_node_id(value.left),
         "right": destack._generated.dir.tree.node.to_json_local_node_id(value.right),
     }
@@ -4576,6 +4609,7 @@ def from_json_where_clause(value: Json) -> WhereClause:
     object_ = json_object(value)
 
     return WhereClause(
+        relation=from_json_where_relation(json_field(object_, "relation")),
         left=destack._generated.dir.tree.node.from_json_local_node_id(
             json_field(object_, "left")
         ),
@@ -4583,6 +4617,49 @@ def from_json_where_clause(value: Json) -> WhereClause:
             json_field(object_, "right")
         ),
     )
+
+
+"""A where-clause relation."""
+WhereRelation: typing.TypeAlias = typing.Literal["satisfies"] | typing.Literal["equals"]
+
+
+def encode_where_relation(writer: BinaryWriter, value: WhereRelation) -> None:
+    """Encode one WhereRelation."""
+    if value == "satisfies":
+        writer.write_unsigned(0)
+    elif value == "equals":
+        writer.write_unsigned(1)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_where_relation(reader: BinaryReader) -> WhereRelation:
+    """Decode one WhereRelation."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        return "satisfies"
+    elif variant == 1:
+        return "equals"
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_where_relation(value: WhereRelation) -> Json:
+    """Return one JSON value for one WhereRelation."""
+    return value
+
+
+def from_json_where_relation(value: Json) -> WhereRelation:
+    """Return one WhereRelation from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "satisfies":
+        return "satisfies"
+    elif variant == "equals":
+        return "equals"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
 
 
 __all__ = [
@@ -4725,4 +4802,9 @@ __all__ = [
     "decode_where_clause",
     "to_json_where_clause",
     "from_json_where_clause",
+    "WhereRelation",
+    "encode_where_relation",
+    "decode_where_relation",
+    "to_json_where_relation",
+    "from_json_where_relation",
 ]

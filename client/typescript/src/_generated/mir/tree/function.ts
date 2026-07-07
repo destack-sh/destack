@@ -28,22 +28,14 @@ export type Function = {
     readonly lifetimes: ReadonlyArray<LifetimeParameter>;
     /** Optional parameter names for diagnostics. */
     readonly parameterNames: ReadonlyArray<StringId | undefined>;
-    /** Optional explicit SSA value names keyed by value id. */
-    readonly valueNames: ReadonlyArray<StringId | undefined>;
-    /** SSA value types keyed by value id. */
-    readonly valueTypes: ReadonlyArray<LocalNodeId | undefined>;
-    /** Counter for allocating unique SSA value IDs. */
-    readonly nextValueId: number;
     /** The return type. */
     readonly returnType: LocalNodeId;
     /** The hidden environment type for this function when present. */
     readonly environment?: LocalNodeId;
-    /** Local variables (stack-allocated slots for mutable bindings). */
-    readonly locals: ReadonlyArray<LocalNodeId>;
-    /** All basic blocks in this function. */
-    readonly blocks: ReadonlyArray<LocalNodeId>;
-    /** The entry block (execution starts here). */
-    readonly entry?: LocalNodeId;
+    /** Runtime binding name when this function has a binding identity. */
+    readonly binding?: StringId;
+    /** The executable function body when this function is defined. */
+    readonly body?: FunctionBody;
     /** Memory allocation restrictions for this function. */
     readonly allocation: AllocationMode;
     /** The suspension kind when this function can suspend. */
@@ -91,37 +83,19 @@ export function encodeFunction(writer: BinaryWriter, value: Function): void {
             encodeStringId(writer, value6);
         });
     }
-    writer.writeUnsigned(value.valueNames.length);
-    for (const item6 of value.valueNames) {
-        writer.writeOption(item6, (value7) => {
-            encodeStringId(writer, value7);
-        });
-    }
-    writer.writeUnsigned(value.valueTypes.length);
-    for (const item7 of value.valueTypes) {
-        writer.writeOption(item7, (value8) => {
-            encodeLocalNodeId(writer, value8);
-        });
-    }
-    writer.writeUnsigned(value.nextValueId);
     encodeLocalNodeId(writer, value.returnType);
-    writer.writeOption(value.environment, (value10) => {
-        encodeLocalNodeId(writer, value10);
+    writer.writeOption(value.environment, (value7) => {
+        encodeLocalNodeId(writer, value7);
     });
-    writer.writeUnsigned(value.locals.length);
-    for (const item11 of value.locals) {
-        encodeLocalNodeId(writer, item11);
-    }
-    writer.writeUnsigned(value.blocks.length);
-    for (const item12 of value.blocks) {
-        encodeLocalNodeId(writer, item12);
-    }
-    writer.writeOption(value.entry, (value13) => {
-        encodeLocalNodeId(writer, value13);
+    writer.writeOption(value.binding, (value8) => {
+        encodeStringId(writer, value8);
+    });
+    writer.writeOption(value.body, (value9) => {
+        encodeFunctionBody(writer, value9);
     });
     encodeAllocationMode(writer, value.allocation);
-    writer.writeOption(value.suspension, (value15) => {
-        encodeSuspensionKind(writer, value15);
+    writer.writeOption(value.suspension, (value11) => {
+        encodeSuspensionKind(writer, value11);
     });
 }
 
@@ -133,14 +107,10 @@ export function decodeFunction(reader: BinaryReader): Function {
     const parameters = (() => { const length3 = reader.readNumber(); const items3: Array<FunctionParameter> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeFunctionParameter(reader)); } return items3; })();
     const lifetimes = (() => { const length4 = reader.readNumber(); const items4: Array<LifetimeParameter> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeLifetimeParameter(reader)); } return items4; })();
     const parameterNames = (() => { const length5 = reader.readNumber(); const items5: Array<StringId | undefined> = []; for (let index = 0; index < length5; index += 1) { items5.push(reader.readOption(() => decodeStringId(reader))); } return items5; })();
-    const valueNames = (() => { const length6 = reader.readNumber(); const items6: Array<StringId | undefined> = []; for (let index = 0; index < length6; index += 1) { items6.push(reader.readOption(() => decodeStringId(reader))); } return items6; })();
-    const valueTypes = (() => { const length7 = reader.readNumber(); const items7: Array<LocalNodeId | undefined> = []; for (let index = 0; index < length7; index += 1) { items7.push(reader.readOption(() => decodeLocalNodeId(reader))); } return items7; })();
-    const nextValueId = reader.readNumber();
     const returnType = decodeLocalNodeId(reader);
     const environment = reader.readOption(() => decodeLocalNodeId(reader));
-    const locals = (() => { const length11 = reader.readNumber(); const items11: Array<LocalNodeId> = []; for (let index = 0; index < length11; index += 1) { items11.push(decodeLocalNodeId(reader)); } return items11; })();
-    const blocks = (() => { const length12 = reader.readNumber(); const items12: Array<LocalNodeId> = []; for (let index = 0; index < length12; index += 1) { items12.push(decodeLocalNodeId(reader)); } return items12; })();
-    const entry = reader.readOption(() => decodeLocalNodeId(reader));
+    const binding = reader.readOption(() => decodeStringId(reader));
+    const body = reader.readOption(() => decodeFunctionBody(reader));
     const allocation = decodeAllocationMode(reader);
     const suspension = reader.readOption(() => decodeSuspensionKind(reader));
 
@@ -151,14 +121,10 @@ export function decodeFunction(reader: BinaryReader): Function {
         parameters,
         lifetimes,
         parameterNames,
-        valueNames,
-        valueTypes,
-        nextValueId,
         returnType,
         ...(environment === undefined ? {} : { environment }),
-        locals,
-        blocks,
-        ...(entry === undefined ? {} : { entry }),
+        ...(binding === undefined ? {} : { binding }),
+        ...(body === undefined ? {} : { body }),
         allocation,
         ...(suspension === undefined ? {} : { suspension }),
     };
@@ -173,14 +139,10 @@ export function toJsonFunction(value: Function): Json {
         parameters: value.parameters.map((item0) => toJsonFunctionParameter(item0)),
         lifetimes: value.lifetimes.map((item0) => toJsonLifetimeParameter(item0)),
         parameterNames: value.parameterNames.map((item0) => item0 === undefined ? null : toJsonStringId(item0)),
-        valueNames: value.valueNames.map((item0) => item0 === undefined ? null : toJsonStringId(item0)),
-        valueTypes: value.valueTypes.map((item0) => item0 === undefined ? null : toJsonLocalNodeId(item0)),
-        nextValueId: value.nextValueId,
         returnType: toJsonLocalNodeId(value.returnType),
         ...(value.environment === undefined ? {} : { environment: toJsonLocalNodeId(value.environment) }),
-        locals: value.locals.map((item0) => toJsonLocalNodeId(item0)),
-        blocks: value.blocks.map((item0) => toJsonLocalNodeId(item0)),
-        ...(value.entry === undefined ? {} : { entry: toJsonLocalNodeId(value.entry) }),
+        ...(value.binding === undefined ? {} : { binding: toJsonStringId(value.binding) }),
+        ...(value.body === undefined ? {} : { body: toJsonFunctionBody(value.body) }),
         allocation: toJsonAllocationMode(value.allocation),
         ...(value.suspension === undefined ? {} : { suspension: toJsonSuspensionKind(value.suspension) }),
     };
@@ -197,16 +159,256 @@ export function fromJsonFunction(value: Json): Function {
         parameters: jsonArray(jsonField(object, "parameters")).map((item0) => fromJsonFunctionParameter(item0)),
         lifetimes: jsonArray(jsonField(object, "lifetimes")).map((item0) => fromJsonLifetimeParameter(item0)),
         parameterNames: jsonArray(jsonField(object, "parameterNames")).map((item0) => item0 === null ? undefined : fromJsonStringId(item0)),
+        returnType: fromJsonLocalNodeId(jsonField(object, "returnType")),
+        environment: jsonOptional(object, "environment", (value) => fromJsonLocalNodeId(value)),
+        binding: jsonOptional(object, "binding", (value) => fromJsonStringId(value)),
+        body: jsonOptional(object, "body", (value) => fromJsonFunctionBody(value)),
+        allocation: fromJsonAllocationMode(jsonField(object, "allocation")),
+        suspension: jsonOptional(object, "suspension", (value) => fromJsonSuspensionKind(value)),
+    };
+}
+
+/** The executable body of one MIR function. */
+export type FunctionBody = {
+    /** The entry block where execution starts. */
+    readonly entry: LocalNodeId;
+    /** The function blocks in layout order. */
+    readonly blocks: ReadonlyArray<LocalNodeId>;
+    /** The function locals in slot order. */
+    readonly locals: ReadonlyArray<LocalNodeId>;
+    /** Optional explicit SSA value names keyed by value id. */
+    readonly valueNames: ReadonlyArray<StringId | undefined>;
+    /** SSA value types keyed by value id. */
+    readonly valueTypes: ReadonlyArray<LocalNodeId | undefined>;
+    /** Counter for allocating unique SSA value ids. */
+    readonly nextValueId: number;
+    /** Instruction locations keyed by instruction id. */
+    readonly instructionIndex: InstructionIndex;
+};
+
+export const FunctionBody = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: FunctionBody): void {
+        encodeFunctionBody(writer, value);
+    },
+
+    /** Decode one FunctionBody. */
+    decode(reader: BinaryReader): FunctionBody {
+        return decodeFunctionBody(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: FunctionBody): Json {
+        return toJsonFunctionBody(value);
+    },
+
+    /** Return one FunctionBody from one JSON value. */
+    fromJson(value: Json): FunctionBody {
+        return fromJsonFunctionBody(value);
+    },
+};
+
+/** Encode one FunctionBody. */
+export function encodeFunctionBody(writer: BinaryWriter, value: FunctionBody): void {
+    encodeLocalNodeId(writer, value.entry);
+    writer.writeUnsigned(value.blocks.length);
+    for (const item1 of value.blocks) {
+        encodeLocalNodeId(writer, item1);
+    }
+    writer.writeUnsigned(value.locals.length);
+    for (const item2 of value.locals) {
+        encodeLocalNodeId(writer, item2);
+    }
+    writer.writeUnsigned(value.valueNames.length);
+    for (const item3 of value.valueNames) {
+        writer.writeOption(item3, (value4) => {
+            encodeStringId(writer, value4);
+        });
+    }
+    writer.writeUnsigned(value.valueTypes.length);
+    for (const item4 of value.valueTypes) {
+        writer.writeOption(item4, (value5) => {
+            encodeLocalNodeId(writer, value5);
+        });
+    }
+    writer.writeUnsigned(value.nextValueId);
+    encodeInstructionIndex(writer, value.instructionIndex);
+}
+
+/** Decode one FunctionBody. */
+export function decodeFunctionBody(reader: BinaryReader): FunctionBody {
+    const entry = decodeLocalNodeId(reader);
+    const blocks = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
+    const locals = (() => { const length2 = reader.readNumber(); const items2: Array<LocalNodeId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeLocalNodeId(reader)); } return items2; })();
+    const valueNames = (() => { const length3 = reader.readNumber(); const items3: Array<StringId | undefined> = []; for (let index = 0; index < length3; index += 1) { items3.push(reader.readOption(() => decodeStringId(reader))); } return items3; })();
+    const valueTypes = (() => { const length4 = reader.readNumber(); const items4: Array<LocalNodeId | undefined> = []; for (let index = 0; index < length4; index += 1) { items4.push(reader.readOption(() => decodeLocalNodeId(reader))); } return items4; })();
+    const nextValueId = reader.readNumber();
+    const instructionIndex = decodeInstructionIndex(reader);
+
+    return {
+        entry,
+        blocks,
+        locals,
+        valueNames,
+        valueTypes,
+        nextValueId,
+        instructionIndex,
+    };
+}
+
+/** Return one JSON value for one FunctionBody. */
+export function toJsonFunctionBody(value: FunctionBody): Json {
+    return {
+        entry: toJsonLocalNodeId(value.entry),
+        blocks: value.blocks.map((item0) => toJsonLocalNodeId(item0)),
+        locals: value.locals.map((item0) => toJsonLocalNodeId(item0)),
+        valueNames: value.valueNames.map((item0) => item0 === undefined ? null : toJsonStringId(item0)),
+        valueTypes: value.valueTypes.map((item0) => item0 === undefined ? null : toJsonLocalNodeId(item0)),
+        nextValueId: value.nextValueId,
+        instructionIndex: toJsonInstructionIndex(value.instructionIndex),
+    };
+}
+
+/** Return one FunctionBody from one JSON value. */
+export function fromJsonFunctionBody(value: Json): FunctionBody {
+    const object = jsonObject(value);
+
+    return {
+        entry: fromJsonLocalNodeId(jsonField(object, "entry")),
+        blocks: jsonArray(jsonField(object, "blocks")).map((item0) => fromJsonLocalNodeId(item0)),
+        locals: jsonArray(jsonField(object, "locals")).map((item0) => fromJsonLocalNodeId(item0)),
         valueNames: jsonArray(jsonField(object, "valueNames")).map((item0) => item0 === null ? undefined : fromJsonStringId(item0)),
         valueTypes: jsonArray(jsonField(object, "valueTypes")).map((item0) => item0 === null ? undefined : fromJsonLocalNodeId(item0)),
         nextValueId: jsonInteger(jsonField(object, "nextValueId")),
-        returnType: fromJsonLocalNodeId(jsonField(object, "returnType")),
-        environment: jsonOptional(object, "environment", (value) => fromJsonLocalNodeId(value)),
-        locals: jsonArray(jsonField(object, "locals")).map((item0) => fromJsonLocalNodeId(item0)),
-        blocks: jsonArray(jsonField(object, "blocks")).map((item0) => fromJsonLocalNodeId(item0)),
-        entry: jsonOptional(object, "entry", (value) => fromJsonLocalNodeId(value)),
-        allocation: fromJsonAllocationMode(jsonField(object, "allocation")),
-        suspension: jsonOptional(object, "suspension", (value) => fromJsonSuspensionKind(value)),
+        instructionIndex: fromJsonInstructionIndex(jsonField(object, "instructionIndex")),
+    };
+}
+
+/** Function-local instruction location index. */
+export type InstructionIndex = {
+    /** Instruction locations keyed by instruction id. */
+    readonly locations: ReadonlyArray<InstructionLocation | undefined>;
+};
+
+export const InstructionIndex = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InstructionIndex): void {
+        encodeInstructionIndex(writer, value);
+    },
+
+    /** Decode one InstructionIndex. */
+    decode(reader: BinaryReader): InstructionIndex {
+        return decodeInstructionIndex(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InstructionIndex): Json {
+        return toJsonInstructionIndex(value);
+    },
+
+    /** Return one InstructionIndex from one JSON value. */
+    fromJson(value: Json): InstructionIndex {
+        return fromJsonInstructionIndex(value);
+    },
+};
+
+/** Encode one InstructionIndex. */
+export function encodeInstructionIndex(writer: BinaryWriter, value: InstructionIndex): void {
+    writer.writeUnsigned(value.locations.length);
+    for (const item0 of value.locations) {
+        writer.writeOption(item0, (value1) => {
+            encodeInstructionLocation(writer, value1);
+        });
+    }
+}
+
+/** Decode one InstructionIndex. */
+export function decodeInstructionIndex(reader: BinaryReader): InstructionIndex {
+    const locations = (() => { const length0 = reader.readNumber(); const items0: Array<InstructionLocation | undefined> = []; for (let index = 0; index < length0; index += 1) { items0.push(reader.readOption(() => decodeInstructionLocation(reader))); } return items0; })();
+
+    return {
+        locations,
+    };
+}
+
+/** Return one JSON value for one InstructionIndex. */
+export function toJsonInstructionIndex(value: InstructionIndex): Json {
+    return {
+        locations: value.locations.map((item0) => item0 === undefined ? null : toJsonInstructionLocation(item0)),
+    };
+}
+
+/** Return one InstructionIndex from one JSON value. */
+export function fromJsonInstructionIndex(value: Json): InstructionIndex {
+    const object = jsonObject(value);
+
+    return {
+        locations: jsonArray(jsonField(object, "locations")).map((item0) => item0 === null ? undefined : fromJsonInstructionLocation(item0)),
+    };
+}
+
+/** Location of one instruction in a MIR function body. */
+export type InstructionLocation = {
+    /** The block that owns the instruction. */
+    readonly block: LocalNodeId;
+    /** The instruction index in the block. */
+    readonly index: number;
+};
+
+export const InstructionLocation = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: InstructionLocation): void {
+        encodeInstructionLocation(writer, value);
+    },
+
+    /** Decode one InstructionLocation. */
+    decode(reader: BinaryReader): InstructionLocation {
+        return decodeInstructionLocation(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: InstructionLocation): Json {
+        return toJsonInstructionLocation(value);
+    },
+
+    /** Return one InstructionLocation from one JSON value. */
+    fromJson(value: Json): InstructionLocation {
+        return fromJsonInstructionLocation(value);
+    },
+};
+
+/** Encode one InstructionLocation. */
+export function encodeInstructionLocation(writer: BinaryWriter, value: InstructionLocation): void {
+    encodeLocalNodeId(writer, value.block);
+    writer.writeUnsigned(value.index);
+}
+
+/** Decode one InstructionLocation. */
+export function decodeInstructionLocation(reader: BinaryReader): InstructionLocation {
+    const block = decodeLocalNodeId(reader);
+    const index = reader.readNumber();
+
+    return {
+        block,
+        index,
+    };
+}
+
+/** Return one JSON value for one InstructionLocation. */
+export function toJsonInstructionLocation(value: InstructionLocation): Json {
+    return {
+        block: toJsonLocalNodeId(value.block),
+        index: value.index,
+    };
+}
+
+/** Return one InstructionLocation from one JSON value. */
+export function fromJsonInstructionLocation(value: Json): InstructionLocation {
+    const object = jsonObject(value);
+
+    return {
+        block: fromJsonLocalNodeId(jsonField(object, "block")),
+        index: jsonInteger(jsonField(object, "index")),
     };
 }
 

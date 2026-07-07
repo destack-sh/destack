@@ -3,12 +3,14 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonArray, jsonBool, jsonField, jsonInteger, jsonObject, jsonOptional, jsonString } from "../../../protocol/serde.js";
 import type { StringId } from "../../core/string.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
+import type { WhereRelation } from "../tree/expression.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import type { VarianceModifier } from "../tree/property.js";
 import type { GlobalTypeId } from "./type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
+import { decodeWhereRelation, encodeWhereRelation, fromJsonWhereRelation, toJsonWhereRelation } from "../tree/expression.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 import { decodeVarianceModifier, encodeVarianceModifier, fromJsonVarianceModifier, toJsonVarianceModifier } from "../tree/property.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
@@ -124,89 +126,68 @@ export function fromJsonLocalGenericParameterId(value: Json): LocalGenericParame
     return jsonInteger(value);
 }
 
-/** One declaration of generic parameters. */
-export type GenericTemplate = {
-    /** The source node that declares this template. */
-    readonly source: GlobalNodeIdAny;
-    /** The declaration symbol this template belongs to. */
-    readonly symbol?: GlobalSymbolId;
-    /** The immediately enclosing generic template. */
-    readonly parent?: LocalGenericTemplateId;
-    /** The generic parameters in declaration order. */
-    readonly parameters: ReadonlyArray<LocalGenericParameterId>;
+/** Global generic template id across modules. */
+export type GlobalGenericTemplateId = {
+    /** The module id of the global generic template. */
+    readonly moduleId: ModuleId;
+    /** The local generic template id. */
+    readonly localId: LocalGenericTemplateId;
 };
 
-export const GenericTemplate = {
+export const GlobalGenericTemplateId = {
     /** Encode this value. */
-    encode(writer: BinaryWriter, value: GenericTemplate): void {
-        encodeGenericTemplate(writer, value);
+    encode(writer: BinaryWriter, value: GlobalGenericTemplateId): void {
+        encodeGlobalGenericTemplateId(writer, value);
     },
 
-    /** Decode one GenericTemplate. */
-    decode(reader: BinaryReader): GenericTemplate {
-        return decodeGenericTemplate(reader);
+    /** Decode one GlobalGenericTemplateId. */
+    decode(reader: BinaryReader): GlobalGenericTemplateId {
+        return decodeGlobalGenericTemplateId(reader);
     },
 
     /** Return this value as JSON. */
-    toJson(value: GenericTemplate): Json {
-        return toJsonGenericTemplate(value);
+    toJson(value: GlobalGenericTemplateId): Json {
+        return toJsonGlobalGenericTemplateId(value);
     },
 
-    /** Return one GenericTemplate from one JSON value. */
-    fromJson(value: Json): GenericTemplate {
-        return fromJsonGenericTemplate(value);
+    /** Return one GlobalGenericTemplateId from one JSON value. */
+    fromJson(value: Json): GlobalGenericTemplateId {
+        return fromJsonGlobalGenericTemplateId(value);
     },
 };
 
-/** Encode one GenericTemplate. */
-export function encodeGenericTemplate(writer: BinaryWriter, value: GenericTemplate): void {
-    encodeGlobalNodeIdAny(writer, value.source);
-    writer.writeOption(value.symbol, (value1) => {
-        encodeGlobalSymbolId(writer, value1);
-    });
-    writer.writeOption(value.parent, (value2) => {
-        encodeLocalGenericTemplateId(writer, value2);
-    });
-    writer.writeUnsigned(value.parameters.length);
-    for (const item3 of value.parameters) {
-        encodeLocalGenericParameterId(writer, item3);
-    }
+/** Encode one GlobalGenericTemplateId. */
+export function encodeGlobalGenericTemplateId(writer: BinaryWriter, value: GlobalGenericTemplateId): void {
+    encodeModuleId(writer, value.moduleId);
+    encodeLocalGenericTemplateId(writer, value.localId);
 }
 
-/** Decode one GenericTemplate. */
-export function decodeGenericTemplate(reader: BinaryReader): GenericTemplate {
-    const source = decodeGlobalNodeIdAny(reader);
-    const symbol_ = reader.readOption(() => decodeGlobalSymbolId(reader));
-    const parent = reader.readOption(() => decodeLocalGenericTemplateId(reader));
-    const parameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalGenericParameterId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalGenericParameterId(reader)); } return items3; })();
+/** Decode one GlobalGenericTemplateId. */
+export function decodeGlobalGenericTemplateId(reader: BinaryReader): GlobalGenericTemplateId {
+    const moduleId = decodeModuleId(reader);
+    const localId = decodeLocalGenericTemplateId(reader);
 
     return {
-        source,
-        ...(symbol_ === undefined ? {} : { symbol: symbol_ }),
-        ...(parent === undefined ? {} : { parent }),
-        parameters,
+        moduleId,
+        localId,
     };
 }
 
-/** Return one JSON value for one GenericTemplate. */
-export function toJsonGenericTemplate(value: GenericTemplate): Json {
+/** Return one JSON value for one GlobalGenericTemplateId. */
+export function toJsonGlobalGenericTemplateId(value: GlobalGenericTemplateId): Json {
     return {
-        source: toJsonGlobalNodeIdAny(value.source),
-        ...(value.symbol === undefined ? {} : { symbol: toJsonGlobalSymbolId(value.symbol) }),
-        ...(value.parent === undefined ? {} : { parent: toJsonLocalGenericTemplateId(value.parent) }),
-        parameters: value.parameters.map((item0) => toJsonLocalGenericParameterId(item0)),
+        moduleId: toJsonModuleId(value.moduleId),
+        localId: toJsonLocalGenericTemplateId(value.localId),
     };
 }
 
-/** Return one GenericTemplate from one JSON value. */
-export function fromJsonGenericTemplate(value: Json): GenericTemplate {
+/** Return one GlobalGenericTemplateId from one JSON value. */
+export function fromJsonGlobalGenericTemplateId(value: Json): GlobalGenericTemplateId {
     const object = jsonObject(value);
 
     return {
-        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
-        symbol: jsonOptional(object, "symbol", (value) => fromJsonGlobalSymbolId(value)),
-        parent: jsonOptional(object, "parent", (value) => fromJsonLocalGenericTemplateId(value)),
-        parameters: jsonArray(jsonField(object, "parameters")).map((item0) => fromJsonLocalGenericParameterId(item0)),
+        moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
+        localId: fromJsonLocalGenericTemplateId(jsonField(object, "localId")),
     };
 }
 
@@ -255,6 +236,494 @@ export function fromJsonLocalGenericTemplateId(value: Json): LocalGenericTemplat
     return jsonInteger(value);
 }
 
+/** One selected generic argument bound to its declaration parameter. */
+export type GenericArgumentBinding = {
+    /** The declaration parameter selected by the argument. */
+    readonly parameter: GlobalGenericParameterId;
+    /** The selected argument type or static singleton. */
+    readonly argument: GlobalTypeId;
+};
+
+export const GenericArgumentBinding = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: GenericArgumentBinding): void {
+        encodeGenericArgumentBinding(writer, value);
+    },
+
+    /** Decode one GenericArgumentBinding. */
+    decode(reader: BinaryReader): GenericArgumentBinding {
+        return decodeGenericArgumentBinding(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: GenericArgumentBinding): Json {
+        return toJsonGenericArgumentBinding(value);
+    },
+
+    /** Return one GenericArgumentBinding from one JSON value. */
+    fromJson(value: Json): GenericArgumentBinding {
+        return fromJsonGenericArgumentBinding(value);
+    },
+};
+
+/** Encode one GenericArgumentBinding. */
+export function encodeGenericArgumentBinding(writer: BinaryWriter, value: GenericArgumentBinding): void {
+    encodeGlobalGenericParameterId(writer, value.parameter);
+    encodeGlobalTypeId(writer, value.argument);
+}
+
+/** Decode one GenericArgumentBinding. */
+export function decodeGenericArgumentBinding(reader: BinaryReader): GenericArgumentBinding {
+    const parameter = decodeGlobalGenericParameterId(reader);
+    const argument = decodeGlobalTypeId(reader);
+
+    return {
+        parameter,
+        argument,
+    };
+}
+
+/** Return one JSON value for one GenericArgumentBinding. */
+export function toJsonGenericArgumentBinding(value: GenericArgumentBinding): Json {
+    return {
+        parameter: toJsonGlobalGenericParameterId(value.parameter),
+        argument: toJsonGlobalTypeId(value.argument),
+    };
+}
+
+/** Return one GenericArgumentBinding from one JSON value. */
+export function fromJsonGenericArgumentBinding(value: Json): GenericArgumentBinding {
+    const object = jsonObject(value);
+
+    return {
+        parameter: fromJsonGlobalGenericParameterId(jsonField(object, "parameter")),
+        argument: fromJsonGlobalTypeId(jsonField(object, "argument")),
+    };
+}
+
+/** One runtime argument bound to its selected parameter slot. */
+export type ArgumentBinding = {
+    /** The selected parameter position. */
+    readonly parameter: number;
+    /** The selected parameter type after static substitutions. */
+    readonly ty: GlobalTypeId;
+    /** The source argument bound to this parameter. */
+    readonly argument: ArgumentSource;
+};
+
+export const ArgumentBinding = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ArgumentBinding): void {
+        encodeArgumentBinding(writer, value);
+    },
+
+    /** Decode one ArgumentBinding. */
+    decode(reader: BinaryReader): ArgumentBinding {
+        return decodeArgumentBinding(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ArgumentBinding): Json {
+        return toJsonArgumentBinding(value);
+    },
+
+    /** Return one ArgumentBinding from one JSON value. */
+    fromJson(value: Json): ArgumentBinding {
+        return fromJsonArgumentBinding(value);
+    },
+};
+
+/** Encode one ArgumentBinding. */
+export function encodeArgumentBinding(writer: BinaryWriter, value: ArgumentBinding): void {
+    writer.writeUnsigned(value.parameter);
+    encodeGlobalTypeId(writer, value.ty);
+    encodeArgumentSource(writer, value.argument);
+}
+
+/** Decode one ArgumentBinding. */
+export function decodeArgumentBinding(reader: BinaryReader): ArgumentBinding {
+    const parameter = reader.readNumber();
+    const ty = decodeGlobalTypeId(reader);
+    const argument = decodeArgumentSource(reader);
+
+    return {
+        parameter,
+        ty,
+        argument,
+    };
+}
+
+/** Return one JSON value for one ArgumentBinding. */
+export function toJsonArgumentBinding(value: ArgumentBinding): Json {
+    return {
+        parameter: value.parameter,
+        ty: toJsonGlobalTypeId(value.ty),
+        argument: toJsonArgumentSource(value.argument),
+    };
+}
+
+/** Return one ArgumentBinding from one JSON value. */
+export function fromJsonArgumentBinding(value: Json): ArgumentBinding {
+    const object = jsonObject(value);
+
+    return {
+        parameter: jsonInteger(jsonField(object, "parameter")),
+        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
+        argument: fromJsonArgumentSource(jsonField(object, "argument")),
+    };
+}
+
+/** Source argument bound to one selected parameter slot. */
+export type ArgumentSource =
+    /** One source argument was supplied. */
+    | {
+          readonly kind: "provided";
+          readonly provided: GlobalNodeIdAny;
+      }
+    /** One static argument was inserted by checking. */
+    | {
+          readonly kind: "static";
+          readonly static: GlobalTypeId;
+      }
+    /** No source argument was supplied. */
+    | {
+          readonly kind: "omitted";
+      }
+    /** Remaining source arguments were supplied to a rest parameter. */
+    | {
+          readonly kind: "rest";
+          readonly rest: ReadonlyArray<GlobalNodeIdAny>;
+      }
+;
+
+export const ArgumentSource = {
+    /** One source argument was supplied. */
+    provided(provided: GlobalNodeIdAny): ArgumentSource {
+        return { kind: "provided", provided };
+    },
+
+    /** One static argument was inserted by checking. */
+    "static"(static_: GlobalTypeId): ArgumentSource {
+        return { kind: "static", static: static_ };
+    },
+
+    /** No source argument was supplied. */
+    omitted(): ArgumentSource {
+        return { kind: "omitted" };
+    },
+
+    /** Remaining source arguments were supplied to a rest parameter. */
+    rest(rest: ReadonlyArray<GlobalNodeIdAny>): ArgumentSource {
+        return { kind: "rest", rest };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ArgumentSource): void {
+        encodeArgumentSource(writer, value);
+    },
+
+    /** Decode one ArgumentSource. */
+    decode(reader: BinaryReader): ArgumentSource {
+        return decodeArgumentSource(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ArgumentSource): Json {
+        return toJsonArgumentSource(value);
+    },
+
+    /** Return one ArgumentSource from one JSON value. */
+    fromJson(value: Json): ArgumentSource {
+        return fromJsonArgumentSource(value);
+    },
+};
+
+/** Encode one ArgumentSource. */
+export function encodeArgumentSource(writer: BinaryWriter, value: ArgumentSource): void {
+    switch (value.kind) {
+        case "provided":
+            writer.writeUnsigned(0);
+            encodeGlobalNodeIdAny(writer, value.provided);
+            return;
+        case "static":
+            writer.writeUnsigned(1);
+            encodeGlobalTypeId(writer, value.static);
+            return;
+        case "omitted":
+            writer.writeUnsigned(2);
+            return;
+        case "rest":
+            writer.writeUnsigned(3);
+            writer.writeUnsigned(value.rest.length);
+            for (const item0 of value.rest) {
+                encodeGlobalNodeIdAny(writer, item0);
+            }
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one ArgumentSource. */
+export function decodeArgumentSource(reader: BinaryReader): ArgumentSource {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const provided = decodeGlobalNodeIdAny(reader);
+
+            return { kind: "provided", provided };
+        }
+        case 1: {
+            const static_ = decodeGlobalTypeId(reader);
+
+            return { kind: "static", static: static_ };
+        }
+        case 2: {
+            return { kind: "omitted" };
+        }
+        case 3: {
+            const rest = (() => { const length0 = reader.readNumber(); const items0: Array<GlobalNodeIdAny> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeGlobalNodeIdAny(reader)); } return items0; })();
+
+            return { kind: "rest", rest };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one ArgumentSource. */
+export function toJsonArgumentSource(value: ArgumentSource): Json {
+    switch (value.kind) {
+        case "provided":
+            return {
+                kind: "provided",
+                provided: toJsonGlobalNodeIdAny(value.provided),
+            };
+        case "static":
+            return {
+                kind: "static",
+                static: toJsonGlobalTypeId(value.static),
+            };
+        case "omitted":
+            return {
+                kind: "omitted",
+            };
+        case "rest":
+            return {
+                kind: "rest",
+                rest: value.rest.map((item0) => toJsonGlobalNodeIdAny(item0)),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one ArgumentSource from one JSON value. */
+export function fromJsonArgumentSource(value: Json): ArgumentSource {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "provided":
+            return {
+                kind,
+                provided: fromJsonGlobalNodeIdAny(jsonField(object, "provided")),
+            };
+        case "static":
+            return {
+                kind,
+                static: fromJsonGlobalTypeId(jsonField(object, "static")),
+            };
+        case "omitted":
+            return {
+                kind,
+            };
+        case "rest":
+            return {
+                kind,
+                rest: jsonArray(jsonField(object, "rest")).map((item0) => fromJsonGlobalNodeIdAny(item0)),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** One declaration of generic parameters. */
+export type GenericTemplate = {
+    /** The source node that declares this template. */
+    readonly source: GlobalNodeIdAny;
+    /** The declaration symbol this template belongs to. */
+    readonly symbol?: GlobalSymbolId;
+    /** The immediately enclosing generic template. */
+    readonly parent?: LocalGenericTemplateId;
+    /** The generic parameters in declaration order. */
+    readonly parameters: ReadonlyArray<LocalGenericParameterId>;
+    /** The where-clause predicates declared on this template. */
+    readonly predicates: ReadonlyArray<WherePredicate>;
+};
+
+export const GenericTemplate = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: GenericTemplate): void {
+        encodeGenericTemplate(writer, value);
+    },
+
+    /** Decode one GenericTemplate. */
+    decode(reader: BinaryReader): GenericTemplate {
+        return decodeGenericTemplate(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: GenericTemplate): Json {
+        return toJsonGenericTemplate(value);
+    },
+
+    /** Return one GenericTemplate from one JSON value. */
+    fromJson(value: Json): GenericTemplate {
+        return fromJsonGenericTemplate(value);
+    },
+};
+
+/** Encode one GenericTemplate. */
+export function encodeGenericTemplate(writer: BinaryWriter, value: GenericTemplate): void {
+    encodeGlobalNodeIdAny(writer, value.source);
+    writer.writeOption(value.symbol, (value1) => {
+        encodeGlobalSymbolId(writer, value1);
+    });
+    writer.writeOption(value.parent, (value2) => {
+        encodeLocalGenericTemplateId(writer, value2);
+    });
+    writer.writeUnsigned(value.parameters.length);
+    for (const item3 of value.parameters) {
+        encodeLocalGenericParameterId(writer, item3);
+    }
+    writer.writeUnsigned(value.predicates.length);
+    for (const item4 of value.predicates) {
+        encodeWherePredicate(writer, item4);
+    }
+}
+
+/** Decode one GenericTemplate. */
+export function decodeGenericTemplate(reader: BinaryReader): GenericTemplate {
+    const source = decodeGlobalNodeIdAny(reader);
+    const symbol_ = reader.readOption(() => decodeGlobalSymbolId(reader));
+    const parent = reader.readOption(() => decodeLocalGenericTemplateId(reader));
+    const parameters = (() => { const length3 = reader.readNumber(); const items3: Array<LocalGenericParameterId> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeLocalGenericParameterId(reader)); } return items3; })();
+    const predicates = (() => { const length4 = reader.readNumber(); const items4: Array<WherePredicate> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeWherePredicate(reader)); } return items4; })();
+
+    return {
+        source,
+        ...(symbol_ === undefined ? {} : { symbol: symbol_ }),
+        ...(parent === undefined ? {} : { parent }),
+        parameters,
+        predicates,
+    };
+}
+
+/** Return one JSON value for one GenericTemplate. */
+export function toJsonGenericTemplate(value: GenericTemplate): Json {
+    return {
+        source: toJsonGlobalNodeIdAny(value.source),
+        ...(value.symbol === undefined ? {} : { symbol: toJsonGlobalSymbolId(value.symbol) }),
+        ...(value.parent === undefined ? {} : { parent: toJsonLocalGenericTemplateId(value.parent) }),
+        parameters: value.parameters.map((item0) => toJsonLocalGenericParameterId(item0)),
+        predicates: value.predicates.map((item0) => toJsonWherePredicate(item0)),
+    };
+}
+
+/** Return one GenericTemplate from one JSON value. */
+export function fromJsonGenericTemplate(value: Json): GenericTemplate {
+    const object = jsonObject(value);
+
+    return {
+        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
+        symbol: jsonOptional(object, "symbol", (value) => fromJsonGlobalSymbolId(value)),
+        parent: jsonOptional(object, "parent", (value) => fromJsonLocalGenericTemplateId(value)),
+        parameters: jsonArray(jsonField(object, "parameters")).map((item0) => fromJsonLocalGenericParameterId(item0)),
+        predicates: jsonArray(jsonField(object, "predicates")).map((item0) => fromJsonWherePredicate(item0)),
+    };
+}
+
+/** One where clause declared on a generic template. */
+export type WherePredicate = {
+    /** The source where clause node. */
+    readonly source: GlobalNodeIdAny;
+    /** The relation between the two operands. */
+    readonly relation: WhereRelation;
+    /** The left relation operand. */
+    readonly left: GlobalTypeId;
+    /** The right relation operand. */
+    readonly right: GlobalTypeId;
+};
+
+export const WherePredicate = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: WherePredicate): void {
+        encodeWherePredicate(writer, value);
+    },
+
+    /** Decode one WherePredicate. */
+    decode(reader: BinaryReader): WherePredicate {
+        return decodeWherePredicate(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: WherePredicate): Json {
+        return toJsonWherePredicate(value);
+    },
+
+    /** Return one WherePredicate from one JSON value. */
+    fromJson(value: Json): WherePredicate {
+        return fromJsonWherePredicate(value);
+    },
+};
+
+/** Encode one WherePredicate. */
+export function encodeWherePredicate(writer: BinaryWriter, value: WherePredicate): void {
+    encodeGlobalNodeIdAny(writer, value.source);
+    encodeWhereRelation(writer, value.relation);
+    encodeGlobalTypeId(writer, value.left);
+    encodeGlobalTypeId(writer, value.right);
+}
+
+/** Decode one WherePredicate. */
+export function decodeWherePredicate(reader: BinaryReader): WherePredicate {
+    const source = decodeGlobalNodeIdAny(reader);
+    const relation = decodeWhereRelation(reader);
+    const left = decodeGlobalTypeId(reader);
+    const right = decodeGlobalTypeId(reader);
+
+    return {
+        source,
+        relation,
+        left,
+        right,
+    };
+}
+
+/** Return one JSON value for one WherePredicate. */
+export function toJsonWherePredicate(value: WherePredicate): Json {
+    return {
+        source: toJsonGlobalNodeIdAny(value.source),
+        relation: toJsonWhereRelation(value.relation),
+        left: toJsonGlobalTypeId(value.left),
+        right: toJsonGlobalTypeId(value.right),
+    };
+}
+
+/** Return one WherePredicate from one JSON value. */
+export function fromJsonWherePredicate(value: Json): WherePredicate {
+    const object = jsonObject(value);
+
+    return {
+        source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
+        relation: fromJsonWhereRelation(jsonField(object, "relation")),
+        left: fromJsonGlobalTypeId(jsonField(object, "left")),
+        right: fromJsonGlobalTypeId(jsonField(object, "right")),
+    };
+}
+
 /** One declaration-side generic parameter. */
 export type GenericParameterBinding = {
     /** The generic template that owns this parameter. */
@@ -271,6 +740,8 @@ export type GenericParameterBinding = {
     readonly origin: GenericParameterOrigin;
     /** Whether the parameter captures remaining arguments. */
     readonly isVariadic: boolean;
+    /** Whether type inference preserves fresh argument precision. */
+    readonly isConst: boolean;
     /** Whether arguments must solve to singleton types. */
     readonly isComptime: boolean;
 };
@@ -312,6 +783,7 @@ export function encodeGenericParameterBinding(writer: BinaryWriter, value: Gener
     });
     encodeGenericParameterOrigin(writer, value.origin);
     writer.writeBool(value.isVariadic);
+    writer.writeBool(value.isConst);
     writer.writeBool(value.isComptime);
 }
 
@@ -324,6 +796,7 @@ export function decodeGenericParameterBinding(reader: BinaryReader): GenericPara
     const default_ = reader.readOption(() => decodeGlobalTypeId(reader));
     const origin = decodeGenericParameterOrigin(reader);
     const isVariadic = reader.readBool();
+    const isConst = reader.readBool();
     const isComptime = reader.readBool();
 
     return {
@@ -334,6 +807,7 @@ export function decodeGenericParameterBinding(reader: BinaryReader): GenericPara
         ...(default_ === undefined ? {} : { default: default_ }),
         origin,
         isVariadic,
+        isConst,
         isComptime,
     };
 }
@@ -348,6 +822,7 @@ export function toJsonGenericParameterBinding(value: GenericParameterBinding): J
         ...(value.default === undefined ? {} : { default: toJsonGlobalTypeId(value.default) }),
         origin: toJsonGenericParameterOrigin(value.origin),
         isVariadic: value.isVariadic,
+        isConst: value.isConst,
         isComptime: value.isComptime,
     };
 }
@@ -364,6 +839,7 @@ export function fromJsonGenericParameterBinding(value: Json): GenericParameterBi
         default: jsonOptional(object, "default", (value) => fromJsonGlobalTypeId(value)),
         origin: fromJsonGenericParameterOrigin(jsonField(object, "origin")),
         isVariadic: jsonBool(jsonField(object, "isVariadic")),
+        isConst: jsonBool(jsonField(object, "isConst")),
         isComptime: jsonBool(jsonField(object, "isComptime")),
     };
 }

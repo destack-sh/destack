@@ -18,17 +18,16 @@ from destack.protocol.serde import (
 import destack._generated.artifact.core.dependency
 import destack._generated.dir.source.token
 import destack._generated.dir.symbol.scope
-import destack._generated.dir.table.annotation
+import destack._generated.dir.table.auto
 import destack._generated.dir.table.binding
 import destack._generated.dir.table.capture
 import destack._generated.dir.table.coercion
+import destack._generated.dir.table.decorator
 import destack._generated.dir.table.definition
 import destack._generated.dir.table.export
 import destack._generated.dir.table.generic
 import destack._generated.dir.table.global_
-import destack._generated.dir.table.guard
 import destack._generated.dir.table.import_
-import destack._generated.dir.table.layout
 import destack._generated.dir.table.macro
 import destack._generated.dir.table.module
 import destack._generated.dir.table.reference
@@ -279,8 +278,12 @@ def from_json_dir_checked_component_entry(value: Json) -> DirCheckedComponentEnt
 class DirCheckedModule:
     """Type-checking segment for one profile-scoped module."""
 
-    # new annotation invocations
-    annotations: destack._generated.dir.table.annotation.AnnotationSegment
+    # checked binding segment
+    bindings: destack._generated.dir.table.binding.BindingSegment
+    # new decorator applications
+    decorators: destack._generated.dir.table.decorator.DecoratorSegment
+    # auto-derived implementations
+    auto: destack._generated.dir.table.auto.AutoSegment
     # new types
     types: destack._generated.dir.table.type.TypeSegment
     # new static values
@@ -293,8 +296,6 @@ class DirCheckedModule:
     definitions: destack._generated.dir.table.definition.DefinitionSegment
     # new implicit coercions
     coercions: destack._generated.dir.table.coercion.CoercionSegment
-    # new layouts
-    layouts: destack._generated.dir.table.layout.LayoutSegment
     # new captures
     captures: destack._generated.dir.table.capture.CaptureSegment
 
@@ -319,9 +320,11 @@ class DirCheckedModule:
 
 def encode_dir_checked_module(writer: BinaryWriter, value: DirCheckedModule) -> None:
     """Encode one DirCheckedModule."""
-    destack._generated.dir.table.annotation.encode_annotation_segment(
-        writer, value.annotations
+    destack._generated.dir.table.binding.encode_binding_segment(writer, value.bindings)
+    destack._generated.dir.table.decorator.encode_decorator_segment(
+        writer, value.decorators
     )
+    destack._generated.dir.table.auto.encode_auto_segment(writer, value.auto)
     destack._generated.dir.table.type.encode_type_segment(writer, value.types)
     destack._generated.dir.table.static.encode_static_segment(writer, value.statics)
     destack._generated.dir.table.resolution.encode_resolution_segment(
@@ -334,15 +337,14 @@ def encode_dir_checked_module(writer: BinaryWriter, value: DirCheckedModule) -> 
     destack._generated.dir.table.coercion.encode_coercion_segment(
         writer, value.coercions
     )
-    destack._generated.dir.table.layout.encode_layout_segment(writer, value.layouts)
     destack._generated.dir.table.capture.encode_capture_segment(writer, value.captures)
 
 
 def decode_dir_checked_module(reader: BinaryReader) -> DirCheckedModule:
     """Decode one DirCheckedModule."""
-    annotations = destack._generated.dir.table.annotation.decode_annotation_segment(
-        reader
-    )
+    bindings = destack._generated.dir.table.binding.decode_binding_segment(reader)
+    decorators = destack._generated.dir.table.decorator.decode_decorator_segment(reader)
+    auto = destack._generated.dir.table.auto.decode_auto_segment(reader)
     types = destack._generated.dir.table.type.decode_type_segment(reader)
     statics = destack._generated.dir.table.static.decode_static_segment(reader)
     resolutions = destack._generated.dir.table.resolution.decode_resolution_segment(
@@ -353,18 +355,18 @@ def decode_dir_checked_module(reader: BinaryReader) -> DirCheckedModule:
         reader
     )
     coercions = destack._generated.dir.table.coercion.decode_coercion_segment(reader)
-    layouts = destack._generated.dir.table.layout.decode_layout_segment(reader)
     captures = destack._generated.dir.table.capture.decode_capture_segment(reader)
 
     return DirCheckedModule(
-        annotations=annotations,
+        bindings=bindings,
+        decorators=decorators,
+        auto=auto,
         types=types,
         statics=statics,
         resolutions=resolutions,
         generics=generics,
         definitions=definitions,
         coercions=coercions,
-        layouts=layouts,
         captures=captures,
     )
 
@@ -372,9 +374,13 @@ def decode_dir_checked_module(reader: BinaryReader) -> DirCheckedModule:
 def to_json_dir_checked_module(value: DirCheckedModule) -> Json:
     """Return one JSON value for one DirCheckedModule."""
     return {
-        "annotations": destack._generated.dir.table.annotation.to_json_annotation_segment(
-            value.annotations
+        "bindings": destack._generated.dir.table.binding.to_json_binding_segment(
+            value.bindings
         ),
+        "decorators": destack._generated.dir.table.decorator.to_json_decorator_segment(
+            value.decorators
+        ),
+        "auto": destack._generated.dir.table.auto.to_json_auto_segment(value.auto),
         "types": destack._generated.dir.table.type.to_json_type_segment(value.types),
         "statics": destack._generated.dir.table.static.to_json_static_segment(
             value.statics
@@ -391,9 +397,6 @@ def to_json_dir_checked_module(value: DirCheckedModule) -> Json:
         "coercions": destack._generated.dir.table.coercion.to_json_coercion_segment(
             value.coercions
         ),
-        "layouts": destack._generated.dir.table.layout.to_json_layout_segment(
-            value.layouts
-        ),
         "captures": destack._generated.dir.table.capture.to_json_capture_segment(
             value.captures
         ),
@@ -405,8 +408,14 @@ def from_json_dir_checked_module(value: Json) -> DirCheckedModule:
     object_ = json_object(value)
 
     return DirCheckedModule(
-        annotations=destack._generated.dir.table.annotation.from_json_annotation_segment(
-            json_field(object_, "annotations")
+        bindings=destack._generated.dir.table.binding.from_json_binding_segment(
+            json_field(object_, "bindings")
+        ),
+        decorators=destack._generated.dir.table.decorator.from_json_decorator_segment(
+            json_field(object_, "decorators")
+        ),
+        auto=destack._generated.dir.table.auto.from_json_auto_segment(
+            json_field(object_, "auto")
         ),
         types=destack._generated.dir.table.type.from_json_type_segment(
             json_field(object_, "types")
@@ -425,9 +434,6 @@ def from_json_dir_checked_module(value: Json) -> DirCheckedModule:
         ),
         coercions=destack._generated.dir.table.coercion.from_json_coercion_segment(
             json_field(object_, "coercions")
-        ),
-        layouts=destack._generated.dir.table.layout.from_json_layout_segment(
-            json_field(object_, "layouts")
         ),
         captures=destack._generated.dir.table.capture.from_json_capture_segment(
             json_field(object_, "captures")
@@ -716,7 +722,7 @@ class DirExpanded:
     types: destack._generated.dir.table.type.TypeSegment
     # new static values
     statics: destack._generated.dir.table.static.StaticSegment
-    # expanded macro invocations
+    # expanded macro applications
     macros: destack._generated.dir.table.macro.MacroTable
     # top-level expressions
     roots: Sequence[destack._generated.dir.tree.node.LocalNodeId]
@@ -1152,8 +1158,6 @@ class DirMaterialized:
     coercions: destack._generated.dir.table.coercion.CoercionSegment
     # new captures
     captures: destack._generated.dir.table.capture.CaptureSegment
-    # new layouts
-    layouts: destack._generated.dir.table.layout.LayoutSegment
     # top-level expressions
     roots: Sequence[destack._generated.dir.tree.node.LocalNodeId]
 
@@ -1190,7 +1194,6 @@ def encode_dir_materialized(writer: BinaryWriter, value: DirMaterialized) -> Non
         writer, value.coercions
     )
     destack._generated.dir.table.capture.encode_capture_segment(writer, value.captures)
-    destack._generated.dir.table.layout.encode_layout_segment(writer, value.layouts)
     writer.write_unsigned(len(value.roots))
     for item_value_roots_0 in value.roots:
         destack._generated.dir.tree.node.encode_local_node_id(
@@ -1210,7 +1213,6 @@ def decode_dir_materialized(reader: BinaryReader) -> DirMaterialized:
     generics = destack._generated.dir.table.generic.decode_generic_segment(reader)
     coercions = destack._generated.dir.table.coercion.decode_coercion_segment(reader)
     captures = destack._generated.dir.table.capture.decode_capture_segment(reader)
-    layouts = destack._generated.dir.table.layout.decode_layout_segment(reader)
     roots = [
         destack._generated.dir.tree.node.decode_local_node_id(reader)
         for _ in range(reader.read_number())
@@ -1225,7 +1227,6 @@ def decode_dir_materialized(reader: BinaryReader) -> DirMaterialized:
         generics=generics,
         coercions=coercions,
         captures=captures,
-        layouts=layouts,
         roots=roots,
     )
 
@@ -1252,9 +1253,6 @@ def to_json_dir_materialized(value: DirMaterialized) -> Json:
         ),
         "captures": destack._generated.dir.table.capture.to_json_capture_segment(
             value.captures
-        ),
-        "layouts": destack._generated.dir.table.layout.to_json_layout_segment(
-            value.layouts
         ),
         "roots": [
             destack._generated.dir.tree.node.to_json_local_node_id(item_0)
@@ -1292,192 +1290,10 @@ def from_json_dir_materialized(value: Json) -> DirMaterialized:
         captures=destack._generated.dir.table.capture.from_json_capture_segment(
             json_field(object_, "captures")
         ),
-        layouts=destack._generated.dir.table.layout.from_json_layout_segment(
-            json_field(object_, "layouts")
-        ),
         roots=[
             destack._generated.dir.tree.node.from_json_local_node_id(item_0)
             for item_0 in json_array(json_field(object_, "roots"))
         ],
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class DirElaborated:
-    """DIR-to-MIR elaboration segment for one profile-scoped module."""
-
-    # tree changes
-    patch: destack._generated.dir.tree.patch.Patch
-    # new bindings
-    bindings: destack._generated.dir.table.binding.BindingSegment
-    # new types
-    types: destack._generated.dir.table.type.TypeSegment
-    # new static values
-    statics: destack._generated.dir.table.static.StaticSegment
-    # new resolutions
-    resolutions: destack._generated.dir.table.resolution.ResolutionSegment
-    # new generic slots and instances
-    generics: destack._generated.dir.table.generic.GenericSegment
-    # new implicit coercions
-    coercions: destack._generated.dir.table.coercion.CoercionSegment
-    # new captures
-    captures: destack._generated.dir.table.capture.CaptureSegment
-    # new layouts
-    layouts: destack._generated.dir.table.layout.LayoutSegment
-    # top-level expressions
-    roots: Sequence[destack._generated.dir.tree.node.LocalNodeId]
-    # new guards
-    guards: destack._generated.dir.table.guard.GuardTable
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_dir_elaborated(writer, self)
-
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> DirElaborated:
-        """Decode one DirElaborated."""
-        return decode_dir_elaborated(reader)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_dir_elaborated(self)
-
-    @classmethod
-    def from_json(cls, value: Json) -> DirElaborated:
-        """Return one DirElaborated from one JSON value."""
-        return from_json_dir_elaborated(value)
-
-
-def encode_dir_elaborated(writer: BinaryWriter, value: DirElaborated) -> None:
-    """Encode one DirElaborated."""
-    destack._generated.dir.tree.patch.encode_patch(writer, value.patch)
-    destack._generated.dir.table.binding.encode_binding_segment(writer, value.bindings)
-    destack._generated.dir.table.type.encode_type_segment(writer, value.types)
-    destack._generated.dir.table.static.encode_static_segment(writer, value.statics)
-    destack._generated.dir.table.resolution.encode_resolution_segment(
-        writer, value.resolutions
-    )
-    destack._generated.dir.table.generic.encode_generic_segment(writer, value.generics)
-    destack._generated.dir.table.coercion.encode_coercion_segment(
-        writer, value.coercions
-    )
-    destack._generated.dir.table.capture.encode_capture_segment(writer, value.captures)
-    destack._generated.dir.table.layout.encode_layout_segment(writer, value.layouts)
-    writer.write_unsigned(len(value.roots))
-    for item_value_roots_0 in value.roots:
-        destack._generated.dir.tree.node.encode_local_node_id(
-            writer, item_value_roots_0
-        )
-    destack._generated.dir.table.guard.encode_guard_table(writer, value.guards)
-
-
-def decode_dir_elaborated(reader: BinaryReader) -> DirElaborated:
-    """Decode one DirElaborated."""
-    patch = destack._generated.dir.tree.patch.decode_patch(reader)
-    bindings = destack._generated.dir.table.binding.decode_binding_segment(reader)
-    types = destack._generated.dir.table.type.decode_type_segment(reader)
-    statics = destack._generated.dir.table.static.decode_static_segment(reader)
-    resolutions = destack._generated.dir.table.resolution.decode_resolution_segment(
-        reader
-    )
-    generics = destack._generated.dir.table.generic.decode_generic_segment(reader)
-    coercions = destack._generated.dir.table.coercion.decode_coercion_segment(reader)
-    captures = destack._generated.dir.table.capture.decode_capture_segment(reader)
-    layouts = destack._generated.dir.table.layout.decode_layout_segment(reader)
-    roots = [
-        destack._generated.dir.tree.node.decode_local_node_id(reader)
-        for _ in range(reader.read_number())
-    ]
-    guards = destack._generated.dir.table.guard.decode_guard_table(reader)
-
-    return DirElaborated(
-        patch=patch,
-        bindings=bindings,
-        types=types,
-        statics=statics,
-        resolutions=resolutions,
-        generics=generics,
-        coercions=coercions,
-        captures=captures,
-        layouts=layouts,
-        roots=roots,
-        guards=guards,
-    )
-
-
-def to_json_dir_elaborated(value: DirElaborated) -> Json:
-    """Return one JSON value for one DirElaborated."""
-    return {
-        "patch": destack._generated.dir.tree.patch.to_json_patch(value.patch),
-        "bindings": destack._generated.dir.table.binding.to_json_binding_segment(
-            value.bindings
-        ),
-        "types": destack._generated.dir.table.type.to_json_type_segment(value.types),
-        "statics": destack._generated.dir.table.static.to_json_static_segment(
-            value.statics
-        ),
-        "resolutions": destack._generated.dir.table.resolution.to_json_resolution_segment(
-            value.resolutions
-        ),
-        "generics": destack._generated.dir.table.generic.to_json_generic_segment(
-            value.generics
-        ),
-        "coercions": destack._generated.dir.table.coercion.to_json_coercion_segment(
-            value.coercions
-        ),
-        "captures": destack._generated.dir.table.capture.to_json_capture_segment(
-            value.captures
-        ),
-        "layouts": destack._generated.dir.table.layout.to_json_layout_segment(
-            value.layouts
-        ),
-        "roots": [
-            destack._generated.dir.tree.node.to_json_local_node_id(item_0)
-            for item_0 in value.roots
-        ],
-        "guards": destack._generated.dir.table.guard.to_json_guard_table(value.guards),
-    }
-
-
-def from_json_dir_elaborated(value: Json) -> DirElaborated:
-    """Return one DirElaborated from one JSON value."""
-    object_ = json_object(value)
-
-    return DirElaborated(
-        patch=destack._generated.dir.tree.patch.from_json_patch(
-            json_field(object_, "patch")
-        ),
-        bindings=destack._generated.dir.table.binding.from_json_binding_segment(
-            json_field(object_, "bindings")
-        ),
-        types=destack._generated.dir.table.type.from_json_type_segment(
-            json_field(object_, "types")
-        ),
-        statics=destack._generated.dir.table.static.from_json_static_segment(
-            json_field(object_, "statics")
-        ),
-        resolutions=destack._generated.dir.table.resolution.from_json_resolution_segment(
-            json_field(object_, "resolutions")
-        ),
-        generics=destack._generated.dir.table.generic.from_json_generic_segment(
-            json_field(object_, "generics")
-        ),
-        coercions=destack._generated.dir.table.coercion.from_json_coercion_segment(
-            json_field(object_, "coercions")
-        ),
-        captures=destack._generated.dir.table.capture.from_json_capture_segment(
-            json_field(object_, "captures")
-        ),
-        layouts=destack._generated.dir.table.layout.from_json_layout_segment(
-            json_field(object_, "layouts")
-        ),
-        roots=[
-            destack._generated.dir.tree.node.from_json_local_node_id(item_0)
-            for item_0 in json_array(json_field(object_, "roots"))
-        ],
-        guards=destack._generated.dir.table.guard.from_json_guard_table(
-            json_field(object_, "guards")
-        ),
     )
 
 
@@ -1542,9 +1358,4 @@ __all__ = [
     "decode_dir_materialized",
     "to_json_dir_materialized",
     "from_json_dir_materialized",
-    "DirElaborated",
-    "encode_dir_elaborated",
-    "decode_dir_elaborated",
-    "to_json_dir_elaborated",
-    "from_json_dir_elaborated",
 ]

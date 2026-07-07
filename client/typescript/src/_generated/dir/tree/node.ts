@@ -420,7 +420,7 @@ export function fromJsonLocalNodeIdAny(value: Json): LocalNodeIdAny {
 }
 
 /** The type of a node. */
-export type NodeType = "expression" | "typeExpression" | "block" | "catch" | "declaration" | "declarator" | "property" | "typeMember" | "typeMappedParameter" | "member" | "enumField" | "whereClause" | "dependencyItem" | "genericParameter" | "parameter" | "genericArgument" | "tupleElement" | "argument" | "matchCase" | "pattern" | "patternField" | "assignPattern" | "assignPatternField" | "decorator";
+export type NodeType = "expression" | "typeExpression" | "block" | "catch" | "declaration" | "declarator" | "property" | "typeMember" | "typeMappedParameter" | "member" | "enumField" | "whereClause" | "dependencyItem" | "genericParameter" | "parameter" | "genericArgument" | "tupleElement" | "argument" | "treeAttribute" | "treeChild" | "matchCase" | "pattern" | "patternField" | "assignPattern" | "assignPatternField" | "decorator";
 
 export const NodeType = {
     /** Encode this value. */
@@ -501,23 +501,29 @@ export function encodeNodeType(writer: BinaryWriter, value: NodeType): void {
         case "argument":
             writer.writeUnsigned(17);
             return;
-        case "matchCase":
+        case "treeAttribute":
             writer.writeUnsigned(18);
             return;
-        case "pattern":
+        case "treeChild":
             writer.writeUnsigned(19);
             return;
-        case "patternField":
+        case "matchCase":
             writer.writeUnsigned(20);
             return;
-        case "assignPattern":
+        case "pattern":
             writer.writeUnsigned(21);
             return;
-        case "assignPatternField":
+        case "patternField":
             writer.writeUnsigned(22);
             return;
-        case "decorator":
+        case "assignPattern":
             writer.writeUnsigned(23);
+            return;
+        case "assignPatternField":
+            writer.writeUnsigned(24);
+            return;
+        case "decorator":
+            writer.writeUnsigned(25);
             return;
     }
 
@@ -566,16 +572,20 @@ export function decodeNodeType(reader: BinaryReader): NodeType {
         case 17:
             return "argument";
         case 18:
-            return "matchCase";
+            return "treeAttribute";
         case 19:
-            return "pattern";
+            return "treeChild";
         case 20:
-            return "patternField";
+            return "matchCase";
         case 21:
-            return "assignPattern";
+            return "pattern";
         case 22:
-            return "assignPatternField";
+            return "patternField";
         case 23:
+            return "assignPattern";
+        case 24:
+            return "assignPatternField";
+        case 25:
             return "decorator";
     }
 
@@ -628,6 +638,10 @@ export function fromJsonNodeType(value: Json): NodeType {
             return "tupleElement";
         case "argument":
             return "argument";
+        case "treeAttribute":
+            return "treeAttribute";
+        case "treeChild":
+            return "treeChild";
         case "matchCase":
             return "matchCase";
         case "pattern":

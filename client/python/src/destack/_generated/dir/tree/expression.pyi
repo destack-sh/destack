@@ -13,6 +13,7 @@ from destack._impl.dir.tree.expression import (
 )
 
 import destack._generated.core.string
+import destack._generated.dir.tree.declaration
 import destack._generated.dir.tree.dependency
 import destack._generated.dir.tree.import_
 import destack._generated.dir.tree.literal
@@ -86,7 +87,7 @@ class ExpressionLet(ExpressionImpl):
     mutability: destack._generated.dir.tree.node.Mutability
     declarators: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     is_ambient: bool
-    is_shared: bool
+    place: destack._generated.dir.tree.declaration.PlaceModifier | None
     kind: typing.Literal["let"] = "let"
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -452,12 +453,12 @@ class ExpressionStructExpression(ExpressionImpl):
 
 @dataclass(frozen=True, slots=True)
 class ExpressionTreeExpression(ExpressionImpl):
-    """A TreeExpression constructs a tree fragment with arguments and children."""
+    """A TreeExpression constructs a tree fragment with attributes and children."""
 
     left: destack._generated.dir.tree.node.LocalNodeId | None
     generic_arguments: Sequence[destack._generated.dir.tree.node.LocalNodeId]
-    arguments: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
-    elements: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
+    attributes: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
+    children: Sequence[destack._generated.dir.tree.node.LocalNodeId] | None
     kind: typing.Literal["treeExpression"] = "treeExpression"
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -989,9 +990,11 @@ def from_json_catch(value: Json) -> Catch: ...
 class WhereClause:
     """A WhereClause is a single clause in a where type declaration."""
 
-    # the target type to constrain (like `T` in `T: int32`)
+    # the relation between the two operands
+    relation: WhereRelation
+    # the left relation operand, like `T` in `T: int32`
     left: destack._generated.dir.tree.node.LocalNodeId
-    # the constraint type (like `int32` in `T: int32`)
+    # the right relation operand, like `int32` in `T: int32`
     right: destack._generated.dir.tree.node.LocalNodeId
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -1005,6 +1008,14 @@ def encode_where_clause(writer: BinaryWriter, value: WhereClause) -> None: ...
 def decode_where_clause(reader: BinaryReader) -> WhereClause: ...
 def to_json_where_clause(value: WhereClause) -> Json: ...
 def from_json_where_clause(value: Json) -> WhereClause: ...
+
+"""A where-clause relation."""
+WhereRelation: typing.TypeAlias = typing.Literal["satisfies"] | typing.Literal["equals"]
+
+def encode_where_relation(writer: BinaryWriter, value: WhereRelation) -> None: ...
+def decode_where_relation(reader: BinaryReader) -> WhereRelation: ...
+def to_json_where_relation(value: WhereRelation) -> Json: ...
+def from_json_where_relation(value: Json) -> WhereRelation: ...
 
 __all__ = [
     "Expression",
@@ -1146,4 +1157,9 @@ __all__ = [
     "decode_where_clause",
     "to_json_where_clause",
     "from_json_where_clause",
+    "WhereRelation",
+    "encode_where_relation",
+    "decode_where_relation",
+    "to_json_where_relation",
+    "from_json_where_relation",
 ]

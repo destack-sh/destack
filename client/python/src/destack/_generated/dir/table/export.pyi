@@ -19,10 +19,10 @@ class ExportTable:
     # local and indirect exports keyed by exported name
     export_by_key: Mapping[
         destack._generated.dir.symbol.export.ExportKey,
-        destack._generated.dir.symbol.export.ExportEntry,
+        destack._generated.dir.symbol.export.NamedExport,
     ]
     # star exports declared by the module
-    star_exports: Sequence[destack._generated.dir.symbol.export.StarExportEntry]
+    star_exports: Sequence[destack._generated.dir.symbol.export.StarExport]
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod

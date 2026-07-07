@@ -19,6 +19,8 @@ import type { Expression } from "./expression.js";
 import type { Catch } from "./expression.js";
 import type { WhereClause } from "./expression.js";
 import type { NodeIndexEntry } from "./index.js";
+import type { TreeAttribute } from "./literal.js";
+import type { TreeChild } from "./literal.js";
 import type { MatchCase } from "./match.js";
 import type { LocalNodeId } from "./node.js";
 import type { Pattern } from "./pattern.js";
@@ -51,6 +53,8 @@ import { decodeExpression, encodeExpression, fromJsonExpression, toJsonExpressio
 import { decodeCatch, encodeCatch, fromJsonCatch, toJsonCatch } from "./expression.js";
 import { decodeWhereClause, encodeWhereClause, fromJsonWhereClause, toJsonWhereClause } from "./expression.js";
 import { decodeNodeIndexEntry, encodeNodeIndexEntry, fromJsonNodeIndexEntry, toJsonNodeIndexEntry } from "./index.js";
+import { decodeTreeAttribute, encodeTreeAttribute, fromJsonTreeAttribute, toJsonTreeAttribute } from "./literal.js";
+import { decodeTreeChild, encodeTreeChild, fromJsonTreeChild, toJsonTreeChild } from "./literal.js";
 import { decodeMatchCase, encodeMatchCase, fromJsonMatchCase, toJsonMatchCase } from "./match.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
 import { decodePattern, encodePattern, fromJsonPattern, toJsonPattern } from "./pattern.js";
@@ -96,6 +100,8 @@ export type Tree = {
     readonly genericArguments: ReadonlyArray<GenericArgument>;
     readonly tupleElements: ReadonlyArray<TupleElement>;
     readonly arguments: ReadonlyArray<Argument>;
+    readonly treeAttributes: ReadonlyArray<TreeAttribute>;
+    readonly treeChildren: ReadonlyArray<TreeChild>;
     readonly matchCases: ReadonlyArray<MatchCase>;
     readonly patterns: ReadonlyArray<Pattern>;
     readonly patternFields: ReadonlyArray<PatternField>;
@@ -223,64 +229,45 @@ export function encodeTree(writer: BinaryWriter, value: Tree): void {
     for (const item22 of value.arguments) {
         encodeArgument(writer, item22);
     }
+    writer.writeUnsigned(value.treeAttributes.length);
+    for (const item23 of value.treeAttributes) {
+        encodeTreeAttribute(writer, item23);
+    }
+    writer.writeUnsigned(value.treeChildren.length);
+    for (const item24 of value.treeChildren) {
+        encodeTreeChild(writer, item24);
+    }
     writer.writeUnsigned(value.matchCases.length);
-    for (const item23 of value.matchCases) {
-        encodeMatchCase(writer, item23);
+    for (const item25 of value.matchCases) {
+        encodeMatchCase(writer, item25);
     }
     writer.writeUnsigned(value.patterns.length);
-    for (const item24 of value.patterns) {
-        encodePattern(writer, item24);
+    for (const item26 of value.patterns) {
+        encodePattern(writer, item26);
     }
     writer.writeUnsigned(value.patternFields.length);
-    for (const item25 of value.patternFields) {
-        encodePatternField(writer, item25);
+    for (const item27 of value.patternFields) {
+        encodePatternField(writer, item27);
     }
     writer.writeUnsigned(value.assignPatterns.length);
-    for (const item26 of value.assignPatterns) {
-        encodeAssignPattern(writer, item26);
+    for (const item28 of value.assignPatterns) {
+        encodeAssignPattern(writer, item28);
     }
     writer.writeUnsigned(value.assignPatternFields.length);
-    for (const item27 of value.assignPatternFields) {
-        encodeAssignPatternField(writer, item27);
+    for (const item29 of value.assignPatternFields) {
+        encodeAssignPatternField(writer, item29);
     }
     writer.writeUnsigned(value.comments.length);
-    for (const item28 of value.comments) {
-        encodeComment(writer, item28);
+    for (const item30 of value.comments) {
+        encodeComment(writer, item30);
     }
     writer.writeUnsigned(value.decorators.length);
-    for (const item29 of value.decorators) {
-        encodeDecorator(writer, item29);
+    for (const item31 of value.decorators) {
+        encodeDecorator(writer, item31);
     }
     encodeNodeParentIndex(writer, value.parents);
     encodeSparseNodeMap(writer, value.originByNodeId);
-    const entries32 = Array.from(value.aliasNodeIdByNodeId.entries()).map(([key32, item32]) => {
-        const keyBytes = nestedBytes((writer) => {
-            writer.writeUnsigned(key32);
-        });
-        return { key32, item32, keyBytes };
-    });
-    entries32.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries32.length);
-    for (const entry32 of entries32) {
-        writer.writeUnsigned(entry32.key32);
-        writer.writeUnsigned(entry32.item32);
-    }
-    const entries33 = Array.from(value.decoratorsByNodeId.entries()).map(([key33, item33]) => {
-        const keyBytes = nestedBytes((writer) => {
-            writer.writeUnsigned(key33);
-        });
-        return { key33, item33, keyBytes };
-    });
-    entries33.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries33.length);
-    for (const entry33 of entries33) {
-        writer.writeUnsigned(entry33.key33);
-        writer.writeUnsigned(entry33.item33.length);
-        for (const item34 of entry33.item33) {
-            encodeLocalNodeId(writer, item34);
-        }
-    }
-    const entries34 = Array.from(value.documentationByNodeId.entries()).map(([key34, item34]) => {
+    const entries34 = Array.from(value.aliasNodeIdByNodeId.entries()).map(([key34, item34]) => {
         const keyBytes = nestedBytes((writer) => {
             writer.writeUnsigned(key34);
         });
@@ -290,12 +277,39 @@ export function encodeTree(writer: BinaryWriter, value: Tree): void {
     writer.writeUnsigned(entries34.length);
     for (const entry34 of entries34) {
         writer.writeUnsigned(entry34.key34);
-        encodeDocumentation(writer, entry34.item34);
+        writer.writeUnsigned(entry34.item34);
+    }
+    const entries35 = Array.from(value.decoratorsByNodeId.entries()).map(([key35, item35]) => {
+        const keyBytes = nestedBytes((writer) => {
+            writer.writeUnsigned(key35);
+        });
+        return { key35, item35, keyBytes };
+    });
+    entries35.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries35.length);
+    for (const entry35 of entries35) {
+        writer.writeUnsigned(entry35.key35);
+        writer.writeUnsigned(entry35.item35.length);
+        for (const item36 of entry35.item35) {
+            encodeLocalNodeId(writer, item36);
+        }
+    }
+    const entries36 = Array.from(value.documentationByNodeId.entries()).map(([key36, item36]) => {
+        const keyBytes = nestedBytes((writer) => {
+            writer.writeUnsigned(key36);
+        });
+        return { key36, item36, keyBytes };
+    });
+    entries36.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
+    writer.writeUnsigned(entries36.length);
+    for (const entry36 of entries36) {
+        writer.writeUnsigned(entry36.key36);
+        encodeDocumentation(writer, entry36.item36);
     }
     encodeSparseNodeMap(writer, value.sourceSpanByNodeId);
     writer.writeUnsigned(value.detachedNodeIds.length);
-    for (const item36 of value.detachedNodeIds) {
-        writer.writeUnsigned(item36);
+    for (const item38 of value.detachedNodeIds) {
+        writer.writeUnsigned(item38);
     }
 }
 
@@ -324,20 +338,22 @@ export function decodeTree(reader: BinaryReader): Tree {
     const genericArguments = (() => { const length20 = reader.readNumber(); const items20: Array<GenericArgument> = []; for (let index = 0; index < length20; index += 1) { items20.push(decodeGenericArgument(reader)); } return items20; })();
     const tupleElements = (() => { const length21 = reader.readNumber(); const items21: Array<TupleElement> = []; for (let index = 0; index < length21; index += 1) { items21.push(decodeTupleElement(reader)); } return items21; })();
     const arguments_ = (() => { const length22 = reader.readNumber(); const items22: Array<Argument> = []; for (let index = 0; index < length22; index += 1) { items22.push(decodeArgument(reader)); } return items22; })();
-    const matchCases = (() => { const length23 = reader.readNumber(); const items23: Array<MatchCase> = []; for (let index = 0; index < length23; index += 1) { items23.push(decodeMatchCase(reader)); } return items23; })();
-    const patterns = (() => { const length24 = reader.readNumber(); const items24: Array<Pattern> = []; for (let index = 0; index < length24; index += 1) { items24.push(decodePattern(reader)); } return items24; })();
-    const patternFields = (() => { const length25 = reader.readNumber(); const items25: Array<PatternField> = []; for (let index = 0; index < length25; index += 1) { items25.push(decodePatternField(reader)); } return items25; })();
-    const assignPatterns = (() => { const length26 = reader.readNumber(); const items26: Array<AssignPattern> = []; for (let index = 0; index < length26; index += 1) { items26.push(decodeAssignPattern(reader)); } return items26; })();
-    const assignPatternFields = (() => { const length27 = reader.readNumber(); const items27: Array<AssignPatternField> = []; for (let index = 0; index < length27; index += 1) { items27.push(decodeAssignPatternField(reader)); } return items27; })();
-    const comments = (() => { const length28 = reader.readNumber(); const items28: Array<Comment> = []; for (let index = 0; index < length28; index += 1) { items28.push(decodeComment(reader)); } return items28; })();
-    const decorators = (() => { const length29 = reader.readNumber(); const items29: Array<Decorator> = []; for (let index = 0; index < length29; index += 1) { items29.push(decodeDecorator(reader)); } return items29; })();
+    const treeAttributes = (() => { const length23 = reader.readNumber(); const items23: Array<TreeAttribute> = []; for (let index = 0; index < length23; index += 1) { items23.push(decodeTreeAttribute(reader)); } return items23; })();
+    const treeChildren = (() => { const length24 = reader.readNumber(); const items24: Array<TreeChild> = []; for (let index = 0; index < length24; index += 1) { items24.push(decodeTreeChild(reader)); } return items24; })();
+    const matchCases = (() => { const length25 = reader.readNumber(); const items25: Array<MatchCase> = []; for (let index = 0; index < length25; index += 1) { items25.push(decodeMatchCase(reader)); } return items25; })();
+    const patterns = (() => { const length26 = reader.readNumber(); const items26: Array<Pattern> = []; for (let index = 0; index < length26; index += 1) { items26.push(decodePattern(reader)); } return items26; })();
+    const patternFields = (() => { const length27 = reader.readNumber(); const items27: Array<PatternField> = []; for (let index = 0; index < length27; index += 1) { items27.push(decodePatternField(reader)); } return items27; })();
+    const assignPatterns = (() => { const length28 = reader.readNumber(); const items28: Array<AssignPattern> = []; for (let index = 0; index < length28; index += 1) { items28.push(decodeAssignPattern(reader)); } return items28; })();
+    const assignPatternFields = (() => { const length29 = reader.readNumber(); const items29: Array<AssignPatternField> = []; for (let index = 0; index < length29; index += 1) { items29.push(decodeAssignPatternField(reader)); } return items29; })();
+    const comments = (() => { const length30 = reader.readNumber(); const items30: Array<Comment> = []; for (let index = 0; index < length30; index += 1) { items30.push(decodeComment(reader)); } return items30; })();
+    const decorators = (() => { const length31 = reader.readNumber(); const items31: Array<Decorator> = []; for (let index = 0; index < length31; index += 1) { items31.push(decodeDecorator(reader)); } return items31; })();
     const parents = decodeNodeParentIndex(reader);
     const originByNodeId = decodeSparseNodeMap(reader);
-    const aliasNodeIdByNodeId = (() => { const length32 = reader.readNumber(); const items32 = new Map<number, number>(); for (let index = 0; index < length32; index += 1) { items32.set(reader.readNumber(), reader.readNumber()); } return items32; })();
-    const decoratorsByNodeId = (() => { const length33 = reader.readNumber(); const items33 = new Map<number, ReadonlyArray<LocalNodeId>>(); for (let index = 0; index < length33; index += 1) { items33.set(reader.readNumber(), (() => { const length35 = reader.readNumber(); const items35: Array<LocalNodeId> = []; for (let index = 0; index < length35; index += 1) { items35.push(decodeLocalNodeId(reader)); } return items35; })()); } return items33; })();
-    const documentationByNodeId = (() => { const length34 = reader.readNumber(); const items34 = new Map<number, Documentation>(); for (let index = 0; index < length34; index += 1) { items34.set(reader.readNumber(), decodeDocumentation(reader)); } return items34; })();
+    const aliasNodeIdByNodeId = (() => { const length34 = reader.readNumber(); const items34 = new Map<number, number>(); for (let index = 0; index < length34; index += 1) { items34.set(reader.readNumber(), reader.readNumber()); } return items34; })();
+    const decoratorsByNodeId = (() => { const length35 = reader.readNumber(); const items35 = new Map<number, ReadonlyArray<LocalNodeId>>(); for (let index = 0; index < length35; index += 1) { items35.set(reader.readNumber(), (() => { const length37 = reader.readNumber(); const items37: Array<LocalNodeId> = []; for (let index = 0; index < length37; index += 1) { items37.push(decodeLocalNodeId(reader)); } return items37; })()); } return items35; })();
+    const documentationByNodeId = (() => { const length36 = reader.readNumber(); const items36 = new Map<number, Documentation>(); for (let index = 0; index < length36; index += 1) { items36.set(reader.readNumber(), decodeDocumentation(reader)); } return items36; })();
     const sourceSpanByNodeId = decodeSparseNodeMap(reader);
-    const detachedNodeIds = (() => { const length36 = reader.readNumber(); const items36: Array<number> = []; for (let index = 0; index < length36; index += 1) { items36.push(reader.readNumber()); } return items36; })();
+    const detachedNodeIds = (() => { const length38 = reader.readNumber(); const items38: Array<number> = []; for (let index = 0; index < length38; index += 1) { items38.push(reader.readNumber()); } return items38; })();
 
     return {
         moduleId,
@@ -363,6 +379,8 @@ export function decodeTree(reader: BinaryReader): Tree {
         genericArguments,
         tupleElements,
         arguments: arguments_,
+        treeAttributes,
+        treeChildren,
         matchCases,
         patterns,
         patternFields,
@@ -406,6 +424,8 @@ export function toJsonTree(value: Tree): Json {
         genericArguments: value.genericArguments.map((item0) => toJsonGenericArgument(item0)),
         tupleElements: value.tupleElements.map((item0) => toJsonTupleElement(item0)),
         arguments: value.arguments.map((item0) => toJsonArgument(item0)),
+        treeAttributes: value.treeAttributes.map((item0) => toJsonTreeAttribute(item0)),
+        treeChildren: value.treeChildren.map((item0) => toJsonTreeChild(item0)),
         matchCases: value.matchCases.map((item0) => toJsonMatchCase(item0)),
         patterns: value.patterns.map((item0) => toJsonPattern(item0)),
         patternFields: value.patternFields.map((item0) => toJsonPatternField(item0)),
@@ -451,6 +471,8 @@ export function fromJsonTree(value: Json): Tree {
         genericArguments: jsonArray(jsonField(object, "genericArguments")).map((item0) => fromJsonGenericArgument(item0)),
         tupleElements: jsonArray(jsonField(object, "tupleElements")).map((item0) => fromJsonTupleElement(item0)),
         arguments: jsonArray(jsonField(object, "arguments")).map((item0) => fromJsonArgument(item0)),
+        treeAttributes: jsonArray(jsonField(object, "treeAttributes")).map((item0) => fromJsonTreeAttribute(item0)),
+        treeChildren: jsonArray(jsonField(object, "treeChildren")).map((item0) => fromJsonTreeChild(item0)),
         matchCases: jsonArray(jsonField(object, "matchCases")).map((item0) => fromJsonMatchCase(item0)),
         patterns: jsonArray(jsonField(object, "patterns")).map((item0) => fromJsonPattern(item0)),
         patternFields: jsonArray(jsonField(object, "patternFields")).map((item0) => fromJsonPatternField(item0)),

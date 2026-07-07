@@ -28,7 +28,7 @@ from destack._impl.mir.analyses.link_graph import (
 )
 
 import destack._generated.core.bitset
-import destack._generated.mir.metadata.effect
+import destack._generated.mir.table.effect
 import destack._generated.mir.tree.global_
 import destack._generated.mir.tree.symbol
 
@@ -232,10 +232,10 @@ class LinkNodeFunction:
     # visibility and definition location
     linkage: destack._generated.mir.tree.global_.Linkage
     # memory effect
-    memory: destack._generated.mir.metadata.effect.MemoryEffect
+    memory: destack._generated.mir.table.effect.MemoryEffect
     # behavioral effects (unwind, determinism, allocation, and so on)
-    behavior: destack._generated.mir.metadata.effect.FunctionBehavior
-    # inline cost approximation
+    behavior: destack._generated.mir.table.effect.FunctionBehavior
+    # estimated inline cost
     inline_cost: int
     # true when the function makes indirect or virtual calls
     indirect: bool
@@ -276,10 +276,8 @@ def encode_link_node(writer: BinaryWriter, value: LinkNode) -> None:
     if value.kind == "function":
         writer.write_unsigned(0)
         destack._generated.mir.tree.global_.encode_linkage(writer, value.linkage)
-        destack._generated.mir.metadata.effect.encode_memory_effect(
-            writer, value.memory
-        )
-        destack._generated.mir.metadata.effect.encode_function_behavior(
+        destack._generated.mir.table.effect.encode_memory_effect(writer, value.memory)
+        destack._generated.mir.table.effect.encode_function_behavior(
             writer, value.behavior
         )
         writer.write_unsigned(value.inline_cost)
@@ -297,10 +295,8 @@ def decode_link_node(reader: BinaryReader) -> LinkNode:
 
     if variant == 0:
         linkage = destack._generated.mir.tree.global_.decode_linkage(reader)
-        memory = destack._generated.mir.metadata.effect.decode_memory_effect(reader)
-        behavior = destack._generated.mir.metadata.effect.decode_function_behavior(
-            reader
-        )
+        memory = destack._generated.mir.table.effect.decode_memory_effect(reader)
+        behavior = destack._generated.mir.table.effect.decode_function_behavior(reader)
         inline_cost = reader.read_number()
         indirect = reader.read_bool()
 
@@ -329,10 +325,10 @@ def to_json_link_node(value: LinkNode) -> Json:
             "linkage": destack._generated.mir.tree.global_.to_json_linkage(
                 value.linkage
             ),
-            "memory": destack._generated.mir.metadata.effect.to_json_memory_effect(
+            "memory": destack._generated.mir.table.effect.to_json_memory_effect(
                 value.memory
             ),
-            "behavior": destack._generated.mir.metadata.effect.to_json_function_behavior(
+            "behavior": destack._generated.mir.table.effect.to_json_function_behavior(
                 value.behavior
             ),
             "inlineCost": value.inline_cost,
@@ -359,10 +355,10 @@ def from_json_link_node(value: Json) -> LinkNode:
             linkage=destack._generated.mir.tree.global_.from_json_linkage(
                 json_field(object_, "linkage")
             ),
-            memory=destack._generated.mir.metadata.effect.from_json_memory_effect(
+            memory=destack._generated.mir.table.effect.from_json_memory_effect(
                 json_field(object_, "memory")
             ),
-            behavior=destack._generated.mir.metadata.effect.from_json_function_behavior(
+            behavior=destack._generated.mir.table.effect.from_json_function_behavior(
                 json_field(object_, "behavior")
             ),
             inline_cost=json_int(json_field(object_, "inlineCost")),

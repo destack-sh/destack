@@ -13,10 +13,66 @@ import destack._generated.dir.symbol.symbol
 import destack._generated.dir.tree.node
 import destack._generated.dir.tree.property
 import destack._generated.dir.tree.static
-import destack._generated.dir.type.extension
 import destack._generated.dir.type.generic
 import destack._generated.dir.type.type
 import destack._generated.source.file.model.module
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorDeclared:
+    """Constructor explicitly declared by this class."""
+
+    # the declared constructor symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["declared"] = "declared"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorDefault:
+    """Default `new T()` candidate for a class with no declared constructor."""
+
+    kind: typing.Literal["default"] = "default"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorForwardedDeclared:
+    """Constructor forwarded to an explicit base class constructor."""
+
+    # the base class symbol
+    base: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the selected base constructor symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["forwardedDeclared"] = "forwardedDeclared"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorForwardedDefault:
+    """Constructor forwarded to a base class default constructor."""
+
+    # the base class symbol
+    base: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    kind: typing.Literal["forwardedDefault"] = "forwardedDefault"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+"""Class construct candidate origin."""
+ClassConstructor: typing.TypeAlias = (
+    ClassConstructorDeclared
+    | ClassConstructorDefault
+    | ClassConstructorForwardedDeclared
+    | ClassConstructorForwardedDefault
+)
+
+def encode_class_constructor(writer: BinaryWriter, value: ClassConstructor) -> None: ...
+def decode_class_constructor(reader: BinaryReader) -> ClassConstructor: ...
+def to_json_class_constructor(value: ClassConstructor) -> Json: ...
+def from_json_class_constructor(value: Json) -> ClassConstructor: ...
 
 @dataclass(frozen=True, slots=True)
 class DefinitionSegment:
@@ -119,7 +175,7 @@ class DefinitionNewtype:
 class DefinitionExtension:
     """Extension declaration."""
 
-    extension: destack._generated.dir.type.extension.Extension
+    extension: ExtensionDefinition
     kind: typing.Literal["extension"] = "extension"
 
     def encode(self, writer: BinaryWriter) -> None: ...
@@ -212,7 +268,7 @@ def from_json_nominal_heritage(value: Json) -> NominalHeritage: ...
 
 @dataclass(frozen=True, slots=True)
 class DefinitionMemberField:
-    """Field member with a checked type."""
+    """Field member."""
 
     field: FieldDefinition
     kind: typing.Literal["field"] = "field"
@@ -222,7 +278,7 @@ class DefinitionMemberField:
 
 @dataclass(frozen=True, slots=True)
 class DefinitionMemberMethod:
-    """Method member with a checked type."""
+    """Method member."""
 
     method: MethodDefinition
     kind: typing.Literal["method"] = "method"
@@ -319,14 +375,14 @@ class FieldDefinition:
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the field key
     key: destack._generated.dir.symbol.key.StaticKey
-    # the checked field type
-    ty: destack._generated.dir.type.type.GlobalTypeId
+    # the field initializer expression, when one is declared
+    initializer: destack._generated.dir.tree.node.GlobalNodeIdAny | None
+    # whether the field asserts definite assignment outside constructors
+    is_definite: bool
     # whether subclasses must provide the field
     is_abstract: bool
     # whether the field overrides an inherited member
     is_override: bool
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -355,21 +411,19 @@ class MethodDefinition:
     # the member space declaring the method
     space: MemberSpace
     # the method symbol
-    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId | None
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
     # the source member node
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the nominal member slot
     slot: destack._generated.dir.tree.property.MemberSlot
     # the method role
     role: destack._generated.dir.tree.property.FunctionRole | None
-    # the checked method type
-    ty: destack._generated.dir.type.type.GlobalTypeId
     # the abstraction mode governing overrides
     abstraction: destack._generated.dir.tree.property.MethodAbstraction
     # whether the method overrides an inherited member
     is_override: bool
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
+    # how the method receives its implementation
+    implementation: MethodImplementation
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -382,6 +436,21 @@ def encode_method_definition(writer: BinaryWriter, value: MethodDefinition) -> N
 def decode_method_definition(reader: BinaryReader) -> MethodDefinition: ...
 def to_json_method_definition(value: MethodDefinition) -> Json: ...
 def from_json_method_definition(value: Json) -> MethodDefinition: ...
+
+"""How one method receives its implementation."""
+MethodImplementation: typing.TypeAlias = (
+    typing.Literal["required"]
+    | typing.Literal["body"]
+    | typing.Literal["default"]
+    | typing.Literal["intrinsic"]
+)
+
+def encode_method_implementation(
+    writer: BinaryWriter, value: MethodImplementation
+) -> None: ...
+def decode_method_implementation(reader: BinaryReader) -> MethodImplementation: ...
+def to_json_method_implementation(value: MethodImplementation) -> Json: ...
+def from_json_method_implementation(value: Json) -> MethodImplementation: ...
 
 @dataclass(frozen=True, slots=True)
 class AssociatedTypeDefinition:
@@ -397,8 +466,6 @@ class AssociatedTypeDefinition:
     constraint: destack._generated.dir.type.type.GlobalTypeId | None
     # the concrete associated type value
     value: destack._generated.dir.type.type.GlobalTypeId | None
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -426,12 +493,8 @@ class AssociatedConstDefinition:
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the associated const key
     key: destack._generated.dir.symbol.key.StaticKey
-    # the checked static type
-    ty: destack._generated.dir.type.type.GlobalTypeId
     # the checked static value
     value: destack._generated.dir.tree.static.GlobalStaticId | None
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -461,8 +524,6 @@ class VariantDefinition:
     key: destack._generated.dir.symbol.key.StaticKey
     # the checked variant value
     value: destack._generated.dir.tree.static.GlobalStaticId | None
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -486,8 +547,6 @@ class SignatureDefinition:
     source: destack._generated.dir.tree.node.GlobalNodeIdAny
     # the checked signature type
     ty: destack._generated.dir.type.type.GlobalTypeId
-    # the @if availability condition guarding this member, when guarded
-    condition: destack._generated.dir.type.type.GlobalTypeId | None
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -517,6 +576,8 @@ class ClassDefinition:
     extends: NominalHeritage | None
     # the implemented interfaces
     implements: Sequence[NominalHeritage]
+    # the class's direct construct candidates
+    constructors: Sequence[ClassConstructorDefinition]
     # the members in declaration order
     members: Sequence[DefinitionMember]
 
@@ -531,6 +592,33 @@ def encode_class_definition(writer: BinaryWriter, value: ClassDefinition) -> Non
 def decode_class_definition(reader: BinaryReader) -> ClassDefinition: ...
 def to_json_class_definition(value: ClassDefinition) -> Json: ...
 def from_json_class_definition(value: Json) -> ClassDefinition: ...
+
+@dataclass(frozen=True, slots=True)
+class ClassConstructorDefinition:
+    """One class construct candidate."""
+
+    # the selected constructor
+    constructor: ClassConstructor
+    # the checked constructor signature
+    ty: destack._generated.dir.type.type.GlobalTypeId
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ClassConstructorDefinition: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> ClassConstructorDefinition: ...
+
+def encode_class_constructor_definition(
+    writer: BinaryWriter, value: ClassConstructorDefinition
+) -> None: ...
+def decode_class_constructor_definition(
+    reader: BinaryReader,
+) -> ClassConstructorDefinition: ...
+def to_json_class_constructor_definition(value: ClassConstructorDefinition) -> Json: ...
+def from_json_class_constructor_definition(
+    value: Json,
+) -> ClassConstructorDefinition: ...
 
 @dataclass(frozen=True, slots=True)
 class InterfaceDefinition:
@@ -590,6 +678,8 @@ class NewtypeDefinition:
     template: destack._generated.dir.type.generic.LocalGenericTemplateId | None
     # the nominal backing type
     value: destack._generated.dir.type.type.GlobalTypeId
+    # the members in declaration order
+    members: Sequence[DefinitionMember]
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -605,7 +695,87 @@ def decode_newtype_definition(reader: BinaryReader) -> NewtypeDefinition: ...
 def to_json_newtype_definition(value: NewtypeDefinition) -> Json: ...
 def from_json_newtype_definition(value: Json) -> NewtypeDefinition: ...
 
+@dataclass(frozen=True, slots=True)
+class ExtensionDefinition:
+    """Checked declaration data for one extension."""
+
+    # the extension declaration's symbol
+    symbol: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the extension declaration form
+    form: ExtensionForm
+    # the extension's generic template
+    template: destack._generated.dir.type.generic.LocalGenericTemplateId | None
+    # the checked receiver target
+    target: ExtensionTarget
+    # the implemented interfaces
+    implements: Sequence[NominalHeritage]
+    # the members in declaration order
+    members: Sequence[DefinitionMember]
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ExtensionDefinition: ...
+    def to_json(self) -> Json: ...
+    @classmethod
+    def from_json(cls, value: Json) -> ExtensionDefinition: ...
+
+def encode_extension_definition(
+    writer: BinaryWriter, value: ExtensionDefinition
+) -> None: ...
+def decode_extension_definition(reader: BinaryReader) -> ExtensionDefinition: ...
+def to_json_extension_definition(value: ExtensionDefinition) -> Json: ...
+def from_json_extension_definition(value: Json) -> ExtensionDefinition: ...
+
+"""How an extension declaration relates to its target type."""
+ExtensionForm: typing.TypeAlias = typing.Literal["local"] | typing.Literal["exported"]
+
+def encode_extension_form(writer: BinaryWriter, value: ExtensionForm) -> None: ...
+def decode_extension_form(reader: BinaryReader) -> ExtensionForm: ...
+def to_json_extension_form(value: ExtensionForm) -> Json: ...
+def from_json_extension_form(value: Json) -> ExtensionForm: ...
+
+@dataclass(frozen=True, slots=True)
+class ExtensionTargetRooted:
+    """Extension whose receiver type has a lookup root."""
+
+    # the declaration root used for member lookup
+    root: destack._generated.dir.symbol.symbol.GlobalSymbolId
+    # the checked receiver type
+    ty: destack._generated.dir.type.type.GlobalTypeId
+    kind: typing.Literal["rooted"] = "rooted"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+@dataclass(frozen=True, slots=True)
+class ExtensionTargetBlanket:
+    """Extension over an open receiver type."""
+
+    # the checked receiver type
+    ty: destack._generated.dir.type.type.GlobalTypeId
+    kind: typing.Literal["blanket"] = "blanket"
+
+    def encode(self, writer: BinaryWriter) -> None: ...
+    def to_json(self) -> Json: ...
+
+"""Extension lookup target."""
+ExtensionTarget: typing.TypeAlias = ExtensionTargetRooted | ExtensionTargetBlanket
+
+def encode_extension_target(writer: BinaryWriter, value: ExtensionTarget) -> None: ...
+def decode_extension_target(reader: BinaryReader) -> ExtensionTarget: ...
+def to_json_extension_target(value: ExtensionTarget) -> Json: ...
+def from_json_extension_target(value: Json) -> ExtensionTarget: ...
+
 __all__ = [
+    "ClassConstructor",
+    "encode_class_constructor",
+    "decode_class_constructor",
+    "to_json_class_constructor",
+    "from_json_class_constructor",
+    "ClassConstructorDeclared",
+    "ClassConstructorDefault",
+    "ClassConstructorForwardedDeclared",
+    "ClassConstructorForwardedDefault",
     "DefinitionSegment",
     "encode_definition_segment",
     "decode_definition_segment",
@@ -666,6 +836,11 @@ __all__ = [
     "decode_method_definition",
     "to_json_method_definition",
     "from_json_method_definition",
+    "MethodImplementation",
+    "encode_method_implementation",
+    "decode_method_implementation",
+    "to_json_method_implementation",
+    "from_json_method_implementation",
     "AssociatedTypeDefinition",
     "encode_associated_type_definition",
     "decode_associated_type_definition",
@@ -691,6 +866,11 @@ __all__ = [
     "decode_class_definition",
     "to_json_class_definition",
     "from_json_class_definition",
+    "ClassConstructorDefinition",
+    "encode_class_constructor_definition",
+    "decode_class_constructor_definition",
+    "to_json_class_constructor_definition",
+    "from_json_class_constructor_definition",
     "InterfaceDefinition",
     "encode_interface_definition",
     "decode_interface_definition",
@@ -706,4 +886,21 @@ __all__ = [
     "decode_newtype_definition",
     "to_json_newtype_definition",
     "from_json_newtype_definition",
+    "ExtensionDefinition",
+    "encode_extension_definition",
+    "decode_extension_definition",
+    "to_json_extension_definition",
+    "from_json_extension_definition",
+    "ExtensionForm",
+    "encode_extension_form",
+    "decode_extension_form",
+    "to_json_extension_form",
+    "from_json_extension_form",
+    "ExtensionTarget",
+    "encode_extension_target",
+    "decode_extension_target",
+    "to_json_extension_target",
+    "from_json_extension_target",
+    "ExtensionTargetRooted",
+    "ExtensionTargetBlanket",
 ]

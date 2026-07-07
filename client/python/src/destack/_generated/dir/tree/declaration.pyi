@@ -17,6 +17,14 @@ import destack._generated.dir.tree.function
 import destack._generated.dir.tree.key
 import destack._generated.dir.tree.node
 
+"""Explicit source placement modifier."""
+PlaceModifier: typing.TypeAlias = typing.Literal["local"] | typing.Literal["shared"]
+
+def encode_place_modifier(writer: BinaryWriter, value: PlaceModifier) -> None: ...
+def decode_place_modifier(reader: BinaryReader) -> PlaceModifier: ...
+def to_json_place_modifier(value: PlaceModifier) -> Json: ...
+def from_json_place_modifier(value: Json) -> PlaceModifier: ...
+
 @dataclass(frozen=True, slots=True)
 class DeclarationGlobal(DeclarationImpl):
     """Global declaration block."""
@@ -177,6 +185,8 @@ class TypeDeclaration:
     name: destack._generated.dir.tree.key.Name
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the optional mutability qualifier
     mutability: destack._generated.dir.tree.node.Mutability | None
     # the generic parameters of the declaration
@@ -210,6 +220,8 @@ class StructDeclaration:
     name: destack._generated.dir.tree.key.Name
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the generic parameters of the declaration
     generic_parameters: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     # the where clauses of the declaration
@@ -243,6 +255,8 @@ class ClassDeclaration:
     name: destack._generated.dir.tree.key.Name | None
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the generic parameters of the declaration
     generic_parameters: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     # the where clauses of the declaration
@@ -280,6 +294,8 @@ class EnumDeclaration:
     name: destack._generated.dir.tree.key.Name | None
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the enum kind
     kind: EnumKind
     # the generic parameters of the declaration
@@ -323,6 +339,8 @@ class InterfaceDeclaration:
     name: destack._generated.dir.tree.key.Name | None
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the generic parameters of the declaration
     generic_parameters: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     # the where clauses of the declaration
@@ -436,6 +454,11 @@ def to_json_enum_field(value: EnumField) -> Json: ...
 def from_json_enum_field(value: Json) -> EnumField: ...
 
 __all__ = [
+    "PlaceModifier",
+    "encode_place_modifier",
+    "decode_place_modifier",
+    "to_json_place_modifier",
+    "from_json_place_modifier",
     "Declaration",
     "encode_declaration",
     "decode_declaration",

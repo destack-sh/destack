@@ -17,7 +17,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +25,7 @@ class SignatureHelpRequest:
     """Request signature help at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -50,12 +50,12 @@ def encode_signature_help_request(
     writer: BinaryWriter, value: SignatureHelpRequest
 ) -> None:
     """Encode one SignatureHelpRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_signature_help_request(reader: BinaryReader) -> SignatureHelpRequest:
     """Decode one SignatureHelpRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return SignatureHelpRequest(
         position=position,
@@ -65,7 +65,7 @@ def decode_signature_help_request(reader: BinaryReader) -> SignatureHelpRequest:
 def to_json_signature_help_request(value: SignatureHelpRequest) -> Json:
     """Return one JSON value for one SignatureHelpRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -76,7 +76,7 @@ def from_json_signature_help_request(value: Json) -> SignatureHelpRequest:
     object_ = json_object(value)
 
     return SignatureHelpRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
@@ -152,9 +152,9 @@ class SignatureHelp:
 
     # available signatures
     signatures: Sequence[SignatureItem]
-    # the active signature (index into signatures)
+    # the active signature
     active_signature: int
-    # the active parameter (index into parameters)
+    # the active parameter
     active_parameter: int
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -223,7 +223,7 @@ def from_json_signature_help(value: Json) -> SignatureHelp:
 
 @dataclass(frozen=True, slots=True)
 class SignatureItem:
-    """A single signature (for overloaded functions, there may be multiple)."""
+    """A single callable signature."""
 
     # the full signature label
     label: str
@@ -314,7 +314,7 @@ def from_json_signature_item(value: Json) -> SignatureItem:
 class SignatureParameter:
     """A parameter in a signature."""
 
-    # the parameter label (e.g., "name: string")
+    # the parameter label
     label: str
     # documentation for this parameter
     documentation: str | None

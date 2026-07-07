@@ -22,6 +22,7 @@ from destack.protocol.serde import (
 
 import destack._generated.core.string
 import destack._generated.dir.symbol.symbol
+import destack._generated.dir.tree.expression
 import destack._generated.dir.tree.node
 import destack._generated.dir.tree.property
 import destack._generated.dir.type.type
@@ -128,6 +129,428 @@ def from_json_local_generic_parameter_id(value: Json) -> LocalGenericParameterId
 
 
 @dataclass(frozen=True, slots=True)
+class GlobalGenericTemplateId:
+    """Global generic template id across modules."""
+
+    # the module id of the global generic template
+    module_id: destack._generated.source.file.model.module.ModuleId
+    # the local generic template id
+    local_id: LocalGenericTemplateId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_global_generic_template_id(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> GlobalGenericTemplateId:
+        """Decode one GlobalGenericTemplateId."""
+        return decode_global_generic_template_id(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_global_generic_template_id(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> GlobalGenericTemplateId:
+        """Return one GlobalGenericTemplateId from one JSON value."""
+        return from_json_global_generic_template_id(value)
+
+
+def encode_global_generic_template_id(
+    writer: BinaryWriter, value: GlobalGenericTemplateId
+) -> None:
+    """Encode one GlobalGenericTemplateId."""
+    destack._generated.source.file.model.module.encode_module_id(
+        writer, value.module_id
+    )
+    encode_local_generic_template_id(writer, value.local_id)
+
+
+def decode_global_generic_template_id(reader: BinaryReader) -> GlobalGenericTemplateId:
+    """Decode one GlobalGenericTemplateId."""
+    module_id = destack._generated.source.file.model.module.decode_module_id(reader)
+    local_id = decode_local_generic_template_id(reader)
+
+    return GlobalGenericTemplateId(
+        module_id=module_id,
+        local_id=local_id,
+    )
+
+
+def to_json_global_generic_template_id(value: GlobalGenericTemplateId) -> Json:
+    """Return one JSON value for one GlobalGenericTemplateId."""
+    return {
+        "moduleId": destack._generated.source.file.model.module.to_json_module_id(
+            value.module_id
+        ),
+        "localId": to_json_local_generic_template_id(value.local_id),
+    }
+
+
+def from_json_global_generic_template_id(value: Json) -> GlobalGenericTemplateId:
+    """Return one GlobalGenericTemplateId from one JSON value."""
+    object_ = json_object(value)
+
+    return GlobalGenericTemplateId(
+        module_id=destack._generated.source.file.model.module.from_json_module_id(
+            json_field(object_, "moduleId")
+        ),
+        local_id=from_json_local_generic_template_id(json_field(object_, "localId")),
+    )
+
+
+"""Unique identifier for generic templates."""
+LocalGenericTemplateId: typing.TypeAlias = int
+
+
+def encode_local_generic_template_id(
+    writer: BinaryWriter, value: LocalGenericTemplateId
+) -> None:
+    """Encode one LocalGenericTemplateId."""
+    writer.write_unsigned(value)
+
+
+def decode_local_generic_template_id(reader: BinaryReader) -> LocalGenericTemplateId:
+    """Decode one LocalGenericTemplateId."""
+    return reader.read_number()
+
+
+def to_json_local_generic_template_id(value: LocalGenericTemplateId) -> Json:
+    """Return one JSON value for one LocalGenericTemplateId."""
+    return value
+
+
+def from_json_local_generic_template_id(value: Json) -> LocalGenericTemplateId:
+    """Return one LocalGenericTemplateId from one JSON value."""
+    return json_int(value)
+
+
+@dataclass(frozen=True, slots=True)
+class GenericArgumentBinding:
+    """One selected generic argument bound to its declaration parameter."""
+
+    # the declaration parameter selected by the argument
+    parameter: GlobalGenericParameterId
+    # the selected argument type or static singleton
+    argument: destack._generated.dir.type.type.GlobalTypeId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_generic_argument_binding(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> GenericArgumentBinding:
+        """Decode one GenericArgumentBinding."""
+        return decode_generic_argument_binding(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_generic_argument_binding(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> GenericArgumentBinding:
+        """Return one GenericArgumentBinding from one JSON value."""
+        return from_json_generic_argument_binding(value)
+
+
+def encode_generic_argument_binding(
+    writer: BinaryWriter, value: GenericArgumentBinding
+) -> None:
+    """Encode one GenericArgumentBinding."""
+    encode_global_generic_parameter_id(writer, value.parameter)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.argument)
+
+
+def decode_generic_argument_binding(reader: BinaryReader) -> GenericArgumentBinding:
+    """Decode one GenericArgumentBinding."""
+    parameter = decode_global_generic_parameter_id(reader)
+    argument = destack._generated.dir.type.type.decode_global_type_id(reader)
+
+    return GenericArgumentBinding(
+        parameter=parameter,
+        argument=argument,
+    )
+
+
+def to_json_generic_argument_binding(value: GenericArgumentBinding) -> Json:
+    """Return one JSON value for one GenericArgumentBinding."""
+    return {
+        "parameter": to_json_global_generic_parameter_id(value.parameter),
+        "argument": destack._generated.dir.type.type.to_json_global_type_id(
+            value.argument
+        ),
+    }
+
+
+def from_json_generic_argument_binding(value: Json) -> GenericArgumentBinding:
+    """Return one GenericArgumentBinding from one JSON value."""
+    object_ = json_object(value)
+
+    return GenericArgumentBinding(
+        parameter=from_json_global_generic_parameter_id(
+            json_field(object_, "parameter")
+        ),
+        argument=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "argument")
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ArgumentBinding:
+    """One runtime argument bound to its selected parameter slot."""
+
+    # the selected parameter position
+    parameter: int
+    # the selected parameter type after static substitutions
+    ty: destack._generated.dir.type.type.GlobalTypeId
+    # the source argument bound to this parameter
+    argument: ArgumentSource
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_argument_binding(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ArgumentBinding:
+        """Decode one ArgumentBinding."""
+        return decode_argument_binding(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_argument_binding(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> ArgumentBinding:
+        """Return one ArgumentBinding from one JSON value."""
+        return from_json_argument_binding(value)
+
+
+def encode_argument_binding(writer: BinaryWriter, value: ArgumentBinding) -> None:
+    """Encode one ArgumentBinding."""
+    writer.write_unsigned(value.parameter)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.ty)
+    encode_argument_source(writer, value.argument)
+
+
+def decode_argument_binding(reader: BinaryReader) -> ArgumentBinding:
+    """Decode one ArgumentBinding."""
+    parameter = reader.read_number()
+    ty = destack._generated.dir.type.type.decode_global_type_id(reader)
+    argument = decode_argument_source(reader)
+
+    return ArgumentBinding(
+        parameter=parameter,
+        ty=ty,
+        argument=argument,
+    )
+
+
+def to_json_argument_binding(value: ArgumentBinding) -> Json:
+    """Return one JSON value for one ArgumentBinding."""
+    return {
+        "parameter": value.parameter,
+        "ty": destack._generated.dir.type.type.to_json_global_type_id(value.ty),
+        "argument": to_json_argument_source(value.argument),
+    }
+
+
+def from_json_argument_binding(value: Json) -> ArgumentBinding:
+    """Return one ArgumentBinding from one JSON value."""
+    object_ = json_object(value)
+
+    return ArgumentBinding(
+        parameter=json_int(json_field(object_, "parameter")),
+        ty=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "ty")
+        ),
+        argument=from_json_argument_source(json_field(object_, "argument")),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ArgumentSourceProvided:
+    """One source argument was supplied."""
+
+    provided: destack._generated.dir.tree.node.GlobalNodeIdAny
+    kind: typing.Literal["provided"] = "provided"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_argument_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_argument_source(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ArgumentSourceStatic:
+    """One static argument was inserted by checking."""
+
+    static: destack._generated.dir.type.type.GlobalTypeId
+    kind: typing.Literal["static"] = "static"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_argument_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_argument_source(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ArgumentSourceOmitted:
+    """No source argument was supplied."""
+
+    kind: typing.Literal["omitted"] = "omitted"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_argument_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_argument_source(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ArgumentSourceRest:
+    """Remaining source arguments were supplied to a rest parameter."""
+
+    rest: Sequence[destack._generated.dir.tree.node.GlobalNodeIdAny]
+    kind: typing.Literal["rest"] = "rest"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_argument_source(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_argument_source(self)
+
+
+"""Source argument bound to one selected parameter slot."""
+ArgumentSource: typing.TypeAlias = (
+    ArgumentSourceProvided
+    | ArgumentSourceStatic
+    | ArgumentSourceOmitted
+    | ArgumentSourceRest
+)
+
+
+def encode_argument_source(writer: BinaryWriter, value: ArgumentSource) -> None:
+    """Encode one ArgumentSource."""
+    if value.kind == "provided":
+        writer.write_unsigned(0)
+        destack._generated.dir.tree.node.encode_global_node_id_any(
+            writer, value.provided
+        )
+    elif value.kind == "static":
+        writer.write_unsigned(1)
+        destack._generated.dir.type.type.encode_global_type_id(writer, value.static)
+    elif value.kind == "omitted":
+        writer.write_unsigned(2)
+    elif value.kind == "rest":
+        writer.write_unsigned(3)
+        writer.write_unsigned(len(value.rest))
+        for item_value_rest_0 in value.rest:
+            destack._generated.dir.tree.node.encode_global_node_id_any(
+                writer, item_value_rest_0
+            )
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_argument_source(reader: BinaryReader) -> ArgumentSource:
+    """Decode one ArgumentSource."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        provided = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+
+        return ArgumentSourceProvided(provided=provided)
+    elif variant == 1:
+        static = destack._generated.dir.type.type.decode_global_type_id(reader)
+
+        return ArgumentSourceStatic(static=static)
+    elif variant == 2:
+        return ArgumentSourceOmitted()
+    elif variant == 3:
+        rest = [
+            destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+            for _ in range(reader.read_number())
+        ]
+
+        return ArgumentSourceRest(rest=rest)
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_argument_source(value: ArgumentSource) -> Json:
+    """Return one JSON value for one ArgumentSource."""
+    if value.kind == "provided":
+        return {
+            "kind": "provided",
+            "provided": destack._generated.dir.tree.node.to_json_global_node_id_any(
+                value.provided
+            ),
+        }
+    elif value.kind == "static":
+        return {
+            "kind": "static",
+            "static": destack._generated.dir.type.type.to_json_global_type_id(
+                value.static
+            ),
+        }
+    elif value.kind == "omitted":
+        return {
+            "kind": "omitted",
+        }
+    elif value.kind == "rest":
+        return {
+            "kind": "rest",
+            "rest": [
+                destack._generated.dir.tree.node.to_json_global_node_id_any(item_0)
+                for item_0 in value.rest
+            ],
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_argument_source(value: Json) -> ArgumentSource:
+    """Return one ArgumentSource from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "provided":
+        return ArgumentSourceProvided(
+            provided=destack._generated.dir.tree.node.from_json_global_node_id_any(
+                json_field(object_, "provided")
+            )
+        )
+    elif kind == "static":
+        return ArgumentSourceStatic(
+            static=destack._generated.dir.type.type.from_json_global_type_id(
+                json_field(object_, "static")
+            )
+        )
+    elif kind == "omitted":
+        return ArgumentSourceOmitted()
+    elif kind == "rest":
+        return ArgumentSourceRest(
+            rest=[
+                destack._generated.dir.tree.node.from_json_global_node_id_any(item_0)
+                for item_0 in json_array(json_field(object_, "rest"))
+            ]
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
 class GenericTemplate:
     """One declaration of generic parameters."""
 
@@ -139,6 +562,8 @@ class GenericTemplate:
     parent: LocalGenericTemplateId | None
     # the generic parameters in declaration order
     parameters: Sequence[LocalGenericParameterId]
+    # the where-clause predicates declared on this template
+    predicates: Sequence[WherePredicate]
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -177,6 +602,9 @@ def encode_generic_template(writer: BinaryWriter, value: GenericTemplate) -> Non
     writer.write_unsigned(len(value.parameters))
     for item_value_parameters_0 in value.parameters:
         encode_local_generic_parameter_id(writer, item_value_parameters_0)
+    writer.write_unsigned(len(value.predicates))
+    for item_value_predicates_0 in value.predicates:
+        encode_where_predicate(writer, item_value_predicates_0)
 
 
 def decode_generic_template(reader: BinaryReader) -> GenericTemplate:
@@ -189,12 +617,14 @@ def decode_generic_template(reader: BinaryReader) -> GenericTemplate:
     parameters = [
         decode_local_generic_parameter_id(reader) for _ in range(reader.read_number())
     ]
+    predicates = [decode_where_predicate(reader) for _ in range(reader.read_number())]
 
     return GenericTemplate(
         source=source,
         symbol=symbol,
         parent=parent,
         parameters=parameters,
+        predicates=predicates,
     )
 
 
@@ -221,6 +651,7 @@ def to_json_generic_template(value: GenericTemplate) -> Json:
         "parameters": [
             to_json_local_generic_parameter_id(item_0) for item_0 in value.parameters
         ],
+        "predicates": [to_json_where_predicate(item_0) for item_0 in value.predicates],
     }
 
 
@@ -246,33 +677,100 @@ def from_json_generic_template(value: Json) -> GenericTemplate:
             from_json_local_generic_parameter_id(item_0)
             for item_0 in json_array(json_field(object_, "parameters"))
         ],
+        predicates=[
+            from_json_where_predicate(item_0)
+            for item_0 in json_array(json_field(object_, "predicates"))
+        ],
     )
 
 
-"""Unique identifier for generic templates."""
-LocalGenericTemplateId: typing.TypeAlias = int
+@dataclass(frozen=True, slots=True)
+class WherePredicate:
+    """One where clause declared on a generic template."""
+
+    # the source where clause node
+    source: destack._generated.dir.tree.node.GlobalNodeIdAny
+    # the relation between the two operands
+    relation: destack._generated.dir.tree.expression.WhereRelation
+    # the left relation operand
+    left: destack._generated.dir.type.type.GlobalTypeId
+    # the right relation operand
+    right: destack._generated.dir.type.type.GlobalTypeId
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_where_predicate(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> WherePredicate:
+        """Decode one WherePredicate."""
+        return decode_where_predicate(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_where_predicate(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> WherePredicate:
+        """Return one WherePredicate from one JSON value."""
+        return from_json_where_predicate(value)
 
 
-def encode_local_generic_template_id(
-    writer: BinaryWriter, value: LocalGenericTemplateId
-) -> None:
-    """Encode one LocalGenericTemplateId."""
-    writer.write_unsigned(value)
+def encode_where_predicate(writer: BinaryWriter, value: WherePredicate) -> None:
+    """Encode one WherePredicate."""
+    destack._generated.dir.tree.node.encode_global_node_id_any(writer, value.source)
+    destack._generated.dir.tree.expression.encode_where_relation(writer, value.relation)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.left)
+    destack._generated.dir.type.type.encode_global_type_id(writer, value.right)
 
 
-def decode_local_generic_template_id(reader: BinaryReader) -> LocalGenericTemplateId:
-    """Decode one LocalGenericTemplateId."""
-    return reader.read_number()
+def decode_where_predicate(reader: BinaryReader) -> WherePredicate:
+    """Decode one WherePredicate."""
+    source = destack._generated.dir.tree.node.decode_global_node_id_any(reader)
+    relation = destack._generated.dir.tree.expression.decode_where_relation(reader)
+    left = destack._generated.dir.type.type.decode_global_type_id(reader)
+    right = destack._generated.dir.type.type.decode_global_type_id(reader)
+
+    return WherePredicate(
+        source=source,
+        relation=relation,
+        left=left,
+        right=right,
+    )
 
 
-def to_json_local_generic_template_id(value: LocalGenericTemplateId) -> Json:
-    """Return one JSON value for one LocalGenericTemplateId."""
-    return value
+def to_json_where_predicate(value: WherePredicate) -> Json:
+    """Return one JSON value for one WherePredicate."""
+    return {
+        "source": destack._generated.dir.tree.node.to_json_global_node_id_any(
+            value.source
+        ),
+        "relation": destack._generated.dir.tree.expression.to_json_where_relation(
+            value.relation
+        ),
+        "left": destack._generated.dir.type.type.to_json_global_type_id(value.left),
+        "right": destack._generated.dir.type.type.to_json_global_type_id(value.right),
+    }
 
 
-def from_json_local_generic_template_id(value: Json) -> LocalGenericTemplateId:
-    """Return one LocalGenericTemplateId from one JSON value."""
-    return json_int(value)
+def from_json_where_predicate(value: Json) -> WherePredicate:
+    """Return one WherePredicate from one JSON value."""
+    object_ = json_object(value)
+
+    return WherePredicate(
+        source=destack._generated.dir.tree.node.from_json_global_node_id_any(
+            json_field(object_, "source")
+        ),
+        relation=destack._generated.dir.tree.expression.from_json_where_relation(
+            json_field(object_, "relation")
+        ),
+        left=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "left")
+        ),
+        right=destack._generated.dir.type.type.from_json_global_type_id(
+            json_field(object_, "right")
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,6 +791,8 @@ class GenericParameterBinding:
     origin: GenericParameterOrigin
     # whether the parameter captures remaining arguments
     is_variadic: bool
+    # whether type inference preserves fresh argument precision
+    is_const: bool
     # whether arguments must solve to singleton types
     is_comptime: bool
 
@@ -340,6 +840,7 @@ def encode_generic_parameter_binding(
         destack._generated.dir.type.type.encode_global_type_id(writer, value.default)
     encode_generic_parameter_origin(writer, value.origin)
     writer.write_bool(value.is_variadic)
+    writer.write_bool(value.is_const)
     writer.write_bool(value.is_comptime)
 
 
@@ -358,6 +859,7 @@ def decode_generic_parameter_binding(reader: BinaryReader) -> GenericParameterBi
     )
     origin = decode_generic_parameter_origin(reader)
     is_variadic = reader.read_bool()
+    is_const = reader.read_bool()
     is_comptime = reader.read_bool()
 
     return GenericParameterBinding(
@@ -368,6 +870,7 @@ def decode_generic_parameter_binding(reader: BinaryReader) -> GenericParameterBi
         default=default,
         origin=origin,
         is_variadic=is_variadic,
+        is_const=is_const,
         is_comptime=is_comptime,
     )
 
@@ -406,6 +909,7 @@ def to_json_generic_parameter_binding(value: GenericParameterBinding) -> Json:
         ),
         "origin": to_json_generic_parameter_origin(value.origin),
         "isVariadic": value.is_variadic,
+        "isConst": value.is_const,
         "isComptime": value.is_comptime,
     }
 
@@ -440,6 +944,7 @@ def from_json_generic_parameter_binding(value: Json) -> GenericParameterBinding:
         ),
         origin=from_json_generic_parameter_origin(json_field(object_, "origin")),
         is_variadic=json_bool(json_field(object_, "isVariadic")),
+        is_const=json_bool(json_field(object_, "isConst")),
         is_comptime=json_bool(json_field(object_, "isComptime")),
     )
 
@@ -726,16 +1231,45 @@ __all__ = [
     "decode_local_generic_parameter_id",
     "to_json_local_generic_parameter_id",
     "from_json_local_generic_parameter_id",
-    "GenericTemplate",
-    "encode_generic_template",
-    "decode_generic_template",
-    "to_json_generic_template",
-    "from_json_generic_template",
+    "GlobalGenericTemplateId",
+    "encode_global_generic_template_id",
+    "decode_global_generic_template_id",
+    "to_json_global_generic_template_id",
+    "from_json_global_generic_template_id",
     "LocalGenericTemplateId",
     "encode_local_generic_template_id",
     "decode_local_generic_template_id",
     "to_json_local_generic_template_id",
     "from_json_local_generic_template_id",
+    "GenericArgumentBinding",
+    "encode_generic_argument_binding",
+    "decode_generic_argument_binding",
+    "to_json_generic_argument_binding",
+    "from_json_generic_argument_binding",
+    "ArgumentBinding",
+    "encode_argument_binding",
+    "decode_argument_binding",
+    "to_json_argument_binding",
+    "from_json_argument_binding",
+    "ArgumentSource",
+    "encode_argument_source",
+    "decode_argument_source",
+    "to_json_argument_source",
+    "from_json_argument_source",
+    "ArgumentSourceProvided",
+    "ArgumentSourceStatic",
+    "ArgumentSourceOmitted",
+    "ArgumentSourceRest",
+    "GenericTemplate",
+    "encode_generic_template",
+    "decode_generic_template",
+    "to_json_generic_template",
+    "from_json_generic_template",
+    "WherePredicate",
+    "encode_where_predicate",
+    "decode_where_predicate",
+    "to_json_where_predicate",
+    "from_json_where_predicate",
     "GenericParameterBinding",
     "encode_generic_parameter_binding",
     "decode_generic_parameter_binding",

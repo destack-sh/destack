@@ -19,7 +19,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +27,7 @@ class FoldingRangesRequest:
     """Request folding ranges for a document."""
 
     # the queried module
-    module: destack._generated.query.core.target.QueryModule
+    module: destack._generated.query.protocol.target.Module
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -52,12 +52,12 @@ def encode_folding_ranges_request(
     writer: BinaryWriter, value: FoldingRangesRequest
 ) -> None:
     """Encode one FoldingRangesRequest."""
-    destack._generated.query.core.target.encode_query_module(writer, value.module)
+    destack._generated.query.protocol.target.encode_module(writer, value.module)
 
 
 def decode_folding_ranges_request(reader: BinaryReader) -> FoldingRangesRequest:
     """Decode one FoldingRangesRequest."""
-    module = destack._generated.query.core.target.decode_query_module(reader)
+    module = destack._generated.query.protocol.target.decode_module(reader)
 
     return FoldingRangesRequest(
         module=module,
@@ -67,9 +67,7 @@ def decode_folding_ranges_request(reader: BinaryReader) -> FoldingRangesRequest:
 def to_json_folding_ranges_request(value: FoldingRangesRequest) -> Json:
     """Return one JSON value for one FoldingRangesRequest."""
     return {
-        "module": destack._generated.query.core.target.to_json_query_module(
-            value.module
-        ),
+        "module": destack._generated.query.protocol.target.to_json_module(value.module),
     }
 
 
@@ -78,7 +76,7 @@ def from_json_folding_ranges_request(value: Json) -> FoldingRangesRequest:
     object_ = json_object(value)
 
     return FoldingRangesRequest(
-        module=destack._generated.query.core.target.from_json_query_module(
+        module=destack._generated.query.protocol.target.from_json_module(
             json_field(object_, "module")
         ),
     )
@@ -151,9 +149,9 @@ def from_json_folding_ranges_response(value: Json) -> FoldingRangesResponse:
 class FoldingRange:
     """A foldable range in source code."""
 
-    # start line (0-indexed)
+    # start line
     start_line: int
-    # end line (0-indexed)
+    # end line
     end_line: int
     # optional start character
     start_character: int | None

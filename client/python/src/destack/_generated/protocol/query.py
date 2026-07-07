@@ -24,8 +24,8 @@ import destack._generated.protocol.notification
 import destack._generated.protocol.payload
 import destack._generated.protocol.root
 import destack._generated.protocol.workspace.file.image
-import destack._generated.query.core.protocol
-import destack._generated.query.core.target
+import destack._generated.query.protocol.message
+import destack._generated.query.protocol.target
 import destack._generated.repository.config.formatter
 import destack._generated.repository.revision
 import destack._generated.source.diagnostic.diagnostic
@@ -1312,8 +1312,8 @@ class FileSnapshot:
     revision: destack._generated.repository.revision.Revision
     # the source file id
     file_id: destack._generated.source.file.model.file.FileId
-    # query module for the requested target
-    module: destack._generated.query.core.target.QueryModule | None
+    # module for the requested target
+    module: destack._generated.query.protocol.target.Module | None
     # formatter options selected for the file
     formatter: destack._generated.repository.config.formatter.FormatterOptions
     # file image used for range conversion
@@ -1346,7 +1346,7 @@ def encode_file_snapshot(writer: BinaryWriter, value: FileSnapshot) -> None:
         writer.write_byte(0)
     else:
         writer.write_byte(1)
-        destack._generated.query.core.target.encode_query_module(writer, value.module)
+        destack._generated.query.protocol.target.encode_module(writer, value.module)
     destack._generated.repository.config.formatter.encode_formatter_options(
         writer, value.formatter
     )
@@ -1360,7 +1360,7 @@ def decode_file_snapshot(reader: BinaryReader) -> FileSnapshot:
     revision = destack._generated.repository.revision.decode_revision(reader)
     file_id = destack._generated.source.file.model.file.decode_file_id(reader)
     module = reader.read_option(
-        lambda: destack._generated.query.core.target.decode_query_module(reader)
+        lambda: destack._generated.query.protocol.target.decode_module(reader)
     )
     formatter = destack._generated.repository.config.formatter.decode_formatter_options(
         reader
@@ -1389,7 +1389,7 @@ def to_json_file_snapshot(value: FileSnapshot) -> Json:
             {}
             if value.module is None
             else {
-                "module": destack._generated.query.core.target.to_json_query_module(
+                "module": destack._generated.query.protocol.target.to_json_module(
                     value.module
                 )
             }
@@ -1417,7 +1417,7 @@ def from_json_file_snapshot(value: Json) -> FileSnapshot:
         module=json_optional(
             object_,
             "module",
-            lambda value: destack._generated.query.core.target.from_json_query_module(
+            lambda value: destack._generated.query.protocol.target.from_json_module(
                 value
             ),
         ),
@@ -1437,7 +1437,7 @@ class QueryRequestBody:
     # expected workspace semantic revision
     expected_revision: destack._generated.repository.revision.Revision | None
     # query request
-    request: destack._generated.query.core.protocol.QueryRequest
+    request: destack._generated.query.protocol.message.QueryRequest
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1467,7 +1467,9 @@ def encode_query_request_body(writer: BinaryWriter, value: QueryRequestBody) -> 
         destack._generated.repository.revision.encode_revision(
             writer, value.expected_revision
         )
-    destack._generated.query.core.protocol.encode_query_request(writer, value.request)
+    destack._generated.query.protocol.message.encode_query_request(
+        writer, value.request
+    )
 
 
 def decode_query_request_body(reader: BinaryReader) -> QueryRequestBody:
@@ -1475,7 +1477,7 @@ def decode_query_request_body(reader: BinaryReader) -> QueryRequestBody:
     expected_revision = reader.read_option(
         lambda: destack._generated.repository.revision.decode_revision(reader)
     )
-    request = destack._generated.query.core.protocol.decode_query_request(reader)
+    request = destack._generated.query.protocol.message.decode_query_request(reader)
 
     return QueryRequestBody(
         expected_revision=expected_revision,
@@ -1495,7 +1497,7 @@ def to_json_query_request_body(value: QueryRequestBody) -> Json:
                 )
             }
         ),
-        "request": destack._generated.query.core.protocol.to_json_query_request(
+        "request": destack._generated.query.protocol.message.to_json_query_request(
             value.request
         ),
     }
@@ -1513,7 +1515,7 @@ def from_json_query_request_body(value: Json) -> QueryRequestBody:
                 value
             ),
         ),
-        request=destack._generated.query.core.protocol.from_json_query_request(
+        request=destack._generated.query.protocol.message.from_json_query_request(
             json_field(object_, "request")
         ),
     )
@@ -1588,7 +1590,7 @@ class QueryResponseBody:
     # workspace semantic revision after request execution
     revision: destack._generated.repository.revision.Revision
     # query response
-    response: destack._generated.query.core.protocol.QueryResponse
+    response: destack._generated.query.protocol.message.QueryResponse
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1612,13 +1614,15 @@ class QueryResponseBody:
 def encode_query_response_body(writer: BinaryWriter, value: QueryResponseBody) -> None:
     """Encode one QueryResponseBody."""
     destack._generated.repository.revision.encode_revision(writer, value.revision)
-    destack._generated.query.core.protocol.encode_query_response(writer, value.response)
+    destack._generated.query.protocol.message.encode_query_response(
+        writer, value.response
+    )
 
 
 def decode_query_response_body(reader: BinaryReader) -> QueryResponseBody:
     """Decode one QueryResponseBody."""
     revision = destack._generated.repository.revision.decode_revision(reader)
-    response = destack._generated.query.core.protocol.decode_query_response(reader)
+    response = destack._generated.query.protocol.message.decode_query_response(reader)
 
     return QueryResponseBody(
         revision=revision,
@@ -1632,7 +1636,7 @@ def to_json_query_response_body(value: QueryResponseBody) -> Json:
         "revision": destack._generated.repository.revision.to_json_revision(
             value.revision
         ),
-        "response": destack._generated.query.core.protocol.to_json_query_response(
+        "response": destack._generated.query.protocol.message.to_json_query_response(
             value.response
         ),
     }
@@ -1646,7 +1650,7 @@ def from_json_query_response_body(value: Json) -> QueryResponseBody:
         revision=destack._generated.repository.revision.from_json_revision(
             json_field(object_, "revision")
         ),
-        response=destack._generated.query.core.protocol.from_json_query_response(
+        response=destack._generated.query.protocol.message.from_json_query_response(
             json_field(object_, "response")
         ),
     )

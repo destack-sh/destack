@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.mir.metadata.metadata
 import destack._generated.mir.source.token
 import destack._generated.mir.tree.attribute
 import destack._generated.mir.tree.block
@@ -30,7 +29,7 @@ import destack._generated.source.tree.index
 
 @dataclass(frozen=True, slots=True)
 class NodeIndexEntry:
-    """Dense metadata for one MIR node id."""
+    """Dense index entry for one MIR node id."""
 
     # the packed local id and node type
     packed: int
@@ -55,7 +54,7 @@ class Tree:
     first_global_id: int
     # the next global node id to allocate
     next_global_id: int
-    # dense local id and node type metadata by node id
+    # dense local id and node type by node id
     node_index_by_node_id: Sequence[NodeIndexEntry]
     # maps global node id → attached attributes
     attributes_by_node_id: Mapping[
@@ -125,8 +124,6 @@ class Tree:
     switch_cases: Sequence[destack._generated.mir.tree.terminator.SwitchCase]
     # structured tensor immediates
     tensor_immediates: Sequence[destack._generated.mir.tree.immediate.TensorImmediate]
-    # structured MIR metadata domains
-    metadata: destack._generated.mir.metadata.metadata.Metadata
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod

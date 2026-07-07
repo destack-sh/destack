@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.edit.edit
 
 @dataclass(frozen=True, slots=True)
@@ -14,7 +14,7 @@ class InlineRequest:
     """Request payload for inline refactor queries."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod

@@ -16,7 +16,7 @@ from destack._impl.mir.analyses.link_graph import (
 )
 
 import destack._generated.core.bitset
-import destack._generated.mir.metadata.effect
+import destack._generated.mir.table.effect
 import destack._generated.mir.tree.global_
 import destack._generated.mir.tree.symbol
 
@@ -71,10 +71,10 @@ class LinkNodeFunction:
     # visibility and definition location
     linkage: destack._generated.mir.tree.global_.Linkage
     # memory effect
-    memory: destack._generated.mir.metadata.effect.MemoryEffect
+    memory: destack._generated.mir.table.effect.MemoryEffect
     # behavioral effects (unwind, determinism, allocation, and so on)
-    behavior: destack._generated.mir.metadata.effect.FunctionBehavior
-    # inline cost approximation
+    behavior: destack._generated.mir.table.effect.FunctionBehavior
+    # estimated inline cost
     inline_cost: int
     # true when the function makes indirect or virtual calls
     indirect: bool

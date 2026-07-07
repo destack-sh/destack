@@ -274,23 +274,6 @@ class ArtifactKeyDirMaterialized:
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactKeyDirElaborated:
-    """Elaborated DIR."""
-
-    module: destack._generated.source.file.model.module.ModuleId
-    profile: destack._generated.source.file.model.profile.ProfileId
-    kind: typing.Literal["dirElaborated"] = "dirElaborated"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_artifact_key(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_artifact_key(self)
-
-
-@dataclass(frozen=True, slots=True)
 class ArtifactKeyMirLowered:
     """Lowered MIR before optimization."""
 
@@ -363,12 +346,12 @@ class ArtifactKeyMirOptimized:
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactKeyModuleQueryIndex:
-    """Query index for one module profile."""
+class ArtifactKeyModuleIndex:
+    """Index for one module profile."""
 
     module: destack._generated.source.file.model.module.ModuleId
     profile: destack._generated.source.file.model.profile.ProfileId
-    kind: typing.Literal["moduleQueryIndex"] = "moduleQueryIndex"
+    kind: typing.Literal["moduleIndex"] = "moduleIndex"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -380,11 +363,11 @@ class ArtifactKeyModuleQueryIndex:
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactKeyWorkspaceQueryIndex:
-    """Query index for one workspace profile."""
+class ArtifactKeyProgramIndex:
+    """Index for one program profile."""
 
     profile: destack._generated.source.file.model.profile.ProfileId
-    kind: typing.Literal["workspaceQueryIndex"] = "workspaceQueryIndex"
+    kind: typing.Literal["programIndex"] = "programIndex"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -562,13 +545,12 @@ ArtifactKey: typing.TypeAlias = (
     | ArtifactKeyDirCheckedComponent
     | ArtifactKeyDirChecked
     | ArtifactKeyDirMaterialized
-    | ArtifactKeyDirElaborated
     | ArtifactKeyMirLowered
     | ArtifactKeyMirVerified
     | ArtifactKeyMirAnalyzed
     | ArtifactKeyMirOptimized
-    | ArtifactKeyModuleQueryIndex
-    | ArtifactKeyWorkspaceQueryIndex
+    | ArtifactKeyModuleIndex
+    | ArtifactKeyProgramIndex
     | ArtifactKeyScript
     | ArtifactKeyObject
     | ArtifactKeyAsset
@@ -688,16 +670,8 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
         destack._generated.source.file.model.profile.encode_profile_id(
             writer, value.profile
         )
-    elif value.kind == "dirElaborated":
-        writer.write_unsigned(15)
-        destack._generated.source.file.model.module.encode_module_id(
-            writer, value.module
-        )
-        destack._generated.source.file.model.profile.encode_profile_id(
-            writer, value.profile
-        )
     elif value.kind == "mirLowered":
-        writer.write_unsigned(16)
+        writer.write_unsigned(15)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -708,7 +682,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "mirVerified":
-        writer.write_unsigned(17)
+        writer.write_unsigned(16)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -719,7 +693,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "mirAnalyzed":
-        writer.write_unsigned(18)
+        writer.write_unsigned(17)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -730,6 +704,17 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "mirOptimized":
+        writer.write_unsigned(18)
+        destack._generated.source.file.model.module.encode_module_id(
+            writer, value.module
+        )
+        destack._generated.source.file.model.profile.encode_profile_id(
+            writer, value.profile
+        )
+        destack._generated.source.file.model.target.encode_target_id(
+            writer, value.target
+        )
+    elif value.kind == "moduleIndex":
         writer.write_unsigned(19)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
@@ -737,24 +722,13 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
         destack._generated.source.file.model.profile.encode_profile_id(
             writer, value.profile
         )
-        destack._generated.source.file.model.target.encode_target_id(
-            writer, value.target
-        )
-    elif value.kind == "moduleQueryIndex":
+    elif value.kind == "programIndex":
         writer.write_unsigned(20)
-        destack._generated.source.file.model.module.encode_module_id(
-            writer, value.module
-        )
-        destack._generated.source.file.model.profile.encode_profile_id(
-            writer, value.profile
-        )
-    elif value.kind == "workspaceQueryIndex":
-        writer.write_unsigned(21)
         destack._generated.source.file.model.profile.encode_profile_id(
             writer, value.profile
         )
     elif value.kind == "script":
-        writer.write_unsigned(22)
+        writer.write_unsigned(21)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -762,7 +736,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "object":
-        writer.write_unsigned(23)
+        writer.write_unsigned(22)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -770,7 +744,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "asset":
-        writer.write_unsigned(24)
+        writer.write_unsigned(23)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -778,7 +752,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "bundle":
-        writer.write_unsigned(25)
+        writer.write_unsigned(24)
         destack._generated.source.file.model.package.encode_package_id(
             writer, value.package
         )
@@ -786,7 +760,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "program":
-        writer.write_unsigned(26)
+        writer.write_unsigned(25)
         destack._generated.source.file.model.package.encode_package_id(
             writer, value.package
         )
@@ -794,7 +768,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.target
         )
     elif value.kind == "product":
-        writer.write_unsigned(27)
+        writer.write_unsigned(26)
         destack._generated.source.file.model.package.encode_package_id(
             writer, value.package
         )
@@ -802,7 +776,7 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.product
         )
     elif value.kind == "moduleLinted":
-        writer.write_unsigned(28)
+        writer.write_unsigned(27)
         destack._generated.source.file.model.module.encode_module_id(
             writer, value.module
         )
@@ -810,12 +784,12 @@ def encode_artifact_key(writer: BinaryWriter, value: ArtifactKey) -> None:
             writer, value.profile
         )
     elif value.kind == "packageLinted":
-        writer.write_unsigned(29)
+        writer.write_unsigned(28)
         destack._generated.source.file.model.package.encode_package_id(
             writer, value.package
         )
     elif value.kind == "workspaceLinted":
-        writer.write_unsigned(30)
+        writer.write_unsigned(29)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -939,14 +913,6 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
     elif variant == 15:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
-
-        return ArtifactKeyDirElaborated(
-            module=module,
-            profile=profile,
-        )
-    elif variant == 16:
-        module = destack._generated.source.file.model.module.decode_module_id(reader)
-        profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
 
         return ArtifactKeyMirLowered(
@@ -954,7 +920,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             profile=profile,
             target=target,
         )
-    elif variant == 17:
+    elif variant == 16:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
@@ -964,7 +930,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             profile=profile,
             target=target,
         )
-    elif variant == 18:
+    elif variant == 17:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
@@ -974,7 +940,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             profile=profile,
             target=target,
         )
-    elif variant == 19:
+    elif variant == 18:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
@@ -984,21 +950,21 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             profile=profile,
             target=target,
         )
-    elif variant == 20:
+    elif variant == 19:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
 
-        return ArtifactKeyModuleQueryIndex(
+        return ArtifactKeyModuleIndex(
             module=module,
             profile=profile,
         )
-    elif variant == 21:
+    elif variant == 20:
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
 
-        return ArtifactKeyWorkspaceQueryIndex(
+        return ArtifactKeyProgramIndex(
             profile=profile,
         )
-    elif variant == 22:
+    elif variant == 21:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
 
@@ -1006,7 +972,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             module=module,
             target=target,
         )
-    elif variant == 23:
+    elif variant == 22:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
 
@@ -1014,7 +980,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             module=module,
             target=target,
         )
-    elif variant == 24:
+    elif variant == 23:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
 
@@ -1022,7 +988,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             module=module,
             target=target,
         )
-    elif variant == 25:
+    elif variant == 24:
         package = destack._generated.source.file.model.package.decode_package_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
 
@@ -1030,7 +996,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             package=package,
             target=target,
         )
-    elif variant == 26:
+    elif variant == 25:
         package = destack._generated.source.file.model.package.decode_package_id(reader)
         target = destack._generated.source.file.model.target.decode_target_id(reader)
 
@@ -1038,7 +1004,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             package=package,
             target=target,
         )
-    elif variant == 27:
+    elif variant == 26:
         package = destack._generated.source.file.model.package.decode_package_id(reader)
         product = destack._generated.source.file.model.product.decode_product_id(reader)
 
@@ -1046,7 +1012,7 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             package=package,
             product=product,
         )
-    elif variant == 28:
+    elif variant == 27:
         module = destack._generated.source.file.model.module.decode_module_id(reader)
         profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
 
@@ -1054,13 +1020,13 @@ def decode_artifact_key(reader: BinaryReader) -> ArtifactKey:
             module=module,
             profile=profile,
         )
-    elif variant == 29:
+    elif variant == 28:
         package = destack._generated.source.file.model.package.decode_package_id(reader)
 
         return ArtifactKeyPackageLinted(
             package=package,
         )
-    elif variant == 30:
+    elif variant == 29:
         return ArtifactKeyWorkspaceLinted()
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -1203,16 +1169,6 @@ def to_json_artifact_key(value: ArtifactKey) -> Json:
                 value.profile
             ),
         }
-    elif value.kind == "dirElaborated":
-        return {
-            "kind": "dirElaborated",
-            "module": destack._generated.source.file.model.module.to_json_module_id(
-                value.module
-            ),
-            "profile": destack._generated.source.file.model.profile.to_json_profile_id(
-                value.profile
-            ),
-        }
     elif value.kind == "mirLowered":
         return {
             "kind": "mirLowered",
@@ -1265,9 +1221,9 @@ def to_json_artifact_key(value: ArtifactKey) -> Json:
                 value.target
             ),
         }
-    elif value.kind == "moduleQueryIndex":
+    elif value.kind == "moduleIndex":
         return {
-            "kind": "moduleQueryIndex",
+            "kind": "moduleIndex",
             "module": destack._generated.source.file.model.module.to_json_module_id(
                 value.module
             ),
@@ -1275,9 +1231,9 @@ def to_json_artifact_key(value: ArtifactKey) -> Json:
                 value.profile
             ),
         }
-    elif value.kind == "workspaceQueryIndex":
+    elif value.kind == "programIndex":
         return {
-            "kind": "workspaceQueryIndex",
+            "kind": "programIndex",
             "profile": destack._generated.source.file.model.profile.to_json_profile_id(
                 value.profile
             ),
@@ -1492,15 +1448,6 @@ def from_json_artifact_key(value: Json) -> ArtifactKey:
                 json_field(object_, "profile")
             ),
         )
-    elif kind == "dirElaborated":
-        return ArtifactKeyDirElaborated(
-            module=destack._generated.source.file.model.module.from_json_module_id(
-                json_field(object_, "module")
-            ),
-            profile=destack._generated.source.file.model.profile.from_json_profile_id(
-                json_field(object_, "profile")
-            ),
-        )
     elif kind == "mirLowered":
         return ArtifactKeyMirLowered(
             module=destack._generated.source.file.model.module.from_json_module_id(
@@ -1549,8 +1496,8 @@ def from_json_artifact_key(value: Json) -> ArtifactKey:
                 json_field(object_, "target")
             ),
         )
-    elif kind == "moduleQueryIndex":
-        return ArtifactKeyModuleQueryIndex(
+    elif kind == "moduleIndex":
+        return ArtifactKeyModuleIndex(
             module=destack._generated.source.file.model.module.from_json_module_id(
                 json_field(object_, "module")
             ),
@@ -1558,8 +1505,8 @@ def from_json_artifact_key(value: Json) -> ArtifactKey:
                 json_field(object_, "profile")
             ),
         )
-    elif kind == "workspaceQueryIndex":
-        return ArtifactKeyWorkspaceQueryIndex(
+    elif kind == "programIndex":
+        return ArtifactKeyProgramIndex(
             profile=destack._generated.source.file.model.profile.from_json_profile_id(
                 json_field(object_, "profile")
             ),
@@ -1660,13 +1607,12 @@ __all__ = [
     "ArtifactKeyDirCheckedComponent",
     "ArtifactKeyDirChecked",
     "ArtifactKeyDirMaterialized",
-    "ArtifactKeyDirElaborated",
     "ArtifactKeyMirLowered",
     "ArtifactKeyMirVerified",
     "ArtifactKeyMirAnalyzed",
     "ArtifactKeyMirOptimized",
-    "ArtifactKeyModuleQueryIndex",
-    "ArtifactKeyWorkspaceQueryIndex",
+    "ArtifactKeyModuleIndex",
+    "ArtifactKeyProgramIndex",
     "ArtifactKeyScript",
     "ArtifactKeyObject",
     "ArtifactKeyAsset",

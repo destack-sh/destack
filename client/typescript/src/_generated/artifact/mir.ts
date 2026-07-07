@@ -4,13 +4,27 @@ import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonInteger, js
 import type { BitSet } from "../core/bitset.js";
 import type { LinkGraph } from "../mir/analyses/link_graph.js";
 import type { CallComponentGraph } from "../mir/analyses/link_graph.js";
-import type { Patch } from "../mir/tree/patch.js";
+import type { DispatchTable } from "../mir/table/dispatch.js";
+import type { DropTable } from "../mir/table/drop.js";
+import type { EffectTable } from "../mir/table/effect.js";
+import type { LayoutTable } from "../mir/table/layout.js";
+import type { MemoryTable } from "../mir/table/memory.js";
+import type { ProfileTable } from "../mir/table/profile.js";
+import type { TargetLayout } from "../mir/table/target.js";
+import type { TypeTable } from "../mir/table/type.js";
 import type { Symbol } from "../mir/tree/symbol.js";
 import type { Tree } from "../mir/tree/tree.js";
 import { decodeBitSet, encodeBitSet, fromJsonBitSet, toJsonBitSet } from "../core/bitset.js";
 import { decodeLinkGraph, encodeLinkGraph, fromJsonLinkGraph, toJsonLinkGraph } from "../mir/analyses/link_graph.js";
 import { decodeCallComponentGraph, encodeCallComponentGraph, fromJsonCallComponentGraph, toJsonCallComponentGraph } from "../mir/analyses/link_graph.js";
-import { decodePatch, encodePatch, fromJsonPatch, toJsonPatch } from "../mir/tree/patch.js";
+import { decodeDispatchTable, encodeDispatchTable, fromJsonDispatchTable, toJsonDispatchTable } from "../mir/table/dispatch.js";
+import { decodeDropTable, encodeDropTable, fromJsonDropTable, toJsonDropTable } from "../mir/table/drop.js";
+import { decodeEffectTable, encodeEffectTable, fromJsonEffectTable, toJsonEffectTable } from "../mir/table/effect.js";
+import { decodeLayoutTable, encodeLayoutTable, fromJsonLayoutTable, toJsonLayoutTable } from "../mir/table/layout.js";
+import { decodeMemoryTable, encodeMemoryTable, fromJsonMemoryTable, toJsonMemoryTable } from "../mir/table/memory.js";
+import { decodeProfileTable, encodeProfileTable, fromJsonProfileTable, toJsonProfileTable } from "../mir/table/profile.js";
+import { decodeTargetLayout, encodeTargetLayout, fromJsonTargetLayout, toJsonTargetLayout } from "../mir/table/target.js";
+import { decodeTypeTable, encodeTypeTable, fromJsonTypeTable, toJsonTypeTable } from "../mir/table/type.js";
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../mir/tree/symbol.js";
 import { decodeTree, encodeTree, fromJsonTree, toJsonTree } from "../mir/tree/tree.js";
 
@@ -18,6 +32,22 @@ import { decodeTree, encodeTree, fromJsonTree, toJsonTree } from "../mir/tree/tr
 export type MirLowered = {
     /** The MIR tree. */
     readonly tree: Tree;
+    /** Target ABI layout. */
+    readonly target: TargetLayout;
+    /** Canonical MIR type table. */
+    readonly types: TypeTable;
+    /** Canonical MIR layout table. */
+    readonly layouts: LayoutTable;
+    /** Canonical MIR dispatch table. */
+    readonly dispatch: DispatchTable;
+    /** Canonical MIR drop table. */
+    readonly drops: DropTable;
+    /** Explicit MIR memory access table. */
+    readonly memory: MemoryTable;
+    /** Function and call effect table. */
+    readonly effects: EffectTable;
+    /** Static profile counter table. */
+    readonly profile: ProfileTable;
 };
 
 export const MirLowered = {
@@ -45,14 +75,38 @@ export const MirLowered = {
 /** Encode one MirLowered. */
 export function encodeMirLowered(writer: BinaryWriter, value: MirLowered): void {
     encodeTree(writer, value.tree);
+    encodeTargetLayout(writer, value.target);
+    encodeTypeTable(writer, value.types);
+    encodeLayoutTable(writer, value.layouts);
+    encodeDispatchTable(writer, value.dispatch);
+    encodeDropTable(writer, value.drops);
+    encodeMemoryTable(writer, value.memory);
+    encodeEffectTable(writer, value.effects);
+    encodeProfileTable(writer, value.profile);
 }
 
 /** Decode one MirLowered. */
 export function decodeMirLowered(reader: BinaryReader): MirLowered {
     const tree = decodeTree(reader);
+    const target = decodeTargetLayout(reader);
+    const types = decodeTypeTable(reader);
+    const layouts = decodeLayoutTable(reader);
+    const dispatch = decodeDispatchTable(reader);
+    const drops = decodeDropTable(reader);
+    const memory = decodeMemoryTable(reader);
+    const effects = decodeEffectTable(reader);
+    const profile = decodeProfileTable(reader);
 
     return {
         tree,
+        target,
+        types,
+        layouts,
+        dispatch,
+        drops,
+        memory,
+        effects,
+        profile,
     };
 }
 
@@ -60,6 +114,14 @@ export function decodeMirLowered(reader: BinaryReader): MirLowered {
 export function toJsonMirLowered(value: MirLowered): Json {
     return {
         tree: toJsonTree(value.tree),
+        target: toJsonTargetLayout(value.target),
+        types: toJsonTypeTable(value.types),
+        layouts: toJsonLayoutTable(value.layouts),
+        dispatch: toJsonDispatchTable(value.dispatch),
+        drops: toJsonDropTable(value.drops),
+        memory: toJsonMemoryTable(value.memory),
+        effects: toJsonEffectTable(value.effects),
+        profile: toJsonProfileTable(value.profile),
     };
 }
 
@@ -69,13 +131,37 @@ export function fromJsonMirLowered(value: Json): MirLowered {
 
     return {
         tree: fromJsonTree(jsonField(object, "tree")),
+        target: fromJsonTargetLayout(jsonField(object, "target")),
+        types: fromJsonTypeTable(jsonField(object, "types")),
+        layouts: fromJsonLayoutTable(jsonField(object, "layouts")),
+        dispatch: fromJsonDispatchTable(jsonField(object, "dispatch")),
+        drops: fromJsonDropTable(jsonField(object, "drops")),
+        memory: fromJsonMemoryTable(jsonField(object, "memory")),
+        effects: fromJsonEffectTable(jsonField(object, "effects")),
+        profile: fromJsonProfileTable(jsonField(object, "profile")),
     };
 }
 
-/** Verified MIR patch after required semantic verification. */
+/** Verified MIR after required semantic verification. */
 export type MirVerified = {
-    /** Required verification patch. */
-    readonly patch: Patch;
+    /** The verified MIR tree. */
+    readonly tree: Tree;
+    /** Target ABI layout. */
+    readonly target: TargetLayout;
+    /** Canonical MIR type table. */
+    readonly types: TypeTable;
+    /** Canonical MIR layout table. */
+    readonly layouts: LayoutTable;
+    /** Canonical MIR dispatch table. */
+    readonly dispatch: DispatchTable;
+    /** Canonical MIR drop table. */
+    readonly drops: DropTable;
+    /** Explicit MIR memory access table. */
+    readonly memory: MemoryTable;
+    /** Function and call effect table. */
+    readonly effects: EffectTable;
+    /** Static profile counter table. */
+    readonly profile: ProfileTable;
 };
 
 export const MirVerified = {
@@ -102,22 +188,54 @@ export const MirVerified = {
 
 /** Encode one MirVerified. */
 export function encodeMirVerified(writer: BinaryWriter, value: MirVerified): void {
-    encodePatch(writer, value.patch);
+    encodeTree(writer, value.tree);
+    encodeTargetLayout(writer, value.target);
+    encodeTypeTable(writer, value.types);
+    encodeLayoutTable(writer, value.layouts);
+    encodeDispatchTable(writer, value.dispatch);
+    encodeDropTable(writer, value.drops);
+    encodeMemoryTable(writer, value.memory);
+    encodeEffectTable(writer, value.effects);
+    encodeProfileTable(writer, value.profile);
 }
 
 /** Decode one MirVerified. */
 export function decodeMirVerified(reader: BinaryReader): MirVerified {
-    const patch = decodePatch(reader);
+    const tree = decodeTree(reader);
+    const target = decodeTargetLayout(reader);
+    const types = decodeTypeTable(reader);
+    const layouts = decodeLayoutTable(reader);
+    const dispatch = decodeDispatchTable(reader);
+    const drops = decodeDropTable(reader);
+    const memory = decodeMemoryTable(reader);
+    const effects = decodeEffectTable(reader);
+    const profile = decodeProfileTable(reader);
 
     return {
-        patch,
+        tree,
+        target,
+        types,
+        layouts,
+        dispatch,
+        drops,
+        memory,
+        effects,
+        profile,
     };
 }
 
 /** Return one JSON value for one MirVerified. */
 export function toJsonMirVerified(value: MirVerified): Json {
     return {
-        patch: toJsonPatch(value.patch),
+        tree: toJsonTree(value.tree),
+        target: toJsonTargetLayout(value.target),
+        types: toJsonTypeTable(value.types),
+        layouts: toJsonLayoutTable(value.layouts),
+        dispatch: toJsonDispatchTable(value.dispatch),
+        drops: toJsonDropTable(value.drops),
+        memory: toJsonMemoryTable(value.memory),
+        effects: toJsonEffectTable(value.effects),
+        profile: toJsonProfileTable(value.profile),
     };
 }
 
@@ -126,14 +244,38 @@ export function fromJsonMirVerified(value: Json): MirVerified {
     const object = jsonObject(value);
 
     return {
-        patch: fromJsonPatch(jsonField(object, "patch")),
+        tree: fromJsonTree(jsonField(object, "tree")),
+        target: fromJsonTargetLayout(jsonField(object, "target")),
+        types: fromJsonTypeTable(jsonField(object, "types")),
+        layouts: fromJsonLayoutTable(jsonField(object, "layouts")),
+        dispatch: fromJsonDispatchTable(jsonField(object, "dispatch")),
+        drops: fromJsonDropTable(jsonField(object, "drops")),
+        memory: fromJsonMemoryTable(jsonField(object, "memory")),
+        effects: fromJsonEffectTable(jsonField(object, "effects")),
+        profile: fromJsonProfileTable(jsonField(object, "profile")),
     };
 }
 
 /** Optimized MIR payload after pipeline transforms. */
 export type MirOptimized = {
-    /** Ordered optimization patches. */
-    readonly patches: ReadonlyArray<Patch>;
+    /** The optimized MIR tree. */
+    readonly tree: Tree;
+    /** Target ABI layout. */
+    readonly target: TargetLayout;
+    /** Canonical MIR type table. */
+    readonly types: TypeTable;
+    /** Canonical MIR layout table. */
+    readonly layouts: LayoutTable;
+    /** Canonical MIR dispatch table. */
+    readonly dispatch: DispatchTable;
+    /** Canonical MIR drop table. */
+    readonly drops: DropTable;
+    /** Explicit MIR memory access table. */
+    readonly memory: MemoryTable;
+    /** Function and call effect table. */
+    readonly effects: EffectTable;
+    /** Static profile counter table. */
+    readonly profile: ProfileTable;
 };
 
 export const MirOptimized = {
@@ -160,25 +302,54 @@ export const MirOptimized = {
 
 /** Encode one MirOptimized. */
 export function encodeMirOptimized(writer: BinaryWriter, value: MirOptimized): void {
-    writer.writeUnsigned(value.patches.length);
-    for (const item0 of value.patches) {
-        encodePatch(writer, item0);
-    }
+    encodeTree(writer, value.tree);
+    encodeTargetLayout(writer, value.target);
+    encodeTypeTable(writer, value.types);
+    encodeLayoutTable(writer, value.layouts);
+    encodeDispatchTable(writer, value.dispatch);
+    encodeDropTable(writer, value.drops);
+    encodeMemoryTable(writer, value.memory);
+    encodeEffectTable(writer, value.effects);
+    encodeProfileTable(writer, value.profile);
 }
 
 /** Decode one MirOptimized. */
 export function decodeMirOptimized(reader: BinaryReader): MirOptimized {
-    const patches = (() => { const length0 = reader.readNumber(); const items0: Array<Patch> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodePatch(reader)); } return items0; })();
+    const tree = decodeTree(reader);
+    const target = decodeTargetLayout(reader);
+    const types = decodeTypeTable(reader);
+    const layouts = decodeLayoutTable(reader);
+    const dispatch = decodeDispatchTable(reader);
+    const drops = decodeDropTable(reader);
+    const memory = decodeMemoryTable(reader);
+    const effects = decodeEffectTable(reader);
+    const profile = decodeProfileTable(reader);
 
     return {
-        patches,
+        tree,
+        target,
+        types,
+        layouts,
+        dispatch,
+        drops,
+        memory,
+        effects,
+        profile,
     };
 }
 
 /** Return one JSON value for one MirOptimized. */
 export function toJsonMirOptimized(value: MirOptimized): Json {
     return {
-        patches: value.patches.map((item0) => toJsonPatch(item0)),
+        tree: toJsonTree(value.tree),
+        target: toJsonTargetLayout(value.target),
+        types: toJsonTypeTable(value.types),
+        layouts: toJsonLayoutTable(value.layouts),
+        dispatch: toJsonDispatchTable(value.dispatch),
+        drops: toJsonDropTable(value.drops),
+        memory: toJsonMemoryTable(value.memory),
+        effects: toJsonEffectTable(value.effects),
+        profile: toJsonProfileTable(value.profile),
     };
 }
 
@@ -187,7 +358,15 @@ export function fromJsonMirOptimized(value: Json): MirOptimized {
     const object = jsonObject(value);
 
     return {
-        patches: jsonArray(jsonField(object, "patches")).map((item0) => fromJsonPatch(item0)),
+        tree: fromJsonTree(jsonField(object, "tree")),
+        target: fromJsonTargetLayout(jsonField(object, "target")),
+        types: fromJsonTypeTable(jsonField(object, "types")),
+        layouts: fromJsonLayoutTable(jsonField(object, "layouts")),
+        dispatch: fromJsonDispatchTable(jsonField(object, "dispatch")),
+        drops: fromJsonDropTable(jsonField(object, "drops")),
+        memory: fromJsonMemoryTable(jsonField(object, "memory")),
+        effects: fromJsonEffectTable(jsonField(object, "effects")),
+        profile: fromJsonProfileTable(jsonField(object, "profile")),
     };
 }
 

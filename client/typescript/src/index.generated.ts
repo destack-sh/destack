@@ -7,7 +7,6 @@ export * as heap from "./heap/index.generated.js";
 export * as js from "./js/index.generated.js";
 export * as mir from "./mir/index.generated.js";
 export * as program from "./program/index.generated.js";
-export * as qir from "./qir/index.generated.js";
 export * as query from "./query/index.generated.js";
 export * as repository from "./repository/index.generated.js";
 export * as source from "./source/index.generated.js";

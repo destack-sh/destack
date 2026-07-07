@@ -8,7 +8,7 @@ import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalN
 
 import { FloatValueImpl } from "../../../_impl/mir/tree/attribute.js";
 
-/** A metadata attribute attached to a MIR node. */
+/** A tables attribute attached to a MIR node. */
 export type Attribute = {
     /** The attribute name. */
     readonly name: AttributeIdentifier;

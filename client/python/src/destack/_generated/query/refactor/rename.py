@@ -14,7 +14,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 import destack._generated.source.edit.edit
 import destack._generated.source.file.model.span
 
@@ -24,7 +24,7 @@ class RenameTargetRequest:
     """Request the rename target at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -49,12 +49,12 @@ def encode_rename_target_request(
     writer: BinaryWriter, value: RenameTargetRequest
 ) -> None:
     """Encode one RenameTargetRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
 
 
 def decode_rename_target_request(reader: BinaryReader) -> RenameTargetRequest:
     """Decode one RenameTargetRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
 
     return RenameTargetRequest(
         position=position,
@@ -64,7 +64,7 @@ def decode_rename_target_request(reader: BinaryReader) -> RenameTargetRequest:
 def to_json_rename_target_request(value: RenameTargetRequest) -> Json:
     """Return one JSON value for one RenameTargetRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
     }
@@ -75,7 +75,7 @@ def from_json_rename_target_request(value: Json) -> RenameTargetRequest:
     object_ = json_object(value)
 
     return RenameTargetRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
     )
@@ -86,7 +86,7 @@ class RenameRequest:
     """Request rename edits at a cursor position."""
 
     # the queried position
-    position: destack._generated.query.core.target.QueryPosition
+    position: destack._generated.query.protocol.target.Position
     # the new name for the symbol
     new_name: str
 
@@ -111,13 +111,13 @@ class RenameRequest:
 
 def encode_rename_request(writer: BinaryWriter, value: RenameRequest) -> None:
     """Encode one RenameRequest."""
-    destack._generated.query.core.target.encode_query_position(writer, value.position)
+    destack._generated.query.protocol.target.encode_position(writer, value.position)
     writer.write_string(value.new_name)
 
 
 def decode_rename_request(reader: BinaryReader) -> RenameRequest:
     """Decode one RenameRequest."""
-    position = destack._generated.query.core.target.decode_query_position(reader)
+    position = destack._generated.query.protocol.target.decode_position(reader)
     new_name = reader.read_string()
 
     return RenameRequest(
@@ -129,7 +129,7 @@ def decode_rename_request(reader: BinaryReader) -> RenameRequest:
 def to_json_rename_request(value: RenameRequest) -> Json:
     """Return one JSON value for one RenameRequest."""
     return {
-        "position": destack._generated.query.core.target.to_json_query_position(
+        "position": destack._generated.query.protocol.target.to_json_position(
             value.position
         ),
         "newName": value.new_name,
@@ -141,7 +141,7 @@ def from_json_rename_request(value: Json) -> RenameRequest:
     object_ = json_object(value)
 
     return RenameRequest(
-        position=destack._generated.query.core.target.from_json_query_position(
+        position=destack._generated.query.protocol.target.from_json_position(
             json_field(object_, "position")
         ),
         new_name=json_string(json_field(object_, "newName")),
@@ -221,7 +221,7 @@ class RenameTarget:
     """Target of a rename query."""
 
     # the semantic rename target
-    target: destack._generated.query.core.target.QueryTarget
+    target: destack._generated.query.protocol.target.Target
     # the range of the symbol to rename
     range: destack._generated.source.file.model.span.Span
     # the current name (placeholder for rename dialog)
@@ -248,14 +248,14 @@ class RenameTarget:
 
 def encode_rename_target(writer: BinaryWriter, value: RenameTarget) -> None:
     """Encode one RenameTarget."""
-    destack._generated.query.core.target.encode_query_target(writer, value.target)
+    destack._generated.query.protocol.target.encode_target(writer, value.target)
     destack._generated.source.file.model.span.encode_span(writer, value.range)
     writer.write_string(value.placeholder)
 
 
 def decode_rename_target(reader: BinaryReader) -> RenameTarget:
     """Decode one RenameTarget."""
-    target = destack._generated.query.core.target.decode_query_target(reader)
+    target = destack._generated.query.protocol.target.decode_target(reader)
     range_ = destack._generated.source.file.model.span.decode_span(reader)
     placeholder = reader.read_string()
 
@@ -269,9 +269,7 @@ def decode_rename_target(reader: BinaryReader) -> RenameTarget:
 def to_json_rename_target(value: RenameTarget) -> Json:
     """Return one JSON value for one RenameTarget."""
     return {
-        "target": destack._generated.query.core.target.to_json_query_target(
-            value.target
-        ),
+        "target": destack._generated.query.protocol.target.to_json_target(value.target),
         "range": destack._generated.source.file.model.span.to_json_span(value.range),
         "placeholder": value.placeholder,
     }
@@ -282,7 +280,7 @@ def from_json_rename_target(value: Json) -> RenameTarget:
     object_ = json_object(value)
 
     return RenameTarget(
-        target=destack._generated.query.core.target.from_json_query_target(
+        target=destack._generated.query.protocol.target.from_json_target(
             json_field(object_, "target")
         ),
         range=destack._generated.source.file.model.span.from_json_span(

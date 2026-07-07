@@ -175,17 +175,6 @@ class ArtifactKeyDirMaterialized:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class ArtifactKeyDirElaborated:
-    """Elaborated DIR."""
-
-    module: destack._generated.source.file.model.module.ModuleId
-    profile: destack._generated.source.file.model.profile.ProfileId
-    kind: typing.Literal["dirElaborated"] = "dirElaborated"
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    def to_json(self) -> Json: ...
-
-@dataclass(frozen=True, slots=True)
 class ArtifactKeyMirLowered:
     """Lowered MIR before optimization."""
 
@@ -234,22 +223,22 @@ class ArtifactKeyMirOptimized:
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class ArtifactKeyModuleQueryIndex:
-    """Query index for one module profile."""
+class ArtifactKeyModuleIndex:
+    """Index for one module profile."""
 
     module: destack._generated.source.file.model.module.ModuleId
     profile: destack._generated.source.file.model.profile.ProfileId
-    kind: typing.Literal["moduleQueryIndex"] = "moduleQueryIndex"
+    kind: typing.Literal["moduleIndex"] = "moduleIndex"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
 
 @dataclass(frozen=True, slots=True)
-class ArtifactKeyWorkspaceQueryIndex:
-    """Query index for one workspace profile."""
+class ArtifactKeyProgramIndex:
+    """Index for one program profile."""
 
     profile: destack._generated.source.file.model.profile.ProfileId
-    kind: typing.Literal["workspaceQueryIndex"] = "workspaceQueryIndex"
+    kind: typing.Literal["programIndex"] = "programIndex"
 
     def encode(self, writer: BinaryWriter) -> None: ...
     def to_json(self) -> Json: ...
@@ -367,13 +356,12 @@ ArtifactKey: typing.TypeAlias = (
     | ArtifactKeyDirCheckedComponent
     | ArtifactKeyDirChecked
     | ArtifactKeyDirMaterialized
-    | ArtifactKeyDirElaborated
     | ArtifactKeyMirLowered
     | ArtifactKeyMirVerified
     | ArtifactKeyMirAnalyzed
     | ArtifactKeyMirOptimized
-    | ArtifactKeyModuleQueryIndex
-    | ArtifactKeyWorkspaceQueryIndex
+    | ArtifactKeyModuleIndex
+    | ArtifactKeyProgramIndex
     | ArtifactKeyScript
     | ArtifactKeyObject
     | ArtifactKeyAsset
@@ -411,13 +399,12 @@ __all__ = [
     "ArtifactKeyDirCheckedComponent",
     "ArtifactKeyDirChecked",
     "ArtifactKeyDirMaterialized",
-    "ArtifactKeyDirElaborated",
     "ArtifactKeyMirLowered",
     "ArtifactKeyMirVerified",
     "ArtifactKeyMirAnalyzed",
     "ArtifactKeyMirOptimized",
-    "ArtifactKeyModuleQueryIndex",
-    "ArtifactKeyWorkspaceQueryIndex",
+    "ArtifactKeyModuleIndex",
+    "ArtifactKeyProgramIndex",
     "ArtifactKeyScript",
     "ArtifactKeyObject",
     "ArtifactKeyAsset",

@@ -18,7 +18,7 @@ from destack.protocol.serde import (
     json_string,
 )
 
-import destack._generated.mir.metadata.dispatch
+import destack._generated.mir.table.dispatch
 import destack._generated.mir.tree.call
 import destack._generated.mir.tree.constant
 import destack._generated.mir.tree.node
@@ -140,13 +140,13 @@ class TerminatorSwitch:
 
 @dataclass(frozen=True, slots=True)
 class TerminatorYield:
-    """Yield from a coroutine."""
+    """Yield from a coroutine to its current owner."""
 
     # the yielded value
     value: destack._generated.mir.tree.value.Value
-    # the block to resume at when the coroutine is continued
+    # the block entered when the coroutine receives a resume command
     resume: BlockTarget
-    # the cleanup block when the suspended frame is cancelled or dropped
+    # the cleanup block when the yield is left by panic unwinding
     unwind: BlockTarget | None
     kind: typing.Literal["yield"] = "yield"
 
@@ -214,7 +214,7 @@ class TerminatorCallVirtual:
     # the class type declaring this dispatch slot
     class_: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     # the continuation block
@@ -241,7 +241,7 @@ class TerminatorCallDynamic:
     # the dynamic constraint type declaring this dispatch slot
     constraint: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     # the continuation block
@@ -460,7 +460,7 @@ class TerminatorTailCallVirtual:
     # the class type declaring this dispatch slot
     class_: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["tailCallVirtual"] = "tailCallVirtual"
@@ -483,7 +483,7 @@ class TerminatorTailCallDynamic:
     # the dynamic constraint type declaring this dispatch slot
     constraint: destack._generated.mir.tree.node.LocalNodeId
     # the dispatch slot for the method
-    slot: destack._generated.mir.metadata.dispatch.DispatchSlot
+    slot: destack._generated.mir.table.dispatch.DispatchSlot
     # the shared call payload
     call: destack._generated.mir.tree.call.Call
     kind: typing.Literal["tailCallDynamic"] = "tailCallDynamic"
@@ -587,9 +587,7 @@ def encode_terminator(writer: BinaryWriter, value: Terminator) -> None:
         writer.write_unsigned(9)
         destack._generated.mir.tree.value.encode_value(writer, value.receiver)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.class_)
-        destack._generated.mir.metadata.dispatch.encode_dispatch_slot(
-            writer, value.slot
-        )
+        destack._generated.mir.table.dispatch.encode_dispatch_slot(writer, value.slot)
         destack._generated.mir.tree.call.encode_call(writer, value.call)
         encode_block_target(writer, value.target)
         if value.unwind is None:
@@ -601,9 +599,7 @@ def encode_terminator(writer: BinaryWriter, value: Terminator) -> None:
         writer.write_unsigned(10)
         destack._generated.mir.tree.value.encode_value(writer, value.receiver)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.constraint)
-        destack._generated.mir.metadata.dispatch.encode_dispatch_slot(
-            writer, value.slot
-        )
+        destack._generated.mir.table.dispatch.encode_dispatch_slot(writer, value.slot)
         destack._generated.mir.tree.call.encode_call(writer, value.call)
         encode_block_target(writer, value.target)
         if value.unwind is None:
@@ -664,17 +660,13 @@ def encode_terminator(writer: BinaryWriter, value: Terminator) -> None:
         writer.write_unsigned(21)
         destack._generated.mir.tree.value.encode_value(writer, value.receiver)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.class_)
-        destack._generated.mir.metadata.dispatch.encode_dispatch_slot(
-            writer, value.slot
-        )
+        destack._generated.mir.table.dispatch.encode_dispatch_slot(writer, value.slot)
         destack._generated.mir.tree.call.encode_call(writer, value.call)
     elif value.kind == "tailCallDynamic":
         writer.write_unsigned(22)
         destack._generated.mir.tree.value.encode_value(writer, value.receiver)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.constraint)
-        destack._generated.mir.metadata.dispatch.encode_dispatch_slot(
-            writer, value.slot
-        )
+        destack._generated.mir.table.dispatch.encode_dispatch_slot(writer, value.slot)
         destack._generated.mir.tree.call.encode_call(writer, value.call)
     else:
         raise SerdeError("unknown enum variant")
@@ -767,7 +759,7 @@ def decode_terminator(reader: BinaryReader) -> Terminator:
     elif variant == 9:
         receiver = destack._generated.mir.tree.value.decode_value(reader)
         class_ = destack._generated.mir.tree.node.decode_local_node_id(reader)
-        slot = destack._generated.mir.metadata.dispatch.decode_dispatch_slot(reader)
+        slot = destack._generated.mir.table.dispatch.decode_dispatch_slot(reader)
         call = destack._generated.mir.tree.call.decode_call(reader)
         target = decode_block_target(reader)
         unwind = reader.read_option(lambda: decode_block_target(reader))
@@ -783,7 +775,7 @@ def decode_terminator(reader: BinaryReader) -> Terminator:
     elif variant == 10:
         receiver = destack._generated.mir.tree.value.decode_value(reader)
         constraint = destack._generated.mir.tree.node.decode_local_node_id(reader)
-        slot = destack._generated.mir.metadata.dispatch.decode_dispatch_slot(reader)
+        slot = destack._generated.mir.table.dispatch.decode_dispatch_slot(reader)
         call = destack._generated.mir.tree.call.decode_call(reader)
         target = decode_block_target(reader)
         unwind = reader.read_option(lambda: decode_block_target(reader))
@@ -881,7 +873,7 @@ def decode_terminator(reader: BinaryReader) -> Terminator:
     elif variant == 21:
         receiver = destack._generated.mir.tree.value.decode_value(reader)
         class_ = destack._generated.mir.tree.node.decode_local_node_id(reader)
-        slot = destack._generated.mir.metadata.dispatch.decode_dispatch_slot(reader)
+        slot = destack._generated.mir.table.dispatch.decode_dispatch_slot(reader)
         call = destack._generated.mir.tree.call.decode_call(reader)
 
         return TerminatorTailCallVirtual(
@@ -893,7 +885,7 @@ def decode_terminator(reader: BinaryReader) -> Terminator:
     elif variant == 22:
         receiver = destack._generated.mir.tree.value.decode_value(reader)
         constraint = destack._generated.mir.tree.node.decode_local_node_id(reader)
-        slot = destack._generated.mir.metadata.dispatch.decode_dispatch_slot(reader)
+        slot = destack._generated.mir.table.dispatch.decode_dispatch_slot(reader)
         call = destack._generated.mir.tree.call.decode_call(reader)
 
         return TerminatorTailCallDynamic(
@@ -997,7 +989,7 @@ def to_json_terminator(value: Terminator) -> Json:
             "class": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.class_
             ),
-            "slot": destack._generated.mir.metadata.dispatch.to_json_dispatch_slot(
+            "slot": destack._generated.mir.table.dispatch.to_json_dispatch_slot(
                 value.slot
             ),
             "call": destack._generated.mir.tree.call.to_json_call(value.call),
@@ -1015,7 +1007,7 @@ def to_json_terminator(value: Terminator) -> Json:
             "constraint": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.constraint
             ),
-            "slot": destack._generated.mir.metadata.dispatch.to_json_dispatch_slot(
+            "slot": destack._generated.mir.table.dispatch.to_json_dispatch_slot(
                 value.slot
             ),
             "call": destack._generated.mir.tree.call.to_json_call(value.call),
@@ -1120,7 +1112,7 @@ def to_json_terminator(value: Terminator) -> Json:
             "class": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.class_
             ),
-            "slot": destack._generated.mir.metadata.dispatch.to_json_dispatch_slot(
+            "slot": destack._generated.mir.table.dispatch.to_json_dispatch_slot(
                 value.slot
             ),
             "call": destack._generated.mir.tree.call.to_json_call(value.call),
@@ -1132,7 +1124,7 @@ def to_json_terminator(value: Terminator) -> Json:
             "constraint": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.constraint
             ),
-            "slot": destack._generated.mir.metadata.dispatch.to_json_dispatch_slot(
+            "slot": destack._generated.mir.table.dispatch.to_json_dispatch_slot(
                 value.slot
             ),
             "call": destack._generated.mir.tree.call.to_json_call(value.call),
@@ -1226,7 +1218,7 @@ def from_json_terminator(value: Json) -> Terminator:
             class_=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "class")
             ),
-            slot=destack._generated.mir.metadata.dispatch.from_json_dispatch_slot(
+            slot=destack._generated.mir.table.dispatch.from_json_dispatch_slot(
                 json_field(object_, "slot")
             ),
             call=destack._generated.mir.tree.call.from_json_call(
@@ -1245,7 +1237,7 @@ def from_json_terminator(value: Json) -> Terminator:
             constraint=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "constraint")
             ),
-            slot=destack._generated.mir.metadata.dispatch.from_json_dispatch_slot(
+            slot=destack._generated.mir.table.dispatch.from_json_dispatch_slot(
                 json_field(object_, "slot")
             ),
             call=destack._generated.mir.tree.call.from_json_call(
@@ -1341,7 +1333,7 @@ def from_json_terminator(value: Json) -> Terminator:
             class_=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "class")
             ),
-            slot=destack._generated.mir.metadata.dispatch.from_json_dispatch_slot(
+            slot=destack._generated.mir.table.dispatch.from_json_dispatch_slot(
                 json_field(object_, "slot")
             ),
             call=destack._generated.mir.tree.call.from_json_call(
@@ -1356,7 +1348,7 @@ def from_json_terminator(value: Json) -> Terminator:
             constraint=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "constraint")
             ),
-            slot=destack._generated.mir.metadata.dispatch.from_json_dispatch_slot(
+            slot=destack._generated.mir.table.dispatch.from_json_dispatch_slot(
                 json_field(object_, "slot")
             ),
             call=destack._generated.mir.tree.call.from_json_call(
@@ -1559,14 +1551,14 @@ class CheckConstraintOverflow:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckConstraintType:
-    """Runtime type descriptor check for a value."""
+class CheckConstraintIsType:
+    """Exact runtime type check for a value."""
 
-    # the descriptor value being checked
+    # the value being checked
     value: destack._generated.mir.tree.value.Value
-    # the expected dynamic type for this descriptor
+    # the expected concrete runtime type
     expected: destack._generated.mir.tree.node.LocalNodeId
-    kind: typing.Literal["type"] = "type"
+    kind: typing.Literal["isType"] = "isType"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1597,33 +1589,14 @@ class CheckConstraintVariant:
 
 
 @dataclass(frozen=True, slots=True)
-class CheckConstraintReceiverType:
-    """Dynamic receiver type check for a class or concrete receiver."""
+class CheckConstraintIsSubtype:
+    """Runtime subtype relation check for a value."""
 
-    # the receiver being checked
-    receiver: destack._generated.mir.tree.value.Value
-    # the expected concrete receiver type
+    # the value being checked
+    value: destack._generated.mir.tree.value.Value
+    # the expected supertype
     expected: destack._generated.mir.tree.node.LocalNodeId
-    kind: typing.Literal["receiverType"] = "receiverType"
-
-    def encode(self, writer: BinaryWriter) -> None:
-        """Encode this value."""
-        encode_check_constraint(writer, self)
-
-    def to_json(self) -> Json:
-        """Return this value as JSON."""
-        return to_json_check_constraint(self)
-
-
-@dataclass(frozen=True, slots=True)
-class CheckConstraintImplements:
-    """Interface conformance check for a receiver."""
-
-    # the receiver being checked
-    receiver: destack._generated.mir.tree.value.Value
-    # the expected interface type
-    expected: destack._generated.mir.tree.node.LocalNodeId
-    kind: typing.Literal["implements"] = "implements"
+    kind: typing.Literal["isSubtype"] = "isSubtype"
 
     def encode(self, writer: BinaryWriter) -> None:
         """Encode this value."""
@@ -1642,10 +1615,9 @@ CheckConstraint: typing.TypeAlias = (
     | CheckConstraintShiftRange
     | CheckConstraintNarrow
     | CheckConstraintOverflow
-    | CheckConstraintType
+    | CheckConstraintIsType
     | CheckConstraintVariant
-    | CheckConstraintReceiverType
-    | CheckConstraintImplements
+    | CheckConstraintIsSubtype
 )
 
 
@@ -1681,7 +1653,7 @@ def encode_check_constraint(writer: BinaryWriter, value: CheckConstraint) -> Non
         destack._generated.mir.tree.value.encode_value(writer, value.left)
         destack._generated.mir.tree.value.encode_value(writer, value.right)
         writer.write_bool(value.is_signed)
-    elif value.kind == "type":
+    elif value.kind == "isType":
         writer.write_unsigned(6)
         destack._generated.mir.tree.value.encode_value(writer, value.value)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.expected)
@@ -1689,13 +1661,9 @@ def encode_check_constraint(writer: BinaryWriter, value: CheckConstraint) -> Non
         writer.write_unsigned(7)
         destack._generated.mir.tree.value.encode_value(writer, value.value)
         destack._generated.mir.tree.constant.encode_constant(writer, value.expected)
-    elif value.kind == "receiverType":
+    elif value.kind == "isSubtype":
         writer.write_unsigned(8)
-        destack._generated.mir.tree.value.encode_value(writer, value.receiver)
-        destack._generated.mir.tree.node.encode_local_node_id(writer, value.expected)
-    elif value.kind == "implements":
-        writer.write_unsigned(9)
-        destack._generated.mir.tree.value.encode_value(writer, value.receiver)
+        destack._generated.mir.tree.value.encode_value(writer, value.value)
         destack._generated.mir.tree.node.encode_local_node_id(writer, value.expected)
     else:
         raise SerdeError("unknown enum variant")
@@ -1765,7 +1733,7 @@ def decode_check_constraint(reader: BinaryReader) -> CheckConstraint:
         value_ = destack._generated.mir.tree.value.decode_value(reader)
         expected = destack._generated.mir.tree.node.decode_local_node_id(reader)
 
-        return CheckConstraintType(
+        return CheckConstraintIsType(
             value=value_,
             expected=expected,
         )
@@ -1778,19 +1746,11 @@ def decode_check_constraint(reader: BinaryReader) -> CheckConstraint:
             expected=expected,
         )
     elif variant == 8:
-        receiver = destack._generated.mir.tree.value.decode_value(reader)
+        value_ = destack._generated.mir.tree.value.decode_value(reader)
         expected = destack._generated.mir.tree.node.decode_local_node_id(reader)
 
-        return CheckConstraintReceiverType(
-            receiver=receiver,
-            expected=expected,
-        )
-    elif variant == 9:
-        receiver = destack._generated.mir.tree.value.decode_value(reader)
-        expected = destack._generated.mir.tree.node.decode_local_node_id(reader)
-
-        return CheckConstraintImplements(
-            receiver=receiver,
+        return CheckConstraintIsSubtype(
+            value=value_,
             expected=expected,
         )
     else:
@@ -1843,9 +1803,9 @@ def to_json_check_constraint(value: CheckConstraint) -> Json:
             "right": destack._generated.mir.tree.value.to_json_value(value.right),
             "isSigned": value.is_signed,
         }
-    elif value.kind == "type":
+    elif value.kind == "isType":
         return {
-            "kind": "type",
+            "kind": "isType",
             "value": destack._generated.mir.tree.value.to_json_value(value.value),
             "expected": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.expected
@@ -1859,18 +1819,10 @@ def to_json_check_constraint(value: CheckConstraint) -> Json:
                 value.expected
             ),
         }
-    elif value.kind == "receiverType":
+    elif value.kind == "isSubtype":
         return {
-            "kind": "receiverType",
-            "receiver": destack._generated.mir.tree.value.to_json_value(value.receiver),
-            "expected": destack._generated.mir.tree.node.to_json_local_node_id(
-                value.expected
-            ),
-        }
-    elif value.kind == "implements":
-        return {
-            "kind": "implements",
-            "receiver": destack._generated.mir.tree.value.to_json_value(value.receiver),
+            "kind": "isSubtype",
+            "value": destack._generated.mir.tree.value.to_json_value(value.value),
             "expected": destack._generated.mir.tree.node.to_json_local_node_id(
                 value.expected
             ),
@@ -1938,8 +1890,8 @@ def from_json_check_constraint(value: Json) -> CheckConstraint:
             ),
             is_signed=json_bool(json_field(object_, "isSigned")),
         )
-    elif kind == "type":
-        return CheckConstraintType(
+    elif kind == "isType":
+        return CheckConstraintIsType(
             value=destack._generated.mir.tree.value.from_json_value(
                 json_field(object_, "value")
             ),
@@ -1956,19 +1908,10 @@ def from_json_check_constraint(value: Json) -> CheckConstraint:
                 json_field(object_, "expected")
             ),
         )
-    elif kind == "receiverType":
-        return CheckConstraintReceiverType(
-            receiver=destack._generated.mir.tree.value.from_json_value(
-                json_field(object_, "receiver")
-            ),
-            expected=destack._generated.mir.tree.node.from_json_local_node_id(
-                json_field(object_, "expected")
-            ),
-        )
-    elif kind == "implements":
-        return CheckConstraintImplements(
-            receiver=destack._generated.mir.tree.value.from_json_value(
-                json_field(object_, "receiver")
+    elif kind == "isSubtype":
+        return CheckConstraintIsSubtype(
+            value=destack._generated.mir.tree.value.from_json_value(
+                json_field(object_, "value")
             ),
             expected=destack._generated.mir.tree.node.from_json_local_node_id(
                 json_field(object_, "expected")
@@ -2186,10 +2129,9 @@ __all__ = [
     "CheckConstraintShiftRange",
     "CheckConstraintNarrow",
     "CheckConstraintOverflow",
-    "CheckConstraintType",
+    "CheckConstraintIsType",
     "CheckConstraintVariant",
-    "CheckConstraintReceiverType",
-    "CheckConstraintImplements",
+    "CheckConstraintIsSubtype",
     "SwitchCaseSlice",
     "encode_switch_case_slice",
     "decode_switch_case_slice",

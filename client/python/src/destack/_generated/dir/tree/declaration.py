@@ -28,6 +28,48 @@ import destack._generated.dir.tree.function
 import destack._generated.dir.tree.key
 import destack._generated.dir.tree.node
 
+"""Explicit source placement modifier."""
+PlaceModifier: typing.TypeAlias = typing.Literal["local"] | typing.Literal["shared"]
+
+
+def encode_place_modifier(writer: BinaryWriter, value: PlaceModifier) -> None:
+    """Encode one PlaceModifier."""
+    if value == "local":
+        writer.write_unsigned(0)
+    elif value == "shared":
+        writer.write_unsigned(1)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_place_modifier(reader: BinaryReader) -> PlaceModifier:
+    """Decode one PlaceModifier."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        return "local"
+    elif variant == 1:
+        return "shared"
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_place_modifier(value: PlaceModifier) -> Json:
+    """Return one JSON value for one PlaceModifier."""
+    return value
+
+
+def from_json_place_modifier(value: Json) -> PlaceModifier:
+    """Return one PlaceModifier from one JSON value."""
+    variant = json_string(value)
+
+    if variant == "local":
+        return "local"
+    elif variant == "shared":
+        return "shared"
+    else:
+        raise SerdeError(f"unknown enum variant: {variant}")
+
 
 @dataclass(frozen=True, slots=True)
 class DeclarationGlobal(DeclarationImpl):
@@ -513,6 +555,8 @@ class TypeDeclaration:
     name: destack._generated.dir.tree.key.Name
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the optional mutability qualifier
     mutability: destack._generated.dir.tree.node.Mutability | None
     # the generic parameters of the declaration
@@ -553,6 +597,11 @@ def encode_type_declaration(writer: BinaryWriter, value: TypeDeclaration) -> Non
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.dependency.encode_export_kind(writer, value.export)
+    if value.place is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_place_modifier(writer, value.place)
     if value.mutability is None:
         writer.write_byte(0)
     else:
@@ -579,6 +628,7 @@ def decode_type_declaration(reader: BinaryReader) -> TypeDeclaration:
     export = reader.read_option(
         lambda: destack._generated.dir.tree.dependency.decode_export_kind(reader)
     )
+    place = reader.read_option(lambda: decode_place_modifier(reader))
     mutability = reader.read_option(
         lambda: destack._generated.dir.tree.node.decode_mutability(reader)
     )
@@ -597,6 +647,7 @@ def decode_type_declaration(reader: BinaryReader) -> TypeDeclaration:
     return TypeDeclaration(
         name=name,
         export=export,
+        place=place,
         mutability=mutability,
         generic_parameters=generic_parameters,
         where_clauses=where_clauses,
@@ -618,6 +669,11 @@ def to_json_type_declaration(value: TypeDeclaration) -> Json:
                     value.export
                 )
             }
+        ),
+        **(
+            {}
+            if value.place is None
+            else {"place": to_json_place_modifier(value.place)}
         ),
         **(
             {}
@@ -657,6 +713,9 @@ def from_json_type_declaration(value: Json) -> TypeDeclaration:
                 value
             ),
         ),
+        place=json_optional(
+            object_, "place", lambda value: from_json_place_modifier(value)
+        ),
         mutability=json_optional(
             object_,
             "mutability",
@@ -686,6 +745,8 @@ class StructDeclaration:
     name: destack._generated.dir.tree.key.Name
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the generic parameters of the declaration
     generic_parameters: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     # the where clauses of the declaration
@@ -724,6 +785,11 @@ def encode_struct_declaration(writer: BinaryWriter, value: StructDeclaration) ->
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.dependency.encode_export_kind(writer, value.export)
+    if value.place is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_place_modifier(writer, value.place)
     writer.write_unsigned(len(value.generic_parameters))
     for item_value_generic_parameters_0 in value.generic_parameters:
         destack._generated.dir.tree.node.encode_local_node_id(
@@ -753,6 +819,7 @@ def decode_struct_declaration(reader: BinaryReader) -> StructDeclaration:
     export = reader.read_option(
         lambda: destack._generated.dir.tree.dependency.decode_export_kind(reader)
     )
+    place = reader.read_option(lambda: decode_place_modifier(reader))
     generic_parameters = [
         destack._generated.dir.tree.node.decode_local_node_id(reader)
         for _ in range(reader.read_number())
@@ -774,6 +841,7 @@ def decode_struct_declaration(reader: BinaryReader) -> StructDeclaration:
     return StructDeclaration(
         name=name,
         export=export,
+        place=place,
         generic_parameters=generic_parameters,
         where_clauses=where_clauses,
         implements_types=implements_types,
@@ -794,6 +862,11 @@ def to_json_struct_declaration(value: StructDeclaration) -> Json:
                     value.export
                 )
             }
+        ),
+        **(
+            {}
+            if value.place is None
+            else {"place": to_json_place_modifier(value.place)}
         ),
         "genericParameters": [
             destack._generated.dir.tree.node.to_json_local_node_id(item_0)
@@ -830,6 +903,9 @@ def from_json_struct_declaration(value: Json) -> StructDeclaration:
                 value
             ),
         ),
+        place=json_optional(
+            object_, "place", lambda value: from_json_place_modifier(value)
+        ),
         generic_parameters=[
             destack._generated.dir.tree.node.from_json_local_node_id(item_0)
             for item_0 in json_array(json_field(object_, "genericParameters"))
@@ -858,6 +934,8 @@ class ClassDeclaration:
     name: destack._generated.dir.tree.key.Name | None
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the generic parameters of the declaration
     generic_parameters: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     # the where clauses of the declaration
@@ -906,6 +984,11 @@ def encode_class_declaration(writer: BinaryWriter, value: ClassDeclaration) -> N
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.dependency.encode_export_kind(writer, value.export)
+    if value.place is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_place_modifier(writer, value.place)
     writer.write_unsigned(len(value.generic_parameters))
     for item_value_generic_parameters_0 in value.generic_parameters:
         destack._generated.dir.tree.node.encode_local_node_id(
@@ -946,6 +1029,7 @@ def decode_class_declaration(reader: BinaryReader) -> ClassDeclaration:
     export = reader.read_option(
         lambda: destack._generated.dir.tree.dependency.decode_export_kind(reader)
     )
+    place = reader.read_option(lambda: decode_place_modifier(reader))
     generic_parameters = [
         destack._generated.dir.tree.node.decode_local_node_id(reader)
         for _ in range(reader.read_number())
@@ -972,6 +1056,7 @@ def decode_class_declaration(reader: BinaryReader) -> ClassDeclaration:
     return ClassDeclaration(
         name=name,
         export=export,
+        place=place,
         generic_parameters=generic_parameters,
         where_clauses=where_clauses,
         extends_type=extends_type,
@@ -999,6 +1084,11 @@ def to_json_class_declaration(value: ClassDeclaration) -> Json:
                     value.export
                 )
             }
+        ),
+        **(
+            {}
+            if value.place is None
+            else {"place": to_json_place_modifier(value.place)}
         ),
         "genericParameters": [
             destack._generated.dir.tree.node.to_json_local_node_id(item_0)
@@ -1048,6 +1138,9 @@ def from_json_class_declaration(value: Json) -> ClassDeclaration:
                 value
             ),
         ),
+        place=json_optional(
+            object_, "place", lambda value: from_json_place_modifier(value)
+        ),
         generic_parameters=[
             destack._generated.dir.tree.node.from_json_local_node_id(item_0)
             for item_0 in json_array(json_field(object_, "genericParameters"))
@@ -1085,6 +1178,8 @@ class EnumDeclaration:
     name: destack._generated.dir.tree.key.Name | None
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the enum kind
     kind: EnumKind
     # the generic parameters of the declaration
@@ -1131,6 +1226,11 @@ def encode_enum_declaration(writer: BinaryWriter, value: EnumDeclaration) -> Non
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.dependency.encode_export_kind(writer, value.export)
+    if value.place is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_place_modifier(writer, value.place)
     encode_enum_kind(writer, value.kind)
     writer.write_unsigned(len(value.generic_parameters))
     for item_value_generic_parameters_0 in value.generic_parameters:
@@ -1168,6 +1268,7 @@ def decode_enum_declaration(reader: BinaryReader) -> EnumDeclaration:
     export = reader.read_option(
         lambda: destack._generated.dir.tree.dependency.decode_export_kind(reader)
     )
+    place = reader.read_option(lambda: decode_place_modifier(reader))
     kind = decode_enum_kind(reader)
     generic_parameters = [
         destack._generated.dir.tree.node.decode_local_node_id(reader)
@@ -1194,6 +1295,7 @@ def decode_enum_declaration(reader: BinaryReader) -> EnumDeclaration:
     return EnumDeclaration(
         name=name,
         export=export,
+        place=place,
         kind=kind,
         generic_parameters=generic_parameters,
         where_clauses=where_clauses,
@@ -1220,6 +1322,11 @@ def to_json_enum_declaration(value: EnumDeclaration) -> Json:
                     value.export
                 )
             }
+        ),
+        **(
+            {}
+            if value.place is None
+            else {"place": to_json_place_modifier(value.place)}
         ),
         "kind": to_json_enum_kind(value.kind),
         "genericParameters": [
@@ -1262,6 +1369,9 @@ def from_json_enum_declaration(value: Json) -> EnumDeclaration:
             lambda value: destack._generated.dir.tree.dependency.from_json_export_kind(
                 value
             ),
+        ),
+        place=json_optional(
+            object_, "place", lambda value: from_json_place_modifier(value)
         ),
         kind=from_json_enum_kind(json_field(object_, "kind")),
         generic_parameters=[
@@ -1339,6 +1449,8 @@ class InterfaceDeclaration:
     name: destack._generated.dir.tree.key.Name | None
     # the export kind of the declaration
     export: destack._generated.dir.tree.dependency.ExportKind | None
+    # the explicit placement modifier
+    place: PlaceModifier | None
     # the generic parameters of the declaration
     generic_parameters: Sequence[destack._generated.dir.tree.node.LocalNodeId]
     # the where clauses of the declaration
@@ -1385,6 +1497,11 @@ def encode_interface_declaration(
     else:
         writer.write_byte(1)
         destack._generated.dir.tree.dependency.encode_export_kind(writer, value.export)
+    if value.place is None:
+        writer.write_byte(0)
+    else:
+        writer.write_byte(1)
+        encode_place_modifier(writer, value.place)
     writer.write_unsigned(len(value.generic_parameters))
     for item_value_generic_parameters_0 in value.generic_parameters:
         destack._generated.dir.tree.node.encode_local_node_id(
@@ -1417,6 +1534,7 @@ def decode_interface_declaration(reader: BinaryReader) -> InterfaceDeclaration:
     export = reader.read_option(
         lambda: destack._generated.dir.tree.dependency.decode_export_kind(reader)
     )
+    place = reader.read_option(lambda: decode_place_modifier(reader))
     generic_parameters = [
         destack._generated.dir.tree.node.decode_local_node_id(reader)
         for _ in range(reader.read_number())
@@ -1439,6 +1557,7 @@ def decode_interface_declaration(reader: BinaryReader) -> InterfaceDeclaration:
     return InterfaceDeclaration(
         name=name,
         export=export,
+        place=place,
         generic_parameters=generic_parameters,
         where_clauses=where_clauses,
         extends_types=extends_types,
@@ -1464,6 +1583,11 @@ def to_json_interface_declaration(value: InterfaceDeclaration) -> Json:
                     value.export
                 )
             }
+        ),
+        **(
+            {}
+            if value.place is None
+            else {"place": to_json_place_modifier(value.place)}
         ),
         "genericParameters": [
             destack._generated.dir.tree.node.to_json_local_node_id(item_0)
@@ -1502,6 +1626,9 @@ def from_json_interface_declaration(value: Json) -> InterfaceDeclaration:
             lambda value: destack._generated.dir.tree.dependency.from_json_export_kind(
                 value
             ),
+        ),
+        place=json_optional(
+            object_, "place", lambda value: from_json_place_modifier(value)
         ),
         generic_parameters=[
             destack._generated.dir.tree.node.from_json_local_node_id(item_0)
@@ -1953,6 +2080,11 @@ def from_json_enum_field(value: Json) -> EnumField:
 
 
 __all__ = [
+    "PlaceModifier",
+    "encode_place_modifier",
+    "decode_place_modifier",
+    "to_json_place_modifier",
+    "from_json_place_modifier",
     "Declaration",
     "encode_declaration",
     "decode_declaration",

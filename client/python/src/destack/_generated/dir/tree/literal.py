@@ -22,6 +22,7 @@ from destack.protocol.serde import (
 )
 
 import destack._generated.core.string
+import destack._generated.dir.tree.key
 import destack._generated.dir.tree.node
 import destack._generated.dir.type.primitive
 
@@ -683,8 +684,24 @@ class TypeLiteralNumber:
 
 
 @dataclass(frozen=True, slots=True)
+class TypeLiteralAlias:
+    """A widthless source alias for a sized scalar, like `int` for `int64`."""
+
+    alias: destack._generated.dir.type.primitive.ScalarAlias
+    kind: typing.Literal["alias"] = "alias"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_type_literal(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_type_literal(self)
+
+
+@dataclass(frozen=True, slots=True)
 class TypeLiteralInteger:
-    """Integer type."""
+    """Width-spelled integer type, like `int32` or `usize`."""
 
     integer: destack._generated.dir.type.primitive.IntegerType
     kind: typing.Literal["integer"] = "integer"
@@ -700,7 +717,7 @@ class TypeLiteralInteger:
 
 @dataclass(frozen=True, slots=True)
 class TypeLiteralFloat:
-    """Floating-point type."""
+    """Width-spelled floating-point type, like `float32`."""
 
     float: destack._generated.dir.type.primitive.FloatType
     kind: typing.Literal["float"] = "float"
@@ -758,6 +775,7 @@ TypeLiteral: typing.TypeAlias = (
     | TypeLiteralString
     | TypeLiteralBigint
     | TypeLiteralNumber
+    | TypeLiteralAlias
     | TypeLiteralInteger
     | TypeLiteralFloat
     | TypeLiteralSymbol
@@ -791,16 +809,19 @@ def encode_type_literal(writer: BinaryWriter, value: TypeLiteral) -> None:
         writer.write_unsigned(10)
     elif value.kind == "number":
         writer.write_unsigned(11)
-    elif value.kind == "integer":
+    elif value.kind == "alias":
         writer.write_unsigned(12)
+        destack._generated.dir.type.primitive.encode_scalar_alias(writer, value.alias)
+    elif value.kind == "integer":
+        writer.write_unsigned(13)
         destack._generated.dir.type.primitive.encode_integer_type(writer, value.integer)
     elif value.kind == "float":
-        writer.write_unsigned(13)
+        writer.write_unsigned(14)
         destack._generated.dir.type.primitive.encode_float_type(writer, value.float)
     elif value.kind == "symbol":
-        writer.write_unsigned(14)
-    elif value.kind == "uniqueSymbol":
         writer.write_unsigned(15)
+    elif value.kind == "uniqueSymbol":
+        writer.write_unsigned(16)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -834,16 +855,20 @@ def decode_type_literal(reader: BinaryReader) -> TypeLiteral:
     elif variant == 11:
         return TypeLiteralNumber()
     elif variant == 12:
+        alias = destack._generated.dir.type.primitive.decode_scalar_alias(reader)
+
+        return TypeLiteralAlias(alias=alias)
+    elif variant == 13:
         integer = destack._generated.dir.type.primitive.decode_integer_type(reader)
 
         return TypeLiteralInteger(integer=integer)
-    elif variant == 13:
+    elif variant == 14:
         float = destack._generated.dir.type.primitive.decode_float_type(reader)
 
         return TypeLiteralFloat(float=float)
-    elif variant == 14:
-        return TypeLiteralSymbol()
     elif variant == 15:
+        return TypeLiteralSymbol()
+    elif variant == 16:
         return TypeLiteralUniqueSymbol()
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -898,6 +923,13 @@ def to_json_type_literal(value: TypeLiteral) -> Json:
     elif value.kind == "number":
         return {
             "kind": "number",
+        }
+    elif value.kind == "alias":
+        return {
+            "kind": "alias",
+            "alias": destack._generated.dir.type.primitive.to_json_scalar_alias(
+                value.alias
+            ),
         }
     elif value.kind == "integer":
         return {
@@ -954,6 +986,12 @@ def from_json_type_literal(value: Json) -> TypeLiteral:
         return TypeLiteralBigint()
     elif kind == "number":
         return TypeLiteralNumber()
+    elif kind == "alias":
+        return TypeLiteralAlias(
+            alias=destack._generated.dir.type.primitive.from_json_scalar_alias(
+                json_field(object_, "alias")
+            )
+        )
     elif kind == "integer":
         return TypeLiteralInteger(
             integer=destack._generated.dir.type.primitive.from_json_integer_type(
@@ -970,6 +1008,477 @@ def from_json_type_literal(value: Json) -> TypeLiteral:
         return TypeLiteralSymbol()
     elif kind == "uniqueSymbol":
         return TypeLiteralUniqueSymbol()
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeNamed:
+    """Named attribute with an optional value."""
+
+    name: destack._generated.dir.tree.key.Name
+    value: TreeAttributeValue | None
+    kind: typing.Literal["named"] = "named"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_attribute(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_attribute(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeSpread:
+    """Spread attribute."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["spread"] = "spread"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_attribute(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_attribute(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeError:
+    """Malformed attribute slot."""
+
+    kind: typing.Literal["error"] = "error"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_attribute(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_attribute(self)
+
+
+"""A tree tag attribute."""
+TreeAttribute: typing.TypeAlias = (
+    TreeAttributeNamed | TreeAttributeSpread | TreeAttributeError
+)
+
+
+def encode_tree_attribute(writer: BinaryWriter, value: TreeAttribute) -> None:
+    """Encode one TreeAttribute."""
+    if value.kind == "named":
+        writer.write_unsigned(0)
+        destack._generated.dir.tree.key.encode_name(writer, value.name)
+        if value.value is None:
+            writer.write_byte(0)
+        else:
+            writer.write_byte(1)
+            encode_tree_attribute_value(writer, value.value)
+    elif value.kind == "spread":
+        writer.write_unsigned(1)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
+    elif value.kind == "error":
+        writer.write_unsigned(2)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_tree_attribute(reader: BinaryReader) -> TreeAttribute:
+    """Decode one TreeAttribute."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        name = destack._generated.dir.tree.key.decode_name(reader)
+        value_ = reader.read_option(lambda: decode_tree_attribute_value(reader))
+
+        return TreeAttributeNamed(
+            name=name,
+            value=value_,
+        )
+    elif variant == 1:
+        value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
+
+        return TreeAttributeSpread(
+            value=value_,
+        )
+    elif variant == 2:
+        return TreeAttributeError()
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_tree_attribute(value: TreeAttribute) -> Json:
+    """Return one JSON value for one TreeAttribute."""
+    if value.kind == "named":
+        return {
+            "kind": "named",
+            "name": destack._generated.dir.tree.key.to_json_name(value.name),
+            **(
+                {}
+                if value.value is None
+                else {"value": to_json_tree_attribute_value(value.value)}
+            ),
+        }
+    elif value.kind == "spread":
+        return {
+            "kind": "spread",
+            "value": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.value
+            ),
+        }
+    elif value.kind == "error":
+        return {
+            "kind": "error",
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_tree_attribute(value: Json) -> TreeAttribute:
+    """Return one TreeAttribute from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "named":
+        return TreeAttributeNamed(
+            name=destack._generated.dir.tree.key.from_json_name(
+                json_field(object_, "name")
+            ),
+            value=json_optional(
+                object_, "value", lambda value: from_json_tree_attribute_value(value)
+            ),
+        )
+    elif kind == "spread":
+        return TreeAttributeSpread(
+            value=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "value")
+            ),
+        )
+    elif kind == "error":
+        return TreeAttributeError()
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeValueString:
+    """Quoted string attribute value."""
+
+    string: destack._generated.core.string.StringId
+    kind: typing.Literal["string"] = "string"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_attribute_value(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_attribute_value(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeAttributeValueExpression:
+    """Expression container attribute value."""
+
+    expression: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["expression"] = "expression"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_attribute_value(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_attribute_value(self)
+
+
+"""The value form of a tree tag attribute."""
+TreeAttributeValue: typing.TypeAlias = (
+    TreeAttributeValueString | TreeAttributeValueExpression
+)
+
+
+def encode_tree_attribute_value(
+    writer: BinaryWriter, value: TreeAttributeValue
+) -> None:
+    """Encode one TreeAttributeValue."""
+    if value.kind == "string":
+        writer.write_unsigned(0)
+        destack._generated.core.string.encode_string_id(writer, value.string)
+    elif value.kind == "expression":
+        writer.write_unsigned(1)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.expression)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_tree_attribute_value(reader: BinaryReader) -> TreeAttributeValue:
+    """Decode one TreeAttributeValue."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        string = destack._generated.core.string.decode_string_id(reader)
+
+        return TreeAttributeValueString(string=string)
+    elif variant == 1:
+        expression = destack._generated.dir.tree.node.decode_local_node_id(reader)
+
+        return TreeAttributeValueExpression(expression=expression)
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_tree_attribute_value(value: TreeAttributeValue) -> Json:
+    """Return one JSON value for one TreeAttributeValue."""
+    if value.kind == "string":
+        return {
+            "kind": "string",
+            "string": destack._generated.core.string.to_json_string_id(value.string),
+        }
+    elif value.kind == "expression":
+        return {
+            "kind": "expression",
+            "expression": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.expression
+            ),
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_tree_attribute_value(value: Json) -> TreeAttributeValue:
+    """Return one TreeAttributeValue from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "string":
+        return TreeAttributeValueString(
+            string=destack._generated.core.string.from_json_string_id(
+                json_field(object_, "string")
+            )
+        )
+    elif kind == "expression":
+        return TreeAttributeValueExpression(
+            expression=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "expression")
+            )
+        )
+    else:
+        raise SerdeError(f"unknown enum variant: {kind}")
+
+
+@dataclass(frozen=True, slots=True)
+class TreeChildText:
+    """Raw tree text."""
+
+    value: destack._generated.core.string.StringId
+    kind: typing.Literal["text"] = "text"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_child(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_child(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeChildExpression:
+    """Expression container child."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["expression"] = "expression"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_child(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_child(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeChildSpread:
+    """Spread expression container child."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["spread"] = "spread"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_child(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_child(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeChildTree:
+    """Nested tree expression child."""
+
+    value: destack._generated.dir.tree.node.LocalNodeId
+    kind: typing.Literal["tree"] = "tree"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_child(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_child(self)
+
+
+@dataclass(frozen=True, slots=True)
+class TreeChildError:
+    """Malformed child slot."""
+
+    kind: typing.Literal["error"] = "error"
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_tree_child(writer, self)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_tree_child(self)
+
+
+"""A tree child."""
+TreeChild: typing.TypeAlias = (
+    TreeChildText
+    | TreeChildExpression
+    | TreeChildSpread
+    | TreeChildTree
+    | TreeChildError
+)
+
+
+def encode_tree_child(writer: BinaryWriter, value: TreeChild) -> None:
+    """Encode one TreeChild."""
+    if value.kind == "text":
+        writer.write_unsigned(0)
+        destack._generated.core.string.encode_string_id(writer, value.value)
+    elif value.kind == "expression":
+        writer.write_unsigned(1)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
+    elif value.kind == "spread":
+        writer.write_unsigned(2)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
+    elif value.kind == "tree":
+        writer.write_unsigned(3)
+        destack._generated.dir.tree.node.encode_local_node_id(writer, value.value)
+    elif value.kind == "error":
+        writer.write_unsigned(4)
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def decode_tree_child(reader: BinaryReader) -> TreeChild:
+    """Decode one TreeChild."""
+    variant = reader.read_number()
+
+    if variant == 0:
+        value_ = destack._generated.core.string.decode_string_id(reader)
+
+        return TreeChildText(
+            value=value_,
+        )
+    elif variant == 1:
+        value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
+
+        return TreeChildExpression(
+            value=value_,
+        )
+    elif variant == 2:
+        value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
+
+        return TreeChildSpread(
+            value=value_,
+        )
+    elif variant == 3:
+        value_ = destack._generated.dir.tree.node.decode_local_node_id(reader)
+
+        return TreeChildTree(
+            value=value_,
+        )
+    elif variant == 4:
+        return TreeChildError()
+    else:
+        raise SerdeError(f"unknown enum variant index: {variant}")
+
+
+def to_json_tree_child(value: TreeChild) -> Json:
+    """Return one JSON value for one TreeChild."""
+    if value.kind == "text":
+        return {
+            "kind": "text",
+            "value": destack._generated.core.string.to_json_string_id(value.value),
+        }
+    elif value.kind == "expression":
+        return {
+            "kind": "expression",
+            "value": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.value
+            ),
+        }
+    elif value.kind == "spread":
+        return {
+            "kind": "spread",
+            "value": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.value
+            ),
+        }
+    elif value.kind == "tree":
+        return {
+            "kind": "tree",
+            "value": destack._generated.dir.tree.node.to_json_local_node_id(
+                value.value
+            ),
+        }
+    elif value.kind == "error":
+        return {
+            "kind": "error",
+        }
+    else:
+        raise SerdeError("unknown enum variant")
+
+
+def from_json_tree_child(value: Json) -> TreeChild:
+    """Return one TreeChild from one JSON value."""
+    object_ = json_object(value)
+    kind = json_string(json_field(object_, "kind"))
+
+    if kind == "text":
+        return TreeChildText(
+            value=destack._generated.core.string.from_json_string_id(
+                json_field(object_, "value")
+            ),
+        )
+    elif kind == "expression":
+        return TreeChildExpression(
+            value=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "value")
+            ),
+        )
+    elif kind == "spread":
+        return TreeChildSpread(
+            value=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "value")
+            ),
+        )
+    elif kind == "tree":
+        return TreeChildTree(
+            value=destack._generated.dir.tree.node.from_json_local_node_id(
+                json_field(object_, "value")
+            ),
+        )
+    elif kind == "error":
+        return TreeChildError()
     else:
         raise SerdeError(f"unknown enum variant: {kind}")
 
@@ -1013,8 +1522,34 @@ __all__ = [
     "TypeLiteralString",
     "TypeLiteralBigint",
     "TypeLiteralNumber",
+    "TypeLiteralAlias",
     "TypeLiteralInteger",
     "TypeLiteralFloat",
     "TypeLiteralSymbol",
     "TypeLiteralUniqueSymbol",
+    "TreeAttribute",
+    "encode_tree_attribute",
+    "decode_tree_attribute",
+    "to_json_tree_attribute",
+    "from_json_tree_attribute",
+    "TreeAttributeNamed",
+    "TreeAttributeSpread",
+    "TreeAttributeError",
+    "TreeAttributeValue",
+    "encode_tree_attribute_value",
+    "decode_tree_attribute_value",
+    "to_json_tree_attribute_value",
+    "from_json_tree_attribute_value",
+    "TreeAttributeValueString",
+    "TreeAttributeValueExpression",
+    "TreeChild",
+    "encode_tree_child",
+    "decode_tree_child",
+    "to_json_tree_child",
+    "from_json_tree_child",
+    "TreeChildText",
+    "TreeChildExpression",
+    "TreeChildSpread",
+    "TreeChildTree",
+    "TreeChildError",
 ]

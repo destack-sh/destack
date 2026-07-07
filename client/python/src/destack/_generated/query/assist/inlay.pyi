@@ -8,14 +8,14 @@ import typing
 
 from destack.protocol.serde import BinaryReader, BinaryWriter, Json
 
-import destack._generated.query.core.target
+import destack._generated.query.protocol.target
 
 @dataclass(frozen=True, slots=True)
 class InlayHintsRequest:
     """Request inlay hints for a range in a document."""
 
     # the queried range
-    range: destack._generated.query.core.target.QueryRange
+    range: destack._generated.query.protocol.target.Range
 
     def encode(self, writer: BinaryWriter) -> None: ...
     @classmethod
@@ -54,7 +54,7 @@ def from_json_inlay_hints_response(value: Json) -> InlayHintsResponse: ...
 
 @dataclass(frozen=True, slots=True)
 class InlayHint:
-    """An inlay hint (virtual text shown inline)."""
+    """An inlay hint."""
 
     # position where the hint should be displayed
     position: int

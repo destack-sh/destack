@@ -142,6 +142,11 @@ export type TypeExpression =
           readonly kind: "typeOf";
           readonly value: LocalNodeId;
       }
+    /** Static value expression in type space. */
+    | {
+          readonly kind: "staticValue";
+          readonly expression: LocalNodeId;
+      }
     /** `T!`. */
     | {
           readonly kind: "must";
@@ -348,6 +353,11 @@ export const TypeExpression = {
     /** `typeof value`. */
     typeOf(value: LocalNodeId): TypeExpression {
         return { kind: "typeOf", value };
+    },
+
+    /** Static value expression in type space. */
+    staticValue(expression: LocalNodeId): TypeExpression {
+        return { kind: "staticValue", expression };
     },
 
     /** `T!`. */
@@ -564,25 +574,19 @@ export function encodeTypeExpression(writer: BinaryWriter, value: TypeExpression
             writer.writeUnsigned(21);
             encodeLocalNodeId(writer, value.value);
             return;
-        case "must":
+        case "staticValue":
             writer.writeUnsigned(22);
-            encodeLocalNodeId(writer, value.targetType);
+            encodeLocalNodeId(writer, value.expression);
             return;
-        case "not":
+        case "must":
             writer.writeUnsigned(23);
             encodeLocalNodeId(writer, value.targetType);
             return;
-        case "ownedOf":
+        case "not":
             writer.writeUnsigned(24);
-            writer.writeOption(value.mutability, (value0) => {
-                encodeMutability(writer, value0);
-            });
-            writer.writeOption(value.variance, (value1) => {
-                encodeVarianceBound(writer, value1);
-            });
             encodeLocalNodeId(writer, value.targetType);
             return;
-        case "borrowedOf":
+        case "ownedOf":
             writer.writeUnsigned(25);
             writer.writeOption(value.mutability, (value0) => {
                 encodeMutability(writer, value0);
@@ -592,46 +596,56 @@ export function encodeTypeExpression(writer: BinaryWriter, value: TypeExpression
             });
             encodeLocalNodeId(writer, value.targetType);
             return;
-        case "pointerOf":
+        case "borrowedOf":
             writer.writeUnsigned(26);
+            writer.writeOption(value.mutability, (value0) => {
+                encodeMutability(writer, value0);
+            });
+            writer.writeOption(value.variance, (value1) => {
+                encodeVarianceBound(writer, value1);
+            });
+            encodeLocalNodeId(writer, value.targetType);
+            return;
+        case "pointerOf":
+            writer.writeUnsigned(27);
             writer.writeOption(value.mutability, (value0) => {
                 encodeMutability(writer, value0);
             });
             encodeLocalNodeId(writer, value.targetType);
             return;
         case "union":
-            writer.writeUnsigned(27);
-            writer.writeUnsigned(value.elements.length);
-            for (const item0 of value.elements) {
-                encodeLocalNodeId(writer, item0);
-            }
-            return;
-        case "intersection":
             writer.writeUnsigned(28);
             writer.writeUnsigned(value.elements.length);
             for (const item0 of value.elements) {
                 encodeLocalNodeId(writer, item0);
             }
             return;
-        case "conditional":
+        case "intersection":
             writer.writeUnsigned(29);
+            writer.writeUnsigned(value.elements.length);
+            for (const item0 of value.elements) {
+                encodeLocalNodeId(writer, item0);
+            }
+            return;
+        case "conditional":
+            writer.writeUnsigned(30);
             encodeLocalNodeId(writer, value.left);
             encodeLocalNodeId(writer, value.extendsType);
             encodeLocalNodeId(writer, value.thenType);
             encodeLocalNodeId(writer, value.elseType);
             return;
         case "extends":
-            writer.writeUnsigned(30);
-            encodeLocalNodeId(writer, value.left);
-            encodeLocalNodeId(writer, value.right);
-            return;
-        case "implements":
             writer.writeUnsigned(31);
             encodeLocalNodeId(writer, value.left);
             encodeLocalNodeId(writer, value.right);
             return;
-        case "mapped":
+        case "implements":
             writer.writeUnsigned(32);
+            encodeLocalNodeId(writer, value.left);
+            encodeLocalNodeId(writer, value.right);
+            return;
+        case "mapped":
+            writer.writeUnsigned(33);
             encodeLocalNodeId(writer, value.parameter);
             encodeMappedTypeModifier(writer, value.readonly);
             encodeMappedTypeModifier(writer, value.optional);
@@ -640,12 +654,12 @@ export function encodeTypeExpression(writer: BinaryWriter, value: TypeExpression
             });
             return;
         case "index":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(34);
             encodeLocalNodeId(writer, value.left);
             encodeLocalNodeId(writer, value.index);
             return;
         case "templateLiteral":
-            writer.writeUnsigned(34);
+            writer.writeUnsigned(35);
             writer.writeUnsigned(value.strings.length);
             for (const item0 of value.strings) {
                 encodeStringId(writer, item0);
@@ -656,7 +670,7 @@ export function encodeTypeExpression(writer: BinaryWriter, value: TypeExpression
             }
             return;
         case "infer":
-            writer.writeUnsigned(35);
+            writer.writeUnsigned(36);
             encodeInferForm(writer, value.form);
             writer.writeOption(value.name, (value1) => {
                 encodeStringId(writer, value1);
@@ -666,10 +680,10 @@ export function encodeTypeExpression(writer: BinaryWriter, value: TypeExpression
             });
             return;
         case "missing":
-            writer.writeUnsigned(36);
+            writer.writeUnsigned(37);
             return;
         case "error":
-            writer.writeUnsigned(37);
+            writer.writeUnsigned(38);
             return;
     }
 
@@ -849,6 +863,14 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
             };
         }
         case 22: {
+            const expression = decodeLocalNodeId(reader);
+
+            return {
+                kind: "staticValue",
+                expression,
+            };
+        }
+        case 23: {
             const targetType = decodeLocalNodeId(reader);
 
             return {
@@ -856,7 +878,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 targetType,
             };
         }
-        case 23: {
+        case 24: {
             const targetType = decodeLocalNodeId(reader);
 
             return {
@@ -864,7 +886,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 targetType,
             };
         }
-        case 24: {
+        case 25: {
             const mutability = reader.readOption(() => decodeMutability(reader));
             const variance = reader.readOption(() => decodeVarianceBound(reader));
             const targetType = decodeLocalNodeId(reader);
@@ -876,7 +898,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 targetType,
             };
         }
-        case 25: {
+        case 26: {
             const mutability = reader.readOption(() => decodeMutability(reader));
             const variance = reader.readOption(() => decodeVarianceBound(reader));
             const targetType = decodeLocalNodeId(reader);
@@ -888,7 +910,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 targetType,
             };
         }
-        case 26: {
+        case 27: {
             const mutability = reader.readOption(() => decodeMutability(reader));
             const targetType = decodeLocalNodeId(reader);
 
@@ -898,7 +920,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 targetType,
             };
         }
-        case 27: {
+        case 28: {
             const elements = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
 
             return {
@@ -906,7 +928,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 elements,
             };
         }
-        case 28: {
+        case 29: {
             const elements = (() => { const length0 = reader.readNumber(); const items0: Array<LocalNodeId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeLocalNodeId(reader)); } return items0; })();
 
             return {
@@ -914,7 +936,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 elements,
             };
         }
-        case 29: {
+        case 30: {
             const left = decodeLocalNodeId(reader);
             const extendsType = decodeLocalNodeId(reader);
             const thenType = decodeLocalNodeId(reader);
@@ -928,7 +950,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 elseType,
             };
         }
-        case 30: {
+        case 31: {
             const left = decodeLocalNodeId(reader);
             const right = decodeLocalNodeId(reader);
 
@@ -938,7 +960,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 right,
             };
         }
-        case 31: {
+        case 32: {
             const left = decodeLocalNodeId(reader);
             const right = decodeLocalNodeId(reader);
 
@@ -948,7 +970,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 right,
             };
         }
-        case 32: {
+        case 33: {
             const parameter = decodeLocalNodeId(reader);
             const readonly_ = decodeMappedTypeModifier(reader);
             const optional = decodeMappedTypeModifier(reader);
@@ -962,7 +984,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 ...(value === undefined ? {} : { value }),
             };
         }
-        case 33: {
+        case 34: {
             const left = decodeLocalNodeId(reader);
             const index = decodeLocalNodeId(reader);
 
@@ -972,7 +994,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 index,
             };
         }
-        case 34: {
+        case 35: {
             const strings = (() => { const length0 = reader.readNumber(); const items0: Array<StringId> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeStringId(reader)); } return items0; })();
             const spans = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -982,7 +1004,7 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 spans,
             };
         }
-        case 35: {
+        case 36: {
             const form = decodeInferForm(reader);
             const name = reader.readOption(() => decodeStringId(reader));
             const constraint = reader.readOption(() => decodeLocalNodeId(reader));
@@ -994,10 +1016,10 @@ export function decodeTypeExpression(reader: BinaryReader): TypeExpression {
                 ...(constraint === undefined ? {} : { constraint }),
             };
         }
-        case 36: {
+        case 37: {
             return { kind: "missing" };
         }
-        case 37: {
+        case 38: {
             return { kind: "error" };
         }
     }
@@ -1120,6 +1142,11 @@ export function toJsonTypeExpression(value: TypeExpression): Json {
             return {
                 kind: "typeOf",
                 value: toJsonLocalNodeId(value.value),
+            };
+        case "staticValue":
+            return {
+                kind: "staticValue",
+                expression: toJsonLocalNodeId(value.expression),
             };
         case "must":
             return {
@@ -1339,6 +1366,11 @@ export function fromJsonTypeExpression(value: Json): TypeExpression {
             return {
                 kind,
                 value: fromJsonLocalNodeId(jsonField(object, "value")),
+            };
+        case "staticValue":
+            return {
+                kind,
+                expression: fromJsonLocalNodeId(jsonField(object, "expression")),
             };
         case "must":
             return {

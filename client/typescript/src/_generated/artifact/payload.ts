@@ -9,7 +9,6 @@ import type { Data } from "./data.js";
 import type { DirBound } from "./dir.js";
 import type { DirChecked } from "./dir.js";
 import type { DirCheckedComponent } from "./dir.js";
-import type { DirElaborated } from "./dir.js";
 import type { DirExpanded } from "./dir.js";
 import type { DirExported } from "./dir.js";
 import type { DirImported } from "./dir.js";
@@ -17,6 +16,8 @@ import type { DirMaterialized } from "./dir.js";
 import type { DirParsed } from "./dir.js";
 import type { DirResolved } from "./dir.js";
 import type { GlobalEnvironment } from "./environment.js";
+import type { ModuleIndex } from "./index.js";
+import type { ProgramIndex } from "./index.js";
 import type { ModuleLinted } from "./lint.js";
 import type { PackageLinted } from "./lint.js";
 import type { WorkspaceLinted } from "./lint.js";
@@ -28,10 +29,8 @@ import type { MirVerified } from "./mir.js";
 import type { Object } from "./object.js";
 import type { PackageIndex } from "./package.js";
 import type { Product } from "./product.js";
-import type { ModuleQueryIndex } from "./query.js";
-import type { WorkspaceQueryIndex } from "./query.js";
 import type { Script } from "./script.js";
-import type { Program } from "../program/program.js";
+import type { Program } from "../program.js";
 import { decodeAsset, encodeAsset, fromJsonAsset, toJsonAsset } from "./asset.js";
 import { decodeBuild, encodeBuild, fromJsonBuild, toJsonBuild } from "./build.js";
 import { decodeBundle, encodeBundle, fromJsonBundle, toJsonBundle } from "./bundle.js";
@@ -40,7 +39,6 @@ import { decodeData, encodeData, fromJsonData, toJsonData } from "./data.js";
 import { decodeDirBound, encodeDirBound, fromJsonDirBound, toJsonDirBound } from "./dir.js";
 import { decodeDirChecked, encodeDirChecked, fromJsonDirChecked, toJsonDirChecked } from "./dir.js";
 import { decodeDirCheckedComponent, encodeDirCheckedComponent, fromJsonDirCheckedComponent, toJsonDirCheckedComponent } from "./dir.js";
-import { decodeDirElaborated, encodeDirElaborated, fromJsonDirElaborated, toJsonDirElaborated } from "./dir.js";
 import { decodeDirExpanded, encodeDirExpanded, fromJsonDirExpanded, toJsonDirExpanded } from "./dir.js";
 import { decodeDirExported, encodeDirExported, fromJsonDirExported, toJsonDirExported } from "./dir.js";
 import { decodeDirImported, encodeDirImported, fromJsonDirImported, toJsonDirImported } from "./dir.js";
@@ -48,6 +46,8 @@ import { decodeDirMaterialized, encodeDirMaterialized, fromJsonDirMaterialized, 
 import { decodeDirParsed, encodeDirParsed, fromJsonDirParsed, toJsonDirParsed } from "./dir.js";
 import { decodeDirResolved, encodeDirResolved, fromJsonDirResolved, toJsonDirResolved } from "./dir.js";
 import { decodeGlobalEnvironment, encodeGlobalEnvironment, fromJsonGlobalEnvironment, toJsonGlobalEnvironment } from "./environment.js";
+import { decodeModuleIndex, encodeModuleIndex, fromJsonModuleIndex, toJsonModuleIndex } from "./index.js";
+import { decodeProgramIndex, encodeProgramIndex, fromJsonProgramIndex, toJsonProgramIndex } from "./index.js";
 import { decodeModuleLinted, encodeModuleLinted, fromJsonModuleLinted, toJsonModuleLinted } from "./lint.js";
 import { decodePackageLinted, encodePackageLinted, fromJsonPackageLinted, toJsonPackageLinted } from "./lint.js";
 import { decodeWorkspaceLinted, encodeWorkspaceLinted, fromJsonWorkspaceLinted, toJsonWorkspaceLinted } from "./lint.js";
@@ -59,10 +59,8 @@ import { decodeMirVerified, encodeMirVerified, fromJsonMirVerified, toJsonMirVer
 import { decodeObject, encodeObject, fromJsonObject, toJsonObject } from "./object.js";
 import { decodePackageIndex, encodePackageIndex, fromJsonPackageIndex, toJsonPackageIndex } from "./package.js";
 import { decodeProduct, encodeProduct, fromJsonProduct, toJsonProduct } from "./product.js";
-import { decodeModuleQueryIndex, encodeModuleQueryIndex, fromJsonModuleQueryIndex, toJsonModuleQueryIndex } from "./query.js";
-import { decodeWorkspaceQueryIndex, encodeWorkspaceQueryIndex, fromJsonWorkspaceQueryIndex, toJsonWorkspaceQueryIndex } from "./query.js";
 import { decodeScript, encodeScript, fromJsonScript, toJsonScript } from "./script.js";
-import { decodeProgram, encodeProgram, fromJsonProgram, toJsonProgram } from "../program/program.js";
+import { decodeProgram, encodeProgram, fromJsonProgram, toJsonProgram } from "../program.js";
 
 /** One typed artifact payload. */
 export type ArtifactPayload =
@@ -136,11 +134,6 @@ export type ArtifactPayload =
           readonly kind: "dirMaterialized";
           readonly dir_materialized: DirMaterialized;
       }
-    /** Elaborated DIR. */
-    | {
-          readonly kind: "dirElaborated";
-          readonly dir_elaborated: DirElaborated;
-      }
     /** Lowered MIR before optimization. */
     | {
           readonly kind: "mirLowered";
@@ -161,15 +154,15 @@ export type ArtifactPayload =
           readonly kind: "mirOptimized";
           readonly mir_optimized: MirOptimized;
       }
-    /** Query index for one module profile. */
+    /** Index for one module profile. */
     | {
-          readonly kind: "moduleQueryIndex";
-          readonly module_query_index: ModuleQueryIndex;
+          readonly kind: "moduleIndex";
+          readonly module_index: ModuleIndex;
       }
-    /** Query index for one workspace profile. */
+    /** Index for one program profile. */
     | {
-          readonly kind: "workspaceQueryIndex";
-          readonly workspace_query_index: WorkspaceQueryIndex;
+          readonly kind: "programIndex";
+          readonly program_index: ProgramIndex;
       }
     /** One structured linker input for one target. */
     | {
@@ -294,11 +287,6 @@ export const ArtifactPayload = {
         return { kind: "dirMaterialized", dir_materialized };
     },
 
-    /** Elaborated DIR. */
-    dirElaborated(dir_elaborated: DirElaborated): ArtifactPayload {
-        return { kind: "dirElaborated", dir_elaborated };
-    },
-
     /** Lowered MIR before optimization. */
     mirLowered(mir_lowered: MirLowered): ArtifactPayload {
         return { kind: "mirLowered", mir_lowered };
@@ -319,14 +307,14 @@ export const ArtifactPayload = {
         return { kind: "mirOptimized", mir_optimized };
     },
 
-    /** Query index for one module profile. */
-    moduleQueryIndex(module_query_index: ModuleQueryIndex): ArtifactPayload {
-        return { kind: "moduleQueryIndex", module_query_index };
+    /** Index for one module profile. */
+    moduleIndex(module_index: ModuleIndex): ArtifactPayload {
+        return { kind: "moduleIndex", module_index };
     },
 
-    /** Query index for one workspace profile. */
-    workspaceQueryIndex(workspace_query_index: WorkspaceQueryIndex): ArtifactPayload {
-        return { kind: "workspaceQueryIndex", workspace_query_index };
+    /** Index for one program profile. */
+    programIndex(program_index: ProgramIndex): ArtifactPayload {
+        return { kind: "programIndex", program_index };
     },
 
     /** One structured linker input for one target. */
@@ -459,72 +447,68 @@ export function encodeArtifactPayload(writer: BinaryWriter, value: ArtifactPaylo
             writer.writeUnsigned(13);
             encodeDirMaterialized(writer, value.dir_materialized);
             return;
-        case "dirElaborated":
-            writer.writeUnsigned(14);
-            encodeDirElaborated(writer, value.dir_elaborated);
-            return;
         case "mirLowered":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(14);
             encodeMirLowered(writer, value.mir_lowered);
             return;
         case "mirVerified":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(15);
             encodeMirVerified(writer, value.mir_verified);
             return;
         case "mirAnalyzed":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(16);
             encodeMirAnalyzed(writer, value.mir_analyzed);
             return;
         case "mirOptimized":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(17);
             encodeMirOptimized(writer, value.mir_optimized);
             return;
-        case "moduleQueryIndex":
-            writer.writeUnsigned(19);
-            encodeModuleQueryIndex(writer, value.module_query_index);
+        case "moduleIndex":
+            writer.writeUnsigned(18);
+            encodeModuleIndex(writer, value.module_index);
             return;
-        case "workspaceQueryIndex":
-            writer.writeUnsigned(20);
-            encodeWorkspaceQueryIndex(writer, value.workspace_query_index);
+        case "programIndex":
+            writer.writeUnsigned(19);
+            encodeProgramIndex(writer, value.program_index);
             return;
         case "script":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(20);
             encodeScript(writer, value.script);
             return;
         case "object":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(21);
             encodeObject(writer, value.object);
             return;
         case "asset":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             encodeAsset(writer, value.asset);
             return;
         case "build":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(23);
             encodeBuild(writer, value.build);
             return;
         case "bundle":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(24);
             encodeBundle(writer, value.bundle);
             return;
         case "program":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(25);
             encodeProgram(writer, value.program);
             return;
         case "product":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(26);
             encodeProduct(writer, value.product);
             return;
         case "moduleLinted":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(27);
             encodeModuleLinted(writer, value.module_linted);
             return;
         case "packageLinted":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(28);
             encodePackageLinted(writer, value.package_linted);
             return;
         case "workspaceLinted":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(29);
             encodeWorkspaceLinted(writer, value.workspace_linted);
             return;
     }
@@ -608,86 +592,81 @@ export function decodeArtifactPayload(reader: BinaryReader): ArtifactPayload {
             return { kind: "dirMaterialized", dir_materialized };
         }
         case 14: {
-            const dir_elaborated = decodeDirElaborated(reader);
-
-            return { kind: "dirElaborated", dir_elaborated };
-        }
-        case 15: {
             const mir_lowered = decodeMirLowered(reader);
 
             return { kind: "mirLowered", mir_lowered };
         }
-        case 16: {
+        case 15: {
             const mir_verified = decodeMirVerified(reader);
 
             return { kind: "mirVerified", mir_verified };
         }
-        case 17: {
+        case 16: {
             const mir_analyzed = decodeMirAnalyzed(reader);
 
             return { kind: "mirAnalyzed", mir_analyzed };
         }
-        case 18: {
+        case 17: {
             const mir_optimized = decodeMirOptimized(reader);
 
             return { kind: "mirOptimized", mir_optimized };
         }
-        case 19: {
-            const module_query_index = decodeModuleQueryIndex(reader);
+        case 18: {
+            const module_index = decodeModuleIndex(reader);
 
-            return { kind: "moduleQueryIndex", module_query_index };
+            return { kind: "moduleIndex", module_index };
+        }
+        case 19: {
+            const program_index = decodeProgramIndex(reader);
+
+            return { kind: "programIndex", program_index };
         }
         case 20: {
-            const workspace_query_index = decodeWorkspaceQueryIndex(reader);
-
-            return { kind: "workspaceQueryIndex", workspace_query_index };
-        }
-        case 21: {
             const script = decodeScript(reader);
 
             return { kind: "script", script };
         }
-        case 22: {
+        case 21: {
             const object_ = decodeObject(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 23: {
+        case 22: {
             const asset = decodeAsset(reader);
 
             return { kind: "asset", asset };
         }
-        case 24: {
+        case 23: {
             const build = decodeBuild(reader);
 
             return { kind: "build", build };
         }
-        case 25: {
+        case 24: {
             const bundle = decodeBundle(reader);
 
             return { kind: "bundle", bundle };
         }
-        case 26: {
+        case 25: {
             const program = decodeProgram(reader);
 
             return { kind: "program", program };
         }
-        case 27: {
+        case 26: {
             const product = decodeProduct(reader);
 
             return { kind: "product", product };
         }
-        case 28: {
+        case 27: {
             const module_linted = decodeModuleLinted(reader);
 
             return { kind: "moduleLinted", module_linted };
         }
-        case 29: {
+        case 28: {
             const package_linted = decodePackageLinted(reader);
 
             return { kind: "packageLinted", package_linted };
         }
-        case 30: {
+        case 29: {
             const workspace_linted = decodeWorkspaceLinted(reader);
 
             return { kind: "workspaceLinted", workspace_linted };
@@ -770,11 +749,6 @@ export function toJsonArtifactPayload(value: ArtifactPayload): Json {
                 kind: "dirMaterialized",
                 dir_materialized: toJsonDirMaterialized(value.dir_materialized),
             };
-        case "dirElaborated":
-            return {
-                kind: "dirElaborated",
-                dir_elaborated: toJsonDirElaborated(value.dir_elaborated),
-            };
         case "mirLowered":
             return {
                 kind: "mirLowered",
@@ -795,15 +769,15 @@ export function toJsonArtifactPayload(value: ArtifactPayload): Json {
                 kind: "mirOptimized",
                 mir_optimized: toJsonMirOptimized(value.mir_optimized),
             };
-        case "moduleQueryIndex":
+        case "moduleIndex":
             return {
-                kind: "moduleQueryIndex",
-                module_query_index: toJsonModuleQueryIndex(value.module_query_index),
+                kind: "moduleIndex",
+                module_index: toJsonModuleIndex(value.module_index),
             };
-        case "workspaceQueryIndex":
+        case "programIndex":
             return {
-                kind: "workspaceQueryIndex",
-                workspace_query_index: toJsonWorkspaceQueryIndex(value.workspace_query_index),
+                kind: "programIndex",
+                program_index: toJsonProgramIndex(value.program_index),
             };
         case "script":
             return {
@@ -936,11 +910,6 @@ export function fromJsonArtifactPayload(value: Json): ArtifactPayload {
                 kind,
                 dir_materialized: fromJsonDirMaterialized(jsonField(object, "dir_materialized")),
             };
-        case "dirElaborated":
-            return {
-                kind,
-                dir_elaborated: fromJsonDirElaborated(jsonField(object, "dir_elaborated")),
-            };
         case "mirLowered":
             return {
                 kind,
@@ -961,15 +930,15 @@ export function fromJsonArtifactPayload(value: Json): ArtifactPayload {
                 kind,
                 mir_optimized: fromJsonMirOptimized(jsonField(object, "mir_optimized")),
             };
-        case "moduleQueryIndex":
+        case "moduleIndex":
             return {
                 kind,
-                module_query_index: fromJsonModuleQueryIndex(jsonField(object, "module_query_index")),
+                module_index: fromJsonModuleIndex(jsonField(object, "module_index")),
             };
-        case "workspaceQueryIndex":
+        case "programIndex":
             return {
                 kind,
-                workspace_query_index: fromJsonWorkspaceQueryIndex(jsonField(object, "workspace_query_index")),
+                program_index: fromJsonProgramIndex(jsonField(object, "program_index")),
             };
         case "script":
             return {

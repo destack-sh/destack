@@ -117,6 +117,8 @@ NodeType: typing.TypeAlias = (
     | typing.Literal["genericArgument"]
     | typing.Literal["tupleElement"]
     | typing.Literal["argument"]
+    | typing.Literal["treeAttribute"]
+    | typing.Literal["treeChild"]
     | typing.Literal["matchCase"]
     | typing.Literal["pattern"]
     | typing.Literal["patternField"]

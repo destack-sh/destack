@@ -4,17 +4,26 @@ export * as memory from "./memory/index.generated.js";
 export * as native from "./native/index.generated.js";
 export * as vm from "./vm/index.generated.js";
 export {
-    Function,
-    FunctionId,
+    Program,
+} from "../_generated/program.js";
+export {
+    DispatchTable,
+} from "../_generated/program/dispatch.js";
+export {
+    FrameTable,
+} from "../_generated/program/frame.js";
+export {
     FunctionTable,
 } from "../_generated/program/function.js";
 export {
-    ProgramHeader,
-} from "../_generated/program/header.js";
+    ProgramInfo,
+} from "../_generated/program/info.js";
 export {
-    Program,
-} from "../_generated/program/program.js";
+    LayoutTable,
+} from "../_generated/program/layout.js";
 export {
-    TypeId,
+    StringTable,
+} from "../_generated/program/string.js";
+export {
     TypeTable,
 } from "../_generated/program/type.js";

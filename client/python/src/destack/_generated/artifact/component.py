@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from destack.protocol.serde import (
@@ -11,8 +11,8 @@ from destack.protocol.serde import (
     Json,
     json_array,
     json_field,
+    json_int,
     json_object,
-    nested_bytes,
 )
 
 import destack._generated.source.file.model.component
@@ -21,30 +21,127 @@ import destack._generated.source.file.model.profile
 
 
 @dataclass(frozen=True, slots=True)
+class ModuleGraph:
+    """Dense module dependency graph for one profile."""
+
+    # the profile this graph belongs to
+    profile: destack._generated.source.file.model.profile.ProfileId
+    # modules sorted by stable id
+    modules: Sequence[destack._generated.source.file.model.module.ModuleId]
+    # per-module edge targets as dense module indexes
+    edges: Sequence[Sequence[int]]
+
+    def encode(self, writer: BinaryWriter) -> None:
+        """Encode this value."""
+        encode_module_graph(writer, self)
+
+    @classmethod
+    def decode(cls, reader: BinaryReader) -> ModuleGraph:
+        """Decode one ModuleGraph."""
+        return decode_module_graph(reader)
+
+    def to_json(self) -> Json:
+        """Return this value as JSON."""
+        return to_json_module_graph(self)
+
+    @classmethod
+    def from_json(cls, value: Json) -> ModuleGraph:
+        """Return one ModuleGraph from one JSON value."""
+        return from_json_module_graph(value)
+
+
+def encode_module_graph(writer: BinaryWriter, value: ModuleGraph) -> None:
+    """Encode one ModuleGraph."""
+    destack._generated.source.file.model.profile.encode_profile_id(
+        writer, value.profile
+    )
+    writer.write_unsigned(len(value.modules))
+    for item_value_modules_0 in value.modules:
+        destack._generated.source.file.model.module.encode_module_id(
+            writer, item_value_modules_0
+        )
+    writer.write_unsigned(len(value.edges))
+    for item_value_edges_0 in value.edges:
+        writer.write_unsigned(len(item_value_edges_0))
+        for item_item_value_edges_0_1 in item_value_edges_0:
+            writer.write_unsigned(item_item_value_edges_0_1)
+
+
+def decode_module_graph(reader: BinaryReader) -> ModuleGraph:
+    """Decode one ModuleGraph."""
+    profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
+    modules = [
+        destack._generated.source.file.model.module.decode_module_id(reader)
+        for _ in range(reader.read_number())
+    ]
+    edges = [
+        [reader.read_number() for _ in range(reader.read_number())]
+        for _ in range(reader.read_number())
+    ]
+
+    return ModuleGraph(
+        profile=profile,
+        modules=modules,
+        edges=edges,
+    )
+
+
+def to_json_module_graph(value: ModuleGraph) -> Json:
+    """Return one JSON value for one ModuleGraph."""
+    return {
+        "profile": destack._generated.source.file.model.profile.to_json_profile_id(
+            value.profile
+        ),
+        "modules": [
+            destack._generated.source.file.model.module.to_json_module_id(item_0)
+            for item_0 in value.modules
+        ],
+        "edges": [[item_1 for item_1 in item_0] for item_0 in value.edges],
+    }
+
+
+def from_json_module_graph(value: Json) -> ModuleGraph:
+    """Return one ModuleGraph from one JSON value."""
+    object_ = json_object(value)
+
+    return ModuleGraph(
+        profile=destack._generated.source.file.model.profile.from_json_profile_id(
+            json_field(object_, "profile")
+        ),
+        modules=[
+            destack._generated.source.file.model.module.from_json_module_id(item_0)
+            for item_0 in json_array(json_field(object_, "modules"))
+        ],
+        edges=[
+            [json_int(item_1) for item_1 in json_array(item_0)]
+            for item_0 in json_array(json_field(object_, "edges"))
+        ],
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class ComponentGraph:
     """Strongly connected component partition of one profile's module graph."""
 
-    # the profile this partition belongs to
-    profile: destack._generated.source.file.model.profile.ProfileId
-    # imported modules per module, deduplicated in import order
-    imports: Mapping[
-        destack._generated.source.file.model.module.ModuleId,
-        Sequence[destack._generated.source.file.model.module.ModuleId],
-    ]
-    # owning component per module
-    component_of: Mapping[
-        destack._generated.source.file.model.module.ModuleId,
-        destack._generated.source.file.model.component.ComponentId,
-    ]
-    # member modules per component, sorted, with the entry first
-    members: Mapping[
-        destack._generated.source.file.model.component.ComponentId,
-        Sequence[destack._generated.source.file.model.module.ModuleId],
-    ]
+    # the dense module graph being partitioned
+    module_graph: ModuleGraph
+    # per-module owning component
+    component_of: Sequence[destack._generated.source.file.model.component.ComponentId]
+    # components sorted by stable id
+    components: Sequence[destack._generated.source.file.model.component.ComponentId]
+    # per-component member start offsets into `member_modules`
+    member_offsets: Sequence[int]
+    # component members as module ids
+    member_modules: Sequence[destack._generated.source.file.model.module.ModuleId]
+    # component members as dense module indexes
+    member_indexes: Sequence[int]
+    # per-module dense component index
+    module_components: Sequence[int]
+    # per-component topological rank in the condensation graph
+    component_ranks: Sequence[int]
     # external components each component depends on
-    dependencies: Mapping[
-        destack._generated.source.file.model.component.ComponentId,
-        Sequence[destack._generated.source.file.model.component.ComponentId],
+    dependencies: Sequence[
+        Sequence[destack._generated.source.file.model.component.ComponentId]
     ]
 
     def encode(self, writer: BinaryWriter) -> None:
@@ -68,143 +165,79 @@ class ComponentGraph:
 
 def encode_component_graph(writer: BinaryWriter, value: ComponentGraph) -> None:
     """Encode one ComponentGraph."""
-    destack._generated.source.file.model.profile.encode_profile_id(
-        writer, value.profile
-    )
-    entries_value_imports_0 = []
-    for key_value_imports_0, item_value_imports_0 in value.imports.items():
-
-        def write_key_value_imports_0(writer: BinaryWriter) -> None:
-            destack._generated.source.file.model.module.encode_module_id(
-                writer, key_value_imports_0
-            )
-
-        key_bytes = nested_bytes(write_key_value_imports_0)
-        entries_value_imports_0.append(
-            (key_value_imports_0, item_value_imports_0, key_bytes)
+    encode_module_graph(writer, value.module_graph)
+    writer.write_unsigned(len(value.component_of))
+    for item_value_component_of_0 in value.component_of:
+        destack._generated.source.file.model.component.encode_component_id(
+            writer, item_value_component_of_0
         )
-    entries_value_imports_0.sort(key=lambda entry: entry[2])
-    writer.write_unsigned(len(entries_value_imports_0))
-    for entry_value_imports_0 in entries_value_imports_0:
+    writer.write_unsigned(len(value.components))
+    for item_value_components_0 in value.components:
+        destack._generated.source.file.model.component.encode_component_id(
+            writer, item_value_components_0
+        )
+    writer.write_unsigned(len(value.member_offsets))
+    for item_value_member_offsets_0 in value.member_offsets:
+        writer.write_unsigned(item_value_member_offsets_0)
+    writer.write_unsigned(len(value.member_modules))
+    for item_value_member_modules_0 in value.member_modules:
         destack._generated.source.file.model.module.encode_module_id(
-            writer, entry_value_imports_0[0]
+            writer, item_value_member_modules_0
         )
-        writer.write_unsigned(len(entry_value_imports_0[1]))
-        for item_entry_value_imports_0_1_1 in entry_value_imports_0[1]:
-            destack._generated.source.file.model.module.encode_module_id(
-                writer, item_entry_value_imports_0_1_1
-            )
-    entries_value_component_of_0 = []
-    for (
-        key_value_component_of_0,
-        item_value_component_of_0,
-    ) in value.component_of.items():
-
-        def write_key_value_component_of_0(writer: BinaryWriter) -> None:
-            destack._generated.source.file.model.module.encode_module_id(
-                writer, key_value_component_of_0
-            )
-
-        key_bytes = nested_bytes(write_key_value_component_of_0)
-        entries_value_component_of_0.append(
-            (key_value_component_of_0, item_value_component_of_0, key_bytes)
-        )
-    entries_value_component_of_0.sort(key=lambda entry: entry[2])
-    writer.write_unsigned(len(entries_value_component_of_0))
-    for entry_value_component_of_0 in entries_value_component_of_0:
-        destack._generated.source.file.model.module.encode_module_id(
-            writer, entry_value_component_of_0[0]
-        )
-        destack._generated.source.file.model.component.encode_component_id(
-            writer, entry_value_component_of_0[1]
-        )
-    entries_value_members_0 = []
-    for key_value_members_0, item_value_members_0 in value.members.items():
-
-        def write_key_value_members_0(writer: BinaryWriter) -> None:
+    writer.write_unsigned(len(value.member_indexes))
+    for item_value_member_indexes_0 in value.member_indexes:
+        writer.write_unsigned(item_value_member_indexes_0)
+    writer.write_unsigned(len(value.module_components))
+    for item_value_module_components_0 in value.module_components:
+        writer.write_unsigned(item_value_module_components_0)
+    writer.write_unsigned(len(value.component_ranks))
+    for item_value_component_ranks_0 in value.component_ranks:
+        writer.write_unsigned(item_value_component_ranks_0)
+    writer.write_unsigned(len(value.dependencies))
+    for item_value_dependencies_0 in value.dependencies:
+        writer.write_unsigned(len(item_value_dependencies_0))
+        for item_item_value_dependencies_0_1 in item_value_dependencies_0:
             destack._generated.source.file.model.component.encode_component_id(
-                writer, key_value_members_0
-            )
-
-        key_bytes = nested_bytes(write_key_value_members_0)
-        entries_value_members_0.append(
-            (key_value_members_0, item_value_members_0, key_bytes)
-        )
-    entries_value_members_0.sort(key=lambda entry: entry[2])
-    writer.write_unsigned(len(entries_value_members_0))
-    for entry_value_members_0 in entries_value_members_0:
-        destack._generated.source.file.model.component.encode_component_id(
-            writer, entry_value_members_0[0]
-        )
-        writer.write_unsigned(len(entry_value_members_0[1]))
-        for item_entry_value_members_0_1_1 in entry_value_members_0[1]:
-            destack._generated.source.file.model.module.encode_module_id(
-                writer, item_entry_value_members_0_1_1
-            )
-    entries_value_dependencies_0 = []
-    for (
-        key_value_dependencies_0,
-        item_value_dependencies_0,
-    ) in value.dependencies.items():
-
-        def write_key_value_dependencies_0(writer: BinaryWriter) -> None:
-            destack._generated.source.file.model.component.encode_component_id(
-                writer, key_value_dependencies_0
-            )
-
-        key_bytes = nested_bytes(write_key_value_dependencies_0)
-        entries_value_dependencies_0.append(
-            (key_value_dependencies_0, item_value_dependencies_0, key_bytes)
-        )
-    entries_value_dependencies_0.sort(key=lambda entry: entry[2])
-    writer.write_unsigned(len(entries_value_dependencies_0))
-    for entry_value_dependencies_0 in entries_value_dependencies_0:
-        destack._generated.source.file.model.component.encode_component_id(
-            writer, entry_value_dependencies_0[0]
-        )
-        writer.write_unsigned(len(entry_value_dependencies_0[1]))
-        for item_entry_value_dependencies_0_1_1 in entry_value_dependencies_0[1]:
-            destack._generated.source.file.model.component.encode_component_id(
-                writer, item_entry_value_dependencies_0_1_1
+                writer, item_item_value_dependencies_0_1
             )
 
 
 def decode_component_graph(reader: BinaryReader) -> ComponentGraph:
     """Decode one ComponentGraph."""
-    profile = destack._generated.source.file.model.profile.decode_profile_id(reader)
-    imports = {
-        destack._generated.source.file.model.module.decode_module_id(reader): [
-            destack._generated.source.file.model.module.decode_module_id(reader)
-            for _ in range(reader.read_number())
-        ]
+    module_graph = decode_module_graph(reader)
+    component_of = [
+        destack._generated.source.file.model.component.decode_component_id(reader)
         for _ in range(reader.read_number())
-    }
-    component_of = {
-        destack._generated.source.file.model.module.decode_module_id(
-            reader
-        ): destack._generated.source.file.model.component.decode_component_id(reader)
+    ]
+    components = [
+        destack._generated.source.file.model.component.decode_component_id(reader)
         for _ in range(reader.read_number())
-    }
-    members = {
-        destack._generated.source.file.model.component.decode_component_id(reader): [
-            destack._generated.source.file.model.module.decode_module_id(reader)
-            for _ in range(reader.read_number())
-        ]
+    ]
+    member_offsets = [reader.read_number() for _ in range(reader.read_number())]
+    member_modules = [
+        destack._generated.source.file.model.module.decode_module_id(reader)
         for _ in range(reader.read_number())
-    }
-    dependencies = {
-        destack._generated.source.file.model.component.decode_component_id(reader): [
+    ]
+    member_indexes = [reader.read_number() for _ in range(reader.read_number())]
+    module_components = [reader.read_number() for _ in range(reader.read_number())]
+    component_ranks = [reader.read_number() for _ in range(reader.read_number())]
+    dependencies = [
+        [
             destack._generated.source.file.model.component.decode_component_id(reader)
             for _ in range(reader.read_number())
         ]
         for _ in range(reader.read_number())
-    }
+    ]
 
     return ComponentGraph(
-        profile=profile,
-        imports=imports,
+        module_graph=module_graph,
         component_of=component_of,
-        members=members,
+        components=components,
+        member_offsets=member_offsets,
+        member_modules=member_modules,
+        member_indexes=member_indexes,
+        module_components=module_components,
+        component_ranks=component_ranks,
         dependencies=dependencies,
     )
 
@@ -212,57 +245,31 @@ def decode_component_graph(reader: BinaryReader) -> ComponentGraph:
 def to_json_component_graph(value: ComponentGraph) -> Json:
     """Return one JSON value for one ComponentGraph."""
     return {
-        "profile": destack._generated.source.file.model.profile.to_json_profile_id(
-            value.profile
-        ),
-        "imports": [
-            [
-                destack._generated.source.file.model.module.to_json_module_id(key_0),
-                [
-                    destack._generated.source.file.model.module.to_json_module_id(
-                        item_1
-                    )
-                    for item_1 in item_0
-                ],
-            ]
-            for key_0, item_0 in value.imports.items()
-        ],
+        "moduleGraph": to_json_module_graph(value.module_graph),
         "componentOf": [
-            [
-                destack._generated.source.file.model.module.to_json_module_id(key_0),
-                destack._generated.source.file.model.component.to_json_component_id(
-                    item_0
-                ),
-            ]
-            for key_0, item_0 in value.component_of.items()
+            destack._generated.source.file.model.component.to_json_component_id(item_0)
+            for item_0 in value.component_of
         ],
-        "members": [
-            [
-                destack._generated.source.file.model.component.to_json_component_id(
-                    key_0
-                ),
-                [
-                    destack._generated.source.file.model.module.to_json_module_id(
-                        item_1
-                    )
-                    for item_1 in item_0
-                ],
-            ]
-            for key_0, item_0 in value.members.items()
+        "components": [
+            destack._generated.source.file.model.component.to_json_component_id(item_0)
+            for item_0 in value.components
         ],
+        "memberOffsets": [item_0 for item_0 in value.member_offsets],
+        "memberModules": [
+            destack._generated.source.file.model.module.to_json_module_id(item_0)
+            for item_0 in value.member_modules
+        ],
+        "memberIndexes": [item_0 for item_0 in value.member_indexes],
+        "moduleComponents": [item_0 for item_0 in value.module_components],
+        "componentRanks": [item_0 for item_0 in value.component_ranks],
         "dependencies": [
             [
                 destack._generated.source.file.model.component.to_json_component_id(
-                    key_0
-                ),
-                [
-                    destack._generated.source.file.model.component.to_json_component_id(
-                        item_1
-                    )
-                    for item_1 in item_0
-                ],
+                    item_1
+                )
+                for item_1 in item_0
             ]
-            for key_0, item_0 in value.dependencies.items()
+            for item_0 in value.dependencies
         ],
     }
 
@@ -272,48 +279,57 @@ def from_json_component_graph(value: Json) -> ComponentGraph:
     object_ = json_object(value)
 
     return ComponentGraph(
-        profile=destack._generated.source.file.model.profile.from_json_profile_id(
-            json_field(object_, "profile")
-        ),
-        imports={
-            destack._generated.source.file.model.module.from_json_module_id(key_0): [
-                destack._generated.source.file.model.module.from_json_module_id(item_1)
-                for item_1 in json_array(item_0)
-            ]
-            for key_0, item_0 in json_array(json_field(object_, "imports"))
-        },
-        component_of={
-            destack._generated.source.file.model.module.from_json_module_id(
-                key_0
-            ): destack._generated.source.file.model.component.from_json_component_id(
+        module_graph=from_json_module_graph(json_field(object_, "moduleGraph")),
+        component_of=[
+            destack._generated.source.file.model.component.from_json_component_id(
                 item_0
             )
-            for key_0, item_0 in json_array(json_field(object_, "componentOf"))
-        },
-        members={
+            for item_0 in json_array(json_field(object_, "componentOf"))
+        ],
+        components=[
             destack._generated.source.file.model.component.from_json_component_id(
-                key_0
-            ): [
-                destack._generated.source.file.model.module.from_json_module_id(item_1)
-                for item_1 in json_array(item_0)
-            ]
-            for key_0, item_0 in json_array(json_field(object_, "members"))
-        },
-        dependencies={
-            destack._generated.source.file.model.component.from_json_component_id(
-                key_0
-            ): [
+                item_0
+            )
+            for item_0 in json_array(json_field(object_, "components"))
+        ],
+        member_offsets=[
+            json_int(item_0)
+            for item_0 in json_array(json_field(object_, "memberOffsets"))
+        ],
+        member_modules=[
+            destack._generated.source.file.model.module.from_json_module_id(item_0)
+            for item_0 in json_array(json_field(object_, "memberModules"))
+        ],
+        member_indexes=[
+            json_int(item_0)
+            for item_0 in json_array(json_field(object_, "memberIndexes"))
+        ],
+        module_components=[
+            json_int(item_0)
+            for item_0 in json_array(json_field(object_, "moduleComponents"))
+        ],
+        component_ranks=[
+            json_int(item_0)
+            for item_0 in json_array(json_field(object_, "componentRanks"))
+        ],
+        dependencies=[
+            [
                 destack._generated.source.file.model.component.from_json_component_id(
                     item_1
                 )
                 for item_1 in json_array(item_0)
             ]
-            for key_0, item_0 in json_array(json_field(object_, "dependencies"))
-        },
+            for item_0 in json_array(json_field(object_, "dependencies"))
+        ],
     )
 
 
 __all__ = [
+    "ModuleGraph",
+    "encode_module_graph",
+    "decode_module_graph",
+    "to_json_module_graph",
+    "from_json_module_graph",
     "ComponentGraph",
     "encode_component_graph",
     "decode_component_graph",
