@@ -4,20 +4,9 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// Compiler intrinsic operations.
+/// Machine intrinsic operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Intrinsic {
-    // reflection (comptime-only, resolved to constants)
-    /// Get the type of a value (comptime only).
-    /// `(T) => Type<T>`
-    TypeOf,
-    /// Get the size of a type in bytes.
-    /// `() => usize`
-    SizeOf,
-    /// Get the alignment of a type in bytes.
-    /// `() => usize`
-    AlignOf,
-
     // bit manipulation
     /// Count leading zeros.
     /// `(T) => T`
@@ -188,16 +177,7 @@ pub enum Intrinsic {
     /// `(T) => T`
     Round,
 
-    // control flow and debugging
-    /// Trigger a debugger breakpoint.
-    /// `() => ()`
-    Breakpoint,
-    /// Get the return address of the current function.
-    /// `() => ptr`
-    ReturnAddress,
-    /// Get the frame pointer of the current function.
-    /// `() => ptr`
-    FrameAddress,
+    // compiler hints
     /// Hint that condition is expected to be the given value.
     /// `(bool, bool) => bool`
     Expect,
@@ -210,11 +190,6 @@ impl Intrinsic {
     /// Text representation for formatting/parsing.
     pub fn to_str(self) -> &'static str {
         match self {
-            // reflection
-            Intrinsic::TypeOf => "reflect.typeOf",
-            Intrinsic::SizeOf => "reflect.sizeOf",
-            Intrinsic::AlignOf => "reflect.alignOf",
-
             // bit manipulation
             Intrinsic::LeadingZeroCount => "math.bits.leadingZeroCount",
             Intrinsic::TrailingZeroCount => "math.bits.trailingZeroCount",
@@ -281,32 +256,17 @@ impl Intrinsic {
             Intrinsic::Trunc => "math.float.trunc",
             Intrinsic::Round => "math.float.round",
 
-            // control flow and debugging
-            Intrinsic::Breakpoint => "error.debug.breakpoint",
-            Intrinsic::ReturnAddress => "returnAddress",
-            Intrinsic::FrameAddress => "frameAddress",
+            // compiler hints
             Intrinsic::Expect => "expect",
             Intrinsic::BlackBox => "error.debug.blackBox",
         }
-    }
-
-    /// Whether this intrinsic is comptime-only (evaluated during compilation).
-    pub fn is_comptime_only(self) -> bool {
-        matches!(
-            self,
-            Intrinsic::TypeOf | Intrinsic::SizeOf | Intrinsic::AlignOf
-        )
     }
 
     /// Whether this intrinsic is a pure function (no side effects, deterministic).
     pub fn is_pure(self) -> bool {
         matches!(
             self,
-            // reflection
-            Intrinsic::TypeOf
-                | Intrinsic::SizeOf
-                | Intrinsic::AlignOf
-                | Intrinsic::LeadingZeroCount
+            Intrinsic::LeadingZeroCount
                 | Intrinsic::TrailingZeroCount
                 | Intrinsic::PopulationCount
                 | Intrinsic::ByteSwap
@@ -382,9 +342,6 @@ impl FromStr for Intrinsic {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "reflect.typeOf" => Ok(Intrinsic::TypeOf),
-            "reflect.sizeOf" => Ok(Intrinsic::SizeOf),
-            "reflect.alignOf" => Ok(Intrinsic::AlignOf),
             "math.bits.leadingZeroCount" => Ok(Intrinsic::LeadingZeroCount),
             "math.bits.trailingZeroCount" => Ok(Intrinsic::TrailingZeroCount),
             "math.bits.populationCount" => Ok(Intrinsic::PopulationCount),
@@ -437,9 +394,6 @@ impl FromStr for Intrinsic {
             "math.float.ceil" => Ok(Intrinsic::Ceil),
             "math.float.trunc" => Ok(Intrinsic::Trunc),
             "math.float.round" => Ok(Intrinsic::Round),
-            "error.debug.breakpoint" => Ok(Intrinsic::Breakpoint),
-            "returnAddress" => Ok(Intrinsic::ReturnAddress),
-            "frameAddress" => Ok(Intrinsic::FrameAddress),
             "expect" => Ok(Intrinsic::Expect),
             "error.debug.blackBox" => Ok(Intrinsic::BlackBox),
             _ => Err(()),
@@ -487,12 +441,6 @@ pub enum IntrinsicSignature {
     /// Prefetch hint (no result)
     Prefetch,
 
-    /// Reflection (comptime only): () => usize or (T) => Type
-    Reflection { args: u8 },
-
-    /// Control flow / debugging (no result, may not return)
-    Control { args: u8 },
-
     /// Branch hint: (bool) => bool or (bool, bool) => bool
     BranchHint { args: u8 },
 
@@ -504,11 +452,6 @@ impl Intrinsic {
     /// Get the signature pattern for this intrinsic.
     pub fn signature(self) -> IntrinsicSignature {
         match self {
-            // reflection
-            Intrinsic::TypeOf => IntrinsicSignature::Reflection { args: 1 },
-            Intrinsic::SizeOf => IntrinsicSignature::Reflection { args: 0 },
-            Intrinsic::AlignOf => IntrinsicSignature::Reflection { args: 0 },
-
             // bit manipulation (unary)
             Intrinsic::LeadingZeroCount
             | Intrinsic::TrailingZeroCount
@@ -576,10 +519,7 @@ impl Intrinsic {
             // float math (ternary)
             Intrinsic::Fma => IntrinsicSignature::Ternary,
 
-            // control flow and debugging
-            Intrinsic::Breakpoint => IntrinsicSignature::Control { args: 0 },
-            Intrinsic::ReturnAddress => IntrinsicSignature::Control { args: 0 },
-            Intrinsic::FrameAddress => IntrinsicSignature::Control { args: 0 },
+            // compiler hints
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
         }
@@ -608,8 +548,6 @@ impl Intrinsic {
             IntrinsicSignature::Memory { args } => args,
             IntrinsicSignature::MemoryCompare => 3,
             IntrinsicSignature::Prefetch => 1,
-            IntrinsicSignature::Reflection { args } => args,
-            IntrinsicSignature::Control { args } => args,
             IntrinsicSignature::BranchHint { args } => args,
             IntrinsicSignature::Passthrough => 1,
         }
@@ -628,8 +566,6 @@ impl Intrinsic {
             IntrinsicSignature::Memory { .. } => false,
             IntrinsicSignature::MemoryCompare => true,
             IntrinsicSignature::Prefetch => false,
-            IntrinsicSignature::Reflection { .. } => true,
-            IntrinsicSignature::Control { .. } => false,
             IntrinsicSignature::BranchHint { .. } => true,
             IntrinsicSignature::Passthrough => true,
         }
@@ -645,10 +581,6 @@ impl Intrinsic {
         }
 
         match self {
-            // reflection: fixed types
-            Intrinsic::SizeOf | Intrinsic::AlignOf => IntrinsicResultType::Usize,
-            Intrinsic::TypeOf => IntrinsicResultType::TypeDescriptor,
-
             // comparisons: bool
             Intrinsic::RawEq => IntrinsicResultType::Boolean,
 
@@ -718,13 +650,6 @@ pub enum IntrinsicResultType {
 
     /// Result type is isize.
     Isize,
-
-    /// Result type is usize.
-    Usize,
-
-    /// Result type is a type descriptor handle.
-    /// Used for typeof.
-    TypeDescriptor,
 
     /// Result type must be explicitly provided (can't be inferred).
     /// Used for transmute where the target type comes from context.

@@ -302,8 +302,9 @@ impl CostModel {
             | mir::Instruction::FunctionEnvironment { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::ProfileIncrement { .. }
-            | mir::Instruction::ProfileValue { .. }
+            | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Assume { .. } => cost.arithmetic += 1,
+            mir::Instruction::Breakpoint => cost.branch += 1,
             mir::Instruction::Struct { fields, .. } => {
                 cost.aggregate += 1 + tree.get_values(*fields).len();
             }

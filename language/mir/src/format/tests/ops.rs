@@ -52,8 +52,9 @@ function guard(v0: uint32, v1: uint32, v2: [int32; 4]): int32 {
 entry(v0: uint32, v1: uint32, v2: [int32; 4]):
     v3: boolean = int.lt.u v0, v1
     assume v3
+    breakpoint
     profile.increment counter(0)
-    profile.value counter(1), v3
+    profile.sample counter(1), v3
     check bounds.u v0, v1, v2 => b1(v0), b2
 
 b1(v4: uint32):

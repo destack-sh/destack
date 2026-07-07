@@ -1724,11 +1724,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::ProfileValue { counter, value } => {
+            Instruction::ProfileSample { counter, value } => {
                 write!(
                     f,
                     [
-                        token("profile.value"),
+                        token("profile.sample"),
                         space(),
                         text(&format!("counter({})", counter.0)),
                         token(","),
@@ -1737,6 +1737,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )
             }
+
+            Instruction::Breakpoint => write!(f, [token("breakpoint")]),
 
             Instruction::Intrinsic {
                 destination,

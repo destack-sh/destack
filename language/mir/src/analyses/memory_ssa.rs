@@ -1080,7 +1080,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::TensorConvert { .. }
             | mir::Instruction::Assume { .. }
             | mir::Instruction::ProfileIncrement { .. }
-            | mir::Instruction::ProfileValue { .. } => SmallVec::new(),
+            | mir::Instruction::ProfileSample { .. }
+            | mir::Instruction::Breakpoint => SmallVec::new(),
             mir::Instruction::TensorLoad { view, .. } => {
                 let view = *view;
 
@@ -1532,11 +1533,6 @@ impl<'a> MemoryAccessCollector<'a> {
 
         // classify intrinsic memory effects
         match intrinsic {
-            // reflection
-            mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
-                SmallVec::new()
-            }
-
             // bit manipulation
             mir::Intrinsic::LeadingZeroCount
             | mir::Intrinsic::TrailingZeroCount
@@ -1772,12 +1768,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::Trunc
             | mir::Intrinsic::Round => SmallVec::new(),
 
-            // control flow and debugging
-            mir::Intrinsic::Breakpoint
-            | mir::Intrinsic::ReturnAddress
-            | mir::Intrinsic::FrameAddress
-            | mir::Intrinsic::Expect
-            | mir::Intrinsic::BlackBox => SmallVec::new(),
+            // compiler hints
+            mir::Intrinsic::Expect | mir::Intrinsic::BlackBox => SmallVec::new(),
         }
     }
 

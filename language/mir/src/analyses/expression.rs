@@ -222,7 +222,8 @@ impl PureExpression {
             | mir::Instruction::VariantTag { .. }
             | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::ProfileIncrement { .. }
-            | mir::Instruction::ProfileValue { .. } => None,
+            | mir::Instruction::ProfileSample { .. }
+            | mir::Instruction::Breakpoint => None,
         }
     }
 

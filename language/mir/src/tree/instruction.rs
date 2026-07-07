@@ -876,21 +876,20 @@ pub enum Instruction {
         /// The counter to increment.
         counter: CounterId,
     },
-    /// Record one profiled runtime value.
-    ProfileValue {
+    /// Sample one runtime value.
+    ProfileSample {
         /// The counter receiving the sampled value.
         counter: CounterId,
         /// The sampled MIR value.
         value: Value,
     },
 
+    // debug control
+    /// Debugger breakpoint.
+    Breakpoint,
+
     // intrinsics
-    /// Call a compiler intrinsic.
-    ///
-    /// Intrinsics are special operations that:
-    /// - Have no function body (handled specially by each backend)
-    /// - May have target-specific implementations
-    /// - Are used for comptime evaluation, type reflection, and low-level ops
+    /// Call a machine intrinsic.
     Intrinsic {
         /// The SSA value to define with the result, if any.
         destination: Option<Value>,
@@ -992,7 +991,8 @@ impl Instruction {
             Instruction::AtomicFence { .. } => None,
             Instruction::Assume { .. } => None,
             Instruction::ProfileIncrement { .. } => None,
-            Instruction::ProfileValue { .. } => None,
+            Instruction::ProfileSample { .. } => None,
+            Instruction::Breakpoint => None,
             Instruction::Intrinsic { destination, .. } => *destination,
         }
     }
@@ -1136,8 +1136,8 @@ impl Instruction {
             Instruction::AtomicFence { .. } => smallvec![],
             Instruction::Assume { condition } => smallvec![*condition],
             Instruction::ProfileIncrement { .. } => smallvec![],
-            Instruction::ProfileValue { value, .. } => smallvec![*value],
-            // Arguments stored externally - return empty
+            Instruction::ProfileSample { value, .. } => smallvec![*value],
+            Instruction::Breakpoint => smallvec![],
             Instruction::Intrinsic { .. } => smallvec![],
         }
     }
