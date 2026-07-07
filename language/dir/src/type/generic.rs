@@ -227,6 +227,8 @@ impl WherePredicate {
 pub struct GenericParameterBinding {
     /// The generic template that owns this parameter.
     pub template: LocalGenericTemplateId,
+    /// The canonical type denoting this parameter.
+    pub ty: GlobalTypeId,
     /// The parameter key.
     pub key: GenericParameterKey,
     /// The parameter variance, rejected on comptime parameters.
