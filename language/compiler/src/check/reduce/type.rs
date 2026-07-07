@@ -7,6 +7,39 @@ use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Dependency, Origin, answer};
 
 impl CheckState<'_> {
+    /// Return the storage type for one checked annotation.
+    pub(in crate::check) fn storage_type(
+        &mut self,
+        module: ModuleId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !self.is_dynamic_storage_constraint(ty)? {
+            return Ok(ty);
+        }
+
+        self.intern_type(
+            module,
+            dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
+        )
+    }
+
+    /// Return whether one type has no direct storage representation.
+    fn is_dynamic_storage_constraint(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+        match self.ty(ty)? {
+            // top types have no direct layout in storage
+            dir::Type::Any | dir::Type::Object | dir::Type::Unknown => Ok(true),
+
+            // interface instances are constraints, not represented values
+            dir::Type::Instance(instance) => Ok(matches!(
+                self.symbol_kind(instance.symbol),
+                dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
+            )),
+
+            // every other source-built type already has a representation
+            _ => Ok(false),
+        }
+    }
+
     /// Reduce one type graph to its simplest available form.
     pub(in crate::check) fn reduce_type(
         &mut self,

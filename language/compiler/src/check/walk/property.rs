@@ -398,7 +398,7 @@ impl WalkState<'_, '_> {
                 let field_type = match declared_type {
                     Some(declared_type) => {
                         let written = self.walk_type_expression(declared_type)?;
-                        let written = self.represented_open_type(written)?;
+                        let written = self.check.storage_type(self.module, written)?;
                         let written = if is_optional {
                             self.optional_value_type(written)?
                         } else {

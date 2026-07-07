@@ -121,50 +121,6 @@ impl WalkState<'_, '_> {
                 ty,
             });
     }
-
-    /// Return the represented value type for one open annotation when needed.
-    ///
-    /// Interface-typed and anonymous structural annotations have no direct
-    /// storage representation, so value positions erase them to `Dynamic<T>`.
-    ///
-    /// Example:
-    /// ```ds
-    /// writer: Writer
-    /// ```
-    pub(in crate::check) fn represented_open_type(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if !self.needs_dynamic_representation(ty)? {
-            return Ok(ty);
-        }
-
-        self.check.intern_type(
-            self.module,
-            dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
-        )
-    }
-
-    /// Return whether one written type needs `Dynamic<T>` as its value representation.
-    /// TODO #Suspicious: not _entirely_ sure whether needs_dynamic_representation can be decided at leaf?
-    ///
-    /// An annotation erases when the type it names is an interface,
-    /// which has no value representation of its own.
-    fn needs_dynamic_representation(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        match self.check.ty(ty)? {
-            // top types have no direct layout in storage
-            dir::Type::Any | dir::Type::Object | dir::Type::Unknown => Ok(true),
-
-            // direct interface instances are constraints, not represented values
-            dir::Type::Instance(instance) => Ok(matches!(
-                self.check.symbol_kind(instance.symbol),
-                dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
-            )),
-
-            // every other source-built type already has a representation
-            _ => Ok(false),
-        }
-    }
 }
 
 impl CheckState<'_> {
