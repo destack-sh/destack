@@ -190,6 +190,8 @@ pub enum RuntimeFailure {
     DefaultWorkerRemoval,
     /// World-controlled virtual time cannot advance while host time is active.
     HostTimeAdvance,
+    /// Execution stopped outside a stepping or debugging entrypoint.
+    ExecutionStopped,
 }
 
 /// Runtime memory failure reason.
@@ -427,6 +429,7 @@ impl RuntimeFailure {
             Self::LastWorkerRemoval => 132,
             Self::DefaultWorkerRemoval => 133,
             Self::HostTimeAdvance => 137,
+            Self::ExecutionStopped => 147,
         }
     }
 
@@ -443,6 +446,7 @@ impl RuntimeFailure {
             Self::HostTimeAdvance => {
                 "cannot advance virtual time while world uses host time".to_string()
             }
+            Self::ExecutionStopped => "execution stopped outside a stepping entrypoint".to_string(),
         }
     }
 }
@@ -555,6 +559,8 @@ pub enum MachineError {
     Unsupported { feature: String },
     /// Machine yielded without a materialized continuation.
     YieldMissing,
+    /// Machine stopped without a materialized continuation.
+    StopMissing,
     /// Machine trapped.
     Trap,
     /// Machine deoptimized without a continuation.
@@ -772,6 +778,13 @@ impl RuntimeError {
         }
     }
 
+    /// Return an execution-stopped error.
+    pub fn execution_stopped() -> Self {
+        Self::Runtime {
+            reason: RuntimeFailure::ExecutionStopped,
+        }
+    }
+
     /// Return a trace-exhausted error.
     pub fn trace_exhausted(sequence: u64) -> Self {
         Self::Trace {
@@ -933,6 +946,9 @@ impl MachineError {
             }
             Self::YieldMissing => {
                 format!("{machine} machine yielded without a continuation")
+            }
+            Self::StopMissing => {
+                format!("{machine} machine stopped without a continuation")
             }
             Self::Trap => {
                 format!("{machine} machine trapped")

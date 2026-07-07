@@ -661,5 +661,6 @@ pub(crate) fn start_worker_continuation(
     match outcome {
         Outcome::Yielded { continuation, .. } => continuation,
         Outcome::Completed { .. } => panic!("test continuation entry should yield"),
+        Outcome::Stopped { .. } => panic!("test continuation entry should yield"),
     }
 }

@@ -609,6 +609,16 @@ fn outcome_from_vm(id: MachineId, outcome: vm::Outcome) -> Outcome<Continuation>
             },
             value,
         },
+        vm::Outcome::Stopped {
+            continuation,
+            reason,
+        } => Outcome::Stopped {
+            continuation: Continuation {
+                machine: id,
+                program: continuation,
+            },
+            reason,
+        },
     }
 }
 
@@ -630,6 +640,16 @@ fn outcome_from_native(
                 program: continuation,
             },
             value,
+        }),
+        native::Outcome::Stopped {
+            continuation,
+            reason,
+        } => Ok(Outcome::Stopped {
+            continuation: Continuation {
+                machine: id,
+                program: continuation,
+            },
+            reason,
         }),
         native::Outcome::Deoptimized { continuation } => {
             let context = context.storage;
@@ -701,6 +721,9 @@ fn native_runtime_error(error: native::Error) -> Box<RuntimeError> {
         native::Error::Trapped { .. } => machine_error(NATIVE_MACHINE, MachineError::Trap),
         native::Error::DeoptimizedWithoutContinuation { .. } => {
             machine_error(NATIVE_MACHINE, MachineError::DeoptMissing)
+        }
+        native::Error::StoppedWithoutContinuation { .. } => {
+            machine_error(NATIVE_MACHINE, MachineError::StopMissing)
         }
         native::Error::Panicked { .. } => machine_error(NATIVE_MACHINE, MachineError::Panic),
         native::Error::InvalidExit(error) => machine_error(
