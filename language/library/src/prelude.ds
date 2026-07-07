@@ -289,6 +289,7 @@ global {
         Complexf,
         convert,
         extract,
+        Infinity,
         insert,
         LaneCount,
         LaneOf,
@@ -306,7 +307,6 @@ global {
         Matrix4d,
         Matrix4f,
         Matrix4i,
-        Infinity,
         NaN,
         Number,
         Quaternion,
@@ -516,8 +516,8 @@ global {
         Action,
         BindingOptions,
         BindingProvider,
+        binding,
         HostAction,
         RuntimeAction,
-        binding,
     } from "destack:runtime";
 }

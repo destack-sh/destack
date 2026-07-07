@@ -284,8 +284,9 @@ export extension<T, comptime N: number, comptime A: Access = "readonly"> of Smal
     }
 }
 
-export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Access = "readonly">
-    of SmallArray<T, N> implements Index<R, A> {
+export extension<T, comptime N: number, R: RangeBounds<usize>, comptime A: Access = "readonly"> of
+    SmallArray<T, N>
+    implements Index<R, A> {
     /// The indexed output type.
     type Output = WithAccess<&[T], A>;
 

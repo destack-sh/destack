@@ -65,17 +65,11 @@ export extension of Strided {
 
     /// Return whether this format stores logical neighbors contiguously.
     @intrinsic("tensor.format.strided.isContiguous")
-    isContiguous<comptime Rank: int>(
-        shape: Shape<Rank>,
-        strides: [Stride; Rank],
-    ): boolean;
+    isContiguous<comptime Rank: int>(shape: Shape<Rank>, strides: [Stride; Rank]): boolean;
 
     /// Return the linear element offset for `indices`.
     @intrinsic("tensor.format.strided.offset")
-    offset<comptime Rank: int>(
-        indices: [usize; Rank],
-        strides: [Stride; Rank],
-    ): isize;
+    offset<comptime Rank: int>(indices: [usize; Rank], strides: [Stride; Rank]): isize;
 }
 
 /// Named axis metadata used by frontends and debugging tools.

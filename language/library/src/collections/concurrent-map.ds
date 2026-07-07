@@ -44,7 +44,10 @@ export shared class ConcurrentMap<K, V> {
     count: Atomic<usize> = Atomic.new(0);
 }
 
-export extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dereference<"readonly"> {
+export extension<K: Hash, V> of ConcurrentMapRead<K, V>
+    implements
+        Dispose,
+        Dereference<"readonly"> {
     /// The projected result form.
     type Output = V;
 
@@ -69,7 +72,10 @@ export extension<K: Hash, V> of ConcurrentMapRead<K, V> implements Dispose, Dere
     }
 }
 
-export extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Dereference<"exclusive"> {
+export extension<K: Hash, V> of ConcurrentMapWrite<K, V>
+    implements
+        Dispose,
+        Dereference<"exclusive"> {
     /// The projected result form.
     type Output = V;
 

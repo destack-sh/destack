@@ -164,10 +164,7 @@ export interface DisplayDragBinding {
         families: ["windows", "unix"],
         affinity: "worker",
     })
-    readDragBytes(
-        session: DisplayDragSessionHandle,
-        itemIndex: uint32,
-    ): Result<uint8[], HostError>;
+    readDragBytes(session: DisplayDragSessionHandle, itemIndex: uint32): Result<uint8[], HostError>;
 
     /// Read one drag filesystem item.
     @binding("destack.display.drag.path.read", {
