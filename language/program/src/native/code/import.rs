@@ -123,6 +123,8 @@ pub enum RuntimeBinding {
     Safepoint,
     /// Coroutine suspension into the runtime scheduler.
     Yield,
+    /// Stop execution for host inspection.
+    Stop,
     /// Native to VM deoptimization.
     Deopt,
     /// Native trap exit.
@@ -159,6 +161,7 @@ impl RuntimeBinding {
             Self::WriteBarrier => "__destack_write_barrier",
             Self::Safepoint => "__destack_safepoint",
             Self::Yield => "__destack_yield",
+            Self::Stop => "__destack_stop",
             Self::Deopt => "__destack_deopt",
             Self::Trap => "__destack_trap",
             Self::Panic => "__destack_panic",

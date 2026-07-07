@@ -876,6 +876,8 @@ pub enum Op {
     Check,
     /// Record an assumed condition.
     Assume,
+    /// Debugger breakpoint.
+    Breakpoint,
     /// Return one cell value from the current function.
     ReturnCell,
     /// Return one frame address from the current function.
