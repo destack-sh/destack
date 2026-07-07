@@ -19,11 +19,11 @@ const value: symbol = Symbol.create("id" as string | float64 | undefined);
 const value: symbol = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=symbol
 /// @type.node source="Symbol.create(\"id\")" type=symbol
-/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
+/// @resolution.member source=Symbol.create receiver=Symbol kind=symbol target=types.symbol.Symbol.create
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
@@ -50,11 +50,11 @@ const value: string = Symbol.create("id" as string | float64 | undefined);
 const value: string = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=string
 /// @type.node source="Symbol.create(\"id\")" type=symbol
-/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
+/// @resolution.member source=Symbol.create receiver=Symbol kind=symbol target=types.symbol.Symbol.create
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
@@ -80,18 +80,17 @@ const value: symbol | string = Symbol.create("id");
         DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === annotated ===
-const value: symbol | string = Symbol.create("id" as string | float64 | undefined) as | symbol
-| string;
+const value: symbol | string = Symbol.create("id" as string | float64 | undefined);
 
 === checked ===
 const value: symbol | string = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=symbol | string
 /// @type.node source="Symbol.create(\"id\")" type=symbol
-/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
+/// @resolution.member source=Symbol.create receiver=Symbol kind=symbol target=types.symbol.Symbol.create
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
 /// @check.stats.solve variables=0 types=6 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
@@ -118,11 +117,11 @@ const value: float64 = Symbol.create("id" as string | float64 | undefined);
 const value: number = Symbol.create("id");
 /// @type.symbol symbol=value source=value type=float64
 /// @type.node source="Symbol.create(\"id\")" type=symbol
-/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol type=Symbol
 /// @type.node source=Symbol.create type=(string | float64 | undefined) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
-/// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
-/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
+/// @resolution.member source=Symbol.create receiver=Symbol kind=symbol target=types.symbol.Symbol.create
+/// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64 | undefined) arguments=(provided("id") as string | float64 | undefined) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=Symbol
 /// @type.node source="\"id\"" type="id"
 
 /// @check.stats.solve variables=0 types=4 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3

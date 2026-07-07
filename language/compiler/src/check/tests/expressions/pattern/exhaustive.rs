@@ -413,8 +413,7 @@ const value: string = match (edge) {
 
     Edge.Bounded { limit } => limit
     /// @resolution.name source=Edge.Bounded target=Edge
-    /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(\"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded<string | int32>, { limit: string | int32 })" payload=object fields={ limit }
-    /// @generic.instance source="Edge.Bounded { limit }" id="Edge<string | int32>"
+    /// @resolution.pattern source="Edge.Bounded { limit }" kind=variant predicate="variant.tag(\"bounded\") is \"bounded\"" projection="variant.payload(Edge.Bounded, { limit: string } | { limit: int32 })" payload=object fields={ limit }
     /// @type.symbol symbol=limit source=limit type=string | int32
     /// @type.node source=limit type=string | int32
     /// @resolution.name source=limit target=limit
@@ -424,14 +423,12 @@ const value: string = match (edge) {
     /// @type.node source=Edge.Open type=Edge.Open
     /// @resolution.name source=Edge target=Edge
     /// @resolution.member source=Edge.Open receiver=Edge kind=symbol target=Edge.Open
-    /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(\"open\") is \"open\"" projection="variant.payload(Edge.Open<string | int32>, {})" fields=()
-    /// @generic.instance source=Edge.Open id="Edge<string | int32>"
+    /// @resolution.pattern source=Edge.Open kind=variant predicate="variant.tag(\"open\") is \"open\"" projection="variant.payload(Edge.Open, {})" fields=()
     /// @generic.instance source=Edge.Open id=Edge<T>
     /// @type.node source="\"\"" type=""
 
 };
 
-/// @generic.instance id="Edge<string | int32>" template=Edge arguments=(string | int32)
 /// @generic.instance id=Edge<T> template=Edge arguments=(T)
 /// @generic.instance id=Edge<int32> template=Edge arguments=(int32)
 /// @generic.instance id=Edge<string> template=Edge arguments=(string)

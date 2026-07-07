@@ -112,11 +112,11 @@ const value: { readonly a: 1; readonly b: "two" } = { a: 1, b: "two" } as const;
 const value = { a: 1, b: "two" } as const;
 /// @type.symbol symbol=value source=value type={ readonly a: 1; readonly b: "two" }
 /// @type.node source="{ a: 1, b: \"two\" } as const" type={ readonly a: 1; readonly b: "two" }
-/// @type.node source={ a: 1, b: "two" } type={ a: 1; b: "two" }
+/// @type.node source={ a: 1, b: "two" } type={ readonly a: 1; readonly b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -208,8 +208,8 @@ type Mode = "dev" | "prod";
 /// @definition.type symbol=Mode source="type Mode = \"dev\" | \"prod\"" value="dev" | "prod"
 
 type Shape = { mode: Mode };
-/// @type.symbol symbol=Shape source="type Shape = { mode: Mode }" type={ mode: "dev" | "prod" }
-/// @definition.type symbol=Shape source="type Shape = { mode: Mode }" value={ mode: "dev" | "prod" }
+/// @type.symbol symbol=Shape source="type Shape = { mode: Mode }" type={ mode: Mode }
+/// @definition.type symbol=Shape source="type Shape = { mode: Mode }" value={ mode: Mode }
 /// @resolution.name source=Mode target=Mode
 
 let config = { mode: "dev" } satisfies Shape;
@@ -226,7 +226,7 @@ const mode = config.mode;
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.mode receiver={ mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=12 constraints=1 obligations=0 solutions=0 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=4
 "#,
     );
 }
@@ -360,7 +360,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.name source=point target=point
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=12 constraints=0 obligations=2 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=9 constraints=2 obligations=2 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -421,7 +421,7 @@ const object = { ...point, label: "origin" };
 /// @resolution.name source=point target=point
 /// @type.node source="\"origin\"" type="origin"
 
-/// @check.stats.solve variables=0 types=14 constraints=0 obligations=2 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=11 constraints=1 obligations=2 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -481,7 +481,7 @@ const point: Point = _ { ...base };
 /// @type.node source=base type={ x: int32; y: int32 }
 /// @resolution.name source=base target=base
 
-/// @check.stats.solve variables=1 types=15 constraints=3 obligations=2 solutions=1 bounds=1 decisions=2
+/// @check.stats.solve variables=0 types=8 constraints=4 obligations=2 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -531,7 +531,7 @@ class User {
 
     constructor(name: string) {
     /// @type.symbol symbol=User.constructor type=(string) => User
-    /// @type.symbol symbol=name source="name: string" type=string
+    /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
         /// @type.node source="this.name = name" type=string
@@ -540,7 +540,7 @@ class User {
         /// @resolution.receiver source=this kind=this declaration=User type=User
         /// @resolution.pattern.assign source=this.name kind=place place=field(User.name) type=string
         /// @type.node source=name type=string
-        /// @resolution.name source=name target=name
+        /// @resolution.name source=name target=User.constructor.name
 
     }
 }
@@ -558,7 +558,7 @@ const object = { ...user };
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 
-/// @check.stats.solve variables=0 types=16 constraints=2 obligations=4 solutions=0 bounds=0 decisions=6
+/// @check.stats.solve variables=0 types=8 constraints=2 obligations=4 solutions=0 bounds=0 decisions=6
 "#,
     );
 }
