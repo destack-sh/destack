@@ -278,7 +278,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 
         match entry {
             mir::DynamicEntry::Function { function } => Some(*function),
-            mir::DynamicEntry::FieldOffset { .. } => None,
+            mir::DynamicEntry::Field { .. } => None,
         }
     }
 
@@ -428,7 +428,7 @@ entry(v0: int32):
         program.dispatch.insert_dynamic_table(mir::DynamicTable {
             concrete,
             constraint,
-            entries: vec![mir::DynamicEntry::FieldOffset { offset: 0 }],
+            entries: vec![mir::DynamicEntry::Field { offset: 0 }],
         });
 
         let analyses = program.tree_analysis_cache();

@@ -174,7 +174,7 @@ pub struct DynamicShape {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DynamicEntry {
     /// Slot containing a field offset.
-    FieldOffset {
+    Field {
         /// The field offset in bytes.
         offset: u32,
     },
