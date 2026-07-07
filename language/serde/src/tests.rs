@@ -89,6 +89,14 @@ enum SchemaSkippedChoice {
     Hidden(SchemaInternalPayload),
 }
 
+/// Schema item with an explicit public module.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, crate::Reflect)]
+#[reflect(module = "destack_serde::public")]
+struct SchemaPublicModule {
+    /// Visible value.
+    value: String,
+}
+
 /// Internally tagged enum used by codec compatibility tests.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind")]
@@ -173,6 +181,17 @@ fn test_build_schema_from_derive() {
             value: Box::new(SchemaRef::Unsigned { bits: 32 }),
         }
     );
+}
+
+#[test]
+fn test_build_schema_uses_explicit_module() {
+    let mut registry = SchemaRegistry::default();
+    registry.register::<SchemaPublicModule>();
+
+    let name = SchemaName::new("destack_serde::public", "SchemaPublicModule");
+    let item = registry.items.get(&name).expect("schema item");
+
+    assert_eq!(item.name, name);
 }
 
 #[test]

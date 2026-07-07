@@ -4,7 +4,9 @@ use destack_heap::{
     SharedHeapOptions, SharedHeapReference, TraceTable, TraceView, visit_heap_root_slots,
 };
 use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap};
+use destack_serde::Reflect;
 use destack_source::ContentId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     AddressSpace, CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization,
@@ -18,7 +20,8 @@ use vm::error::{Error, Result};
 use super::ProgramLoadError;
 
 /// Program produced by the toolchain.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+#[reflect(module = "destack_program::program")]
 pub struct Program {
     /// Program section directory.
     pub(crate) sections: SectionDirectory,

@@ -17,6 +17,7 @@ pub(crate) fn expand(input: TokenStream) -> TokenStream {
 fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let ident = input.ident;
     let docs = docs(&input.attrs);
+    let module = module(&input.attrs)?;
     let attributes = attributes(&input.data)?;
     let shape = shape(&input.data)?;
     let mut generics = input.generics;
@@ -32,7 +33,6 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
     let (impl_generics, type_generics, where_clause) = generics.split_for_impl();
     let name = ident.to_string();
-    let module = quote!(module_path!());
 
     Ok(quote! {
         impl #impl_generics destack_serde::Reflect for #ident #type_generics #where_clause {
@@ -47,6 +47,38 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
             }
         }
     })
+}
+
+/// Return the schema module for one reflected item.
+fn module(attributes: &[syn::Attribute]) -> syn::Result<proc_macro2::TokenStream> {
+    let mut module = None;
+
+    for attribute in attributes {
+        if !attribute.path().is_ident("reflect") {
+            continue;
+        }
+
+        attribute.parse_nested_meta(|meta| {
+            if meta.path.is_ident("module") {
+                if module.is_some() {
+                    return Err(meta.error("duplicate reflect module"));
+                }
+
+                let value = meta.value()?;
+                module = Some(value.parse::<LitStr>()?);
+
+                Ok(())
+            } else {
+                Err(meta.error("unsupported reflect attribute"))
+            }
+        })?;
+    }
+
+    if let Some(module) = module {
+        Ok(quote!(#module))
+    } else {
+        Ok(quote!(module_path!()))
+    }
 }
 
 /// Extract schema consumer attributes from one Rust item.
