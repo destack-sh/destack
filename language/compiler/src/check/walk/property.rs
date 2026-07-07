@@ -2,9 +2,8 @@ use destack_dir as dir;
 use std::ptr::NonNull;
 
 use crate::check::{
-    Expectation, FlowBranch, FlowState, GenericInductionDeclaration, GenericInductionPosition,
-    GenericPosition, GenericTemplateId, Origin, Receiver, ReceiverBinding, Relation, ValueUse,
-    WalkState, Widening,
+    Expectation, FlowBranch, FlowState, GenericPosition, GenericTemplateId, InducedLifetimeOwner,
+    Origin, Receiver, ReceiverBinding, Relation, ValueUse, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -201,7 +200,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
         receiver_scope: Option<Receiver>,
-        induction_declaration: Option<GenericInductionDeclaration>,
+        induced_owner: Option<InducedLifetimeOwner>,
         is_ambient_scope: bool,
     ) -> CompilerResult<MemberHeader> {
         let member_receiver = match member {
@@ -239,7 +238,7 @@ impl WalkState<'_, '_> {
 
                 // walk generic parameters
                 let source = id.into_global_any(self.module);
-                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template = match symbol {
                     Some(symbol) => self.walk_generic_template(
                         source,
@@ -267,8 +266,8 @@ impl WalkState<'_, '_> {
 
                 // write the member symbol type
                 if let (Some(value), Some(symbol)) = (value, symbol) {
-                    let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
-                    self.push_type_induction_site(induction, value);
+                    let induction = InducedLifetimeOwner::new(source, parent, Some(symbol));
+                    self.push_induced_lifetime_site(induction, value);
                     self.bind_symbol_type(symbol, value)?;
                 }
 
@@ -404,11 +403,7 @@ impl WalkState<'_, '_> {
                     Some(declared_type) => {
                         let written =
                             self.walk_type_expression(declared_type, GenericPosition::Annotation)?;
-                        let written = self.induce_constraint_type(
-                            id.into_any(),
-                            written,
-                            GenericInductionPosition::Storage,
-                        )?;
+                        let written = self.represented_open_type(id.into_any(), written)?;
                         let written = if is_optional {
                             self.optional_value_type(written)?
                         } else {
@@ -432,8 +427,8 @@ impl WalkState<'_, '_> {
 
                 // write the field symbol type
                 if let (Some(field_type), Some(symbol)) = (field_type, symbol) {
-                    if let Some(induction) = induction_declaration {
-                        self.push_type_induction_site(induction, field_type);
+                    if let Some(induction) = induced_owner {
+                        self.push_induced_lifetime_site(induction, field_type);
                     }
                     self.bind_symbol_type(symbol, field_type)?;
                 }
@@ -521,7 +516,7 @@ impl WalkState<'_, '_> {
                         message: format!("method member {id:?} has no declaration symbol"),
                     });
                 };
-                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let source = id.into_global_any(self.module);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
@@ -566,18 +561,14 @@ impl WalkState<'_, '_> {
                     id.into_any(),
                     signature,
                     header,
-                    Some(GenericInductionDeclaration::new(
-                        source,
-                        parent,
-                        Some(symbol),
-                    )),
+                    Some(InducedLifetimeOwner::new(source, parent, Some(symbol))),
                     receiver_type,
                     result,
                     tracked,
                     body.is_some(),
                 )?;
-                let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
-                self.push_type_induction_site(induction, method);
+                let induction = InducedLifetimeOwner::new(source, parent, Some(symbol));
+                self.push_induced_lifetime_site(induction, method);
 
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
@@ -718,7 +709,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeMember>,
         member: &dir::TypeMember,
         receiver_scope: Option<Receiver>,
-        induction_declaration: Option<GenericInductionDeclaration>,
+        induced_owner: Option<InducedLifetimeOwner>,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
@@ -808,10 +799,10 @@ impl WalkState<'_, '_> {
                         message: format!("type method member {id:?} has no declaration symbol"),
                     });
                 };
-                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template =
                     self.open_signature_template(source, parent, Some(symbol), signature)?;
-                let induction = GenericInductionDeclaration::new(source, parent, Some(symbol));
+                let induction = InducedLifetimeOwner::new(source, parent, Some(symbol));
 
                 // interface members assume this satisfies their interface
                 if let Some(template) = template
@@ -837,7 +828,7 @@ impl WalkState<'_, '_> {
                     tracked,
                     body.is_some(),
                 )?;
-                self.push_type_induction_site(induction, method);
+                self.push_induced_lifetime_site(induction, method);
 
                 // write the method symbol type
                 self.bind_symbol_type(symbol, method)?;
@@ -873,7 +864,7 @@ impl WalkState<'_, '_> {
             }
             // (value: T): U
             dir::TypeMember::CallSignature { signature } => {
-                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let ty = self.walk_function_type(id.into_any(), signature, parent, None)?;
 
                 Ok(Some(dir::DefinitionMember::CallSignature(
@@ -882,7 +873,7 @@ impl WalkState<'_, '_> {
             }
             // new (value: T): U
             dir::TypeMember::ConstructSignature { signature } => {
-                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let ty = self.walk_constructor_type(id.into_any(), signature, parent, None)?;
 
                 Ok(Some(dir::DefinitionMember::ConstructSignature(
@@ -926,7 +917,7 @@ impl WalkState<'_, '_> {
                     .declaration_symbol(id.into_any());
 
                 // walk generic parameters
-                let parent = self.enclosing_generic_template(receiver_scope, induction_declaration);
+                let parent = self.enclosing_generic_template(receiver_scope, induced_owner);
                 let template = match symbol {
                     Some(symbol) => self.walk_generic_template(
                         source,

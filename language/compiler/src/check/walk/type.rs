@@ -1207,23 +1207,21 @@ impl WalkState<'_, '_> {
                     None,
                     None,
                 )?;
-                let binding = dir::GenericParameterBinding {
-                    template: template.local_id,
-                    key: dir::GenericParameterKey::Symbol(symbol),
-                    variance: None,
-                    constraint: Some(constraint),
-                    default: None,
-                    origin: dir::GenericParameterOrigin::Explicit,
-                    is_variadic: false,
-                    is_const: false,
-                    is_comptime: false,
-                };
-
-                self.check
-                    .push_generic_parameter(binding, template, Some(symbol))?
+                self.check.push_generic_parameter(
+                    template,
+                    Some(symbol),
+                    dir::GenericParameterKey::Symbol(symbol),
+                    None,
+                    Some(constraint),
+                    None,
+                    dir::GenericParameterOrigin::Explicit,
+                    false,
+                    false,
+                    false,
+                )?
             }
         };
-        let ty = self.intern_type(dir::Type::Parameter(binder))?;
+        let ty = self.check.generic_parameter_type(binder)?;
         self.bind_symbol_type(symbol, ty)?;
 
         let key_remap = match key_remap {

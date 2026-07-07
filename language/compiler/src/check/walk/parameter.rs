@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Expectation, GenericInductionParameter, GenericInductionPosition, GenericParameterId,
-    GenericPosition, GenericTemplateId, Origin, ParameterType, ValueUse, WalkState,
+    Expectation, GenericParameterId, GenericPosition, GenericTemplateId, Origin, ParameterType,
+    ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -45,23 +45,21 @@ impl WalkState<'_, '_> {
             // ignore damaged nodes
             dir::GenericParameter::Error => return Ok(None),
         };
-        let binding = dir::GenericParameterBinding {
-            template: template.local_id,
-            key: dir::GenericParameterKey::Symbol(symbol),
+        let parameter = self.check.push_generic_parameter(
+            template,
+            Some(symbol),
+            dir::GenericParameterKey::Symbol(symbol),
             variance,
-            constraint: None,
-            default: None,
-            origin: dir::GenericParameterOrigin::Explicit,
+            None,
+            None,
+            dir::GenericParameterOrigin::Explicit,
             is_variadic,
             is_const,
             is_comptime,
-        };
-        let parameter = self
-            .check
-            .push_generic_parameter(binding, template, Some(symbol))?;
+        )?;
 
         // the parameter name writes its own parameter type
-        let ty = self.intern_type(dir::Type::Parameter(parameter))?;
+        let ty = self.check.generic_parameter_type(parameter)?;
         self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))
@@ -179,7 +177,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
         is_annotation_required: bool,
-        induction: Option<GenericInductionPosition>,
+        represents_open_type: bool,
     ) -> CompilerResult<Option<ParameterType>> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(None);
@@ -207,12 +205,12 @@ impl WalkState<'_, '_> {
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let parameter_type = self.walk_parameter_type(id, induction)?;
+                let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
 
                 // bind the parameter name to its type
                 if let Some(symbol) = symbol {
                     if is_comptime {
-                        self.induce_comptime_parameter(
+                        self.walk_comptime_parameter(
                             template,
                             id.into_any(),
                             Some(symbol),
@@ -265,12 +263,12 @@ impl WalkState<'_, '_> {
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let parameter_type = self.walk_parameter_type(id, induction)?;
+                let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
 
                 // bind the variadic parameter name to its type
                 if let Some(symbol) = symbol {
                     if is_comptime {
-                        self.induce_comptime_parameter(
+                        self.walk_comptime_parameter(
                             template,
                             id.into_any(),
                             Some(symbol),
@@ -302,7 +300,7 @@ impl WalkState<'_, '_> {
 
                 // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
-                let parameter_type = self.walk_parameter_type(id, induction)?;
+                let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
                 if let Some(parameter_type) = parameter_type {
                     let expectation = Expectation::assignable(
                         parameter_type.binding,
@@ -352,7 +350,7 @@ impl WalkState<'_, '_> {
 
                 // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
-                if let Some(parameter_type) = self.walk_parameter_type(id, induction)? {
+                if let Some(parameter_type) = self.walk_parameter_type(id, represents_open_type)? {
                     let expectation = Expectation::assignable(
                         parameter_type.binding,
                         Origin::Node(
@@ -372,13 +370,13 @@ impl WalkState<'_, '_> {
         Ok(result)
     }
 
-    /// Induce one comptime parameter as a static generic parameter.
+    /// Walk one comptime parameter as a static generic parameter.
     ///
     /// Example:
     /// ```ds
     /// function repeat(value: string, comptime count: uint): [string; count]
     /// ```
-    pub(in crate::check) fn induce_comptime_parameter(
+    pub(in crate::check) fn walk_comptime_parameter(
         &mut self,
         template: Option<GenericTemplateId>,
         source: dir::LocalNodeIdAny,
@@ -396,42 +394,34 @@ impl WalkState<'_, '_> {
             });
         };
 
-        // open a generated static parameter when the callable type has no label
         let Some(symbol) = symbol else {
-            let parameter = GenericInductionParameter {
-                name_prefix: "C",
-                constraint: argument,
-                is_comptime: true,
-                induction: dir::GenericParameterInduction::Comptime,
-            };
-            let parameter = self
-                .check
-                .push_induced_generic_parameter(template, parameter)?;
-
-            return Ok(Some(parameter));
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "comptime parameter {:?} has no declaration symbol",
+                    source.into_global(self.module)
+                ),
+            });
         };
 
-        // open the named static parameter
+        // open the named source parameter
         let default = default
             .map(|default| self.walk_static_term(default))
             .transpose()?;
-        let binding = dir::GenericParameterBinding {
-            template: template.local_id,
-            key: dir::GenericParameterKey::Symbol(symbol),
-            variance: None,
-            constraint: argument,
+        let parameter = self.check.push_generic_parameter(
+            template,
+            Some(symbol),
+            dir::GenericParameterKey::Symbol(symbol),
+            None,
+            argument,
             default,
-            origin: dir::GenericParameterOrigin::Induced(dir::GenericParameterInduction::Comptime),
+            dir::GenericParameterOrigin::Explicit,
             is_variadic,
-            is_const: false,
-            is_comptime: true,
-        };
-        let parameter = self
-            .check
-            .push_generic_parameter(binding, template, Some(symbol))?;
+            false,
+            true,
+        )?;
 
         // write the parameter name as its own parameter type
-        let ty = self.intern_type(dir::Type::Parameter(parameter))?;
+        let ty = self.check.generic_parameter_type(parameter)?;
         self.bind_symbol_type(symbol, ty)?;
 
         Ok(Some(parameter))

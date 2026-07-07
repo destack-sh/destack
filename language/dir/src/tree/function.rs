@@ -52,7 +52,7 @@ pub struct FunctionSignature {
     pub this_form: Option<ThisForm>,
     /// The optional `this` parameter.
     pub this_parameter: Option<LocalNodeId<Parameter>>,
-    /// The dynamic parameters of the function.
+    /// The value parameter source nodes of the function.
     pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<LocalNodeId<TypeExpression>>,
