@@ -2,15 +2,14 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckState, GenericInductionParameter, GenericInductionSite, GenericTemplateId, Origin,
-    Receiver, Relation, WalkState, Widening,
+    CheckState, GenericTemplateId, InducedLifetimeSite, Origin, Receiver, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One declaration that receives induced generic parameters.
+/// One declaration that receives induced lifetime parameters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct GenericInductionDeclaration {
-    /// The declaration node that receives induced generic parameters.
+pub(in crate::check) struct InducedLifetimeOwner {
+    /// The declaration node that receives induced lifetime parameters.
     pub(in crate::check) declaration: dir::GlobalNodeIdAny,
     /// The enclosing generic template.
     pub(in crate::check) parent: Option<GenericTemplateId>,
@@ -18,8 +17,8 @@ pub(in crate::check) struct GenericInductionDeclaration {
     pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
 }
 
-impl GenericInductionDeclaration {
-    /// Create one generic induction declaration.
+impl InducedLifetimeOwner {
+    /// Create one induced lifetime owner.
     pub(in crate::check) fn new(
         declaration: dir::GlobalNodeIdAny,
         parent: Option<GenericTemplateId>,
@@ -33,33 +32,12 @@ impl GenericInductionDeclaration {
     }
 }
 
-/// The source position that induces a hidden generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum GenericInductionPosition {
-    /// A parameter annotation position.
-    Parameter,
-    /// A storage annotation position.
-    Storage,
-}
-
-impl GenericInductionPosition {
-    /// Return the committed induction reason.
-    pub(in crate::check) fn induction(self) -> dir::GenericParameterInduction {
-        match self {
-            // parameter type
-            Self::Parameter => dir::GenericParameterInduction::ParameterConstraint,
-            // storage type
-            Self::Storage => dir::GenericParameterInduction::StorageConstraint,
-        }
-    }
-}
-
 impl WalkState<'_, '_> {
     /// Return the generic template enclosing one member declaration.
     pub(in crate::check) fn enclosing_generic_template(
         &self,
         receiver: Option<Receiver>,
-        declaration: Option<GenericInductionDeclaration>,
+        declaration: Option<InducedLifetimeOwner>,
     ) -> Option<GenericTemplateId> {
         // prefer the declaration that owns the member
         if let Some(symbol) = declaration.and_then(|declaration| declaration.symbol)
@@ -130,15 +108,15 @@ impl WalkState<'_, '_> {
         Ok(Some(template))
     }
 
-    /// Push one declaration type that can induce generics.
-    pub(in crate::check) fn push_type_induction_site(
+    /// Push one declaration type that can contain induced lifetime holes.
+    pub(in crate::check) fn push_induced_lifetime_site(
         &mut self,
-        declaration: GenericInductionDeclaration,
+        declaration: InducedLifetimeOwner,
         ty: dir::GlobalTypeId,
     ) {
         self.check
             .generics
-            .push_induction_site(GenericInductionSite {
+            .push_induced_lifetime_site(InducedLifetimeSite {
                 declaration: declaration.declaration,
                 parent: declaration.parent,
                 symbol: declaration.symbol,
@@ -146,65 +124,50 @@ impl WalkState<'_, '_> {
             });
     }
 
-    /// Return an induced variable for one constraint type when needed.
+    /// Return the represented value type for one open annotation when needed.
     ///
-    /// Interface-typed annotations open an inducible hole bounded by the
-    /// interface: holes that escape unsolved become generated generic
-    /// parameters after the walk.
+    /// Interface-typed and anonymous structural annotations have no direct
+    /// storage representation, so value positions erase them to `Dynamic<T>`.
     ///
     /// Example:
     /// ```ds
     /// writer: Writer
     /// ```
-    pub(in crate::check) fn induce_constraint_type(
+    pub(in crate::check) fn represented_open_type(
         &mut self,
         source: dir::LocalNodeIdAny,
         ty: dir::GlobalTypeId,
-        position: GenericInductionPosition,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let node = source.into_global(self.module);
         let origin = Origin::Node(node, self.flow().template_scope());
-        if !self.induces_generic_parameter(origin, ty)? {
+        if !self.needs_dynamic_representation(origin, ty)? {
             return Ok(ty);
         }
 
-        // open the inducible hole bounded by its interface
-        let variable = self
-            .check
-            .allocate_variable(self.module, origin, Widening::Preserve);
-        let induced = self.check.variable_type(variable)?;
-        let induction = GenericInductionParameter {
-            name_prefix: "T",
-            constraint: Some(ty),
-            is_comptime: false,
-            induction: position.induction(),
-        };
-        self.check.generics.insert_induction(variable, induction)?;
-        self.relate_type(origin, Relation::Assignable, induced, ty);
-
-        Ok(induced)
+        self.check.intern_type(
+            origin.module(),
+            dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
+        )
     }
 
-    /// Return whether one written type induces a generic parameter.
+    /// Return whether one written type needs `Dynamic<T>` as its value representation.
     ///
-    /// An annotation induces when the type it names is an interface,
-    /// which has no value representation of its own; the reduction
-    /// resolves transparent aliases to the named head.
-    fn induces_generic_parameter(
+    /// An annotation erases when the type it names is an interface,
+    /// which has no value representation of its own.
+    fn needs_dynamic_representation(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let head =
-            self.check
-                .require_reduced_type_head(origin, ty, "generic parameter induction")?;
+        let head = self
+            .check
+            .require_reduced_type_head(origin, ty, "open type representation")?;
         let symbol = match self.check.ty(head)? {
             dir::Type::Instance(instance) => instance.symbol,
             _ => return Ok(false),
         };
 
-        // interfaces are always incomplete until implemented;
-        // concrete declarations already have a representation
+        // interfaces need erasure, concrete declarations already have representation
         Ok(matches!(
             self.check.symbol_kind(symbol),
             dir::SymbolKind::AssociatedType
@@ -215,39 +178,41 @@ impl WalkState<'_, '_> {
 }
 
 impl CheckState<'_> {
-    /// Complete generic walk state before solving.
+    /// Propagate elided lifetime variables into declaration templates.
     ///
-    /// Inducible holes still reachable from recorded declaration types
-    /// become generated generic parameters on their declarations.
-    pub(in crate::check) fn propagate_induced_generics(&mut self) -> CompilerResult<()> {
-        let sites = self.generics.induction_sites().cloned().collect::<Vec<_>>();
+    /// Induced lifetimes still reachable from declaration types become generic parameters.
+    pub(in crate::check) fn propagate_induced_lifetimes(&mut self) -> CompilerResult<()> {
+        let sites = self
+            .generics
+            .induced_lifetime_sites()
+            .cloned()
+            .collect::<Vec<_>>();
 
-        // collect all generated parameters before mutating generic tables;
-        // each hole generalizes once, on its first recorded declaration
-        let mut induced = IndexMap::new();
+        // collect induced lifetimes before mutating generic tables
+        let mut lifetimes = IndexMap::new();
         for site in sites {
             for variable in self.type_variables(site.ty)? {
-                let Some(parameter) = self.variable_induction(variable)? else {
+                let role = self.variable_role(variable)?;
+                if role.is_inference() {
                     continue;
-                };
+                }
 
-                induced.entry(variable).or_insert((
+                lifetimes.entry(variable).or_insert((
                     site.declaration,
                     site.parent,
                     site.symbol,
-                    parameter,
+                    role,
                 ));
             }
         }
 
-        // insert generated parameters in variable allocation order,
-        // so hidden lifetimes number by their source positions
-        let mut induced = induced.into_iter().collect::<Vec<_>>();
-        induced.sort_by_key(|(variable, _)| variable.0);
+        // insert lifetime parameters in allocation order
+        let mut lifetimes = lifetimes.into_iter().collect::<Vec<_>>();
+        lifetimes.sort_by_key(|(variable, _)| variable.0);
 
-        for (variable, (declaration, parent, symbol, induction)) in induced {
+        for (variable, (declaration, parent, symbol, role)) in lifetimes {
             let template = self.open_generic_template(declaration, parent, symbol)?;
-            let parameter = self.push_induced_generic_parameter(template, induction)?;
+            let parameter = self.push_induced_lifetime_parameter(template, role)?;
             let solution =
                 self.intern_type(declaration.module_id, dir::Type::Parameter(parameter))?;
             self.commit_solution(variable, solution)?;

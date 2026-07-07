@@ -156,7 +156,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify declaration-level checked types and induced generic parameters.
+    /// Reify declaration-level checked types and induced lifetime parameters.
     fn reify_declarations(&mut self) -> CompilerResult<()> {
         let module_id = self.state.module.id;
         let view = dir::View::new(self.state.source_tree());
@@ -168,7 +168,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify induced generic parameters for one declaration.
+    /// Reify induced lifetime parameters for one declaration.
     fn reify_declaration_generic_parameters(
         &mut self,
         module_id: ModuleId,
@@ -188,7 +188,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             let Some(binding) = self.check.generic_parameter(parameter) else {
                 continue;
             };
-            if !binding.is_induced_header_parameter() {
+            if !binding.is_induced_lifetime_parameter() {
                 continue;
             }
 

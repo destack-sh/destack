@@ -3,10 +3,9 @@ use destack_source::ModuleId;
 
 use crate::check::{
     CheckState, ClassInitializationObligation, DeclarationHeritageObligation,
-    ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericInductionDeclaration,
-    GenericInductionPosition, GenericPosition, GenericTemplateId,
-    ImplementationCoherenceObligation, Obligation, Origin, Receiver, ReceiverBinding, Relation,
-    RepresentationObligation, TypeSubstitution, WalkState, Widening,
+    ExtensionConformanceObligation, FlowBranch, FunctionHeader, GenericPosition, GenericTemplateId,
+    ImplementationCoherenceObligation, InducedLifetimeOwner, Obligation, Origin, Receiver,
+    ReceiverBinding, Relation, RepresentationObligation, TypeSubstitution, WalkState, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -372,7 +371,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
@@ -394,7 +393,7 @@ impl WalkState<'_, '_> {
 
         // walk the written value
         let value = self.walk_type_expression(declaration.value, GenericPosition::Annotation)?;
-        self.push_type_induction_site(induction, value);
+        self.push_induced_lifetime_site(induction, value);
 
         // transparent aliases expand to their value, newtypes wrap it
         let definition = if let Some(receiver) = receiver {
@@ -481,7 +480,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -491,7 +490,7 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
-            self.push_type_induction_site(induction, ty);
+            self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     self.relate_heritage_clause(
@@ -595,7 +594,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -606,7 +605,7 @@ impl WalkState<'_, '_> {
         let mut super_ty = None;
         if let Some(extends_type) = declaration.extends_type {
             let ty = self.walk_type_expression(extends_type, GenericPosition::Annotation)?;
-            self.push_type_induction_site(induction, ty);
+            self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol) == dir::SymbolKind::Class {
                     self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty);
@@ -636,7 +635,7 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
-            self.push_type_induction_site(induction, ty);
+            self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     self.relate_heritage_clause(
@@ -837,7 +836,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -847,7 +846,7 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
-            self.push_type_induction_site(induction, ty);
+            self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     self.relate_heritage_clause(
@@ -954,7 +953,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
         let receiver = self.nominal_receiver(symbol)?;
@@ -964,7 +963,7 @@ impl WalkState<'_, '_> {
         let mut extends = Vec::new();
         for extends_type in &declaration.extends_types {
             let ty = self.walk_type_expression(*extends_type, GenericPosition::Annotation)?;
-            self.push_type_induction_site(induction, ty);
+            self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*extends_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     extends.push(dir::NominalHeritage {
@@ -1037,14 +1036,14 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template = self.check.generics.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
         // expose members under the extended receiver
         let target_type =
             self.walk_type_expression(declaration.target_type, GenericPosition::Annotation)?;
-        self.push_type_induction_site(induction, target_type);
+        self.push_induced_lifetime_site(induction, target_type);
         let target = self.walk_extension_target(target_type)?;
         let target_name = match &target {
             dir::ExtensionTarget::Rooted { root, .. } => self.check.format_symbol(*root),
@@ -1061,7 +1060,7 @@ impl WalkState<'_, '_> {
         let mut implements = Vec::new();
         for implemented_type in &declaration.implements_types {
             let ty = self.walk_type_expression(*implemented_type, GenericPosition::Annotation)?;
-            self.push_type_induction_site(induction, ty);
+            self.push_induced_lifetime_site(induction, ty);
             if let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? {
                 if self.check.symbol_kind(instance.symbol).is_interface() {
                     implements.push(dir::NominalHeritage {
@@ -1233,7 +1232,7 @@ impl WalkState<'_, '_> {
 
         // open signature parameters before building the function type
         let source = id.into_global_any(self.module);
-        let induction = GenericInductionDeclaration::new(source, None, Some(symbol));
+        let induction = InducedLifetimeOwner::new(source, None, Some(symbol));
         let template =
             self.open_signature_template(source, None, Some(symbol), &declaration.signature)?;
 
@@ -1270,7 +1269,7 @@ impl WalkState<'_, '_> {
         } else {
             signature
         };
-        self.push_type_induction_site(induction, function);
+        self.push_induced_lifetime_site(induction, function);
         self.bind_symbol_type(symbol, function)?;
 
         // walk body after its result exists
@@ -1486,17 +1485,15 @@ impl WalkState<'_, '_> {
             });
         }
 
-        // walk receiver and runtime parameters; declared callables
-        // generalize interface-typed parameters, lambdas never do
+        // declared callable parameters need value representation
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
-        let induction = is_annotation_required.then_some(GenericInductionPosition::Parameter);
         let this_parameter = if let Some(parameter) = signature.this_parameter {
             self.walk_parameter(
                 template,
                 parameter,
                 self.tree.get(parameter),
                 is_annotation_required,
-                induction,
+                is_annotation_required,
             )?
             .map(|ty| ty.argument)
         } else {
@@ -1510,7 +1507,7 @@ impl WalkState<'_, '_> {
                 *parameter,
                 self.tree.get(*parameter),
                 is_annotation_required,
-                induction,
+                is_annotation_required,
             )?
             else {
                 continue;

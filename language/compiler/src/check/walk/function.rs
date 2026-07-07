@@ -3,9 +3,8 @@ use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, FlowBranch, GenericInductionDeclaration, GenericInductionParameter,
-    GenericInductionPosition, GenericPosition, GenericTemplateId, Origin, ReceiverBinding,
-    Relation, ValueUse, WalkState, Widening,
+    Expectation, FlowBranch, GenericPosition, GenericTemplateId, InducedLifetimeOwner, Origin,
+    ReceiverBinding, Relation, ValueUse, VariableRole, WalkState, Widening,
 };
 
 /// Types produced by one parameter header.
@@ -40,7 +39,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         header: FunctionHeader,
-        owner: Option<GenericInductionDeclaration>,
+        owner: Option<InducedLifetimeOwner>,
         receiver_type: Option<dir::GlobalTypeId>,
         return_type: Option<dir::GlobalTypeId>,
         tracked: Vec<dir::TypeVariableId>,
@@ -113,9 +112,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             input_lifetimes.retain(|(variable, _)| seen.insert(*variable));
         }
 
-        // rung 3: a member with a bare receiver and an elided result
-        // lifetime borrows its receiver readonly with an induced
-        // lifetime, and the result ties to it
+        // synthesize a readonly receiver borrow for an elided result lifetime
         let mut synthesized_this = None;
         if input_lifetimes.is_empty()
             && this_parameter.is_none()
@@ -124,7 +121,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             let has_elided_result =
                 !tracked.is_empty() || !self.induced_lifetime_types(return_type)?.is_empty();
             if has_elided_result {
-                let lifetime = self.induced_receiver_borrow_lifetime(source)?;
+                let lifetime = self.generated_receiver_borrow_lifetime(source)?;
                 let access = self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Access(
                     dir::Access::Readonly,
                 )))?;
@@ -191,11 +188,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 let Some(variable) = self.check.open_variable(variable)? else {
                     continue;
                 };
-                let is_lifetime = match self.check.variable_induction(variable)? {
-                    Some(induction) => self.is_lifetime_induction(induction)?,
-                    None => false,
-                };
-                if is_lifetime {
+                if matches!(
+                    self.check.variable_role(variable)?,
+                    VariableRole::Lifetime { .. }
+                ) {
                     lifetimes.push((variable, ty));
                 }
 
@@ -209,28 +205,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(lifetimes)
     }
 
-    /// Return whether one induced parameter is an elided lifetime.
-    fn is_lifetime_induction(
-        &mut self,
-        induction: GenericInductionParameter,
-    ) -> CompilerResult<bool> {
-        let Some(constraint) = induction.constraint else {
-            return Ok(false);
-        };
-        let item = match self.check.ty(constraint)? {
-            dir::Type::Reference(reference) => self.check.language_item(reference.symbol)?,
-            dir::Type::Instance(instance) => self.check.language_item(instance.symbol)?,
-            _ => None,
-        };
-
-        Ok(induction.is_comptime && item == Some(dir::LanguageItem::Lifetime))
-    }
-
     /// Return the template owned by one callable signature.
     fn signature_template(
         &mut self,
         template: Option<GenericTemplateId>,
-        owner: Option<GenericInductionDeclaration>,
+        owner: Option<InducedLifetimeOwner>,
         this_parameter: Option<dir::GlobalTypeId>,
         parameters: &[dir::FunctionParameterType],
         return_type: Option<dir::GlobalTypeId>,
@@ -242,8 +221,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(None);
         };
 
-        // open the enclosing template only when this signature contains induced holes
-        if !self.signature_contains_induced_parameter(this_parameter, parameters, return_type)? {
+        // open the enclosing template only when this signature has induced lifetime holes
+        if !self.signature_contains_induced_lifetime(this_parameter, parameters, return_type)? {
             return Ok(None);
         }
 
@@ -252,8 +231,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .map(Some)
     }
 
-    /// Return whether one signature contains an induced generic hole.
-    fn signature_contains_induced_parameter(
+    /// Return whether one signature contains an induced lifetime hole.
+    fn signature_contains_induced_lifetime(
         &mut self,
         this_parameter: Option<dir::GlobalTypeId>,
         parameters: &[dir::FunctionParameterType],
@@ -266,7 +245,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         for ty in types {
             for variable in self.check.type_variables(ty)? {
-                if self.check.variable_induction(variable)?.is_some() {
+                if !self.check.variable_role(variable)?.is_inference() {
                     return Ok(true);
                 }
             }
@@ -306,7 +285,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         let this_parameter = if let Some(parameter) = declaration.this_parameter {
-            self.walk_parameter_type(parameter, None)?
+            self.walk_parameter_type(parameter, false)?
                 .map(|ty| ty.argument)
         } else {
             None
@@ -603,7 +582,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         );
         let is_optional = parameter.is_optional();
         let is_comptime = parameter.is_comptime();
-        let Some(parameter_type) = self.walk_parameter_type(id, None)? else {
+        let Some(parameter_type) = self.walk_parameter_type(id, false)? else {
             return Ok(None);
         };
 
@@ -618,7 +597,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 _ => None,
             };
 
-            self.induce_comptime_parameter(
+            self.walk_comptime_parameter(
                 template,
                 source,
                 symbol,
@@ -650,7 +629,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::check) fn walk_parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
-        induction: Option<GenericInductionPosition>,
+        represents_open_type: bool,
     ) -> CompilerResult<Option<ParameterType>> {
         let declared_type = match self.tree.get(id) {
             dir::Parameter::Error => return Ok(None),
@@ -668,9 +647,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         let is_optional = self.tree.get(id).is_optional();
         let argument = self.walk_type_expression(declared_type, GenericPosition::Annotation)?;
-        let argument = match induction {
-            Some(position) => self.induce_constraint_type(id.into_any(), argument, position)?,
-            None => argument,
+        let argument = if represents_open_type {
+            self.represented_open_type(id.into_any(), argument)?
+        } else {
+            argument
         };
         let binding = if is_optional {
             self.optional_value_type(argument)?

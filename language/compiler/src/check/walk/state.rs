@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 
 use crate::check::{
     BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
-    FlowState, GenericInductionParameter, GenericPosition, Origin, PlaceUse, Relation, Task,
-    TypeConstraint, ValueUse, Widening,
+    FlowState, GenericPosition, Origin, PlaceUse, Relation, Task, TypeConstraint, ValueUse,
+    VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -32,8 +32,8 @@ pub(in crate::check) struct WalkState<'check, 'state> {
 /// How elided borrow lifetimes are handled while walking types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BorrowLifetimeElision {
-    /// Elided borrow lifetimes can induce hidden generic parameters.
-    Induce,
+    /// Elided borrow lifetimes generate hidden generic parameters.
+    Generate,
     /// Elided borrow lifetimes are tracked for a return type rule.
     TrackReturn,
     /// Elided borrow lifetimes close to the current frame.
@@ -98,7 +98,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             check,
             tree,
             module,
-            borrow_lifetime_elision: BorrowLifetimeElision::Induce,
+            borrow_lifetime_elision: BorrowLifetimeElision::Generate,
             return_borrow_lifetimes: Vec::new(),
             flow,
             node_flows,
@@ -249,16 +249,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         result
     }
 
-    /// Return one induced lifetime for a rung-3 receiver borrow.
+    /// Return one induced lifetime for a synthesized receiver borrow.
     ///
     /// The synthesis runs outside type-expression walks, so the
-    /// induction mode is forced for its duration.
-    pub(in crate::check) fn induced_receiver_borrow_lifetime(
+    /// generation is forced for its duration.
+    pub(in crate::check) fn generated_receiver_borrow_lifetime(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let previous = self.borrow_lifetime_elision;
-        self.borrow_lifetime_elision = BorrowLifetimeElision::Induce;
+        self.borrow_lifetime_elision = BorrowLifetimeElision::Generate;
         let result = self.elided_borrow_lifetime(source);
         self.borrow_lifetime_elision = previous;
 
@@ -299,13 +299,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             }
             None => None,
         };
-        let induction = GenericInductionParameter {
-            name_prefix: "L",
-            constraint,
-            is_comptime: true,
-            induction: dir::GenericParameterInduction::Form,
-        };
-        self.commit_borrow_lifetime_elision(variable, induction)?;
+        let role = VariableRole::Lifetime { constraint };
+        self.commit_borrow_lifetime_elision(variable, role)?;
 
         Ok(lifetime)
     }
@@ -314,18 +309,18 @@ impl<'check, 'state> WalkState<'check, 'state> {
     fn commit_borrow_lifetime_elision(
         &mut self,
         variable: dir::TypeVariableId,
-        induction: GenericInductionParameter,
+        role: VariableRole,
     ) -> CompilerResult<()> {
         match self.borrow_lifetime_elision {
-            BorrowLifetimeElision::Induce => {
-                self.check.generics.insert_induction(variable, induction)?;
+            BorrowLifetimeElision::Generate => {
+                self.check.set_variable_role(variable, role)?;
             }
             BorrowLifetimeElision::TrackReturn => {
                 self.return_borrow_lifetimes.push(variable);
             }
             BorrowLifetimeElision::Frame => {
                 return Err(CompilerError::Internal {
-                    message: "frame lifetime elision cannot record an induced variable".into(),
+                    message: "frame lifetime elision cannot record a generated variable".into(),
                 });
             }
         }
@@ -369,7 +364,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         right: dir::GlobalTypeId,
     ) {
         self.check
-            .push_constraint(Constraint::check(relation, left, right, origin));
+            .push_constraint(Constraint::r#type(relation, left, right, origin));
     }
 
     /// Collect one value relation constraint.
@@ -381,8 +376,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) {
-        self.check
-            .push_constraint(Constraint::value(relation, source, target, origin, use_));
+        self.check.push_constraint(Constraint::value(
+            relation,
+            source,
+            target,
+            origin,
+            origin,
+            Some(use_),
+        ));
     }
 
     /// Collect one generic argument bound constraint.
@@ -393,14 +394,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
     ) {
-        self.check
-            .push_constraint(Constraint::Check(TypeConstraint {
-                relation: Relation::Satisfies,
-                left: argument,
-                right: bound,
-                origin,
-                subject: Some(ConstraintSubject::GenericArgument { source }),
-            }));
+        self.check.push_constraint(Constraint::Type(TypeConstraint {
+            relation: Relation::Satisfies,
+            left: argument,
+            right: bound,
+            origin,
+            subject: Some(ConstraintSubject::GenericArgument { source }),
+        }));
     }
 
     /// Queue one source node task with an explicit place use.

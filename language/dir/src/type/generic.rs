@@ -119,25 +119,8 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
 pub enum GenericParameterOrigin {
     /// The parameter was written in source, like the `T` in `<T extends Clone>`.
     Explicit,
-    /// The parameter was induced by check, like the hidden `T0` a
-    /// `writer: Writer` interface-typed parameter generalizes into.
-    Induced(GenericParameterInduction),
-}
-
-/// Reason one generic parameter was induced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum GenericParameterInduction {
-    /// A parameter type induced a hidden constrained type parameter:
-    /// `function write(writer: Writer)` generalizes to `<T0 extends Writer>`.
-    ParameterConstraint,
-    /// A storage type induced a hidden constrained type parameter:
-    /// `struct Logger { writer: Writer }` generalizes the stored field.
-    StorageConstraint,
-    /// A type form parameter escaped: the elided lifetime in
-    /// `&exclusive this` generalizes to a hidden `L0`.
-    Form,
-    /// A comptime runtime parameter was lifted, like `comptime size: usize`.
-    Comptime,
+    /// The parameter was induced from an elided lifetime, like `L0`.
+    InducedLifetime,
 }
 
 /// User-visible key of one generic parameter.
@@ -145,7 +128,7 @@ pub enum GenericParameterInduction {
 pub enum GenericParameterKey {
     /// Explicit source symbol, like the `T` in `<T>`.
     Symbol(GlobalSymbolId),
-    /// Generated checked parameter key, like the induced `T0` or `L0`.
+    /// Generated checked parameter key, like `L0` or `C0`.
     Generated(StringId),
 }
 
@@ -249,15 +232,8 @@ pub struct GenericParameterBinding {
 
 impl GenericParameterBinding {
     /// Return whether this hidden parameter should print in annotated generic headers.
-    pub fn is_induced_header_parameter(&self) -> bool {
-        matches!(
-            self.origin,
-            GenericParameterOrigin::Induced(
-                GenericParameterInduction::ParameterConstraint
-                    | GenericParameterInduction::StorageConstraint
-                    | GenericParameterInduction::Form
-            )
-        )
+    pub fn is_induced_lifetime_parameter(&self) -> bool {
+        matches!(self.origin, GenericParameterOrigin::InducedLifetime)
     }
 }
 
