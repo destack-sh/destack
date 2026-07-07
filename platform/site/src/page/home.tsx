@@ -18,11 +18,11 @@ export function HomePage() {
                         <div class="flex max-w-[22rem] min-w-0 flex-col md:max-w-none lg:w-[40%]">
                             <ul class="flex max-w-[22rem] list-disc flex-col gap-2 pl-5 text-sm leading-6 font-bold text-destack-text marker:text-destack-accent md:max-w-3xl md:text-base md:leading-7">
                                 <li>complete open source "TypeScript++" toolchain</li>
-                                <li>statically compilable TypeScript with Rust-y extensions</li>
-                                <li>target web & native with the same code (including TSX)</li>
+                                <li>sound TypeScript with Rust-y extensions</li>
+                                <li>target web & native with one codebase</li>
                                 <li>introspectable VM, modern AOT compiler</li>
                                 <li>integrated runtime with "free" builtin DST</li>
-                                <li>absurdly integrated stack for correct software systems</li>
+                                <li>absurdly integrated stack for correct systems</li>
                             </ul>
                         </div>
 
