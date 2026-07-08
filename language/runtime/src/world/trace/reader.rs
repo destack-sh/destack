@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
-use crate::world::trace::TraceEntry;
+use crate::world::trace::{TraceEntry, TraceTag};
 
 use super::chunk::TraceChunk;
 use super::store::{TraceSequence, TraceState};
@@ -100,6 +101,33 @@ impl TraceCursor {
 
     /// Read the next recorded trace entry if available.
     pub(crate) fn next_entry(&mut self) -> RuntimeResult<Option<TraceEntry>> {
+        let Some((sequence, trace)) = self.next_decoded(|chunk, offset| chunk.trace_at(offset))?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(TraceEntry { sequence, trace }))
+    }
+
+    /// Read the next typed trace payload if available.
+    pub(crate) fn next_payload<T>(
+        &mut self,
+        expected_tag: TraceTag,
+    ) -> RuntimeResult<Option<(TraceSequence, T)>>
+    where
+        T: DeserializeOwned,
+    {
+        self.next_decoded(|chunk, offset| chunk.payload_at(offset, expected_tag))
+    }
+
+    /// Read the next trace entry using one payload decoder.
+    fn next_decoded<T, Decode>(
+        &mut self,
+        decode: Decode,
+    ) -> RuntimeResult<Option<(TraceSequence, T)>>
+    where
+        Decode: Fn(&TraceChunk, usize) -> RuntimeResult<(T, usize)>,
+    {
         let state = self.state.lock();
 
         // scan chunks until one entry is available
@@ -119,10 +147,10 @@ impl TraceCursor {
             // decode the current entry
             if self.cursor.has_entry_in(chunk) {
                 self.cursor.validate_sequence(chunk)?;
-                let (trace, end_offset) = chunk.trace_at(self.cursor.read_offset)?;
+                let (payload, end_offset) = decode(chunk, self.cursor.read_offset)?;
                 let sequence = self.cursor.advance_entry(end_offset)?;
 
-                return Ok(Some(TraceEntry { sequence, trace }));
+                return Ok(Some((sequence, payload)));
             }
 
             // otherwise advance to the next chunk

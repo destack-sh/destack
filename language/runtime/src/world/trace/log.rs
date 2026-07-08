@@ -5,10 +5,11 @@ use crate::host::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPa
 use crate::runtime::time::Instant;
 use crate::world::trace::{
     BindingTrace, ClockTrace, EntropySubject, EntrypointCall, RandomTrace, Trace, TraceCursor,
-    TraceCursorImage, TraceEntry, TraceHeader, TraceSequence, TraceStore,
+    TraceCursorImage, TraceEntry, TraceHeader, TraceSequence, TraceStore, TraceTag,
 };
 use crate::world::{BranchId, Mutation};
 use destack_repository::ExecutionMode;
+use destack_serde::append_to_vec;
 use parking_lot::Mutex;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -29,7 +30,19 @@ impl Validator {
     /// Validate one trace entry against ordering invariants.
     fn validate(&mut self, entry: &TraceEntry) -> RuntimeResult<()> {
         match &entry.trace {
-            Trace::Clock(ClockTrace::Advance(deadline)) => {
+            Trace::Clock(trace) => self.validate_clock(trace)?,
+            Trace::Random(trace) => self.validate_random(trace)?,
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Validate one clock trace against ordering invariants.
+    fn validate_clock(&mut self, trace: &ClockTrace) -> RuntimeResult<()> {
+        match trace {
+            // advance virtual time monotonically
+            ClockTrace::Advance(deadline) => {
                 if let Some(last) = self.last_monotonic_nanos
                     && deadline.get() < last
                 {
@@ -39,7 +52,8 @@ impl Validator {
                 self.last_monotonic_nanos = Some(deadline.get());
             }
 
-            Trace::Clock(ClockTrace::ReadMonotonic { outcome, .. }) => {
+            // read monotonic time monotonically
+            ClockTrace::ReadMonotonic { outcome, .. } => {
                 if let Ok(time_nanos) = outcome {
                     if let Some(last) = self.last_monotonic_nanos
                         && *time_nanos < last
@@ -53,17 +67,23 @@ impl Validator {
                 }
             }
 
-            Trace::Random(RandomTrace::ReadBytes {
-                len,
-                outcome: Ok(bytes),
-                ..
-            }) => {
-                if bytes.len() != *len as usize {
-                    return Err(RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed());
-                }
-            }
+            // wall time has no monotonic invariant
+            ClockTrace::ReadWall { .. } => {}
+        }
 
-            _ => {}
+        Ok(())
+    }
+
+    /// Validate one random trace against payload invariants.
+    fn validate_random(&mut self, trace: &RandomTrace) -> RuntimeResult<()> {
+        if let RandomTrace::ReadBytes {
+            len,
+            outcome: Ok(bytes),
+            ..
+        } = trace
+            && bytes.len() != *len as usize
+        {
+            return Err(RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed());
         }
 
         Ok(())
@@ -185,7 +205,7 @@ impl TraceLog {
             let entry = replay_trace
                 .next_entry()?
                 .ok_or_else(|| RuntimeError::trace_exhausted(sequence.get()).boxed())?;
-            captured_trace.record(entry.trace)?;
+            captured_trace.record_trace(entry.trace)?;
         }
 
         Ok(captured_trace.capture_image())
@@ -230,27 +250,6 @@ impl TraceLog {
         RuntimeError::trace_mismatch(name.to_string()).boxed()
     }
 
-    /// Require replay execution mode for one entry name.
-    fn ensure_replay_mode(&self, name: &str) -> RuntimeResult<()> {
-        if self.mode() == ExecutionMode::Replay {
-            return Ok(());
-        }
-
-        Err(Self::trace_mismatch_error(name))
-    }
-
-    /// Read one required entry from replay for one entry name.
-    fn next_required_entry(&self, name: &str) -> RuntimeResult<TraceEntry> {
-        self.ensure_replay_mode(name)?;
-
-        let Some(entry) = self.next_entry()? else {
-            let sequence = self.store.next_sequence().get();
-            return Err(RuntimeError::trace_exhausted(sequence).boxed());
-        };
-
-        Ok(entry)
-    }
-
     /// Resolve one requested payload policy for a binding descriptor.
     pub fn payload_policy_for_requested(
         &self,
@@ -271,26 +270,55 @@ impl TraceLog {
         }
     }
 
-    /// Record one trace payload when recording is enabled.
-    pub(crate) fn record(&self, trace: Trace) -> RuntimeResult<()> {
+    /// Record one decoded trace payload when recording is enabled.
+    pub(crate) fn record_trace(&self, trace: Trace) -> RuntimeResult<()> {
+        match trace {
+            Trace::Mutation(mutation) => {
+                self.record_payload(TraceTag::Mutation, "world", &mutation)
+            }
+            Trace::Entrypoint(invocation) => {
+                self.record_payload(TraceTag::Entrypoint, "entrypoint", &invocation)
+            }
+            Trace::Binding(trace) => self.record_payload(TraceTag::Binding, "binding", &trace),
+            Trace::Clock(trace) => self.record_payload(TraceTag::Clock, "time", &trace),
+            Trace::Random(trace) => self.record_payload(TraceTag::Random, ENTROPY_CHANNEL, &trace),
+        }
+    }
+
+    /// Record one typed trace payload when recording is enabled.
+    pub(crate) fn record_payload<T>(
+        &self,
+        tag: TraceTag,
+        name: &str,
+        payload: &T,
+    ) -> RuntimeResult<()>
+    where
+        T: Serialize,
+    {
         // skip recording when disabled
         if self.mode() != ExecutionMode::Record {
             return Ok(());
         }
 
-        // record the payload in the store
-        self.store.record(trace)?;
+        // encode once into reusable scratch before appending
+        let mut scratch = self.scratch.lock();
+        scratch.clear();
+        append_to_vec(payload, &mut scratch)
+            .map_err(|_| RuntimeError::trace_encode_failed(name.to_string()).boxed())?;
+
+        // append the encoded payload
+        self.store.record_encoded(tag, &scratch)?;
         Ok(())
     }
 
     /// Record one authoritative trace mutation.
     pub(crate) fn record_mutation(&self, mutation: Mutation) -> RuntimeResult<()> {
-        self.record(Trace::Mutation(mutation))
+        self.record_payload(TraceTag::Mutation, "world", &mutation)
     }
 
     /// Record one authoritative entrypoint call.
     pub(crate) fn record_entrypoint(&self, invocation: EntrypointCall) -> RuntimeResult<()> {
-        self.record(Trace::Entrypoint(invocation))
+        self.record_payload(TraceTag::Entrypoint, "entrypoint", &invocation)
     }
 
     /// Return one trace mismatch error for the entropy channel.
@@ -304,14 +332,17 @@ impl TraceLog {
             return Err(self.entropy_mismatch_error());
         }
 
-        let Some(entry) = self.next_entry()? else {
+        let Some((_sequence, trace)) = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?
+            .lock()
+            .next_payload(TraceTag::Clock)?
+        else {
             let sequence = self.store.next_sequence().get();
             return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
-
-        let Trace::Clock(trace) = entry.trace else {
-            return Err(self.entropy_mismatch_error());
-        };
+        self.validator.lock().validate_clock(&trace)?;
 
         Ok(trace)
     }
@@ -325,14 +356,17 @@ impl TraceLog {
             return Err(self.entropy_mismatch_error());
         }
 
-        let Some(entry) = self.next_entry()? else {
+        let Some((_sequence, trace)) = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?
+            .lock()
+            .next_payload(TraceTag::Random)?
+        else {
             let sequence = self.store.next_sequence().get();
             return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
-
-        let Trace::Random(trace) = entry.trace else {
-            return Err(self.entropy_mismatch_error());
-        };
+        self.validator.lock().validate_random(&trace)?;
 
         if trace.subject() != expected_subject {
             return Err(self.entropy_mismatch_error());
@@ -385,21 +419,36 @@ impl TraceLog {
 
     /// Record a binding call payload for replay.
     pub fn record_binding_call(&self, spec: BindingDescriptor, bytes: &[u8]) -> RuntimeResult<()> {
-        self.record(Trace::Binding(BindingTrace {
+        self.record_binding_call_bytes(spec, bytes.to_vec())
+    }
+
+    /// Record an owned binding call payload for replay.
+    fn record_binding_call_bytes(
+        &self,
+        spec: BindingDescriptor,
+        bytes: Vec<u8>,
+    ) -> RuntimeResult<()> {
+        let trace = BindingTrace {
             binding_id: spec.id,
             codec: spec.codec,
-            bytes: bytes.to_vec(),
-        }))
+            bytes,
+        };
+
+        self.record_payload(TraceTag::Binding, spec.name, &trace)
     }
 
     /// Read the next binding call payload for replay.
     pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingTrace> {
-        // read the next entry from the log
-        let entry = self.next_required_entry(spec.name)?;
-
-        // validate the binding entry shape
-        let Trace::Binding(call) = entry.trace else {
-            return Err(Self::trace_mismatch_error(spec.name));
+        // read the next binding payload from the log
+        let Some((_sequence, call)) = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?
+            .lock()
+            .next_payload::<BindingTrace>(TraceTag::Binding)?
+        else {
+            let sequence = self.store.next_sequence().get();
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
 
         // validate binding id
@@ -417,13 +466,13 @@ impl TraceLog {
 
     /// Record one virtual-time advance outcome.
     pub fn record_time_advance(&self, deadline: Instant) -> RuntimeResult<()> {
-        self.record(Trace::Clock(ClockTrace::Advance(deadline)))
+        self.record_payload(TraceTag::Clock, "time", &ClockTrace::Advance(deadline))
     }
 
     /// Read the next virtual-time advance outcome from replay.
     pub fn next_time_advance(&self) -> RuntimeResult<Instant> {
-        let entry = self.next_required_entry("time")?;
-        let Trace::Clock(ClockTrace::Advance(deadline)) = entry.trace else {
+        let trace = self.next_clock_trace()?;
+        let ClockTrace::Advance(deadline) = trace else {
             return Err(Self::trace_mismatch_error("time"));
         };
         Ok(deadline)
@@ -451,12 +500,16 @@ impl TraceLog {
 
     /// Read the next mutation from replay.
     pub(crate) fn next_mutation(&self) -> RuntimeResult<Mutation> {
-        // read the next entry from the log
-        let entry = self.next_required_entry("world")?;
-
-        // validate the world input entry shape
-        let Trace::Mutation(mutation) = entry.trace else {
-            return Err(Self::trace_mismatch_error("world"));
+        // read the next mutation payload from the log
+        let Some((_sequence, mutation)) = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?
+            .lock()
+            .next_payload(TraceTag::Mutation)?
+        else {
+            let sequence = self.store.next_sequence().get();
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
 
         Ok(mutation)
@@ -483,9 +536,15 @@ impl TraceLog {
 
     /// Read the next entrypoint call from replay.
     pub(crate) fn next_entrypoint(&self) -> RuntimeResult<EntrypointCall> {
-        let entry = self.next_required_entry("entrypoint")?;
-        let Trace::Entrypoint(invocation) = entry.trace else {
-            return Err(Self::trace_mismatch_error("entrypoint"));
+        let Some((_sequence, invocation)) = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?
+            .lock()
+            .next_payload(TraceTag::Entrypoint)?
+        else {
+            let sequence = self.store.next_sequence().get();
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
         };
 
         Ok(invocation)
@@ -539,16 +598,18 @@ impl TraceLog {
             return Ok(());
         }
 
-        // encode the payload with the configured codec
-        let payload_size = destack_serde::encoded_len(payload)
-            .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
-        let mut scratch = self.scratch.lock();
-        scratch.resize(payload_size, 0);
-        let payload_bytes = destack_serde::to_slice(payload, &mut scratch)
-            .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
+        // encode the binding payload into reusable scratch
+        let payload_bytes = {
+            let mut scratch = self.scratch.lock();
+            scratch.clear();
+            append_to_vec(payload, &mut scratch)
+                .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
+
+            scratch.clone()
+        };
 
         // record the encoded payload
-        self.record_binding_call(spec, payload_bytes)
+        self.record_binding_call_bytes(spec, payload_bytes)
     }
 
     /// Decode the next typed binding payload for replay.

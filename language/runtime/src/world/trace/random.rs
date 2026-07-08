@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::random::RandomStreamId;
-use crate::world::trace::{EntropySubject, RandomTrace, Trace, TraceError, TraceLog};
+use crate::world::trace::{EntropySubject, RandomTrace, TraceError, TraceLog, TraceTag};
 use destack_repository::ExecutionMode;
 
 impl TraceLog {
@@ -46,12 +46,13 @@ impl TraceLog {
                 let outcome = result
                     .as_ref()
                     .map(|value| *value)
-                    .map_err(|error| TraceError::from(error.as_ref()));
-                self.record(Trace::Random(RandomTrace::ReadU64 {
+                    .map_err(|error| Box::new(TraceError::from(error.as_ref())));
+                let trace = RandomTrace::ReadU64 {
                     subject,
                     stream_id,
                     outcome,
-                }))?;
+                };
+                self.record_payload(TraceTag::Random, "runtime.random.read", &trace)?;
 
                 result
             }
@@ -92,11 +93,9 @@ impl TraceLog {
                 let outcome = result
                     .as_ref()
                     .map(|value| RandomStreamId::new(*value))
-                    .map_err(|error| TraceError::from(error.as_ref()));
-                self.record(Trace::Random(RandomTrace::StreamCreate {
-                    subject,
-                    outcome,
-                }))?;
+                    .map_err(|error| Box::new(TraceError::from(error.as_ref())));
+                let trace = RandomTrace::StreamCreate { subject, outcome };
+                self.record_payload(TraceTag::Random, "runtime.random.read", &trace)?;
 
                 result
             }
@@ -150,15 +149,16 @@ impl TraceLog {
             ExecutionMode::Record => {
                 let result = call();
                 let outcome = match result.as_ref() {
-                    Ok(()) => encode().map_err(|error| TraceError::from(error.as_ref())),
-                    Err(error) => Err(TraceError::from(error.as_ref())),
+                    Ok(()) => encode().map_err(|error| Box::new(TraceError::from(error.as_ref()))),
+                    Err(error) => Err(Box::new(TraceError::from(error.as_ref()))),
                 };
-                self.record(Trace::Random(RandomTrace::ReadBytes {
+                let trace = RandomTrace::ReadBytes {
                     subject,
                     stream_id,
                     len: requested_len,
                     outcome,
-                }))?;
+                };
+                self.record_payload(TraceTag::Random, "runtime.random.read", &trace)?;
 
                 result
             }

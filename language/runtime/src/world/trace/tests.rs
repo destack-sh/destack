@@ -11,8 +11,11 @@ use crate::runtime::WorkerId;
 use crate::runtime::machine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
+use crate::runtime::worker::RunnableScope;
 use crate::world::policy::{ActionSelector, Rule};
-use crate::world::trace::{EntropySubject, EntrypointCall, TraceError, TraceHeader, TraceLog};
+use crate::world::trace::{
+    EntropySubject, EntrypointCall, TraceError, TraceHeader, TraceLog, TraceResult,
+};
 use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, RuntimeId};
 use destack_repository::Environment;
 use destack_repository::config::ExecutionMode;
@@ -25,8 +28,7 @@ fn test_entropy_subject(binding_name: &'static str) -> EntropySubject {
         runtime_id: RuntimeId(1),
         worker_id: WorkerId(1),
         binding_id: BindingId::from_name(binding_name),
-        task_id: None,
-        microtask_id: None,
+        scope: RunnableScope::empty(),
     }
 }
 
@@ -34,7 +36,7 @@ fn test_entropy_subject(binding_name: &'static str) -> EntropySubject {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct BindingErrorReplayPayload {
     /// Replayed result payload.
-    result: Result<u64, TraceError>,
+    result: TraceResult<u64>,
 }
 
 /// Build one explicit trace header for replay tests.
@@ -104,7 +106,7 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
                 let payload = match result {
                     Ok(value) => BindingErrorReplayPayload { result: Ok(*value) },
                     Err(error) => BindingErrorReplayPayload {
-                        result: Err(TraceError::from(error.as_ref())),
+                        result: Err(Box::new(TraceError::from(error.as_ref()))),
                     },
                 };
                 Ok(Some(payload))

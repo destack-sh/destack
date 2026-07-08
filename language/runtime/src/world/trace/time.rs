@@ -1,5 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::world::trace::{ClockTrace, EntropySubject, Trace, TraceError, TraceLog};
+use crate::world::trace::{
+    ClockTrace, EntropySubject, TraceError, TraceLog, TraceResult, TraceTag,
+};
 use destack_repository::ExecutionMode;
 
 impl TraceLog {
@@ -61,8 +63,8 @@ impl TraceLog {
     where
         Hook: FnOnce(),
         Call: FnOnce() -> RuntimeResult<u64>,
-        Record: FnOnce(EntropySubject, Result<u64, TraceError>) -> ClockTrace,
-        Replay: FnOnce(ClockTrace) -> Option<Result<u64, TraceError>>,
+        Record: FnOnce(EntropySubject, TraceResult<u64>) -> ClockTrace,
+        Replay: FnOnce(ClockTrace) -> Option<TraceResult<u64>>,
     {
         let mode = self.mode();
 
@@ -88,9 +90,9 @@ impl TraceLog {
                 let outcome = result
                     .as_ref()
                     .map(|value| *value)
-                    .map_err(|error| TraceError::from(error.as_ref()));
+                    .map_err(|error| Box::new(TraceError::from(error.as_ref())));
                 let trace = record(subject, outcome);
-                self.record(Trace::Clock(trace))?;
+                self.record_payload(TraceTag::Clock, "runtime.time.read", &trace)?;
 
                 result
             }

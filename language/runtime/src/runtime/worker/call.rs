@@ -113,8 +113,7 @@ impl BindingCall<'_> {
             runtime_id: self.runtime_id,
             worker_id: self.worker_id,
             binding_id: spec.id,
-            task_id: self.task_id(),
-            microtask_id: self.microtask_id(),
+            scope: self.scope(),
         }
     }
 
