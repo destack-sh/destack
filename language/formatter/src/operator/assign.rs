@@ -215,7 +215,8 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
             Expression::Member { left, .. }
             | Expression::Index { left, .. }
             | Expression::Maybe { left, .. }
-            | Expression::Must { left, .. } => {
+            | Expression::Must { left, .. }
+            | Expression::Chain { expression: left } => {
                 is_chain = true;
                 transparent_inner_expression(f.context(), *left)
             }
@@ -1688,7 +1689,7 @@ fn assignment_rhs_innermost_expression<'a>(
             Expression::Yield {
                 value: Some(value), ..
             } => *value,
-            Expression::Must { left, .. } => *left,
+            Expression::Must { left, .. } | Expression::Chain { expression: left } => *left,
             _ => break,
         };
     }

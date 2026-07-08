@@ -50,6 +50,6 @@ export struct ValidationError {
 export extension of ValidationError implements Error {
     /// Format this validation error for users.
     display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(&readonly ("schema validation failed"))
+        MaybeOwned.borrowed(&readonly "schema validation failed")
     }
 }

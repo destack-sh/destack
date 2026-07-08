@@ -128,7 +128,8 @@ fn expression_prefix_start(
         | Expression::Instantiation { left, .. }
         | Expression::Call { left, .. }
         | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => {
+        | Expression::Must { left, .. }
+        | Expression::Chain { expression: left } => {
             let expression_span = context.span(*left);
             expression_prefix_start(context, *left, expression_span.start)
         }

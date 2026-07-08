@@ -143,7 +143,9 @@ fn expression_is_member_chain_callee(
 ) -> bool {
     match context.tree.get(expression_id) {
         Expression::Member { .. } | Expression::Index { .. } => true,
-        Expression::Maybe { left, .. } | Expression::Must { left, .. } => {
+        Expression::Maybe { left, .. }
+        | Expression::Must { left, .. }
+        | Expression::Chain { expression: left } => {
             expression_is_member_chain_callee(context, *left)
         }
         _ => false,

@@ -61,27 +61,31 @@ enum StaticMemberLayout {
     BreakAfterObject,
 }
 
-/// Return one receiver after absorbing an optional-chain marker into the member operator.
+/// Return one receiver after absorbing a try marker into the member operator.
 fn optional_member_receiver(
     context: &DestackFormatContext<'_>,
     receiver_id: LocalNodeId<Expression>,
-) -> (LocalNodeId<Expression>, Option<PostfixPosition>) {
-    let Expression::Maybe { left, position } = context.tree.get(receiver_id) else {
-        return (receiver_id, None);
+) -> (LocalNodeId<Expression>, bool) {
+    let Expression::Maybe { left, .. } = context.tree.get(receiver_id) else {
+        return (receiver_id, false);
     };
 
-    (*left, Some(*position))
+    (*left, true)
 }
 
 /// Write one static member operator.
 fn write_static_member_operator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    optional_position: Option<PostfixPosition>,
+    has_try_receiver: bool,
+    is_optional: bool,
 ) -> FormatResult<()> {
-    match optional_position {
-        None => write!(f, [token(".")])?,
-        Some(PostfixPosition::Direct) => write!(f, [token("?.")])?,
-        Some(PostfixPosition::Indirect) => write!(f, [token("."), token("?"), token(".")])?,
+    // the dot try spelling never reparses as a chain
+    if has_try_receiver {
+        write!(f, [token("."), token("?")])?;
+    }
+    match is_optional {
+        true => write!(f, [token("?.")])?,
+        false => write!(f, [token(".")])?,
     }
 
     Ok(())
@@ -235,11 +239,12 @@ fn static_member_layout(
 /// Write one static member continuation.
 fn write_static_member_continuation<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    optional_position: Option<PostfixPosition>,
+    has_try_receiver: bool,
+    is_optional: bool,
     name: Option<StringId>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
-    write_static_member_operator(f, optional_position)?;
+    write_static_member_operator(f, has_try_receiver, is_optional)?;
     write!(f, [name])?;
 
     if !generic_arguments.is_empty() {
@@ -255,9 +260,10 @@ fn write_static_member_expression<'ast>(
     node_id: LocalNodeId<Expression>,
     receiver_id: LocalNodeId<Expression>,
     name: Option<StringId>,
+    is_optional: bool,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<()> {
-    let (receiver_id, optional_position) = optional_member_receiver(f.context(), receiver_id);
+    let (receiver_id, has_try_receiver) = optional_member_receiver(f.context(), receiver_id);
     let property_start =
         member_property_start(f.context(), node_id).unwrap_or(f.context().span(node_id).start);
 
@@ -270,7 +276,13 @@ fn write_static_member_expression<'ast>(
                 write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
             }
 
-            write_static_member_continuation(f, optional_position, name, generic_arguments)
+            write_static_member_continuation(
+                f,
+                has_try_receiver,
+                is_optional,
+                name,
+                generic_arguments,
+            )
         }
         StaticMemberLayout::BreakAfterObject => {
             write_postfix_base_expression(f, receiver_id)?;
@@ -301,7 +313,8 @@ fn write_static_member_expression<'ast>(
                     }),
                     format_with(|f| write_static_member_continuation(
                         f,
-                        optional_position,
+                        has_try_receiver,
+                        is_optional,
                         name,
                         generic_arguments
                     ))
@@ -317,9 +330,11 @@ pub(crate) fn format_member_expression<'ast>(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     match f.context().tree.get(node_id) {
-        Expression::Member { left, name } => {
-            write_static_member_expression(f, node_id, *left, *name, &[])?
-        }
+        Expression::Member {
+            left,
+            name,
+            is_optional,
+        } => write_static_member_expression(f, node_id, *left, *name, *is_optional, &[])?,
         _ => {
             return Err(FormatError::SyntaxError {
                 message: "unexpected expression kind for member formatter",
@@ -474,6 +489,7 @@ pub(crate) fn format_index_expression<'ast>(
         position,
         left,
         index,
+        is_optional,
     } = f.context().tree.get(node_id)
     {
         write_postfix_base_expression(f, *left)?;
@@ -483,6 +499,9 @@ pub(crate) fn format_index_expression<'ast>(
             write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
         }
 
+        if *is_optional {
+            write!(f, [token("?")])?;
+        }
         if *position == PostfixPosition::Indirect {
             write!(f, [token(".")])?;
         }

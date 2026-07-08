@@ -124,6 +124,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Call { .. }
         | Expression::New { .. }
         | Expression::NewMaybe { .. }
+        | Expression::Chain { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
         | Expression::RangeExpression { .. }
@@ -323,6 +324,7 @@ fn format_expression_body_inner<'ast>(
         | Expression::Call { .. }
         | Expression::New { .. }
         | Expression::NewMaybe { .. }
+        | Expression::Chain { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
         | Expression::RangeExpression { .. }

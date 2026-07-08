@@ -135,7 +135,8 @@ pub(crate) fn chain_node_left_id(
         | Expression::Index { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => Some(*left),
+        | Expression::Must { left, .. }
+        | Expression::Chain { expression: left } => Some(*left),
         _ => None,
     }
 }
@@ -338,7 +339,11 @@ pub(crate) fn chain_member_from_node(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<ChainMember> {
     let chain_member = match tree.get(expression_id) {
-        Expression::Member { left, name, .. } => {
+        Expression::Member {
+            left,
+            name,
+            is_optional,
+        } => {
             let Some(name) = *name else {
                 return Err(FormatError::SyntaxError {
                     message: "missing member name in chain expression",
@@ -346,7 +351,7 @@ pub(crate) fn chain_member_from_node(
             };
             ChainMember::Member {
                 node_id: expression_id,
-                optional_position: left_postfix_position(tree, *left),
+                optional_position: access_marker_position(tree, *left, *is_optional),
                 segment: name,
                 generic_arguments: vec![],
                 emit_prefix_annotations: false,
@@ -358,11 +363,11 @@ pub(crate) fn chain_member_from_node(
             position,
             generic_arguments,
             arguments,
-            ..
+            is_optional,
         } => ChainMember::Call {
             node_id: expression_id,
             call_position: CallExpressionPosition::End,
-            optional_position: left_postfix_position(tree, *left),
+            optional_position: access_marker_position(tree, *left, *is_optional),
             position: *position,
             generic_arguments: generic_arguments.clone(),
             arguments: arguments.clone(),
@@ -377,10 +382,10 @@ pub(crate) fn chain_member_from_node(
             left,
             position,
             index,
-            ..
+            is_optional,
         } => ChainMember::Index {
             node_id: expression_id,
-            optional_position: left_postfix_position(tree, *left),
+            optional_position: access_marker_position(tree, *left, *is_optional),
             position: *position,
             index: *index,
         },
@@ -432,13 +437,21 @@ fn annotate_call_chain_positions(
     }
 }
 
-/// Return the optional postfix position stored on one left operand.
-fn left_postfix_position(tree: &Tree, left_id: LocalNodeId<Expression>) -> Option<PostfixPosition> {
-    let Expression::Maybe { position, .. } = tree.get(left_id) else {
+/// Return the optional postfix position stored on one left operand maybe wrapper.
+fn access_marker_position(
+    tree: &Tree,
+    left_id: LocalNodeId<Expression>,
+    is_optional: bool,
+) -> Option<PostfixPosition> {
+    // optional accesses print `?.`; try receivers keep the plain dot
+    if is_optional {
+        return Some(PostfixPosition::Direct);
+    }
+    let Expression::Maybe { .. } = tree.get(left_id) else {
         return None;
     };
 
-    Some(*position)
+    Some(PostfixPosition::Indirect)
 }
 
 /// Return whether the normalized chain contains at least one call-like operation.
