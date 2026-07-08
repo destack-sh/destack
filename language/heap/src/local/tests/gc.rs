@@ -1,9 +1,10 @@
 use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
-    AllocationShape, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
-    HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
-    local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
+    AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, GcAdvance, GcCollector, GcOptions, GcPhase,
+    Heap, HeapError, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
+    SharedHeapReference, SizeClassTable, TestLayout, local_trace_map, shared_trace_map,
+    test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
 
@@ -20,7 +21,7 @@ fn pacing_heap(layouts: &[(usize, TraceMap)]) -> (Heap, Vec<TestLayout>) {
             trigger_percent: 75,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(0),
-            minimum_work_bytes: crate::DEFAULT_GC_MINIMUM_WORK_BYTES,
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
         },
         ..HeapOptions::local()
     };
@@ -327,7 +328,10 @@ fn test_collect_minor_updates_gc_state() {
 
     // record the completed collection in heap state
     assert_eq!(heap.gc_state().completed_cycles, 1);
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(
+        heap.gc_state().last_collector,
+        Some(GcCollector::LocalMinor)
+    );
     assert_eq!(heap.gc_state().last_stats, Some(stats));
 }
 
@@ -693,7 +697,7 @@ fn test_step_collection_stays_idle_without_request() {
         .expect("collection step should succeed");
 
     // keep the collector idle
-    assert_eq!(progress, GcProgress::Idle);
+    assert_eq!(progress, GcAdvance::Idle);
 }
 
 /// Run one full bounded cycle after heap block pressure.
@@ -722,7 +726,10 @@ fn test_step_collection_runs_full_after_pressure() {
     // preserve the rooted block and record a full cycle
     assert_eq!(stats.freed_allocations, 0);
     assert!(heap.is_heap_live(root));
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Full));
+    assert_eq!(
+        heap.gc_state().last_collector,
+        Some(GcCollector::LocalMajor)
+    );
 }
 
 /// Run one minor cycle after young space occupancy crosses the configured trigger.
@@ -735,7 +742,7 @@ fn test_step_collection_runs_minor_after_young_occupancy() {
             trigger_percent: 75,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(1024 * 1024),
-            minimum_work_bytes: crate::DEFAULT_GC_MINIMUM_WORK_BYTES,
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
         },
         heap_young_size_bytes: 64,
         max_heap_young_allocation_size_bytes: 16,
@@ -763,7 +770,10 @@ fn test_step_collection_runs_minor_after_young_occupancy() {
 
     // record a minor cycle
     assert_eq!(progress.completed_stats().map(|_| ()), Some(()));
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(
+        heap.gc_state().last_collector,
+        Some(GcCollector::LocalMinor)
+    );
 }
 
 /// Bound minor collection work at one safepoint.
@@ -776,7 +786,7 @@ fn test_step_collection_bounds_minor_at_safepoint() {
             trigger_percent: 75,
             soft_limit_bytes: None,
             minimum_heap_bytes: Some(1024 * 1024),
-            minimum_work_bytes: crate::DEFAULT_GC_MINIMUM_WORK_BYTES,
+            minimum_work_bytes: DEFAULT_GC_MINIMUM_WORK_BYTES,
         },
         heap_young_size_bytes: 64,
         max_heap_young_allocation_size_bytes: 16,
@@ -798,8 +808,12 @@ fn test_step_collection_bounds_minor_at_safepoint() {
         .expect("small-budget collection should succeed");
 
     // leave the cycle active
-    assert_eq!(progress, GcProgress::Active);
-    assert_eq!(heap.gc_state().last_kind, None);
+    assert!(matches!(
+        progress,
+        GcAdvance::Stepped(step)
+            if step.collector == GcCollector::LocalMinor && step.phase == GcPhase::Mark
+    ));
+    assert_eq!(heap.gc_state().last_collector, None);
 }
 
 /// Spread one paced minor collection across bounded safepoints for a large nursery.
@@ -838,7 +852,10 @@ fn test_step_collection_spreads_minor_across_large_nursery() {
         .expect("first collection step should succeed");
 
     assert!(budget_bytes > 0);
-    assert_eq!(first_progress, GcProgress::Active);
+    assert!(matches!(
+        first_progress,
+        GcAdvance::Stepped(step) if step.collector == GcCollector::LocalMinor
+    ));
 
     // drive the paced cycle to completion across safepoints
     for _ in 0..10_000 {
@@ -856,7 +873,10 @@ fn test_step_collection_spreads_minor_across_large_nursery() {
     }
 
     // recycle the unreachable nursery
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(
+        heap.gc_state().last_collector,
+        Some(GcCollector::LocalMinor)
+    );
     assert_eq!(heap.storage.young.used_bytes(), 0);
 }
 
@@ -887,7 +907,10 @@ fn test_step_collection_honors_manual_full_request() {
 
     // keep the root and record a full collection
     assert_eq!(stats.freed_allocations, 0);
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Full));
+    assert_eq!(
+        heap.gc_state().last_collector,
+        Some(GcCollector::LocalMajor)
+    );
 }
 
 /// Continue one local major collection across bounded safepoint work.
@@ -913,7 +936,11 @@ fn test_step_major_gc_spreads_full_cycle() {
         .expect("major step should succeed");
 
     // first step should leave the major cycle active
-    assert_eq!(first, GcProgress::Active);
+    assert!(matches!(
+        first,
+        GcAdvance::Stepped(step)
+            if step.collector == GcCollector::LocalMajor && step.phase == GcPhase::Mark
+    ));
     assert!(heap.major_gc_active());
 
     // finish the bounded major cycle
@@ -996,7 +1023,11 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
         .expect("major step should succeed");
 
     // first step should not scan the entire large block
-    assert_eq!(first, GcProgress::Active);
+    assert!(matches!(
+        first,
+        GcAdvance::Stepped(step)
+            if step.collector == GcCollector::LocalMajor && step.phase == GcPhase::Mark
+    ));
     assert!(heap.major_gc_active());
 
     // finish the bounded scan and sweep
@@ -1212,7 +1243,10 @@ fn test_step_collection_recycles_filled_default_nursery() {
     }
 
     // recycle the unreachable nursery through one paced minor cycle
-    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(
+        heap.gc_state().last_collector,
+        Some(GcCollector::LocalMinor)
+    );
     assert_eq!(heap.storage.young.used_bytes(), 0);
 }
 

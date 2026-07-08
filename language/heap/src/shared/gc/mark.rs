@@ -1,9 +1,10 @@
 use crate::TraceView;
 
-use crate::shared::gc::{GcPhase, MarkWork, SharedMarkWorker};
+use crate::shared::gc::{MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage};
 use crate::{
-    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, visit_references,
+    GcPhase, HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
+    visit_references,
 };
 
 impl HeapStorage {

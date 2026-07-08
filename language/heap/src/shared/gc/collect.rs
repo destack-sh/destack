@@ -2,11 +2,11 @@ use std::sync::atomic::Ordering;
 
 use crate::TraceView;
 
-use crate::shared::gc::{GcPhase, MarkWork, SharedMarkWorker};
+use crate::shared::gc::{MarkWork, SharedMarkWorker};
 use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
 use crate::{
-    GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
-    ReferenceRange, SharedHeapReference, SizeClassTableError, visit_references,
+    GcPhase, GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult,
+    ReferenceInput, ReferenceRange, SharedHeapReference, SizeClassTableError, visit_references,
     visit_trace_references,
 };
 
@@ -70,7 +70,7 @@ impl HeapStorage {
         roots: &[SharedHeapReference],
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> HeapResult<()> {
+    ) -> HeapResult<usize> {
         // phase
         if self.gc.phase() != GcPhase::Mark {
             return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotMarking));
@@ -128,7 +128,7 @@ impl HeapStorage {
             marked_bytes += traced.byte_len;
         }
 
-        Ok(())
+        Ok(marked_bytes)
     }
 
     /// Return the mark queue batch capacity for this space.
