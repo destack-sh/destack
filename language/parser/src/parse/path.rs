@@ -98,6 +98,7 @@ impl Parser {
                 Expression::Member {
                     left: node,
                     name: Some(*name),
+                    is_optional: false,
                 },
                 combined,
             );

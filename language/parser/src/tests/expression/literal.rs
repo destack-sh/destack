@@ -361,7 +361,6 @@ fn test_parse_object_literal_in_parenthesis() {
     });
 }
 
-/// Parse a mixed index postfix expression (should disambiguate ternary and index/call).
 #[test]
 fn test_parse_mixed_index_call_postfix() {
     let test = TestParser::new("x?.[f]?.y<T>?.().?");
@@ -369,31 +368,32 @@ fn test_parse_mixed_index_call_postfix() {
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // x?.[f]?.y<T>?.().?
-    // .?
-    assert_node!(parser.tree, expr_id, Expression::Maybe { left, position: PostfixPosition::Indirect } => {
-        // ()
-        assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
-            assert_eq!(arguments.len(), 0);
-            // ?
-            assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+    // the whole postfix spine carries one optional access (`?.`), so it is
+    // wrapped once in Chain; the trailing `.?` is the indirect try operator,
+    // never part of the chain itself
+    assert_node!(parser.tree, expr_id, Expression::Chain { expression } => {
+        // .?
+        assert_node!(parser.tree, *expression, Expression::Maybe { left, position: PostfixPosition::Indirect } => {
+            // ?.()
+            assert_node!(parser.tree, *left, Expression::Call { left, arguments, position: PostfixPosition::Indirect, is_optional, .. } => {
+                assert!(*is_optional);
+                assert_eq!(arguments.len(), 0);
                 // .y<T>
                 assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
                     assert_eq!(generic_arguments.len(), 1);
-                    assert_node!(parser.tree, *left, Expression::Member { left, name } => {
+                    // ?.y
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, is_optional } => {
                         assert_string!(parser, *name, "y");
-                        assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
-                            // .[f]
-                            assert_node!(parser.tree, *left, Expression::Index { left, index, position: PostfixPosition::Indirect } => {
-                                // f
-                                assert_node!(parser.tree, index.unwrap(), Expression::Identifier { name } => {
-                                    assert_string!(parser, *name, "f");
-                                });
-                                // ?
-                                assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
-                                    // x
-                                    assert_expression_path!(parser, parser.tree.get(*left), "x");
-                                });
+                        assert!(*is_optional);
+                        // ?.[f]
+                        assert_node!(parser.tree, *left, Expression::Index { left, index, position: PostfixPosition::Indirect, is_optional } => {
+                            assert!(*is_optional);
+                            // f
+                            assert_node!(parser.tree, index.unwrap(), Expression::Identifier { name } => {
+                                assert_string!(parser, *name, "f");
                             });
+                            // x
+                            assert_expression_path!(parser, parser.tree.get(*left), "x");
                         });
                     });
                 });

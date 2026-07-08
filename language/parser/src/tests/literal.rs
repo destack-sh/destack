@@ -1901,9 +1901,10 @@ fn test_parse_template_literal_optional_chain() {
     assert_string!(parser, strings[0], "value ");
     assert_string!(parser, strings[1], "");
     assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-        assert_node!(parser.tree, *value, Expression::Member { left, name } => {
-            assert_string!(parser, *name, "activeColor");
-            assert_node!(parser.tree, *left, Expression::Maybe { left, .. } => {
+        assert_node!(parser.tree, *value, Expression::Chain { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Member { left, name, is_optional } => {
+                assert_string!(parser, *name, "activeColor");
+                assert!(*is_optional);
                 assert_expression_path!(parser, parser.tree.get(*left), "theme");
             });
         });

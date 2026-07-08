@@ -33,16 +33,17 @@ fn test_parse_optional_chain_after_comment_newlines() {
 
     let statement_id = expressions[0];
 
-    assert_node!(parser.tree, statement_id, Expression::Call { left, arguments, .. } => {
-        assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "noop");
-        });
+    assert_node!(parser.tree, statement_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "noop");
+            });
 
-        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "catch");
-            assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position: PostfixPosition::Direct } => {
-                assert_node!(parser.tree, *maybe_left, Expression::Call { .. });
+            assert_node!(parser.tree, *left, Expression::Member { left, name, is_optional, .. } => {
+                assert_string!(parser, *name, "catch");
+                assert!(*is_optional);
+                assert_node!(parser.tree, *left, Expression::Call { .. });
             });
         });
     });
@@ -113,7 +114,7 @@ fn test_parse_direct_maybe_before_satisfies() {
     });
 }
 
-/// Parse direct `?` before member continuation.
+/// Parse an unspaced `?.` after a call as an optional chain member.
 #[test]
 fn test_parse_direct_maybe_before_member() {
     let test = TestParser::new("encode()?.field");
@@ -121,9 +122,15 @@ fn test_parse_direct_maybe_before_member() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     TestParser::assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
-        assert_string!(parser, *name, "field");
-        assert_direct_maybe_call(&parser, *left, "encode");
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Member { left, name, is_optional, .. } => {
+            assert_string!(parser, *name, "field");
+            assert!(*is_optional);
+            assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+                assert!(arguments.is_empty());
+                assert_expression_path!(parser, parser.tree.get(*left), "encode");
+            });
+        });
     });
 }
 
@@ -135,7 +142,7 @@ fn test_parse_direct_maybe_before_index() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     TestParser::assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::Index { left, index, position } => {
+    assert_node!(parser.tree, expression_id, Expression::Index { left, index, position, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_direct_maybe_call(&parser, *left, "encode");
         assert_node!(parser.tree, index.expect("expected index"), Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
@@ -246,13 +253,12 @@ fn test_parse_optional_call_after_question_dot_line_comment_newline() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, position, .. } => {
-        assert_eq!(*position, PostfixPosition::Indirect);
-        assert!(arguments.is_empty());
-
-        assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position } => {
-            assert_eq!(*position, PostfixPosition::Direct);
-            assert_expression_path!(parser, parser.tree.get(*maybe_left), "call");
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Call { left, arguments, position, is_optional, .. } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert!(*is_optional);
+            assert!(arguments.is_empty());
+            assert_expression_path!(parser, parser.tree.get(*left), "call");
         });
     });
 }
@@ -268,16 +274,17 @@ fn test_parse_optional_chain_member_after_question_dot_newline() {
     TestParser::assert_no_errors(&parser);
 
     // items?.map(noop)
-    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
-        assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "noop");
-        });
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "noop");
+            });
 
-        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "map");
-            assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position: PostfixPosition::Direct } => {
-                assert_expression_path!(parser, parser.tree.get(*maybe_left), "items");
+            assert_node!(parser.tree, *left, Expression::Member { left, name, is_optional, .. } => {
+                assert_string!(parser, *name, "map");
+                assert!(*is_optional);
+                assert_expression_path!(parser, parser.tree.get(*left), "items");
             });
         });
     });
@@ -293,24 +300,26 @@ fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
 
     TestParser::assert_no_errors(&parser);
 
-    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
-        assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "second");
-        });
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "second");
+            });
 
-        assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "concat");
-            assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
-                assert_eq!(arguments.len(), 1);
-                assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "first");
-                });
+            assert_node!(parser.tree, *left, Expression::Member { left, name, is_optional, .. } => {
+                assert_string!(parser, *name, "concat");
+                assert!(!*is_optional);
+                assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "first");
+                    });
 
-                assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-                    assert_string!(parser, *name, "concat");
-                    assert_node!(parser.tree, *left, Expression::Maybe { left: maybe_left, position: PostfixPosition::Direct } => {
-                        assert_expression_path!(parser, parser.tree.get(*maybe_left), "permissions");
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, is_optional, .. } => {
+                        assert_string!(parser, *name, "concat");
+                        assert!(*is_optional);
+                        assert_expression_path!(parser, parser.tree.get(*left), "permissions");
                     });
                 });
             });

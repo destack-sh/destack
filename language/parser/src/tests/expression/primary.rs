@@ -20,7 +20,7 @@ fn test_parse_import_meta_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, name.expect("expected member name"), "env");
         assert_node!(parser.tree, *left, Expression::ImportMeta);
     });
@@ -93,7 +93,7 @@ fn test_parse_contextual_type_literal_name_member_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "object");
         assert_string!(parser, name.expect("expected member name"), "property");
     });

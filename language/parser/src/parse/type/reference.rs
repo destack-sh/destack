@@ -347,7 +347,11 @@ impl Parser {
             self.bump();
             let name = self.eat_typeof_member_name()?;
             value = self.insert_node(
-                Expression::Member { left: value, name },
+                Expression::Member {
+                    left: value,
+                    name,
+                    is_optional: false,
+                },
                 self.range_since(&start),
             );
         }

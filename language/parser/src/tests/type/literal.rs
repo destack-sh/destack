@@ -285,7 +285,7 @@ fn test_parse_type_mapped_expression() {
                     assert_expression_path!(parser, parser.tree.get(spans[0]), "K");
                 });
                 let value = value.expect("expected value type");
-                assert_node!(parser.tree, value, TypeExpression::Index { left, index } => {
+                assert_node!(parser.tree, value, TypeExpression::Index { left, index, .. } => {
                     assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
                         assert_path!(parser, *path, "T");
@@ -753,7 +753,7 @@ fn test_parse_typeof_query_with_member_instantiation() {
                     assert_eq!(generic_arguments.len(), 1);
                     assert_type_argument_reference(&parser, generic_arguments[0], "U");
 
-                    assert_node!(parser.tree, *left, Expression::Member { left, name } => {
+                    assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*left), "namespace");
                         assert_string!(parser, name.expect("expected member name"), "Factory");
                     });
