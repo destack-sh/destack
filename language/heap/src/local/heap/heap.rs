@@ -6,7 +6,7 @@ use destack_mir::TraceMap;
 use crate::allocator::Allocator;
 use crate::local::storage::HeapStorage;
 use crate::{
-    Allocation, AllocationPlan, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
+    Allocation, AllocationPlan, GcAdvance, GcPacer, GcPressure, GcState, GcStats, HeapError,
     HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot, SharedHeapReference,
     SmallAllocationPlan,
 };
@@ -221,12 +221,12 @@ impl Heap {
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> Result<GcProgress, E>
+    ) -> Result<GcAdvance, E>
     where
         E: From<HeapError>,
     {
         if budget_bytes == 0 {
-            return Ok(GcProgress::Idle);
+            return Ok(GcAdvance::Idle);
         }
 
         self.refresh_gc_request();
@@ -257,7 +257,7 @@ impl Heap {
 
         // check if there is an active GC request
         let Some(gc_request) = self.gc_request.take() else {
-            return Ok(GcProgress::Idle);
+            return Ok(GcAdvance::Idle);
         };
 
         self.ensure_pacer_cycle();
@@ -267,7 +267,8 @@ impl Heap {
             self.storage.start_major_gc(roots)?;
             let progress = self
                 .storage
-                .step_major_gc(roots, budget_bytes, trace_view)?;
+                .step_major_gc(roots, budget_bytes, trace_view)?
+                .with_start();
 
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);
@@ -282,7 +283,8 @@ impl Heap {
             self.storage.start_young_gc()?;
             let progress = self
                 .storage
-                .step_young_gc(roots, budget_bytes, trace_view)?;
+                .step_young_gc(roots, budget_bytes, trace_view)?
+                .with_start();
 
             if let Some(stats) = progress.completed_stats() {
                 self.on_after_gc_cycle(stats);

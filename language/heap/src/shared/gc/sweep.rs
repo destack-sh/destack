@@ -1,7 +1,8 @@
-use crate::shared::gc::{GcPhase, SweepCursor};
+use crate::shared::gc::SweepCursor;
 use crate::shared::storage::HeapStorage;
 use crate::{
-    GcKind, GcProgress, GcStats, HeapError, HeapGcStateError, HeapResult, SharedHeapReference,
+    GcAdvance, GcCollector, GcPhase, GcStats, HeapError, HeapGcStateError, HeapResult,
+    SharedHeapReference,
 };
 
 /// The budget charged for one metadata-only sweep step.
@@ -38,13 +39,13 @@ impl HeapStorage {
     }
 
     /// Perform bounded shared sweep work.
-    pub(crate) fn step_sweep(&self, budget_bytes: usize) -> HeapResult<GcProgress> {
+    pub(crate) fn step_sweep(&self, budget_bytes: usize) -> HeapResult<GcAdvance> {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
         match self.gc.phase() {
             GcPhase::Sweep => {}
-            GcPhase::Idle => return Ok(GcProgress::Idle),
-            GcPhase::Mark => {
+            GcPhase::Idle => return Ok(GcAdvance::Idle),
+            GcPhase::Mark | GcPhase::PublishRoots | GcPhase::ScanEdges | GcPhase::Promote => {
                 return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotSweeping));
             }
         }
@@ -81,10 +82,23 @@ impl HeapStorage {
 
         // end of sweep
         if is_complete {
-            return self.finish_collection().map(GcProgress::Complete);
+            return self.finish_collection().map(|stats| {
+                GcAdvance::completed(
+                    GcCollector::Shared,
+                    GcPhase::Sweep,
+                    budget_bytes,
+                    swept_bytes,
+                    stats,
+                )
+            });
         }
 
-        Ok(GcProgress::Active)
+        Ok(GcAdvance::stepped(
+            GcCollector::Shared,
+            GcPhase::Sweep,
+            budget_bytes,
+            swept_bytes,
+        ))
     }
 
     /// Select the next unmarked reference found by shared sweep.
@@ -193,7 +207,7 @@ impl HeapStorage {
         self.gc.trace_queue.clear();
 
         // cycle summary
-        store.gc.record_cycle(GcKind::Full, stats);
+        store.gc.record_cycle(GcCollector::Shared, stats);
 
         // idle publication
         self.gc.set_phase(GcPhase::Idle);

@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 
 use super::limits::SharedHeapLimits;
 use super::usage::SharedHeapUsage;
-use crate::shared::gc::{GcPhase, Pacer, SharedMarkWorker};
+use crate::shared::gc::{Pacer, SharedMarkWorker};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
-    AccountingRegion, Allocation, AllocationPlan, Allocator, GcPacer, GcPressure, GcProgress,
-    GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload, SharedHeapOptions,
-    SharedHeapReference, SmallAllocationClass, apply_byte_delta,
+    AccountingRegion, Allocation, AllocationPlan, Allocator, GcAdvance, GcCollector, GcPacer,
+    GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload,
+    SharedHeapOptions, SharedHeapReference, SmallAllocationClass, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -458,7 +458,7 @@ impl SharedHeap {
         roots_complete: bool,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> HeapResult<GcProgress> {
+    ) -> HeapResult<GcAdvance> {
         self.step_collection_for_worker(None, roots, roots_complete, budget_bytes, trace_view)
     }
 
@@ -475,20 +475,21 @@ impl SharedHeap {
         roots_complete: bool,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> HeapResult<GcProgress> {
+    ) -> HeapResult<GcAdvance> {
         // empty budget
         if budget_bytes == 0 {
-            return Ok(GcProgress::Idle);
+            return Ok(GcAdvance::Idle);
         }
 
         // idle
         if self.gc_phase() == GcPhase::Idle {
-            return Ok(GcProgress::Idle);
+            return Ok(GcAdvance::Idle);
         }
 
         // concurrent mark
         if self.gc_phase() == GcPhase::Mark {
-            self.storage
+            let work_bytes = self
+                .storage
                 .step_mark(worker, roots, budget_bytes, trace_view)?;
 
             // termination check
@@ -496,7 +497,12 @@ impl SharedHeap {
                 self.storage.start_sweep_when_drained()?;
             }
 
-            return Ok(GcProgress::Active);
+            return Ok(GcAdvance::stepped(
+                GcCollector::Shared,
+                GcPhase::Mark,
+                budget_bytes,
+                work_bytes,
+            ));
         }
 
         // incremental sweep

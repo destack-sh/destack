@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::{
-    AllocationCache, AllocationShape, Allocator, GcKind, GcOptions, GcPhase, GcProgress,
+    AllocationCache, AllocationShape, Allocator, GcAdvance, GcCollector, GcOptions, GcPhase,
     HeapAllocationError, HeapError, Payload, SharedHeap, SharedHeapLimits, SharedHeapOptions,
     SharedHeapReference, SharedMarkWorker, SizeClassTable, TestLayout, shared_trace_map,
     test_layout, test_layouts,
@@ -252,7 +252,7 @@ fn test_collect_shared_frees_unreachable_entries() {
 
     // record the completed shared collection
     assert_eq!(shared.gc_state().completed_cycles, 1);
-    assert_eq!(shared.gc_state().last_kind, Some(GcKind::Full));
+    assert_eq!(shared.gc_state().last_collector, Some(GcCollector::Shared));
     assert_eq!(shared.gc_state().last_stats, Some(stats));
 }
 
@@ -615,7 +615,10 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
         .expect("shared image should restore");
 
     // restored state should preserve the last completed cycle
-    assert_eq!(restored.gc_state().last_kind, Some(GcKind::Full));
+    assert_eq!(
+        restored.gc_state().last_collector,
+        Some(GcCollector::Shared)
+    );
     assert_eq!(restored.gc_state().last_stats, Some(stats));
 }
 
@@ -656,7 +659,10 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
         .expect("shared snapshot should restore");
 
     // restored state should preserve the last completed cycle
-    assert_eq!(restored.gc_state().last_kind, Some(GcKind::Full));
+    assert_eq!(
+        restored.gc_state().last_collector,
+        Some(GcCollector::Shared)
+    );
     assert_eq!(restored.gc_state().last_stats, Some(stats));
 }
 
@@ -958,7 +964,7 @@ fn test_step_collection_stays_idle_without_request() {
         .expect("shared collection step should succeed");
 
     // keep the collector idle
-    assert_eq!(progress, GcProgress::Idle);
+    assert_eq!(progress, GcAdvance::Idle);
     assert_eq!(shared.gc_phase(), GcPhase::Idle);
 }
 

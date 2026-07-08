@@ -103,20 +103,20 @@ impl HeapStorage {
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         trace_view: TraceView<'_>,
-    ) -> Result<(), E>
+    ) -> Result<usize, E>
     where
         E: From<HeapError>,
     {
         let mut forwarding = ForwardingTable::default();
 
         // copy eligible survivors before publishing forwarded references
-        self.promote_young_range_survivors(&mut forwarding, trace_view)?;
-        self.promote_young_span_survivors(&mut forwarding, trace_view)?;
+        let range_bytes = self.promote_young_range_survivors(&mut forwarding, trace_view)?;
+        let span_bytes = self.promote_young_span_survivors(&mut forwarding, trace_view)?;
 
         // rewrite every visible local reference before the mutator resumes
         self.rewrite_promoted_references(roots, &forwarding, trace_view)?;
 
-        Ok(())
+        Ok(range_bytes + span_bytes)
     }
 
     /// Promote reachable young range blocks.
@@ -124,7 +124,8 @@ impl HeapStorage {
         &mut self,
         forwarding: &mut ForwardingTable,
         trace_view: TraceView<'_>,
-    ) -> HeapResult<()> {
+    ) -> HeapResult<usize> {
+        let mut promoted_bytes = 0usize;
         let mut start = 0usize;
 
         while let Some(range_index) = self.young.live.first_set_from(start) {
@@ -162,9 +163,10 @@ impl HeapStorage {
             )?;
             forwarding.push_range(range_index, target);
             self.retire_promoted_young_range(range_index, source, range.byte_len);
+            promoted_bytes += range.byte_len;
         }
 
-        Ok(())
+        Ok(promoted_bytes)
     }
 
     /// Promote reachable fixed-size young span slots.
@@ -172,9 +174,10 @@ impl HeapStorage {
         &mut self,
         forwarding: &mut ForwardingTable,
         trace_view: TraceView<'_>,
-    ) -> HeapResult<()> {
+    ) -> HeapResult<usize> {
         self.flush_young_cursor();
 
+        let mut promoted_bytes = 0usize;
         for span_index in 0..self.young.spans.len() {
             let Some(span) = self.young.span(span_index).cloned() else {
                 return Err(HeapError::internal("missing span"));
@@ -219,10 +222,11 @@ impl HeapStorage {
                 )?;
                 forwarding.push_slot(slot, target);
                 self.retire_promoted_young_slot(slot, source, span.class.size_class())?;
+                promoted_bytes += span.class.size_class();
             }
         }
 
-        Ok(())
+        Ok(promoted_bytes)
     }
 
     /// Publish remembered metadata for one promoted mature payload.

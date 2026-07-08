@@ -4,10 +4,10 @@ use destack_mir::TraceMap;
 use crate::local::gc::{
     GC_METADATA_STEP_BYTES, MajorSweepCursor, MarkWork, Phase, charge_bitmap_skip,
 };
-use crate::local::storage::{GcKind, GcStats, HeapExtent, HeapPlace, HeapStorage};
+use crate::local::storage::{GcStats, HeapExtent, HeapPlace, HeapStorage};
 use crate::{
-    GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
-    ReferenceInput, ReferenceRange, RootSlot, scan_references,
+    GcAdvance, GcCollector, GcPhase, HeapError, HeapGcStateError, HeapOperationSource,
+    HeapReference, HeapResult, ReferenceInput, ReferenceRange, RootSlot, scan_references,
 };
 
 impl HeapStorage {
@@ -147,9 +147,15 @@ impl HeapStorage {
         // drain the cycle in bounded steps
         loop {
             match self.step_major_gc(roots, budget_bytes, trace_view)? {
-                GcProgress::Complete(stats) => return Ok(stats),
-                GcProgress::Active => continue,
-                GcProgress::Idle => {
+                GcAdvance::Completed(cycle) => return Ok(cycle.stats),
+                GcAdvance::Stepped(_) => continue,
+                GcAdvance::Started(_) => {
+                    return Err(HeapError::Internal {
+                        context: "local full collection returned a start event during drain",
+                    }
+                    .into());
+                }
+                GcAdvance::Idle => {
                     return Err(HeapError::Internal {
                         context: "local full collection made no progress",
                     }
@@ -196,18 +202,18 @@ impl HeapStorage {
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> Result<GcProgress, E>
+    ) -> Result<GcAdvance, E>
     where
         E: From<HeapError>,
     {
         // no active work
         if budget_bytes == 0 || self.collector.major_phase == Phase::Idle {
-            return Ok(GcProgress::Idle);
+            return Ok(GcAdvance::Idle);
         }
 
         // phase work
         match self.collector.major_phase {
-            Phase::Idle => Ok(GcProgress::Idle),
+            Phase::Idle => Ok(GcAdvance::Idle),
             Phase::Mark => {
                 // roots may have changed between incremental steps
                 self.seed_major_roots(roots)?;
@@ -222,24 +228,43 @@ impl HeapStorage {
                     if marked_bytes < budget_bytes {
                         let remaining_bytes = budget_bytes - marked_bytes;
 
-                        return Ok(self.step_unreachable_reference_sweep(remaining_bytes)?);
+                        return Ok(self
+                            .step_unreachable_reference_sweep(remaining_bytes)?
+                            .with_work_added(marked_bytes));
                     }
                 }
 
-                Ok(GcProgress::Active)
+                Ok(GcAdvance::stepped(
+                    GcCollector::LocalMajor,
+                    GcPhase::Mark,
+                    budget_bytes,
+                    marked_bytes,
+                ))
             }
             Phase::Sweep => {
                 let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_view)?;
                 if !self.collector.major_queue.is_empty() {
-                    return Ok(GcProgress::Active);
+                    return Ok(GcAdvance::stepped(
+                        GcCollector::LocalMajor,
+                        GcPhase::Mark,
+                        budget_bytes,
+                        marked_bytes,
+                    ));
                 }
                 if marked_bytes >= budget_bytes {
-                    return Ok(GcProgress::Active);
+                    return Ok(GcAdvance::stepped(
+                        GcCollector::LocalMajor,
+                        GcPhase::Mark,
+                        budget_bytes,
+                        marked_bytes,
+                    ));
                 }
 
                 let remaining_bytes = budget_bytes - marked_bytes;
 
-                Ok(self.step_unreachable_reference_sweep(remaining_bytes)?)
+                Ok(self
+                    .step_unreachable_reference_sweep(remaining_bytes)?
+                    .with_work_added(marked_bytes))
             }
         }
     }
@@ -279,7 +304,7 @@ impl HeapStorage {
         );
 
         // publish cycle statistics and reset collector state
-        self.gc.record_cycle(GcKind::Full, stats);
+        self.gc.record_cycle(GcCollector::LocalMajor, stats);
         self.collector.major_phase = Phase::Idle;
         self.collector.major_queue.clear();
         self.collector.major_sweep = MajorSweepCursor::default();
@@ -303,7 +328,7 @@ impl HeapStorage {
     }
 
     /// Sweep unreachable references within one byte budget.
-    fn step_unreachable_reference_sweep(&mut self, budget_bytes: usize) -> HeapResult<GcProgress> {
+    fn step_unreachable_reference_sweep(&mut self, budget_bytes: usize) -> HeapResult<GcAdvance> {
         let mut swept_bytes = 0usize;
 
         // sweep young variable ranges first
@@ -320,10 +345,23 @@ impl HeapStorage {
 
         // finish when all sweep cursors drain
         if self.major_sweep_drained() {
-            return self.finish_major_gc().map(GcProgress::Complete);
+            return self.finish_major_gc().map(|stats| {
+                GcAdvance::completed(
+                    GcCollector::LocalMajor,
+                    GcPhase::Sweep,
+                    budget_bytes,
+                    swept_bytes,
+                    stats,
+                )
+            });
         }
 
-        Ok(GcProgress::Active)
+        Ok(GcAdvance::stepped(
+            GcCollector::LocalMajor,
+            GcPhase::Sweep,
+            budget_bytes,
+            swept_bytes,
+        ))
     }
 
     /// Sweep unreachable young range blocks within one byte budget.

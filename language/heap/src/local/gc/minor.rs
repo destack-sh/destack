@@ -1,11 +1,11 @@
 use crate::TraceView;
 
 use crate::local::gc::{DirtyCard, DirtyExtent, GC_METADATA_STEP_BYTES, Phase, charge_bitmap_skip};
-use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId};
+use crate::local::storage::{GcStats, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
-    AllocationUsage, GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference,
-    HeapResult, ReferenceInput, ReferenceRange, RootSlot, TraceQueue, scan_references,
-    visit_trace_references,
+    AllocationUsage, GcAdvance, GcCollector, GcPhase, HeapError, HeapGcStateError,
+    HeapOperationSource, HeapReference, HeapResult, ReferenceInput, ReferenceRange, RootSlot,
+    TraceQueue, scan_references, visit_trace_references,
 };
 use destack_mir::TraceId;
 
@@ -37,9 +37,15 @@ impl HeapStorage {
         // drain the cycle in bounded steps
         loop {
             match self.step_young_gc(roots, budget_bytes, trace_view)? {
-                GcProgress::Complete(stats) => return Ok(stats),
-                GcProgress::Active => continue,
-                GcProgress::Idle => {
+                GcAdvance::Completed(cycle) => return Ok(cycle.stats),
+                GcAdvance::Stepped(_) => continue,
+                GcAdvance::Started(_) => {
+                    return Err(HeapError::Internal {
+                        context: "local young collection returned a start event during drain",
+                    }
+                    .into());
+                }
+                GcAdvance::Idle => {
                     return Err(HeapError::Internal {
                         context: "local young collection made no progress",
                     }
@@ -86,17 +92,17 @@ impl HeapStorage {
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> Result<GcProgress, E>
+    ) -> Result<GcAdvance, E>
     where
         E: From<HeapError>,
     {
         // no active work
         if budget_bytes == 0 || self.collector.minor_phase == Phase::Idle {
-            return Ok(GcProgress::Idle);
+            return Ok(GcAdvance::Idle);
         }
 
         match self.collector.minor_phase {
-            Phase::Idle => Ok(GcProgress::Idle),
+            Phase::Idle => Ok(GcAdvance::Idle),
             Phase::Mark => self.step_young_gc_mark(roots, budget_bytes, trace_view),
             Phase::Sweep => self.step_young_gc_sweep(roots, budget_bytes, trace_view),
         }
@@ -108,7 +114,7 @@ impl HeapStorage {
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> Result<GcProgress, E>
+    ) -> Result<GcAdvance, E>
     where
         E: From<HeapError>,
     {
@@ -131,7 +137,12 @@ impl HeapStorage {
             self.collector.young_dirty_extent_cursor = 0;
             self.collector.young_dirty_card_cursor = 0;
 
-            return Ok(GcProgress::Active);
+            return Ok(GcAdvance::stepped(
+                GcCollector::LocalMinor,
+                GcPhase::Mark,
+                budget_bytes,
+                dirty_bytes + marked_bytes,
+            ));
         }
 
         // use remaining safepoint budget before returning
@@ -142,7 +153,9 @@ impl HeapStorage {
             self.collector.minor_phase = Phase::Sweep;
             let remaining_bytes = budget_bytes - dirty_bytes - marked_bytes;
 
-            return self.step_young_gc_sweep(roots, remaining_bytes, trace_view);
+            return self
+                .step_young_gc_sweep(roots, remaining_bytes, trace_view)
+                .map(|advance| advance.with_work_added(dirty_bytes + marked_bytes));
         }
 
         // advance to sweep for the next safepoint
@@ -150,7 +163,12 @@ impl HeapStorage {
             self.collector.minor_phase = Phase::Sweep;
         }
 
-        Ok(GcProgress::Active)
+        Ok(GcAdvance::stepped(
+            GcCollector::LocalMinor,
+            GcPhase::Mark,
+            budget_bytes,
+            dirty_bytes + marked_bytes,
+        ))
     }
 
     /// Seed the active young trace queue from roots and pins.
@@ -193,7 +211,7 @@ impl HeapStorage {
             self.collector.young_freed_allocations,
             self.collector.young_freed_bytes,
         );
-        self.gc.record_cycle(GcKind::Minor, stats);
+        self.gc.record_cycle(GcCollector::LocalMinor, stats);
 
         // reset active minor collection state
         self.collector.minor_phase = Phase::Idle;
@@ -280,7 +298,7 @@ impl HeapStorage {
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
         trace_view: TraceView<'_>,
-    ) -> Result<GcProgress, E>
+    ) -> Result<GcAdvance, E>
     where
         E: From<HeapError>,
     {
@@ -297,15 +315,28 @@ impl HeapStorage {
             && self.collector.young_sweep_span_cursor >= self.young.spans.len()
         {
             // young relocation must drain before the mutator resumes
-            self.relocate_young_survivors(roots, trace_view)?;
+            let promoted_bytes = self.relocate_young_survivors(roots, trace_view)?;
 
             return self
                 .finish_young_gc()
-                .map(GcProgress::Complete)
+                .map(|stats| {
+                    GcAdvance::completed(
+                        GcCollector::LocalMinor,
+                        GcPhase::Promote,
+                        budget_bytes,
+                        swept_bytes + promoted_bytes,
+                        stats,
+                    )
+                })
                 .map_err(Into::into);
         }
 
-        Ok(GcProgress::Active)
+        Ok(GcAdvance::stepped(
+            GcCollector::LocalMinor,
+            GcPhase::Sweep,
+            budget_bytes,
+            swept_bytes,
+        ))
     }
 
     /// Sweep unreachable young range blocks within one byte budget.
