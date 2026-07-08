@@ -494,6 +494,21 @@ impl TestWorldRuntime {
             .default_worker_id()
     }
 
+    /// Return the wrapped runtime id.
+    pub(crate) fn runtime_id(&self) -> RuntimeId {
+        self.runtime_id
+    }
+
+    /// Borrow the wrapped world.
+    pub(crate) fn world(&self) -> &World {
+        &self.world
+    }
+
+    /// Borrow the wrapped world mutably.
+    pub(crate) fn world_mut(&mut self) -> &mut World {
+        &mut self.world
+    }
+
     /// Spawn one additional worker and return its id.
     pub(crate) fn spawn_worker(&mut self) -> WorkerId {
         self.world
@@ -694,7 +709,7 @@ pub(crate) fn start_worker_continuation(
     };
     let args = [program::Value::int32(value)];
     let outcome = machine
-        .run(context, &Entry::new(entry), &args)
+        .run(context, &Entry::new(entry), &args, None)
         .expect("test continuation should start");
 
     match outcome {
