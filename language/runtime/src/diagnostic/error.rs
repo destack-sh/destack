@@ -162,11 +162,6 @@ pub enum Entity {
         /// Trace sequence.
         sequence: u64,
     },
-    /// Observation subscription.
-    ObservationSubscription {
-        /// Observation subscription identifier.
-        subscription_id: u64,
-    },
     /// Runtime.
     Runtime {
         /// Runtime identifier.
@@ -375,7 +370,6 @@ impl Entity {
             Self::Image { .. } => 118,
             Self::Runtime { .. } => 127,
             Self::Worker { .. } => 128,
-            Self::ObservationSubscription { .. } => 141,
             Self::Moment { .. } => 144,
         }
     }
@@ -411,9 +405,6 @@ impl Entity {
                 sequence,
             } => {
                 format!("moment branch {branch_id} at sequence {sequence}")
-            }
-            Self::ObservationSubscription { subscription_id } => {
-                format!("observation subscription {subscription_id}")
             }
             Self::Runtime { runtime_id } => format!("runtime {runtime_id}"),
             Self::Worker { worker_id } => format!("worker {worker_id}"),
@@ -661,13 +652,6 @@ impl RuntimeError {
                 moment_branch_id,
                 world_branch_id,
             },
-        }
-    }
-
-    /// Return an observation-subscription-not-found error.
-    pub fn observation_subscription_not_found(subscription_id: u64) -> Self {
-        Self::Entity {
-            reason: EntityError::NotFound(Entity::ObservationSubscription { subscription_id }),
         }
     }
 

@@ -6,7 +6,6 @@ mod lineage;
 mod moment;
 mod query;
 mod revision;
-mod transition;
 mod view;
 mod world;
 
@@ -19,5 +18,4 @@ pub(crate) use lineage::*;
 pub use moment::*;
 pub use query::*;
 pub use revision::*;
-pub use transition::*;
 pub use view::*;
