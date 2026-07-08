@@ -2,8 +2,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::world::{BranchId, Moment, MomentSequence};
 
 use super::{
-    Observation, ObservationChunk, ObservationEntry, ObservationOptions, ObservationSequence,
-    ObservationStore,
+    Observation, ObservationChunk, ObservationEntry, ObservationSequence, ObservationStore,
 };
 
 /// Observation log kept separate from causal replay trace.
@@ -36,13 +35,9 @@ impl ObservationLog {
         self.store.record_at(moment, observation)
     }
 
-    /// Return every filtered observation entry after the optional sequence.
-    pub fn records_after(
-        &self,
-        after: Option<ObservationSequence>,
-        options: ObservationOptions,
-    ) -> Vec<ObservationEntry> {
-        self.store.records_after(after, options)
+    /// Return every observation entry after the optional sequence.
+    pub fn records_after(&self, after: Option<ObservationSequence>) -> Vec<ObservationEntry> {
+        self.store.records_after(after)
     }
 
     /// Return every observation entry within one moment range.
@@ -67,9 +62,7 @@ impl ObservationLog {
 
 #[cfg(test)]
 mod tests {
-    use crate::world::observation::{
-        Observation, ObservationCategory, ObservationOptions, ObservationScope,
-    };
+    use crate::world::observation::Observation;
     use crate::world::{BranchId, Moment, MomentSequence};
 
     use super::ObservationLog;
@@ -82,11 +75,10 @@ mod tests {
         // fill one sealed chunk and leave one active entry
         for sequence in 0..=1024 {
             let moment = Moment::new(branch_id, MomentSequence::new(sequence));
-            let observation = Observation::new(
-                ObservationCategory::Scheduler,
-                ObservationScope::world(),
-                format!("observation.{sequence}"),
-            );
+            let observation = Observation::IngressDelivered {
+                host_events: sequence as usize,
+                poller_events: 0,
+            };
 
             log.record_at(moment, observation).unwrap();
         }
@@ -97,7 +89,7 @@ mod tests {
         assert_eq!(drained[0].entries().len(), 1024);
 
         // retain the active uncommitted tail
-        let retained = log.records_after(None, ObservationOptions::default());
+        let retained = log.records_after(None);
         assert_eq!(retained.len(), 1);
         assert_eq!(retained[0].moment.sequence, MomentSequence::new(1024));
     }

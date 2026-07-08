@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::RuntimeResult;
 use crate::world::{BranchId, Moment, MomentSequence};
 
-use super::{
-    Observation, ObservationChunk, ObservationEntry, ObservationOptions, ObservationSequence,
-};
+use super::{Observation, ObservationChunk, ObservationEntry, ObservationSequence};
 
 /// Default maximum observation entries per chunk.
 const DEFAULT_MAX_ENTRIES_PER_CHUNK: usize = 1024;
@@ -49,14 +47,13 @@ impl ObservationState {
         &self,
         output: &mut Vec<ObservationEntry>,
         after: Option<ObservationSequence>,
-        options: ObservationOptions,
     ) {
         for chunk in &self.sealed {
-            chunk.append_records_after(output, after, options);
+            chunk.append_records_after(output, after);
         }
 
         if !self.active.is_empty() {
-            self.active.append_records_after(output, after, options);
+            self.active.append_records_after(output, after);
         }
     }
 
@@ -126,16 +123,15 @@ impl ObservationStore {
         Ok(sequence)
     }
 
-    /// Return every filtered observation entry after the optional sequence.
+    /// Return every observation entry after the optional sequence.
     pub(crate) fn records_after(
         &self,
         after: Option<ObservationSequence>,
-        options: ObservationOptions,
     ) -> Vec<ObservationEntry> {
         let state = self.state.read();
         let mut records = Vec::new();
 
-        state.append_records_after(&mut records, after, options);
+        state.append_records_after(&mut records, after);
 
         records
     }

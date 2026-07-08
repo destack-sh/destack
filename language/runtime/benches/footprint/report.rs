@@ -15,7 +15,7 @@ use destack_runtime::runtime::random::Random;
 use destack_runtime::runtime::scheduler::EventLoop;
 use destack_runtime::runtime::{RunnableScope, Runtime, Worker};
 use destack_runtime::world::observation::{
-    Observation, ObservationEntry, ObservationLog, ObservationOptions, ObservationScope,
+    Observation, ObservationEntry, ObservationLog, ObservationScope,
 };
 use destack_runtime::world::topology::LabelSet;
 use destack_runtime::world::trace::{
@@ -56,11 +56,6 @@ fn print_type_sizes() {
         ("world", "TraceLog", size_of::<TraceLog>()),
         ("world", "Observation", size_of::<Observation>()),
         ("world", "ObservationEntry", size_of::<ObservationEntry>()),
-        (
-            "world",
-            "ObservationOptions",
-            size_of::<ObservationOptions>(),
-        ),
         ("world", "LabelSet", size_of::<LabelSet>()),
         ("world", "ObservationScope", size_of::<ObservationScope>()),
         ("world", "ObservationLog", size_of::<ObservationLog>()),

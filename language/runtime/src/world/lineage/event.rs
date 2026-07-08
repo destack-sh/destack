@@ -3,7 +3,7 @@ use crate::host::ResourceId;
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::world::World;
 use crate::world::observation::{
-    Observation, ObservationCategory, ObservationEntry, ObservationScope, ObservationSequence,
+    Observation, ObservationEntry, ObservationScope, ObservationSequence,
 };
 
 use super::{BranchId, LineageQuery, Moment};
@@ -25,19 +25,9 @@ impl Event {
         self.observation.name()
     }
 
-    /// Return the event category.
-    pub const fn category(&self) -> ObservationCategory {
-        self.observation.category
-    }
-
     /// Return the event scope.
-    pub fn scope(&self) -> &ObservationScope {
-        &self.observation.scope
-    }
-
-    /// Return the event label value when present.
-    pub fn label_value(&self, key: &str) -> Option<&str> {
-        self.observation.label_value(key)
+    pub fn scope(&self) -> ObservationScope {
+        self.observation.scope()
     }
 
     /// Build one event from one observation entry.
@@ -96,22 +86,9 @@ impl EventSet {
         self.filter(|event| event.name() == name)
     }
 
-    /// Keep only events in one exact category.
-    pub fn category(self, category: ObservationCategory) -> Self {
-        self.filter(|event| event.category() == category)
-    }
-
-    /// Keep only events labeled with one exact key-value pair.
-    pub fn label(self, key: &str, value: &str) -> Self {
-        self.filter(|event| match event.label_value(key) {
-            Some(label) => value == label,
-            None => false,
-        })
-    }
-
     /// Keep only events on one exact scope.
     pub fn on(self, scope: ObservationScope) -> Self {
-        self.filter(|event| event.scope() == &scope)
+        self.filter(|event| event.observation.is_on(&scope))
     }
 
     /// Keep only world-scoped events.
@@ -121,27 +98,17 @@ impl EventSet {
 
     /// Keep only runtime-scoped events.
     pub fn runtime(self, runtime_id: RuntimeId) -> Self {
-        self.filter(|event| event.scope().runtime_id() == Some(runtime_id))
+        self.filter(|event| event.observation.runtime_id() == Some(runtime_id))
     }
 
     /// Keep only worker-scoped events.
     pub fn worker(self, worker_id: WorkerId) -> Self {
-        self.filter(|event| event.scope().worker_id() == Some(worker_id))
-    }
-
-    /// Keep only entity-scoped events.
-    pub fn entity(self, entity_id: &str) -> Self {
-        self.filter(|event| event.scope().entity_id() == Some(entity_id))
-    }
-
-    /// Keep only edge-scoped events.
-    pub fn edge(self, edge_id: &str) -> Self {
-        self.filter(|event| event.scope().edge_id() == Some(edge_id))
+        self.filter(|event| event.observation.worker_id() == Some(worker_id))
     }
 
     /// Keep only resource-scoped events.
     pub fn resource(self, resource_id: ResourceId) -> Self {
-        self.filter(|event| event.scope().resource_id() == Some(resource_id))
+        self.filter(|event| event.observation.resource_id() == Some(resource_id))
     }
 
     /// Keep only events that satisfy one predicate.

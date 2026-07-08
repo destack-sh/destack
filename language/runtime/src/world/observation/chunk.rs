@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::world::{BranchId, Moment, MomentSequence};
 
-use super::{ObservationEntry, ObservationOptions, ObservationSequence};
+use super::{ObservationEntry, ObservationSequence};
 
 /// Observation chunk payload.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -39,10 +39,9 @@ impl ObservationChunk {
         &self,
         output: &mut Vec<ObservationEntry>,
         after: Option<ObservationSequence>,
-        options: ObservationOptions,
     ) {
         for entry in &self.entries {
-            if entry.is_after(after) && options.allows(entry.observation.category) {
+            if entry.is_after(after) {
                 output.push(entry.clone());
             }
         }
