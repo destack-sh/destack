@@ -18,30 +18,21 @@ pub struct Label {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct LabelSet {
     /// Stored labels when this set is non-empty.
-    entries: Option<Box<LabelStorage>>,
+    labels: Option<Box<Labels>>,
 }
 
-/// Non-empty label storage.
+/// Non-empty label payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct LabelStorage {
+struct Labels {
     /// First label stored without a vector allocation.
     first: Label,
     /// Additional labels when this set has more than one label.
     rest: Vec<Label>,
 }
 
-/// Iterator over one compact label set.
-#[derive(Debug)]
-pub struct LabelSetIter<'a> {
-    /// First label to yield.
-    first: Option<&'a Label>,
-    /// Remaining labels to yield.
-    rest: std::slice::Iter<'a, Label>,
-}
-
 impl LabelSet {
     /// Empty label set.
-    pub const EMPTY: Self = Self { entries: None };
+    pub const EMPTY: Self = Self { labels: None };
 
     /// Create one empty label set.
     pub const fn new() -> Self {
@@ -50,13 +41,13 @@ impl LabelSet {
 
     /// Return whether this label set is empty.
     pub fn is_empty(&self) -> bool {
-        self.entries.is_none()
+        self.labels.is_none()
     }
 
     /// Return the number of labels.
     pub fn len(&self) -> usize {
-        match self.entries.as_ref() {
-            Some(entries) => entries.len(),
+        match self.labels.as_ref() {
+            Some(labels) => labels.len(),
             None => 0,
         }
     }
@@ -66,49 +57,15 @@ impl LabelSet {
         let key = key.into();
         let value = value.into();
 
-        // replace first label
-        match self.entries.as_mut() {
-            Some(entries) if entries.first.key.as_ref() == key.as_ref() => {
-                entries.first.value = value;
-            }
-            // replace or append remaining label
-            Some(entries) => {
-                if let Some(label) = entries
-                    .rest
-                    .iter_mut()
-                    .find(|label| label.key.as_ref() == key.as_ref())
-                {
-                    label.value = value;
-                } else {
-                    entries.rest.push(Label { key, value });
-                }
-            }
-            // create compact one-label storage
-            None => {
-                self.entries = Some(Box::new(LabelStorage {
-                    first: Label { key, value },
-                    rest: Vec::new(),
-                }));
-            }
+        match self.labels.as_mut() {
+            Some(labels) => labels.insert(key, value),
+            None => self.labels = Some(Box::new(Labels::new(key, value))),
         }
     }
 
     /// Return one label value by key.
     pub fn get(&self, key: &str) -> Option<&str> {
-        let entries = self.entries.as_ref()?;
-
-        // check inline label
-        if entries.first.key.as_ref() == key {
-            return Some(entries.first.value.as_ref());
-        }
-
-        // scan overflow labels
-        let label = entries
-            .rest
-            .iter()
-            .find(|label| label.key.as_ref() == key)?;
-
-        Some(label.value.as_ref())
+        self.labels.as_ref()?.get(key)
     }
 
     /// Return whether this label set contains one key.
@@ -117,36 +74,63 @@ impl LabelSet {
     }
 
     /// Return an iterator over all labels.
-    pub fn iter(&self) -> LabelSetIter<'_> {
-        match self.entries.as_ref() {
-            Some(entries) => LabelSetIter {
-                first: Some(&entries.first),
-                rest: entries.rest.iter(),
-            },
-            None => LabelSetIter {
-                first: None,
-                rest: [].iter(),
-            },
-        }
+    pub fn iter(&self) -> impl Iterator<Item = &Label> {
+        self.labels.iter().flat_map(|labels| labels.iter())
     }
 }
 
-impl<'a> Iterator for LabelSetIter<'a> {
-    type Item = &'a Label;
+impl Labels {
+    /// Create one non-empty label payload.
+    fn new(key: Box<str>, value: Box<str>) -> Self {
+        Self {
+            first: Label { key, value },
+            rest: Vec::new(),
+        }
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.first.is_some() {
-            return self.first.take();
+    /// Insert or replace one label.
+    fn insert(&mut self, key: Box<str>, value: Box<str>) {
+        // replace inline label
+        if self.first.key.as_ref() == key.as_ref() {
+            self.first.value = value;
+            return;
         }
 
-        self.rest.next()
-    }
-}
+        // replace overflow label
+        if let Some(label) = self
+            .rest
+            .iter_mut()
+            .find(|label| label.key.as_ref() == key.as_ref())
+        {
+            label.value = value;
+            return;
+        }
 
-impl LabelStorage {
+        // append new label
+        self.rest.push(Label { key, value });
+    }
+
     /// Return the number of labels.
     fn len(&self) -> usize {
         1 + self.rest.len()
+    }
+
+    /// Return one label value by key.
+    fn get(&self, key: &str) -> Option<&str> {
+        // check inline label
+        if self.first.key.as_ref() == key {
+            return Some(self.first.value.as_ref());
+        }
+
+        // scan overflow labels
+        let label = self.rest.iter().find(|label| label.key.as_ref() == key)?;
+
+        Some(label.value.as_ref())
+    }
+
+    /// Return an iterator over all labels.
+    fn iter(&self) -> impl Iterator<Item = &Label> {
+        std::iter::once(&self.first).chain(self.rest.iter())
     }
 }
 
