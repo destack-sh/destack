@@ -135,7 +135,9 @@ fn expression_is_simple(
                     | UnaryOperator::PostDecrement
             ) && SimpleArgument::from(*right).is_simple_with_depth(context, depth)
         }
-        Expression::Must { left, .. } | Expression::Maybe { left, .. } => {
+        Expression::Must { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Chain { expression: left } => {
             SimpleArgument::from(*left).is_simple_with_depth(context, depth)
         }
 

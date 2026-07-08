@@ -678,7 +678,8 @@ fn binary_expression_is_inside_parenthesis_context(
         | Expression::Call { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => *left == expression_id,
+        | Expression::Must { left, .. }
+        | Expression::Chain { expression: left } => *left == expression_id,
         Expression::TaggedTemplateExpression { tag, .. } => *tag == expression_id,
         _ => false,
     }

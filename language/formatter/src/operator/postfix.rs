@@ -77,6 +77,7 @@ fn postfix_parent_expression_id(
                 | Expression::Instantiation { left, .. }
                 | Expression::Maybe { left, .. }
                 | Expression::Must { left, .. }
+                | Expression::Chain { expression: left }
                 if *left == expression_id
         );
         if uses_expression_as_left {

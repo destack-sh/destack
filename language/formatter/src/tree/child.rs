@@ -101,7 +101,10 @@ pub(crate) fn tree_expression_contains_callback_break(
         Expression::Member { left, .. }
         | Expression::Index { left, .. }
         | Expression::Maybe { left, .. }
-        | Expression::Must { left, .. } => tree_expression_contains_callback_break(context, *left),
+        | Expression::Must { left, .. }
+        | Expression::Chain { expression: left } => {
+            tree_expression_contains_callback_break(context, *left)
+        }
         Expression::Declaration(declaration_id) => {
             tree_callback_body_requires_break(context, *declaration_id)
         }

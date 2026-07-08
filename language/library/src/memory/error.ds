@@ -53,13 +53,13 @@ export extension of AllocationError implements Error {
     display(): MaybeOwned<string> {
         match (this) {
             AllocationOutOfMemory { message } => MaybeOwned.borrowed(
-                &readonly (message ?? "out of memory"),
+                &readonly message ?? "out of memory",
             )
             AllocationCapacityOverflow { message } => MaybeOwned.borrowed(
-                &readonly (message ?? "allocation capacity overflow"),
+                &readonly message ?? "allocation capacity overflow",
             )
             AllocationUnsupported { message } => MaybeOwned.borrowed(
-                &readonly (message ?? "allocation unsupported"),
+                &readonly message ?? "allocation unsupported",
             )
         }
     }

@@ -80,11 +80,8 @@ export function contains<T>(values: readonly Iterable<T>, expected: T, message?:
 }
 
 /// Assert that `values` does not contain `expected`.
-export function notContains<T>(
-    values: readonly Iterable<T>,
-    expected: T,
-    message?: string,
-): void where T: Equal<T> {
+export function notContains<T>(values: readonly Iterable<T>, expected: T, message?: string): void
+    where T: Equal<T> {
     todo("assert.notContains");
 }
 

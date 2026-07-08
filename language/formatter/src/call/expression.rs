@@ -22,6 +22,7 @@ pub(crate) fn format_call_expression<'ast>(
         left,
         generic_arguments,
         arguments,
+        is_optional,
     } = f.context().tree.get(node_id)
     else {
         return Err(FormatError::SyntaxError {
@@ -33,7 +34,7 @@ pub(crate) fn format_call_expression<'ast>(
 
     let format_inner = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         let callee_span_end = f.context().span(callee_id).end;
-        let optional_marker = call_optional_marker_position(f.context(), *left);
+        let optional_marker = is_optional.then_some(*position);
         let call_parent_is_decorator = f
             .context()
             .parent(node_id)
@@ -70,11 +71,8 @@ pub(crate) fn format_call_expression<'ast>(
             }
         }
 
-        if let Some(optional_marker) = optional_marker {
-            match optional_marker {
-                PostfixPosition::Direct => write!(f, [token("?")])?,
-                PostfixPosition::Indirect => write!(f, [token("."), token("?")])?,
-            }
+        if optional_marker.is_some() {
+            write!(f, [token("?")])?;
         }
 
         if *position == PostfixPosition::Indirect {
@@ -107,18 +105,6 @@ fn call_callee_expression_id(
     };
 
     *left
-}
-
-/// Return the optional marker position stored on one call callee wrapper.
-fn call_optional_marker_position(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-) -> Option<PostfixPosition> {
-    let Expression::Maybe { position, .. } = context.tree.get(left_id) else {
-        return None;
-    };
-
-    Some(*position)
 }
 
 /// Format an instantiation expression.

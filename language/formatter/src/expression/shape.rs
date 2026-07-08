@@ -35,6 +35,7 @@ impl ExpressionLeftPath {
             | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. }
+            | Expression::Chain { expression: left }
             | Expression::As {
                 expression: left, ..
             }

@@ -9,8 +9,8 @@ use crate::chain::{
 };
 use crate::declaration::statement::format_block_wide;
 use crate::expression::{
-    ExpressionLeftPath, expression_needs_parentheses_in_parent, format_index_expression,
-    format_member_expression,
+    ExpressionLeftPath, expression_needs_parentheses_in_parent, format_expression,
+    format_index_expression, format_member_expression,
 };
 use crate::file::write_source_span;
 use crate::operator::assign::format_assign_expression;
@@ -397,6 +397,12 @@ pub(crate) fn format_operator_expression<'ast>(
 
         Expression::NewMaybe { ty, arguments } => {
             format_new_expression(f, node_id, *ty, arguments, true)?;
+        }
+
+        // chain
+        Expression::Chain { expression } => {
+            let inner = f.context().tree.get(*expression);
+            format_expression(f, *expression, inner, false)?;
         }
 
         // maybe
