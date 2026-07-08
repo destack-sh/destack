@@ -12,8 +12,8 @@ use crate::{
     AddressSpace, CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization,
     FrameSlot, FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature,
     FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout,
-    LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ScalarFormat, Signature,
-    StaticImage, StaticSpace, StringTable, TypeId, TypeTable, native, vm,
+    LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, ScalarFormat,
+    Signature, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable, native, vm,
 };
 use vm::error::{Error, Result};
 
@@ -44,6 +44,8 @@ pub struct Program {
     pub(crate) functions: FunctionTable,
     /// Runtime dispatch table.
     pub(crate) dispatch: DispatchTable,
+    /// Executable sites used by debugging, probes, and observations.
+    pub(crate) sites: SiteTable,
     /// Canonical trace table used by heap tables.
     pub(crate) traces: TraceTable,
     /// Program globals keyed by dense global id.
@@ -80,6 +82,7 @@ impl Program {
         frames: FrameTable,
         functions: FunctionTable,
         dispatch: DispatchTable,
+        sites: SiteTable,
         traces: TraceTable,
         globals: GlobalTable,
         info: Option<ProgramInfo>,
@@ -103,6 +106,7 @@ impl Program {
             frames,
             functions,
             dispatch,
+            sites,
             traces,
             globals,
             info,
@@ -202,6 +206,11 @@ impl Program {
     /// Return runtime dispatch table.
     pub fn dispatch(&self) -> &DispatchTable {
         &self.dispatch
+    }
+
+    /// Return executable program sites.
+    pub fn sites(&self) -> &SiteTable {
+        &self.sites
     }
 
     /// Return whether one concrete type satisfies one runtime type.
@@ -451,11 +460,6 @@ impl Program {
         self.frames.copied_slots(self.sections(), materialization)
     }
 
-    /// Convert one current frame location into one lowered program point.
-    pub fn point(&self, function: FunctionId, block: u32, pc: u32) -> vm::ProgramPoint {
-        vm::ProgramPoint::new(function, block, pc)
-    }
-
     /// Return the canonical layout for one type.
     pub fn layout(&self, ty: TypeId) -> Option<&Layout> {
         let sections = self.sections();
@@ -629,8 +633,8 @@ impl Program {
         }
     }
 
-    /// Return the lowered program point for one resume state.
-    pub fn point_for_frame_state(&self, frame_state: FrameStateId) -> Option<vm::ProgramPoint> {
+    /// Return the program point for one resume state.
+    pub fn point_for_frame_state(&self, frame_state: FrameStateId) -> Option<ProgramPoint> {
         self.resume()
             .state(self.sections(), frame_state)
             .map(|state| state.point)
@@ -651,13 +655,13 @@ impl Program {
         self.resume().entry(sections, state)
     }
 
-    /// Return one resume state id for one lowered program point.
-    pub fn frame_state_at(&self, point: vm::ProgramPoint) -> Option<FrameStateId> {
+    /// Return one resume state id for one program point.
+    pub fn frame_state_at(&self, point: ProgramPoint) -> Option<FrameStateId> {
         self.resume().state_id_at(self.sections(), point)
     }
 
-    /// Return the caller return destination implied by one lowered program point.
-    pub fn return_destination_at(&self, point: vm::ProgramPoint) -> Result<Option<vm::MoveSlot>> {
+    /// Return the caller return destination implied by one program point.
+    pub fn return_destination_at(&self, point: ProgramPoint) -> Result<Option<vm::MoveSlot>> {
         let sections = self.sections();
         let Some(frame_state) = self.resume().state_id_at(sections, point) else {
             return Ok(None);

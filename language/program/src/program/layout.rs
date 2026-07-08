@@ -202,7 +202,7 @@ impl ScalarFormat {
 
 /// Runtime address space for addressable values.
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum AddressSpace {
     /// Local heap storage.
     Local,

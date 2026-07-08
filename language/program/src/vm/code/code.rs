@@ -10,7 +10,7 @@ pub struct Code {
     pub functions: FunctionTable,
     /// Side table referenced by compact side records.
     pub side_table: SideTable,
-    /// Resume states keyed by lowered VM program point.
+    /// Resume states keyed by program point.
     pub resume: ResumeTable,
 }
 
