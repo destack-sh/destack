@@ -111,7 +111,10 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
 
         // check flat() member static arguments
         let flat_member = self.ctx.dir.get(flat_call.callee_id);
-        let dir::Expression::Member { left: _, name: _ } = flat_member else {
+        let dir::Expression::Member {
+            left: _, name: _, ..
+        } = flat_member
+        else {
             return;
         };
 
@@ -145,7 +148,10 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         // check map() member static arguments
         let map_member_id = map_call.callee_id;
         let map_member = self.ctx.dir.get(map_member_id);
-        let dir::Expression::Member { left: _, name: _ } = map_member else {
+        let dir::Expression::Member {
+            left: _, name: _, ..
+        } = map_member
+        else {
             return;
         };
 

@@ -202,7 +202,7 @@ pub fn expression_static_property_access(
     let expression = tree.get(expression_id);
 
     // match dot member access
-    if let dir::Expression::Member { left, name } = expression {
+    if let dir::Expression::Member { left, name, .. } = expression {
         let name = (*name)?;
 
         return Some((*left, name));
@@ -346,7 +346,7 @@ pub fn parent_is_receiver_helper(
     let parent_expression = tree.get(parent_id);
     matches!(
         parent_expression,
-        dir::Expression::Member { left, name }
+        dir::Expression::Member { left, name, .. }
             if *left == expression_id
                 && (*name == Some(bind_name)
                     || *name == Some(call_name)
@@ -374,7 +374,7 @@ pub fn call_like_invocation_is_receiver_bound(
     let callee = tree.get(callee_id);
     let uses_receiver_helper = matches!(
         callee,
-        dir::Expression::Member { left: _, name }
+        dir::Expression::Member { left: _, name, .. }
             if *name == Some(bind_name)
                 || *name == Some(call_name)
                 || *name == Some(apply_name)
@@ -398,7 +398,7 @@ fn expression_reference_path_base(
 
     // match the base or member steps
     match expression {
-        dir::Expression::Member { left, name } => {
+        dir::Expression::Member { left, name, .. } => {
             let name = (*name)?;
 
             members.push(name);
@@ -448,6 +448,7 @@ pub fn expression_call_like(expression: &dir::Expression) -> Option<CallLikeExpr
             left,
             generic_arguments,
             arguments,
+            ..
         } => Some(CallLikeExpressionInfo {
             left: *left,
             generic_arguments: generic_arguments.as_slice(),
@@ -470,6 +471,7 @@ pub fn expression_method_call(
         left,
         generic_arguments,
         arguments,
+        ..
     } = expression
     else {
         return None;
@@ -478,7 +480,7 @@ pub fn expression_method_call(
     // match member access for the callee
     let callee_id = *left;
     let callee = tree.get(callee_id);
-    let dir::Expression::Member { left, name } = callee else {
+    let dir::Expression::Member { left, name, .. } = callee else {
         return None;
     };
     let name = (*name)?;

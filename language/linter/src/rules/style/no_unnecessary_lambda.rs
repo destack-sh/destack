@@ -78,6 +78,7 @@ impl LintRule for NoUnnecessaryLambda {
                 left,
                 generic_arguments,
                 arguments,
+                ..
             } = call_expression
             else {
                 continue;

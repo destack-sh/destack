@@ -183,6 +183,7 @@ fn is_redundant_super_passthrough_constructor(
         left,
         generic_arguments,
         arguments,
+        ..
     } = expression
     else {
         return false;

@@ -1099,6 +1099,7 @@ fn collect_expression_path_segments(
         dir::Expression::Member {
             left,
             name: Some(name),
+            ..
         } => {
             collect_expression_path_segments(tree, *left, segments)?;
             segments.push(*name);
@@ -1365,11 +1366,13 @@ pub fn expression_is_equal(
                 left: left_object,
                 index: left_index,
                 position: left_position,
+                ..
             },
             dir::Expression::Index {
                 left: right_object,
                 index: right_index,
                 position: right_position,
+                ..
             },
         ) => {
             if left_position != right_position {
@@ -2039,9 +2042,9 @@ pub fn expression_has_side_effects(
         dir::Expression::Debugger | dir::Expression::Error | dir::Expression::Missing => true,
 
         // maybe/must propagation: check inner for side effect
-        dir::Expression::Maybe { left, .. } | dir::Expression::Must { left, .. } => {
-            expression_has_side_effects(ctx, *left)
-        }
+        dir::Expression::Chain { expression: left }
+        | dir::Expression::Maybe { left, .. }
+        | dir::Expression::Must { left, .. } => expression_has_side_effects(ctx, *left),
 
         // templates: conservatively assume side effects (could have interpolations with calls)
         dir::Expression::TemplateExpression { .. }

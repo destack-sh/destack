@@ -140,6 +140,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = expression
         else {
             return None;
@@ -235,6 +236,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = expression
         else {
             return;
@@ -251,6 +253,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: regex_expression_id,
             name,
+            ..
         } = member_expression
         else {
             return;

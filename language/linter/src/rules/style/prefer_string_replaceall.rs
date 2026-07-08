@@ -114,6 +114,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let dir::Expression::Member {
             left: receiver_id,
             name,
+            ..
         } = member_expression
         else {
             return;
@@ -462,6 +463,7 @@ impl NodeVisitor for PreferStringReplaceAllVisitor<'_, '_> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = expression
         {
             self.check_replace_call(id, *left, generic_arguments.as_slice(), arguments);

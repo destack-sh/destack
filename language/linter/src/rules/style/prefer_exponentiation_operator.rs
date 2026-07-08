@@ -208,6 +208,7 @@ impl NodeVisitor for ExponentiationVisitor<'_, '_> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = expression
         {
             self.check_call(id, *left, generic_arguments.as_slice(), arguments);

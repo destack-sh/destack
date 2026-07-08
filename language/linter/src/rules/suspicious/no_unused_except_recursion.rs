@@ -334,6 +334,7 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = expression
         {
             // visit callee first
