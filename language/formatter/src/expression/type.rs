@@ -2736,7 +2736,13 @@ pub(crate) fn format_type_member_block_list<'ast>(
             continue;
         }
 
-        write!(f, [entry])?;
+        // default method bodies end their member without a separator
+        let member = f.context().tree.get(member_id);
+        if matches!(member, TypeMember::Method { body: Some(_), .. }) {
+            write!(f, [member_id])?;
+        } else {
+            write!(f, [entry])?;
+        }
     }
 
     Ok(())
@@ -3213,13 +3219,18 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 is_optional,
                 key,
                 signature,
-                ..
+                body,
             } => {
                 if *is_static {
                     write!(f, [Keyword::Static, space()])?;
                 }
 
                 write_type_signature(f, node_id, signature, *key, *is_optional)?;
+
+                // default method bodies print after the signature
+                if let Some(body) = body {
+                    write!(f, [space(), *body])?;
+                }
             }
             TypeMember::CallSignature { signature } => {
                 write_call_signature(f, node_id, signature)?;
