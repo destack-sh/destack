@@ -5,12 +5,11 @@ use crate::host::{Host, HostEvent};
 use crate::runtime::SharedCollector;
 use crate::runtime::heap::RuntimeHeap;
 use crate::runtime::machine::{Entry, Execution, ExecutionImage};
-use crate::runtime::scheduler::{
-    HostWake, Readiness, ResourceWake, ScheduledTimer, TickResult, Wake,
-};
+use crate::runtime::scheduler::{HostWake, Readiness, ResourceWake, ScheduledTimer, Wake};
 use crate::runtime::time::Instant;
 use crate::runtime::worker::{
-    Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage, WorkerRunOutcome,
+    RunnableProgress, Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage,
+    WorkerRunOutcome,
 };
 use crate::world::{RestoreContext, RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
@@ -51,7 +50,12 @@ pub struct Runtime {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RuntimeRunOutcome {
     /// One worker made progress.
-    Progressed,
+    Progressed {
+        /// Worker that progressed.
+        worker_id: WorkerId,
+        /// Work that made progress.
+        progress: RunnableProgress,
+    },
     /// No worker was runnable.
     Idle,
     /// One worker stopped at a runtime stop point.
@@ -74,7 +78,10 @@ impl RuntimeRunOutcome {
     /// Convert a worker run outcome when work happened.
     fn from_worker(worker_id: WorkerId, outcome: WorkerRunOutcome) -> Option<Self> {
         match outcome {
-            WorkerRunOutcome::Progressed => Some(Self::Progressed),
+            WorkerRunOutcome::Progressed { progress } => Some(Self::Progressed {
+                worker_id,
+                progress,
+            }),
             WorkerRunOutcome::Idle => None,
             WorkerRunOutcome::Stopped { reason } => Some(Self::Stopped { worker_id, reason }),
             WorkerRunOutcome::Paused { reason } => Some(Self::Paused { worker_id, reason }),
@@ -353,58 +360,6 @@ impl Runtime {
         )
     }
 
-    /// Execute one runtime tick across all workers without advancing world time.
-    pub(crate) fn tick(
-        &mut self,
-        world: &mut WorldState,
-        host: &dyn Host,
-        host_queue: &HostQueue,
-    ) -> RuntimeResult<TickResult> {
-        // workers
-        let worker_count = self.workers.len();
-        let start_index = if worker_count == 0 {
-            0
-        } else {
-            self.next_worker_cursor % worker_count
-        };
-        let shared = &self.heap;
-        let shared_static = &mut self.shared_static;
-        let constant_space = &self.constant_space;
-        let workers = &mut self.workers;
-
-        for (worker_index, worker) in workers.values_mut().enumerate().skip(start_index) {
-            if worker.tick(
-                world,
-                shared,
-                shared_static,
-                constant_space,
-                host,
-                host_queue,
-            )? {
-                self.next_worker_cursor = (worker_index + 1) % worker_count;
-
-                return Ok(TickResult::Progress);
-            }
-        }
-
-        for (worker_index, worker) in workers.values_mut().enumerate().take(start_index) {
-            if worker.tick(
-                world,
-                shared,
-                shared_static,
-                constant_space,
-                host,
-                host_queue,
-            )? {
-                self.next_worker_cursor = worker_index + 1;
-
-                return Ok(TickResult::Progress);
-            }
-        }
-
-        Ok(TickResult::Idle)
-    }
-
     /// Run one pending worker microtask in stable order.
     pub(crate) fn run_microtask(
         &mut self,
@@ -479,7 +434,12 @@ impl Runtime {
                 host,
                 host_queue,
             )? {
-                WorkerRunOutcome::Progressed => return Ok(RuntimeRunOutcome::Progressed),
+                WorkerRunOutcome::Progressed { progress } => {
+                    return Ok(RuntimeRunOutcome::Progressed {
+                        worker_id: *worker_id,
+                        progress,
+                    });
+                }
                 WorkerRunOutcome::Idle => {}
                 WorkerRunOutcome::Stopped { reason } => {
                     return Ok(RuntimeRunOutcome::Stopped {
@@ -553,6 +513,42 @@ impl Runtime {
         }
 
         Ok(RuntimeRunOutcome::Idle)
+    }
+
+    /// Run one idle worker safepoint in stable scheduler order.
+    pub(crate) fn run_safepoint(&mut self) -> RuntimeResult<Option<WorkerId>> {
+        // empty runtimes have no worker maintenance to donate
+        let worker_count = self.workers.len();
+        if worker_count == 0 {
+            return Ok(None);
+        }
+
+        let start_index = self.next_worker_cursor % worker_count;
+        let shared = &self.heap;
+
+        // scan workers after the scheduler cursor
+        for (worker_index, (worker_id, worker)) in
+            self.workers.iter_mut().enumerate().skip(start_index)
+        {
+            if worker.run_safepoint(shared)? {
+                self.next_worker_cursor = (worker_index + 1) % worker_count;
+
+                return Ok(Some(*worker_id));
+            }
+        }
+
+        // wrap around to workers before the scheduler cursor
+        for (worker_index, (worker_id, worker)) in
+            self.workers.iter_mut().enumerate().take(start_index)
+        {
+            if worker.run_safepoint(shared)? {
+                self.next_worker_cursor = worker_index + 1;
+
+                return Ok(Some(*worker_id));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Create one runtime from one already-constructed default worker.
@@ -964,7 +960,7 @@ mod tests {
         compile_target_host,
     };
     use crate::runtime::tests::{TestMachine, TestWorldRuntime, start_worker_continuation};
-    use crate::runtime::{RuntimeHeap, TickResult, Worker, WorkerOptions};
+    use crate::runtime::{RuntimeHeap, Worker, WorkerOptions};
     use crate::world::World;
     use destack_core::{
         CaptureMode, SectionDirectory, SectionImage, SectionPacker, SectionStorage,
@@ -1142,10 +1138,10 @@ mod tests {
         assert!(runtime.heap.is_marking());
 
         // initial publication drains before events mutate roots
-        let outcome = runtime
-            .tick(world_state, host.as_ref(), &host_queue)
-            .expect("runtime tick should publish initial roots");
-        assert_eq!(outcome, TickResult::Progress);
+        let progressed_worker = runtime
+            .run_safepoint()
+            .expect("runtime safepoint should publish initial roots");
+        assert_eq!(progressed_worker, Some(worker_id));
         assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_none());
 
         // events should requeue the touched worker even before it ticks
@@ -1300,12 +1296,12 @@ mod tests {
 
         assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_some());
 
-        // one runtime tick should let the owning worker publish its direct roots
-        let outcome = runtime
-            .tick(world_state, host.as_ref(), &host_queue)
-            .expect("runtime tick should succeed");
+        // one runtime safepoint should let the owning worker publish its direct roots
+        let progressed_worker = runtime
+            .run_safepoint()
+            .expect("runtime safepoint should succeed");
 
-        assert_eq!(outcome, TickResult::Progress);
+        assert_eq!(progressed_worker, Some(worker_id));
         assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_none());
         assert_eq!(
             runtime.heap.roots().roots_snapshot().as_ref(),
