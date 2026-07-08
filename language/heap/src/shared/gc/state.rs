@@ -5,7 +5,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 use crate::SharedHeapReference;
 
-use super::GcPhase;
+use crate::GcPhase;
 
 /// One active shared GC state.
 #[derive(Debug, Default)]

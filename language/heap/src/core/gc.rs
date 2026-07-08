@@ -276,13 +276,61 @@ fn smooth_work_estimate(previous_bytes: u64, observed_bytes: u64) -> u64 {
     smoothed_bytes.min(u128::from(u64::MAX)) as u64
 }
 
-/// Scope of one garbage collection cycle.
+/// Collector advanced by one GC result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum GcKind {
-    /// One full heap collection.
-    Full,
-    /// One young-generation collection.
-    Minor,
+pub enum GcCollector {
+    /// Worker-local young-generation collector.
+    LocalMinor,
+    /// Worker-local full-heap collector.
+    LocalMajor,
+    /// Runtime-wide shared-heap collector.
+    Shared,
+}
+
+/// Phase advanced by one GC result.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
+pub enum GcPhase {
+    /// No collection is currently active.
+    #[default]
+    Idle,
+    /// Roots are being published for a shared collection.
+    PublishRoots,
+    /// Cross-space edges are being scanned.
+    ScanEdges,
+    /// Reachable allocations are being marked.
+    Mark,
+    /// Unreachable allocations are being reclaimed.
+    Sweep,
+    /// Young survivors are being moved out of the nursery.
+    Promote,
+}
+
+impl GcPhase {
+    /// Return the atomic representation for this phase.
+    pub(crate) const fn bits(self) -> u8 {
+        match self {
+            Self::Idle => 0,
+            Self::PublishRoots => 1,
+            Self::ScanEdges => 2,
+            Self::Mark => 3,
+            Self::Sweep => 4,
+            Self::Promote => 5,
+        }
+    }
+
+    /// Decode one atomic phase byte.
+    pub(crate) fn from_bits(bits: u8) -> Self {
+        match bits {
+            0 => Self::Idle,
+            1 => Self::PublishRoots,
+            2 => Self::ScanEdges,
+            3 => Self::Mark,
+            4 => Self::Sweep,
+            5 => Self::Promote,
+            _ => unreachable!("invalid gc phase byte: {bits}"),
+        }
+    }
 }
 
 /// Summary statistics for a garbage collection cycle.
@@ -300,49 +348,163 @@ pub struct GcStats {
     pub retained_bytes: u64,
 }
 
-/// Result of one bounded collector increment.
+/// Collection cycle that just started.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct GcStart {
+    /// Collector that started.
+    pub collector: GcCollector,
+}
+
+/// Work completed by one bounded collector increment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct GcStep {
+    /// Collector that performed the work.
+    pub collector: GcCollector,
+    /// Whether this step also started the cycle.
+    pub is_start: bool,
+    /// Collector phase that performed the work.
+    pub phase: GcPhase,
+    /// Requested work budget in bytes.
+    pub budget_bytes: usize,
+    /// Actual charged work in bytes.
+    pub work_bytes: usize,
+}
+
+/// Completed garbage collection cycle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct GcCycle {
+    /// Collector that completed the cycle.
+    pub collector: GcCollector,
+    /// Whether this cycle also started in the final increment.
+    pub is_start: bool,
+    /// Final collector phase that completed the cycle.
+    pub phase: GcPhase,
+    /// Requested work budget in bytes for the final increment.
+    pub budget_bytes: usize,
+    /// Actual charged work in bytes for the final increment.
+    pub work_bytes: usize,
+    /// Summary statistics for the completed cycle.
+    pub stats: GcStats,
+}
+
+/// Result of advancing one collector increment.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum GcProgress {
+pub enum GcAdvance {
     /// No collector work was available.
     #[default]
     Idle,
+    /// One collection cycle started.
+    Started(GcStart),
     /// Collector work ran but the cycle is not complete.
-    Active,
+    Stepped(GcStep),
     /// One collection cycle completed.
-    Complete(GcStats),
+    Completed(GcCycle),
 }
 
-impl GcProgress {
-    /// Return whether this increment did collector work.
-    pub const fn made_progress(self) -> bool {
+impl GcAdvance {
+    /// Create one collector start event.
+    pub const fn started(collector: GcCollector) -> Self {
+        Self::Started(GcStart { collector })
+    }
+
+    /// Create one active collector step.
+    pub const fn stepped(
+        collector: GcCollector,
+        phase: GcPhase,
+        budget_bytes: usize,
+        work_bytes: usize,
+    ) -> Self {
+        Self::Stepped(GcStep {
+            collector,
+            is_start: false,
+            phase,
+            budget_bytes,
+            work_bytes,
+        })
+    }
+
+    /// Create one completed collector cycle.
+    pub const fn completed(
+        collector: GcCollector,
+        phase: GcPhase,
+        budget_bytes: usize,
+        work_bytes: usize,
+        stats: GcStats,
+    ) -> Self {
+        Self::Completed(GcCycle {
+            collector,
+            is_start: false,
+            phase,
+            budget_bytes,
+            work_bytes,
+            stats,
+        })
+    }
+
+    /// Return whether this increment changed collector state.
+    pub const fn advanced(self) -> bool {
         !matches!(self, Self::Idle)
     }
 
     /// Return the completed cycle stats when this increment finished a cycle.
     pub const fn completed_stats(self) -> Option<GcStats> {
         match self {
-            Self::Complete(stats) => Some(stats),
-            Self::Idle | Self::Active => None,
+            Self::Completed(cycle) => Some(cycle.stats),
+            Self::Idle | Self::Started(_) | Self::Stepped(_) => None,
+        }
+    }
+
+    /// Return one progress value with additional work charged to it.
+    pub const fn with_work_added(self, work_bytes: usize) -> Self {
+        match self {
+            Self::Stepped(mut step) => {
+                step.work_bytes += work_bytes;
+
+                Self::Stepped(step)
+            }
+            Self::Completed(mut cycle) => {
+                cycle.work_bytes += work_bytes;
+
+                Self::Completed(cycle)
+            }
+            Self::Idle | Self::Started(_) => self,
+        }
+    }
+
+    /// Return one progress value marked as the start of its collection cycle.
+    pub const fn with_start(self) -> Self {
+        match self {
+            Self::Stepped(mut step) => {
+                step.is_start = true;
+
+                Self::Stepped(step)
+            }
+            Self::Completed(mut cycle) => {
+                cycle.is_start = true;
+
+                Self::Completed(cycle)
+            }
+            Self::Idle | Self::Started(_) => self,
         }
     }
 }
 
-/// GC summary tracked across collection cycles.
+/// Collector state tracked across completed collection cycles.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, Reflect)]
 pub struct GcState {
     /// Number of completed GC cycles.
     pub completed_cycles: u64,
-    /// The scope of the last completed cycle.
-    pub last_kind: Option<GcKind>,
-    /// The summary statistics for the last completed cycle.
+    /// The collector that completed the last cycle.
+    pub last_collector: Option<GcCollector>,
+    /// The statistics for the last completed cycle.
     pub last_stats: Option<GcStats>,
 }
 
 impl GcState {
     /// Record one completed GC cycle.
-    pub fn record_cycle(&mut self, kind: GcKind, stats: GcStats) {
+    pub fn record_cycle(&mut self, collector: GcCollector, stats: GcStats) {
         self.completed_cycles += 1;
-        self.last_kind = Some(kind);
+        self.last_collector = Some(collector);
         self.last_stats = Some(stats);
     }
 }

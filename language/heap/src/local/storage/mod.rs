@@ -11,7 +11,7 @@ mod storage;
 mod young;
 
 pub(crate) use crate::local::gc::{CardSet, CollectorState, Phase};
-pub(crate) use crate::{GcKind, GcState, GcStats};
+pub(crate) use crate::{GcState, GcStats};
 pub(crate) use block::*;
 pub(crate) use extent::*;
 pub(crate) use image::*;
