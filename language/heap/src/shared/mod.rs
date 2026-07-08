@@ -4,7 +4,7 @@ pub(crate) mod storage;
 #[cfg(test)]
 mod tests;
 
-pub use gc::{GcPhase, SharedMarkWorker};
+pub use gc::SharedMarkWorker;
 pub use heap::{
     SharedHeap, SharedHeapImage, SharedHeapLimits, SharedHeapOptions, SharedHeapSnapshot,
     SharedHeapUsage,

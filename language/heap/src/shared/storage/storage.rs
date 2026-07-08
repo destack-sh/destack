@@ -10,10 +10,10 @@ use parking_lot::RwLock;
 
 use super::{AllocationCache, HeapPageMapEntry, HeapPlace, LargeBlock, SmallSpan};
 use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
-use crate::shared::gc::{CollectorState, GcPhase};
+use crate::shared::gc::CollectorState;
 use crate::shared::heap::SharedHeapUsage;
 use crate::{
-    GcState, HeapError, HeapResult, SharedHeapOptions, SharedHeapReference, SmallSpanClass,
+    GcPhase, GcState, HeapError, HeapResult, SharedHeapOptions, SharedHeapReference, SmallSpanClass,
 };
 
 /// The first non-null shared heap large-block id.
