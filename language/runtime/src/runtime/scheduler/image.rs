@@ -2,9 +2,12 @@ use destack_core::{Capture, CaptureMode};
 use destack_program as program;
 use serde::{Deserialize, Serialize};
 
-use super::{EventLoop, Runnable, RunnableId, ScheduledTimer, Waiter, Wake, WakeKey};
+use super::{
+    EventLoop, Runnable, RunnableId, ScheduledTimer, StoppedRunnable, Waiter, Wake, WakeKey,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::machine::Continuation;
+use crate::runtime::worker::RunnableScope;
 
 /// Scalar event-loop state needed for restore.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -48,6 +51,19 @@ pub struct RunnableImage {
     pub continuation: Continuation,
     /// Resume payload passed back into the machine.
     pub resume_value: program::Value,
+}
+
+/// Captured stopped runnable state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoppedRunnableImage {
+    /// Runnable identifier used for ordering and logging.
+    pub id: RunnableId,
+    /// Runnable continuation.
+    pub continuation: Continuation,
+    /// Captured runnable scope.
+    pub scope: RunnableScope,
+    /// Reason the runnable stopped.
+    pub reason: program::StopReason,
 }
 
 /// Captured suspended continuation keyed by wake source.
@@ -167,7 +183,7 @@ impl EventLoop {
 
 impl RunnableImage {
     /// Capture one immutable runnable image.
-    fn capture(runnable: &Runnable) -> Self {
+    pub(crate) fn capture(runnable: &Runnable) -> Self {
         Self {
             id: runnable.id,
             continuation: runnable.continuation.clone(),
@@ -176,12 +192,29 @@ impl RunnableImage {
     }
 
     /// Restore one runnable from one immutable image.
-    fn restore(&self) -> Runnable {
+    pub(crate) fn restore(&self) -> Runnable {
         Runnable {
             id: self.id,
             continuation: self.continuation.clone(),
             resume_value: self.resume_value.clone(),
         }
+    }
+}
+
+impl StoppedRunnableImage {
+    /// Capture one stopped runnable image.
+    pub(crate) fn capture(stop: &StoppedRunnable) -> Self {
+        Self {
+            id: stop.id,
+            continuation: stop.continuation.clone(),
+            scope: stop.scope,
+            reason: stop.reason,
+        }
+    }
+
+    /// Restore one stopped runnable from one immutable image.
+    pub(crate) fn restore(&self) -> StoppedRunnable {
+        StoppedRunnable::new(self.id, self.continuation.clone(), self.scope, self.reason)
     }
 }
 

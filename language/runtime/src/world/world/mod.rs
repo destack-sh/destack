@@ -1,10 +1,10 @@
 mod image;
 mod mutation;
 mod restore;
+mod run;
 mod runtime;
 mod snapshot;
 mod state;
-mod tick;
 mod wake;
 mod world;
 
@@ -14,6 +14,7 @@ pub use crate::world::topology::*;
 pub use image::*;
 pub use mutation::*;
 pub use restore::*;
+pub use run::*;
 pub use snapshot::*;
 pub(crate) use state::*;
 pub use wake::*;

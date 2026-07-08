@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// Result of running program code.
 #[derive(Debug)]
 pub enum Outcome<C, O, Y = O> {
@@ -23,7 +25,7 @@ pub enum Outcome<C, O, Y = O> {
 }
 
 /// Reason execution stopped before completion.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StopReason {
     /// Debugger breakpoint.
     Breakpoint,

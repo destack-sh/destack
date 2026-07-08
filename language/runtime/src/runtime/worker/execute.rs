@@ -7,7 +7,7 @@ use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::HostPoller;
 use crate::runtime::RuntimeHeap;
 use crate::runtime::machine::{Continuation, Entry, Outcome};
-use crate::runtime::scheduler::{Runnable, RunnableId};
+use crate::runtime::scheduler::{Runnable, RunnableId, StoppedRunnable};
 use crate::runtime::time::{ClockSource, Nanos};
 use crate::world::WorldState;
 use destack_heap as heap;
@@ -15,6 +15,20 @@ use destack_program as program;
 
 /// The default maximum nested microtask depth.
 const DEFAULT_MAX_MICROTASK_DEPTH: usize = usize::MAX;
+
+/// Outcome from one bounded worker run operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WorkerRunOutcome {
+    /// One task or microtask made progress.
+    Progressed,
+    /// No work was runnable.
+    Idle,
+    /// Execution stopped at one runtime stop point.
+    Stopped {
+        /// Reason execution stopped.
+        reason: program::StopReason,
+    },
+}
 
 impl Worker {
     /// Build one runtime-owned binding call.
@@ -123,6 +137,8 @@ impl Worker {
         timeout_nanos: Option<u64>,
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<Option<program::Value>> {
+        self.reject_stopped_execution()?;
+
         // capture one monotonic start timestamp for timeout accounting
         let start_mono_nanos = world.mono_nanos();
 
@@ -198,6 +214,8 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
     ) -> RuntimeResult<bool> {
+        self.reject_stopped_execution()?;
+
         // run one event loop tick and capture progress
         let (progressed, _) = self.tick_loop(
             world,
@@ -221,6 +239,96 @@ impl Worker {
         }
 
         Ok(progressed)
+    }
+
+    /// Run one pending microtask.
+    pub(crate) fn run_microtask(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        if let Some(stop) = &self.stop {
+            return Ok(WorkerRunOutcome::Stopped {
+                reason: stop.reason,
+            });
+        }
+
+        let Some(microtask) = self.event_loop.pop_microtask() else {
+            return Ok(WorkerRunOutcome::Idle);
+        };
+
+        // run one microtask to completion
+        let outcome = self.run_dequeued_microtask(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            microtask,
+            DEFAULT_MAX_MICROTASK_DEPTH,
+        )?;
+
+        self.finish_run(shared, outcome)
+    }
+
+    /// Continue this worker from a retained runtime stop point.
+    pub(crate) fn continue_stop(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        let Some(stop) = self.stop.take() else {
+            return Ok(WorkerRunOutcome::Idle);
+        };
+
+        let outcome = self.execute_stopped_runnable(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            stop,
+        )?;
+
+        self.finish_run(shared, outcome)
+    }
+
+    /// Run one task or scheduler event and retain runtime stop points.
+    pub(crate) fn run_task(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        if let Some(stop) = &self.stop {
+            return Ok(WorkerRunOutcome::Stopped {
+                reason: stop.reason,
+            });
+        }
+
+        let outcome = self.run_loop(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+        )?;
+
+        self.finish_run(shared, outcome)
     }
 
     /// Run cooperative GC work at one worker safepoint.
@@ -441,6 +549,70 @@ impl Worker {
         Ok((progressed, None))
     }
 
+    /// Run the loop once and retain stopped task state.
+    #[inline(never)]
+    fn run_loop(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        // drain microtasks before selecting other work
+        if self.event_loop.has_microtasks() {
+            let outcome = self.run_microtasks(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )?;
+            if outcome != WorkerRunOutcome::Idle {
+                return Ok(outcome);
+            }
+        }
+
+        // run one queued macrotask before pulling external wakes
+        if let Some(task) = self.event_loop.pop_task() {
+            return self.run_dequeued_task(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                task,
+            );
+        }
+
+        // dispatch one wake into the task queue
+        let wall_now = Nanos::new(world.wall_nanos());
+        let mono_now = Nanos::new(world.mono_nanos());
+        if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
+            if let Some(runnable) = self.event_loop.runnable_for_wake(wake)? {
+                self.enqueue_task_runnable(runnable)?;
+            }
+        }
+
+        // run one task produced by the dispatched wake
+        if let Some(task) = self.event_loop.pop_task() {
+            return self.run_dequeued_task(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                task,
+            );
+        }
+
+        Ok(WorkerRunOutcome::Idle)
+    }
+
     /// Enqueue one yielded continuation as a task.
     fn enqueue_task(
         &mut self,
@@ -511,6 +683,34 @@ impl Worker {
         Ok(None)
     }
 
+    /// Run one dequeued task and retain stopped continuations.
+    fn run_dequeued_task(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        runnable: Runnable,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        let id = runnable.id;
+        let scope = RunnableScope::for_task(id);
+        let _guard = enter_runnable_scope(scope);
+        let outcome = self.execute_runnable(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            runnable.continuation,
+            runnable.resume_value,
+        )?;
+
+        self.handle_run_outcome(id, scope, outcome)
+    }
+
     /// Enqueue one runnable as a macrotask.
     fn enqueue_task_runnable(&mut self, runnable: Runnable) -> RuntimeResult<()> {
         // enqueue the task into the event loop
@@ -573,6 +773,53 @@ impl Worker {
         }
     }
 
+    /// Run one dequeued microtask and retain stopped continuations.
+    fn run_dequeued_microtask(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        runnable: Runnable,
+        max_microtask_depth: usize,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        // enforce true microtask nesting depth
+        let parent_scope = current_runnable_scope();
+        let next_depth = parent_scope
+            .microtask_depth()
+            .checked_add(1)
+            .ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "microtask depth space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
+        if next_depth > max_microtask_depth {
+            return Err(RuntimeError::Internal {
+                message: "microtask depth exceeded max_microtask_depth".to_string(),
+            }
+            .boxed());
+        }
+
+        // run the microtask runnable
+        let scope = RunnableScope::for_microtask(runnable.id, next_depth);
+        let _guard = enter_runnable_scope(scope);
+        let outcome = self.execute_runnable(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            runnable.continuation,
+            runnable.resume_value,
+        )?;
+
+        self.handle_run_outcome(runnable.id, scope, outcome)
+    }
+
     /// Drain all pending microtasks.
     fn drain_microtasks(
         &mut self,
@@ -605,6 +852,105 @@ impl Worker {
         }
 
         Ok(num_drained_microtasks)
+    }
+
+    /// Run pending microtasks until one stops or the microtask queue drains.
+    fn run_microtasks(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        let mut progressed = false;
+
+        // drain microtasks until one stop point or queue exhaustion
+        while let Some(microtask) = self.event_loop.pop_microtask() {
+            match self.run_dequeued_microtask(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+                microtask,
+                DEFAULT_MAX_MICROTASK_DEPTH,
+            )? {
+                WorkerRunOutcome::Progressed => progressed = true,
+                stopped @ WorkerRunOutcome::Stopped { .. } => return Ok(stopped),
+                WorkerRunOutcome::Idle => {}
+            }
+        }
+
+        if progressed {
+            Ok(WorkerRunOutcome::Progressed)
+        } else {
+            Ok(WorkerRunOutcome::Idle)
+        }
+    }
+
+    /// Resume one stopped runnable under its retained runnable scope.
+    fn execute_stopped_runnable(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        stop: StoppedRunnable,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        let scope = stop.scope;
+        let id = stop.id;
+        let _guard = enter_runnable_scope(scope);
+        let outcome = self.continue_runnable(
+            world,
+            shared,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            stop.continuation,
+        )?;
+
+        self.handle_run_outcome(id, scope, outcome)
+    }
+
+    /// Handle one run outcome and retain stopped runnable state.
+    fn handle_run_outcome(
+        &mut self,
+        id: RunnableId,
+        scope: RunnableScope,
+        outcome: Outcome<Continuation>,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        match outcome {
+            Outcome::Completed { .. } => Ok(WorkerRunOutcome::Progressed),
+            Outcome::Yielded {
+                continuation,
+                value,
+            } => {
+                if scope.microtask_id().is_some() {
+                    return Err(RuntimeError::Internal {
+                        message: "microtask yielded while running to completion".to_string(),
+                    }
+                    .boxed());
+                }
+
+                self.enqueue_task(id, continuation, value)?;
+
+                Ok(WorkerRunOutcome::Progressed)
+            }
+            Outcome::Stopped {
+                continuation,
+                reason,
+            } => {
+                self.stop = Some(StoppedRunnable::new(id, continuation, scope, reason));
+
+                Ok(WorkerRunOutcome::Stopped { reason })
+            }
+        }
     }
 
     /// Resume one machine continuation with one runtime value.
@@ -642,6 +988,68 @@ impl Worker {
         };
 
         machine.resume(context, runnable, resume_value)
+    }
+
+    /// Continue one stopped machine continuation.
+    fn continue_runnable(
+        &mut self,
+        world: &mut WorldState,
+        shared: &RuntimeHeap,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticImage,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        runnable: Continuation,
+    ) -> RuntimeResult<Outcome<Continuation>> {
+        let mut call_context = self.binding_call(world, host, host_queue);
+        let Worker {
+            heap,
+            shared_cache,
+            shared_mark_worker,
+            local_static,
+            machine,
+            ..
+        } = self;
+        let context = program::ProgramActivation {
+            state: NonNull::from(&mut call_context).cast(),
+            storage: program::ProgramStorage {
+                heap,
+                shared_heap: shared.shared.as_ref(),
+                shared_cache,
+                shared_mark_worker,
+                local_static,
+                shared_static,
+                constant_space,
+            },
+        };
+
+        machine.continue_continuation(context, runnable)
+    }
+
+    /// Reject ordinary event-loop execution while this worker is stopped.
+    fn reject_stopped_execution(&self) -> RuntimeResult<()> {
+        if self.stop.is_some() {
+            Err(RuntimeError::execution_stopped().boxed())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Publish root changes and donate GC work after one bounded run.
+    fn finish_run(
+        &mut self,
+        shared: &RuntimeHeap,
+        outcome: WorkerRunOutcome,
+    ) -> RuntimeResult<WorkerRunOutcome> {
+        if outcome != WorkerRunOutcome::Idle && shared.is_marking() {
+            shared.queue_root_scan(self.id);
+        }
+
+        if outcome == WorkerRunOutcome::Progressed {
+            self.collect_at_safepoint(shared, false)?;
+        }
+
+        Ok(outcome)
     }
 
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.

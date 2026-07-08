@@ -352,6 +352,42 @@ impl Machine {
         }
     }
 
+    /// Continue one stopped continuation without a resume value.
+    pub fn continue_continuation(
+        &mut self,
+        context: ProgramActivation<'_>,
+        continuation: Continuation,
+    ) -> RuntimeResult<Outcome<Continuation>> {
+        if continuation.machine() != self.id {
+            return Err(machine_continuation_mismatch(
+                &machine_name(self.kind(), self.id),
+                &machine_name(CONTINUATION, continuation.machine()),
+            ));
+        }
+
+        let id = self.id;
+        let continuation = continuation.program;
+        let context = context.storage;
+
+        let vm = match &mut self.engine {
+            Engine::Vm(machine) => machine.as_mut(),
+            Engine::Native { vm, .. } => vm.as_mut(),
+        };
+        let outcome = vm::Machine::continue_continuation(
+            vm,
+            context.local_static,
+            context.shared_static,
+            context.heap,
+            context.shared_heap,
+            context.shared_cache,
+            context.shared_mark_worker,
+            continuation,
+        )
+        .map_err(Box::<RuntimeError>::from)?;
+
+        Ok(outcome_from_vm(id, outcome))
+    }
+
     /// Visit mutable heap root slots from active machine state.
     pub fn visit_root_slots(
         &mut self,

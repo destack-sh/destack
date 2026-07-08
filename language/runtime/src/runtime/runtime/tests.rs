@@ -25,10 +25,10 @@ use crate::runtime::machine::{
 use crate::runtime::scheduler::{Readiness, Runnable, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::runtime::{
-    BindingCall, RuntimeHeap, TickResult, Worker, WorkerId, WorkerOptions, World, WorldState,
+    BindingCall, RuntimeHeap, Worker, WorkerId, WorkerOptions, World, WorldState,
     current_runnable_scope,
 };
-use crate::world::RuntimeId;
+use crate::world::{Run, RunOutcome, RuntimeId};
 
 /// Build one resource id owned by the primary test worker.
 pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
@@ -79,6 +79,14 @@ function test.complete(v0: int32): int32 {
 b0(v0: int32):
     yield v0 => b1(v0)
 b1(v1: int32, v2: int32):
+    return v1
+}
+
+function test.breakpoint(v0: int32): int32 {
+b0(v0: int32):
+    yield v0 => b1(v0)
+b1(v1: int32, v2: int32):
+    breakpoint
     return v1
 }
 "#;
@@ -507,9 +515,18 @@ impl TestWorldRuntime {
         callback(worker)
     }
 
-    /// Execute one runtime tick and fail loudly on runtime errors.
-    pub(crate) fn tick(&mut self) -> TickResult {
-        self.world.tick().expect("runtime tick should succeed")
+    /// Run one world task and fail loudly on runtime errors.
+    pub(crate) fn run_task(&mut self) -> RunOutcome {
+        self.world
+            .run(Run::Task)
+            .expect("world task run should succeed")
+    }
+
+    /// Continue one stopped world runnable and fail loudly on runtime errors.
+    pub(crate) fn run_continue(&mut self) -> RunOutcome {
+        self.world
+            .run(Run::Continue)
+            .expect("world continue should succeed")
     }
 
     /// Return current world wall time in nanoseconds.
@@ -528,6 +545,20 @@ impl TestWorldRuntime {
         worker_id: WorkerId,
         value: u64,
     ) -> Continuation {
+        self.continuation(worker_id, "test.complete", value)
+    }
+
+    /// Create one breakpoint continuation in one explicit worker.
+    pub(crate) fn breakpoint_continuation(
+        &mut self,
+        worker_id: WorkerId,
+        value: u64,
+    ) -> Continuation {
+        self.continuation(worker_id, "test.breakpoint", value)
+    }
+
+    /// Create one continuation from one explicit worker entrypoint.
+    fn continuation(&mut self, worker_id: WorkerId, entry: &str, value: u64) -> Continuation {
         let value = i32::try_from(value).expect("test continuation id should fit int32");
         let World {
             state,
@@ -552,7 +583,7 @@ impl TestWorldRuntime {
                         shared,
                         shared_static,
                         constant_space,
-                        "test.complete",
+                        entry,
                         value,
                     )
                 },

@@ -3,9 +3,9 @@ use std::sync::Arc;
 use destack_program as program;
 use destack_repository::{Environment, RuntimeOptions};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::machine::{Entry, Execution};
-use crate::world::{RuntimeId, World};
+use crate::world::{Run, RunOutcome, RuntimeId, World};
 
 /// Complete startup request for one Destack world.
 pub struct Launch {
@@ -83,7 +83,9 @@ impl Launch {
         let value = world.run_entrypoint(runtime_id, &entry, &entry_args)?;
 
         // drain work scheduled by the entrypoint
-        world.tick_until_idle()?;
+        if let RunOutcome::Stopped { .. } = world.run(Run::UntilIdle)? {
+            return Err(RuntimeError::execution_stopped().boxed());
+        }
 
         Ok(LaunchResult {
             world,

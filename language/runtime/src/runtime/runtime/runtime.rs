@@ -9,7 +9,9 @@ use crate::runtime::scheduler::{
     HostWake, Readiness, ResourceWake, ScheduledTimer, TickResult, Wake,
 };
 use crate::runtime::time::Instant;
-use crate::runtime::worker::{Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage};
+use crate::runtime::worker::{
+    Worker, WorkerId, WorkerImage, WorkerOptions, WorkerOptionsImage, WorkerRunOutcome,
+};
 use crate::world::{RestoreContext, RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
 use destack_heap as heap;
@@ -43,6 +45,33 @@ pub struct Runtime {
     default_worker_id: WorkerId,
     /// The next worker slot to schedule first.
     next_worker_cursor: usize,
+}
+
+/// Outcome from one bounded runtime run operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RuntimeRunOutcome {
+    /// One worker made progress.
+    Progressed,
+    /// No worker was runnable.
+    Idle,
+    /// One worker stopped at a runtime stop point.
+    Stopped {
+        /// Worker that stopped.
+        worker_id: WorkerId,
+        /// Reason execution stopped.
+        reason: program::StopReason,
+    },
+}
+
+impl RuntimeRunOutcome {
+    /// Convert a worker run outcome when work happened.
+    fn from_worker(worker_id: WorkerId, outcome: WorkerRunOutcome) -> Option<Self> {
+        match outcome {
+            WorkerRunOutcome::Progressed => Some(Self::Progressed),
+            WorkerRunOutcome::Idle => None,
+            WorkerRunOutcome::Stopped { reason } => Some(Self::Stopped { worker_id, reason }),
+        }
+    }
 }
 
 /// Materialized runtime metadata captured in one world image.
@@ -366,6 +395,150 @@ impl Runtime {
         }
 
         Ok(TickResult::Idle)
+    }
+
+    /// Run one pending worker microtask in stable order.
+    pub(crate) fn run_microtask(
+        &mut self,
+        world: &mut WorldState,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<RuntimeRunOutcome> {
+        // workers
+        let worker_count = self.workers.len();
+        let start_index = if worker_count == 0 {
+            0
+        } else {
+            self.next_worker_cursor % worker_count
+        };
+        let shared = &self.heap;
+        let shared_static = &mut self.shared_static;
+        let constant_space = &self.constant_space;
+        let workers = &mut self.workers;
+
+        for (worker_index, worker) in workers.values_mut().enumerate().skip(start_index) {
+            let outcome = worker.run_microtask(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )?;
+            if let Some(outcome) = RuntimeRunOutcome::from_worker(worker.id, outcome) {
+                self.next_worker_cursor = (worker_index + 1) % worker_count;
+
+                return Ok(outcome);
+            }
+        }
+
+        for (worker_index, worker) in workers.values_mut().enumerate().take(start_index) {
+            let outcome = worker.run_microtask(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )?;
+            if let Some(outcome) = RuntimeRunOutcome::from_worker(worker.id, outcome) {
+                self.next_worker_cursor = worker_index + 1;
+
+                return Ok(outcome);
+            }
+        }
+
+        Ok(RuntimeRunOutcome::Idle)
+    }
+
+    /// Continue the first stopped worker in stable worker order.
+    pub(crate) fn continue_stop(
+        &mut self,
+        world: &mut WorldState,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<RuntimeRunOutcome> {
+        let shared = &self.heap;
+        let shared_static = &mut self.shared_static;
+        let constant_space = &self.constant_space;
+
+        for (worker_id, worker) in &mut self.workers {
+            match worker.continue_stop(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )? {
+                WorkerRunOutcome::Progressed => return Ok(RuntimeRunOutcome::Progressed),
+                WorkerRunOutcome::Idle => {}
+                WorkerRunOutcome::Stopped { reason } => {
+                    return Ok(RuntimeRunOutcome::Stopped {
+                        worker_id: *worker_id,
+                        reason,
+                    });
+                }
+            }
+        }
+
+        Ok(RuntimeRunOutcome::Idle)
+    }
+
+    /// Run one pending worker task in stable scheduler order.
+    pub(crate) fn run_task(
+        &mut self,
+        world: &mut WorldState,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+    ) -> RuntimeResult<RuntimeRunOutcome> {
+        // workers
+        let worker_count = self.workers.len();
+        let start_index = if worker_count == 0 {
+            0
+        } else {
+            self.next_worker_cursor % worker_count
+        };
+        let shared = &self.heap;
+        let shared_static = &mut self.shared_static;
+        let constant_space = &self.constant_space;
+        let workers = &mut self.workers;
+
+        for (worker_index, (worker_id, worker)) in workers.iter_mut().enumerate().skip(start_index)
+        {
+            let outcome = worker.run_task(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )?;
+            if let Some(outcome) = RuntimeRunOutcome::from_worker(*worker_id, outcome) {
+                self.next_worker_cursor = (worker_index + 1) % worker_count;
+
+                return Ok(outcome);
+            }
+        }
+
+        for (worker_index, (worker_id, worker)) in workers.iter_mut().enumerate().take(start_index)
+        {
+            let outcome = worker.run_task(
+                world,
+                shared,
+                shared_static,
+                constant_space,
+                host,
+                host_queue,
+            )?;
+            if let Some(outcome) = RuntimeRunOutcome::from_worker(*worker_id, outcome) {
+                self.next_worker_cursor = worker_index + 1;
+
+                return Ok(outcome);
+            }
+        }
+
+        Ok(RuntimeRunOutcome::Idle)
     }
 
     /// Create one runtime from one already-constructed default worker.
