@@ -7,5 +7,7 @@ export newtype interface Error {
     display(): MaybeOwned<string>;
 
     /// Return the underlying cause.
-    source(): Dynamic<Error> | undefined;
+    source(): Dynamic<Error> | undefined {
+        undefined
+    }
 }

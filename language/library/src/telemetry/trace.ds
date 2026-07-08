@@ -106,7 +106,7 @@ export struct TraceRecord {
 /// Trace event sink.
 export newtype interface TraceSink {
     /// Write one trace record.
-    write(record: TraceRecord): void;
+    write(&readonly this, record: TraceRecord): void;
 }
 
 /// Active trace span.
@@ -121,7 +121,7 @@ export class Span {
     readonly kind: SpanKind;
 
     /// Optional sink for this span.
-    private sink?: TraceSink;
+    private sink?: readonly TraceSink;
 
     /// Completion status.
     private status: SpanStatus = SpanStatus.Unset;
@@ -135,7 +135,7 @@ export class Span {
         context: SpanContext,
         kind?: SpanKind,
         fields?: Fields,
-        sink?: TraceSink,
+        sink?: readonly TraceSink,
     ) {
         this.name = name;
         this.context = context;
@@ -214,10 +214,10 @@ export class Span {
 /// Trace span starter.
 export class Tracer {
     /// Optional sink for spans created by this tracer.
-    private sink?: TraceSink;
+    private sink?: readonly TraceSink;
 
     /// Create a tracer.
-    constructor(sink?: TraceSink) {
+    constructor(sink?: readonly TraceSink) {
         this.sink = sink;
     }
 
@@ -284,7 +284,7 @@ export function spanAsync<T>(
 export declare function createSpanContext(parent?: SpanContext): SpanContext;
 
 /// Write one trace record to a trace sink.
-function writeTrace(sink: TraceSink | undefined, record: TraceRecord): void {
+function writeTrace(sink: readonly TraceSink | undefined, record: TraceRecord): void {
     if (sink == undefined) {
         emitTrace(record)
     } else {
