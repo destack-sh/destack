@@ -180,6 +180,7 @@ impl<'a> View<'a> {
                 Expression::Member {
                     left,
                     name: Some(name),
+                    ..
                 } => {
                     segments.push(*name);
                     current = *left;

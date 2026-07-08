@@ -402,6 +402,22 @@ impl Declaration {
         }
     }
 
+    /// Get the implemented interface types of the declaration.
+    #[inline]
+    pub fn implements_types(&self) -> Option<&[LocalNodeId<TypeExpression>]> {
+        match self {
+            Declaration::Struct(declaration) => Some(&declaration.implements_types),
+            Declaration::Class(declaration) => Some(&declaration.implements_types),
+            Declaration::Enum(declaration) => Some(&declaration.implements_types),
+            Declaration::Extension(declaration) => Some(&declaration.implements_types),
+            Declaration::Global(_)
+            | Declaration::Module(_)
+            | Declaration::Type(_)
+            | Declaration::Interface(_)
+            | Declaration::Function(_) => None,
+        }
+    }
+
     /// Return the mutable generic parameters of the declaration.
     #[inline]
     pub fn generic_parameters_mut(&mut self) -> Option<&mut Vec<LocalNodeId<GenericParameter>>> {

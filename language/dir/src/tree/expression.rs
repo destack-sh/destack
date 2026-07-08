@@ -661,8 +661,36 @@ pub enum Expression {
     Member {
         left: LocalNodeId<Expression>,
         name: Option<StringId>,
+        is_optional: bool,
     },
 
+<<<<<<< HEAD
+||||||| parent of 496e257a57 (feat(languaeg/dir): split out Expression.Chain)
+    /// Private member access.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.#bar
+    /// ```
+    PrivateMember {
+        left: LocalNodeId<Expression>,
+        name: Option<StringId>,
+    },
+
+=======
+    /// Private member access.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.#bar
+    /// ```
+    PrivateMember {
+        left: LocalNodeId<Expression>,
+        name: Option<StringId>,
+        is_optional: bool,
+    },
+
+>>>>>>> 496e257a57 (feat(languaeg/dir): split out Expression.Chain)
     /// Index into a receiver expression.
     ///
     /// Examples:
@@ -676,6 +704,7 @@ pub enum Expression {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,
         index: Option<LocalNodeId<Expression>>,
+        is_optional: bool,
     },
 
     /// Instantiation expression (TypeScript).
@@ -720,6 +749,7 @@ pub enum Expression {
         left: LocalNodeId<Expression>,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         arguments: Vec<LocalNodeId<Argument>>,
+        is_optional: bool,
     },
 
     /// New constructor call.
@@ -748,8 +778,16 @@ pub enum Expression {
         arguments: Vec<LocalNodeId<Argument>>,
     },
 
+    /// Optional chain boundary around accesses that may short-circuit.
+    ///
+    /// Examples:
+    /// ```
+    /// options?.parent
+    /// value?.method()?.field
+    /// ```
+    Chain { expression: LocalNodeId<Expression> },
+
     /// Maybe unwrap an expression with `?` and propagate.
-    /// Supports chaining with `?.`.
     Maybe {
         position: PostfixPosition,
         left: LocalNodeId<Expression>,

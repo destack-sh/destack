@@ -1163,10 +1163,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_expression(tree, *right, right_expr);
         }
 
-        Expression::Member {
-            left: receiver,
-            name: _,
-        } => {
+        Expression::Member { left: receiver, .. } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
         }
@@ -1175,6 +1172,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             position: _,
             left: receiver,
             index,
+            ..
         } => {
             let receiver_expr = tree.get(*receiver);
             visitor.visit_expression(tree, *receiver, receiver_expr);
@@ -1203,6 +1201,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             left,
             generic_arguments,
             arguments,
+            ..
         } => {
             let receiver_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, receiver_expr);
@@ -1223,6 +1222,11 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
             }
+        }
+
+        Expression::Chain { expression } => {
+            let inner = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, inner);
         }
 
         Expression::Maybe { position: _, left } => {
