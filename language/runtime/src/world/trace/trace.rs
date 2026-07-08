@@ -1,8 +1,9 @@
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingId, CodecId};
 use crate::runtime::machine::Entry;
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::scheduler::RunnableId;
 use crate::runtime::time::Instant;
+use crate::runtime::worker::RunnableScope;
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::world::Mutation;
 use destack_program as program;
@@ -10,14 +11,32 @@ use serde::{Deserialize, Serialize};
 
 use super::{TraceError, TraceSequence};
 
+/// Result stored inside deterministic trace entries.
+pub type TraceResult<T> = Result<T, Box<TraceError>>;
+
+/// Encoded trace entry discriminator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub(crate) enum TraceTag {
+    /// World mutation trace.
+    Mutation = 1,
+    /// Runtime entrypoint trace.
+    Entrypoint = 2,
+    /// Binding call trace.
+    Binding = 3,
+    /// Clock trace.
+    Clock = 4,
+    /// Random trace.
+    Random = 5,
+}
+
 /// One authoritative replay payload.
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Trace {
     /// One mutation that entered the world.
-    Mutation(Mutation),
+    Mutation(Box<Mutation>),
     /// One runtime entrypoint call that entered the world.
-    Entrypoint(EntrypointCall),
+    Entrypoint(Box<EntrypointCall>),
     /// One binding result that replay cannot derive.
     Binding(BindingTrace),
     /// One clock fact that replay cannot derive.
@@ -60,6 +79,36 @@ impl Trace {
     }
 }
 
+impl TraceTag {
+    /// Decode one trace tag byte.
+    pub(crate) fn from_byte(byte: u8) -> RuntimeResult<Self> {
+        match byte {
+            1 => Ok(Self::Mutation),
+            2 => Ok(Self::Entrypoint),
+            3 => Ok(Self::Binding),
+            4 => Ok(Self::Clock),
+            5 => Ok(Self::Random),
+            _ => Err(RuntimeError::trace_mismatch("trace_tag".to_string()).boxed()),
+        }
+    }
+
+    /// Return this trace tag as one byte.
+    pub(crate) const fn byte(self) -> u8 {
+        self as u8
+    }
+
+    /// Return the trace name used for diagnostics.
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::Mutation => "world",
+            Self::Entrypoint => "entrypoint",
+            Self::Binding => "binding",
+            Self::Clock => "time",
+            Self::Random => "random",
+        }
+    }
+}
+
 impl TraceEntry {
     /// Return the stable trace entry name.
     pub fn name(&self) -> &'static str {
@@ -76,10 +125,8 @@ pub struct EntropySubject {
     pub worker_id: WorkerId,
     /// Binding identifier for this trace fact.
     pub binding_id: BindingId,
-    /// Optional task identifier for this trace fact.
-    pub task_id: Option<RunnableId>,
-    /// Optional microtask identifier for this trace fact.
-    pub microtask_id: Option<RunnableId>,
+    /// Runnable scope for this trace fact.
+    pub scope: RunnableScope,
 }
 
 /// Clock fact captured for trace.
@@ -90,14 +137,14 @@ pub enum ClockTrace {
         /// Runtime subject metadata for this clock read.
         subject: EntropySubject,
         /// Monotonic clock read outcome in nanoseconds.
-        outcome: Result<u64, TraceError>,
+        outcome: TraceResult<u64>,
     },
     /// Wall clock read.
     ReadWall {
         /// Runtime subject metadata for this clock read.
         subject: EntropySubject,
         /// Wall clock read outcome in nanoseconds.
-        outcome: Result<u64, TraceError>,
+        outcome: TraceResult<u64>,
     },
     /// Runtime-controlled virtual time advance.
     Advance(Instant),
@@ -111,7 +158,7 @@ pub enum RandomTrace {
         /// Runtime subject metadata for this random fact.
         subject: EntropySubject,
         /// Allocated stream identifier outcome.
-        outcome: Result<RandomStreamId, TraceError>,
+        outcome: TraceResult<RandomStreamId>,
     },
     /// Deterministic stream u64 read.
     ReadU64 {
@@ -120,7 +167,7 @@ pub enum RandomTrace {
         /// Random stream identifier for this read.
         stream_id: RandomStreamId,
         /// Random u64 sample outcome.
-        outcome: Result<u64, TraceError>,
+        outcome: TraceResult<u64>,
     },
     /// Deterministic stream bytes read.
     ReadBytes {
@@ -131,7 +178,7 @@ pub enum RandomTrace {
         /// Requested byte count for this read.
         len: u32,
         /// Random bytes read outcome.
-        outcome: Result<Vec<u8>, TraceError>,
+        outcome: TraceResult<Vec<u8>>,
     },
 }
 

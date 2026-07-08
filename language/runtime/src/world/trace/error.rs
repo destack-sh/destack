@@ -162,8 +162,20 @@ impl From<TraceError> for RuntimeError {
     }
 }
 
+impl From<Box<TraceError>> for RuntimeError {
+    fn from(error: Box<TraceError>) -> Self {
+        Self::from(*error)
+    }
+}
+
 impl From<TraceError> for Box<RuntimeError> {
     fn from(error: TraceError) -> Self {
+        RuntimeError::from(error).boxed()
+    }
+}
+
+impl From<Box<TraceError>> for Box<RuntimeError> {
+    fn from(error: Box<TraceError>) -> Self {
         RuntimeError::from(error).boxed()
     }
 }

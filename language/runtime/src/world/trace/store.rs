@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
 use crate::world::trace::{
-    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK, Trace,
-    TraceCheckpointIndex, TraceCursor, TraceHeader,
+    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK, TraceCheckpointIndex,
+    TraceCursor, TraceHeader, TraceTag,
 };
 
-use super::chunk::{TRACE_ENTRY_LENGTH_BYTES, TraceChunk};
+use super::chunk::{TRACE_ENTRY_LENGTH_BYTES, TRACE_ENTRY_TAG_BYTES, TraceChunk};
 use super::file::TraceFile;
 
 /// Sequence number for entries within a trace log.
@@ -212,12 +212,14 @@ impl TraceStore {
         Ok(())
     }
 
-    /// Append one trace payload to the store.
-    pub(crate) fn record(&self, trace: Trace) -> RuntimeResult<TraceSequence> {
-        // compute the encoded size before touching trace state
-        let encoded_len = destack_serde::encoded_len(&trace)
-            .map_err(|_| RuntimeError::trace_encode_failed("entry".to_string()).boxed())?
-            as u64;
+    /// Append one tagged trace payload to the store.
+    pub(crate) fn record_encoded(
+        &self,
+        tag: TraceTag,
+        encoded: &[u8],
+    ) -> RuntimeResult<TraceSequence> {
+        let payload_len = encoded.len() as u64;
+        let encoded_len = payload_len + TRACE_ENTRY_TAG_BYTES as u64;
         if encoded_len > u32::MAX as u64 {
             return Err(RuntimeError::trace_encode_failed("entry".to_string()).boxed());
         }
@@ -251,12 +253,8 @@ impl TraceStore {
         let end = start + record_len as usize;
         chunk.bytes.resize(end, 0);
         chunk.bytes[start..payload_start].copy_from_slice(&(encoded_len as u32).to_le_bytes());
-        let encoded_len = destack_serde::to_slice(&trace, &mut chunk.bytes[payload_start..end])
-            .map_err(|_| RuntimeError::trace_encode_failed("entry".to_string()).boxed())?
-            .len();
-        let encoded_end = payload_start + encoded_len;
-
-        chunk.bytes.truncate(encoded_end);
+        chunk.bytes[payload_start] = tag.byte();
+        chunk.bytes[payload_start + TRACE_ENTRY_TAG_BYTES..end].copy_from_slice(encoded);
         chunk.header.entry_count = chunk.header.entry_count.checked_add(1).ok_or_else(|| {
             RuntimeError::Internal {
                 message: "trace chunk entry count space exhausted".to_string(),

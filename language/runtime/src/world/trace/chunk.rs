@@ -1,12 +1,16 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::world::trace::Trace;
+use crate::world::trace::{Trace, TraceTag};
 
 use super::{TraceChunkHeader, TraceSequence};
 use destack_core::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 /// Byte length of one trace entry length prefix.
 pub(super) const TRACE_ENTRY_LENGTH_BYTES: usize = std::mem::size_of::<u32>();
+
+/// Byte length of one trace entry tag.
+pub(super) const TRACE_ENTRY_TAG_BYTES: usize = std::mem::size_of::<u8>();
 
 /// Trace chunk payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,8 +126,41 @@ impl TraceChunk {
         Ok(())
     }
 
-    /// Decode one trace at one byte offset and return the next byte offset.
+    /// Decode one generic trace at one byte offset and return the next byte offset.
     pub(super) fn trace_at(&self, offset: usize) -> RuntimeResult<(Trace, usize)> {
+        let (tag, encoded, end) = self.entry_at(offset)?;
+        let trace = match tag {
+            TraceTag::Mutation => Trace::Mutation(self.decode_entry(encoded, tag.name())?),
+            TraceTag::Entrypoint => Trace::Entrypoint(self.decode_entry(encoded, tag.name())?),
+            TraceTag::Binding => Trace::Binding(self.decode_entry(encoded, tag.name())?),
+            TraceTag::Clock => Trace::Clock(self.decode_entry(encoded, tag.name())?),
+            TraceTag::Random => Trace::Random(self.decode_entry(encoded, tag.name())?),
+        };
+
+        Ok((trace, end))
+    }
+
+    /// Decode one typed trace payload at one byte offset.
+    pub(super) fn payload_at<T>(
+        &self,
+        offset: usize,
+        expected_tag: TraceTag,
+    ) -> RuntimeResult<(T, usize)>
+    where
+        T: DeserializeOwned,
+    {
+        let (tag, encoded, end) = self.entry_at(offset)?;
+        if tag != expected_tag {
+            return Err(RuntimeError::trace_mismatch(expected_tag.name().to_string()).boxed());
+        }
+
+        let payload = self.decode_entry(encoded, expected_tag.name())?;
+
+        Ok((payload, end))
+    }
+
+    /// Return one encoded trace entry at one byte offset.
+    fn entry_at(&self, offset: usize) -> RuntimeResult<(TraceTag, &[u8], usize)> {
         let length_end = offset + TRACE_ENTRY_LENGTH_BYTES;
         if length_end > self.bytes.len() {
             return Err(RuntimeError::trace_mismatch("chunk_length".to_string()).boxed());
@@ -134,12 +171,26 @@ impl TraceChunk {
         if end > self.bytes.len() {
             return Err(RuntimeError::trace_mismatch("chunk_length".to_string()).boxed());
         }
+        if entry_length < TRACE_ENTRY_TAG_BYTES {
+            return Err(RuntimeError::trace_mismatch("trace_tag".to_string()).boxed());
+        }
 
-        let encoded = &self.bytes[length_end..end];
-        let trace = destack_serde::from_slice(encoded)
-            .map_err(|_| RuntimeError::trace_decode_failed("entry".to_string()).boxed())?;
+        let tag = TraceTag::from_byte(self.bytes[length_end])?;
+        let payload_start = length_end + TRACE_ENTRY_TAG_BYTES;
+        let encoded = &self.bytes[payload_start..end];
 
-        Ok((trace, end))
+        Ok((tag, encoded, end))
+    }
+
+    /// Decode one trace payload from canonical bytes.
+    fn decode_entry<T>(&self, encoded: &[u8], name: &str) -> RuntimeResult<T>
+    where
+        T: DeserializeOwned,
+    {
+        let payload = destack_serde::from_slice(encoded)
+            .map_err(|_| RuntimeError::trace_decode_failed(name.to_string()).boxed())?;
+
+        Ok(payload)
     }
 
     /// Return one length-prefixed entry length.
