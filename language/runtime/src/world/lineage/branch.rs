@@ -1,24 +1,23 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
+use crate::world::topology::LabelSet;
 
 use super::{Moment, RevisionId};
 
 /// Branch identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct BranchId(u128);
+pub struct BranchId(u64);
 
 impl BranchId {
     /// Create a new branch identifier.
-    pub const fn new(value: u128) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
     /// Return the raw branch identifier value.
-    pub const fn get(self) -> u128 {
+    pub const fn get(self) -> u64 {
         self.0
     }
 }
@@ -35,7 +34,7 @@ pub struct Branch {
     /// The branch name.
     pub name: String,
     /// The branch labels.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 /// Branch origin in one world lineage.
@@ -87,15 +86,15 @@ impl World {
     pub fn label_branch(
         &self,
         branch_id: BranchId,
-        key: impl Into<String>,
-        value: impl Into<String>,
+        key: impl Into<Box<str>>,
+        value: impl Into<Box<str>>,
     ) -> RuntimeResult<()> {
         let mut lineage = self.lineage.write();
         let branch = lineage
             .branches
             .get_mut(&branch_id)
             .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
-        branch.labels.insert(key.into(), value.into());
+        branch.labels.insert(key, value);
 
         Ok(())
     }

@@ -3,7 +3,6 @@ use destack_heap as heap;
 use destack_program as program;
 use destack_serde::{Error as SerdeError, to_vec};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
@@ -16,6 +15,7 @@ use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId
 use crate::runtime::scheduler::{
     EventLoop, EventLoopSnapshot, Readiness, StoppedRunnable, StoppedRunnableImage, Waiter,
 };
+use crate::world::topology::LabelSet;
 use crate::world::{Entity, EntityKind, RestoreContext, RuntimeId, WorkerSequence, WorldState};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
@@ -66,7 +66,7 @@ pub struct WorkerOptions {
     /// Worker name used for identity selection and diagnostics.
     pub name: Option<String>,
     /// Worker labels used for topology and policy selection.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 /// Materialized worker metadata captured in one world image.

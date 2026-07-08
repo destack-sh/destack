@@ -7,6 +7,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 use crate::world::observation::{ObservationChunk, ObservationEntry};
+use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{RuntimeId, WorldImage};
 
@@ -22,25 +23,25 @@ pub(crate) const ROOT_REVISION: RevisionId = RevisionId::new(0);
 /// Root image identifier for one new world.
 pub(crate) const ROOT_IMAGE_ID: ImageId = ImageId::new(0);
 /// First allocated branch identifier after the root branch.
-const INITIAL_BRANCH_ID: u128 = 1;
+const INITIAL_BRANCH_ID: u64 = 1;
 /// First allocated revision identifier after the root revision.
-const INITIAL_REVISION_ID: u128 = 1;
+const INITIAL_REVISION_ID: u64 = 1;
 /// First allocated checkpoint identifier.
-const INITIAL_CHECKPOINT_ID: u128 = 1;
+const INITIAL_CHECKPOINT_ID: u64 = 1;
 /// First allocated image identifier after the root image.
-const INITIAL_IMAGE_ID: u128 = 1;
+const INITIAL_IMAGE_ID: u64 = 1;
 
 /// Lineage-root metadata and durable restore metadata.
 #[derive(Debug)]
 pub(crate) struct Lineage {
     /// The next branch identifier to allocate.
-    pub next_branch_id: u128,
+    pub next_branch_id: u64,
     /// The next revision identifier to allocate.
-    pub next_revision_id: u128,
+    pub next_revision_id: u64,
     /// The next checkpoint identifier to allocate.
-    pub next_checkpoint_id: u128,
+    pub next_checkpoint_id: u64,
     /// The next image identifier to allocate.
-    pub next_image_id: u128,
+    pub next_image_id: u64,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -63,13 +64,13 @@ pub(crate) struct Lineage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineageSnapshot {
     /// The next branch identifier to allocate.
-    pub next_branch_id: u128,
+    pub next_branch_id: u64,
     /// The next revision identifier to allocate.
-    pub next_revision_id: u128,
+    pub next_revision_id: u64,
     /// The next checkpoint identifier to allocate.
-    pub next_checkpoint_id: u128,
+    pub next_checkpoint_id: u64,
     /// The next image identifier to allocate.
-    pub next_image_id: u128,
+    pub next_image_id: u64,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -198,7 +199,7 @@ impl Lineage {
                 image_id: ROOT_IMAGE_ID,
                 wall,
                 mono,
-                labels: BTreeMap::new(),
+                labels: LabelSet::new(),
             },
         );
 
@@ -209,7 +210,7 @@ impl Lineage {
                 head_revision_id: ROOT_REVISION,
                 origin: BranchOrigin::Root,
                 name: "root".to_string(),
-                labels: BTreeMap::new(),
+                labels: LabelSet::new(),
             },
         );
 
@@ -361,7 +362,7 @@ impl Lineage {
             head_revision_id: revision_id,
             origin: BranchOrigin::Fork { parent },
             name,
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         };
         let revision = Revision {
             branch_id,
@@ -371,7 +372,7 @@ impl Lineage {
             image_id,
             wall,
             mono,
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         };
 
         // insert the branch and its initial revision atomically under this lock
@@ -409,7 +410,7 @@ impl Lineage {
             image_id,
             wall,
             mono,
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         };
 
         let branch = Branch {
@@ -423,7 +424,7 @@ impl Lineage {
                     id: self.allocate_checkpoint_id()?,
                     revision_id,
                     name,
-                    labels: BTreeMap::new(),
+                    labels: LabelSet::new(),
                 })
             })
             .transpose()?;

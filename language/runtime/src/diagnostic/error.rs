@@ -107,21 +107,21 @@ pub enum EntityError {
     /// One revision points at one missing world image.
     RevisionImageMissing {
         /// Revision identifier with the dangling image reference.
-        revision_id: u128,
+        revision_id: u64,
         /// Missing image identifier.
-        image_id: u128,
+        image_id: u64,
     },
     /// One revision points at one missing trace image.
     RevisionTraceImageMissing {
         /// Revision identifier with the dangling trace-image reference.
-        revision_id: u128,
+        revision_id: u64,
     },
     /// One requested moment does not belong to the active world branch.
     MomentBranchMismatch {
         /// Requested moment branch identifier.
-        moment_branch_id: u128,
+        moment_branch_id: u64,
         /// Active world branch identifier.
-        world_branch_id: u128,
+        world_branch_id: u64,
     },
 }
 
@@ -138,27 +138,27 @@ pub enum Entity {
     /// World branch.
     Branch {
         /// Branch identifier.
-        branch_id: u128,
+        branch_id: u64,
     },
     /// World revision.
     Revision {
         /// Revision identifier.
-        revision_id: u128,
+        revision_id: u64,
     },
     /// Durable checkpoint.
     Checkpoint {
         /// Checkpoint identifier.
-        checkpoint_id: u128,
+        checkpoint_id: u64,
     },
     /// World image.
     Image {
         /// Image identifier.
-        image_id: u128,
+        image_id: u64,
     },
     /// World moment.
     Moment {
         /// Branch identifier.
-        branch_id: u128,
+        branch_id: u64,
         /// Trace sequence.
         sequence: u64,
     },
@@ -243,9 +243,9 @@ pub enum CaptureError {
     /// Snapshot branch metadata does not match the target world.
     SnapshotBranchMismatch {
         /// Captured snapshot branch identifier.
-        snapshot_branch_id: u128,
+        snapshot_branch_id: u64,
         /// Active world branch identifier.
-        world_branch_id: u128,
+        world_branch_id: u64,
     },
     /// Capture failed because one subsystem cannot honestly materialize the requested mode.
     Barrier {
@@ -608,35 +608,35 @@ impl RuntimeError {
     }
 
     /// Return a branch-not-found error.
-    pub fn branch_not_found(branch_id: u128) -> Self {
+    pub fn branch_not_found(branch_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::NotFound(Entity::Branch { branch_id }),
         }
     }
 
     /// Return a revision-not-found error.
-    pub fn revision_not_found(revision_id: u128) -> Self {
+    pub fn revision_not_found(revision_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::NotFound(Entity::Revision { revision_id }),
         }
     }
 
     /// Return a checkpoint-not-found error.
-    pub fn checkpoint_not_found(checkpoint_id: u128) -> Self {
+    pub fn checkpoint_not_found(checkpoint_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::NotFound(Entity::Checkpoint { checkpoint_id }),
         }
     }
 
     /// Return an image-not-found error.
-    pub fn image_not_found(image_id: u128) -> Self {
+    pub fn image_not_found(image_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::NotFound(Entity::Image { image_id }),
         }
     }
 
     /// Return a moment-not-found error.
-    pub fn moment_not_found(branch_id: u128, sequence: u64) -> Self {
+    pub fn moment_not_found(branch_id: u64, sequence: u64) -> Self {
         Self::Entity {
             reason: EntityError::NotFound(Entity::Moment {
                 branch_id,
@@ -646,7 +646,7 @@ impl RuntimeError {
     }
 
     /// Return a moment branch mismatch error.
-    pub fn moment_branch_mismatch(moment_branch_id: u128, world_branch_id: u128) -> Self {
+    pub fn moment_branch_mismatch(moment_branch_id: u64, world_branch_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::MomentBranchMismatch {
                 moment_branch_id,
@@ -718,7 +718,7 @@ impl RuntimeError {
     }
 
     /// Return a revision image missing error.
-    pub fn revision_image_missing(revision_id: u128, image_id: u128) -> Self {
+    pub fn revision_image_missing(revision_id: u64, image_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::RevisionImageMissing {
                 revision_id,
@@ -728,7 +728,7 @@ impl RuntimeError {
     }
 
     /// Return a revision trace image missing error.
-    pub fn revision_trace_image_missing(revision_id: u128) -> Self {
+    pub fn revision_trace_image_missing(revision_id: u64) -> Self {
         Self::Entity {
             reason: EntityError::RevisionTraceImageMissing { revision_id },
         }
@@ -819,7 +819,7 @@ impl RuntimeError {
     }
 
     /// Return a snapshot branch mismatch.
-    pub fn snapshot_branch_mismatch(snapshot_branch_id: u128, world_branch_id: u128) -> Self {
+    pub fn snapshot_branch_mismatch(snapshot_branch_id: u64, world_branch_id: u64) -> Self {
         Self::Capture {
             reason: CaptureError::SnapshotBranchMismatch {
                 snapshot_branch_id,

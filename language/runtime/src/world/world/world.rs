@@ -17,6 +17,7 @@ use crate::runtime::time::{Clock, ClockSource, Nanos};
 use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
+use crate::world::topology::LabelSet;
 use crate::world::trace::{EntrypointCall, TraceHeader, TraceLog};
 
 use super::topology::Topology;
@@ -218,7 +219,7 @@ impl World {
     }
 
     /// Return labels for one live runtime.
-    pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<BTreeMap<String, String>> {
+    pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<LabelSet> {
         let entity = self.runtime_entity(runtime_id)?;
 
         Ok(entity.labels)
@@ -247,7 +248,7 @@ impl World {
     }
 
     /// Return labels for one live worker.
-    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<BTreeMap<String, String>> {
+    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<LabelSet> {
         let entity = self.worker_entity(worker_id)?;
 
         Ok(entity.labels)

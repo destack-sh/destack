@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, current_platform_name,
 };
+use crate::world::topology::LabelSet;
 use crate::world::{EdgeId, EntityId};
 use destack_repository::{
     ConditionGate, ConditionSelector, ConditionSet, ExecutionMode, PackageSelector,
@@ -53,11 +54,11 @@ pub(crate) struct Subject<'a> {
     /// Runtime name for selector matching.
     pub(crate) runtime_name: &'a str,
     /// Runtime labels for selector matching.
-    pub(crate) runtime_labels: &'a BTreeMap<String, String>,
+    pub(crate) runtime_labels: &'a LabelSet,
     /// Worker name for selector matching.
     pub(crate) worker_name: &'a str,
     /// Worker labels for selector matching.
-    pub(crate) worker_labels: &'a BTreeMap<String, String>,
+    pub(crate) worker_labels: &'a LabelSet,
     /// Execution mode for selector matching.
     pub(crate) mode: ExecutionMode,
     /// Source graph conditions for selector matching.
@@ -340,9 +341,9 @@ impl<'a> Subject<'a> {
     /// Create one subject from runtime and worker facts.
     pub(crate) fn new(
         runtime_name: &'a str,
-        runtime_labels: &'a BTreeMap<String, String>,
+        runtime_labels: &'a LabelSet,
         worker_name: &'a str,
-        worker_labels: &'a BTreeMap<String, String>,
+        worker_labels: &'a LabelSet,
         mode: ExecutionMode,
         conditions: &'a ConditionSet,
     ) -> Self {
@@ -561,7 +562,7 @@ pub(crate) fn matches_rule_selectors(
 fn matches_identity_selector(
     selector: &RuntimeIdentitySelector,
     name: &str,
-    labels: &BTreeMap<String, String>,
+    labels: &LabelSet,
 ) -> bool {
     if let Some(pattern) = &selector.name
         && !glob_match(pattern, name)
@@ -614,16 +615,13 @@ fn matches_conditions(selector: &SubjectSelector, conditions: &ConditionSet) -> 
 }
 
 /// Return true when one label selector matches labels.
-fn matches_label_selector(
-    selector: &RuntimeLabelSelector,
-    labels: &BTreeMap<String, String>,
-) -> bool {
+fn matches_label_selector(selector: &RuntimeLabelSelector, labels: &LabelSet) -> bool {
     for (key, expected_value) in &selector.match_labels {
         let Some(actual_value) = labels.get(key) else {
             return false;
         };
 
-        if actual_value != expected_value {
+        if actual_value != expected_value.as_str() {
             return false;
         }
     }
@@ -638,17 +636,14 @@ fn matches_label_selector(
 }
 
 /// Return true when one label requirement matches labels.
-fn matches_label_requirement(
-    requirement: &RuntimeLabelRequirement,
-    labels: &BTreeMap<String, String>,
-) -> bool {
+fn matches_label_requirement(requirement: &RuntimeLabelRequirement, labels: &LabelSet) -> bool {
     match requirement.operator {
-        RuntimeLabelOperator::In => labels
-            .get(&requirement.key)
-            .is_some_and(|value| requirement.values.contains(value)),
-        RuntimeLabelOperator::NotIn => labels
-            .get(&requirement.key)
-            .is_some_and(|value| !requirement.values.contains(value)),
+        RuntimeLabelOperator::In => labels.get(&requirement.key).is_some_and(|actual_value| {
+            requirement.values.iter().any(|value| value == actual_value)
+        }),
+        RuntimeLabelOperator::NotIn => labels.get(&requirement.key).is_some_and(|actual_value| {
+            requirement.values.iter().all(|value| value != actual_value)
+        }),
         RuntimeLabelOperator::Exists => labels.contains_key(&requirement.key),
         RuntimeLabelOperator::DoesNotExist => !labels.contains_key(&requirement.key),
     }

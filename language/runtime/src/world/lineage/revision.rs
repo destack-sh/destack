@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Entity, EntityError, RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
+use crate::world::topology::LabelSet;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{Moment, World, WorldImage};
 
@@ -28,7 +28,7 @@ pub struct Revision {
     /// The monotonic instant captured by this revision.
     pub mono: Instant,
     /// The revision labels.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 impl Revision {
@@ -40,16 +40,16 @@ impl Revision {
 
 /// Revision identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct RevisionId(u128);
+pub struct RevisionId(u64);
 
 impl RevisionId {
     /// Create a new revision identifier.
-    pub const fn new(value: u128) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
     /// Return the raw revision identifier value.
-    pub const fn get(self) -> u128 {
+    pub const fn get(self) -> u64 {
         self.0
     }
 }

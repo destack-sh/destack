@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
+use crate::world::topology::LabelSet;
 use crate::world::trace::TraceCheckpointIndex;
 use destack_core::CaptureMode;
 
@@ -10,16 +10,16 @@ use super::RevisionId;
 
 /// Checkpoint identifier for one durable world restore point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct CheckpointId(u128);
+pub struct CheckpointId(u64);
 
 impl CheckpointId {
     /// Create a new checkpoint identifier.
-    pub const fn new(value: u128) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
     /// Return the raw checkpoint identifier value.
-    pub const fn get(self) -> u128 {
+    pub const fn get(self) -> u64 {
         self.0
     }
 }
@@ -34,7 +34,7 @@ pub struct Checkpoint {
     /// The checkpoint name.
     pub name: String,
     /// The checkpoint labels.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 impl World {
@@ -89,15 +89,15 @@ impl World {
     pub fn label_checkpoint(
         &self,
         checkpoint_id: CheckpointId,
-        key: impl Into<String>,
-        value: impl Into<String>,
+        key: impl Into<Box<str>>,
+        value: impl Into<Box<str>>,
     ) -> RuntimeResult<()> {
         let mut lineage = self.lineage.write();
         let checkpoint = lineage
             .checkpoints
             .get_mut(&checkpoint_id)
             .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
-        checkpoint.labels.insert(key.into(), value.into());
+        checkpoint.labels.insert(key, value);
 
         Ok(())
     }
