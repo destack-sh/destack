@@ -716,3 +716,23 @@ fn test_format_parameter_type_query_layout() {
         ],
     );
 }
+
+#[test]
+fn test_format_interface_default_method_body_roundtrip() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"newtype interface Error {
+    source(): Dynamic<Error> | undefined {
+        undefined
+    }
+}
+"#,
+        r#"newtype interface Error {
+    source(): Dynamic<Error> | undefined {
+        undefined
+    }
+}
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
