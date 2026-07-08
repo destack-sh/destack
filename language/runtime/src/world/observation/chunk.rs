@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::world::{BranchId, MomentSequence};
+use crate::world::{BranchId, Moment, MomentSequence};
 
-use super::ObservationEntry;
+use super::{ObservationEntry, ObservationOptions, ObservationSequence};
 
 /// Observation chunk payload.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -34,9 +34,32 @@ impl ObservationChunk {
         &self.entries
     }
 
-    /// Move the stored observation entries out of this chunk.
-    pub(crate) fn into_entries(self) -> Vec<ObservationEntry> {
-        self.entries
+    /// Append entries after one optional sequence.
+    pub(crate) fn append_records_after(
+        &self,
+        output: &mut Vec<ObservationEntry>,
+        after: Option<ObservationSequence>,
+        options: ObservationOptions,
+    ) {
+        for entry in &self.entries {
+            if entry.is_after(after) && options.allows(entry.observation.category) {
+                output.push(entry.clone());
+            }
+        }
+    }
+
+    /// Append entries inside one moment range.
+    pub(crate) fn append_records_between(
+        &self,
+        output: &mut Vec<ObservationEntry>,
+        start: Moment,
+        end: Moment,
+    ) {
+        for entry in &self.entries {
+            if entry.is_between(start, end) {
+                output.push(entry.clone());
+            }
+        }
     }
 
     /// Append one observation entry.

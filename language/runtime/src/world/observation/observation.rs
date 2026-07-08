@@ -1,10 +1,9 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 use crate::host::ResourceId;
-use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeId, WorkerId};
+use crate::world::topology::LabelSet;
 
 use super::{ObservationCategory, ObservationScope};
 
@@ -16,11 +15,11 @@ pub struct Observation {
     /// The observation scope.
     pub scope: ObservationScope,
     /// Stable observation name.
-    pub name: String,
+    name: Cow<'static, str>,
     /// Structured observation labels.
-    pub labels: BTreeMap<String, String>,
+    labels: LabelSet,
     /// Structured observation annotations.
-    pub annotations: BTreeMap<String, String>,
+    annotations: LabelSet,
 }
 
 impl Observation {
@@ -28,14 +27,14 @@ impl Observation {
     pub fn new(
         category: ObservationCategory,
         scope: ObservationScope,
-        name: impl Into<String>,
+        name: impl Into<Cow<'static, str>>,
     ) -> Self {
         Self {
             category,
             scope,
             name: name.into(),
-            labels: BTreeMap::new(),
-            annotations: BTreeMap::new(),
+            labels: LabelSet::new(),
+            annotations: LabelSet::new(),
         }
     }
 
@@ -129,22 +128,22 @@ impl Observation {
         category: ObservationCategory,
         scope: ObservationScope,
         name: impl Into<String>,
-        annotations: impl IntoIterator<Item = (K, V)>,
+        entries: impl IntoIterator<Item = (K, V)>,
     ) -> Self
     where
         K: Into<String>,
         V: Into<String>,
     {
-        let annotations = annotations
-            .into_iter()
-            .map(|(key, value)| (key.into(), value.into()))
-            .collect();
+        let mut annotations = LabelSet::new();
+        for (key, value) in entries {
+            annotations.insert(key.into().into_boxed_str(), value.into().into_boxed_str());
+        }
 
         Self {
             category,
             scope,
-            name: name.into(),
-            labels: BTreeMap::new(),
+            name: Cow::Owned(name.into()),
+            labels: LabelSet::new(),
             annotations,
         }
     }
@@ -153,7 +152,7 @@ impl Observation {
     pub fn resource_attached(worker_id: WorkerId, resource_id: ResourceId) -> Self {
         Self::annotations(
             ObservationCategory::Resource,
-            ObservationScope::resource(worker_id, resource_id),
+            ObservationScope::resource(resource_id),
             "runtime.resource.attached",
             [
                 ("worker_id", worker_id.0.to_string()),
@@ -166,7 +165,7 @@ impl Observation {
     pub fn resource_detached(worker_id: WorkerId, resource_id: ResourceId) -> Self {
         Self::annotations(
             ObservationCategory::Resource,
-            ObservationScope::resource(worker_id, resource_id),
+            ObservationScope::resource(resource_id),
             "runtime.resource.detached",
             [
                 ("worker_id", worker_id.0.to_string()),
@@ -175,38 +174,24 @@ impl Observation {
         )
     }
 
-    /// Create one scheduler-progress observation.
-    pub fn scheduler_progressed() -> Self {
-        Self::new(
-            ObservationCategory::Scheduler,
-            ObservationScope::world(),
-            "runtime.scheduler.progressed",
-        )
-    }
-
-    /// Create one scheduler-advanced-time observation.
-    pub fn scheduler_advanced_time(deadline: Instant) -> Self {
-        Self::annotations(
-            ObservationCategory::Scheduler,
-            ObservationScope::world(),
-            "runtime.scheduler.advanced_time",
-            [("deadline_ns", deadline.get().to_string())],
-        )
+    /// Return the stable observation name.
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 
     /// Return one copy of this observation with one additional label.
-    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.labels.insert(key.into(), value.into());
+    pub fn label(mut self, key: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        self.labels.insert(key, value);
         self
     }
 
     /// Return the value for one observation annotation when present.
     pub fn annotation(&self, key: &str) -> Option<&str> {
-        self.annotations.get(key).map(String::as_str)
+        self.annotations.get(key)
     }
 
     /// Return the value for one observation label when present.
     pub fn label_value(&self, key: &str) -> Option<&str> {
-        self.labels.get(key).map(String::as_str)
+        self.labels.get(key)
     }
 }
