@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
 
-use super::RevisionId;
+use super::{Moment, RevisionId};
 
 /// Branch identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -43,10 +43,10 @@ pub struct Branch {
 pub enum BranchOrigin {
     /// The root branch for one new world lineage.
     Root,
-    /// One child branch forked from one parent revision.
+    /// One child branch forked from one parent moment.
     Fork {
-        /// The revision where this branch forked.
-        parent_revision_id: RevisionId,
+        /// The moment where this branch forked.
+        parent: Moment,
     },
 }
 

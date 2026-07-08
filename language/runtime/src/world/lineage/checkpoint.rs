@@ -69,24 +69,6 @@ impl World {
         Ok(checkpoint_id)
     }
 
-    /// Restore the world to one stored checkpoint.
-    pub fn rewind(&mut self, checkpoint_id: CheckpointId) -> RuntimeResult<()> {
-        let revision = self.checkpoint_revision(checkpoint_id)?;
-
-        self.rewind_revision(revision)
-    }
-
-    /// Fork one child world from one stored checkpoint.
-    pub fn fork(
-        &mut self,
-        checkpoint_id: CheckpointId,
-        name: impl Into<String>,
-    ) -> RuntimeResult<World> {
-        let revision = self.checkpoint_revision(checkpoint_id)?;
-
-        self.fork_from_revision(revision, name.into())
-    }
-
     /// Return metadata for one stored checkpoint.
     pub fn checkpoint_info(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
         let lineage = self.lineage.read();
@@ -118,19 +100,5 @@ impl World {
         checkpoint.labels.insert(key.into(), value.into());
 
         Ok(())
-    }
-
-    /// Return the revision anchored by one checkpoint.
-    pub(super) fn checkpoint_revision(
-        &self,
-        checkpoint_id: CheckpointId,
-    ) -> RuntimeResult<RevisionId> {
-        let lineage = self.lineage.read();
-        let checkpoint = lineage
-            .checkpoints
-            .get(&checkpoint_id)
-            .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
-
-        Ok(checkpoint.revision_id)
     }
 }

@@ -1,16 +1,27 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_core::CaptureMode;
+
 use crate::diagnostic::RuntimeResult;
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
-use crate::world::WorldImage;
 use crate::world::policy::Policy;
 use crate::world::topology::{
     Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, RuntimeId,
 };
+use crate::world::{World, WorldImage};
 
 use super::Moment;
+
+/// World state selected for inspection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum View {
+    /// Inspect the current live world state.
+    Now,
+    /// Inspect one committed moment.
+    Moment(Moment),
+}
 
 /// One branch divergence between two committed branch heads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +32,21 @@ pub struct Divergence {
     pub left: Moment,
     /// The committed head moment on the right branch.
     pub right: Moment,
+}
+
+impl World {
+    /// Return one exact world view.
+    pub fn view(&mut self, view: View) -> RuntimeResult<WorldView> {
+        match view {
+            View::Now => {
+                let moment = self.state.moment();
+                let image = self.capture_image(CaptureMode::Suspend)?;
+
+                Ok(WorldView::new(moment, image))
+            }
+            View::Moment(moment) => self.lineage().view(moment),
+        }
+    }
 }
 
 /// One inspectable committed world image view at one exact moment.
