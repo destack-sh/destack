@@ -8,9 +8,9 @@ use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::machine::{Entry, Execution};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
-use crate::world::trace::{EntrypointCall, Outcome, SpawnedWorkerImage};
+use crate::world::trace::EntrypointCall;
 
-use super::{Entity, Mutation, RestoreContext, RuntimeId, World};
+use super::{Entity, Mutation, RestoreContext, RuntimeId, SpawnedWorker, World};
 
 impl World {
     /// Spawn one live runtime owned by this world and return its identifier.
@@ -59,7 +59,7 @@ impl World {
 
                     Ok((
                         worker_id,
-                        SpawnedWorkerImage {
+                        SpawnedWorker {
                             entity: worker_entity,
                             image: worker,
                         },
@@ -67,7 +67,7 @@ impl World {
                 })
                 .collect::<RuntimeResult<_>>()?;
 
-            self.record_outcome(Outcome::RuntimeSpawned {
+            self.record_mutation(Mutation::SpawnRuntime {
                 runtime_id,
                 runtime_entity,
                 runtime,
@@ -123,7 +123,7 @@ impl World {
         if let Some(worker) = replay_image {
             let worker_entity = self.worker_entity(worker_id)?;
 
-            self.record_outcome(Outcome::WorkerSpawned {
+            self.record_mutation(Mutation::SpawnWorker {
                 runtime_id,
                 worker_id,
                 worker_entity,
@@ -235,7 +235,7 @@ impl World {
         runtime_id: RuntimeId,
         runtime_entity: Entity,
         runtime_image: &Arc<RuntimeImage>,
-        worker_images: &BTreeMap<WorkerId, SpawnedWorkerImage>,
+        worker_images: &BTreeMap<WorkerId, SpawnedWorker>,
         restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         // validate image shape before mutating topology
