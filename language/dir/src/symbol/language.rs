@@ -301,6 +301,12 @@ define_language_items! {
 
     /// Compute types.
     compute {
+        /// `destack:compute/binding/compute`.
+        binding {
+            /// Compute binding family.
+            ComputeBinding => (Interface, "compute/binding/compute", "ComputeBinding"),
+        }
+
         /// `destack:compute/buffer`.
         buffer {
             /// Compute buffer handle.
