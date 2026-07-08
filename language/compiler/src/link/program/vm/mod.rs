@@ -22,13 +22,13 @@ mod op;
 mod pool;
 mod projection;
 mod resume;
+mod site;
 mod tensor;
 mod value;
 mod vector;
 
-pub(crate) use block::BlockOrder;
 pub(crate) use frame::FrameLinker;
 pub(crate) use layout::StorageLayout;
-pub(crate) use linker::VmLinker;
+pub(crate) use linker::Linker;
 pub(crate) use lower::LoweredFunction;
 pub(crate) use resume::ResumeLinker;

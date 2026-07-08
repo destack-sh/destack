@@ -3,7 +3,7 @@ use destack_program::vm::IntrinsicOperand;
 use destack_program::{AddressSpace, ReferenceFlags, TypeId};
 
 use super::super::TypeLinker;
-use super::linker::VmLinker;
+use super::linker::Linker;
 
 /// Lowering-only operand used for VM op selection.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,7 +68,7 @@ impl<'a> OperandLowerer<'a> {
         tree: &'a mir::Tree,
         target_layout: &'a mir::TargetLayout,
         types: &'a mir::TypeTable,
-        program: &'a VmLinker<'a>,
+        program: &'a Linker<'a>,
     ) -> Self {
         Self {
             type_linker: TypeLinker::new(tree, target_layout, types, program.program()),
@@ -201,7 +201,7 @@ impl OperandMap {
         tree: &mir::Tree,
         target_layout: &mir::TargetLayout,
         types: &mir::TypeTable,
-        program: &VmLinker<'_>,
+        program: &Linker<'_>,
         value_types: &[mir::LocalNodeId<mir::Type>],
     ) -> Self {
         let operand_lowerer = OperandLowerer::new(tree, target_layout, types, program);
@@ -243,7 +243,7 @@ impl OperandMap {
     /// Return the heap pointee type from a reference operand when available.
     pub(super) fn heap_pointee_type(
         &self,
-        program: &VmLinker<'_>,
+        program: &Linker<'_>,
         value: mir::Value,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         match self.get(value) {
@@ -259,7 +259,7 @@ impl OperandMap {
     /// Return the raw pointee type from a reference operand when available.
     pub(super) fn raw_pointee_type(
         &self,
-        program: &VmLinker<'_>,
+        program: &Linker<'_>,
         value: mir::Value,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         match self.get(value) {

@@ -3,13 +3,12 @@ use std::collections::HashMap;
 use destack_core::{SectionPacker, StringId, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{FunctionId, GlobalId, Program, StringTable, TypeId};
+use destack_program::{FunctionId, GlobalId, Program, SiteTable, StringTable, TypeId};
 use destack_source::PackageId;
 
 use crate::{LinkError, LinkResult};
 
-use super::vm::VmLinker;
-use super::{DispatchLinker, FunctionLinker, LayoutLinker, StaticLinker, TypeLinker};
+use super::{DispatchLinker, FunctionLinker, LayoutLinker, StaticLinker, TypeLinker, vm};
 
 /// Build one program from one MIR tree and immutable string pool.
 #[derive(Debug)]
@@ -98,7 +97,7 @@ impl ProgramLinker {
         let dispatch = DispatchLinker::new(&self.dispatch_table, &self).link(&mut sections);
 
         // lower VM code and frame metadata
-        let vm = VmLinker::new(
+        let vm = vm::Linker::new(
             &self.tree,
             &self.target_layout,
             &self.type_table,
@@ -115,6 +114,12 @@ impl ProgramLinker {
         let traces = heap::TraceTable::pack(&mut sections, &layouts.trace_maps);
         let strings = StringTable::from_pool(&mut sections, &self.strings);
         let info = None;
+        let sites = SiteTable::pack(
+            &mut sections,
+            vm.allocation_sites,
+            vm.memory_sites,
+            vm.call_sites,
+        );
 
         // assemble the durable program
         let package = self.package;
@@ -130,13 +135,14 @@ impl ProgramLinker {
             vm.frames,
             functions,
             dispatch,
+            sites,
             traces,
             statics.globals,
             info,
             statics.constants,
             statics.shared,
             statics.local,
-            vm.code,
+            vm.program,
             None,
             storage,
         )

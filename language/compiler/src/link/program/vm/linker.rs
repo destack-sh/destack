@@ -4,29 +4,36 @@ use destack_core::SectionPacker;
 use destack_heap as heap;
 use destack_mir as mir;
 use destack_mir::TraceTable;
-use destack_program::vm::{self, CallTarget, Code, SideTableBuilder};
+use destack_program::vm::{self, CallTarget, SideTableBuilder};
 use destack_program::{
-    FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FrameTable, FunctionId, GlobalId, TypeId,
+    AllocationSite, CallSite, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FrameTable,
+    FunctionId, GlobalId, MemorySite, TypeId,
 };
 
 use crate::LinkResult;
 
 use super::super::ProgramLinker;
 use super::lower::FunctionLowerer;
-use super::{BlockOrder, FrameLinker, LoweredFunction, ResumeLinker, StorageLayout};
+use super::{FrameLinker, LoweredFunction, ResumeLinker, StorageLayout};
 
 /// Linked VM code and execution metadata.
 #[derive(Debug)]
-pub(crate) struct VmCode {
+pub(crate) struct Code {
     /// Executable VM code.
-    pub(crate) code: Code,
+    pub(crate) program: vm::Code,
     /// Runtime frame layouts and materialization tables.
     pub(crate) frames: FrameTable,
+    /// Executable heap allocation sites.
+    pub(crate) allocation_sites: Vec<AllocationSite>,
+    /// Executable memory access sites.
+    pub(crate) memory_sites: Vec<MemorySite>,
+    /// Executable call sites.
+    pub(crate) call_sites: Vec<CallSite>,
 }
 
 /// Link MIR functions into VM code and frame metadata.
 #[derive(Debug)]
-pub(crate) struct VmLinker<'a> {
+pub(crate) struct Linker<'a> {
     /// MIR tree being linked.
     tree: &'a mir::Tree,
     /// Target ABI layout for this program.
@@ -53,9 +60,15 @@ pub(crate) struct VmLinker<'a> {
     frames: FrameLinker<'a>,
     /// Linked resume states.
     resume: ResumeLinker<'a>,
+    /// Executable heap allocation sites.
+    allocation_sites: Vec<AllocationSite>,
+    /// Executable memory access sites.
+    memory_sites: Vec<MemorySite>,
+    /// Executable call sites.
+    call_sites: Vec<CallSite>,
 }
 
-impl<'a> VmLinker<'a> {
+impl<'a> Linker<'a> {
     /// Create one VM linker.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
@@ -83,6 +96,9 @@ impl<'a> VmLinker<'a> {
             call_targets: Vec::new(),
             frames: FrameLinker::new(tree, program, storage),
             resume: ResumeLinker::new(tree, program),
+            allocation_sites: Vec::new(),
+            memory_sites: Vec::new(),
+            call_sites: Vec::new(),
         };
 
         linker.build_call_targets();
@@ -91,18 +107,21 @@ impl<'a> VmLinker<'a> {
     }
 
     /// Link VM code and frame metadata.
-    pub(crate) fn link(mut self, sections: &mut SectionPacker) -> LinkResult<VmCode> {
+    pub(crate) fn link(mut self, sections: &mut SectionPacker) -> LinkResult<Code> {
         let mut side_table = SideTableBuilder::default();
 
         // lower VM code and finish side tables
         let functions = self.build_functions(&mut side_table)?;
         let side_table = side_table.pack(sections);
         let functions = vm::FunctionTable::pack(sections, functions, self.call_targets);
-        let code = Code::new(functions, side_table, self.resume.finish(sections));
+        let program = vm::Code::new(functions, side_table, self.resume.finish(sections)?);
 
-        Ok(VmCode {
-            code,
+        Ok(Code {
+            program,
             frames: self.frames.finish(sections),
+            allocation_sites: self.allocation_sites,
+            memory_sites: self.memory_sites,
+            call_sites: self.call_sites,
         })
     }
 
@@ -267,18 +286,11 @@ impl<'a> VmLinker<'a> {
         let frame_layout_id = self.frames.next_layout_id();
         let frame_layout = self.frames.build_layout(function, &value_types)?;
         let liveness = mir::FunctionLiveness::build(function, self.tree);
-        let entry = function.entry().ok_or_else(|| {
-            self.program
-                .invalid_input(format!("function {function_id:?} has no entry block"))
-        })?;
-        let block_order = BlockOrder::new(self.tree, entry, self.program)?;
         let (yield_resume, call_resume) = self.resume.build_entries(
             function_id,
-            program_function,
             frame_layout_id,
             &frame_layout,
             &liveness,
-            &block_order.index_by_id,
             &mut self.frames,
         )?;
 
@@ -300,10 +312,17 @@ impl<'a> VmLinker<'a> {
         let LoweredFunction {
             function,
             source_points,
+            allocation_sites,
+            memory_sites,
+            call_sites,
         } = lowered;
 
         // append the frame layout before assigning resume states
         self.frames.push_layout(frame_layout);
+
+        // resolve block-entry states from lowered operation starts
+        self.resume
+            .resolve_entry_points(program_function, &source_points)?;
 
         // append states for every lowered instruction point
         self.resume.append_source_points(
@@ -314,6 +333,9 @@ impl<'a> VmLinker<'a> {
             &source_points,
             &mut self.frames,
         )?;
+        self.allocation_sites.extend(allocation_sites);
+        self.memory_sites.extend(memory_sites);
+        self.call_sites.extend(call_sites);
 
         Ok(function)
     }

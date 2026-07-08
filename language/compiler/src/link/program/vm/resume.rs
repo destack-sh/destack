@@ -3,14 +3,15 @@ use std::collections::HashMap;
 use destack_core::SectionPacker;
 use destack_mir as mir;
 use destack_program::vm::{
-    FrameBinding, FrameEntryBuilder, MoveSlot, ProgramPoint, ResumeStateBuilder, ResumeTable,
+    FrameBinding, FrameEntryBuilder, MoveSlot, ResumeStateBuilder, ResumeTable,
 };
-use destack_program::{FrameLayout, FrameLayoutId, FrameStateId, FunctionId};
+use destack_program::{FrameLayout, FrameLayoutId, FrameStateId, FunctionId, ProgramPoint};
 
 use crate::LinkResult;
 
 use super::super::ProgramLinker;
 use super::FrameLinker;
+use super::lower::SourceBlock;
 
 /// Linked resume states for VM execution.
 #[derive(Debug)]
@@ -20,9 +21,9 @@ pub(crate) struct ResumeLinker<'a> {
     /// Program linker owning dense program id projection.
     program: &'a ProgramLinker,
     /// Build-time resume states.
-    states: Vec<ResumeStateBuilder>,
-    /// Resume state id by lowered program point.
-    state_by_point: HashMap<ProgramPoint, FrameStateId>,
+    states: Vec<PendingResumeState>,
+    /// Entry states waiting for lowered block start operations.
+    pending_entry_points: Vec<(FrameStateId, mir::BlockId)>,
 }
 
 impl<'a> ResumeLinker<'a> {
@@ -32,13 +33,19 @@ impl<'a> ResumeLinker<'a> {
             tree,
             program,
             states: Vec::new(),
-            state_by_point: HashMap::new(),
+            pending_entry_points: Vec::new(),
         }
     }
 
     /// Finish the resume table.
-    pub(crate) fn finish(self, sections: &mut SectionPacker) -> ResumeTable {
-        ResumeTable::pack(sections, self.states)
+    pub(crate) fn finish(self, sections: &mut SectionPacker) -> LinkResult<ResumeTable> {
+        let states = self
+            .states
+            .into_iter()
+            .map(|state| state.finish(self.program))
+            .collect::<LinkResult<Vec<_>>>()?;
+
+        Ok(ResumeTable::pack(sections, states))
     }
 
     /// Return the next resume state id.
@@ -47,9 +54,8 @@ impl<'a> ResumeLinker<'a> {
     }
 
     /// Add one resume state.
-    fn push(&mut self, id: FrameStateId, state: ResumeStateBuilder) {
+    fn push(&mut self, id: FrameStateId, state: PendingResumeState) {
         debug_assert_eq!(id.0 as usize, self.states.len());
-        self.state_by_point.insert(state.point, id);
         self.states.push(state);
     }
 
@@ -57,11 +63,9 @@ impl<'a> ResumeLinker<'a> {
     pub(crate) fn build_entries(
         &mut self,
         function_id: mir::FunctionId,
-        program_function: FunctionId,
         frame_layout_id: FrameLayoutId,
         frame_layout: &FrameLayout,
         liveness: &mir::FunctionLiveness,
-        block_index_by_id: &HashMap<mir::BlockId, usize>,
         frames: &mut FrameLinker<'_>,
     ) -> LinkResult<(
         HashMap<mir::BlockId, FrameStateId>,
@@ -77,11 +81,9 @@ impl<'a> ResumeLinker<'a> {
             if let Some((resume, resume_arguments)) = self.yield_edge(block_id) {
                 let received_value = self.received_value(resume, resume_arguments.len())?;
                 let frame_state_id = self.append_entry_state(
-                    program_function,
                     frame_layout_id,
                     frame_layout,
                     liveness,
-                    block_index_by_id,
                     resume,
                     &resume_arguments,
                     received_value,
@@ -94,11 +96,9 @@ impl<'a> ResumeLinker<'a> {
             else if let Some((target, arguments)) = self.call_edge(block_id) {
                 let received_value = self.received_value(target, arguments.len())?;
                 let target_state_id = self.append_entry_state(
-                    program_function,
                     frame_layout_id,
                     frame_layout,
                     liveness,
-                    block_index_by_id,
                     target,
                     &arguments,
                     received_value,
@@ -119,22 +119,23 @@ impl<'a> ResumeLinker<'a> {
         frame_layout_id: FrameLayoutId,
         frame_layout: &FrameLayout,
         liveness: &mir::FunctionLiveness,
-        source_points: &[(mir::BlockId, Vec<u32>)],
+        source_points: &[SourceBlock],
         frames: &mut FrameLinker<'_>,
     ) -> LinkResult<()> {
-        for (block_index, (block, point_by_pc)) in source_points.iter().enumerate() {
-            for (pc, source_point) in point_by_pc.iter().copied().enumerate() {
-                let point = ProgramPoint::new(program_function, block_index as u32, pc as u32);
+        for block in source_points {
+            for (pc, source_point) in block.point_by_pc.iter().copied().enumerate() {
+                let operation = block.start + pc as u32;
+                let point = ProgramPoint::new(program_function, operation);
                 let frame_state_id = self.next_id();
                 let return_destination =
-                    self.return_destination(frame_layout, frames, *block, source_point)?;
+                    self.return_destination(frame_layout, frames, block.block, source_point)?;
 
                 self.append_state(
                     frame_layout_id,
                     frame_layout,
                     liveness,
-                    *block,
-                    point,
+                    block.block,
+                    Some(point),
                     frame_state_id,
                     None,
                     return_destination,
@@ -142,6 +143,35 @@ impl<'a> ResumeLinker<'a> {
                     frames,
                 )?;
             }
+        }
+
+        Ok(())
+    }
+
+    /// Resolve pending entry state points from lowered block starts.
+    pub(crate) fn resolve_entry_points(
+        &mut self,
+        function: FunctionId,
+        source_points: &[SourceBlock],
+    ) -> LinkResult<()> {
+        let starts = source_points
+            .iter()
+            .map(|block| (block.block, block.start))
+            .collect::<HashMap<_, _>>();
+        let pending = std::mem::take(&mut self.pending_entry_points);
+
+        for (frame_state, block) in pending {
+            let start = starts
+                .get(&block)
+                .copied()
+                .ok_or_else(|| self.program.invalid_instruction("resume block start"))?;
+            let point = ProgramPoint::new(function, start);
+            let state = self
+                .states
+                .get_mut(frame_state.0 as usize)
+                .ok_or_else(|| self.program.invalid_instruction("resume state"))?;
+
+            state.point = Some(point);
         }
 
         Ok(())
@@ -236,11 +266,9 @@ impl<'a> ResumeLinker<'a> {
     #[allow(clippy::too_many_arguments)]
     fn append_entry_state(
         &mut self,
-        function: FunctionId,
         frame_layout_id: FrameLayoutId,
         frame_layout: &FrameLayout,
         liveness: &mir::FunctionLiveness,
-        block_index_by_id: &HashMap<mir::BlockId, usize>,
         block: mir::BlockId,
         arguments: &[mir::Value],
         received_value: Option<mir::Value>,
@@ -286,24 +314,19 @@ impl<'a> ResumeLinker<'a> {
         };
 
         let frame_state_id = self.next_id();
-        let block_index = block_index_by_id
-            .get(&block)
-            .copied()
-            .ok_or_else(|| self.program.invalid_instruction("resume block index"))?;
-        let point = ProgramPoint::new(function, block_index as u32, 0);
-
         self.append_state(
             frame_layout_id,
             frame_layout,
             liveness,
             block,
-            point,
+            None,
             frame_state_id,
             Some(frame_entry),
             None,
             None,
             frames,
         )?;
+        self.pending_entry_points.push((frame_state_id, block));
 
         Ok(frame_state_id)
     }
@@ -316,7 +339,7 @@ impl<'a> ResumeLinker<'a> {
         frame_layout: &FrameLayout,
         liveness: &mir::FunctionLiveness,
         block: mir::BlockId,
-        point: ProgramPoint,
+        point: Option<ProgramPoint>,
         frame_state: FrameStateId,
         frame_entry: Option<FrameEntryBuilder>,
         return_destination: Option<MoveSlot>,
@@ -334,7 +357,7 @@ impl<'a> ResumeLinker<'a> {
         )?;
         self.push(
             frame_state,
-            ResumeStateBuilder {
+            PendingResumeState {
                 point,
                 source_point,
                 entry: frame_entry,
@@ -343,5 +366,34 @@ impl<'a> ResumeLinker<'a> {
         );
 
         Ok(())
+    }
+}
+
+/// Build-time resume state before all points have been resolved.
+#[derive(Debug)]
+struct PendingResumeState {
+    /// Program point for this state, when already known.
+    point: Option<ProgramPoint>,
+    /// Source instruction point within the lowered block, when one exists.
+    source_point: Option<u32>,
+    /// Entry bindings for block-entry states.
+    entry: Option<FrameEntryBuilder>,
+    /// Caller return destination for post-call states.
+    return_destination: Option<MoveSlot>,
+}
+
+impl PendingResumeState {
+    /// Finish this pending state.
+    fn finish(self, program: &ProgramLinker) -> LinkResult<ResumeStateBuilder> {
+        let Some(point) = self.point else {
+            return Err(program.invalid_instruction("unresolved resume point"));
+        };
+
+        Ok(ResumeStateBuilder {
+            point,
+            source_point: self.source_point,
+            entry: self.entry,
+            return_destination: self.return_destination,
+        })
     }
 }

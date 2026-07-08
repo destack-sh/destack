@@ -5,13 +5,15 @@ use destack_mir as mir;
 use destack_program::vm::{
     Block, CallTarget, FunctionBuilder, Instruction, MoveSlot, SideTableBuilder,
 };
-use destack_program::{FrameLayout, FrameLayoutId, FrameSlot, FrameStateId};
+use destack_program::{
+    AllocationSite, CallSite, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, MemorySite,
+};
 
 use crate::{LinkError, LinkResult};
 
 use super::block::{BlockOrder, FunctionContext};
 use super::layout::StorageLayout;
-use super::linker::VmLinker;
+use super::linker::Linker;
 use super::pool::Pool;
 use super::value::OperandMap;
 
@@ -30,7 +32,7 @@ pub(super) struct FunctionLowerer<'a, 'table> {
 impl<'a, 'table> FunctionLowerer<'a, 'table> {
     /// Create one function lowerer for the given MIR function.
     pub(super) fn new(
-        program: &'a VmLinker<'_>,
+        program: &'a Linker<'_>,
         func_id: mir::LocalNodeId<mir::Function>,
         frame_layout_id: FrameLayoutId,
         frame_layout: &'a FrameLayout,
@@ -117,15 +119,25 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         let mut code = Vec::new();
         let mut blocks = Vec::with_capacity(ordered_blocks.len());
         let mut source_points = Vec::with_capacity(ordered_blocks.len());
+        let mut allocation_sites = Vec::new();
+        let mut memory_sites = Vec::new();
+        let mut call_sites = Vec::new();
 
         for (_, block_id) in ordered_blocks {
-            let (instructions, point_by_pc) = self.lower_block(block_id)?;
             let start = code.len() as u32;
-            let len = instructions.len() as u32;
+            let block = self.lower_block(block_id, start)?;
+            let len = block.instructions.len() as u32;
 
-            code.extend(instructions);
+            code.extend(block.instructions);
             blocks.push(Block { start, len });
-            source_points.push((block_id, point_by_pc));
+            source_points.push(SourceBlock {
+                block: block_id,
+                start,
+                point_by_pc: block.point_by_pc,
+            });
+            allocation_sites.extend(block.allocation_sites);
+            memory_sites.extend(block.memory_sites);
+            call_sites.extend(block.call_sites);
         }
 
         let (argument_pool, move_pool) = self.pool.finish();
@@ -143,6 +155,9 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         Ok(LoweredFunction {
             function,
             source_points,
+            allocation_sites,
+            memory_sites,
+            call_sites,
         })
     }
 
@@ -150,11 +165,13 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
     fn lower_block(
         &mut self,
         block_id: mir::LocalNodeId<mir::Block>,
-    ) -> LinkResult<(Vec<Instruction>, Vec<u32>)> {
+        block_start: u32,
+    ) -> LinkResult<LoweredBlock> {
         let lowerer = BlockLowerer {
             function: &self.context,
             block_id,
             block: self.context.tree.get(block_id),
+            block_start,
         };
 
         lowerer.lower(&mut self.pool)
@@ -198,7 +215,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 
     /// Compute SSA value use counts across the function.
     fn value_use_counts(
-        program: &VmLinker<'_>,
+        program: &Linker<'_>,
         blocks: &[mir::LocalNodeId<mir::Block>],
         value_count: usize,
     ) -> LinkResult<Vec<u32>> {
@@ -230,7 +247,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
 
     /// Record one SSA value use count.
     fn record_value_use(
-        program: &VmLinker<'_>,
+        program: &Linker<'_>,
         uses: &mut [u32],
         value: mir::Value,
     ) -> LinkResult<()> {
@@ -251,7 +268,37 @@ pub(crate) struct LoweredFunction {
     /// The lowered VM function.
     pub(crate) function: FunctionBuilder,
     /// Source block and instruction points in VM block order.
-    pub(crate) source_points: Vec<(mir::LocalNodeId<mir::Block>, Vec<u32>)>,
+    pub(crate) source_points: Vec<SourceBlock>,
+    /// Executable heap allocation sites.
+    pub(crate) allocation_sites: Vec<AllocationSite>,
+    /// Executable memory access sites.
+    pub(crate) memory_sites: Vec<MemorySite>,
+    /// Executable call sites.
+    pub(crate) call_sites: Vec<CallSite>,
+}
+
+/// Source block points in lowered VM block order.
+pub(crate) struct SourceBlock {
+    /// MIR block represented by this lowered block.
+    pub(crate) block: mir::BlockId,
+    /// Function-local operation index where this block starts.
+    pub(crate) start: u32,
+    /// Source instruction point for each VM instruction offset.
+    pub(crate) point_by_pc: Vec<u32>,
+}
+
+/// One lowered VM block and its executable site rows.
+struct LoweredBlock {
+    /// Lowered VM instructions.
+    instructions: Vec<Instruction>,
+    /// Source instruction point for each VM instruction offset.
+    point_by_pc: Vec<u32>,
+    /// Executable heap allocation sites.
+    allocation_sites: Vec<AllocationSite>,
+    /// Executable memory access sites.
+    memory_sites: Vec<MemorySite>,
+    /// Executable call sites.
+    call_sites: Vec<CallSite>,
 }
 
 /// One block-local lowerer.
@@ -262,6 +309,8 @@ pub(super) struct BlockLowerer<'a> {
     block_id: mir::LocalNodeId<mir::Block>,
     /// MIR block payload.
     block: &'a mir::Block,
+    /// Function-local operation index where this block starts.
+    pub(super) block_start: u32,
 }
 
 impl<'a> BlockLowerer<'a> {
@@ -271,9 +320,12 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Lower the block into program form.
-    fn lower(self, pool: &mut Pool<'_, '_>) -> LinkResult<(Vec<Instruction>, Vec<u32>)> {
+    fn lower(self, pool: &mut Pool<'_, '_>) -> LinkResult<LoweredBlock> {
         let mut instructions = Vec::with_capacity(self.block.instructions.len() + 1);
         let mut point_by_pc = Vec::with_capacity(self.block.instructions.len() + 2);
+        let mut allocation_sites = Vec::new();
+        let mut memory_sites = Vec::new();
+        let mut call_sites = Vec::new();
         point_by_pc.push(0);
 
         // convert regular instructions
@@ -281,6 +333,15 @@ impl<'a> BlockLowerer<'a> {
         while inst_index < self.block.instructions.len() {
             let inst_id = self.block.instructions[inst_index];
             let inst = self.function.tree.get(inst_id);
+            let pc = instructions.len() as u32;
+
+            if let Some(site) = self.allocation_site_for_instruction(inst, pc)? {
+                allocation_sites.push(site);
+            }
+            self.push_memory_sites_for_instruction(inst, pc, &mut memory_sites)?;
+            if let Some(site) = self.call_site_for_instruction(inst, pc)? {
+                call_sites.push(site);
+            }
 
             // lower the remaining instruction shape
             let lowered = self.lower_instructions(inst, pool)?;
@@ -306,13 +367,27 @@ impl<'a> BlockLowerer<'a> {
         if let Some(fused) = self.try_fuse_compare_branch(self.block, &mut instructions, pool) {
             instructions.push(fused);
         } else {
+            let pc = instructions.len() as u32;
+            if let Some(site) = self.allocation_site_for_terminator(terminator, pc)? {
+                allocation_sites.push(site);
+            }
+            if let Some(site) = self.call_site_for_terminator(terminator, pc)? {
+                call_sites.push(site);
+            }
+
             let lowered_terminator = self.lower_terminator(terminator, pool)?;
             instructions.push(lowered_terminator);
         }
 
         point_by_pc.push((self.block.instructions.len() + 1) as u32);
 
-        Ok((instructions, point_by_pc))
+        Ok(LoweredBlock {
+            instructions,
+            point_by_pc,
+            allocation_sites,
+            memory_sites,
+            call_sites,
+        })
     }
 
     /// Return the lowered use count for one value.

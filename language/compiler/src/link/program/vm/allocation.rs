@@ -337,7 +337,7 @@ impl<'a> BlockLowerer<'a> {
     }
 
     /// Return the address space for one slice backing allocation.
-    fn slice_backing_address_space(
+    pub(super) fn slice_backing_address_space(
         &self,
         result_type: mir::LocalNodeId<mir::Type>,
     ) -> LinkResult<AddressSpace> {
