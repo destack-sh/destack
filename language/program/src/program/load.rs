@@ -7,8 +7,8 @@ use serde::de::DeserializeOwned;
 
 use super::Program;
 use crate::{
-    DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, ProgramInfo, StaticImage,
-    StringTable, TypeTable, native, vm,
+    DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, ProgramInfo, SiteTable,
+    StaticImage, StringTable, TypeTable, native, vm,
 };
 use destack_heap::{HeapOptions, SharedHeapOptions, TraceTable};
 use destack_mir::TargetLayout;
@@ -102,6 +102,7 @@ impl Program {
         Self::push_field(&mut bytes, &self.frames)?;
         Self::push_field(&mut bytes, &self.functions)?;
         Self::push_field(&mut bytes, &self.dispatch)?;
+        Self::push_field(&mut bytes, &self.sites)?;
         Self::push_field(&mut bytes, &self.traces)?;
         Self::push_field(&mut bytes, &self.globals)?;
         Self::push_field(&mut bytes, &self.info)?;
@@ -131,6 +132,7 @@ impl Program {
         let frames = Self::pull_field::<FrameTable>(descriptor, &mut offset)?;
         let functions = Self::pull_field::<FunctionTable>(descriptor, &mut offset)?;
         let dispatch = Self::pull_field::<DispatchTable>(descriptor, &mut offset)?;
+        let sites = Self::pull_field::<SiteTable>(descriptor, &mut offset)?;
         let traces = Self::pull_field::<TraceTable>(descriptor, &mut offset)?;
         let globals = Self::pull_field::<GlobalTable>(descriptor, &mut offset)?;
         let info = Self::pull_field::<Option<ProgramInfo>>(descriptor, &mut offset)?;
@@ -161,6 +163,7 @@ impl Program {
             frames,
             functions,
             dispatch,
+            sites,
             traces,
             globals,
             info,
@@ -352,6 +355,7 @@ mod tests {
         let frames = FrameTable::pack(&mut sections, Vec::new(), Vec::new());
         let functions = FunctionTable::pack(&mut sections, Vec::new(), Vec::new());
         let dispatch = DispatchTable::pack(&mut sections, Vec::new(), Vec::new(), Vec::new());
+        let sites = SiteTable::pack(&mut sections, Vec::new(), Vec::new(), Vec::new());
         let globals = GlobalTable::pack(&mut sections, Vec::new());
 
         // build empty static images and VM code
@@ -388,6 +392,7 @@ mod tests {
             frames,
             functions,
             dispatch,
+            sites,
             traces,
             globals,
             Some(info),

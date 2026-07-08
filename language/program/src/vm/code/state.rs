@@ -4,7 +4,7 @@ use destack_core::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameSlotId, FrameStateId, FunctionId};
+use crate::{FrameSlotId, FrameStateId, ProgramPoint};
 
 use super::MoveSlot;
 
@@ -13,7 +13,7 @@ use super::MoveSlot;
 pub struct ResumeTable {
     /// Resume states by dense frame state id.
     states: SectionSlice<ResumeState>,
-    /// Resume state ids sorted by lowered program point.
+    /// Resume state ids sorted by program point.
     points: SectionSlice<ResumePoint>,
     /// Flattened frame entry bindings.
     bindings: SectionSlice<FrameBinding>,
@@ -85,7 +85,7 @@ impl ResumeTable {
         })
     }
 
-    /// Return one resume state id by lowered program point.
+    /// Return one resume state id by program point.
     pub fn state_id_at(
         &self,
         sections: SectionImage<'_>,
@@ -103,7 +103,7 @@ impl ResumeTable {
 /// Build-time VM state for one resumable frame.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ResumeStateBuilder {
-    /// The lowered VM program point.
+    /// The program point where this state resumes.
     pub point: ProgramPoint,
     /// The source instruction point within the lowered block, when one exists.
     pub source_point: Option<u32>,
@@ -117,7 +117,7 @@ pub struct ResumeStateBuilder {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ResumeState {
-    /// The lowered VM program point.
+    /// The program point where this state resumes.
     pub point: ProgramPoint,
     /// The source instruction point within the lowered block, when one exists.
     pub source_point: Optional<u32>,
@@ -172,36 +172,11 @@ pub struct FrameBinding {
     pub destination: FrameSlotId,
 }
 
-/// One lowered VM program point.
-#[repr(C)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
-)]
-pub struct ProgramPoint {
-    /// The owning function.
-    pub function: FunctionId,
-    /// The lowered block index.
-    pub block: u32,
-    /// The lowered program counter inside the block.
-    pub pc: u32,
-}
-
-impl ProgramPoint {
-    /// Create one lowered VM program point.
-    pub const fn new(function: FunctionId, block: u32, pc: u32) -> Self {
-        Self {
-            function,
-            block,
-            pc,
-        }
-    }
-}
-
 /// Dense resume state lookup entry.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ResumePoint {
-    /// The lowered VM program point.
+    /// The program point for this resume state.
     pub point: ProgramPoint,
     /// The resume state at this point.
     pub frame_state: FrameStateId,
@@ -211,5 +186,4 @@ pub struct ResumePoint {
 unsafe impl SectionEntry for ResumeState {}
 unsafe impl SectionEntry for FrameEntry {}
 unsafe impl SectionEntry for FrameBinding {}
-unsafe impl SectionEntry for ProgramPoint {}
 unsafe impl SectionEntry for ResumePoint {}

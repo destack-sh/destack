@@ -1,12 +1,29 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::GlobalId;
+use crate::{AddressSpace, GlobalId};
 
 /// Stable address inside static memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 #[repr(transparent)]
 pub struct GlobalAddress(u64);
+
+/// Stable address in one program memory space.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct ProgramAddress {
+    /// Program memory space.
+    pub space: AddressSpace,
+    /// Space-relative byte offset.
+    pub byte_offset: u64,
+}
+
+impl ProgramAddress {
+    /// Create one program address.
+    pub const fn new(space: AddressSpace, byte_offset: u64) -> Self {
+        Self { space, byte_offset }
+    }
+}
 
 impl GlobalAddress {
     /// The fixed byte width of one encoded global address.

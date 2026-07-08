@@ -191,6 +191,32 @@ impl FunctionCode<'_> {
             .get(block as usize)
             .map(|block| block.len as usize)
     }
+
+    /// Return the canonical operation index for one VM block instruction.
+    #[inline(always)]
+    pub fn operation_at(&self, block: u32, pc: u32) -> Option<u32> {
+        let block = self.blocks.get(block as usize)?;
+        if pc >= block.len {
+            return None;
+        }
+
+        Some(block.start + pc)
+    }
+
+    /// Return the VM block and instruction offset for one canonical operation.
+    pub fn location_at(&self, operation: u32) -> Option<(u32, usize)> {
+        for (index, block) in self.blocks.iter().enumerate() {
+            let start = block.start;
+            let end = start + block.len;
+
+            if operation >= start && operation < end {
+                let pc = operation - start;
+                return Some((index as u32, pc as usize));
+            }
+        }
+
+        None
+    }
 }
 
 /// Program call target for one function id.
