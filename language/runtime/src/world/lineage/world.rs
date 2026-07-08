@@ -18,31 +18,8 @@ use crate::world::{RestoreContext, World, WorldImage, WorldSnapshot, WorldState}
 use super::{BranchId, Checkpoint, Moment, Revision, RevisionId};
 
 impl World {
-    /// Restore this branch to one specific revision.
-    pub fn rewind_revision(&mut self, revision_id: RevisionId) -> RuntimeResult<()> {
-        let (target_revision, base_revision, image, trace_image) = {
-            let lineage = self.lineage.read();
-            let target_revision = lineage.revision(revision_id)?;
-            let base_revision = self.nearest_image_revision(revision_id)?;
-            let (base_revision, image, _) = self.revision_data(base_revision)?;
-            let trace_image = self.trace_image(revision_id)?;
-
-            (target_revision, base_revision, image, trace_image)
-        };
-
-        let image = self.revision_image(
-            &target_revision,
-            &base_revision,
-            &image,
-            &trace_image,
-            RestoreContext::empty(),
-        )?;
-
-        self.restore_revision_image(revision_id, &image, &trace_image, RestoreContext::empty())
-    }
-
     /// Restore this branch to one specific moment.
-    pub fn restore_moment(&mut self, moment: Moment) -> RuntimeResult<()> {
+    pub fn rewind(&mut self, moment: Moment) -> RuntimeResult<()> {
         if moment.branch_id != self.state.branch_id {
             return Err(RuntimeError::moment_branch_mismatch(
                 moment.branch_id.get(),
@@ -80,13 +57,9 @@ impl World {
         )
     }
 
-    /// Fork one child world from one specific revision.
-    pub fn fork_revision(
-        &mut self,
-        revision_id: RevisionId,
-        name: impl Into<String>,
-    ) -> RuntimeResult<World> {
-        self.fork_from_revision(revision_id, name.into())
+    /// Fork one child world from one specific moment.
+    pub fn fork(&mut self, moment: Moment, name: impl Into<String>) -> RuntimeResult<World> {
+        self.fork_from_moment(moment, name.into())
     }
 
     /// Commit one new revision for the active branch.
@@ -180,35 +153,57 @@ impl World {
         Ok(())
     }
 
-    /// Fork one child world from one stored revision.
-    pub(super) fn fork_from_revision(
-        &mut self,
-        revision_id: RevisionId,
-        name: String,
-    ) -> RuntimeResult<World> {
+    /// Fork one child world from one stored moment.
+    fn fork_from_moment(&mut self, moment: Moment, name: String) -> RuntimeResult<World> {
         // resolve the retained fork point before mutating lineage
-        let (target_revision, head_revision) = {
+        let (anchor_revision_id, base_revision, image, head_revision) = {
             let lineage = self.lineage.read();
-            (
-                lineage.revision(revision_id)?,
-                lineage.head_revision(self.state.branch_id)?,
-            )
+            let head_revision = lineage.head_revision(moment.branch_id)?;
+            if head_revision.sequence.get() < moment.sequence.get() {
+                return Err(RuntimeError::moment_not_found(
+                    moment.branch_id.get(),
+                    moment.sequence.get(),
+                )
+                .boxed());
+            }
+            let anchor_revision_id =
+                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+            let base_revision_id = self.nearest_image_revision(anchor_revision_id)?;
+            let (base_revision, image, _) = self.revision_data(base_revision_id)?;
+
+            (anchor_revision_id, base_revision, image, head_revision)
         };
-        let base_revision = self.nearest_image_revision(revision_id)?;
-        let (base_revision, image, _) = self.revision_data(base_revision)?;
-        let trace_image = self.trace_image(revision_id)?;
+        let mut image =
+            self.moment_image(moment, &base_revision, &image, RestoreContext::empty())?;
+        let trace_image = self.state.trace.capture_image_through(moment.sequence)?;
+
+        // canonicalize retained payloads against the parent branch
+        self.lineage
+            .write()
+            .retain_image_payloads(moment.branch_id, &mut image)?;
+        let image = Arc::new(image);
+        let trace_image = Arc::new(trace_image);
 
         // allocate the child branch after retained resolution is complete
         let child_branch = {
             let mut lineage = self.lineage.write();
-            lineage.fork_branch(revision_id, name)?
+            lineage.fork_branch_with_image(
+                moment,
+                anchor_revision_id,
+                name,
+                Instant::from_nanos(self.wall()),
+                Instant::from_nanos(self.mono()),
+                image.clone(),
+                trace_image.clone(),
+            )?
         };
 
         // child trace: clone header but switch to the child branch
         let trace_header = self.fork_trace_header(child_branch.id);
 
         // direct live fork: current committed head with no uncommitted tail
-        if revision_id == self.revision_id()?
+        if moment.branch_id == self.state.branch_id
+            && anchor_revision_id == self.revision_id()?
             && self.state.trace.log().next_sequence() == head_revision.sequence
             && let Some(child) =
                 self.try_fork_live_child(child_branch.id, trace_header.clone(), &trace_image)?
@@ -219,14 +214,7 @@ impl World {
         // child world: fresh mutable state over shared lineage data
         let mut child = self.fork_child_world(child_branch.id, trace_header)?;
 
-        // restore the child to the fork checkpoint
-        let image = self.revision_image(
-            &target_revision,
-            &base_revision,
-            &image,
-            &trace_image,
-            RestoreContext::empty(),
-        )?;
+        // restore the child to the fork moment
         child.restore_image(&image, RestoreContext::empty())?;
         child.state.trace.restore_image(&trace_image)?;
         child.state.trace.set_branch_id(child.state.branch_id);

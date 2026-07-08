@@ -27,6 +27,7 @@ const INITIAL_REVISION_ID: u128 = 1;
 const INITIAL_CHECKPOINT_ID: u128 = 1;
 /// First allocated image identifier after the root image.
 const INITIAL_IMAGE_ID: u128 = 1;
+
 /// Lineage-root metadata and durable restore metadata.
 #[derive(Debug)]
 pub(crate) struct Lineage {
@@ -320,25 +321,53 @@ impl Lineage {
         Ok(())
     }
 
-    /// Create one child branch from one parent revision.
-    pub(crate) fn fork_branch(
+    /// Create one child branch with one exact initial revision.
+    pub(crate) fn fork_branch_with_image(
         &mut self,
+        parent: Moment,
         parent_revision_id: RevisionId,
         name: String,
+        wall: Instant,
+        mono: Instant,
+        image: Arc<WorldImage>,
+        trace_image: Arc<TraceImage>,
     ) -> RuntimeResult<Branch> {
-        // resolve the parent revision before mutating lineage state
-        self.revisions
-            .get(&parent_revision_id)
-            .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()).boxed())?;
+        // resolve the parent moment before mutating lineage state
+        let head = self.head_revision(parent.branch_id)?;
+        if head.sequence < parent.sequence {
+            return Err(RuntimeError::moment_not_found(
+                parent.branch_id.get(),
+                parent.sequence.get(),
+            )
+            .boxed());
+        }
 
+        // allocate child lineage records
+        let branch_id = self.allocate_branch_id()?;
+        let revision_id = self.allocate_revision()?;
+        let image_id = self.allocate_image_id()?;
         let branch = Branch {
-            id: self.allocate_branch_id()?,
-            head_revision_id: parent_revision_id,
-            origin: BranchOrigin::Fork { parent_revision_id },
+            id: branch_id,
+            head_revision_id: revision_id,
+            origin: BranchOrigin::Fork { parent },
             name,
             labels: BTreeMap::new(),
         };
-        self.branches.insert(branch.id, branch.clone());
+        let revision = Revision {
+            branch_id,
+            parent_revision_id: Some(parent_revision_id),
+            sequence: parent.sequence,
+            image_id,
+            wall,
+            mono,
+            labels: BTreeMap::new(),
+        };
+
+        // insert the branch and its initial revision atomically under this lock
+        self.branches.insert(branch_id, branch.clone());
+        self.revisions.insert(revision_id, revision);
+        self.images.insert(image_id, image);
+        self.trace_images.insert(revision_id, trace_image);
 
         Ok(branch)
     }
@@ -526,18 +555,10 @@ impl Lineage {
             .get(&branch_id)
             .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
-        let sequence = match branch.origin {
-            BranchOrigin::Root => TraceSequence::new(0),
-            BranchOrigin::Fork { parent_revision_id } => {
-                let parent_revision_id = self
-                    .revisions
-                    .get(&parent_revision_id)
-                    .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()))?;
-                parent_revision_id.sequence
-            }
-        };
-
-        Ok(Moment::new(branch_id, sequence))
+        match branch.origin {
+            BranchOrigin::Root => Ok(Moment::new(branch_id, TraceSequence::new(0))),
+            BranchOrigin::Fork { parent } => Ok(parent),
+        }
     }
 
     /// Return the current committed head moment for one branch.
@@ -560,12 +581,8 @@ impl Lineage {
         let mut branch = self.branch(branch_id)?;
         let mut ancestors = vec![branch.id];
 
-        while let BranchOrigin::Fork { parent_revision_id } = branch.origin {
-            let parent_revision_id = self
-                .revisions
-                .get(&parent_revision_id)
-                .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()))?;
-            branch = self.branch(parent_revision_id.branch_id)?;
+        while let BranchOrigin::Fork { parent } = branch.origin {
+            branch = self.branch(parent.branch_id)?;
             ancestors.push(branch.id);
         }
 

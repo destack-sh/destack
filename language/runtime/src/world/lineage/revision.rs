@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{Entity, EntityError, RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
 use crate::world::trace::{TraceImage, TraceSequence};
-use crate::world::{World, WorldImage};
+use crate::world::{Moment, World, WorldImage};
 
 use super::{BranchId, ImageId};
 
@@ -27,6 +27,13 @@ pub struct Revision {
     pub mono: Instant,
     /// The revision labels.
     pub labels: BTreeMap<String, String>,
+}
+
+impl Revision {
+    /// Return the moment captured by this revision.
+    pub const fn moment(&self) -> Moment {
+        Moment::new(self.branch_id, self.sequence)
+    }
 }
 
 /// Revision identifier for one world lineage.
