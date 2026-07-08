@@ -1,9 +1,7 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::diagnostic::RuntimeResult;
 use crate::world::{BranchId, Moment, MomentSequence};
 
 use super::{
@@ -16,6 +14,8 @@ const DEFAULT_MAX_ENTRIES_PER_CHUNK: usize = 1024;
 /// One live observation-log state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ObservationState {
+    /// Next observation sequence number.
+    next_sequence: ObservationSequence,
     /// Completed chunks in observation order.
     sealed: Vec<ObservationChunk>,
     /// Current mutable append chunk.
@@ -27,6 +27,7 @@ pub(crate) struct ObservationState {
 impl Default for ObservationState {
     fn default() -> Self {
         Self {
+            next_sequence: ObservationSequence::new(0),
             sealed: Vec::new(),
             active: ObservationChunk::new(),
             max_entries_per_chunk: DEFAULT_MAX_ENTRIES_PER_CHUNK,
@@ -35,23 +36,44 @@ impl Default for ObservationState {
 }
 
 impl ObservationState {
-    /// Return the total number of visible chunks.
-    fn chunk_count(&self) -> usize {
-        let active_chunk_count = usize::from(!self.active.is_empty());
+    /// Allocate one sequence number.
+    fn allocate_sequence(&mut self) -> RuntimeResult<ObservationSequence> {
+        let sequence = self.next_sequence;
+        self.next_sequence = sequence.next()?;
 
-        self.sealed.len() + active_chunk_count
+        Ok(sequence)
     }
 
-    /// Return the visible chunks in observation order.
-    fn chunks(&self) -> Vec<ObservationChunk> {
-        let mut chunks = Vec::with_capacity(self.chunk_count());
-        chunks.extend(self.sealed.iter().cloned());
-
-        if !self.active.is_empty() {
-            chunks.push(self.active.clone());
+    /// Append matching entries after one optional observation sequence.
+    fn append_records_after(
+        &self,
+        output: &mut Vec<ObservationEntry>,
+        after: Option<ObservationSequence>,
+        options: ObservationOptions,
+    ) {
+        for chunk in &self.sealed {
+            chunk.append_records_after(output, after, options);
         }
 
-        chunks
+        if !self.active.is_empty() {
+            self.active.append_records_after(output, after, options);
+        }
+    }
+
+    /// Append matching entries inside one moment range.
+    fn append_records_between(
+        &self,
+        output: &mut Vec<ObservationEntry>,
+        start: Moment,
+        end: Moment,
+    ) {
+        for chunk in &self.sealed {
+            chunk.append_records_between(output, start, end);
+        }
+
+        if !self.active.is_empty() {
+            self.active.append_records_between(output, start, end);
+        }
     }
 
     /// Finalize one non-empty active chunk into the completed chunk list.
@@ -68,8 +90,6 @@ impl ObservationState {
 /// Backing store for live observation chunks.
 #[derive(Debug, Default)]
 pub(crate) struct ObservationStore {
-    /// Next observation sequence number.
-    next_sequence: AtomicU64,
     /// Mutable observation store state.
     state: RwLock<ObservationState>,
 }
@@ -86,13 +106,13 @@ impl ObservationStore {
         moment: Moment,
         observation: Observation,
     ) -> RuntimeResult<ObservationSequence> {
-        let sequence = self.next_sequence()?;
+        let mut state = self.state.write();
+        let sequence = state.allocate_sequence()?;
         let entry = ObservationEntry {
             sequence,
             moment,
             observation,
         };
-        let mut state = self.state.write();
 
         if state
             .active
@@ -113,26 +133,21 @@ impl ObservationStore {
         options: ObservationOptions,
     ) -> Vec<ObservationEntry> {
         let state = self.state.read();
+        let mut records = Vec::new();
 
-        state
-            .chunks()
-            .into_iter()
-            .flat_map(ObservationChunk::into_entries)
-            .filter(|entry| entry.is_after(after))
-            .filter(|entry| options.allows(entry.observation.category))
-            .collect()
+        state.append_records_after(&mut records, after, options);
+
+        records
     }
 
     /// Return every observation entry within one moment range.
     pub(crate) fn records_between(&self, start: Moment, end: Moment) -> Vec<ObservationEntry> {
         let state = self.state.read();
+        let mut records = Vec::new();
 
-        state
-            .chunks()
-            .into_iter()
-            .flat_map(ObservationChunk::into_entries)
-            .filter(|entry| entry.is_between(start, end))
-            .collect()
+        state.append_records_between(&mut records, start, end);
+
+        records
     }
 
     /// Drain every observation chunk up to one exact committed sequence.
@@ -174,22 +189,6 @@ impl ObservationStore {
 
     /// Reset the observation store.
     pub(crate) fn reset(&self) {
-        self.next_sequence.store(0, Ordering::SeqCst);
         *self.state.write() = ObservationState::default();
-    }
-
-    /// Allocate one sequence number.
-    fn next_sequence(&self) -> RuntimeResult<ObservationSequence> {
-        self.next_sequence
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
-                value.checked_add(1)
-            })
-            .map(ObservationSequence::new)
-            .map_err(|_| {
-                RuntimeError::Internal {
-                    message: "observation sequence space exhausted".to_string(),
-                }
-                .boxed()
-            })
     }
 }

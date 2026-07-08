@@ -22,7 +22,7 @@ pub struct Event {
 impl Event {
     /// Return the stable event name.
     pub fn name(&self) -> &str {
-        self.observation.name.as_str()
+        self.observation.name()
     }
 
     /// Return the event category.
