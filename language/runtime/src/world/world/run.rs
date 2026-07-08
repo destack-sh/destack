@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use destack_heap as heap;
 use destack_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -41,7 +42,7 @@ pub enum RunOutcome {
     Idle,
     /// Execution stopped at one runtime stop point.
     Stopped {
-        /// Runtime stop metadata.
+        /// Runtime stop.
         stop: Stop,
     },
 }
@@ -242,18 +243,16 @@ impl World {
             else {
                 continue;
             };
-            runtime.tick_shared_gc()?;
 
             return Ok(outcome);
         }
 
         // shared heap work also counts as scheduler progress
         for (runtime_id, runtime) in &mut self.runtimes {
-            if runtime.tick_shared_gc()? {
-                world.advance_moment()?;
-                world.observe(Observation::SharedGcProgressed {
-                    runtime_id: *runtime_id,
-                })?;
+            if let Some(advance) = runtime.tick_shared_gc()? {
+                if !world.observe_gc_advance(*runtime_id, None, advance)? {
+                    continue;
+                }
 
                 return Ok(RunOutcome::Progressed);
             }
@@ -261,12 +260,10 @@ impl World {
 
         // idle worker safepoints publish roots and donate cooperative GC work
         for (runtime_id, runtime) in &mut self.runtimes {
-            if let Some(worker_id) = runtime.run_safepoint()? {
-                world.advance_moment()?;
-                world.observe(Observation::SafepointRan {
-                    runtime_id: *runtime_id,
-                    worker_id,
-                })?;
+            if let Some((worker_id, advance)) = runtime.run_safepoint()? {
+                if !world.observe_gc_advance(*runtime_id, Some(worker_id), advance)? {
+                    continue;
+                }
 
                 return Ok(RunOutcome::Progressed);
             }
@@ -382,6 +379,136 @@ impl World {
 }
 
 impl WorldState {
+    /// Observe one GC advancement when it contains completed collector work.
+    fn observe_gc_advance(
+        &mut self,
+        runtime_id: RuntimeId,
+        worker_id: Option<WorkerId>,
+        advance: heap::GcAdvance,
+    ) -> RuntimeResult<bool> {
+        match advance {
+            heap::GcAdvance::Idle => Ok(false),
+            heap::GcAdvance::Started(start) => {
+                self.observe_gc_start(runtime_id, worker_id, start.collector)?;
+
+                Ok(true)
+            }
+            heap::GcAdvance::Stepped(step) => {
+                if step.is_start {
+                    self.observe_gc_start(runtime_id, worker_id, step.collector)?;
+                }
+
+                let observation = Self::gc_step(runtime_id, worker_id, step)?;
+
+                self.advance_moment()?;
+                self.observe(observation)?;
+
+                Ok(true)
+            }
+            heap::GcAdvance::Completed(cycle) => {
+                if cycle.is_start {
+                    self.observe_gc_start(runtime_id, worker_id, cycle.collector)?;
+                }
+
+                let observation = Self::gc_cycle(runtime_id, worker_id, cycle)?;
+
+                self.advance_moment()?;
+                self.observe(observation)?;
+
+                Ok(true)
+            }
+        }
+    }
+
+    /// Observe one GC start.
+    fn observe_gc_start(
+        &mut self,
+        runtime_id: RuntimeId,
+        worker_id: Option<WorkerId>,
+        collector: heap::GcCollector,
+    ) -> RuntimeResult<()> {
+        let observation = match (collector, worker_id) {
+            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, Some(worker_id)) => {
+                Observation::LocalGcStarted {
+                    runtime_id,
+                    worker_id,
+                    collector,
+                }
+            }
+            (heap::GcCollector::Shared, _) => Observation::SharedGcStarted {
+                runtime_id,
+                collector,
+            },
+            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, None) => {
+                return Err(RuntimeError::Internal {
+                    message: "local gc start missing worker".to_string(),
+                }
+                .boxed());
+            }
+        };
+
+        self.advance_moment()?;
+        self.observe(observation)?;
+
+        Ok(())
+    }
+
+    /// Return the observation for one GC step.
+    fn gc_step(
+        runtime_id: RuntimeId,
+        worker_id: Option<WorkerId>,
+        step: heap::GcStep,
+    ) -> RuntimeResult<Observation> {
+        match (step.collector, worker_id) {
+            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, Some(worker_id)) => {
+                Ok(Observation::LocalGcStepped {
+                    runtime_id,
+                    worker_id,
+                    step,
+                })
+            }
+            (heap::GcCollector::Shared, worker_id) => Ok(Observation::SharedGcStepped {
+                runtime_id,
+                worker_id,
+                step,
+            }),
+            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, None) => {
+                Err(RuntimeError::Internal {
+                    message: "local gc step missing worker".to_string(),
+                }
+                .boxed())
+            }
+        }
+    }
+
+    /// Return the observation for one completed GC cycle.
+    fn gc_cycle(
+        runtime_id: RuntimeId,
+        worker_id: Option<WorkerId>,
+        cycle: heap::GcCycle,
+    ) -> RuntimeResult<Observation> {
+        match (cycle.collector, worker_id) {
+            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, Some(worker_id)) => {
+                Ok(Observation::LocalGcCompleted {
+                    runtime_id,
+                    worker_id,
+                    cycle,
+                })
+            }
+            (heap::GcCollector::Shared, worker_id) => Ok(Observation::SharedGcCompleted {
+                runtime_id,
+                worker_id,
+                cycle,
+            }),
+            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, None) => {
+                Err(RuntimeError::Internal {
+                    message: "local gc cycle missing worker".to_string(),
+                }
+                .boxed())
+            }
+        }
+    }
+
     /// Convert one runtime run outcome into one world run outcome.
     fn run_runtime_outcome(
         &mut self,

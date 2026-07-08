@@ -1,13 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::host::ResourceId;
-use crate::host::binding::{BindingId, CodecId};
 use crate::runtime::scheduler::RunnableId;
 use crate::runtime::time::Instant;
-use crate::runtime::worker::RunnableScope;
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::world::policy::RuleId;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};
+use crate::world::{ProbeId, WatchpointId};
 use destack_heap as heap;
 use destack_program as program;
 
@@ -22,7 +21,7 @@ pub enum Observation {
         /// Created runtime identifier.
         runtime_id: RuntimeId,
         /// Number of workers created with the runtime.
-        worker_count: u32,
+        worker_count: usize,
     },
     /// runtime.removed
     RuntimeRemoved {
@@ -113,16 +112,84 @@ pub enum Observation {
         rule_id: RuleId,
     },
 
-    // scheduler
-    /// runtime.task.scheduled
-    TaskScheduled {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that scheduled the task.
-        worker_id: WorkerId,
-        /// Task runnable identifier.
-        task_id: RunnableId,
+    // debugger
+    /// runtime.debug.breakpoint.added
+    BreakpointAdded {
+        /// Added breakpoint identifier.
+        breakpoint_id: program::BreakpointId,
     },
+    /// runtime.debug.breakpoint.updated
+    BreakpointUpdated {
+        /// Updated breakpoint identifier.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// runtime.debug.breakpoint.removed
+    BreakpointRemoved {
+        /// Removed breakpoint identifier.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// runtime.debug.breakpoint.enabled
+    BreakpointEnabled {
+        /// Enabled breakpoint identifier.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// runtime.debug.breakpoint.disabled
+    BreakpointDisabled {
+        /// Disabled breakpoint identifier.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// runtime.debug.watchpoint.added
+    WatchpointAdded {
+        /// Added watchpoint identifier.
+        watchpoint_id: WatchpointId,
+    },
+    /// runtime.debug.watchpoint.updated
+    WatchpointUpdated {
+        /// Updated watchpoint identifier.
+        watchpoint_id: WatchpointId,
+    },
+    /// runtime.debug.watchpoint.removed
+    WatchpointRemoved {
+        /// Removed watchpoint identifier.
+        watchpoint_id: WatchpointId,
+    },
+    /// runtime.debug.watchpoint.enabled
+    WatchpointEnabled {
+        /// Enabled watchpoint identifier.
+        watchpoint_id: WatchpointId,
+    },
+    /// runtime.debug.watchpoint.disabled
+    WatchpointDisabled {
+        /// Disabled watchpoint identifier.
+        watchpoint_id: WatchpointId,
+    },
+    /// runtime.debug.probe.added
+    ProbeAdded {
+        /// Added probe identifier.
+        probe_id: ProbeId,
+    },
+    /// runtime.debug.probe.updated
+    ProbeUpdated {
+        /// Updated probe identifier.
+        probe_id: ProbeId,
+    },
+    /// runtime.debug.probe.removed
+    ProbeRemoved {
+        /// Removed probe identifier.
+        probe_id: ProbeId,
+    },
+    /// runtime.debug.probe.enabled
+    ProbeEnabled {
+        /// Enabled probe identifier.
+        probe_id: ProbeId,
+    },
+    /// runtime.debug.probe.disabled
+    ProbeDisabled {
+        /// Disabled probe identifier.
+        probe_id: ProbeId,
+    },
+
+    // scheduler
     /// runtime.task.ran
     TaskRan {
         /// Runtime that owns the worker.
@@ -131,37 +198,6 @@ pub enum Observation {
         worker_id: WorkerId,
         /// Task runnable identifier.
         task_id: RunnableId,
-    },
-    /// runtime.task.completed
-    TaskCompleted {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that completed the task.
-        worker_id: WorkerId,
-        /// Task runnable identifier.
-        task_id: RunnableId,
-    },
-    /// runtime.task.failed
-    TaskFailed {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that failed the task.
-        worker_id: WorkerId,
-        /// Task runnable identifier.
-        task_id: RunnableId,
-        /// Human-readable failure detail.
-        message: Box<str>,
-    },
-    /// runtime.microtask.scheduled
-    MicrotaskScheduled {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that scheduled the microtask.
-        worker_id: WorkerId,
-        /// Microtask runnable identifier.
-        microtask_id: RunnableId,
-        /// Nested microtask execution depth.
-        depth: u32,
     },
     /// runtime.microtask.ran
     MicrotaskRan {
@@ -173,30 +209,6 @@ pub enum Observation {
         microtask_id: RunnableId,
         /// Nested microtask execution depth.
         depth: u32,
-    },
-    /// runtime.microtask.completed
-    MicrotaskCompleted {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that completed the microtask.
-        worker_id: WorkerId,
-        /// Microtask runnable identifier.
-        microtask_id: RunnableId,
-        /// Nested microtask execution depth.
-        depth: u32,
-    },
-    /// runtime.microtask.failed
-    MicrotaskFailed {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that failed the microtask.
-        worker_id: WorkerId,
-        /// Microtask runnable identifier.
-        microtask_id: RunnableId,
-        /// Nested microtask execution depth.
-        depth: u32,
-        /// Human-readable failure detail.
-        message: Box<str>,
     },
     /// runtime.task.continued
     TaskContinued {
@@ -229,24 +241,6 @@ pub enum Observation {
         /// Stop reason.
         reason: program::StopReason,
     },
-    /// runtime.stop.continued
-    StopContinued {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that continued.
-        worker_id: WorkerId,
-        /// Stop reason that was continued.
-        reason: program::StopReason,
-    },
-    /// runtime.panic.raised
-    PanicRaised {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that raised the panic.
-        worker_id: WorkerId,
-        /// Human-readable panic detail.
-        message: Box<str>,
-    },
 
     // ingress and time
     /// runtime.ingress.delivered
@@ -260,80 +254,6 @@ pub enum Observation {
     TimeAdvanced {
         /// New runtime-controlled deadline.
         deadline: Instant,
-    },
-    /// runtime.timer.scheduled
-    TimerScheduled {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that scheduled the timer.
-        worker_id: WorkerId,
-        /// Timer resource identifier.
-        timer_id: ResourceId,
-        /// Timer deadline.
-        deadline: Instant,
-    },
-    /// runtime.timer.fired
-    TimerFired {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that received the timer.
-        worker_id: WorkerId,
-        /// Timer resource identifier.
-        timer_id: ResourceId,
-    },
-    /// runtime.timer.cancelled
-    TimerCancelled {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that cancelled the timer.
-        worker_id: WorkerId,
-        /// Timer resource identifier.
-        timer_id: ResourceId,
-    },
-
-    // bindings
-    /// runtime.binding.called
-    BindingCalled {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that called the binding.
-        worker_id: WorkerId,
-        /// Runnable scope active at the binding boundary.
-        scope: RunnableScope,
-        /// Binding identifier.
-        binding_id: BindingId,
-        /// Binding codec identifier.
-        codec: CodecId,
-    },
-    /// runtime.binding.returned
-    BindingReturned {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that called the binding.
-        worker_id: WorkerId,
-        /// Runnable scope active at the binding boundary.
-        scope: RunnableScope,
-        /// Binding identifier.
-        binding_id: BindingId,
-        /// Binding codec identifier.
-        codec: CodecId,
-        /// Encoded result byte length.
-        byte_len: usize,
-    },
-    /// runtime.binding.failed
-    BindingFailed {
-        /// Runtime that owns the worker.
-        runtime_id: RuntimeId,
-        /// Worker that called the binding.
-        worker_id: WorkerId,
-        /// Runnable scope active at the binding boundary.
-        scope: RunnableScope,
-        /// Binding identifier.
-        binding_id: BindingId,
-        /// Binding codec identifier.
-        codec: CodecId,
-        /// Human-readable failure detail.
-        message: Box<str>,
     },
 
     // heap
@@ -389,17 +309,6 @@ pub enum Observation {
         /// Completed collector cycle.
         cycle: heap::GcCycle,
     },
-    /// runtime.heap.limit.reached
-    HeapLimitReached {
-        /// Runtime that owns the heap.
-        runtime_id: RuntimeId,
-        /// Worker that owns the local heap when present.
-        worker_id: Option<WorkerId>,
-        /// Retained bytes at the failure point.
-        used_bytes: u64,
-        /// Configured hard limit in bytes.
-        max_bytes: u64,
-    },
 
     // resources
     /// runtime.resource.attached
@@ -429,42 +338,12 @@ impl Observation {
                 runtime_id,
                 worker_id,
             }
-            | Self::TaskScheduled {
-                runtime_id,
-                worker_id,
-                ..
-            }
             | Self::TaskRan {
                 runtime_id,
                 worker_id,
                 ..
             }
-            | Self::TaskCompleted {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::TaskFailed {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::MicrotaskScheduled {
-                runtime_id,
-                worker_id,
-                ..
-            }
             | Self::MicrotaskRan {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::MicrotaskCompleted {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::MicrotaskFailed {
                 runtime_id,
                 worker_id,
                 ..
@@ -480,26 +359,6 @@ impl Observation {
                 ..
             }
             | Self::StopReached {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::StopContinued {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::BindingCalled {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::BindingReturned {
-                runtime_id,
-                worker_id,
-                ..
-            }
-            | Self::BindingFailed {
                 runtime_id,
                 worker_id,
                 ..
@@ -528,11 +387,6 @@ impl Observation {
                 runtime_id,
                 worker_id: Some(worker_id),
                 ..
-            }
-            | Self::PanicRaised {
-                runtime_id,
-                worker_id,
-                ..
             } => ObservationScope::worker(Some(*runtime_id), *worker_id),
             Self::WorkerRemoved { worker_id } => ObservationScope::worker(None, *worker_id),
             Self::EntityUpserted { entity_id } | Self::EntityRemoved { entity_id } => {
@@ -551,6 +405,21 @@ impl Observation {
             | Self::RuleEnabled { .. }
             | Self::RuleDisabled { .. }
             | Self::RuleReplaced { .. }
+            | Self::BreakpointAdded { .. }
+            | Self::BreakpointUpdated { .. }
+            | Self::BreakpointRemoved { .. }
+            | Self::BreakpointEnabled { .. }
+            | Self::BreakpointDisabled { .. }
+            | Self::WatchpointAdded { .. }
+            | Self::WatchpointUpdated { .. }
+            | Self::WatchpointRemoved { .. }
+            | Self::WatchpointEnabled { .. }
+            | Self::WatchpointDisabled { .. }
+            | Self::ProbeAdded { .. }
+            | Self::ProbeUpdated { .. }
+            | Self::ProbeRemoved { .. }
+            | Self::ProbeEnabled { .. }
+            | Self::ProbeDisabled { .. }
             | Self::IngressDelivered { .. }
             | Self::TimeAdvanced { .. } => ObservationScope::world(),
             Self::SharedGcStepped {
@@ -564,29 +433,9 @@ impl Observation {
                 ..
             } => ObservationScope::runtime(*runtime_id),
             Self::ResourceAttached { resource_id, .. }
-            | Self::ResourceDetached { resource_id, .. }
-            | Self::TimerScheduled {
-                timer_id: resource_id,
-                ..
+            | Self::ResourceDetached { resource_id, .. } => {
+                ObservationScope::resource(*resource_id)
             }
-            | Self::TimerFired {
-                timer_id: resource_id,
-                ..
-            }
-            | Self::TimerCancelled {
-                timer_id: resource_id,
-                ..
-            } => ObservationScope::resource(*resource_id),
-            Self::HeapLimitReached {
-                runtime_id,
-                worker_id: Some(worker_id),
-                ..
-            } => ObservationScope::worker(Some(*runtime_id), *worker_id),
-            Self::HeapLimitReached {
-                runtime_id,
-                worker_id: None,
-                ..
-            } => ObservationScope::runtime(*runtime_id),
         }
     }
 
@@ -605,6 +454,21 @@ impl Observation {
                     | Self::RuleEnabled { .. }
                     | Self::RuleDisabled { .. }
                     | Self::RuleReplaced { .. }
+                    | Self::BreakpointAdded { .. }
+                    | Self::BreakpointUpdated { .. }
+                    | Self::BreakpointRemoved { .. }
+                    | Self::BreakpointEnabled { .. }
+                    | Self::BreakpointDisabled { .. }
+                    | Self::WatchpointAdded { .. }
+                    | Self::WatchpointUpdated { .. }
+                    | Self::WatchpointRemoved { .. }
+                    | Self::WatchpointEnabled { .. }
+                    | Self::WatchpointDisabled { .. }
+                    | Self::ProbeAdded { .. }
+                    | Self::ProbeUpdated { .. }
+                    | Self::ProbeRemoved { .. }
+                    | Self::ProbeEnabled { .. }
+                    | Self::ProbeDisabled { .. }
                     | Self::IngressDelivered { .. }
                     | Self::TimeAdvanced { .. }
             ),
@@ -630,32 +494,17 @@ impl Observation {
             Self::RuntimeSpawned { runtime_id, .. }
             | Self::RuntimeRemoved { runtime_id }
             | Self::WorkerSpawned { runtime_id, .. }
-            | Self::TaskScheduled { runtime_id, .. }
             | Self::TaskRan { runtime_id, .. }
-            | Self::TaskCompleted { runtime_id, .. }
-            | Self::TaskFailed { runtime_id, .. }
-            | Self::MicrotaskScheduled { runtime_id, .. }
             | Self::MicrotaskRan { runtime_id, .. }
-            | Self::MicrotaskCompleted { runtime_id, .. }
-            | Self::MicrotaskFailed { runtime_id, .. }
             | Self::TaskContinued { runtime_id, .. }
             | Self::MicrotaskContinued { runtime_id, .. }
             | Self::StopReached { runtime_id, .. }
-            | Self::StopContinued { runtime_id, .. }
-            | Self::TimerScheduled { runtime_id, .. }
-            | Self::TimerFired { runtime_id, .. }
-            | Self::TimerCancelled { runtime_id, .. }
-            | Self::BindingCalled { runtime_id, .. }
-            | Self::BindingReturned { runtime_id, .. }
-            | Self::BindingFailed { runtime_id, .. }
             | Self::LocalGcStarted { runtime_id, .. }
             | Self::LocalGcStepped { runtime_id, .. }
             | Self::LocalGcCompleted { runtime_id, .. }
             | Self::SharedGcStarted { runtime_id, .. }
             | Self::SharedGcStepped { runtime_id, .. }
-            | Self::SharedGcCompleted { runtime_id, .. }
-            | Self::HeapLimitReached { runtime_id, .. }
-            | Self::PanicRaised { runtime_id, .. } => Some(*runtime_id),
+            | Self::SharedGcCompleted { runtime_id, .. } => Some(*runtime_id),
             _ => None,
         }
     }
@@ -665,24 +514,11 @@ impl Observation {
         match self {
             Self::WorkerSpawned { worker_id, .. }
             | Self::WorkerRemoved { worker_id }
-            | Self::TaskScheduled { worker_id, .. }
             | Self::TaskRan { worker_id, .. }
-            | Self::TaskCompleted { worker_id, .. }
-            | Self::TaskFailed { worker_id, .. }
-            | Self::MicrotaskScheduled { worker_id, .. }
             | Self::MicrotaskRan { worker_id, .. }
-            | Self::MicrotaskCompleted { worker_id, .. }
-            | Self::MicrotaskFailed { worker_id, .. }
             | Self::TaskContinued { worker_id, .. }
             | Self::MicrotaskContinued { worker_id, .. }
             | Self::StopReached { worker_id, .. }
-            | Self::StopContinued { worker_id, .. }
-            | Self::TimerScheduled { worker_id, .. }
-            | Self::TimerFired { worker_id, .. }
-            | Self::TimerCancelled { worker_id, .. }
-            | Self::BindingCalled { worker_id, .. }
-            | Self::BindingReturned { worker_id, .. }
-            | Self::BindingFailed { worker_id, .. }
             | Self::LocalGcStarted { worker_id, .. }
             | Self::LocalGcStepped { worker_id, .. }
             | Self::LocalGcCompleted { worker_id, .. }
@@ -694,13 +530,8 @@ impl Observation {
                 worker_id: Some(worker_id),
                 ..
             }
-            | Self::HeapLimitReached {
-                worker_id: Some(worker_id),
-                ..
-            }
             | Self::ResourceAttached { worker_id, .. }
-            | Self::ResourceDetached { worker_id, .. }
-            | Self::PanicRaised { worker_id, .. } => Some(*worker_id),
+            | Self::ResourceDetached { worker_id, .. } => Some(*worker_id),
             _ => None,
         }
     }
@@ -729,19 +560,7 @@ impl Observation {
     pub const fn resource_id(&self) -> Option<ResourceId> {
         match self {
             Self::ResourceAttached { resource_id, .. }
-            | Self::ResourceDetached { resource_id, .. }
-            | Self::TimerScheduled {
-                timer_id: resource_id,
-                ..
-            }
-            | Self::TimerFired {
-                timer_id: resource_id,
-                ..
-            }
-            | Self::TimerCancelled {
-                timer_id: resource_id,
-                ..
-            } => Some(*resource_id),
+            | Self::ResourceDetached { resource_id, .. } => Some(*resource_id),
             _ => None,
         }
     }
@@ -767,36 +586,36 @@ impl Observation {
             Self::RuleEnabled { .. } => "runtime.policy.rule.enabled",
             Self::RuleDisabled { .. } => "runtime.policy.rule.disabled",
             Self::RuleReplaced { .. } => "runtime.policy.rule.replaced",
-            Self::TaskScheduled { .. } => "runtime.task.scheduled",
+            Self::BreakpointAdded { .. } => "runtime.debug.breakpoint.added",
+            Self::BreakpointUpdated { .. } => "runtime.debug.breakpoint.updated",
+            Self::BreakpointRemoved { .. } => "runtime.debug.breakpoint.removed",
+            Self::BreakpointEnabled { .. } => "runtime.debug.breakpoint.enabled",
+            Self::BreakpointDisabled { .. } => "runtime.debug.breakpoint.disabled",
+            Self::WatchpointAdded { .. } => "runtime.debug.watchpoint.added",
+            Self::WatchpointUpdated { .. } => "runtime.debug.watchpoint.updated",
+            Self::WatchpointRemoved { .. } => "runtime.debug.watchpoint.removed",
+            Self::WatchpointEnabled { .. } => "runtime.debug.watchpoint.enabled",
+            Self::WatchpointDisabled { .. } => "runtime.debug.watchpoint.disabled",
+            Self::ProbeAdded { .. } => "runtime.debug.probe.added",
+            Self::ProbeUpdated { .. } => "runtime.debug.probe.updated",
+            Self::ProbeRemoved { .. } => "runtime.debug.probe.removed",
+            Self::ProbeEnabled { .. } => "runtime.debug.probe.enabled",
+            Self::ProbeDisabled { .. } => "runtime.debug.probe.disabled",
             Self::TaskRan { .. } => "runtime.task.ran",
-            Self::TaskCompleted { .. } => "runtime.task.completed",
-            Self::TaskFailed { .. } => "runtime.task.failed",
-            Self::MicrotaskScheduled { .. } => "runtime.microtask.scheduled",
             Self::MicrotaskRan { .. } => "runtime.microtask.ran",
-            Self::MicrotaskCompleted { .. } => "runtime.microtask.completed",
-            Self::MicrotaskFailed { .. } => "runtime.microtask.failed",
             Self::TaskContinued { .. } => "runtime.task.continued",
             Self::MicrotaskContinued { .. } => "runtime.microtask.continued",
             Self::StopReached { .. } => "runtime.stop.reached",
-            Self::StopContinued { .. } => "runtime.stop.continued",
             Self::IngressDelivered { .. } => "runtime.ingress.delivered",
             Self::TimeAdvanced { .. } => "runtime.time.advanced",
-            Self::TimerScheduled { .. } => "runtime.timer.scheduled",
-            Self::TimerFired { .. } => "runtime.timer.fired",
-            Self::TimerCancelled { .. } => "runtime.timer.cancelled",
-            Self::BindingCalled { .. } => "runtime.binding.called",
-            Self::BindingReturned { .. } => "runtime.binding.returned",
-            Self::BindingFailed { .. } => "runtime.binding.failed",
             Self::LocalGcStarted { .. } => "runtime.gc.local.started",
             Self::LocalGcStepped { .. } => "runtime.gc.local.stepped",
             Self::LocalGcCompleted { .. } => "runtime.gc.local.completed",
             Self::SharedGcStarted { .. } => "runtime.gc.shared.started",
             Self::SharedGcStepped { .. } => "runtime.gc.shared.stepped",
             Self::SharedGcCompleted { .. } => "runtime.gc.shared.completed",
-            Self::HeapLimitReached { .. } => "runtime.heap.limit.reached",
             Self::ResourceAttached { .. } => "runtime.resource.attached",
             Self::ResourceDetached { .. } => "runtime.resource.detached",
-            Self::PanicRaised { .. } => "runtime.panic.raised",
         }
     }
 }

@@ -42,6 +42,17 @@ pub(crate) enum WorkerRunOutcome {
 }
 
 impl Worker {
+    /// Refresh derived stop points when debugger configuration changed.
+    fn refresh_stop_points(&mut self, world: &WorldState) {
+        let generation = world.debugger.generation();
+        if self.stop_generation == generation {
+            return;
+        }
+
+        self.stop_points = world.debugger.stop_set(self.runtime_id, self.id);
+        self.stop_generation = generation;
+    }
+
     /// Build one runtime-owned binding call.
     fn binding_call<'host>(
         &mut self,
@@ -77,6 +88,8 @@ impl Worker {
         args: &[program::Value],
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<program::Value> {
+        self.refresh_stop_points(world);
+
         // execute the entrypoint with yielding enabled
         let _guard = enter_runnable_scope(RunnableScope::empty());
         let mut call_context = self.binding_call(world, host, host_queue);
@@ -86,6 +99,7 @@ impl Worker {
             shared_mark_worker,
             local_static,
             machine,
+            stop_points,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -100,7 +114,7 @@ impl Worker {
                 constant_space,
             },
         };
-        let outcome = machine.run(context, entry, args)?;
+        let outcome = machine.run(context, entry, args, Some(stop_points))?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -315,13 +329,13 @@ impl Worker {
 
         // cooperative GC work
         loop {
-            let pass_progressed = if prioritize_shared {
+            let advance = if prioritize_shared {
                 self.step_gc_with_shared_priority(shared)?
             } else {
                 self.step_gc_with_local_priority(shared)?
             };
 
-            if !pass_progressed {
+            if advance.is_none() {
                 break;
             }
 
@@ -335,83 +349,114 @@ impl Worker {
     }
 
     /// Run cooperative GC work at one idle worker safepoint.
-    pub(crate) fn run_safepoint(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
-        self.collect_at_safepoint(shared, true)
+    pub(crate) fn run_safepoint(
+        &mut self,
+        shared: &RuntimeHeap,
+    ) -> RuntimeResult<Option<heap::GcAdvance>> {
+        let prioritize_shared = shared.is_terminating()
+            || shared.pending_root_epoch(self.id).is_some()
+            || (shared.is_marking() && !self.shared_edge_scan_idle());
+
+        if prioritize_shared {
+            self.step_gc_with_shared_priority(shared)
+        } else {
+            self.step_gc_with_local_priority(shared)
+        }
     }
 
     /// Run one GC safepoint step with shared heap work first.
-    fn step_gc_with_shared_priority(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn step_gc_with_shared_priority(
+        &mut self,
+        shared: &RuntimeHeap,
+    ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // direct shared roots
-        if self.assist_shared_root_scan(shared)? {
-            return Ok(true);
+        if let Some(progress) = self.assist_shared_root_scan(shared)? {
+            return Ok(Some(progress));
         }
 
         // local to shared edges
-        if self.assist_shared_edge_scan(shared)? {
-            return Ok(true);
+        if let Some(progress) = self.assist_shared_edge_scan(shared)? {
+            return Ok(Some(progress));
         }
 
         // shared mark and sweep work
-        if self.assist_shared_gc(shared)? {
-            return Ok(true);
+        if let Some(progress) = self.assist_shared_gc(shared)? {
+            return Ok(Some(progress));
         }
 
         // local heap work
-        if self.step_local_collection()?.made_progress() {
-            return Ok(true);
+        let progress = self.step_local_collection()?;
+        if progress.advanced() {
+            return Ok(Some(progress));
         }
 
-        Ok(false)
+        Ok(None)
     }
 
     /// Run one GC safepoint step with local heap work first.
-    fn step_gc_with_local_priority(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn step_gc_with_local_priority(
+        &mut self,
+        shared: &RuntimeHeap,
+    ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // local heap work
-        if self.step_local_collection()?.made_progress() {
-            return Ok(true);
+        let progress = self.step_local_collection()?;
+        if progress.advanced() {
+            return Ok(Some(progress));
         }
 
         // direct shared roots
-        if self.assist_shared_root_scan(shared)? {
-            return Ok(true);
+        if let Some(progress) = self.assist_shared_root_scan(shared)? {
+            return Ok(Some(progress));
         }
 
         // local to shared edges
-        if self.assist_shared_edge_scan(shared)? {
-            return Ok(true);
+        if let Some(progress) = self.assist_shared_edge_scan(shared)? {
+            return Ok(Some(progress));
         }
 
         // shared mark and sweep work
-        if self.assist_shared_gc(shared)? {
-            return Ok(true);
+        if let Some(progress) = self.assist_shared_gc(shared)? {
+            return Ok(Some(progress));
         }
 
-        Ok(false)
+        Ok(None)
     }
 
     /// Publish one pending direct shared-root scan from this worker safepoint.
-    fn assist_shared_root_scan(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn assist_shared_root_scan(
+        &mut self,
+        shared: &RuntimeHeap,
+    ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // active pass
         let Some(epoch) = shared.pending_root_epoch(self.id) else {
-            return Ok(false);
+            return Ok(None);
         };
 
         // owner-local root publication
         let roots = self.collect_shared_roots()?;
+        let work_bytes = roots.len() * std::mem::size_of::<heap::SharedHeapReference>();
         shared.replace_direct_roots(epoch, self.id, roots);
 
-        Ok(true)
+        Ok(Some(heap::GcAdvance::stepped(
+            heap::GcCollector::Shared,
+            heap::GcPhase::PublishRoots,
+            0,
+            work_bytes,
+        )))
     }
 
     /// Assist one active shared reference pass from this worker safepoint.
-    fn assist_shared_edge_scan(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn assist_shared_edge_scan(
+        &mut self,
+        shared: &RuntimeHeap,
+    ) -> RuntimeResult<Option<heap::GcAdvance>> {
         if !shared.is_marking() || self.shared_edge_scan_idle() {
-            return Ok(false);
+            return Ok(None);
         }
 
         let work_bytes = shared.edge_scan_work_bytes();
         if work_bytes == 0 {
-            return Ok(false);
+            return Ok(None);
         }
 
         let mut roots = Vec::new();
@@ -423,15 +468,27 @@ impl Worker {
             shared.leave_edge_scan(self.id);
         }
 
-        Ok(work_done > 0 || is_idle)
+        if work_done > 0 || is_idle {
+            Ok(Some(heap::GcAdvance::stepped(
+                heap::GcCollector::Shared,
+                heap::GcPhase::ScanEdges,
+                work_bytes,
+                work_done,
+            )))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Assist one active shared collection from this worker safepoint.
-    fn assist_shared_gc(&mut self, runtime_shared: &RuntimeHeap) -> RuntimeResult<bool> {
+    fn assist_shared_gc(
+        &mut self,
+        runtime_shared: &RuntimeHeap,
+    ) -> RuntimeResult<Option<heap::GcAdvance>> {
         let shared = runtime_shared.shared.as_ref();
         let budget_bytes = shared.take_assist_budget_bytes();
         if budget_bytes == 0 || shared.gc_phase() == heap::GcPhase::Idle {
-            return Ok(false);
+            return Ok(None);
         }
 
         let shared_roots = runtime_shared.roots();
@@ -447,7 +504,11 @@ impl Worker {
             )
             .map_err(Box::<RuntimeError>::from)?;
 
-        Ok(progress.made_progress())
+        if progress.advanced() {
+            Ok(Some(progress))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Tick the loop once and return a target task output when requested.
@@ -598,7 +659,7 @@ impl Worker {
         runnable: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<()> {
-        // build the runnable payload
+        // build the runnable
         let runnable = Runnable {
             id: task_id,
             continuation: runnable,
@@ -854,6 +915,7 @@ impl Worker {
             host,
             host_queue,
             stop.continuation,
+            stop.reason,
         )?;
 
         self.handle_run_outcome(id, scope, outcome)
@@ -922,6 +984,8 @@ impl Worker {
         runnable: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
+        self.refresh_stop_points(world);
+
         let mut call_context = self.binding_call(world, host, host_queue);
         let Worker {
             heap,
@@ -929,6 +993,7 @@ impl Worker {
             shared_mark_worker,
             local_static,
             machine,
+            stop_points,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -944,7 +1009,7 @@ impl Worker {
             },
         };
 
-        machine.resume(context, runnable, resume_value)
+        machine.resume(context, runnable, resume_value, Some(stop_points))
     }
 
     /// Continue one stopped machine continuation.
@@ -957,7 +1022,10 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
         runnable: Continuation,
+        stop_reason: program::StopReason,
     ) -> RuntimeResult<Outcome<Continuation>> {
+        self.refresh_stop_points(world);
+
         let mut call_context = self.binding_call(world, host, host_queue);
         let Worker {
             heap,
@@ -965,6 +1033,7 @@ impl Worker {
             shared_mark_worker,
             local_static,
             machine,
+            stop_points,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -980,7 +1049,12 @@ impl Worker {
             },
         };
 
-        machine.continue_continuation(context, runnable)
+        let skip_breakpoint = match stop_reason {
+            program::StopReason::Breakpoint { breakpoint_id } => Some(breakpoint_id),
+            program::StopReason::Instruction { .. } => None,
+        };
+
+        machine.continue_continuation(context, runnable, Some(stop_points), skip_breakpoint)
     }
 
     /// Reject ordinary event-loop execution while this worker is stopped.

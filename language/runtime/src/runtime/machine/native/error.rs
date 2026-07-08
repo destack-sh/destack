@@ -34,6 +34,11 @@ pub enum Error {
         /// The safepoint that stopped.
         safepoint: u32,
     },
+    /// Native execution stopped at an unknown safepoint.
+    StopPointMissing {
+        /// The safepoint that stopped.
+        safepoint: u32,
+    },
     /// Native execution reported a language panic.
     Panicked {
         /// The panic payload.
@@ -96,6 +101,12 @@ impl fmt::Display for Error {
                 write!(
                     formatter,
                     "native execution stopped at safepoint {safepoint} without a continuation"
+                )
+            }
+            Self::StopPointMissing { safepoint } => {
+                write!(
+                    formatter,
+                    "native execution stopped at unknown safepoint {safepoint}"
                 )
             }
             Self::Panicked { payload } => {

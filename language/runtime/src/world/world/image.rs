@@ -9,6 +9,7 @@ use crate::host::ResourceId;
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
+use crate::world::debug::Debugger;
 use crate::world::policy::Policy;
 use crate::world::topology::{Edge, Entity, LabelSet, RuntimeId, Topology};
 
@@ -25,6 +26,8 @@ pub struct WorldImage {
     pub(crate) next_worker_id: u64,
     /// Captured dynamic policy state.
     pub(crate) policy: Policy,
+    /// Captured debugger configuration.
+    pub(crate) debugger: Debugger,
     /// Captured topology metadata graph.
     pub(crate) topology: Topology,
     /// Captured world clock state.
@@ -41,6 +44,11 @@ impl WorldImage {
     /// Return the captured world policy specification.
     pub fn policy(&self) -> &Policy {
         &self.policy
+    }
+
+    /// Return the captured world debugger configuration.
+    pub fn debugger(&self) -> &Debugger {
+        &self.debugger
     }
 
     /// Return the captured runtimes keyed by runtime id.
@@ -210,6 +218,7 @@ impl World {
                 next_runtime_id: self.state.next_runtime_id,
                 next_worker_id: self.state.next_worker_id,
                 policy: self.state.policy.clone(),
+                debugger: self.state.debugger.clone(),
                 topology: self.state.topology.clone(),
                 clock: self.state.clock.snapshot(),
                 random: self.state.random.snapshot(),
@@ -236,6 +245,7 @@ impl World {
             self.state.next_worker_id = image.next_worker_id;
             self.state.moment = image.moment;
             self.state.policy = image.policy.clone();
+            self.state.debugger = image.debugger.clone();
             self.state.topology = image.topology.clone();
 
             self.state.clock.restore_snapshot(&image.clock);

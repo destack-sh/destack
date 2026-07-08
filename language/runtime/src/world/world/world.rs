@@ -15,6 +15,7 @@ use crate::host::{Host, HostError, compile_target_host};
 use crate::runtime::random::{Random, RandomSource, RandomStreamId};
 use crate::runtime::time::{Clock, ClockSource, Nanos};
 use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
+use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
 use crate::world::topology::LabelSet;
@@ -128,6 +129,7 @@ impl World {
         let clock = Clock::from_options(clock_source, &options.clock, default_clock_epoch_nanos);
         let random = Random::from_options(random_source, &options.random);
         let policy = Policy::default();
+        let debugger = Debugger::default();
         let trace = TraceLog::new(execution_mode, trace_header);
         let topology = Topology::new();
         let moment_sequence = MomentSequence::new(0);
@@ -137,6 +139,7 @@ impl World {
             branch_id,
             moment: moment_sequence,
             policy,
+            debugger,
             next_runtime_id: 1,
             next_worker_id: 1,
             topology,
@@ -152,6 +155,7 @@ impl World {
             next_runtime_id: state.next_runtime_id,
             next_worker_id: state.next_worker_id,
             policy: state.policy.clone(),
+            debugger: state.debugger.clone(),
             topology: state.topology.clone(),
             clock: state.clock.snapshot(),
             random: state.random.snapshot(),
@@ -201,6 +205,11 @@ impl World {
     /// Snapshot world policy state.
     pub fn policy(&self) -> Policy {
         self.state.policy.clone()
+    }
+
+    /// Borrow the active world debugger configuration.
+    pub fn debugger(&self) -> &Debugger {
+        &self.state.debugger
     }
 
     /// Snapshot world entity kind definitions.

@@ -1,3 +1,4 @@
+use destack_program as program;
 use destack_repository::ExecutionMode;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -7,6 +8,11 @@ use std::sync::Arc;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
+use crate::world::debug::{
+    Breakpoint, BreakpointTarget, Probe, ProbeAction, ProbeId, ProbeTarget, Watchpoint,
+    WatchpointId, WatchpointTarget,
+};
+use crate::world::observation::Observation;
 use crate::world::policy::{Policy, Rule, RuleId};
 
 use super::{
@@ -18,13 +24,14 @@ use super::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum Mutation {
+    // runtime
     /// Add one runtime to the world.
     SpawnRuntime {
         /// The created runtime identifier.
         runtime_id: RuntimeId,
         /// The created runtime topology entity.
         runtime_entity: Entity,
-        /// Captured runtime metadata for the created runtime.
+        /// Captured runtime image.
         runtime: Arc<RuntimeImage>,
         /// Captured workers keyed by worker identifier.
         workers: BTreeMap<WorkerId, SpawnedWorker>,
@@ -42,7 +49,7 @@ pub enum Mutation {
         worker_id: WorkerId,
         /// The created worker topology entity.
         worker_entity: Entity,
-        /// Captured worker metadata for the created worker.
+        /// Captured worker image.
         worker: Arc<WorkerImage>,
     },
     /// Remove one worker from the world.
@@ -50,6 +57,8 @@ pub enum Mutation {
         /// Worker identifier to remove.
         worker_id: WorkerId,
     },
+
+    // resources
     /// Add one logical world resource.
     AddResource {
         /// Resource identifier to add.
@@ -62,14 +71,16 @@ pub enum Mutation {
         /// Resource identifier to remove.
         resource_id: ResourceId,
     },
+
+    // policy
     /// Replace the active world policy.
     SetPolicy {
-        /// Full policy replacement payload.
+        /// Full policy replacement.
         policy: Policy,
     },
     /// Add one rule into the active world policy.
     AddRule {
-        /// Rule payload to add.
+        /// Rule to add.
         rule: Rule,
     },
     /// Remove one rule from the active world policy.
@@ -91,9 +102,88 @@ pub enum Mutation {
     ReplaceRule {
         /// Stable rule identifier to replace.
         rule_id: RuleId,
-        /// Replacement rule payload.
+        /// Replacement rule.
         rule: Rule,
     },
+
+    // debugger
+    /// Add one debugger breakpoint.
+    AddBreakpoint {
+        /// Breakpoint to add.
+        breakpoint: Breakpoint,
+    },
+    /// Update one debugger breakpoint.
+    UpdateBreakpoint {
+        /// Breakpoint to update.
+        breakpoint: Breakpoint,
+    },
+    /// Remove one debugger breakpoint.
+    RemoveBreakpoint {
+        /// Breakpoint identifier to remove.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// Enable one debugger breakpoint.
+    EnableBreakpoint {
+        /// Breakpoint identifier to enable.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// Disable one debugger breakpoint.
+    DisableBreakpoint {
+        /// Breakpoint identifier to disable.
+        breakpoint_id: program::BreakpointId,
+    },
+    /// Add one debugger watchpoint.
+    AddWatchpoint {
+        /// Watchpoint to add.
+        watchpoint: Watchpoint,
+    },
+    /// Update one debugger watchpoint.
+    UpdateWatchpoint {
+        /// Watchpoint to update.
+        watchpoint: Watchpoint,
+    },
+    /// Remove one debugger watchpoint.
+    RemoveWatchpoint {
+        /// Watchpoint identifier to remove.
+        watchpoint_id: WatchpointId,
+    },
+    /// Enable one debugger watchpoint.
+    EnableWatchpoint {
+        /// Watchpoint identifier to enable.
+        watchpoint_id: WatchpointId,
+    },
+    /// Disable one debugger watchpoint.
+    DisableWatchpoint {
+        /// Watchpoint identifier to disable.
+        watchpoint_id: WatchpointId,
+    },
+    /// Add one debugger probe.
+    AddProbe {
+        /// Probe to add.
+        probe: Probe,
+    },
+    /// Update one debugger probe.
+    UpdateProbe {
+        /// Probe to update.
+        probe: Probe,
+    },
+    /// Remove one debugger probe.
+    RemoveProbe {
+        /// Probe identifier to remove.
+        probe_id: ProbeId,
+    },
+    /// Enable one debugger probe.
+    EnableProbe {
+        /// Probe identifier to enable.
+        probe_id: ProbeId,
+    },
+    /// Disable one debugger probe.
+    DisableProbe {
+        /// Probe identifier to disable.
+        probe_id: ProbeId,
+    },
+
+    // topology
     /// Define one entity kind in world topology.
     DefineEntityKind {
         /// Entity kind definition.
@@ -116,7 +206,7 @@ pub enum Mutation {
     },
     /// Upsert one entity in world topology.
     UpsertEntity {
-        /// Entity payload.
+        /// Entity to upsert.
         entity: Entity,
     },
     /// Remove one entity from world topology.
@@ -126,7 +216,7 @@ pub enum Mutation {
     },
     /// Upsert one edge in world topology.
     UpsertEdge {
-        /// Edge payload.
+        /// Edge to upsert.
         edge: Edge,
     },
     /// Remove one edge from world topology.
@@ -146,9 +236,10 @@ pub struct SpawnedWorker {
 }
 
 impl PartialEq for Mutation {
-    /// Compare mutation payloads for replay validation.
+    /// Compare mutations for replay validation.
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            // runtime
             (
                 Self::SpawnRuntime {
                     runtime_id,
@@ -193,6 +284,8 @@ impl PartialEq for Mutation {
             (Self::RemoveWorker { worker_id }, Self::RemoveWorker { worker_id: other }) => {
                 worker_id == other
             }
+
+            // resources
             (
                 Self::AddResource {
                     resource_id,
@@ -206,6 +299,8 @@ impl PartialEq for Mutation {
             (Self::RemoveResource { resource_id }, Self::RemoveResource { resource_id: other }) => {
                 resource_id == other
             }
+
+            // policy
             (Self::SetPolicy { policy }, Self::SetPolicy { policy: other }) => policy == other,
             (Self::AddRule { rule }, Self::AddRule { rule: other }) => rule == other,
             (Self::RemoveRule { rule_id }, Self::RemoveRule { rule_id: other }) => rule_id == other,
@@ -220,6 +315,71 @@ impl PartialEq for Mutation {
                     rule: other_rule,
                 },
             ) => rule_id == other_rule_id && rule == other_rule,
+
+            // debugger
+            (Self::AddBreakpoint { breakpoint }, Self::AddBreakpoint { breakpoint: other }) => {
+                breakpoint == other
+            }
+            (
+                Self::UpdateBreakpoint { breakpoint },
+                Self::UpdateBreakpoint { breakpoint: other },
+            ) => breakpoint == other,
+            (
+                Self::RemoveBreakpoint { breakpoint_id },
+                Self::RemoveBreakpoint {
+                    breakpoint_id: other,
+                },
+            ) => breakpoint_id == other,
+            (
+                Self::EnableBreakpoint { breakpoint_id },
+                Self::EnableBreakpoint {
+                    breakpoint_id: other,
+                },
+            ) => breakpoint_id == other,
+            (
+                Self::DisableBreakpoint { breakpoint_id },
+                Self::DisableBreakpoint {
+                    breakpoint_id: other,
+                },
+            ) => breakpoint_id == other,
+            (Self::AddWatchpoint { watchpoint }, Self::AddWatchpoint { watchpoint: other }) => {
+                watchpoint == other
+            }
+            (
+                Self::UpdateWatchpoint { watchpoint },
+                Self::UpdateWatchpoint { watchpoint: other },
+            ) => watchpoint == other,
+            (
+                Self::RemoveWatchpoint { watchpoint_id },
+                Self::RemoveWatchpoint {
+                    watchpoint_id: other,
+                },
+            ) => watchpoint_id == other,
+            (
+                Self::EnableWatchpoint { watchpoint_id },
+                Self::EnableWatchpoint {
+                    watchpoint_id: other,
+                },
+            ) => watchpoint_id == other,
+            (
+                Self::DisableWatchpoint { watchpoint_id },
+                Self::DisableWatchpoint {
+                    watchpoint_id: other,
+                },
+            ) => watchpoint_id == other,
+            (Self::AddProbe { probe }, Self::AddProbe { probe: other }) => probe == other,
+            (Self::UpdateProbe { probe }, Self::UpdateProbe { probe: other }) => probe == other,
+            (Self::RemoveProbe { probe_id }, Self::RemoveProbe { probe_id: other }) => {
+                probe_id == other
+            }
+            (Self::EnableProbe { probe_id }, Self::EnableProbe { probe_id: other }) => {
+                probe_id == other
+            }
+            (Self::DisableProbe { probe_id }, Self::DisableProbe { probe_id: other }) => {
+                probe_id == other
+            }
+
+            // topology
             (Self::DefineEntityKind { kind }, Self::DefineEntityKind { kind: other }) => {
                 kind == other
             }
@@ -247,18 +407,42 @@ impl Mutation {
     /// Return the stable mutation name.
     pub fn name(&self) -> &'static str {
         match self {
+            // runtime
             Self::SpawnRuntime { .. } => "runtime.instance.spawned",
             Self::RemoveRuntime { .. } => "runtime.instance.remove",
             Self::SpawnWorker { .. } => "runtime.worker.spawned",
             Self::RemoveWorker { .. } => "runtime.worker.remove",
+
+            // resources
             Self::AddResource { .. } => "runtime.resource.add",
             Self::RemoveResource { .. } => "runtime.resource.remove",
+
+            // policy
             Self::SetPolicy { .. } => "runtime.policy.set",
             Self::AddRule { .. } => "runtime.policy.rule.add",
             Self::RemoveRule { .. } => "runtime.policy.rule.remove",
             Self::EnableRule { .. } => "runtime.policy.rule.enable",
             Self::DisableRule { .. } => "runtime.policy.rule.disable",
             Self::ReplaceRule { .. } => "runtime.policy.rule.replace",
+
+            // debugger
+            Self::AddBreakpoint { .. } => "runtime.debug.breakpoint.add",
+            Self::UpdateBreakpoint { .. } => "runtime.debug.breakpoint.update",
+            Self::RemoveBreakpoint { .. } => "runtime.debug.breakpoint.remove",
+            Self::EnableBreakpoint { .. } => "runtime.debug.breakpoint.enable",
+            Self::DisableBreakpoint { .. } => "runtime.debug.breakpoint.disable",
+            Self::AddWatchpoint { .. } => "runtime.debug.watchpoint.add",
+            Self::UpdateWatchpoint { .. } => "runtime.debug.watchpoint.update",
+            Self::RemoveWatchpoint { .. } => "runtime.debug.watchpoint.remove",
+            Self::EnableWatchpoint { .. } => "runtime.debug.watchpoint.enable",
+            Self::DisableWatchpoint { .. } => "runtime.debug.watchpoint.disable",
+            Self::AddProbe { .. } => "runtime.debug.probe.add",
+            Self::UpdateProbe { .. } => "runtime.debug.probe.update",
+            Self::RemoveProbe { .. } => "runtime.debug.probe.remove",
+            Self::EnableProbe { .. } => "runtime.debug.probe.enable",
+            Self::DisableProbe { .. } => "runtime.debug.probe.disable",
+
+            // topology
             Self::DefineEntityKind { .. } => "runtime.topology.entity.kind.define",
             Self::UndefineEntityKind { .. } => "runtime.topology.entity.kind.undefine",
             Self::DefineEdgeKind { .. } => "runtime.topology.edge.kind.define",
@@ -267,6 +451,130 @@ impl Mutation {
             Self::RemoveEntity { .. } => "runtime.topology.entity.remove",
             Self::UpsertEdge { .. } => "runtime.topology.edge.upsert",
             Self::RemoveEdge { .. } => "runtime.topology.edge.remove",
+        }
+    }
+
+    /// Return the observation emitted after this mutation applies.
+    pub fn observation(&self) -> Observation {
+        match self {
+            // runtime
+            Self::SpawnRuntime {
+                runtime_id,
+                workers,
+                ..
+            } => Observation::RuntimeSpawned {
+                runtime_id: *runtime_id,
+                worker_count: workers.len(),
+            },
+            Self::RemoveRuntime { runtime_id } => Observation::RuntimeRemoved {
+                runtime_id: *runtime_id,
+            },
+            Self::SpawnWorker {
+                runtime_id,
+                worker_id,
+                ..
+            } => Observation::WorkerSpawned {
+                runtime_id: *runtime_id,
+                worker_id: *worker_id,
+            },
+            Self::RemoveWorker { worker_id } => Observation::WorkerRemoved {
+                worker_id: *worker_id,
+            },
+
+            // resources
+            Self::AddResource { resource_id, .. } => Observation::ResourceAttached {
+                worker_id: resource_id.worker_id,
+                resource_id: *resource_id,
+            },
+            Self::RemoveResource { resource_id } => Observation::ResourceDetached {
+                worker_id: resource_id.worker_id,
+                resource_id: *resource_id,
+            },
+
+            // policy
+            Self::SetPolicy { .. } => Observation::PolicyReplaced,
+            Self::AddRule { rule } => Observation::RuleAdded {
+                rule_id: rule.id.clone(),
+            },
+            Self::RemoveRule { rule_id } => Observation::RuleRemoved {
+                rule_id: rule_id.clone(),
+            },
+            Self::EnableRule { rule_id } => Observation::RuleEnabled {
+                rule_id: rule_id.clone(),
+            },
+            Self::DisableRule { rule_id } => Observation::RuleDisabled {
+                rule_id: rule_id.clone(),
+            },
+            Self::ReplaceRule { rule_id, .. } => Observation::RuleReplaced {
+                rule_id: rule_id.clone(),
+            },
+
+            // debugger
+            Self::AddBreakpoint { breakpoint } => Observation::BreakpointAdded {
+                breakpoint_id: breakpoint.id,
+            },
+            Self::UpdateBreakpoint { breakpoint } => Observation::BreakpointUpdated {
+                breakpoint_id: breakpoint.id,
+            },
+            Self::RemoveBreakpoint { breakpoint_id } => Observation::BreakpointRemoved {
+                breakpoint_id: *breakpoint_id,
+            },
+            Self::EnableBreakpoint { breakpoint_id } => Observation::BreakpointEnabled {
+                breakpoint_id: *breakpoint_id,
+            },
+            Self::DisableBreakpoint { breakpoint_id } => Observation::BreakpointDisabled {
+                breakpoint_id: *breakpoint_id,
+            },
+            Self::AddWatchpoint { watchpoint } => Observation::WatchpointAdded {
+                watchpoint_id: watchpoint.id,
+            },
+            Self::UpdateWatchpoint { watchpoint } => Observation::WatchpointUpdated {
+                watchpoint_id: watchpoint.id,
+            },
+            Self::RemoveWatchpoint { watchpoint_id } => Observation::WatchpointRemoved {
+                watchpoint_id: *watchpoint_id,
+            },
+            Self::EnableWatchpoint { watchpoint_id } => Observation::WatchpointEnabled {
+                watchpoint_id: *watchpoint_id,
+            },
+            Self::DisableWatchpoint { watchpoint_id } => Observation::WatchpointDisabled {
+                watchpoint_id: *watchpoint_id,
+            },
+            Self::AddProbe { probe } => Observation::ProbeAdded { probe_id: probe.id },
+            Self::UpdateProbe { probe } => Observation::ProbeUpdated { probe_id: probe.id },
+            Self::RemoveProbe { probe_id } => Observation::ProbeRemoved {
+                probe_id: *probe_id,
+            },
+            Self::EnableProbe { probe_id } => Observation::ProbeEnabled {
+                probe_id: *probe_id,
+            },
+            Self::DisableProbe { probe_id } => Observation::ProbeDisabled {
+                probe_id: *probe_id,
+            },
+
+            // topology
+            Self::DefineEntityKind { kind } => Observation::EntityKindDefined {
+                kind: kind.kind.clone(),
+            },
+            Self::UndefineEntityKind { kind } => {
+                Observation::EntityKindRemoved { kind: kind.clone() }
+            }
+            Self::DefineEdgeKind { kind } => Observation::EdgeKindDefined {
+                kind: kind.kind.clone(),
+            },
+            Self::UndefineEdgeKind { kind } => Observation::EdgeKindRemoved { kind: kind.clone() },
+            Self::UpsertEntity { entity } => Observation::EntityUpserted {
+                entity_id: entity.id.clone(),
+            },
+            Self::RemoveEntity { entity_id } => Observation::EntityRemoved {
+                entity_id: entity_id.clone(),
+            },
+            Self::UpsertEdge { edge } => Observation::EdgeUpserted {
+                edge_id: edge.id.clone(),
+            },
+            Self::RemoveEdge { edge_id } => Observation::EdgeRemoved {
+                edge_id: edge_id.clone(),
+            },
         }
     }
 }
@@ -320,12 +628,12 @@ impl World {
                     runtime.remove_worker(worker_id)?;
                     runtime.heap.remove_worker(worker_id);
                 }
-                // detached worker metadata
+                // detached worker image
                 else if self.state.topology.worker_subject(worker_id).is_none() {
                     return Err(RuntimeError::worker_not_found(worker_id.0).boxed());
                 }
 
-                self.remove_worker_metadata(worker_id);
+                self.remove_worker_topology(worker_id);
             }
             Mutation::AddResource {
                 resource_id,
@@ -353,6 +661,91 @@ impl World {
             }
             Mutation::ReplaceRule { rule_id, rule } => {
                 self.state.policy.replace_rule(&rule_id, rule)?;
+            }
+            Mutation::AddBreakpoint { breakpoint } => {
+                self.state.debugger.add_breakpoint(breakpoint);
+            }
+            Mutation::UpdateBreakpoint { breakpoint } => {
+                if !self.state.debugger.update_breakpoint(breakpoint) {
+                    return Err(Self::missing_debugger_entry("breakpoint"));
+                }
+            }
+            Mutation::RemoveBreakpoint { breakpoint_id } => {
+                if !self.state.debugger.remove_breakpoint(breakpoint_id) {
+                    return Err(Self::missing_debugger_entry("breakpoint"));
+                }
+            }
+            Mutation::EnableBreakpoint { breakpoint_id } => {
+                if !self
+                    .state
+                    .debugger
+                    .set_breakpoint_enabled(breakpoint_id, true)
+                {
+                    return Err(Self::missing_debugger_entry("breakpoint"));
+                }
+            }
+            Mutation::DisableBreakpoint { breakpoint_id } => {
+                if !self
+                    .state
+                    .debugger
+                    .set_breakpoint_enabled(breakpoint_id, false)
+                {
+                    return Err(Self::missing_debugger_entry("breakpoint"));
+                }
+            }
+            Mutation::AddWatchpoint { watchpoint } => {
+                self.state.debugger.add_watchpoint(watchpoint);
+            }
+            Mutation::UpdateWatchpoint { watchpoint } => {
+                if !self.state.debugger.update_watchpoint(watchpoint) {
+                    return Err(Self::missing_debugger_entry("watchpoint"));
+                }
+            }
+            Mutation::RemoveWatchpoint { watchpoint_id } => {
+                if !self.state.debugger.remove_watchpoint(watchpoint_id) {
+                    return Err(Self::missing_debugger_entry("watchpoint"));
+                }
+            }
+            Mutation::EnableWatchpoint { watchpoint_id } => {
+                if !self
+                    .state
+                    .debugger
+                    .set_watchpoint_enabled(watchpoint_id, true)
+                {
+                    return Err(Self::missing_debugger_entry("watchpoint"));
+                }
+            }
+            Mutation::DisableWatchpoint { watchpoint_id } => {
+                if !self
+                    .state
+                    .debugger
+                    .set_watchpoint_enabled(watchpoint_id, false)
+                {
+                    return Err(Self::missing_debugger_entry("watchpoint"));
+                }
+            }
+            Mutation::AddProbe { probe } => {
+                self.state.debugger.add_probe(probe);
+            }
+            Mutation::UpdateProbe { probe } => {
+                if !self.state.debugger.update_probe(probe) {
+                    return Err(Self::missing_debugger_entry("probe"));
+                }
+            }
+            Mutation::RemoveProbe { probe_id } => {
+                if !self.state.debugger.remove_probe(probe_id) {
+                    return Err(Self::missing_debugger_entry("probe"));
+                }
+            }
+            Mutation::EnableProbe { probe_id } => {
+                if !self.state.debugger.set_probe_enabled(probe_id, true) {
+                    return Err(Self::missing_debugger_entry("probe"));
+                }
+            }
+            Mutation::DisableProbe { probe_id } => {
+                if !self.state.debugger.set_probe_enabled(probe_id, false) {
+                    return Err(Self::missing_debugger_entry("probe"));
+                }
             }
             Mutation::DefineEntityKind { kind } => {
                 self.state
@@ -409,6 +802,10 @@ impl World {
 
         // apply the mutation before appending it to trace
         self.apply_mutation(mutation.clone())?;
+
+        // record the successful state transition in the visible timeline
+        self.state.advance_moment()?;
+        self.state.observe(mutation.observation())?;
 
         // append the authoritative input only after the mutation succeeds
         if mode == ExecutionMode::Record {
@@ -475,6 +872,106 @@ impl World {
         self.mutate(Mutation::ReplaceRule { rule_id, rule })
     }
 
+    /// Add one debugger breakpoint.
+    pub fn add_breakpoint(
+        &mut self,
+        target: BreakpointTarget,
+    ) -> RuntimeResult<program::BreakpointId> {
+        let breakpoint_id = self.state.debugger.allocate_breakpoint_id();
+        let breakpoint = Breakpoint::new(breakpoint_id, target);
+
+        self.mutate(Mutation::AddBreakpoint { breakpoint })?;
+
+        Ok(breakpoint_id)
+    }
+
+    /// Update one debugger breakpoint.
+    pub fn update_breakpoint(&mut self, breakpoint: Breakpoint) -> RuntimeResult<()> {
+        self.mutate(Mutation::UpdateBreakpoint { breakpoint })
+    }
+
+    /// Remove one debugger breakpoint.
+    pub fn remove_breakpoint(&mut self, breakpoint_id: program::BreakpointId) -> RuntimeResult<()> {
+        self.mutate(Mutation::RemoveBreakpoint { breakpoint_id })
+    }
+
+    /// Enable one debugger breakpoint.
+    pub fn enable_breakpoint(&mut self, breakpoint_id: program::BreakpointId) -> RuntimeResult<()> {
+        self.mutate(Mutation::EnableBreakpoint { breakpoint_id })
+    }
+
+    /// Disable one debugger breakpoint.
+    pub fn disable_breakpoint(
+        &mut self,
+        breakpoint_id: program::BreakpointId,
+    ) -> RuntimeResult<()> {
+        self.mutate(Mutation::DisableBreakpoint { breakpoint_id })
+    }
+
+    /// Add one debugger watchpoint.
+    pub fn add_watchpoint(&mut self, target: WatchpointTarget) -> RuntimeResult<WatchpointId> {
+        let watchpoint_id = self.state.debugger.allocate_watchpoint_id();
+        let watchpoint = Watchpoint::new(watchpoint_id, target);
+
+        self.mutate(Mutation::AddWatchpoint { watchpoint })?;
+
+        Ok(watchpoint_id)
+    }
+
+    /// Update one debugger watchpoint.
+    pub fn update_watchpoint(&mut self, watchpoint: Watchpoint) -> RuntimeResult<()> {
+        self.mutate(Mutation::UpdateWatchpoint { watchpoint })
+    }
+
+    /// Remove one debugger watchpoint.
+    pub fn remove_watchpoint(&mut self, watchpoint_id: WatchpointId) -> RuntimeResult<()> {
+        self.mutate(Mutation::RemoveWatchpoint { watchpoint_id })
+    }
+
+    /// Enable one debugger watchpoint.
+    pub fn enable_watchpoint(&mut self, watchpoint_id: WatchpointId) -> RuntimeResult<()> {
+        self.mutate(Mutation::EnableWatchpoint { watchpoint_id })
+    }
+
+    /// Disable one debugger watchpoint.
+    pub fn disable_watchpoint(&mut self, watchpoint_id: WatchpointId) -> RuntimeResult<()> {
+        self.mutate(Mutation::DisableWatchpoint { watchpoint_id })
+    }
+
+    /// Add one debugger probe.
+    pub fn add_probe(
+        &mut self,
+        target: ProbeTarget,
+        action: ProbeAction,
+    ) -> RuntimeResult<ProbeId> {
+        let probe_id = self.state.debugger.allocate_probe_id();
+        let probe = Probe::new(probe_id, target, action);
+
+        self.mutate(Mutation::AddProbe { probe })?;
+
+        Ok(probe_id)
+    }
+
+    /// Update one debugger probe.
+    pub fn update_probe(&mut self, probe: Probe) -> RuntimeResult<()> {
+        self.mutate(Mutation::UpdateProbe { probe })
+    }
+
+    /// Remove one debugger probe.
+    pub fn remove_probe(&mut self, probe_id: ProbeId) -> RuntimeResult<()> {
+        self.mutate(Mutation::RemoveProbe { probe_id })
+    }
+
+    /// Enable one debugger probe.
+    pub fn enable_probe(&mut self, probe_id: ProbeId) -> RuntimeResult<()> {
+        self.mutate(Mutation::EnableProbe { probe_id })
+    }
+
+    /// Disable one debugger probe.
+    pub fn disable_probe(&mut self, probe_id: ProbeId) -> RuntimeResult<()> {
+        self.mutate(Mutation::DisableProbe { probe_id })
+    }
+
     /// Define one world entity kind.
     pub fn define_entity_kind(&mut self, kind: EntityDefinition) -> RuntimeResult<()> {
         self.mutate(Mutation::DefineEntityKind { kind })
@@ -523,6 +1020,11 @@ impl World {
         .boxed()
     }
 
+    /// Build one missing debugger configuration error.
+    fn missing_debugger_entry(kind: &str) -> Box<RuntimeError> {
+        Self::internal_error(format!("{kind} not found"))
+    }
+
     /// Return the runtime that owns one live worker.
     fn runtime_id_for_worker(&self, worker_id: WorkerId) -> Option<RuntimeId> {
         self.runtimes.iter().find_map(|(runtime_id, runtime)| {
@@ -530,8 +1032,8 @@ impl World {
         })
     }
 
-    /// Remove worker metadata from world-owned registries.
-    pub(super) fn remove_worker_metadata(&mut self, worker_id: WorkerId) {
+    /// Remove one worker topology entity.
+    pub(super) fn remove_worker_topology(&mut self, worker_id: WorkerId) {
         self.state.topology.remove_worker(worker_id);
     }
 }
