@@ -27,7 +27,7 @@ b0:
     v0: ref<int32, raw, mutable, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     store v0, v1
-    yield v1, b1(v0)
+    yield v1 => b1(v0)
 b1(v2: ref<int32, raw, mutable, space(frame)>, v3: int32):
     v4: int32 = load v2
     return v4
@@ -213,6 +213,10 @@ impl VmMachine {
         match outcome {
             Outcome::Yielded { continuation, .. } => continuation,
             Outcome::Completed { value } => panic!("expected yield, got {value:?}"),
+            Outcome::Stopped {
+                reason,
+                continuation: _,
+            } => panic!("expected yield, got stop {reason:?}"),
         }
     }
 }
