@@ -20,6 +20,17 @@ where
     Ok(encoder.into_bytes())
 }
 
+/// Append one value to canonical Destack binary bytes.
+pub fn append_to_vec<T>(value: &T, output: &mut Vec<u8>) -> Result<()>
+where
+    T: Serialize + ?Sized,
+{
+    let mut encoder = Encoder::new_vec_ref(output);
+    value.serialize(&mut encoder)?;
+
+    Ok(())
+}
+
 /// Return the encoded length of one value.
 pub fn encoded_len<T>(value: &T) -> Result<usize>
 where
@@ -57,6 +68,8 @@ struct Encoder<'output> {
 enum EncoderOutput<'output> {
     /// Growable byte vector.
     Vec(Vec<u8>),
+    /// Borrowed growable byte vector.
+    VecRef(&'output mut Vec<u8>),
     /// Caller-owned byte slice.
     Slice {
         /// Writable bytes.
@@ -73,6 +86,9 @@ impl Encoder<'_> {
     fn into_bytes(self) -> Vec<u8> {
         match self.output {
             EncoderOutput::Vec(bytes) => bytes,
+            EncoderOutput::VecRef(_) => {
+                unreachable!("borrowed vector encoders cannot return owned bytes")
+            }
             _ => unreachable!("only vector encoders can return owned bytes"),
         }
     }
@@ -81,6 +97,7 @@ impl Encoder<'_> {
     fn len(&self) -> usize {
         match &self.output {
             EncoderOutput::Vec(bytes) => bytes.len(),
+            EncoderOutput::VecRef(bytes) => bytes.len(),
             EncoderOutput::Slice { len, .. } => *len,
             EncoderOutput::Count(len) => *len,
         }
@@ -90,6 +107,13 @@ impl Encoder<'_> {
     fn new_vec() -> Self {
         Self {
             output: EncoderOutput::Vec(Vec::new()),
+        }
+    }
+
+    /// Create a new borrowed growable byte encoder.
+    fn new_vec_ref(output: &mut Vec<u8>) -> Encoder<'_> {
+        Encoder {
+            output: EncoderOutput::VecRef(output),
         }
     }
 
@@ -118,6 +142,11 @@ impl Encoder<'_> {
 
                 Ok(())
             }
+            EncoderOutput::VecRef(output) => {
+                output.push(byte);
+
+                Ok(())
+            }
             EncoderOutput::Slice { bytes, len } => {
                 if *len == bytes.len() {
                     return Err(Error::BufferTooSmall);
@@ -140,6 +169,11 @@ impl Encoder<'_> {
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
         match &mut self.output {
             EncoderOutput::Vec(output) => {
+                output.extend_from_slice(bytes);
+
+                Ok(())
+            }
+            EncoderOutput::VecRef(output) => {
                 output.extend_from_slice(bytes);
 
                 Ok(())
