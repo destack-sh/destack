@@ -12,7 +12,7 @@ use crate::{LinkError, LinkResult};
 
 use super::super::TypeLinker;
 use super::layout::StorageLayout;
-use super::linker::VmLinker;
+use super::linker::Linker;
 use super::value::{Operand, OperandLowerer, OperandMap};
 
 /// One lowered block traversal order.
@@ -147,7 +147,7 @@ pub(super) struct FunctionContext<'a> {
     /// The call target by program function id.
     pub(super) call_targets: &'a [Option<CallTarget>],
     /// VM linker state.
-    pub(super) program: &'a VmLinker<'a>,
+    pub(super) program: &'a Linker<'a>,
     /// The byte layout for this lowered function frame.
     pub(super) frame_layout: &'a FrameLayout,
     /// The lowered operand by SSA value id.

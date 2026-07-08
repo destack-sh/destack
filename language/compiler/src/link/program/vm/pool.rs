@@ -18,14 +18,14 @@ use destack_program::{FrameLayout, Signature};
 
 use crate::LinkResult;
 
-use super::linker::VmLinker;
+use super::linker::Linker;
 
 /// One lowering pool for shared variable-length lowering data.
 pub(super) struct Pool<'layout, 'table> {
     /// The frame layout being lowered.
     frame_layout: &'layout FrameLayout,
     /// VM linker state.
-    program: &'layout VmLinker<'layout>,
+    program: &'layout Linker<'layout>,
     /// The canonical program trace table.
     trace_table: &'layout TraceTable,
     /// The pooled argument slots.
@@ -41,7 +41,7 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     pub(crate) fn new(
         side_table: &'table mut SideTableBuilder,
         frame_layout: &'layout FrameLayout,
-        program: &'layout VmLinker<'layout>,
+        program: &'layout Linker<'layout>,
         trace_table: &'layout TraceTable,
     ) -> Self {
         Self {
