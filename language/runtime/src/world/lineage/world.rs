@@ -361,7 +361,7 @@ impl World {
 
             match entry.trace {
                 Trace::Mutation(mutation) => {
-                    self.apply_mutation_with_restore(mutation, restore)?;
+                    self.apply_mutation_with_restore(*mutation, restore)?;
                 }
                 Trace::Entrypoint(invocation) => {
                     let _ = self.execute_entrypoint(

@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
+
+use crate::world::topology::LabelSet;
 
 use super::{EdgeId, EdgeKind, EntityId, EntityKind};
 
@@ -10,7 +10,7 @@ pub struct EntityDefinition {
     /// Stable kind identifier.
     pub kind: EntityKind,
     /// Kind labels for selector matching.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 impl EntityDefinition {
@@ -18,19 +18,19 @@ impl EntityDefinition {
     pub fn new(kind: impl Into<EntityKind>) -> Self {
         Self {
             kind: kind.into(),
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         }
     }
 
     /// Add one label.
-    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.labels.insert(key.into(), value.into());
+    pub fn label(mut self, key: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        self.labels.insert(key, value);
         self
     }
 
     /// Replace labels.
-    pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
-        self.labels = labels;
+    pub fn labels(mut self, labels: impl Into<LabelSet>) -> Self {
+        self.labels = labels.into();
         self
     }
 }
@@ -41,7 +41,7 @@ pub struct EdgeDefinition {
     /// Stable kind identifier.
     pub kind: EdgeKind,
     /// Kind labels for selector matching.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 impl EdgeDefinition {
@@ -49,19 +49,19 @@ impl EdgeDefinition {
     pub fn new(kind: impl Into<EdgeKind>) -> Self {
         Self {
             kind: kind.into(),
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         }
     }
 
     /// Add one label.
-    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.labels.insert(key.into(), value.into());
+    pub fn label(mut self, key: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        self.labels.insert(key, value);
         self
     }
 
     /// Replace labels.
-    pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
-        self.labels = labels;
+    pub fn labels(mut self, labels: impl Into<LabelSet>) -> Self {
+        self.labels = labels.into();
         self
     }
 }
@@ -76,7 +76,7 @@ pub struct Entity {
     /// Stable entity name.
     pub name: String,
     /// Entity labels.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 impl Entity {
@@ -89,7 +89,7 @@ impl Entity {
             id,
             kind: kind.into(),
             name,
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         }
     }
 
@@ -100,14 +100,14 @@ impl Entity {
     }
 
     /// Add one label.
-    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.labels.insert(key.into(), value.into());
+    pub fn label(mut self, key: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        self.labels.insert(key, value);
         self
     }
 
     /// Replace labels.
-    pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
-        self.labels = labels;
+    pub fn labels(mut self, labels: impl Into<LabelSet>) -> Self {
+        self.labels = labels.into();
         self
     }
 }
@@ -126,7 +126,7 @@ pub struct Edge {
     /// Destination entity identifier.
     pub to: EntityId,
     /// Edge labels.
-    pub labels: BTreeMap<String, String>,
+    pub labels: LabelSet,
 }
 
 impl Edge {
@@ -146,7 +146,7 @@ impl Edge {
             name,
             from: from.into(),
             to: to.into(),
-            labels: BTreeMap::new(),
+            labels: LabelSet::new(),
         }
     }
 
@@ -157,14 +157,14 @@ impl Edge {
     }
 
     /// Add one label.
-    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.labels.insert(key.into(), value.into());
+    pub fn label(mut self, key: impl Into<Box<str>>, value: impl Into<Box<str>>) -> Self {
+        self.labels.insert(key, value);
         self
     }
 
     /// Replace labels.
-    pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
-        self.labels = labels;
+    pub fn labels(mut self, labels: impl Into<LabelSet>) -> Self {
+        self.labels = labels.into();
         self
     }
 }

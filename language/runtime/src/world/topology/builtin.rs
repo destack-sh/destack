@@ -17,6 +17,30 @@ struct BuiltinEdgeKindDescriptor {
     kind_id: &'static str,
 }
 
+impl BuiltinEntityKindDescriptor {
+    /// Return the builtin entity kind definition.
+    fn definition(&self) -> EntityDefinition {
+        EntityDefinition::new(self.kind_id).label(EntityKind::LABEL_KIND, self.kind_id)
+    }
+
+    /// Return whether this descriptor names one kind.
+    fn is_kind(&self, kind: &str) -> bool {
+        self.kind_id == kind
+    }
+}
+
+impl BuiltinEdgeKindDescriptor {
+    /// Return the builtin edge kind definition.
+    fn definition(&self) -> EdgeDefinition {
+        EdgeDefinition::new(self.kind_id).label(EntityKind::LABEL_KIND, self.kind_id)
+    }
+
+    /// Return whether this descriptor names one kind.
+    fn is_kind(&self, kind: &str) -> bool {
+        self.kind_id == kind
+    }
+}
+
 /// Builtin entity kind catalog.
 const BUILTIN_ENTITY_KIND_DESCRIPTORS: &[BuiltinEntityKindDescriptor] = &[
     BuiltinEntityKindDescriptor {
@@ -144,9 +168,7 @@ pub(super) static BUILTIN_EDGE_KINDS: LazyLock<BTreeMap<EdgeKind, EdgeDefinition
 pub(super) fn builtin_entity_kinds() -> Vec<EntityDefinition> {
     BUILTIN_ENTITY_KIND_DESCRIPTORS
         .iter()
-        .map(|descriptor| {
-            EntityDefinition::new(descriptor.kind_id).labels(labels_for_kind(descriptor.kind_id))
-        })
+        .map(BuiltinEntityKindDescriptor::definition)
         .collect()
 }
 
@@ -156,7 +178,7 @@ pub(super) fn builtin_resource_entity_kinds() -> Vec<EntityDefinition> {
         .iter()
         .map(|resource_kind| {
             let kind_id = resource_kind.kind_id();
-            EntityDefinition::new(kind_id).labels(labels_for_kind(kind_id))
+            EntityDefinition::new(kind_id).label(EntityKind::LABEL_KIND, kind_id)
         })
         .collect()
 }
@@ -165,9 +187,7 @@ pub(super) fn builtin_resource_entity_kinds() -> Vec<EntityDefinition> {
 pub(super) fn builtin_edge_kinds() -> Vec<EdgeDefinition> {
     BUILTIN_EDGE_KIND_DESCRIPTORS
         .iter()
-        .map(|descriptor| {
-            EdgeDefinition::new(descriptor.kind_id).labels(labels_for_kind(descriptor.kind_id))
-        })
+        .map(BuiltinEdgeKindDescriptor::definition)
         .collect()
 }
 
@@ -175,7 +195,7 @@ pub(super) fn builtin_edge_kinds() -> Vec<EdgeDefinition> {
 pub(super) fn is_builtin_entity_kind(kind: &str) -> bool {
     BUILTIN_ENTITY_KIND_DESCRIPTORS
         .iter()
-        .any(|descriptor| descriptor.kind_id == kind)
+        .any(|descriptor| descriptor.is_kind(kind))
         || ResourceKind::all()
             .iter()
             .any(|resource_kind| resource_kind.kind_id() == kind)
@@ -185,13 +205,5 @@ pub(super) fn is_builtin_entity_kind(kind: &str) -> bool {
 pub(super) fn is_builtin_edge_kind(kind: &str) -> bool {
     BUILTIN_EDGE_KIND_DESCRIPTORS
         .iter()
-        .any(|descriptor| descriptor.kind_id == kind)
-}
-
-/// Build system labels for one kind id.
-fn labels_for_kind(kind_id: &str) -> BTreeMap<String, String> {
-    let mut labels = BTreeMap::new();
-    labels.insert(EntityKind::LABEL_KIND.to_string(), kind_id.to_string());
-
-    labels
+        .any(|descriptor| descriptor.is_kind(kind))
 }

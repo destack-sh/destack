@@ -10,7 +10,7 @@ use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::world::policy::Policy;
-use crate::world::topology::{Edge, Entity, RuntimeId, Topology};
+use crate::world::topology::{Edge, Entity, LabelSet, RuntimeId, Topology};
 
 use super::{MomentSequence, RestoreContext, World};
 
@@ -112,10 +112,7 @@ impl WorldImage {
     }
 
     /// Return labels for one runtime image.
-    pub fn runtime_labels(
-        &self,
-        runtime_id: RuntimeId,
-    ) -> RuntimeResult<&BTreeMap<String, String>> {
+    pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<&LabelSet> {
         let entity_id = runtime_id.entity_id();
         let entity = self
             .topology
@@ -146,7 +143,7 @@ impl WorldImage {
     }
 
     /// Return labels for one worker image.
-    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&BTreeMap<String, String>> {
+    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&LabelSet> {
         let entity_id = worker_id.entity_id();
         let entity = self
             .topology

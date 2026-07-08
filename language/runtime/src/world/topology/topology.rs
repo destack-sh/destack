@@ -11,6 +11,7 @@ use super::{
 };
 use crate::host::ResourceId;
 use crate::runtime::WorkerId;
+use crate::world::topology::LabelSet;
 
 /// World topology graph and kind catalog.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,20 +73,14 @@ impl Topology {
     }
 
     /// Return the rule subject metadata for one runtime.
-    pub(crate) fn runtime_subject(
-        &self,
-        runtime_id: RuntimeId,
-    ) -> Option<(&str, &BTreeMap<String, String>)> {
+    pub(crate) fn runtime_subject(&self, runtime_id: RuntimeId) -> Option<(&str, &LabelSet)> {
         let entity = self.entities.get(&runtime_id.entity_id())?;
 
         Some((entity.name.as_str(), &entity.labels))
     }
 
     /// Return the rule subject metadata for one worker.
-    pub(crate) fn worker_subject(
-        &self,
-        worker_id: WorkerId,
-    ) -> Option<(&str, &BTreeMap<String, String>)> {
+    pub(crate) fn worker_subject(&self, worker_id: WorkerId) -> Option<(&str, &LabelSet)> {
         let entity = self.entities.get(&worker_id.entity_id())?;
 
         Some((entity.name.as_str(), &entity.labels))

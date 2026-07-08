@@ -8,7 +8,7 @@ use crate::host::ResourceId;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 use crate::world::policy::Policy;
 use crate::world::topology::{
-    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, RuntimeId,
+    Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, LabelSet, RuntimeId,
 };
 use crate::world::{World, WorldImage};
 
@@ -155,10 +155,7 @@ impl WorldView {
     }
 
     /// Return labels for one runtime visible at this moment.
-    pub fn runtime_labels(
-        &self,
-        runtime_id: RuntimeId,
-    ) -> RuntimeResult<&BTreeMap<String, String>> {
+    pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<&LabelSet> {
         self.image.runtime_labels(runtime_id)
     }
 
@@ -168,7 +165,7 @@ impl WorldView {
     }
 
     /// Return labels for one worker visible at this moment.
-    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&BTreeMap<String, String>> {
+    pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&LabelSet> {
         self.image.worker_labels(worker_id)
     }
 
