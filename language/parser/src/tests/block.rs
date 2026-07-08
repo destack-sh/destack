@@ -234,7 +234,7 @@ fn test_await_expression() {
     // await someFunction()
     assert_node!(parser.tree, await_id, Expression::Await { expression } => {
         // someFunction()
-        assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+        assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
             assert!(arguments.is_empty());
         });
@@ -249,7 +249,7 @@ fn test_await_maybe_expression() {
     // await? someFunction()
     assert_node!(parser.tree, await_id, Expression::AwaitMaybe { expression } => {
         // someFunction()
-        assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+        assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
             assert!(arguments.is_empty());
         });
@@ -265,7 +265,7 @@ fn test_await_must_expression() {
     // await! someFunction()
     assert_node!(parser.tree, await_id, Expression::AwaitMust { expression } => {
         // someFunction()
-        assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+        assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
             assert!(arguments.is_empty());
         });
@@ -280,7 +280,7 @@ fn test_comptime_expression() {
     // comptime factorial(10)
     assert_node!(parser.tree, comptime_id, Expression::Comptime { body } => {
         // factorial(10)
-        assert_node!(parser.tree, *body, Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+        assert_node!(parser.tree, *body, Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "factorial");
             assert_eq!(arguments.len(), 1);
         });
@@ -321,7 +321,7 @@ fn test_yield_expression() {
     assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
         assert_eq!(*cardinality, YieldCardinality::Scalar);
         // someFunction()
-        assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+        assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
             assert!(arguments.is_empty());
         });
@@ -373,7 +373,7 @@ fn test_yield_expression_generator() {
     assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
         assert_eq!(*cardinality, YieldCardinality::Generator);
         // someFunction()
-        assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+        assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _, left, generic_arguments: _, arguments, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
             assert!(arguments.is_empty());
         });

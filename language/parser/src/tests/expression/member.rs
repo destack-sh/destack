@@ -13,7 +13,7 @@ fn test_parse_member_expression_as_member_chain() {
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "bar");
         assert_node!(parser.tree, *left, Expression::Identifier { name } => {
             assert_string!(parser, *name, "foo");
@@ -49,11 +49,13 @@ shared?.nested.ok satisfies boolean;
         });
     });
     assert_node!(parser.tree, expressions[2], Expression::Satisfies { expression, target_type } => {
-        assert_node!(parser.tree, *expression, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "ok");
-            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-                assert_string!(parser, *name, "nested");
-                assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+        assert_node!(parser.tree, *expression, Expression::Chain { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Member { left, name, is_optional, .. } => {
+                assert_string!(parser, *name, "ok");
+                assert!(!*is_optional);
+                assert_node!(parser.tree, *left, Expression::Member { left, name, is_optional, .. } => {
+                    assert_string!(parser, *name, "nested");
+                    assert!(*is_optional);
                     assert_value_expression_path!(parser, parser.tree.get(*left), "shared");
                 });
             });

@@ -97,6 +97,7 @@ impl Parser {
                 function: context.function,
                 ..ExpressionContext::default()
             },
+            false,
         )?;
         let ty = self.insert_node(
             TypeExpression::StaticValue { expression },
@@ -144,6 +145,7 @@ impl Parser {
                     Expression::Member {
                         left: owner,
                         name: Some(name),
+                        is_optional: false,
                     },
                     range,
                 )
@@ -190,6 +192,7 @@ impl Parser {
                 Expression::Member {
                     left: value,
                     name: Some(segment),
+                    is_optional: false,
                 },
                 range,
             );

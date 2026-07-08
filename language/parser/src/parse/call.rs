@@ -21,6 +21,7 @@ impl Parser {
         receiver_id: LocalNodeId<Expression>,
         position: PostfixPosition,
         context: ExpressionContext,
+        is_optional: bool,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         let receiver_range = self.tree.get_range(receiver_id);
@@ -41,6 +42,7 @@ impl Parser {
                     position,
                     left: receiver_id,
                     index: None,
+                    is_optional,
                 },
                 range,
             );
@@ -64,6 +66,7 @@ impl Parser {
             position,
             left: receiver_id,
             index: Some(index),
+            is_optional,
         };
         let index_range = self.range_since(&start);
         let range = ByteRange {
@@ -139,6 +142,7 @@ impl Parser {
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         position: PostfixPosition,
         context: ExpressionContext,
+        is_optional: bool,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.mark_parse_start();
         let receiver_range = self.tree.get_range(receiver_id);
@@ -153,6 +157,7 @@ impl Parser {
                 left: receiver_id,
                 generic_arguments,
                 arguments,
+                is_optional,
             },
             {
                 let call_range = self.range_since(&start);

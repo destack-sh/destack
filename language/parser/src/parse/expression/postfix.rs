@@ -59,7 +59,7 @@ impl Parser {
         context: ExpressionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let mut is_first_postfix = true;
-
+        let mut has_chain = false;
         loop {
             // stop before tokens that cannot continue one value operand
             let token_type = self.peek_token_type();
@@ -109,13 +109,36 @@ impl Parser {
                     if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
                         return Err(ParserError::unexpected(self.peek_token_span()));
                     }
-                    Some(self.parse_call(left, Vec::new(), PostfixPosition::Direct, context)?)
+                    Some(self.parse_call(
+                        left,
+                        Vec::new(),
+                        PostfixPosition::Direct,
+                        context,
+                        false,
+                    )?)
                 }
                 TokenType::OpenBracket => {
-                    Some(self.parse_index(left, PostfixPosition::Direct, context)?)
+                    Some(self.parse_index(left, PostfixPosition::Direct, context, false)?)
                 }
-                TokenType::Dot => {
-                    Some(self.parse_dot_postfix(start, left, is_first_postfix, context)?)
+                TokenType::Dot => Some(self.parse_dot_postfix(
+                    start,
+                    left,
+                    is_first_postfix,
+                    context,
+                    false,
+                )?),
+                // ?. makes the access it introduces optional
+                TokenType::Maybe if self.peek_token_type_at(1) == TokenType::Dot => {
+                    self.bump();
+                    has_chain = true;
+
+                    Some(self.parse_dot_postfix(
+                        start,
+                        left,
+                        is_first_postfix,
+                        context,
+                        true,
+                    )?)
                 }
                 TokenType::Maybe if is_question_postfix => {
                     Some(self.parse_assertion_postfix(start, left, true, PostfixPosition::Direct))
@@ -129,7 +152,7 @@ impl Parser {
                         ExpressionMode::Tree | ExpressionMode::TypeofQuery
                     ) =>
                 {
-                    self.parse_generic_postfix(start, left, context)?
+                    self.parse_generic_postfix(start, left, context, false)?
                 }
                 TokenType::ShiftLeft
                     if !matches!(
@@ -137,7 +160,7 @@ impl Parser {
                         ExpressionMode::Tree | ExpressionMode::TypeofQuery
                     ) && self.peek_shift_left_generic_function_argument() =>
                 {
-                    self.parse_generic_postfix(start, left, context)?
+                    self.parse_generic_postfix(start, left, context, false)?
                 }
                 TokenType::TemplateString | TokenType::TemplateStringStart
                     if self.is_valid_tagged_template_tag(left) =>
@@ -156,6 +179,14 @@ impl Parser {
             left = next;
             is_first_postfix = false;
             is_parenthesized = false;
+        }
+
+        // a chain boundary reattaches the short-circuit arm
+        if has_chain {
+            left = self.insert_node(
+                Expression::Chain { expression: left },
+                self.range_since(start),
+            );
         }
 
         Ok(left)
@@ -209,6 +240,7 @@ impl Parser {
         start: &ParseStart,
         left: LocalNodeId<Expression>,
         context: ExpressionContext,
+        is_optional: bool,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.peek_is_on_new_line() || !self.peek_angle_group_expression_postfix() {
             return Ok(None);
@@ -217,7 +249,13 @@ impl Parser {
         let generic_arguments = self.parse_generic_argument_list(context)?;
         if self.peek_is(TokenType::OpenParenthesis) {
             return self
-                .parse_call(left, generic_arguments, PostfixPosition::Direct, context)
+                .parse_call(
+                    left,
+                    generic_arguments,
+                    PostfixPosition::Direct,
+                    context,
+                    is_optional,
+                )
                 .map(Some);
         }
         if matches!(
@@ -293,6 +331,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
         is_first_postfix: bool,
         context: ExpressionContext,
+        is_optional: bool,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let dot_range = self.eat_token(TokenType::Dot)?.range();
         if is_first_postfix && self.is_decimal_integer_before_dot(left, dot_range) {
@@ -301,12 +340,18 @@ impl Parser {
 
         // indirect call
         if self.peek_is(TokenType::OpenParenthesis) {
-            return self.parse_call(left, Vec::new(), PostfixPosition::Indirect, context);
+            return self.parse_call(
+                left,
+                Vec::new(),
+                PostfixPosition::Indirect,
+                context,
+                is_optional,
+            );
         }
 
         // indirect index
         if self.peek_is(TokenType::OpenBracket) {
-            return self.parse_index(left, PostfixPosition::Indirect, context);
+            return self.parse_index(left, PostfixPosition::Indirect, context, is_optional);
         }
 
         // indirect assertion
@@ -321,7 +366,7 @@ impl Parser {
         let is_generic_start =
             self.peek_is(TokenType::LessThan) || self.peek_shift_left_generic_function_argument();
         if is_generic_start
-            && let Some(expression) = self.parse_generic_postfix(start, left, context)?
+            && let Some(expression) = self.parse_generic_postfix(start, left, context, is_optional)?
         {
             return Ok(expression);
         }
@@ -334,7 +379,11 @@ impl Parser {
             self.report_unexpected_here(NodeType::Expression);
 
             return Ok(self.insert_node(
-                Expression::Member { left, name: None },
+                Expression::Member {
+                    left,
+                    name: None,
+                    is_optional,
+                },
                 self.range_since(start),
             ));
         }
@@ -345,6 +394,7 @@ impl Parser {
             Expression::Member {
                 left,
                 name: Some(name),
+                is_optional,
             },
             self.range_since(start),
         );
@@ -369,6 +419,7 @@ impl Parser {
             Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => StaticTypeHead::Member {
                 left: *left,
                 name: *name,

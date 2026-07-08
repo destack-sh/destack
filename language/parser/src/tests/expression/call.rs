@@ -20,9 +20,9 @@ fn test_parse_index_postfix_explicit() {
     let recv = make_receiver(&mut parser);
 
     let index_id = parser
-        .parse_index(recv, PostfixPosition::Direct, Default::default())
+        .parse_index(recv, PostfixPosition::Direct, Default::default(), false)
         .unwrap();
-    assert_node!(parser.tree, index_id, Expression::Index { position, left, index } => {
+    assert_node!(parser.tree, index_id, Expression::Index { position, left, index, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
         assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -39,9 +39,9 @@ fn test_parse_index_postfix_multiline() {
     let recv = make_receiver(&mut parser);
 
     let index_id = parser
-        .parse_index(recv, PostfixPosition::Direct, Default::default())
+        .parse_index(recv, PostfixPosition::Direct, Default::default(), false)
         .unwrap();
-    assert_node!(parser.tree, index_id, Expression::Index { position, left, index } => {
+    assert_node!(parser.tree, index_id, Expression::Index { position, left, index, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
         assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -60,10 +60,11 @@ fn test_parse_call_postfix() {
             Vec::new(),
             PostfixPosition::Direct,
             Default::default(),
+            false,
         )
         .unwrap();
 
-    assert_node!(parser.tree, call_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
+    assert_node!(parser.tree, call_id, Expression::Call { position, left, generic_arguments: _, arguments, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_eq!(*left, recv);
 
@@ -92,7 +93,7 @@ fn test_parse_member_postfix_missing_name() {
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
     });
 }
@@ -107,9 +108,9 @@ fn test_parse_optional_member_postfix_missing_name() {
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo?.
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
-        assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
-            assert_eq!(*position, PostfixPosition::Direct);
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Member { left, name: None, is_optional, .. } => {
+            assert!(*is_optional);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
         });
     });
@@ -126,7 +127,7 @@ fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() 
 
     // (foo.)
     crate::assert_parenthesized!(parser.tree, expression_id, expression => {
-        assert_node!(parser.tree, *expression, Expression::Member { left, name: None } => {
+        assert_node!(parser.tree, *expression, Expression::Member { left, name: None, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
         });
     });
@@ -150,7 +151,7 @@ fn test_parse_call_postfix_missing_close_parenthesis() {
     );
 
     // foo(
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert!(arguments.is_empty());
@@ -175,7 +176,7 @@ fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
     );
 
     // foo(1
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(arguments.len(), 1);
@@ -203,7 +204,7 @@ fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
     );
 
     // foo.(1
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments, .. } => {
         assert_eq!(*position, PostfixPosition::Indirect);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(arguments.len(), 1);
@@ -231,15 +232,15 @@ fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
     );
 
     // foo?.(1
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
-        assert_eq!(*position, PostfixPosition::Indirect);
-        assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
-            assert_eq!(*position, PostfixPosition::Direct);
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Call { position, left, generic_arguments: _, arguments, is_optional, .. } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert!(*is_optional);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
-        });
-        assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
         });
     });
 }
@@ -292,7 +293,7 @@ fn test_parse_index_postfix_missing_expression() {
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo[
-    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index), .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_node!(parser.tree, *index, Expression::Missing);
@@ -317,7 +318,7 @@ fn test_parse_index_postfix_missing_close_bracket() {
     );
 
     // foo[1
-    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index), .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_node!(parser.tree, *index, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -334,7 +335,7 @@ fn test_parse_indirect_index_postfix_missing_expression() {
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.[
-    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
+    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index), .. } => {
         assert_eq!(*position, PostfixPosition::Indirect);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_node!(parser.tree, *index, Expression::Missing);
@@ -351,13 +352,13 @@ fn test_parse_optional_index_postfix_missing_expression() {
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo?.[
-    assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
-        assert_eq!(*position, PostfixPosition::Indirect);
-        assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
-            assert_eq!(*position, PostfixPosition::Direct);
+    assert_node!(parser.tree, expression_id, Expression::Chain { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Index { position, left, index: Some(index), is_optional, .. } => {
+            assert_eq!(*position, PostfixPosition::Indirect);
+            assert!(*is_optional);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
+            assert_node!(parser.tree, *index, Expression::Missing);
         });
-        assert_node!(parser.tree, *index, Expression::Missing);
     });
 }
 
@@ -372,7 +373,7 @@ fn test_parse_parenthesized_index_postfix_missing_expression_preserves_outer_clo
 
     // (foo[)
     crate::assert_parenthesized!(parser.tree, expression_id, expression => {
-        assert_node!(parser.tree, *expression, Expression::Index { position, left, index: Some(index) } => {
+        assert_node!(parser.tree, *expression, Expression::Index { position, left, index: Some(index), .. } => {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
             assert_node!(parser.tree, *index, Expression::Missing);
@@ -388,7 +389,7 @@ fn test_parse_call_expression_with_generic_arguments() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // foo<T>(1, 2)
-    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments, arguments } => {
+    assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments, arguments, .. } => {
         assert_eq!(*position, PostfixPosition::Direct);
         // foo
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
@@ -555,7 +556,7 @@ fn test_parse_new_with_generic_member_constructor_name() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
-        assert_node!(parser.tree, *ty, TypeExpression::Member { left, name, generic_arguments } => {
+        assert_node!(parser.tree, *ty, TypeExpression::Member { left, name, generic_arguments, .. } => {
             assert_string!(parser, *name, "Inner");
             assert_eq!(generic_arguments.len(), 1);
             assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {

@@ -664,33 +664,6 @@ pub enum Expression {
         is_optional: bool,
     },
 
-<<<<<<< HEAD
-||||||| parent of 496e257a57 (feat(languaeg/dir): split out Expression.Chain)
-    /// Private member access.
-    ///
-    /// Examples:
-    /// ```
-    /// foo.#bar
-    /// ```
-    PrivateMember {
-        left: LocalNodeId<Expression>,
-        name: Option<StringId>,
-    },
-
-=======
-    /// Private member access.
-    ///
-    /// Examples:
-    /// ```
-    /// foo.#bar
-    /// ```
-    PrivateMember {
-        left: LocalNodeId<Expression>,
-        name: Option<StringId>,
-        is_optional: bool,
-    },
-
->>>>>>> 496e257a57 (feat(languaeg/dir): split out Expression.Chain)
     /// Index into a receiver expression.
     ///
     /// Examples:

@@ -298,9 +298,10 @@ fn test_parse_comparison_with_as_identifier_optional_member_access() {
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
         assert_eq!(*operator, BinaryOperator::GreaterThan);
         assert_expression_path!(parser, parser.tree.get(*left), "i");
-        assert_node!(parser.tree, *right, Expression::Member { left, name, .. } => {
-            assert_string!(parser, *name, "length");
-            assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+        assert_node!(parser.tree, *right, Expression::Chain { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Member { left, name, is_optional } => {
+                assert_string!(parser, *name, "length");
+                assert!(*is_optional);
                 assert_expression_path!(parser, parser.tree.get(*left), "as");
             });
         });

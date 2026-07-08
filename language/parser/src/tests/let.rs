@@ -541,7 +541,7 @@ const x =
             });
             // foo.parse()
             assert!(value.is_some());
-            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, generic_arguments: _, arguments: _ } => {
+            assert_node!(parser.tree, value.unwrap(), Expression::Call { position: _,  left, generic_arguments: _, arguments: _, .. } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "foo.parse");
             });
         });
