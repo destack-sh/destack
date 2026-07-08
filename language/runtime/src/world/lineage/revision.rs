@@ -8,7 +8,7 @@ use crate::runtime::time::Instant;
 use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{Moment, World, WorldImage};
 
-use super::{BranchId, ImageId};
+use super::{BranchId, ImageId, MomentSequence};
 
 /// Revision metadata for one world lineage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,8 +17,10 @@ pub struct Revision {
     pub branch_id: BranchId,
     /// The parent revision in this branch lineage.
     pub parent_revision_id: Option<RevisionId>,
+    /// The moment sequence captured by this revision.
+    pub sequence: MomentSequence,
     /// The trace sequence captured by this revision.
-    pub sequence: TraceSequence,
+    pub trace_sequence: TraceSequence,
     /// The captured world image for this revision.
     pub image_id: ImageId,
     /// The wall-clock instant captured by this revision.

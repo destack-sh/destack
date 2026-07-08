@@ -3,16 +3,19 @@ use crate::host::ResourceId;
 use crate::runtime::random::Random;
 use crate::runtime::time::{Clock, Nanos};
 use crate::runtime::{RuntimeId, WorkerId};
+use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
-use crate::world::trace::{Observation, ObservationSequence, Observations, Trace};
+use crate::world::trace::TraceLog;
 
-use super::{BranchId, Entity, Topology};
+use super::{BranchId, Entity, Moment, MomentSequence, Topology};
 
 /// Shared world state used by runtimes and workers.
 #[derive(Debug)]
 pub(crate) struct WorldState {
     /// Active branch identifier for this live world.
     pub(crate) branch_id: BranchId,
+    /// Current branch-local moment sequence.
+    pub(crate) moment: MomentSequence,
     /// Active policy state.
     pub(crate) policy: Policy,
     /// The next runtime id to allocate.
@@ -26,9 +29,9 @@ pub(crate) struct WorldState {
     /// Shared world randomness state.
     pub(crate) random: Random,
     /// Trace of world events.
-    pub(crate) trace: Trace,
+    pub(crate) trace: TraceLog,
     /// Emitted observations.
-    pub(crate) observations: Observations,
+    pub(crate) observations: ObservationLog,
 }
 
 impl WorldState {
@@ -90,8 +93,15 @@ impl WorldState {
     }
 
     /// Return the current live execution coordinate.
-    pub(crate) fn moment(&self) -> super::Moment {
-        super::Moment::new(self.branch_id, self.trace.log().next_sequence())
+    pub(crate) fn moment(&self) -> Moment {
+        Moment::new(self.branch_id, self.moment)
+    }
+
+    /// Advance the branch-local moment sequence.
+    pub(crate) fn advance_moment(&mut self) -> RuntimeResult<Moment> {
+        self.moment = self.moment.next()?;
+
+        Ok(self.moment())
     }
 
     /// Emit one observation at the current execution coordinate.

@@ -6,11 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
-use crate::world::trace::{ObservationEntry, TraceImage, TraceSequence};
+use crate::world::observation::{ObservationChunk, ObservationEntry};
+use crate::world::trace::{TraceImage, TraceSequence};
 use crate::world::{RuntimeId, WorldImage};
 
 use super::{
-    Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, ImageId, Moment, Revision, RevisionId,
+    Branch, BranchId, BranchOrigin, Checkpoint, CheckpointId, ImageId, Moment, MomentSequence,
+    Revision, RevisionId,
 };
 
 /// First active branch identifier for one new world.
@@ -54,7 +56,7 @@ pub(crate) struct Lineage {
     /// The canonical retained worker image payloads.
     worker_images: Vec<Arc<WorkerImage>>,
     /// The committed observation lineage keyed by branch.
-    pub observations: BTreeMap<BranchId, Vec<ObservationEntry>>,
+    pub observations: BTreeMap<BranchId, Vec<ObservationChunk>>,
 }
 
 /// Durable lineage metadata captured in one world snapshot.
@@ -79,7 +81,7 @@ pub struct LineageSnapshot {
     /// The known trace image payloads keyed by trace image identifier.
     pub trace_images: BTreeMap<RevisionId, TraceImage>,
     /// The committed observation lineage keyed by branch.
-    pub observations: BTreeMap<BranchId, Vec<ObservationEntry>>,
+    pub observations: BTreeMap<BranchId, Vec<ObservationChunk>>,
 }
 
 impl Lineage {
@@ -137,15 +139,21 @@ impl Lineage {
         let observations = self
             .observations
             .get(&revision.branch_id)
-            .map(|records| {
-                records
+            .map(|chunks| {
+                chunks
                     .iter()
-                    .filter(|record| record.moment.sequence <= revision.sequence)
+                    .flat_map(|chunk| chunk.entries())
+                    .filter(|entry| entry.moment.sequence <= revision.sequence)
                     .cloned()
                     .collect::<Vec<_>>()
             })
-            .filter(|records| !records.is_empty())
-            .map(|records| BTreeMap::from([(revision.branch_id, records)]))
+            .filter(|entries| !entries.is_empty())
+            .map(|entries| {
+                BTreeMap::from([(
+                    revision.branch_id,
+                    vec![ObservationChunk::from_entries(entries)],
+                )])
+            })
             .unwrap_or_default();
 
         Ok(LineageSnapshot {
@@ -166,7 +174,8 @@ impl Lineage {
     pub(crate) fn new_root(
         wall: Instant,
         mono: Instant,
-        sequence: TraceSequence,
+        sequence: MomentSequence,
+        trace_sequence: TraceSequence,
         image: Arc<WorldImage>,
         trace_image: Arc<TraceImage>,
     ) -> Self {
@@ -185,6 +194,7 @@ impl Lineage {
                 branch_id: ROOT_BRANCH,
                 parent_revision_id: None,
                 sequence,
+                trace_sequence,
                 image_id: ROOT_IMAGE_ID,
                 wall,
                 mono,
@@ -357,6 +367,7 @@ impl Lineage {
             branch_id,
             parent_revision_id: Some(parent_revision_id),
             sequence: parent.sequence,
+            trace_sequence: trace_image.next_sequence()?,
             image_id,
             wall,
             mono,
@@ -377,7 +388,8 @@ impl Lineage {
         &mut self,
         branch_id: BranchId,
         image_id: ImageId,
-        sequence: TraceSequence,
+        sequence: MomentSequence,
+        trace_sequence: TraceSequence,
         wall: Instant,
         mono: Instant,
         checkpoint_name: Option<String>,
@@ -393,6 +405,7 @@ impl Lineage {
             branch_id,
             parent_revision_id: Some(parent_branch.head_revision_id),
             sequence,
+            trace_sequence,
             image_id,
             wall,
             mono,
@@ -474,7 +487,7 @@ impl Lineage {
     pub(crate) fn record_observations(
         &mut self,
         branch_id: BranchId,
-        observations: Vec<ObservationEntry>,
+        observations: Vec<ObservationChunk>,
     ) {
         if observations.is_empty() {
             return;
@@ -514,16 +527,14 @@ impl Lineage {
             );
         }
 
-        let Some(records) = self.observations.get(&end.branch_id) else {
+        let Some(chunks) = self.observations.get(&end.branch_id) else {
             return Ok(Vec::new());
         };
 
-        let records = records
+        let records = chunks
             .iter()
-            .filter(|record| {
-                record.moment.sequence.get() > start.sequence.get()
-                    && record.moment.sequence.get() <= end.sequence.get()
-            })
+            .flat_map(|chunk| chunk.entries())
+            .filter(|entry| entry.is_between(start, end))
             .cloned()
             .collect();
 
@@ -556,7 +567,7 @@ impl Lineage {
             .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
         match branch.origin {
-            BranchOrigin::Root => Ok(Moment::new(branch_id, TraceSequence::new(0))),
+            BranchOrigin::Root => Ok(Moment::new(branch_id, MomentSequence::new(0))),
             BranchOrigin::Fork { parent } => Ok(parent),
         }
     }
@@ -655,10 +666,10 @@ impl Lineage {
     }
 
     /// Return the latest committed revision at or before one target sequence on one branch.
-    pub(crate) fn latest_revision_at_or_before(
+    fn latest_revision_at_or_before(
         &self,
         branch_id: BranchId,
-        sequence: TraceSequence,
+        sequence: MomentSequence,
     ) -> RuntimeResult<RevisionId> {
         let mut revision_id = self.branch(branch_id)?.head_revision_id;
         let revision = self
@@ -685,6 +696,25 @@ impl Lineage {
             };
             revision_id = parent_revision_id;
         }
+    }
+
+    /// Return the committed revision at one exact moment sequence on one branch.
+    pub(crate) fn revision_at(
+        &self,
+        branch_id: BranchId,
+        sequence: MomentSequence,
+    ) -> RuntimeResult<RevisionId> {
+        let revision_id = self.latest_revision_at_or_before(branch_id, sequence)?;
+        let revision = self
+            .revisions
+            .get(&revision_id)
+            .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
+
+        if revision.sequence != sequence {
+            return Err(RuntimeError::moment_not_found(branch_id.get(), sequence.get()).boxed());
+        }
+
+        Ok(revision_id)
     }
 
     /// Insert one retained image payload.

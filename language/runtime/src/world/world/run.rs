@@ -9,7 +9,7 @@ use crate::host::time::TimerClock;
 use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
 use crate::runtime::time::{ClockSource, Instant};
 use crate::runtime::{RuntimeRunOutcome, WorkerId};
-use crate::world::trace::Observation;
+use crate::world::observation::Observation;
 
 use super::{Moment, RuntimeId, WorkerWake, World, WorldState};
 
@@ -187,6 +187,7 @@ impl World {
         // shared heap work also counts as scheduler progress
         for runtime in self.runtimes.values_mut() {
             if runtime.tick_shared_gc()? {
+                world.advance_moment()?;
                 world.observe(Observation::scheduler_progressed())?;
 
                 return Ok(RunOutcome::Progressed);
@@ -195,6 +196,7 @@ impl World {
 
         // ingress without immediate worker execution still advanced scheduler state
         if ingress_progressed {
+            world.advance_moment()?;
             world.observe(Observation::scheduler_progressed())?;
 
             return Ok(RunOutcome::Progressed);
@@ -266,6 +268,7 @@ impl World {
         let deadline = self.state.trace.resolve_time_advance(deadline)?;
         let deadline = self.state.clock.advance_runtime_to(deadline)?;
         self.state.trace.record_time_advance(deadline)?;
+        self.state.advance_moment()?;
         self.state
             .observe(Observation::scheduler_advanced_time(deadline))?;
 
@@ -307,19 +310,31 @@ impl WorldState {
     ) -> RuntimeResult<Option<RunOutcome>> {
         match outcome {
             RuntimeRunOutcome::Progressed => {
+                self.advance_moment()?;
                 self.observe(Observation::scheduler_progressed())?;
 
                 Ok(Some(RunOutcome::Progressed))
             }
             RuntimeRunOutcome::Idle => Ok(None),
             RuntimeRunOutcome::Stopped { worker_id, reason } => {
+                let moment = self.advance_moment()?;
+                let stop = Stop {
+                    moment,
+                    runtime_id,
+                    worker_id,
+                    reason,
+                };
+                self.observe(Observation::scheduler_progressed())?;
+
+                Ok(Some(RunOutcome::Stopped { stop }))
+            }
+            RuntimeRunOutcome::Paused { worker_id, reason } => {
                 let stop = Stop {
                     moment: self.moment(),
                     runtime_id,
                     worker_id,
                     reason,
                 };
-                self.observe(Observation::scheduler_progressed())?;
 
                 Ok(Some(RunOutcome::Stopped { stop }))
             }

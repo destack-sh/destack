@@ -61,6 +61,13 @@ pub(crate) enum RuntimeRunOutcome {
         /// Reason execution stopped.
         reason: program::StopReason,
     },
+    /// One worker is paused at a previously reached stop point.
+    Paused {
+        /// Worker that stopped.
+        worker_id: WorkerId,
+        /// Reason execution stopped.
+        reason: program::StopReason,
+    },
 }
 
 impl RuntimeRunOutcome {
@@ -70,6 +77,7 @@ impl RuntimeRunOutcome {
             WorkerRunOutcome::Progressed => Some(Self::Progressed),
             WorkerRunOutcome::Idle => None,
             WorkerRunOutcome::Stopped { reason } => Some(Self::Stopped { worker_id, reason }),
+            WorkerRunOutcome::Paused { reason } => Some(Self::Paused { worker_id, reason }),
         }
     }
 }
@@ -475,6 +483,12 @@ impl Runtime {
                 WorkerRunOutcome::Idle => {}
                 WorkerRunOutcome::Stopped { reason } => {
                     return Ok(RuntimeRunOutcome::Stopped {
+                        worker_id: *worker_id,
+                        reason,
+                    });
+                }
+                WorkerRunOutcome::Paused { reason } => {
+                    return Ok(RuntimeRunOutcome::Paused {
                         worker_id: *worker_id,
                         reason,
                     });

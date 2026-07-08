@@ -15,18 +15,16 @@ use crate::host::{Host, HostError, compile_target_host};
 use crate::runtime::random::{Random, RandomSource, RandomStreamId};
 use crate::runtime::time::{Clock, ClockSource, Nanos};
 use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
+use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
-use crate::world::trace::{
-    EntrypointCall, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
-    TraceSequence,
-};
+use crate::world::trace::{EntrypointCall, TraceHeader, TraceLog};
 
 use super::topology::Topology;
 pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     RuntimeId,
 };
-use super::{BranchId, Lineage, Mutation, ROOT_BRANCH, WorldImage, WorldState};
+use super::{BranchId, Lineage, MomentSequence, Mutation, ROOT_BRANCH, WorldImage, WorldState};
 
 /// One interconnected runtime world.
 pub struct World {
@@ -129,12 +127,14 @@ impl World {
         let clock = Clock::from_options(clock_source, &options.clock, default_clock_epoch_nanos);
         let random = Random::from_options(random_source, &options.random);
         let policy = Policy::default();
-        let trace = Trace::new(execution_mode, trace_header);
+        let trace = TraceLog::new(execution_mode, trace_header);
         let topology = Topology::new();
+        let moment_sequence = MomentSequence::new(0);
 
         // live world state
         let state = WorldState {
             branch_id,
+            moment: moment_sequence,
             policy,
             next_runtime_id: 1,
             next_worker_id: 1,
@@ -142,11 +142,12 @@ impl World {
             clock,
             random,
             trace,
-            observations: Observations::default(),
+            observations: ObservationLog::default(),
         };
 
         // root image mirrors the initial live state
         let root_image = Arc::new(WorldImage {
+            moment: state.moment,
             next_runtime_id: state.next_runtime_id,
             next_worker_id: state.next_worker_id,
             policy: state.policy.clone(),
@@ -175,6 +176,7 @@ impl World {
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
             root_image.clock.wall,
             root_image.clock.monotonic,
+            root_image.moment,
             root_trace_image.next_sequence()?,
             root_image,
             root_trace_image,
@@ -294,7 +296,7 @@ impl World {
     }
 
     /// Return the emitted observation log for this world.
-    pub fn observations(&self) -> &Observations {
+    pub fn observations(&self) -> &ObservationLog {
         &self.state.observations
     }
 
@@ -386,7 +388,7 @@ impl World {
     }
 
     /// Borrow the shared trace controller.
-    pub fn trace(&self) -> &Trace {
+    pub fn trace(&self) -> &TraceLog {
         &self.state.trace
     }
 
@@ -398,16 +400,6 @@ impl World {
     /// Record one runtime entrypoint call.
     pub fn record_entrypoint(&self, invocation: EntrypointCall) -> RuntimeResult<()> {
         self.state.trace.record_entrypoint(invocation)
-    }
-
-    /// Record one authoritative external outcome at the world boundary.
-    pub fn record_outcome(&self, outcome: Outcome) -> RuntimeResult<()> {
-        self.state.trace.record_outcome(outcome)
-    }
-
-    /// Append one explicit lineage label to the active trace.
-    pub fn label(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
-        self.state.trace.record_label(label.into())
     }
 
     /// Resolve one mutation against the replay boundary.
