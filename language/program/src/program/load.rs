@@ -295,13 +295,14 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use destack_core::{SectionPacker, StringId, StringPool};
-    use destack_heap::{self, HeapOptions, SharedHeapOptions};
+    use destack_heap as heap;
+    use destack_heap::{HeapOptions, SharedHeapOptions};
     use destack_mir::{TargetLayout, TraceTable};
     use destack_serde::{from_slice, to_vec};
 
     use crate::{
         DispatchTable, FrameTable, FunctionTable, GlobalTable, LayoutTable, Program, ProgramInfo,
-        ProgramLoadError, StaticImage, StringTable, TypeTable, vm,
+        ProgramLoadError, SiteTable, StaticImage, StringTable, TypeTable, vm,
     };
 
     /// Store and load a program without nesting section bytes in the artifact blob codec.
@@ -362,7 +363,7 @@ mod tests {
         let constant_space = StaticImage::pack(&mut sections, Vec::new());
         let shared_static_space = StaticImage::pack(&mut sections, Vec::new());
         let local_static_space = StaticImage::pack(&mut sections, Vec::new());
-        let traces = destack_heap::TraceTable::pack(&mut sections, &TraceTable::new());
+        let traces = heap::TraceTable::pack(&mut sections, &TraceTable::new());
         let strings = StringTable::from_pool(&mut sections, &strings);
         let info = ProgramInfo::pack(
             &mut sections,
