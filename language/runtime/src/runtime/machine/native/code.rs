@@ -5,8 +5,8 @@ use destack_program::native::{
     NativeResumeEntry, NativeTrap, NativeValue,
 };
 use destack_program::{
-    Continuation, EntryPoint, FrameStateId, FunctionId, Program, ProgramActivation, StopReason,
-    Value, native,
+    Continuation, EntryPoint, FrameStateId, FunctionId, Program, ProgramActivation, ProgramPoint,
+    StopReason, Value, native,
 };
 
 use super::{Entry, Error, LibraryHandle, MemoryMapping, Outcome, ResumeEntry};
@@ -22,6 +22,8 @@ pub struct Code {
     function: Vec<Option<Entry>>,
     /// Native resume entries keyed by frame state id.
     resume: Vec<Option<ResumeEntry>>,
+    /// Program points keyed by native safepoint id.
+    safepoint_points: Vec<Option<ProgramPoint>>,
 }
 
 impl Code {
@@ -31,12 +33,14 @@ impl Code {
         map: native::CodeMap,
         function: Vec<Option<Entry>>,
         resume: Vec<Option<ResumeEntry>>,
+        safepoint_points: Vec<Option<ProgramPoint>>,
     ) -> Self {
         Self {
             image,
             map,
             function,
             resume,
+            safepoint_points,
         }
     }
 
@@ -50,11 +54,22 @@ impl Code {
     ) -> Result<Self, Error> {
         let entries = &native.entries;
         let sections = program.sections();
+        let safepoint_points = native
+            .map
+            .safepoints(sections)
+            .iter()
+            .map(|safepoint| {
+                safepoint
+                    .get()
+                    .and_then(|safepoint| program.point_for_frame_state(safepoint.frame_state))
+            })
+            .collect::<Vec<_>>();
         let mut code = Self {
             image,
             map: native.map.clone(),
             function: vec![None; entries.functions(sections).len()],
             resume: vec![None; entries.resumes(sections).len()],
+            safepoint_points,
         };
 
         for entry in entries
@@ -118,6 +133,14 @@ impl Code {
         self.resume
             .get(frame_state.0 as usize)
             .and_then(Option::as_ref)
+    }
+
+    /// Return the program point for one native safepoint.
+    pub fn safepoint_point(&self, safepoint: u32) -> Result<ProgramPoint, Error> {
+        self.safepoint_points
+            .get(safepoint as usize)
+            .and_then(|point| *point)
+            .ok_or(Error::StopPointMissing { safepoint })
     }
 
     /// Return whether this code can resume one continuation.
@@ -319,9 +342,11 @@ impl Code {
         let continuation =
             unsafe { exit.continuation.to_continuation() }.map_err(Error::InvalidContinuation)?;
 
+        let point = self.safepoint_point(exit.safepoint)?;
+
         Ok(Outcome::Stopped {
             continuation,
-            reason: StopReason::Breakpoint,
+            reason: StopReason::Instruction { point },
         })
     }
 

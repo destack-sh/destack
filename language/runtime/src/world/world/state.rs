@@ -3,6 +3,7 @@ use crate::host::ResourceId;
 use crate::runtime::random::Random;
 use crate::runtime::time::{Clock, Nanos};
 use crate::runtime::{RuntimeId, WorkerId};
+use crate::world::debug::Debugger;
 use crate::world::observation::{Observation, ObservationLog, ObservationSequence};
 use crate::world::policy::Policy;
 use crate::world::trace::TraceLog;
@@ -18,6 +19,8 @@ pub(crate) struct WorldState {
     pub(crate) moment: MomentSequence,
     /// Active policy state.
     pub(crate) policy: Policy,
+    /// Active debugger configuration.
+    pub(crate) debugger: Debugger,
     /// The next runtime id to allocate.
     pub(crate) next_runtime_id: u64,
     /// The next worker id to allocate.

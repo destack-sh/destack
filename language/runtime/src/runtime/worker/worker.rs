@@ -33,6 +33,10 @@ pub struct Worker {
     pub(crate) options: Arc<RuntimeOptions>,
     /// Immutable executable program.
     pub(crate) program: Arc<program::Program>,
+    /// Debugger generation used to derive stop points.
+    pub(crate) stop_generation: u64,
+    /// Executable stop points active for this worker.
+    pub(crate) stop_points: program::StopSet,
 
     /// External resource table.
     pub(crate) resources: ResourceTable,
@@ -72,6 +76,10 @@ pub struct WorkerOptions {
 /// Materialized worker metadata captured in one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerImage {
+    /// Runtime owner identifier.
+    pub runtime_id: RuntimeId,
+    /// Worker identifier.
+    pub worker_id: WorkerId,
     /// Captured worker-local execution sequence.
     pub sequence: WorkerSequence,
     /// Worker options captured for reconstruction.
@@ -113,7 +121,9 @@ impl PartialEq for WorkerImage {
         let heap = worker_heap_snapshot_bytes(&self.heap);
         let other_heap = worker_heap_snapshot_bytes(&other.heap);
 
-        self.options == other.options
+        self.runtime_id == other.runtime_id
+            && self.worker_id == other.worker_id
+            && self.options == other.options
             && self.sequence == other.sequence
             && self.diagnostics == other.diagnostics
             && self.resources == other.resources
@@ -302,6 +312,8 @@ impl Worker {
             environment,
             options: Arc::new(options.clone()),
             program,
+            stop_generation: world.debugger.generation(),
+            stop_points: world.debugger.stop_set(runtime_id, worker_id),
             resources,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             binding_table,
@@ -511,7 +523,7 @@ impl Worker {
     }
 
     /// Run one budgeted local collection step using the current root set.
-    pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcProgress> {
+    pub fn step_local_collection(&mut self) -> RuntimeResult<heap::GcAdvance> {
         let budget_bytes = self.heap.take_collection_budget_bytes();
         let machine = &mut self.machine;
         let event_loop = &mut self.event_loop;
@@ -586,6 +598,8 @@ impl Worker {
 
         // capture the worker-local image payload
         Ok(WorkerImage {
+            runtime_id: self.runtime_id,
+            worker_id: self.id,
             sequence: self.sequence,
             options: WorkerOptionsImage::explicit_arc(self.options.clone()),
             diagnostics,
@@ -651,6 +665,8 @@ impl Worker {
             diagnostics,
             binding_table,
             program: self.program.clone(),
+            stop_generation: self.stop_generation,
+            stop_points: self.stop_points.clone(),
             shared_mark_worker,
             shared_cache,
             heap,
@@ -736,6 +752,8 @@ impl Worker {
             environment,
             options,
             program,
+            stop_generation: world.debugger.generation(),
+            stop_points: world.debugger.stop_set(runtime_id, worker_id),
             resources,
             diagnostics,
             binding_table,
