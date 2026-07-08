@@ -1,12 +1,9 @@
-use destack_repository::ExecutionMode;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
-use crate::world::trace::{Trace, TraceRecord, TraceSequence};
 
 use super::{
-    Branch, BranchId, Divergence, Event, EventQuery, EventSet, Moment, Transition, TransitionQuery,
-    TransitionSet, WorldEventQuery, WorldTransitionQuery, WorldView,
+    Branch, BranchId, Divergence, Event, EventQuery, EventSet, Moment, MomentSequence,
+    WorldEventQuery, WorldView,
 };
 
 /// One eager branch-query result.
@@ -150,11 +147,6 @@ impl<'a> LineageQuery<'a> {
         EventQuery::new(self)
     }
 
-    /// Return one committed transition query root.
-    pub fn transitions(self) -> TransitionQuery<'a> {
-        TransitionQuery::new(self)
-    }
-
     /// Return every branch that descends from one ancestor branch.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<BranchSet> {
         let lineage = self.world.lineage.read();
@@ -178,7 +170,7 @@ impl<'a> LineageQuery<'a> {
     /// Return one exact committed world view at one moment.
     pub fn view(self, moment: Moment) -> RuntimeResult<WorldView> {
         self.require_committed_query_range(
-            Moment::new(moment.branch_id, TraceSequence::new(0)),
+            Moment::new(moment.branch_id, MomentSequence::new(0)),
             moment,
         )?;
 
@@ -217,12 +209,12 @@ impl<'a> LineageQuery<'a> {
     /// Return every committed moment visible on one branch.
     pub fn moments_on(self, branch_id: BranchId) -> RuntimeResult<MomentSet> {
         let end = self.branch_head_moment(branch_id)?;
-        self.moments_between(Moment::new(branch_id, TraceSequence::new(0)), end)
+        self.moments_between(Moment::new(branch_id, MomentSequence::new(0)), end)
     }
 
     /// Return every committed moment up to one target moment.
     pub fn moments_up_to(self, moment: Moment) -> RuntimeResult<MomentSet> {
-        let start = Moment::new(moment.branch_id, TraceSequence::new(0));
+        let start = Moment::new(moment.branch_id, MomentSequence::new(0));
         self.moments_between(start, moment)
     }
 
@@ -231,7 +223,7 @@ impl<'a> LineageQuery<'a> {
         self.require_committed_query_range(start, end)?;
 
         let moments = (start.sequence.get()..=end.sequence.get())
-            .map(|sequence| Moment::new(start.branch_id, TraceSequence::new(sequence)))
+            .map(|sequence| Moment::new(start.branch_id, MomentSequence::new(sequence)))
             .collect();
 
         Ok(MomentSet::new(moments))
@@ -240,7 +232,7 @@ impl<'a> LineageQuery<'a> {
     /// Return every committed query event visible on one branch.
     pub fn events_on(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
         let end = self.branch_head_moment(branch_id)?;
-        self.events_between(Moment::new(branch_id, TraceSequence::new(0)), end)
+        self.events_between(Moment::new(branch_id, MomentSequence::new(0)), end)
     }
 
     /// Return every committed query event visible on one branch and its descendants.
@@ -258,7 +250,7 @@ impl<'a> LineageQuery<'a> {
 
     /// Return every committed query event up to one target moment.
     pub fn events_up_to(self, moment: Moment) -> RuntimeResult<EventSet> {
-        let start = Moment::new(moment.branch_id, TraceSequence::new(0));
+        let start = Moment::new(moment.branch_id, MomentSequence::new(0));
         self.events_between(start, moment)
     }
 
@@ -266,43 +258,9 @@ impl<'a> LineageQuery<'a> {
     pub fn events_between(self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
         self.require_committed_query_range(start, end)?;
 
-        let mut events = self.trace_events_between(start, end)?;
-        events.extend(self.observation_events_between(start, end)?);
+        let events = self.observation_events_between(start, end)?;
 
         Ok(EventSet::new(events))
-    }
-
-    /// Return every committed transition visible on one branch.
-    pub fn transitions_on(self, branch_id: BranchId) -> RuntimeResult<TransitionSet> {
-        let end = self.branch_head_moment(branch_id)?;
-        self.transitions_between(Moment::new(branch_id, TraceSequence::new(0)), end)
-    }
-
-    /// Return every committed transition visible on one branch and its descendants.
-    pub fn transitions_descendants_of(self, branch_id: BranchId) -> RuntimeResult<TransitionSet> {
-        let descendants = self.descendants_of(branch_id)?;
-        let mut transitions = Vec::new();
-
-        for branch in descendants.into_vec() {
-            let branch_transitions = self.transitions_on(branch.id)?;
-            transitions.extend(branch_transitions.into_vec());
-        }
-
-        Ok(TransitionSet::new(transitions))
-    }
-
-    /// Return every committed transition up to one target moment.
-    pub fn transitions_up_to(self, moment: Moment) -> RuntimeResult<TransitionSet> {
-        let start = Moment::new(moment.branch_id, TraceSequence::new(0));
-        self.transitions_between(start, moment)
-    }
-
-    /// Return every committed transition in one exact branch-local range.
-    pub fn transitions_between(self, start: Moment, end: Moment) -> RuntimeResult<TransitionSet> {
-        self.require_committed_query_range(start, end)?;
-
-        let transitions = self.trace_transitions_between(start, end)?;
-        Ok(TransitionSet::new(transitions))
     }
 
     /// Validate one committed-lineage query range.
@@ -333,12 +291,6 @@ impl<'a> LineageQuery<'a> {
         Ok(())
     }
 
-    /// Project committed trace records into query events for one range.
-    fn trace_events_between(self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
-        let trace = self.replay_trace_for_branch(end.branch_id)?;
-        trace.events_between_on_branch(end.branch_id, start.sequence, end.sequence)
-    }
-
     /// Project committed observations into query events for one range.
     fn observation_events_between(self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
         let lineage = self.world.lineage.read();
@@ -346,44 +298,12 @@ impl<'a> LineageQuery<'a> {
 
         Ok(records.into_iter().map(Event::from_observation).collect())
     }
-
-    /// Derive committed transitions from trace records for one range.
-    fn trace_transitions_between(
-        self,
-        start: Moment,
-        end: Moment,
-    ) -> RuntimeResult<Vec<Transition>> {
-        let trace = self.replay_trace_for_branch(end.branch_id)?;
-        trace.transitions_between_on_branch(end.branch_id, start.sequence, end.sequence)
-    }
-
-    /// Build one replay trace for the committed head of one branch.
-    fn replay_trace_for_branch(self, branch_id: BranchId) -> RuntimeResult<Trace> {
-        let trace_image = {
-            let lineage = self.world.lineage.read();
-            let branch = lineage.branch(branch_id)?;
-            self.world.trace_image(branch.head_revision_id)?
-        };
-
-        Trace::replay_from_image(&trace_image)
-    }
-
-    /// Resolve one authoritative trace record for one committed transition.
-    pub fn transition_record(self, transition: &Transition) -> RuntimeResult<TraceRecord> {
-        let trace = self.replay_trace_for_branch(transition.after.branch_id)?;
-        trace.record_at(transition.cause_sequence)
-    }
 }
 
 impl World {
     /// Return one live branch-local event query root.
     pub fn events(&self) -> WorldEventQuery<'_> {
         WorldEventQuery::new(self)
-    }
-
-    /// Return one live branch-local transition query root.
-    pub fn transitions(&self) -> WorldTransitionQuery<'_> {
-        WorldTransitionQuery::new(self)
     }
 
     /// Return one committed-lineage query root over shared lineage.
@@ -395,44 +315,15 @@ impl World {
     pub fn events_between(&self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
         self.require_query_range(start, end)?;
 
-        let mut events = self.trace_events_between(start.sequence, end.sequence)?;
-        events.extend(self.observation_events_between(start, end)?);
+        let events = self.observation_events_between(start, end)?;
 
         Ok(EventSet::new(events))
     }
 
     /// Return every query event up to one target moment.
     pub fn events_up_to(&self, moment: Moment) -> RuntimeResult<EventSet> {
-        let start = Moment::new(moment.branch_id, TraceSequence::new(0));
+        let start = Moment::new(moment.branch_id, MomentSequence::new(0));
         self.events_between(start, moment)
-    }
-
-    /// Return every derived transition after one start moment and up to one end moment.
-    pub fn transitions_between(&self, start: Moment, end: Moment) -> RuntimeResult<TransitionSet> {
-        self.require_query_range(start, end)?;
-
-        let transitions = self.trace_transitions_between(start.sequence, end.sequence)?;
-        Ok(TransitionSet::new(transitions))
-    }
-
-    /// Return every derived transition up to one target moment.
-    pub fn transitions_up_to(&self, moment: Moment) -> RuntimeResult<TransitionSet> {
-        let start = Moment::new(moment.branch_id, TraceSequence::new(0));
-        self.transitions_between(start, moment)
-    }
-
-    /// Resolve one authoritative trace record for one branch-local transition.
-    pub fn transition_record(&self, transition: &Transition) -> RuntimeResult<TraceRecord> {
-        if transition.after.branch_id != self.state.branch_id {
-            return Err(RuntimeError::moment_branch_mismatch(
-                transition.after.branch_id.get(),
-                self.state.branch_id.get(),
-            )
-            .boxed());
-        }
-
-        let trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
-        trace.record_at(transition.cause_sequence)
     }
 
     /// Validate one query range against the active world branch.
@@ -471,16 +362,6 @@ impl World {
         Ok(())
     }
 
-    /// Project trace records into query events for one sequence range.
-    fn trace_events_between(
-        &self,
-        start: TraceSequence,
-        end: TraceSequence,
-    ) -> RuntimeResult<Vec<Event>> {
-        let trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
-        trace.events_between_on_branch(self.state.branch_id, start, end)
-    }
-
     /// Project committed and live observation entries into query events for one range.
     fn observation_events_between(&self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
         let committed_head = {
@@ -493,7 +374,7 @@ impl World {
         if start.sequence.get() < committed_head.sequence.get() {
             let committed_end = Moment::new(
                 self.state.branch_id,
-                TraceSequence::new(end.sequence.get().min(committed_head.sequence.get())),
+                MomentSequence::new(end.sequence.get().min(committed_head.sequence.get())),
             );
             let lineage = self.lineage.read();
             let records = lineage.observation_records_between(start, committed_end)?;
@@ -503,22 +384,12 @@ impl World {
         if end.sequence.get() > committed_head.sequence.get() {
             let local_start = Moment::new(
                 self.state.branch_id,
-                TraceSequence::new(start.sequence.get().max(committed_head.sequence.get())),
+                MomentSequence::new(start.sequence.get().max(committed_head.sequence.get())),
             );
             let records = self.state.observations.records_between(local_start, end);
             events.extend(records.into_iter().map(Event::from_observation));
         }
 
         Ok(events)
-    }
-
-    /// Derive transitions from trace records for one sequence range.
-    fn trace_transitions_between(
-        &self,
-        start: TraceSequence,
-        end: TraceSequence,
-    ) -> RuntimeResult<Vec<Transition>> {
-        let trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
-        trace.transitions_between_on_branch(self.state.branch_id, start, end)
     }
 }
