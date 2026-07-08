@@ -84,7 +84,7 @@ pub struct SnapshotOptions {
 impl World {
     /// Build snapshot restore options from the live world.
     fn snapshot_options(&self) -> SnapshotOptions {
-        let header = self.state.trace.log().header();
+        let header = self.state.trace.store().header();
         let replay_payload = match header.replay_payload {
             BindingReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
             BindingReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,

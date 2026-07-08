@@ -7,15 +7,14 @@ use crate::host::core::HostQueue;
 use crate::host::poller::create_host_poller;
 use crate::runtime::random::Random;
 use crate::runtime::time::Instant;
-use crate::world::trace::{
-    Observations, Outcome, Trace, TraceHeader, TraceImage, TraceRecord, TraceSequence,
-};
+use crate::world::observation::ObservationLog;
+use crate::world::trace::{Trace, TraceHeader, TraceImage, TraceLog, TraceSequence};
 use destack_core::CaptureMode;
 use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
 use crate::world::{RestoreContext, World, WorldImage, WorldSnapshot, WorldState};
 
-use super::{BranchId, Checkpoint, Moment, Revision, RevisionId};
+use super::{BranchId, Checkpoint, Moment, MomentSequence, Revision, RevisionId};
 
 impl World {
     /// Restore this branch to one specific moment.
@@ -28,7 +27,7 @@ impl World {
             .boxed());
         }
 
-        let (anchor_revision, base_revision, image) = {
+        let (anchor_revision, target_revision, base_revision, image) = {
             let lineage = self.lineage.read();
             let head_revision = lineage.head_revision(moment.branch_id)?;
             if head_revision.sequence.get() < moment.sequence.get() {
@@ -38,16 +37,19 @@ impl World {
                 )
                 .boxed());
             }
-            let anchor_revision_id =
-                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+            let anchor_revision_id = lineage.revision_at(moment.branch_id, moment.sequence)?;
+            let target_revision = lineage.revision(anchor_revision_id)?;
             let base_revision = self.nearest_image_revision(anchor_revision_id)?;
             let (base_revision, image, _) = self.revision_data(base_revision)?;
 
-            (anchor_revision_id, base_revision, image)
+            (anchor_revision_id, target_revision, base_revision, image)
         };
 
         let image = self.moment_image(moment, &base_revision, &image, RestoreContext::empty())?;
-        let trace_image = self.state.trace.capture_image_through(moment.sequence)?;
+        let trace_image = self
+            .state
+            .trace
+            .capture_image_through(target_revision.trace_sequence)?;
 
         self.restore_revision_image(
             anchor_revision,
@@ -92,6 +94,7 @@ impl World {
             lineage.commit_revision(
                 self.state.branch_id,
                 image_id,
+                self.state.moment,
                 trace_image.next_sequence()?,
                 Instant::from_nanos(self.wall()),
                 Instant::from_nanos(self.mono()),
@@ -156,7 +159,7 @@ impl World {
     /// Fork one child world from one stored moment.
     fn fork_from_moment(&mut self, moment: Moment, name: String) -> RuntimeResult<World> {
         // resolve the retained fork point before mutating lineage
-        let (anchor_revision_id, base_revision, image, head_revision) = {
+        let (anchor_revision_id, target_revision, base_revision, image, head_revision) = {
             let lineage = self.lineage.read();
             let head_revision = lineage.head_revision(moment.branch_id)?;
             if head_revision.sequence.get() < moment.sequence.get() {
@@ -166,16 +169,25 @@ impl World {
                 )
                 .boxed());
             }
-            let anchor_revision_id =
-                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+            let anchor_revision_id = lineage.revision_at(moment.branch_id, moment.sequence)?;
+            let target_revision = lineage.revision(anchor_revision_id)?;
             let base_revision_id = self.nearest_image_revision(anchor_revision_id)?;
             let (base_revision, image, _) = self.revision_data(base_revision_id)?;
 
-            (anchor_revision_id, base_revision, image, head_revision)
+            (
+                anchor_revision_id,
+                target_revision,
+                base_revision,
+                image,
+                head_revision,
+            )
         };
         let mut image =
             self.moment_image(moment, &base_revision, &image, RestoreContext::empty())?;
-        let trace_image = self.state.trace.capture_image_through(moment.sequence)?;
+        let trace_image = self
+            .state
+            .trace
+            .capture_image_through(target_revision.trace_sequence)?;
 
         // canonicalize retained payloads against the parent branch
         self.lineage
@@ -204,7 +216,7 @@ impl World {
         // direct live fork: current committed head with no uncommitted tail
         if moment.branch_id == self.state.branch_id
             && anchor_revision_id == self.revision_id()?
-            && self.state.trace.log().next_sequence() == head_revision.sequence
+            && self.state.trace.store().next_sequence() == head_revision.trace_sequence
             && let Some(child) =
                 self.try_fork_live_child(child_branch.id, trace_header.clone(), &trace_image)?
         {
@@ -212,7 +224,7 @@ impl World {
         }
 
         // child world: fresh mutable state over shared lineage data
-        let mut child = self.fork_child_world(child_branch.id, trace_header)?;
+        let mut child = self.fork_child_world(child_branch.id, moment.sequence, trace_header)?;
 
         // restore the child to the fork moment
         child.restore_image(&image, RestoreContext::empty())?;
@@ -224,7 +236,7 @@ impl World {
 
     /// Build replay options for one suffix-replay world.
     fn replay_runtime_options(&self) -> RuntimeOptions {
-        let header = self.state.trace.log().header();
+        let header = self.state.trace.store().header();
         let replay_payload = match header.replay_payload {
             BindingReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
             BindingReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
@@ -261,7 +273,7 @@ impl World {
         }
 
         let options = self.replay_runtime_options();
-        let environment = self.state.trace.log().header().environment.clone();
+        let environment = self.state.trace.store().header().environment.clone();
         let mut replay_world =
             World::empty(target_revision.branch_id, &options, environment, None)?;
         replay_world.restore_image(image, restore)?;
@@ -273,12 +285,12 @@ impl World {
         replay_world
             .state
             .trace
-            .seek_sequence(base_revision.sequence)?;
+            .seek_sequence(base_revision.trace_sequence)?;
         let replay_trace =
-            Trace::from_log(ExecutionMode::Replay, replay_world.trace().log().clone());
+            TraceLog::from_store(ExecutionMode::Replay, replay_world.trace().store().clone());
         replay_trace.set_branch_id(target_revision.branch_id);
-        replay_trace.seek_sequence(base_revision.sequence)?;
-        replay_world.replay_to(&replay_trace, target_revision.sequence, restore)?;
+        replay_trace.seek_sequence(base_revision.trace_sequence)?;
+        replay_world.replay_to(&replay_trace, target_revision.trace_sequence, restore)?;
 
         replay_world.capture_image(CaptureMode::Suspend)
     }
@@ -296,13 +308,19 @@ impl World {
         }
 
         let options = self.replay_runtime_options();
-        let environment = self.state.trace.log().header().environment.clone();
+        let environment = self.state.trace.store().header().environment.clone();
         let mut replay_world = World::empty(moment.branch_id, &options, environment, None)?;
         replay_world.restore_image(image, restore)?;
-        let replay_trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
+        let replay_trace =
+            TraceLog::from_store(ExecutionMode::Replay, self.state.trace.store().clone());
         replay_trace.set_branch_id(moment.branch_id);
-        replay_trace.seek_sequence(base_revision.sequence)?;
-        replay_world.replay_to(&replay_trace, moment.sequence, restore)?;
+        replay_trace.seek_sequence(base_revision.trace_sequence)?;
+        let target_revision = {
+            let lineage = self.lineage.read();
+            let revision_id = lineage.revision_at(moment.branch_id, moment.sequence)?;
+            lineage.revision(revision_id)?
+        };
+        replay_world.replay_to(&replay_trace, target_revision.trace_sequence, restore)?;
 
         replay_world.capture_image(CaptureMode::Suspend)
     }
@@ -319,8 +337,7 @@ impl World {
                 )
                 .boxed());
             }
-            let anchor_revision =
-                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+            let anchor_revision = lineage.revision_at(moment.branch_id, moment.sequence)?;
             let base_revision = self.nearest_image_revision(anchor_revision)?;
             let (base_revision, image, _) = self.revision_data(base_revision)?;
 
@@ -333,78 +350,29 @@ impl World {
     /// Replay one trace through one requested sequence boundary.
     fn replay_to(
         &mut self,
-        trace: &Trace,
+        trace: &TraceLog,
         target_sequence: TraceSequence,
         restore: RestoreContext<'_>,
     ) -> RuntimeResult<()> {
         while trace.sequence()? != target_sequence {
-            let event = trace
-                .next_event()?
+            let entry = trace
+                .next_entry()?
                 .ok_or_else(|| RuntimeError::trace_exhausted(target_sequence.get()).boxed())?;
 
-            match event {
-                TraceRecord::Mutation(mutation) => {
-                    self.apply_mutation(mutation)?;
+            match entry.trace {
+                Trace::Mutation(mutation) => {
+                    self.apply_mutation_with_restore(mutation, restore)?;
                 }
-                TraceRecord::Entrypoint(invocation) => {
+                Trace::Entrypoint(invocation) => {
                     let _ = self.execute_entrypoint(
                         invocation.runtime_id,
                         &invocation.entry,
                         &invocation.args,
                     )?;
                 }
-                TraceRecord::Label(_) => {}
-                TraceRecord::Outcome(
-                    outcome @ (Outcome::RuntimeSpawned { .. } | Outcome::WorkerSpawned { .. }),
-                ) => {
-                    match outcome {
-                        // runtime restore
-                        Outcome::RuntimeSpawned {
-                            runtime_id,
-                            runtime_entity,
-                            runtime,
-                            workers,
-                        } => {
-                            self.restore_runtime_image(
-                                runtime_id,
-                                runtime_entity,
-                                &runtime,
-                                &workers,
-                                restore,
-                            )?;
-                        }
-
-                        // worker restore
-                        Outcome::WorkerSpawned {
-                            runtime_id,
-                            worker_id,
-                            worker_entity,
-                            worker,
-                        } => {
-                            self.restore_worker_image(
-                                runtime_id,
-                                worker_id,
-                                worker_entity,
-                                &worker,
-                                restore,
-                            )?;
-                        }
-
-                        // replay only world outcomes are handled above
-                        Outcome::TimeAdvance(_) | Outcome::Entropy(_) | Outcome::BindingCall(_) => {
-                            return Err(RuntimeError::Internal {
-                                message: "unexpected low-level trace event escaped world replay"
-                                    .to_string(),
-                            }
-                            .boxed());
-                        }
-                    }
-                }
-                TraceRecord::Outcome(Outcome::TimeAdvance(_))
-                | TraceRecord::Outcome(Outcome::Entropy(_))
-                | TraceRecord::Outcome(Outcome::BindingCall(_)) => {
+                Trace::Binding(_) | Trace::Clock(_) | Trace::Random(_) => {
                     return Err(RuntimeError::Internal {
-                        message: "unexpected low-level trace event escaped world replay"
+                        message: "unexpected low-level trace entry escaped world replay"
                             .to_string(),
                     }
                     .boxed());
@@ -417,7 +385,7 @@ impl World {
 
     /// Clone the current trace header for one child branch.
     fn fork_trace_header(&self, branch_id: BranchId) -> TraceHeader {
-        let mut header = self.state.trace.log().header();
+        let mut header = self.state.trace.store().header();
         header.branch_id = branch_id;
         header
     }
@@ -426,6 +394,7 @@ impl World {
     fn fork_child_world(
         &self,
         branch_id: BranchId,
+        moment_sequence: MomentSequence,
         trace_header: TraceHeader,
     ) -> RuntimeResult<World> {
         // parent execution mode
@@ -437,14 +406,15 @@ impl World {
         // state restored by the image replay
         let state = WorldState {
             branch_id,
+            moment: moment_sequence,
             policy: self.state.policy.clone(),
             next_runtime_id: 0,
             next_worker_id: 0,
             topology: Default::default(),
             clock,
             random,
-            trace: Trace::new(trace_mode, trace_header),
-            observations: Observations::default(),
+            trace: TraceLog::new(trace_mode, trace_header),
+            observations: ObservationLog::default(),
         };
 
         let poller_backend = self.poller.backend();
@@ -488,12 +458,13 @@ impl World {
             let random = self.state.random.fork()?;
 
             // rebuild one live child trace over the retained head image
-            let trace = Trace::new(execution_mode, trace_header);
+            let trace = TraceLog::new(execution_mode, trace_header);
             trace.restore_image(trace_image)?;
             trace.set_branch_id(branch_id);
 
             let state = WorldState {
                 branch_id,
+                moment: self.state.moment,
                 policy: self.state.policy.clone(),
                 next_runtime_id: self.state.next_runtime_id,
                 next_worker_id: self.state.next_worker_id,
@@ -501,7 +472,7 @@ impl World {
                 clock,
                 random,
                 trace,
-                observations: Observations::default(),
+                observations: ObservationLog::default(),
             };
 
             let poller_backend = self.poller.backend();

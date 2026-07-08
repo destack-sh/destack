@@ -1,25 +1,49 @@
 use destack_repository::ExecutionMode;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
-use crate::runtime::WorkerId;
+use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 use crate::world::policy::{Policy, Rule, RuleId};
 
 use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
-    RuntimeId, World,
+    RestoreContext, RuntimeId, World,
 };
 
 /// One world mutation recorded in authoritative trace.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum Mutation {
+    /// Add one runtime to the world.
+    SpawnRuntime {
+        /// The created runtime identifier.
+        runtime_id: RuntimeId,
+        /// The created runtime topology entity.
+        runtime_entity: Entity,
+        /// Captured runtime metadata for the created runtime.
+        runtime: Arc<RuntimeImage>,
+        /// Captured workers keyed by worker identifier.
+        workers: BTreeMap<WorkerId, SpawnedWorker>,
+    },
     /// One runtime removal mutation.
     RemoveRuntime {
         /// Runtime identifier to remove.
         runtime_id: RuntimeId,
+    },
+    /// Add one worker to an existing runtime.
+    SpawnWorker {
+        /// The owning runtime identifier.
+        runtime_id: RuntimeId,
+        /// The created worker identifier.
+        worker_id: WorkerId,
+        /// The created worker topology entity.
+        worker_entity: Entity,
+        /// Captured worker metadata for the created worker.
+        worker: Arc<WorkerImage>,
     },
     /// Remove one worker from the world.
     RemoveWorker {
@@ -112,11 +136,120 @@ pub enum Mutation {
     },
 }
 
+/// One worker image paired with its spawn identity.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpawnedWorker {
+    /// The created worker topology entity.
+    pub entity: Entity,
+    /// The captured worker image.
+    pub image: Arc<WorkerImage>,
+}
+
+impl PartialEq for Mutation {
+    /// Compare mutation payloads for replay validation.
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Self::SpawnRuntime {
+                    runtime_id,
+                    runtime_entity,
+                    runtime,
+                    workers,
+                },
+                Self::SpawnRuntime {
+                    runtime_id: other_runtime_id,
+                    runtime_entity: other_runtime_entity,
+                    runtime: other_runtime,
+                    workers: other_workers,
+                },
+            ) => {
+                runtime_id == other_runtime_id
+                    && runtime_entity == other_runtime_entity
+                    && runtime.is_same_image(other_runtime)
+                    && workers == other_workers
+            }
+            (Self::RemoveRuntime { runtime_id }, Self::RemoveRuntime { runtime_id: other }) => {
+                runtime_id == other
+            }
+            (
+                Self::SpawnWorker {
+                    runtime_id,
+                    worker_id,
+                    worker_entity,
+                    worker,
+                },
+                Self::SpawnWorker {
+                    runtime_id: other_runtime_id,
+                    worker_id: other_worker_id,
+                    worker_entity: other_worker_entity,
+                    worker: other_worker,
+                },
+            ) => {
+                runtime_id == other_runtime_id
+                    && worker_id == other_worker_id
+                    && worker_entity == other_worker_entity
+                    && worker == other_worker
+            }
+            (Self::RemoveWorker { worker_id }, Self::RemoveWorker { worker_id: other }) => {
+                worker_id == other
+            }
+            (
+                Self::AddResource {
+                    resource_id,
+                    entity,
+                },
+                Self::AddResource {
+                    resource_id: other_resource_id,
+                    entity: other_entity,
+                },
+            ) => resource_id == other_resource_id && entity == other_entity,
+            (Self::RemoveResource { resource_id }, Self::RemoveResource { resource_id: other }) => {
+                resource_id == other
+            }
+            (Self::SetPolicy { policy }, Self::SetPolicy { policy: other }) => policy == other,
+            (Self::AddRule { rule }, Self::AddRule { rule: other }) => rule == other,
+            (Self::RemoveRule { rule_id }, Self::RemoveRule { rule_id: other }) => rule_id == other,
+            (Self::EnableRule { rule_id }, Self::EnableRule { rule_id: other }) => rule_id == other,
+            (Self::DisableRule { rule_id }, Self::DisableRule { rule_id: other }) => {
+                rule_id == other
+            }
+            (
+                Self::ReplaceRule { rule_id, rule },
+                Self::ReplaceRule {
+                    rule_id: other_rule_id,
+                    rule: other_rule,
+                },
+            ) => rule_id == other_rule_id && rule == other_rule,
+            (Self::DefineEntityKind { kind }, Self::DefineEntityKind { kind: other }) => {
+                kind == other
+            }
+            (Self::UndefineEntityKind { kind }, Self::UndefineEntityKind { kind: other }) => {
+                kind == other
+            }
+            (Self::DefineEdgeKind { kind }, Self::DefineEdgeKind { kind: other }) => kind == other,
+            (Self::UndefineEdgeKind { kind }, Self::UndefineEdgeKind { kind: other }) => {
+                kind == other
+            }
+            (Self::UpsertEntity { entity }, Self::UpsertEntity { entity: other }) => {
+                entity == other
+            }
+            (Self::RemoveEntity { entity_id }, Self::RemoveEntity { entity_id: other }) => {
+                entity_id == other
+            }
+            (Self::UpsertEdge { edge }, Self::UpsertEdge { edge: other }) => edge == other,
+            (Self::RemoveEdge { edge_id }, Self::RemoveEdge { edge_id: other }) => edge_id == other,
+            _ => false,
+        }
+    }
+}
+
 impl Mutation {
     /// Return the stable mutation name.
     pub fn name(&self) -> &'static str {
         match self {
+            Self::SpawnRuntime { .. } => "runtime.instance.spawned",
             Self::RemoveRuntime { .. } => "runtime.instance.remove",
+            Self::SpawnWorker { .. } => "runtime.worker.spawned",
             Self::RemoveWorker { .. } => "runtime.worker.remove",
             Self::AddResource { .. } => "runtime.resource.add",
             Self::RemoveResource { .. } => "runtime.resource.remove",
@@ -141,13 +274,44 @@ impl Mutation {
 impl World {
     /// Apply one resolved world mutation without touching authoritative trace.
     pub(crate) fn apply_mutation(&mut self, mutation: Mutation) -> RuntimeResult<()> {
+        self.apply_mutation_with_restore(mutation, RestoreContext::empty())
+    }
+
+    /// Apply one resolved world mutation with explicit restore context.
+    pub(crate) fn apply_mutation_with_restore(
+        &mut self,
+        mutation: Mutation,
+        restore: RestoreContext<'_>,
+    ) -> RuntimeResult<()> {
         match mutation {
             // runtime lifecycle
+            Mutation::SpawnRuntime {
+                runtime_id,
+                runtime_entity,
+                runtime,
+                workers,
+            } => {
+                self.restore_runtime_image(
+                    runtime_id,
+                    runtime_entity,
+                    &runtime,
+                    &workers,
+                    restore,
+                )?;
+            }
             Mutation::RemoveRuntime { runtime_id } => {
                 let _ = self.remove_stored_runtime(runtime_id)?;
             }
 
             // structural mutations
+            Mutation::SpawnWorker {
+                runtime_id,
+                worker_id,
+                worker_entity,
+                worker,
+            } => {
+                self.restore_worker_image(runtime_id, worker_id, worker_entity, &worker, restore)?;
+            }
             Mutation::RemoveWorker { worker_id } => {
                 // live runtime worker
                 if let Some(runtime_id) = self.runtime_id_for_worker(worker_id) {

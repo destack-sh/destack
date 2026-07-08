@@ -12,11 +12,13 @@ use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::world::policy::Policy;
 use crate::world::topology::{Edge, Entity, RuntimeId, Topology};
 
-use super::{RestoreContext, World};
+use super::{MomentSequence, RestoreContext, World};
 
 /// World image payload for one materialized world restore point.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldImage {
+    /// Captured branch-local moment sequence.
+    pub(crate) moment: MomentSequence,
     /// The next runtime id to allocate after restore.
     pub(crate) next_runtime_id: u64,
     /// The next worker id to allocate after restore.
@@ -207,6 +209,7 @@ impl World {
             }
 
             Ok(WorldImage {
+                moment: self.state.moment,
                 next_runtime_id: self.state.next_runtime_id,
                 next_worker_id: self.state.next_worker_id,
                 policy: self.state.policy.clone(),
@@ -234,6 +237,7 @@ impl World {
         let result = (|| {
             self.state.next_runtime_id = image.next_runtime_id;
             self.state.next_worker_id = image.next_worker_id;
+            self.state.moment = image.moment;
             self.state.policy = image.policy.clone();
             self.state.topology = image.topology.clone();
 
