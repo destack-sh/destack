@@ -11,7 +11,7 @@ use crate::host::{HostError, core as host_core};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::RunnableId;
 use crate::runtime::time::ClockSource;
-use crate::world::trace::{EntropySubject, Trace};
+use crate::world::trace::{EntropySubject, TraceLog};
 use crate::world::{RuntimeId, WorldState};
 
 use super::{RunnableScope, WorkerId, binding_affinity_name};
@@ -97,7 +97,7 @@ impl BindingCall<'_> {
 
     /// Borrow the trace state.
     #[inline]
-    pub fn trace(&self) -> &Trace {
+    pub fn trace(&self) -> &TraceLog {
         &self.world().trace
     }
 

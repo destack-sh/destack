@@ -12,8 +12,8 @@ use destack_repository::{Environment, ExecutionMode};
 /// Current trace format version.
 pub const TRACE_FORMAT_VERSION: u32 = 1;
 
-/// Default maximum number of events in one trace chunk.
-pub const TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK: u32 = 1024;
+/// Default maximum number of entries in one trace chunk.
+pub const TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK: u32 = 1024;
 
 /// Default maximum byte length of one trace chunk.
 pub const TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES: u64 = 4 * 1024 * 1024;
@@ -39,8 +39,8 @@ pub struct TraceHeader {
     pub replay_payload: BindingReplayPayload,
     /// Hash of the binding table.
     pub binding_table_hash: u128,
-    /// Maximum number of events per chunk.
-    pub max_events_per_chunk: u32,
+    /// Maximum number of entries per chunk.
+    pub max_entries_per_chunk: u32,
     /// Maximum chunk size in bytes.
     pub max_chunk_size_bytes: u64,
     /// Runtime environment.
@@ -60,7 +60,7 @@ impl TraceHeader {
             branch_id: BranchId::new(0),
             replay_payload: BindingReplayPayload::Results,
             binding_table_hash: 0,
-            max_events_per_chunk: TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK,
+            max_entries_per_chunk: TRACE_DEFAULT_MAX_ENTRIES_PER_CHUNK,
             max_chunk_size_bytes: TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES,
             environment: environment.into(),
         }
@@ -72,8 +72,8 @@ impl TraceHeader {
 pub struct TraceChunkHeader {
     /// First sequence number in the chunk.
     pub sequence_start: TraceSequence,
-    /// Number of events stored in the chunk.
-    pub event_count: u32,
+    /// Number of entries stored in the chunk.
+    pub entry_count: u32,
 }
 
 /// Chunk metadata for random access.

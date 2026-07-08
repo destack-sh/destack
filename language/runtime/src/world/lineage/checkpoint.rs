@@ -51,12 +51,12 @@ impl World {
         let checkpoint_id = checkpoint.id;
         let revision = committed.0;
         let image = committed.2;
-        let sequence = self.state.trace.log().next_sequence();
+        let sequence = self.state.trace.store().next_sequence();
 
         let (size_bytes, hash) = World::image_size_and_hash(&image)?;
         self.state
             .trace
-            .log()
+            .store()
             .record_checkpoint_exact(TraceCheckpointIndex {
                 checkpoint_id,
                 revision_id: revision,

@@ -6,7 +6,6 @@ use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// Encoded trace error payload for deterministic trace.
-// NOTE #Performance #Cleanup: keep trace errors simple until the payload model settles
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TraceError {
@@ -52,7 +51,7 @@ pub enum TraceError {
     },
     /// Trace-exhausted runtime error payload.
     TraceExhausted {
-        /// Sequence number of the missing replay event.
+        /// Sequence number of the missing replay entry.
         sequence: u64,
     },
     /// Trace-mismatch runtime error payload.

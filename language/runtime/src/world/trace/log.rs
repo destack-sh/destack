@@ -1,544 +1,685 @@
-use std::sync::Arc;
-
-use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
+use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::world::BranchId;
+use crate::host::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
+use crate::runtime::time::Instant;
 use crate::world::trace::{
-    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
-    TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
+    BindingTrace, ClockTrace, EntropySubject, EntrypointCall, RandomTrace, Trace, TraceCursor,
+    TraceCursorImage, TraceEntry, TraceHeader, TraceSequence, TraceStore,
 };
+use crate::world::{BranchId, Mutation};
+use destack_repository::ExecutionMode;
+use parking_lot::Mutex;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
-use super::chunk::{TRACE_EVENT_LENGTH_BYTES, TraceChunk, TracePrefix};
-use super::file::{TraceFile, build_trailer};
+use super::file::TraceFile;
 
-/// Sequence number for events within a trace log.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct TraceSequence(u64);
+/// Trace channel name for entropy records.
+pub(super) const ENTROPY_CHANNEL: &str = "runtime.random.entropy";
 
-impl TraceSequence {
-    /// Create a new trace sequence number.
-    pub const fn new(value: u64) -> Self {
-        Self(value)
-    }
+/// Validation state for trace entry ordering.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub(crate) struct Validator {
+    /// The last observed monotonic timestamp.
+    last_monotonic_nanos: Option<u64>,
+}
 
-    /// Return the raw sequence number.
-    pub const fn get(self) -> u64 {
-        self.0
-    }
+impl Validator {
+    /// Validate one trace entry against ordering invariants.
+    fn validate(&mut self, entry: &TraceEntry) -> RuntimeResult<()> {
+        match &entry.trace {
+            Trace::Clock(ClockTrace::Advance(deadline)) => {
+                if let Some(last) = self.last_monotonic_nanos
+                    && deadline.get() < last
+                {
+                    return Err(RuntimeError::trace_mismatch("time".to_string()).boxed());
+                }
 
-    /// Return the next sequence number.
-    pub fn next(self) -> RuntimeResult<Self> {
-        let value = self.0.checked_add(1).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "trace sequence space exhausted".to_string(),
+                self.last_monotonic_nanos = Some(deadline.get());
             }
-            .boxed()
-        })?;
 
-        Ok(Self(value))
+            Trace::Clock(ClockTrace::ReadMonotonic { outcome, .. }) => {
+                if let Ok(time_nanos) = outcome {
+                    if let Some(last) = self.last_monotonic_nanos
+                        && *time_nanos < last
+                    {
+                        return Err(
+                            RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed()
+                        );
+                    }
+
+                    self.last_monotonic_nanos = Some(*time_nanos);
+                }
+            }
+
+            Trace::Random(RandomTrace::ReadBytes {
+                len,
+                outcome: Ok(bytes),
+                ..
+            }) => {
+                if bytes.len() != *len as usize {
+                    return Err(RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed());
+                }
+            }
+
+            _ => {}
+        }
+
+        Ok(())
     }
 }
 
-/// One mutable tail for a live trace log.
+/// Materialized trace state captured in one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct TraceTail {
-    /// The current mutable active chunk.
-    active: TraceChunk,
-    /// The completed local chunks not yet folded into shared lineage.
-    sealed: Vec<TraceChunk>,
+pub struct TraceImage {
+    /// The active trace execution mode.
+    mode: ExecutionMode,
+    /// The captured flat trace file.
+    file: TraceFile,
+    /// The captured reader cursor when replay mode is active.
+    cursor: Option<TraceCursorImage>,
+    /// The captured trace validator state.
+    validator: Validator,
 }
 
-impl TraceTail {
-    /// Create one empty tail at the given sequence.
-    fn new(sequence_start: TraceSequence) -> Self {
-        Self {
-            active: TraceChunk::new(sequence_start),
-            sealed: Vec::new(),
-        }
+impl TraceImage {
+    /// Return the captured trace header.
+    pub(crate) fn header(&self) -> TraceHeader {
+        self.file.header()
     }
 
-    /// Return the number of materialized tail chunks.
-    fn chunk_count(&self) -> usize {
-        let active_chunk_count = usize::from(!self.active.is_empty());
-
-        self.sealed.len() + active_chunk_count
-    }
-}
-
-/// One live trace-log state.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct TraceState {
-    /// Trace log header metadata.
-    header: TraceHeader,
-    /// Checkpoints anchored in this trace.
-    checkpoints: Vec<TraceCheckpointIndex>,
-    /// Next sequence number to assign.
-    next_sequence: TraceSequence,
-    /// Shared immutable trace prefix.
-    head: Option<Arc<TracePrefix>>,
-    /// Mutable local append frontier.
-    tail: TraceTail,
-}
-
-impl TraceState {
-    /// Return the active branch identifier.
-    pub(super) fn branch_id(&self) -> BranchId {
-        self.header.branch_id
-    }
-
-    /// Return the next trace sequence number.
-    pub(crate) fn next_sequence(&self) -> TraceSequence {
-        self.next_sequence
-    }
-
-    /// Return the number of shared immutable chunks.
-    pub(super) fn head_chunk_count(&self) -> usize {
-        self.head
-            .as_ref()
-            .map(|prefix| prefix.chunk_count as usize)
-            .unwrap_or(0)
-    }
-
-    /// Return the shared immutable trace head.
-    pub(super) fn head(&self) -> Option<&Arc<TracePrefix>> {
-        self.head.as_ref()
-    }
-
-    /// Return the sealed local tail chunks.
-    pub(super) fn sealed_tail(&self) -> &[TraceChunk] {
-        &self.tail.sealed
-    }
-
-    /// Return the active mutable chunk when it stores events.
-    pub(super) fn active_chunk(&self) -> Option<&TraceChunk> {
-        (!self.tail.active.is_empty()).then_some(&self.tail.active)
-    }
-
-    /// Return the total number of visible chunks.
-    pub(super) fn chunk_count(&self) -> usize {
-        self.head_chunk_count() + self.tail.chunk_count()
-    }
-
-    /// Finalize one non-empty active chunk into the local sealed tail.
-    fn seal_active_chunk(&mut self, next_sequence_start: TraceSequence) {
-        // skip sealing empty chunks
-        if self.tail.active.is_empty() {
-            self.tail.active = TraceChunk::new(next_sequence_start);
-            return;
-        }
-
-        let sealed_chunk =
-            std::mem::replace(&mut self.tail.active, TraceChunk::new(next_sequence_start));
-        self.tail.sealed.push(sealed_chunk);
-    }
-
-    /// Fold the local sealed tail into shared immutable lineage.
-    fn materialize_tail(&mut self) {
-        // keep the active chunk synchronized before materialization
-        self.seal_active_chunk(self.next_sequence);
-
-        // nothing to do when the local tail is already empty
-        if self.tail.sealed.is_empty() {
-            return;
-        }
-
-        let parent = self.head.clone();
-        let chunks = std::mem::take(&mut self.tail.sealed);
-        let prefix = Arc::new(TracePrefix::new(parent, chunks));
-
-        self.head = Some(prefix);
-        self.tail.active = TraceChunk::new(self.next_sequence);
-    }
-
-    /// Return the visible chunks in trace-file order.
-    fn chunks(&self) -> Vec<TraceChunk> {
-        let mut chunks = Vec::with_capacity(self.chunk_count());
-        collect_prefix_chunks(self.head.as_ref(), &mut chunks);
-        chunks.extend(self.tail.sealed.iter().cloned());
-
-        if let Some(active) = self.active_chunk() {
-            chunks.push(active.clone());
-        }
-
-        chunks
+    /// Return the next sequence number after this trace image.
+    pub(crate) fn next_sequence(&self) -> RuntimeResult<TraceSequence> {
+        self.file.next_sequence()
     }
 }
 
-/// Trace log for deterministic execution.
-#[derive(Debug, Clone)]
+/// Trace log for record and replay execution.
+#[derive(Debug)]
 pub struct TraceLog {
-    // NOTE #Incomplete: persist chunks to disk and stream across threads
-    /// Shared trace log state.
-    state: Arc<Mutex<TraceState>>,
+    /// Active execution mode.
+    mode: ExecutionMode,
+    /// Trace backing store.
+    store: TraceStore,
+    /// Trace cursor for log playback.
+    reader: Option<Mutex<TraceCursor>>,
+    /// Trace ordering validator.
+    validator: Mutex<Validator>,
+    /// Scratch buffer for trace payload encoding.
+    scratch: Mutex<Vec<u8>>,
 }
 
 impl TraceLog {
-    /// Create a trace log with an explicit header.
-    pub fn new(mut header: TraceHeader) -> Self {
-        // normalize chunk limits
-        if header.max_events_per_chunk == 0 {
-            header.max_events_per_chunk = TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK;
-        }
-        if header.max_chunk_size_bytes == 0 {
-            header.max_chunk_size_bytes = TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES;
-        }
-
-        let next_sequence = TraceSequence::new(0);
-
-        Self {
-            state: Arc::new(Mutex::new(TraceState {
-                header,
-                checkpoints: Vec::new(),
-                next_sequence,
-                head: None,
-                tail: TraceTail::new(next_sequence),
-            })),
-        }
+    /// Create trace state with an explicit execution mode.
+    pub fn new(mode: ExecutionMode, header: TraceHeader) -> Self {
+        Self::from_store(mode, TraceStore::new(header))
     }
 
-    /// Return the trace log header.
-    pub fn header(&self) -> TraceHeader {
-        let state = self.state.lock();
-
-        state.header.clone()
-    }
-
-    /// Return the trace log trailer.
-    pub fn trailer(&self) -> TraceTrailer {
-        let state = self.state.lock();
-        let chunks = state.chunks();
-
-        build_trailer(&chunks, state.checkpoints.clone())
-    }
-
-    /// Return the current branch identifier.
-    pub fn branch_id(&self) -> BranchId {
-        let state = self.state.lock();
-
-        state.header.branch_id
-    }
-
-    /// Set the current branch identifier on the trace header.
-    pub(crate) fn set_branch_id(&self, branch_id: BranchId) {
-        let mut state = self.state.lock();
-        state.header.branch_id = branch_id;
-    }
-
-    /// Create a trace cursor for this log.
-    pub fn reader(&self) -> TraceCursor {
-        TraceCursor::new(self.state.clone())
-    }
-
-    /// Return the next sequence number.
-    pub fn next_sequence(&self) -> TraceSequence {
-        let state = self.state.lock();
-
-        state.next_sequence
-    }
-
-    /// Capture one full trace file.
-    pub(super) fn file(&self) -> TraceFile {
-        let mut state = self.state.lock();
-
-        // materialize the current tail so captured images share immutable prefixes
-        state.materialize_tail();
-
-        TraceFile::new(
-            state.header.clone(),
-            state.chunks(),
-            state.checkpoints.clone(),
-        )
-    }
-
-    /// Restore one full trace file.
-    pub(super) fn restore_file(&self, file: TraceFile) -> RuntimeResult<()> {
-        file.validate()?;
-
-        let mut current = self.state.lock();
-        let next_sequence = file.next_sequence()?;
-        let (header, chunks, trailer) = file.into_parts();
-        let checkpoints = trailer.checkpoints;
-        let head = (!chunks.is_empty()).then(|| Arc::new(TracePrefix::new(None, chunks)));
-
-        // restore one fresh empty tail after the captured immutable lineage
-        let tail = TraceTail::new(next_sequence);
-
-        *current = TraceState {
-            header,
-            checkpoints,
-            next_sequence,
-            head,
-            tail,
+    /// Create trace state with one existing store and execution mode.
+    pub(crate) fn from_store(mode: ExecutionMode, store: TraceStore) -> Self {
+        let reader = match mode {
+            ExecutionMode::Replay => Some(Mutex::new(store.reader())),
+            _ => None,
         };
 
+        Self {
+            mode,
+            store,
+            reader,
+            validator: Mutex::new(Validator::default()),
+            scratch: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Return the active execution mode.
+    pub fn mode(&self) -> ExecutionMode {
+        self.mode
+    }
+
+    /// Return the backing trace store.
+    pub(crate) fn store(&self) -> &TraceStore {
+        &self.store
+    }
+
+    /// Set the current trace branch identifier.
+    pub(crate) fn set_branch_id(&self, branch_id: BranchId) {
+        self.store.set_branch_id(branch_id);
+    }
+
+    /// Capture one materialized trace image.
+    pub(crate) fn capture_image(&self) -> TraceImage {
+        let cursor = self
+            .reader
+            .as_ref()
+            .map(|reader| reader.lock().capture_image());
+        let validator = self.validator.lock().clone();
+
+        TraceImage {
+            mode: self.mode,
+            file: self.store.file(),
+            cursor,
+            validator,
+        }
+    }
+
+    /// Capture one trace image truncated to one exact sequence boundary.
+    pub(crate) fn capture_image_through(
+        &self,
+        sequence: TraceSequence,
+    ) -> RuntimeResult<TraceImage> {
+        if sequence == self.store.next_sequence() {
+            return Ok(self.capture_image());
+        }
+
+        if sequence.get() > self.store.next_sequence().get() {
+            return Err(RuntimeError::trace_mismatch("sequence".to_string()).boxed());
+        }
+
+        let header = self.store.header();
+        let replay_trace = TraceLog::from_store(ExecutionMode::Replay, self.store.clone());
+        let captured_trace = TraceLog::new(self.mode, header);
+        replay_trace.seek_sequence(TraceSequence::new(0))?;
+
+        while replay_trace.sequence()? != sequence {
+            let entry = replay_trace
+                .next_entry()?
+                .ok_or_else(|| RuntimeError::trace_exhausted(sequence.get()).boxed())?;
+            captured_trace.record(entry.trace)?;
+        }
+
+        Ok(captured_trace.capture_image())
+    }
+
+    /// Restore one materialized trace image.
+    pub(crate) fn restore_image(&self, image: &TraceImage) -> RuntimeResult<()> {
+        // require matching replay mode
+        if self.mode != image.mode {
+            return Err(RuntimeError::Internal {
+                message: "trace image mode does not match world execution mode".to_string(),
+            }
+            .boxed());
+        }
+
+        // restore the shared log image first
+        self.store.restore_file(image.file.clone())?;
+
+        // restore the reader cursor when replay is active
+        match (&self.reader, image.cursor) {
+            (Some(reader), Some(cursor_image)) => {
+                reader.lock().restore_image(cursor_image)?;
+            }
+            (None, None) => {}
+            _ => {
+                return Err(RuntimeError::Internal {
+                    message: "replay reader state does not match world replay mode".to_string(),
+                }
+                .boxed());
+            }
+        }
+
+        // restore validator state
+        let mut validator = self.validator.lock();
+        *validator = image.validator.clone();
+
         Ok(())
     }
 
-    /// Record one trace record in the log.
-    pub(crate) fn record_event(&self, event: TraceRecord) -> RuntimeResult<TraceSequence> {
-        // compute the encoded size before touching trace state
-        let encoded_len = destack_serde::encoded_len(&event)
-            .map_err(|_| RuntimeError::trace_encode_failed("event".to_string()).boxed())?
-            as u64;
-        if encoded_len > u32::MAX as u64 {
-            return Err(RuntimeError::trace_encode_failed("event".to_string()).boxed());
-        }
-        let record_len = encoded_len + TRACE_EVENT_LENGTH_BYTES as u64;
-
-        let mut state = self.state.lock();
-        let sequence = state.next_sequence;
-        let next_sequence = sequence.get().checked_add(1).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "trace sequence space exhausted".to_string(),
-            }
-            .boxed()
-        })?;
-        state.next_sequence = TraceSequence::new(next_sequence);
-
-        // rotate the active chunk before appending when it is full
-        let is_rotation_required = !state.tail.active.is_empty()
-            && state.tail.active.should_rotate_for_event(
-                record_len,
-                state.header.max_events_per_chunk as usize,
-                state.header.max_chunk_size_bytes,
-            );
-        if is_rotation_required {
-            state.seal_active_chunk(sequence);
-        }
-
-        // append the encoded event to the active chunk
-        let chunk = &mut state.tail.active;
-        let start = chunk.bytes.len();
-        let payload_start = start + TRACE_EVENT_LENGTH_BYTES;
-        let end = start + record_len as usize;
-        chunk.bytes.resize(end, 0);
-        chunk.bytes[start..payload_start].copy_from_slice(&(encoded_len as u32).to_le_bytes());
-        let encoded_len = destack_serde::to_slice(&event, &mut chunk.bytes[payload_start..end])
-            .map_err(|_| RuntimeError::trace_encode_failed("event".to_string()).boxed())?
-            .len();
-        let encoded_end = payload_start + encoded_len;
-
-        chunk.bytes.truncate(encoded_end);
-        chunk.header.event_count = chunk.header.event_count.checked_add(1).ok_or_else(|| {
-            RuntimeError::Internal {
-                message: "trace chunk event count space exhausted".to_string(),
-            }
-            .boxed()
-        })?;
-
-        Ok(sequence)
+    /// Return one trace mismatch error for one entry name.
+    fn trace_mismatch_error(name: &str) -> Box<RuntimeError> {
+        RuntimeError::trace_mismatch(name.to_string()).boxed()
     }
 
-    /// Record a checkpoint index entry.
-    pub fn record_checkpoint(&self, mut checkpoint: TraceCheckpointIndex) -> RuntimeResult<()> {
-        // align the checkpoint with the next trace sequence
-        let sequence = self.next_sequence();
-        checkpoint.sequence = sequence;
+    /// Require replay execution mode for one entry name.
+    fn ensure_replay_mode(&self, name: &str) -> RuntimeResult<()> {
+        if self.mode() == ExecutionMode::Replay {
+            return Ok(());
+        }
 
-        self.record_checkpoint_exact(checkpoint)
+        Err(Self::trace_mismatch_error(name))
     }
 
-    /// Record a checkpoint index entry with an explicit sequence boundary.
-    pub fn record_checkpoint_exact(&self, checkpoint: TraceCheckpointIndex) -> RuntimeResult<()> {
-        let sequence = checkpoint.sequence.get();
+    /// Read one required entry from replay for one entry name.
+    fn next_required_entry(&self, name: &str) -> RuntimeResult<TraceEntry> {
+        self.ensure_replay_mode(name)?;
 
-        // append the checkpoint entry in sequence order
-        let mut state = self.state.lock();
-        let insert_index = state
-            .checkpoints
-            .partition_point(|entry| entry.sequence.get() <= sequence);
-        state.checkpoints.insert(insert_index, checkpoint);
+        let Some(entry) = self.next_entry()? else {
+            let sequence = self.store.next_sequence().get();
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
+        };
+
+        Ok(entry)
+    }
+
+    /// Resolve one requested payload policy for a binding descriptor.
+    pub fn payload_policy_for_requested(
+        &self,
+        spec: BindingDescriptor,
+        requested: BindingReplayPayload,
+    ) -> RuntimeResult<BindingReplayPayload> {
+        let supported = spec.replay_payload();
+
+        if requested == BindingReplayPayload::ArgumentsAndResults
+            && supported == BindingReplayPayload::Results
+        {
+            return Err(RuntimeError::trace_payload_unsupported(spec.name.to_string()).boxed());
+        }
+
+        match requested {
+            BindingReplayPayload::Results => Ok(BindingReplayPayload::Results),
+            BindingReplayPayload::ArgumentsAndResults => Ok(supported),
+        }
+    }
+
+    /// Record one trace payload when recording is enabled.
+    pub(crate) fn record(&self, trace: Trace) -> RuntimeResult<()> {
+        // skip recording when disabled
+        if self.mode() != ExecutionMode::Record {
+            return Ok(());
+        }
+
+        // record the payload in the store
+        self.store.record(trace)?;
+        Ok(())
+    }
+
+    /// Record one authoritative trace mutation.
+    pub(crate) fn record_mutation(&self, mutation: Mutation) -> RuntimeResult<()> {
+        self.record(Trace::Mutation(mutation))
+    }
+
+    /// Record one authoritative entrypoint call.
+    pub(crate) fn record_entrypoint(&self, invocation: EntrypointCall) -> RuntimeResult<()> {
+        self.record(Trace::Entrypoint(invocation))
+    }
+
+    /// Return one trace mismatch error for the entropy channel.
+    pub(crate) fn entropy_mismatch_error(&self) -> Box<RuntimeError> {
+        RuntimeError::trace_mismatch(ENTROPY_CHANNEL.to_string()).boxed()
+    }
+
+    /// Read and validate one clock trace from replay.
+    pub(crate) fn next_clock_trace(&self) -> RuntimeResult<ClockTrace> {
+        if self.mode() != ExecutionMode::Replay {
+            return Err(self.entropy_mismatch_error());
+        }
+
+        let Some(entry) = self.next_entry()? else {
+            let sequence = self.store.next_sequence().get();
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
+        };
+
+        let Trace::Clock(trace) = entry.trace else {
+            return Err(self.entropy_mismatch_error());
+        };
+
+        Ok(trace)
+    }
+
+    /// Read and validate one random trace from replay.
+    pub(crate) fn next_random_trace(
+        &self,
+        expected_subject: EntropySubject,
+    ) -> RuntimeResult<RandomTrace> {
+        if self.mode() != ExecutionMode::Replay {
+            return Err(self.entropy_mismatch_error());
+        }
+
+        let Some(entry) = self.next_entry()? else {
+            let sequence = self.store.next_sequence().get();
+            return Err(RuntimeError::trace_exhausted(sequence).boxed());
+        };
+
+        let Trace::Random(trace) = entry.trace else {
+            return Err(self.entropy_mismatch_error());
+        };
+
+        if trace.subject() != expected_subject {
+            return Err(self.entropy_mismatch_error());
+        }
+
+        Ok(trace)
+    }
+
+    /// Read the next entry when replay is enabled.
+    pub(crate) fn next_entry(&self) -> RuntimeResult<Option<TraceEntry>> {
+        // skip replay when disabled
+        if self.mode() != ExecutionMode::Replay {
+            return Ok(None);
+        }
+
+        // fetch the next entry from the reader
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
+        let Some(entry) = reader.lock().next_entry()? else {
+            return Ok(None);
+        };
+
+        let mut validator = self.validator.lock();
+        validator.validate(&entry)?;
+
+        Ok(Some(entry))
+    }
+
+    /// Return the next trace sequence for the active reader cursor.
+    pub fn sequence(&self) -> RuntimeResult<TraceSequence> {
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
+
+        Ok(reader.lock().sequence())
+    }
+
+    /// Seek the active reader cursor to one sequence boundary.
+    pub fn seek_sequence(&self, sequence: TraceSequence) -> RuntimeResult<()> {
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
+
+        reader.lock().seek_sequence(sequence)
+    }
+
+    /// Record a binding call payload for replay.
+    pub fn record_binding_call(&self, spec: BindingDescriptor, bytes: &[u8]) -> RuntimeResult<()> {
+        self.record(Trace::Binding(BindingTrace {
+            binding_id: spec.id,
+            codec: spec.codec,
+            bytes: bytes.to_vec(),
+        }))
+    }
+
+    /// Read the next binding call payload for replay.
+    pub fn next_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingTrace> {
+        // read the next entry from the log
+        let entry = self.next_required_entry(spec.name)?;
+
+        // validate the binding entry shape
+        let Trace::Binding(call) = entry.trace else {
+            return Err(Self::trace_mismatch_error(spec.name));
+        };
+
+        // validate binding id
+        if call.binding_id != spec.id {
+            return Err(Self::trace_mismatch_error(spec.name));
+        }
+
+        // validate codec id
+        if call.codec != spec.codec {
+            return Err(Self::trace_mismatch_error(spec.name));
+        }
+
+        Ok(call)
+    }
+
+    /// Record one virtual-time advance outcome.
+    pub fn record_time_advance(&self, deadline: Instant) -> RuntimeResult<()> {
+        self.record(Trace::Clock(ClockTrace::Advance(deadline)))
+    }
+
+    /// Read the next virtual-time advance outcome from replay.
+    pub fn next_time_advance(&self) -> RuntimeResult<Instant> {
+        let entry = self.next_required_entry("time")?;
+        let Trace::Clock(ClockTrace::Advance(deadline)) = entry.trace else {
+            return Err(Self::trace_mismatch_error("time"));
+        };
+        Ok(deadline)
+    }
+
+    /// Resolve one requested virtual-time advance under the active replay mode.
+    pub fn resolve_time_advance(&self, requested_deadline: Instant) -> RuntimeResult<Instant> {
+        match self.mode() {
+            // fast, strict, and record use the requested deadline
+            ExecutionMode::Fast | ExecutionMode::Strict | ExecutionMode::Record => {
+                Ok(requested_deadline)
+            }
+
+            // replay requires the next recorded outcome to match
+            ExecutionMode::Replay => {
+                let deadline = self.next_time_advance()?;
+                if deadline != requested_deadline {
+                    return Err(Self::trace_mismatch_error("time"));
+                }
+
+                Ok(deadline)
+            }
+        }
+    }
+
+    /// Read the next mutation from replay.
+    pub(crate) fn next_mutation(&self) -> RuntimeResult<Mutation> {
+        // read the next entry from the log
+        let entry = self.next_required_entry("world")?;
+
+        // validate the world input entry shape
+        let Trace::Mutation(mutation) = entry.trace else {
+            return Err(Self::trace_mismatch_error("world"));
+        };
+
+        Ok(mutation)
+    }
+
+    /// Resolve one mutation under the active replay mode.
+    pub(crate) fn resolve_mutation(&self, requested_mutation: Mutation) -> RuntimeResult<Mutation> {
+        match self.mode() {
+            // fast execution applies the requested mutation directly
+            ExecutionMode::Fast => Ok(requested_mutation),
+            // replay execution aligns the requested mutation with the replay log
+            ExecutionMode::Replay => {
+                let replayed_mutation = self.next_mutation()?;
+                if replayed_mutation != requested_mutation {
+                    return Err(Self::trace_mismatch_error("world"));
+                }
+
+                Ok(replayed_mutation)
+            }
+            // strict and record modes keep local mutation behavior
+            ExecutionMode::Strict | ExecutionMode::Record => Ok(requested_mutation),
+        }
+    }
+
+    /// Read the next entrypoint call from replay.
+    pub(crate) fn next_entrypoint(&self) -> RuntimeResult<EntrypointCall> {
+        let entry = self.next_required_entry("entrypoint")?;
+        let Trace::Entrypoint(invocation) = entry.trace else {
+            return Err(Self::trace_mismatch_error("entrypoint"));
+        };
+
+        Ok(invocation)
+    }
+
+    /// Resolve one entrypoint call under the active replay mode.
+    pub(crate) fn resolve_entrypoint(
+        &self,
+        requested_invocation: EntrypointCall,
+    ) -> RuntimeResult<EntrypointCall> {
+        match self.mode() {
+            ExecutionMode::Fast => Ok(requested_invocation),
+            ExecutionMode::Replay => {
+                let replayed_invocation = self.next_entrypoint()?;
+                if replayed_invocation != requested_invocation {
+                    return Err(Self::trace_mismatch_error("entrypoint"));
+                }
+
+                Ok(replayed_invocation)
+            }
+            ExecutionMode::Strict | ExecutionMode::Record => Ok(requested_invocation),
+        }
+    }
+
+    /// Restore one captured trace log into one replay trace and reset the reader.
+    pub(crate) fn restore_replay_image(&self, image: &TraceImage) -> RuntimeResult<()> {
+        if self.mode() != ExecutionMode::Replay {
+            return Err(RuntimeError::Internal {
+                message: "trace replay restore requires replay execution mode".to_string(),
+            }
+            .boxed());
+        }
+
+        self.store.restore_file(image.file.clone())?;
+        self.seek_sequence(TraceSequence::new(0))?;
+
+        let mut validator = self.validator.lock();
+        *validator = image.validator.clone();
 
         Ok(())
     }
+
+    /// Record a typed trace payload for a binding.
+    pub fn record_binding_payload<T: Serialize>(
+        &self,
+        spec: BindingDescriptor,
+        payload: &T,
+    ) -> RuntimeResult<()> {
+        // skip recording when disabled
+        if self.mode() != ExecutionMode::Record {
+            return Ok(());
+        }
+
+        // encode the payload with the configured codec
+        let payload_size = destack_serde::encoded_len(payload)
+            .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
+        let mut scratch = self.scratch.lock();
+        scratch.resize(payload_size, 0);
+        let payload_bytes = destack_serde::to_slice(payload, &mut scratch)
+            .map_err(|_| RuntimeError::trace_encode_failed(spec.name.to_string()).boxed())?;
+
+        // record the encoded payload
+        self.record_binding_call(spec, payload_bytes)
+    }
+
+    /// Decode the next typed binding payload for replay.
+    pub fn read_binding_payload<T: DeserializeOwned>(
+        &self,
+        spec: BindingDescriptor,
+    ) -> RuntimeResult<T> {
+        // read the next binding call payload
+        let call = self.next_binding_call(spec)?;
+
+        // decode the payload bytes
+        let payload = destack_serde::from_slice(&call.bytes)
+            .map_err(|_| RuntimeError::trace_decode_failed(spec.name.to_string()).boxed())?;
+        Ok(payload)
+    }
+
+    /// Run a binding with replay handling against one mutable context.
+    #[inline]
+    pub fn run_binding<Payload, Value, Context, Call, Encode, Decode>(
+        &self,
+        spec: BindingDescriptor,
+        requested_payload: BindingReplayPayload,
+        context: &mut Context,
+        call: Call,
+        encode: Encode,
+        decode: Decode,
+    ) -> RuntimeResult<Value>
+    where
+        Payload: Serialize + DeserializeOwned,
+        Call: FnOnce(&mut Context) -> RuntimeResult<Value>,
+        Encode: FnOnce(&mut Context, &RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
+        Decode: FnOnce(&mut Context, Payload) -> RuntimeResult<Value>,
+    {
+        if spec.replay_kind != BindingReplayKind::BindingCall {
+            return Err(RuntimeError::trace_mismatch(spec.name.to_string()).boxed());
+        }
+
+        let mode = self.mode();
+
+        match mode {
+            // fast execution bypasses replay state entirely
+            ExecutionMode::Fast => call(context),
+            // replay execution decodes the next recorded payload
+            ExecutionMode::Replay => {
+                let payload = self.read_binding_payload(spec)?;
+                decode(context, payload)
+            }
+            // strict mode validates payload policy, then runs without recording
+            ExecutionMode::Strict => {
+                self.payload_policy_for_requested(spec, requested_payload)?;
+                call(context)
+            }
+
+            // record mode validates payload policy, executes, then stores payload
+            ExecutionMode::Record => {
+                self.payload_policy_for_requested(spec, requested_payload)?;
+                let result = call(context);
+
+                let payload = encode(context, &result)?;
+                if let Some(payload) = payload {
+                    self.record_binding_payload(spec, &payload)?;
+                }
+
+                result
+            }
+        }
+    }
+
+    /// Run a binding with replay handling and no explicit mutable context.
+    #[inline]
+    pub fn run_binding_without_context<Payload, Value, Call, Encode, Decode>(
+        &self,
+        spec: BindingDescriptor,
+        requested_payload: BindingReplayPayload,
+        call: Call,
+        encode: Encode,
+        decode: Decode,
+    ) -> RuntimeResult<Value>
+    where
+        Payload: Serialize + DeserializeOwned,
+        Call: FnOnce() -> RuntimeResult<Value>,
+        Encode: FnOnce(&RuntimeResult<Value>) -> RuntimeResult<Option<Payload>>,
+        Decode: FnOnce(Payload) -> RuntimeResult<Value>,
+    {
+        let mut context = ();
+        self.run_binding(
+            spec,
+            requested_payload,
+            &mut context,
+            move |_| call(),
+            move |_, result| encode(result),
+            move |_, payload| decode(payload),
+        )
+    }
 }
 
-/// Collect prefix chunks from oldest to newest.
-fn collect_prefix_chunks(head: Option<&Arc<TracePrefix>>, chunks: &mut Vec<TraceChunk>) {
-    let mut prefixes = Vec::new();
-    let mut current = head.cloned();
-    while let Some(prefix) = current {
-        current = prefix.parent.clone();
-        prefixes.push(prefix);
+impl Capture for TraceLog {
+    type Image = TraceImage;
+    type Error = Box<RuntimeError>;
+    type CaptureContext<'a> = ();
+    type RestoreContext<'a> = ();
+
+    /// Capture one trace image.
+    fn capture_image(
+        &mut self,
+        _mode: CaptureMode,
+        _context: Self::CaptureContext<'_>,
+    ) -> Result<Self::Image, Self::Error> {
+        Ok(TraceLog::capture_image(self))
     }
 
-    prefixes.reverse();
-    for prefix in prefixes {
-        chunks.extend(prefix.chunks.iter().cloned());
+    /// Restore one trace image.
+    fn restore_image(
+        &mut self,
+        image: &Self::Image,
+        _context: Self::RestoreContext<'_>,
+    ) -> Result<(), Self::Error> {
+        TraceLog::restore_image(self, image)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
+impl SnapshotCodec for TraceLog {
+    type Snapshot = TraceImage;
 
-    use super::*;
-    use crate::runtime::time::Instant;
-    use crate::world::trace::{Outcome, TraceRecord};
-    use crate::world::{CheckpointId, RevisionId};
-    use destack_repository::Environment;
-
-    /// Build one explicit trace header for log tests.
-    fn test_trace_header() -> TraceHeader {
-        TraceHeader::new(Environment::default())
+    /// Encode one trace image as one trace snapshot.
+    fn encode_snapshot(image: &Self::Image) -> Result<Self::Snapshot, Self::Error> {
+        Ok(image.clone())
     }
 
-    /// Capture one trace image should materialize the local tail into shared lineage.
-    #[test]
-    fn test_image_materializes_shared_lineage() {
-        let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
-            .expect("record tick");
-
-        let file = log.file();
-        let state = log.state.lock();
-
-        assert_eq!(file.chunks.len(), 1);
-        assert_eq!(state.head_chunk_count(), 1);
-        assert!(state.tail.active.is_empty());
-        assert!(state.tail.sealed.is_empty());
-    }
-
-    /// Appending after one captured trace image should keep the shared head stable.
-    #[test]
-    fn test_record_after_image_keeps_shared_head() {
-        let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
-            .expect("record first tick");
-        log.file();
-        let head = log.state.lock().head.clone().expect("state head");
-
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
-            .expect("record second tick");
-
-        let state = log.state.lock();
-        assert!(Arc::ptr_eq(state.head.as_ref().expect("state head"), &head));
-        assert_eq!(state.tail.active.header.event_count, 1);
-        assert_eq!(
-            state.tail.active.header.sequence_start,
-            TraceSequence::new(1)
-        );
-    }
-
-    /// Recording one checkpoint with an explicit sequence should preserve checkpoint order.
-    #[test]
-    fn test_record_checkpoint_exact_orders_by_sequence() {
-        let log = TraceLog::new(test_trace_header());
-
-        log.record_checkpoint_exact(TraceCheckpointIndex {
-            checkpoint_id: CheckpointId::new(2),
-            revision_id: RevisionId::new(2),
-            sequence: TraceSequence::new(5),
-            path: "memory://checkpoint/2".to_string(),
-            hash: 22,
-            size_bytes: 2,
-        })
-        .expect("record later checkpoint");
-        log.record_checkpoint_exact(TraceCheckpointIndex {
-            checkpoint_id: CheckpointId::new(1),
-            revision_id: RevisionId::new(1),
-            sequence: TraceSequence::new(3),
-            path: "memory://checkpoint/1".to_string(),
-            hash: 11,
-            size_bytes: 1,
-        })
-        .expect("record earlier checkpoint");
-
-        let trailer = log.trailer();
-        let sequences = trailer
-            .checkpoints
-            .iter()
-            .map(|checkpoint| checkpoint.sequence.get())
-            .collect::<Vec<_>>();
-
-        assert_eq!(sequences, vec![3, 5]);
-    }
-
-    /// Restoring one captured trace image should keep existing cursors usable.
-    #[test]
-    fn test_restore_image_keeps_cursor_validation_consistent() {
-        let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
-            .expect("record first tick");
-        let mut cursor = log.reader();
-        let cursor_image = cursor.capture_image();
-        let file = log.file();
-
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
-            .expect("record second tick");
-        log.restore_file(file).expect("restore file");
-        cursor.restore_image(cursor_image).expect("restore cursor");
-
-        let event = cursor.next_event().expect("read restored event");
-        match event {
-            Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
-                assert_eq!(deadline, Instant::new(1));
-            }
-            other => panic!("unexpected restored event: {other:?}"),
-        }
-
-        assert!(
-            cursor
-                .next_event()
-                .expect("read end of restored log")
-                .is_none()
-        );
-    }
-
-    /// Appending after restore should keep cursor validation consistent.
-    #[test]
-    fn test_record_after_restore_keeps_cursor_validation_consistent() {
-        let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
-            .expect("record first tick");
-        let file = log.file();
-
-        log.restore_file(file).expect("restore file");
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
-            .expect("record second tick");
-        let mut cursor = log.reader();
-
-        let first = cursor.next_event().expect("read first event");
-        match first {
-            Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
-                assert_eq!(deadline, Instant::new(1));
-            }
-            other => panic!("unexpected first event: {other:?}"),
-        }
-
-        let second = cursor.next_event().expect("read second event");
-        match second {
-            Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
-                assert_eq!(deadline, Instant::new(2));
-            }
-            other => panic!("unexpected second event: {other:?}"),
-        }
-    }
-
-    /// Seeking one cursor should reposition it at the requested sequence boundary.
-    #[test]
-    fn test_cursor_seek_sequence_repositions_reader() {
-        let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
-            .expect("record first tick");
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
-            .expect("record second tick");
-
-        let mut cursor = log.reader();
-        cursor
-            .seek_sequence(TraceSequence::new(1))
-            .expect("seek cursor");
-
-        let event = cursor.next_event().expect("read sought event");
-        match event {
-            Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
-                assert_eq!(deadline, Instant::new(2));
-            }
-            other => panic!("unexpected sought event: {other:?}"),
-        }
-
-        assert_eq!(cursor.sequence(), TraceSequence::new(2));
+    /// Decode one trace snapshot back into one trace image.
+    fn decode_snapshot(snapshot: &Self::Snapshot) -> Result<Self::Image, Self::Error> {
+        Ok(snapshot.clone())
     }
 }
