@@ -25,7 +25,7 @@ use crate::runtime::machine::{
 use crate::runtime::scheduler::{Readiness, Runnable, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::runtime::{
-    BindingCall, RuntimeHeap, Worker, WorkerId, WorkerOptions, World, WorldState,
+    BindingCall, RuntimeHeap, Worker, WorkerId, WorkerOptions, WorkerRunOutcome, World, WorldState,
     current_runnable_scope,
 };
 use crate::world::{Moment, Run, RunOutcome, RuntimeId};
@@ -373,8 +373,9 @@ impl TestRuntime {
 
     /// Tick once and fail loudly on runtime errors.
     pub(crate) fn tick(&mut self) -> bool {
-        self.worker
-            .tick(
+        let outcome = self
+            .worker
+            .run_task(
                 &mut self.world.state,
                 &self.heap,
                 &mut self.shared_static,
@@ -382,7 +383,9 @@ impl TestRuntime {
                 self.world.host.as_ref(),
                 &self.world.host_queue,
             )
-            .expect("tick should execute runtime work")
+            .expect("tick should execute runtime work");
+
+        matches!(outcome, WorkerRunOutcome::Progressed { .. })
     }
 
     /// Tick until idle and fail loudly on runtime errors.

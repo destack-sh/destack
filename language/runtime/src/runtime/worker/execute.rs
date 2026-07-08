@@ -1,6 +1,9 @@
 use std::ptr::NonNull;
 
-use super::{BindingCall, RunnableScope, Worker, current_runnable_scope, enter_runnable_scope};
+use super::{
+    BindingCall, RunnableProgress, RunnableScope, Worker, current_runnable_scope,
+    enter_runnable_scope,
+};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
 use crate::host::core::{HostQueue, poll_host_events};
@@ -20,7 +23,10 @@ const DEFAULT_MAX_MICROTASK_DEPTH: usize = usize::MAX;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WorkerRunOutcome {
     /// One task or microtask made progress.
-    Progressed,
+    Progressed {
+        /// Work that made progress.
+        progress: RunnableProgress,
+    },
     /// No work was runnable.
     Idle,
     /// Execution stopped at one runtime stop point.
@@ -209,43 +215,6 @@ impl Worker {
         }
     }
 
-    /// Execute one local worker tick.
-    pub(crate) fn tick(
-        &mut self,
-        world: &mut WorldState,
-        shared: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
-        host: &dyn Host,
-        host_queue: &HostQueue,
-    ) -> RuntimeResult<bool> {
-        self.reject_stopped_execution()?;
-
-        // run one event loop tick and capture progress
-        let (progressed, _) = self.tick_loop(
-            world,
-            shared,
-            shared_static,
-            constant_space,
-            host,
-            host_queue,
-            None,
-        )?;
-        let mut progressed = progressed;
-
-        // direct roots: worker execution may reshuffle shared roots
-        if progressed && shared.is_marking() {
-            shared.queue_root_scan(self.id);
-        }
-
-        // run one explicit GC safepoint after the ordinary tick
-        if self.collect_at_safepoint(shared, !progressed)? {
-            progressed = true;
-        }
-
-        Ok(progressed)
-    }
-
     /// Run one pending microtask.
     pub(crate) fn run_microtask(
         &mut self,
@@ -363,6 +332,11 @@ impl Worker {
         }
 
         Ok(progressed)
+    }
+
+    /// Run cooperative GC work at one idle worker safepoint.
+    pub(crate) fn run_safepoint(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
+        self.collect_at_safepoint(shared, true)
     }
 
     /// Run one GC safepoint step with shared heap work first.
@@ -869,11 +843,11 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
     ) -> RuntimeResult<WorkerRunOutcome> {
-        let mut progressed = false;
+        let mut num_drained_microtasks = 0usize;
 
         // drain microtasks until one stop point or queue exhaustion
         while let Some(microtask) = self.event_loop.pop_microtask() {
-            match self.run_dequeued_microtask(
+            let outcome = self.run_dequeued_microtask(
                 world,
                 shared,
                 shared_static,
@@ -882,8 +856,17 @@ impl Worker {
                 host_queue,
                 microtask,
                 DEFAULT_MAX_MICROTASK_DEPTH,
-            )? {
-                WorkerRunOutcome::Progressed => progressed = true,
+            )?;
+            match outcome {
+                WorkerRunOutcome::Progressed { .. } => {
+                    num_drained_microtasks =
+                        num_drained_microtasks.checked_add(1).ok_or_else(|| {
+                            RuntimeError::Internal {
+                                message: "microtask drain counter space exhausted".to_string(),
+                            }
+                            .boxed()
+                        })?;
+                }
                 stopped @ (WorkerRunOutcome::Stopped { .. } | WorkerRunOutcome::Paused { .. }) => {
                     return Ok(stopped);
                 }
@@ -891,8 +874,10 @@ impl Worker {
             }
         }
 
-        if progressed {
-            Ok(WorkerRunOutcome::Progressed)
+        if num_drained_microtasks > 0 {
+            Ok(WorkerRunOutcome::Progressed {
+                progress: RunnableProgress::microtasks(num_drained_microtasks),
+            })
         } else {
             Ok(WorkerRunOutcome::Idle)
         }
@@ -933,7 +918,16 @@ impl Worker {
         outcome: Outcome<Continuation>,
     ) -> RuntimeResult<WorkerRunOutcome> {
         match outcome {
-            Outcome::Completed { .. } => Ok(WorkerRunOutcome::Progressed),
+            Outcome::Completed { .. } => {
+                let Some(progress) = scope.progress() else {
+                    return Err(RuntimeError::Internal {
+                        message: "runnable completed without an active runnable scope".to_string(),
+                    }
+                    .boxed());
+                };
+
+                Ok(WorkerRunOutcome::Progressed { progress })
+            }
             Outcome::Yielded {
                 continuation,
                 value,
@@ -947,7 +941,14 @@ impl Worker {
 
                 self.enqueue_task(id, continuation, value)?;
 
-                Ok(WorkerRunOutcome::Progressed)
+                let Some(progress) = scope.progress() else {
+                    return Err(RuntimeError::Internal {
+                        message: "runnable yielded without an active runnable scope".to_string(),
+                    }
+                    .boxed());
+                };
+
+                Ok(WorkerRunOutcome::Progressed { progress })
             }
             Outcome::Stopped {
                 continuation,
@@ -1056,7 +1057,7 @@ impl Worker {
             shared.queue_root_scan(self.id);
         }
 
-        if outcome == WorkerRunOutcome::Progressed {
+        if matches!(outcome, WorkerRunOutcome::Progressed { .. }) {
             self.collect_at_safepoint(shared, false)?;
         }
 
