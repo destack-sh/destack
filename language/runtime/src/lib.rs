@@ -6,3 +6,6 @@ pub mod host;
 pub mod launch;
 pub mod runtime;
 pub mod world;
+
+#[cfg(test)]
+pub(crate) mod tests;
