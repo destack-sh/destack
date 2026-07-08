@@ -9,7 +9,7 @@ use crate::host::time::TimerClock;
 use crate::runtime::scheduler::{ScheduledTimer, TimerWake, Wake};
 use crate::runtime::time::{ClockSource, Instant};
 use crate::runtime::{RunnableProgress, RuntimeRunOutcome, WorkerId};
-use crate::world::observation::{Observation, ObservationCategory, ObservationScope};
+use crate::world::observation::Observation;
 
 use super::{Moment, RuntimeId, WorkerWake, World, WorldState};
 
@@ -77,6 +77,53 @@ impl RunOutcome {
             self,
             Self::Progressed | Self::AdvancedTime | Self::Stopped { .. }
         )
+    }
+}
+
+impl RunStep {
+    /// Return the scheduler observation for one progressed runnable.
+    const fn observation(
+        self,
+        runtime_id: RuntimeId,
+        worker_id: WorkerId,
+        progress: RunnableProgress,
+    ) -> Observation {
+        match (self, progress) {
+            (Self::Continue, RunnableProgress::Task { task_id }) => Observation::TaskContinued {
+                runtime_id,
+                worker_id,
+                task_id,
+            },
+            (
+                Self::Continue,
+                RunnableProgress::Microtask {
+                    microtask_id,
+                    depth,
+                },
+            ) => Observation::MicrotaskContinued {
+                runtime_id,
+                worker_id,
+                microtask_id,
+                depth,
+            },
+            (_, RunnableProgress::Task { task_id }) => Observation::TaskRan {
+                runtime_id,
+                worker_id,
+                task_id,
+            },
+            (
+                _,
+                RunnableProgress::Microtask {
+                    microtask_id,
+                    depth,
+                },
+            ) => Observation::MicrotaskRan {
+                runtime_id,
+                worker_id,
+                microtask_id,
+                depth,
+            },
+        }
     }
 }
 
@@ -204,11 +251,9 @@ impl World {
         for (runtime_id, runtime) in &mut self.runtimes {
             if runtime.tick_shared_gc()? {
                 world.advance_moment()?;
-                world.observe(Observation::new(
-                    ObservationCategory::Scheduler,
-                    ObservationScope::runtime(*runtime_id),
-                    "runtime.gc.shared.progressed",
-                ))?;
+                world.observe(Observation::SharedGcProgressed {
+                    runtime_id: *runtime_id,
+                })?;
 
                 return Ok(RunOutcome::Progressed);
             }
@@ -218,11 +263,10 @@ impl World {
         for (runtime_id, runtime) in &mut self.runtimes {
             if let Some(worker_id) = runtime.run_safepoint()? {
                 world.advance_moment()?;
-                world.observe(Observation::new(
-                    ObservationCategory::Scheduler,
-                    ObservationScope::worker(Some(*runtime_id), worker_id),
-                    "runtime.safepoint.ran",
-                ))?;
+                world.observe(Observation::SafepointRan {
+                    runtime_id: *runtime_id,
+                    worker_id,
+                })?;
 
                 return Ok(RunOutcome::Progressed);
             }
@@ -231,15 +275,10 @@ impl World {
         // ingress without immediate worker execution still advanced scheduler state
         if ingress_progressed {
             world.advance_moment()?;
-            world.observe(
-                Observation::new(
-                    ObservationCategory::Scheduler,
-                    ObservationScope::world(),
-                    "runtime.ingress.delivered",
-                )
-                .label("host_events", host_events.len().to_string())
-                .label("poller_events", poller_events.len().to_string()),
-            )?;
+            world.observe(Observation::IngressDelivered {
+                host_events: host_events.len(),
+                poller_events: poller_events.len(),
+            })?;
 
             return Ok(RunOutcome::Progressed);
         }
@@ -311,14 +350,7 @@ impl World {
         let deadline = self.state.clock.advance_runtime_to(deadline)?;
         self.state.trace.record_time_advance(deadline)?;
         self.state.advance_moment()?;
-        self.state.observe(
-            Observation::new(
-                ObservationCategory::Scheduler,
-                ObservationScope::world(),
-                "runtime.time.advanced",
-            )
-            .label("deadline_ns", deadline.get().to_string()),
-        )?;
+        self.state.observe(Observation::TimeAdvanced { deadline })?;
 
         Ok(deadline)
     }
@@ -363,52 +395,7 @@ impl WorldState {
                 progress,
             } => {
                 self.advance_moment()?;
-                let scope = ObservationScope::worker(Some(runtime_id), worker_id);
-                let observation = match (step, progress) {
-                    (RunStep::Continue, RunnableProgress::Task { task_id }) => Observation::new(
-                        ObservationCategory::Scheduler,
-                        scope,
-                        "runtime.stop.continued",
-                    )
-                    .label("task_id", task_id.get().to_string()),
-                    (
-                        RunStep::Continue,
-                        RunnableProgress::Microtask {
-                            microtask_id,
-                            depth,
-                        },
-                    ) => Observation::new(
-                        ObservationCategory::Scheduler,
-                        scope,
-                        "runtime.stop.continued",
-                    )
-                    .label("microtask_id", microtask_id.get().to_string())
-                    .label("microtask_depth", depth.to_string()),
-                    (_, RunnableProgress::Task { task_id }) => {
-                        Observation::new(ObservationCategory::Scheduler, scope, "runtime.task.ran")
-                            .label("task_id", task_id.get().to_string())
-                    }
-                    (
-                        _,
-                        RunnableProgress::Microtask {
-                            microtask_id,
-                            depth,
-                        },
-                    ) => Observation::new(
-                        ObservationCategory::Scheduler,
-                        scope,
-                        "runtime.microtask.ran",
-                    )
-                    .label("microtask_id", microtask_id.get().to_string())
-                    .label("microtask_depth", depth.to_string()),
-                    (_, RunnableProgress::Microtasks { count }) => Observation::new(
-                        ObservationCategory::Scheduler,
-                        scope,
-                        "runtime.microtasks.ran",
-                    )
-                    .label("microtask_count", count.to_string()),
-                };
-                self.observe(observation)?;
+                self.observe(step.observation(runtime_id, worker_id, progress))?;
 
                 Ok(Some(RunOutcome::Progressed))
             }
@@ -421,19 +408,11 @@ impl WorldState {
                     worker_id,
                     reason,
                 };
-                self.observe(
-                    Observation::new(
-                        ObservationCategory::Scheduler,
-                        ObservationScope::worker(Some(runtime_id), worker_id),
-                        "runtime.stop.reached",
-                    )
-                    .label(
-                        "reason",
-                        match reason {
-                            program::StopReason::Breakpoint => "breakpoint",
-                        },
-                    ),
-                )?;
+                self.observe(Observation::StopReached {
+                    runtime_id,
+                    worker_id,
+                    reason,
+                })?;
 
                 Ok(Some(RunOutcome::Stopped { stop }))
             }

@@ -45,11 +45,6 @@ pub(crate) enum RunnableProgress {
         /// Nested microtask execution depth.
         depth: u32,
     },
-    /// One microtask checkpoint drained multiple microtasks.
-    Microtasks {
-        /// Number of drained microtasks.
-        count: usize,
-    },
 }
 
 impl RunnableScope {
@@ -123,11 +118,6 @@ impl RunnableProgress {
             microtask_id,
             depth,
         }
-    }
-
-    /// Create one microtask-checkpoint progress value.
-    pub(crate) const fn microtasks(count: usize) -> Self {
-        Self::Microtasks { count }
     }
 }
 

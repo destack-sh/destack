@@ -236,7 +236,7 @@ impl Worker {
         };
 
         // run one microtask to completion
-        let outcome = self.run_dequeued_microtask(
+        let outcome = self.run_microtask_runnable(
             world,
             shared,
             shared_static,
@@ -481,7 +481,7 @@ impl Worker {
 
         // run one queued macrotask before pulling external wakes
         if let Some(task) = self.event_loop.pop_task() {
-            if let Some(output) = self.execute_dequeued_task(
+            if let Some(output) = self.execute_task_runnable(
                 world,
                 shared,
                 shared_static,
@@ -509,7 +509,7 @@ impl Worker {
 
         // run one task produced by the dispatched wake
         if let Some(task) = self.event_loop.pop_task() {
-            if let Some(output) = self.execute_dequeued_task(
+            if let Some(output) = self.execute_task_runnable(
                 world,
                 shared,
                 shared_static,
@@ -539,24 +539,23 @@ impl Worker {
         host: &dyn Host,
         host_queue: &HostQueue,
     ) -> RuntimeResult<WorkerRunOutcome> {
-        // drain microtasks before selecting other work
-        if self.event_loop.has_microtasks() {
-            let outcome = self.run_microtasks(
+        // run one microtask before selecting other work
+        if let Some(microtask) = self.event_loop.pop_microtask() {
+            return self.run_microtask_runnable(
                 world,
                 shared,
                 shared_static,
                 constant_space,
                 host,
                 host_queue,
-            )?;
-            if outcome != WorkerRunOutcome::Idle {
-                return Ok(outcome);
-            }
+                microtask,
+                DEFAULT_MAX_MICROTASK_DEPTH,
+            );
         }
 
         // run one queued macrotask before pulling external wakes
         if let Some(task) = self.event_loop.pop_task() {
-            return self.run_dequeued_task(
+            return self.run_task_runnable(
                 world,
                 shared,
                 shared_static,
@@ -570,15 +569,15 @@ impl Worker {
         // dispatch one wake into the task queue
         let wall_now = Nanos::new(world.wall_nanos());
         let mono_now = Nanos::new(world.mono_nanos());
-        if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
-            if let Some(runnable) = self.event_loop.runnable_for_wake(wake)? {
-                self.enqueue_task_runnable(runnable)?;
-            }
+        if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)?
+            && let Some(runnable) = self.event_loop.runnable_for_wake(wake)?
+        {
+            self.enqueue_task_runnable(runnable)?;
         }
 
         // run one task produced by the dispatched wake
         if let Some(task) = self.event_loop.pop_task() {
-            return self.run_dequeued_task(
+            return self.run_task_runnable(
                 world,
                 shared,
                 shared_static,
@@ -609,8 +608,8 @@ impl Worker {
         self.enqueue_task_runnable(runnable)
     }
 
-    /// Execute one dequeued task and return output when it completes the target task.
-    fn execute_dequeued_task(
+    /// Execute one task runnable and return output when it completes the target task.
+    fn execute_task_runnable(
         &mut self,
         world: &mut WorldState,
         shared: &RuntimeHeap,
@@ -662,8 +661,8 @@ impl Worker {
         Ok(None)
     }
 
-    /// Run one dequeued task and retain stopped continuations.
-    fn run_dequeued_task(
+    /// Run one task runnable and retain stopped continuations.
+    fn run_task_runnable(
         &mut self,
         world: &mut WorldState,
         shared: &RuntimeHeap,
@@ -698,8 +697,8 @@ impl Worker {
         Ok(())
     }
 
-    /// Execute one microtask to completion.
-    fn execute_microtask(
+    /// Execute one microtask runnable to completion.
+    fn execute_microtask_runnable(
         &mut self,
         world: &mut WorldState,
         shared: &RuntimeHeap,
@@ -752,8 +751,8 @@ impl Worker {
         }
     }
 
-    /// Run one dequeued microtask and retain stopped continuations.
-    fn run_dequeued_microtask(
+    /// Run one microtask runnable and retain stopped continuations.
+    fn run_microtask_runnable(
         &mut self,
         world: &mut WorldState,
         shared: &RuntimeHeap,
@@ -812,7 +811,7 @@ impl Worker {
         // drain microtasks until the queue is exhausted
         let mut num_drained_microtasks = 0usize;
         while let Some(microtask) = self.event_loop.pop_microtask() {
-            self.execute_microtask(
+            self.execute_microtask_runnable(
                 world,
                 shared,
                 shared_static,
@@ -831,56 +830,6 @@ impl Worker {
         }
 
         Ok(num_drained_microtasks)
-    }
-
-    /// Run pending microtasks until one stops or the microtask queue drains.
-    fn run_microtasks(
-        &mut self,
-        world: &mut WorldState,
-        shared: &RuntimeHeap,
-        shared_static: &mut program::StaticSpace,
-        constant_space: &program::StaticImage,
-        host: &dyn Host,
-        host_queue: &HostQueue,
-    ) -> RuntimeResult<WorkerRunOutcome> {
-        let mut num_drained_microtasks = 0usize;
-
-        // drain microtasks until one stop point or queue exhaustion
-        while let Some(microtask) = self.event_loop.pop_microtask() {
-            let outcome = self.run_dequeued_microtask(
-                world,
-                shared,
-                shared_static,
-                constant_space,
-                host,
-                host_queue,
-                microtask,
-                DEFAULT_MAX_MICROTASK_DEPTH,
-            )?;
-            match outcome {
-                WorkerRunOutcome::Progressed { .. } => {
-                    num_drained_microtasks =
-                        num_drained_microtasks.checked_add(1).ok_or_else(|| {
-                            RuntimeError::Internal {
-                                message: "microtask drain counter space exhausted".to_string(),
-                            }
-                            .boxed()
-                        })?;
-                }
-                stopped @ (WorkerRunOutcome::Stopped { .. } | WorkerRunOutcome::Paused { .. }) => {
-                    return Ok(stopped);
-                }
-                WorkerRunOutcome::Idle => {}
-            }
-        }
-
-        if num_drained_microtasks > 0 {
-            Ok(WorkerRunOutcome::Progressed {
-                progress: RunnableProgress::microtasks(num_drained_microtasks),
-            })
-        } else {
-            Ok(WorkerRunOutcome::Idle)
-        }
     }
 
     /// Resume one stopped runnable under its retained runnable scope.
