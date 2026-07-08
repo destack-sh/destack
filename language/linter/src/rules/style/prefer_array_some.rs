@@ -266,6 +266,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = candidate_expression
         else {
             return None;

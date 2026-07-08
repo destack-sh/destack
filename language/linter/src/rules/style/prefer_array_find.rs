@@ -203,6 +203,7 @@ impl<'a, 'b> PreferArrayFindVisitor<'a, 'b> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = filter_call_expression
         else {
             return None;

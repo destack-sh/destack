@@ -175,6 +175,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
             left,
             generic_arguments,
             arguments,
+            ..
         } = expression
         else {
             return None;

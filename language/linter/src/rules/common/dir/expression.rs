@@ -797,11 +797,13 @@ pub fn expression_is_potentially_tainted(
                 left: _,
                 generic_arguments: _,
                 arguments: _,
+                ..
             }
             | dir::Expression::Index {
                 position: _,
                 left: _,
                 index: _,
+                ..
             }
             | dir::Expression::Binary {
                 left: _,
@@ -848,7 +850,7 @@ fn expression_contains_reference_segment(
             type_expression_contains_reference_segment(tree, *value, target_segment)
         }
 
-        dir::Expression::Member { left, name } => {
+        dir::Expression::Member { left, name, .. } => {
             *name == Some(target_segment)
                 || expression_contains_reference_segment(tree, *left, target_segment)
         }
