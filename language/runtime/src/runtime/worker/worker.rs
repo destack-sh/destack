@@ -13,7 +13,9 @@ use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::RuntimeHeap;
 use crate::runtime::heap::resolve_local_heap_options;
 use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId, ProgramStorage};
-use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
+use crate::runtime::scheduler::{
+    EventLoop, EventLoopSnapshot, Readiness, StoppedRunnable, StoppedRunnableImage, Waiter,
+};
 use crate::world::{Entity, EntityKind, RestoreContext, RuntimeId, WorldState};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
@@ -46,6 +48,8 @@ pub struct Worker {
     pub(crate) local_static: program::StaticSpace,
     /// Worker-owned machine.
     pub(crate) machine: Machine,
+    /// Runnable stopped at a runtime stop point.
+    pub(crate) stop: Option<StoppedRunnable>,
     /// HostEvent loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
 }
@@ -80,6 +84,8 @@ pub struct WorkerImage {
     pub local_static: program::StaticSpace,
     /// Captured worker-owned machine image.
     pub machine_image: Image,
+    /// Captured stopped runnable state.
+    pub stop: Option<StoppedRunnableImage>,
 }
 
 /// Captured worker options with shared runtime storage when possible.
@@ -94,7 +100,7 @@ pub enum WorkerOptionsImage {
 impl WorkerImage {
     /// Return whether the captured worker still has pending event-loop work.
     pub fn has_pending_work(&self) -> bool {
-        self.event_loop.has_pending_work()
+        self.stop.is_some() || self.event_loop.has_pending_work()
     }
 }
 
@@ -111,6 +117,7 @@ impl PartialEq for WorkerImage {
             && heap == other_heap
             && self.local_static == other.local_static
             && self.machine_image == other.machine_image
+            && self.stop == other.stop
     }
 }
 
@@ -296,6 +303,7 @@ impl Worker {
             heap,
             local_static,
             machine,
+            stop: None,
             event_loop,
         })
     }
@@ -322,7 +330,7 @@ impl Worker {
 
     /// Return whether this worker still has pending scheduler work.
     pub fn has_pending_work(&self) -> bool {
-        self.event_loop.has_pending_work()
+        self.stop.is_some() || self.event_loop.has_pending_work()
     }
 
     /// Return the number of stored resources for this worker.
@@ -478,6 +486,9 @@ impl Worker {
         self.machine
             .visit_root_slots(&mut self.local_static, visit)?;
         self.event_loop.visit_root_slots(&mut self.machine, visit)?;
+        if let Some(stop) = &mut self.stop {
+            stop.visit_root_slots(&mut self.machine, visit)?;
+        }
 
         Ok(())
     }
@@ -501,6 +512,9 @@ impl Worker {
         let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
             machine.visit_root_slots(local_static, visit)?;
             event_loop.visit_root_slots(machine, visit)?;
+            if let Some(stop) = &mut self.stop {
+                stop.visit_root_slots(machine, visit)?;
+            }
 
             Ok::<(), Box<RuntimeError>>(())
         };
@@ -583,6 +597,7 @@ impl Worker {
                 })?,
             local_static: self.local_static.clone(),
             machine_image: self.machine.image()?,
+            stop: self.stop.as_ref().map(StoppedRunnableImage::capture),
         })
     }
 
@@ -616,6 +631,7 @@ impl Worker {
         let shared_cache = runtime_heap.shared.allocation_cache();
         let machine = self.machine.fork()?;
         let event_loop = Box::new(self.event_loop.fork()?);
+        let stop = self.stop.clone();
 
         Ok(Some(Self {
             id: self.id,
@@ -631,6 +647,7 @@ impl Worker {
             heap,
             local_static,
             machine,
+            stop,
             event_loop,
         }))
     }
@@ -717,6 +734,7 @@ impl Worker {
             heap,
             local_static,
             machine,
+            stop: image.stop.as_ref().map(StoppedRunnableImage::restore),
             event_loop,
         })
     }

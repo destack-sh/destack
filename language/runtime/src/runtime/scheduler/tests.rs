@@ -8,6 +8,7 @@ use crate::host::poller::{
 };
 use crate::host::time::TimerClock;
 use crate::host::{HostEventKind, LifecycleState, ResourceId};
+use crate::runtime::Worker;
 use crate::runtime::machine::Continuation;
 use crate::runtime::scheduler::{
     EventLoop, Readiness, Runnable, RunnableId, ScheduledTimer, TimerDeadline, Wake,
@@ -16,8 +17,7 @@ use crate::runtime::tests::{
     TestMachine, TestRuntime, TestWorldRuntime, start_worker_continuation, test_resource_id,
 };
 use crate::runtime::time::Nanos;
-use crate::runtime::{TickResult, Worker};
-use crate::world::World;
+use crate::world::{Run, RunOutcome, World};
 
 /// Build runtime options with one explicit execution mode.
 fn runtime_options_with_execution(mode: ExecutionMode) -> RuntimeOptions {
@@ -249,9 +249,9 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
         schedule_timer(worker, TimerClock::Wall, 950, fire_at_nanos, None);
     });
 
-    // the first tick should only advance time
-    let outcome = runtime.tick();
-    assert_eq!(outcome, TickResult::TimeAdvanced);
+    // the first task run should only advance time
+    let outcome = runtime.run_task();
+    assert_eq!(outcome, RunOutcome::AdvancedTime);
     assert_eq!(
         runtime.wall_nanos(),
         fire_at_nanos,
@@ -263,14 +263,14 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
         "virtual monotonic time should advance by the same delta"
     );
 
-    // the next tick should dispatch the newly ready timer task
-    let outcome = runtime.tick();
-    assert_eq!(outcome, TickResult::Progress);
+    // the next task run should dispatch the newly ready timer task
+    let outcome = runtime.run_task();
+    assert_eq!(outcome, RunOutcome::Progressed);
 }
 
-/// Executes one world tick through the attached runtime.
+/// Executes one world task run through the attached runtime.
 #[test]
-fn test_world_tick_drives_runtime() {
+fn test_world_run_task_drives_runtime() {
     // configure one explicit shared world and runtime
     let options = RuntimeOptions::default();
     let mut world = World::new(&options, Environment::default()).expect("world");
@@ -317,8 +317,48 @@ fn test_world_tick_drives_runtime() {
         )
         .expect("default worker should exist");
 
-    // world tick should delegate through the runtime and execute the task
-    assert_eq!(world.tick().expect("world tick"), TickResult::Progress);
+    // world task run should delegate through the runtime and execute the task
+    assert_eq!(
+        world.run(Run::Task).expect("world task run"),
+        RunOutcome::Progressed
+    );
+}
+
+/// Runs one task to a breakpoint and resumes it explicitly.
+#[test]
+fn test_world_run_task_stops_and_continues() {
+    // configure one explicit shared world and runtime
+    let options = RuntimeOptions::default();
+    let mut runtime = TestWorldRuntime::build(&options, TestMachine::default());
+    let worker_id = runtime.default_worker_id();
+    let continuation = runtime.breakpoint_continuation(worker_id, 313);
+    runtime.with_worker_mut(worker_id, |worker| {
+        worker.event_loop.enqueue_task(Runnable {
+            id: RunnableId::new(44),
+            continuation,
+            resume_value: program::Value::Void,
+        });
+    });
+
+    // stepping one task should retain the stopped continuation
+    let outcome = runtime.run_task();
+    let RunOutcome::Stopped { stop } = outcome else {
+        panic!("expected stopped run outcome");
+    };
+    assert_eq!(stop.reason, program::StopReason::Breakpoint);
+    assert_eq!(stop.worker_id, worker_id);
+
+    // task runs surface retained stops without advancing them
+    assert!(matches!(
+        runtime.run_task(),
+        RunOutcome::Stopped {
+            stop: retained_stop
+        } if retained_stop == stop
+    ));
+
+    // continuing the stop should complete the retained continuation
+    assert_eq!(runtime.run_continue(), RunOutcome::Progressed);
+    assert_eq!(runtime.run_continue(), RunOutcome::Idle);
 }
 
 /// Dispatches equal-deadline timers in stable worker-id order.
@@ -343,11 +383,11 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
         schedule_timer(worker, TimerClock::Wall, 961, fire_at_nanos, None);
     });
 
-    // the first tick advances time and later ticks dispatch in worker order
-    assert_eq!(runtime.tick(), TickResult::TimeAdvanced);
-    assert_eq!(runtime.tick(), TickResult::Progress);
-    assert_eq!(runtime.tick(), TickResult::Progress);
-    assert_eq!(runtime.tick(), TickResult::Idle);
+    // the first task run advances time and later task runs dispatch in worker order
+    assert_eq!(runtime.run_task(), RunOutcome::AdvancedTime);
+    assert_eq!(runtime.run_task(), RunOutcome::Progressed);
+    assert_eq!(runtime.run_task(), RunOutcome::Progressed);
+    assert_eq!(runtime.run_task(), RunOutcome::Idle);
 }
 
 /// Register one timer waiter on one explicit worker.

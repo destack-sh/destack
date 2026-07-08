@@ -1,8 +1,7 @@
 use destack_heap as heap;
-use destack_program as program;
 
-use super::EventLoop;
-use crate::diagnostic::{RuntimeError, RuntimeResult};
+use super::{EventLoop, RootValue};
+use crate::diagnostic::RuntimeResult;
 use crate::runtime::machine::Machine;
 
 impl EventLoop {
@@ -14,38 +13,20 @@ impl EventLoop {
     ) -> RuntimeResult<()> {
         // queued tasks
         for runnable in &mut self.tasks {
-            machine.visit_continuation_root_slots(&mut runnable.continuation, visit)?;
-            visit_resume_value_root_slot(&mut runnable.resume_value, visit)?;
+            runnable.visit_root_slots(machine, visit)?;
         }
 
         // queued microtasks
         for runnable in &mut self.microtasks {
-            machine.visit_continuation_root_slots(&mut runnable.continuation, visit)?;
-            visit_resume_value_root_slot(&mut runnable.resume_value, visit)?;
+            runnable.visit_root_slots(machine, visit)?;
         }
 
         // suspended continuations
         for waiter in self.waiters.values_mut() {
             machine.visit_continuation_root_slots(&mut waiter.continuation, visit)?;
-            visit_resume_value_root_slot(&mut waiter.resume_value, visit)?;
+            waiter.resume_value.visit_root_slot(visit)?;
         }
 
         Ok(())
-    }
-}
-
-/// Visit the mutable heap root slot in one value.
-fn visit_resume_value_root_slot(
-    value: &mut program::Value,
-    visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
-) -> RuntimeResult<()> {
-    match value {
-        program::Value::HeapReference(reference) => {
-            visit(heap::RootSlot::HeapReference(reference)).map_err(Box::<RuntimeError>::from)
-        }
-        program::Value::SharedHeapReference(reference) => {
-            visit(heap::RootSlot::SharedHeapReference(reference)).map_err(Box::<RuntimeError>::from)
-        }
-        _ => Ok(()),
     }
 }

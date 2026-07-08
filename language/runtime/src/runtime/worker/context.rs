@@ -1,5 +1,7 @@
 use std::cell::Cell;
 
+use serde::{Deserialize, Serialize};
+
 use crate::host::binding::BindingAffinity;
 use crate::runtime::scheduler::RunnableId;
 
@@ -10,7 +12,7 @@ thread_local! {
 }
 
 /// Currently running task or microtask.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RunnableScope {
     /// Current task identifier, if any.
     task_id: Option<RunnableId>,
