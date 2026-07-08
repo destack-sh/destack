@@ -28,6 +28,11 @@ pub(crate) enum WorkerRunOutcome {
         /// Reason execution stopped.
         reason: program::StopReason,
     },
+    /// Execution is paused at one previously reached stop point.
+    Paused {
+        /// Reason execution stopped.
+        reason: program::StopReason,
+    },
 }
 
 impl Worker {
@@ -252,7 +257,7 @@ impl Worker {
         host_queue: &HostQueue,
     ) -> RuntimeResult<WorkerRunOutcome> {
         if let Some(stop) = &self.stop {
-            return Ok(WorkerRunOutcome::Stopped {
+            return Ok(WorkerRunOutcome::Paused {
                 reason: stop.reason,
             });
         }
@@ -314,7 +319,7 @@ impl Worker {
         host_queue: &HostQueue,
     ) -> RuntimeResult<WorkerRunOutcome> {
         if let Some(stop) = &self.stop {
-            return Ok(WorkerRunOutcome::Stopped {
+            return Ok(WorkerRunOutcome::Paused {
                 reason: stop.reason,
             });
         }
@@ -879,7 +884,9 @@ impl Worker {
                 DEFAULT_MAX_MICROTASK_DEPTH,
             )? {
                 WorkerRunOutcome::Progressed => progressed = true,
-                stopped @ WorkerRunOutcome::Stopped { .. } => return Ok(stopped),
+                stopped @ (WorkerRunOutcome::Stopped { .. } | WorkerRunOutcome::Paused { .. }) => {
+                    return Ok(stopped);
+                }
                 WorkerRunOutcome::Idle => {}
             }
         }
@@ -1041,6 +1048,10 @@ impl Worker {
         shared: &RuntimeHeap,
         outcome: WorkerRunOutcome,
     ) -> RuntimeResult<WorkerRunOutcome> {
+        if outcome != WorkerRunOutcome::Idle {
+            self.sequence = self.sequence.next()?;
+        }
+
         if outcome != WorkerRunOutcome::Idle && shared.is_marking() {
             shared.queue_root_scan(self.id);
         }

@@ -16,7 +16,7 @@ use crate::runtime::machine::{Continuation, Execution, Image, Machine, MachineId
 use crate::runtime::scheduler::{
     EventLoop, EventLoopSnapshot, Readiness, StoppedRunnable, StoppedRunnableImage, Waiter,
 };
-use crate::world::{Entity, EntityKind, RestoreContext, RuntimeId, WorldState};
+use crate::world::{Entity, EntityKind, RestoreContext, RuntimeId, WorkerSequence, WorldState};
 use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 /// Worker owned by one runtime.
@@ -25,6 +25,8 @@ pub struct Worker {
     pub(crate) id: WorkerId,
     /// Runtime owner identifier in world topology.
     pub(crate) runtime_id: RuntimeId,
+    /// Worker-local execution sequence.
+    pub(crate) sequence: WorkerSequence,
     /// Immutable ambient environment for host bindings.
     pub(crate) environment: Arc<Environment>,
     /// Immutable runtime options.
@@ -70,6 +72,8 @@ pub struct WorkerOptions {
 /// Materialized worker metadata captured in one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerImage {
+    /// Captured worker-local execution sequence.
+    pub sequence: WorkerSequence,
     /// Worker options captured for reconstruction.
     pub options: WorkerOptionsImage,
     /// Captured diagnostics store state.
@@ -110,6 +114,7 @@ impl PartialEq for WorkerImage {
         let other_heap = worker_heap_snapshot_bytes(&other.heap);
 
         self.options == other.options
+            && self.sequence == other.sequence
             && self.diagnostics == other.diagnostics
             && self.resources == other.resources
             && self.event_loop == other.event_loop
@@ -167,6 +172,7 @@ impl std::fmt::Debug for Worker {
         f.debug_struct("Worker")
             .field("worker_id", &self.id)
             .field("runtime_id", &self.runtime_id)
+            .field("sequence", &self.sequence)
             .field("environment", &self.environment)
             .field("options", &self.options)
             .field("resources", &self.resources)
@@ -292,6 +298,7 @@ impl Worker {
         Ok(Self {
             id: worker_id,
             runtime_id,
+            sequence: WorkerSequence::new(0),
             environment,
             options: Arc::new(options.clone()),
             program,
@@ -579,6 +586,7 @@ impl Worker {
 
         // capture the worker-local image payload
         Ok(WorkerImage {
+            sequence: self.sequence,
             options: WorkerOptionsImage::explicit_arc(self.options.clone()),
             diagnostics,
             resources,
@@ -636,6 +644,7 @@ impl Worker {
         Ok(Some(Self {
             id: self.id,
             runtime_id: self.runtime_id,
+            sequence: self.sequence,
             environment: self.environment.clone(),
             options: self.options.clone(),
             resources,
@@ -723,6 +732,7 @@ impl Worker {
         Ok(Self {
             id: worker_id,
             runtime_id,
+            sequence: image.sequence,
             environment,
             options,
             program,

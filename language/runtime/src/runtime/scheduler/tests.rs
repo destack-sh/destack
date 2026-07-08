@@ -316,12 +316,16 @@ fn test_world_run_task_drives_runtime() {
             },
         )
         .expect("default worker should exist");
+    let before = world.moment();
 
     // world task run should delegate through the runtime and execute the task
     assert_eq!(
         world.run(Run::Task).expect("world task run"),
         RunOutcome::Progressed
     );
+    let after = world.moment();
+    assert_eq!(after.branch_id, before.branch_id);
+    assert_eq!(after.sequence.get(), before.sequence.get() + 1);
 }
 
 /// Runs one task to a breakpoint and resumes it explicitly.
@@ -339,6 +343,7 @@ fn test_world_run_task_stops_and_continues() {
             resume_value: program::Value::Void,
         });
     });
+    let before = runtime.moment();
 
     // stepping one task should retain the stopped continuation
     let outcome = runtime.run_task();
@@ -347,14 +352,18 @@ fn test_world_run_task_stops_and_continues() {
     };
     assert_eq!(stop.reason, program::StopReason::Breakpoint);
     assert_eq!(stop.worker_id, worker_id);
+    assert_eq!(stop.moment.branch_id, before.branch_id);
+    assert_eq!(stop.moment.sequence.get(), before.sequence.get() + 1);
 
     // task runs surface retained stops without advancing them
+    let retained_before = runtime.moment();
     assert!(matches!(
         runtime.run_task(),
         RunOutcome::Stopped {
             stop: retained_stop
         } if retained_stop == stop
     ));
+    assert_eq!(runtime.moment(), retained_before);
 
     // continuing the stop should complete the retained continuation
     assert_eq!(runtime.run_continue(), RunOutcome::Progressed);

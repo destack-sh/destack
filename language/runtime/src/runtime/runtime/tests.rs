@@ -28,7 +28,7 @@ use crate::runtime::{
     BindingCall, RuntimeHeap, Worker, WorkerId, WorkerOptions, World, WorldState,
     current_runnable_scope,
 };
-use crate::world::{Run, RunOutcome, RuntimeId};
+use crate::world::{Moment, Run, RunOutcome, RuntimeId};
 
 /// Build one resource id owned by the primary test worker.
 pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
@@ -527,6 +527,11 @@ impl TestWorldRuntime {
         self.world
             .run(Run::Continue)
             .expect("world continue should succeed")
+    }
+
+    /// Return the current world moment.
+    pub(crate) fn moment(&self) -> Moment {
+        self.world.moment()
     }
 
     /// Return current world wall time in nanoseconds.
