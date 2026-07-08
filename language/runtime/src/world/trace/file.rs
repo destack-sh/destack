@@ -38,7 +38,7 @@ impl TraceFile {
         self.header.clone()
     }
 
-    /// Return the next sequence after the last stored event.
+    /// Return the next sequence after the last stored entry.
     pub(super) fn next_sequence(&self) -> RuntimeResult<TraceSequence> {
         let sequence = self
             .chunks

@@ -1,9 +1,9 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::random::RandomStreamId;
-use crate::world::trace::{EntropySample, EntropySubject, Outcome, Trace, TraceError, TraceRecord};
+use crate::world::trace::{EntropySubject, RandomTrace, Trace, TraceError, TraceLog};
 use destack_repository::ExecutionMode;
 
-impl Trace {
+impl TraceLog {
     /// Run one random u64 binding through the entropy replay channel.
     pub fn run_random_u64<Hook, Call>(
         &self,
@@ -20,13 +20,13 @@ impl Trace {
         match mode {
             // fast and strict modes execute directly
             ExecutionMode::Fast | ExecutionMode::Strict => call(),
-            // replay mode decodes one recorded entropy sample
+            // replay mode decodes one recorded random fact
             ExecutionMode::Replay => {
                 on_replay_read();
-                let event = self.next_entropy_sample(subject)?;
+                let trace = self.next_random_trace(subject)?;
 
-                match event {
-                    EntropySample::RandomReadU64 {
+                match trace {
+                    RandomTrace::ReadU64 {
                         stream_id: replay_stream_id,
                         outcome,
                         ..
@@ -40,20 +40,18 @@ impl Trace {
                     _ => Err(self.entropy_mismatch_error()),
                 }
             }
-            // record mode executes and records one entropy sample
+            // record mode executes and records one random fact
             ExecutionMode::Record => {
                 let result = call();
                 let outcome = result
                     .as_ref()
                     .map(|value| *value)
                     .map_err(|error| TraceError::from(error.as_ref()));
-                self.record_event(TraceRecord::Outcome(Outcome::Entropy(
-                    EntropySample::RandomReadU64 {
-                        subject,
-                        stream_id,
-                        outcome,
-                    },
-                )))?;
+                self.record(Trace::Random(RandomTrace::ReadU64 {
+                    subject,
+                    stream_id,
+                    outcome,
+                }))?;
 
                 result
             }
@@ -79,10 +77,10 @@ impl Trace {
             // replay mode decodes one recorded stream allocation
             ExecutionMode::Replay => {
                 on_replay_read();
-                let event = self.next_entropy_sample(subject)?;
+                let trace = self.next_random_trace(subject)?;
 
-                match event {
-                    EntropySample::RandomStreamCreate { outcome, .. } => outcome
+                match trace {
+                    RandomTrace::StreamCreate { outcome, .. } => outcome
                         .map(|stream_id| stream_id.get())
                         .map_err(Box::<RuntimeError>::from),
                     _ => Err(self.entropy_mismatch_error()),
@@ -95,9 +93,10 @@ impl Trace {
                     .as_ref()
                     .map(|value| RandomStreamId::new(*value))
                     .map_err(|error| TraceError::from(error.as_ref()));
-                self.record_event(TraceRecord::Outcome(Outcome::Entropy(
-                    EntropySample::RandomStreamCreate { subject, outcome },
-                )))?;
+                self.record(Trace::Random(RandomTrace::StreamCreate {
+                    subject,
+                    outcome,
+                }))?;
 
                 result
             }
@@ -128,10 +127,10 @@ impl Trace {
             // replay mode decodes one recorded byte payload
             ExecutionMode::Replay => {
                 on_replay_read();
-                let event = self.next_entropy_sample(subject)?;
+                let trace = self.next_random_trace(subject)?;
 
-                match event {
-                    EntropySample::RandomReadBytes {
+                match trace {
+                    RandomTrace::ReadBytes {
                         stream_id: replay_stream_id,
                         len,
                         outcome,
@@ -154,14 +153,12 @@ impl Trace {
                     Ok(()) => encode().map_err(|error| TraceError::from(error.as_ref())),
                     Err(error) => Err(TraceError::from(error.as_ref())),
                 };
-                self.record_event(TraceRecord::Outcome(Outcome::Entropy(
-                    EntropySample::RandomReadBytes {
-                        subject,
-                        stream_id,
-                        len: requested_len,
-                        outcome,
-                    },
-                )))?;
+                self.record(Trace::Random(RandomTrace::ReadBytes {
+                    subject,
+                    stream_id,
+                    len: requested_len,
+                    outcome,
+                }))?;
 
                 result
             }
