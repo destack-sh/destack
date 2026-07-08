@@ -35,7 +35,7 @@ export struct MetricRecord {
 /// Metric sample sink.
 export newtype interface MetricSink {
     /// Record one metric sample.
-    record(record: MetricRecord): void;
+    record(&readonly this, record: MetricRecord): void;
 }
 
 /// Monotonic metric counter.
@@ -47,10 +47,10 @@ export class Counter {
     readonly unit?: string;
 
     /// Optional sink for this counter.
-    private sink?: MetricSink;
+    private sink?: readonly MetricSink;
 
     /// Create a counter.
-    constructor(name: string, unit?: string, sink?: MetricSink) {
+    constructor(name: string, unit?: string, sink?: readonly MetricSink) {
         this.name = name;
         this.unit = unit;
         this.sink = sink;
@@ -77,10 +77,10 @@ export class UpDownCounter {
     readonly unit?: string;
 
     /// Optional sink for this counter.
-    private sink?: MetricSink;
+    private sink?: readonly MetricSink;
 
     /// Create an up-down counter.
-    constructor(name: string, unit?: string, sink?: MetricSink) {
+    constructor(name: string, unit?: string, sink?: readonly MetricSink) {
         this.name = name;
         this.unit = unit;
         this.sink = sink;
@@ -107,10 +107,10 @@ export class Gauge {
     readonly unit?: string;
 
     /// Optional sink for this gauge.
-    private sink?: MetricSink;
+    private sink?: readonly MetricSink;
 
     /// Create a gauge.
-    constructor(name: string, unit?: string, sink?: MetricSink) {
+    constructor(name: string, unit?: string, sink?: readonly MetricSink) {
         this.name = name;
         this.unit = unit;
         this.sink = sink;
@@ -137,10 +137,10 @@ export class Histogram {
     readonly unit?: string;
 
     /// Optional sink for this histogram.
-    private sink?: MetricSink;
+    private sink?: readonly MetricSink;
 
     /// Create a histogram.
-    constructor(name: string, unit?: string, sink?: MetricSink) {
+    constructor(name: string, unit?: string, sink?: readonly MetricSink) {
         this.name = name;
         this.unit = unit;
         this.sink = sink;
@@ -161,10 +161,10 @@ export class Histogram {
 /// Metric meter.
 export class Meter {
     /// Optional sink for these metric instruments.
-    private sink?: MetricSink;
+    private sink?: readonly MetricSink;
 
     /// Create a meter.
-    constructor(sink?: MetricSink) {
+    constructor(sink?: readonly MetricSink) {
         this.sink = sink;
     }
 
@@ -225,7 +225,7 @@ export function duration(name: string, value: Duration, fields?: Fields): void {
 }
 
 /// Record one metric sample.
-function recordMetric(sink: MetricSink | undefined, record: MetricRecord): void {
+function recordMetric(sink: readonly MetricSink | undefined, record: MetricRecord): void {
     if (sink == undefined) {
         emitMetric(record)
     } else {
