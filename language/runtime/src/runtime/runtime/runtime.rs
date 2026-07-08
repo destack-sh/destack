@@ -516,7 +516,7 @@ impl Runtime {
     }
 
     /// Run one idle worker safepoint in stable scheduler order.
-    pub(crate) fn run_safepoint(&mut self) -> RuntimeResult<Option<WorkerId>> {
+    pub(crate) fn run_safepoint(&mut self) -> RuntimeResult<Option<(WorkerId, heap::GcAdvance)>> {
         // empty runtimes have no worker maintenance to donate
         let worker_count = self.workers.len();
         if worker_count == 0 {
@@ -530,10 +530,10 @@ impl Runtime {
         for (worker_index, (worker_id, worker)) in
             self.workers.iter_mut().enumerate().skip(start_index)
         {
-            if worker.run_safepoint(shared)? {
+            if let Some(progress) = worker.run_safepoint(shared)? {
                 self.next_worker_cursor = (worker_index + 1) % worker_count;
 
-                return Ok(Some(*worker_id));
+                return Ok(Some((*worker_id, progress)));
             }
         }
 
@@ -541,10 +541,10 @@ impl Runtime {
         for (worker_index, (worker_id, worker)) in
             self.workers.iter_mut().enumerate().take(start_index)
         {
-            if worker.run_safepoint(shared)? {
+            if let Some(progress) = worker.run_safepoint(shared)? {
                 self.next_worker_cursor = worker_index + 1;
 
-                return Ok(Some(*worker_id));
+                return Ok(Some((*worker_id, progress)));
             }
         }
 
@@ -959,12 +959,13 @@ mod tests {
         HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState,
         compile_target_host,
     };
-    use crate::runtime::tests::{TestMachine, TestWorldRuntime, start_worker_continuation};
     use crate::runtime::{RuntimeHeap, Worker, WorkerOptions};
+    use crate::tests::harness::{TestMachine, TestWorldRuntime, start_worker_continuation};
     use crate::world::World;
     use destack_core::{
         CaptureMode, SectionDirectory, SectionImage, SectionPacker, SectionStorage,
     };
+    use destack_heap as heap;
     use destack_heap::{AllocationShape, SharedHeap, TraceTable, TraceView};
     use destack_mir::TraceMap;
     use destack_program as program;
@@ -1141,7 +1142,19 @@ mod tests {
         let progressed_worker = runtime
             .run_safepoint()
             .expect("runtime safepoint should publish initial roots");
-        assert_eq!(progressed_worker, Some(worker_id));
+        let (progressed_worker, progress) = progressed_worker.expect("worker should publish roots");
+        assert_eq!(progressed_worker, worker_id);
+        assert!(
+            matches!(
+                progress,
+                heap::GcAdvance::Stepped(heap::GcStep {
+                    collector: heap::GcCollector::Shared,
+                    phase: heap::GcPhase::PublishRoots,
+                    ..
+                })
+            ),
+            "root publication should report shared gc advancement"
+        );
         assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_none());
 
         // events should requeue the touched worker even before it ticks
@@ -1301,7 +1314,19 @@ mod tests {
             .run_safepoint()
             .expect("runtime safepoint should succeed");
 
-        assert_eq!(progressed_worker, Some(worker_id));
+        let (progressed_worker, progress) = progressed_worker.expect("worker should publish roots");
+        assert_eq!(progressed_worker, worker_id);
+        assert!(
+            matches!(
+                progress,
+                heap::GcAdvance::Stepped(heap::GcStep {
+                    collector: heap::GcCollector::Shared,
+                    phase: heap::GcPhase::PublishRoots,
+                    ..
+                })
+            ),
+            "root publication should report shared gc advancement"
+        );
         assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_none());
         assert_eq!(
             runtime.heap.roots().roots_snapshot().as_ref(),

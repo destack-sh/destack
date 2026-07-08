@@ -295,7 +295,7 @@ impl SharedGc {
         let is_waiting_on_roots =
             self.heap.gc_phase() == GcPhase::Mark && self.heap.mark_idle() && !roots_complete;
 
-        Ok(progress.made_progress() || (is_active && !is_waiting_on_roots))
+        Ok(progress.advanced() || (is_active && !is_waiting_on_roots))
     }
 }
 

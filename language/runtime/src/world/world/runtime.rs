@@ -8,6 +8,7 @@ use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::machine::{Entry, Execution};
 use crate::runtime::{Runtime, RuntimeImage, Worker, WorkerId, WorkerImage, WorkerOptions};
+use crate::world::observation::Observation;
 use crate::world::trace::EntrypointCall;
 
 use super::{Entity, Mutation, RestoreContext, RuntimeId, SpawnedWorker, World};
@@ -36,6 +37,7 @@ impl World {
             execution,
         )?;
         let runtime_id = runtime.runtime_id();
+        let worker_count = runtime.worker_count();
 
         // fast and strict modes do not need one structural spawn image
         let replay_image = if mode == ExecutionMode::Record {
@@ -48,6 +50,13 @@ impl World {
         if self.runtimes.insert(runtime_id, runtime).is_some() {
             return Err(RuntimeError::runtime_already_exists(runtime_id.0).boxed());
         }
+
+        // record the visible runtime spawn
+        self.state.advance_moment()?;
+        self.state.observe(Observation::RuntimeSpawned {
+            runtime_id,
+            worker_count,
+        })?;
 
         // record structural spawn state for replay
         if let Some((runtime, workers)) = replay_image {
@@ -91,6 +100,11 @@ impl World {
 
         let runtime = self.remove_stored_runtime(runtime_id)?;
 
+        // record the visible runtime removal
+        self.state.advance_moment()?;
+        self.state
+            .observe(Observation::RuntimeRemoved { runtime_id })?;
+
         if self.state.trace.mode() == ExecutionMode::Record {
             self.record_mutation(mutation)?;
         }
@@ -112,6 +126,13 @@ impl World {
             .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
 
         let worker_id = runtime.spawn_worker(world, worker_options)?;
+
+        // record the visible worker spawn
+        self.state.advance_moment()?;
+        self.state.observe(Observation::WorkerSpawned {
+            runtime_id,
+            worker_id,
+        })?;
 
         // record structural spawn state for replay
         let replay_image = if mode == ExecutionMode::Record {
@@ -191,9 +212,9 @@ impl World {
             }
         }
 
-        // clean world metadata without applying per-worker removal rules
+        // clean worker topology without applying per-worker removal rules
         for worker_id in worker_ids {
-            self.remove_worker_metadata(worker_id);
+            self.remove_worker_topology(worker_id);
         }
 
         let runtime = self
@@ -250,7 +271,7 @@ impl World {
         let world = &mut self.state;
         world.register_runtime_topology(runtime_id, runtime_entity)?;
 
-        // restored worker metadata
+        // restored worker topology
         for (worker_id, worker) in worker_images {
             world.register_worker_topology(runtime_id, *worker_id, worker.entity.clone())?;
         }
