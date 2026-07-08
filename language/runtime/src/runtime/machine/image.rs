@@ -1,3 +1,4 @@
+use destack_program as program;
 use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -28,6 +29,13 @@ impl Image {
     pub const fn machine(&self) -> MachineId {
         match self {
             Self::Vm { machine, .. } | Self::Native { machine, .. } => *machine,
+        }
+    }
+
+    /// Return active machine frames captured in this image.
+    pub fn frames(&self) -> &[program::FrameImage] {
+        match self {
+            Self::Vm { image, .. } | Self::Native { vm: image, .. } => image.frames.as_slice(),
         }
     }
 }
