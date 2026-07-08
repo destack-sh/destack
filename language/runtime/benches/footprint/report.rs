@@ -13,8 +13,14 @@ use destack_runtime::host::binding::BindingTable;
 use destack_runtime::host::resource::ResourceTable;
 use destack_runtime::runtime::random::Random;
 use destack_runtime::runtime::scheduler::EventLoop;
-use destack_runtime::runtime::{Runtime, Worker};
-use destack_runtime::world::trace::{Observations, Trace, TraceLog};
+use destack_runtime::runtime::{RunnableScope, Runtime, Worker};
+use destack_runtime::world::observation::{
+    Observation, ObservationEntry, ObservationLog, ObservationOptions, ObservationScope,
+};
+use destack_runtime::world::topology::LabelSet;
+use destack_runtime::world::trace::{
+    ClockTrace, EntropySubject, RandomTrace, Trace, TraceEntry, TraceLog,
+};
 use destack_runtime::world::{Entity, Policy, World};
 use destack_vm::{Continuation, StackImage};
 
@@ -43,11 +49,25 @@ fn print_type_sizes() {
         ("world", "World", size_of::<World>()),
         ("world", "Policy", size_of::<Policy>()),
         ("world", "Trace", size_of::<Trace>()),
+        ("world", "TraceEntry", size_of::<TraceEntry>()),
+        ("world", "ClockTrace", size_of::<ClockTrace>()),
+        ("world", "RandomTrace", size_of::<RandomTrace>()),
+        ("world", "EntropySubject", size_of::<EntropySubject>()),
         ("world", "TraceLog", size_of::<TraceLog>()),
-        ("world", "Observations", size_of::<Observations>()),
+        ("world", "Observation", size_of::<Observation>()),
+        ("world", "ObservationEntry", size_of::<ObservationEntry>()),
+        (
+            "world",
+            "ObservationOptions",
+            size_of::<ObservationOptions>(),
+        ),
+        ("world", "LabelSet", size_of::<LabelSet>()),
+        ("world", "ObservationScope", size_of::<ObservationScope>()),
+        ("world", "ObservationLog", size_of::<ObservationLog>()),
         ("world", "Entity", size_of::<Entity>()),
         ("runtime", "Runtime", size_of::<Runtime>()),
         ("runtime", "Worker", size_of::<Worker>()),
+        ("runtime", "RunnableScope", size_of::<RunnableScope>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
         ("runtime", "Random", size_of::<Random>()),
         ("host", "HostPollResult", size_of::<HostPollResult>()),
