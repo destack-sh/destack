@@ -493,14 +493,28 @@ impl SourceIndex {
     #[inline]
     pub fn prune_from(&mut self, retained_node_count: usize, first_pruned_node_id: u32) {
         self.enclosing_spans.truncate(retained_node_count);
-        self.file_runs
-            .retain(|run| (run.first_node_id as usize) < retained_node_count);
-        self.main_spans
-            .retain(|entry| (entry.node_id as usize) < retained_node_count);
-        self.type_spans
-            .retain(|entry| (entry.node_id as usize) < retained_node_count);
-        self.side_spans
-            .retain(|entry| entry.key.source_id < first_pruned_node_id);
+
+        // truncate each ordered sparse index at the first pruned node
+        let file_run_count = self
+            .file_runs
+            .partition_point(|run| (run.first_node_id as usize) < retained_node_count);
+        self.file_runs.truncate(file_run_count);
+
+        let main_span_count = self
+            .main_spans
+            .partition_point(|entry| (entry.node_id as usize) < retained_node_count);
+        self.main_spans.truncate(main_span_count);
+
+        let type_span_count = self
+            .type_spans
+            .partition_point(|entry| (entry.node_id as usize) < retained_node_count);
+        self.type_spans.truncate(type_span_count);
+
+        let side_span_count = self
+            .side_spans
+            .partition_point(|entry| entry.key.source_id < first_pruned_node_id);
+        self.side_spans.truncate(side_span_count);
+
         self.invalidate_position_index();
     }
 
@@ -1072,6 +1086,59 @@ mod tests {
         assert_eq!(source_index.get(0), Span::new(first_file, 0, 10));
         assert_eq!(source_index.get(1), Span::new(first_file, 10, 20));
         assert_eq!(source_index.file_runs.len(), 1);
+    }
+
+    #[test]
+    fn test_prune_spans_truncates_sparse_indexes() {
+        let file = FileId::new(1);
+        let mut source_index = SourceIndex::new();
+        source_index.append(Span::new(file, 0, 10));
+        source_index.append(Span::new(file, 10, 20));
+        source_index.append(Span::new(file, 20, 30));
+
+        source_index.set_main(0, Span::new(file, 1, 9));
+        source_index.set_main(2, Span::new(file, 21, 29));
+        source_index.set_side(
+            1,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            Span::new(file, 11, 19),
+        );
+        source_index.set_side(
+            2,
+            NodeSpanType::Region(NodeSpanRegion::Type),
+            Span::new(file, 21, 29),
+        );
+        source_index.set_side(
+            0,
+            NodeSpanType::Region(NodeSpanRegion::Opening),
+            Span::new(file, 0, 2),
+        );
+        source_index.set_side(
+            2,
+            NodeSpanType::Region(NodeSpanRegion::Opening),
+            Span::new(file, 20, 22),
+        );
+
+        source_index.prune_from(2, 2);
+
+        assert_eq!(source_index.get_main(0), Some(Span::new(file, 1, 9)));
+        assert_eq!(source_index.get_main(2), None);
+        assert_eq!(
+            source_index.get_side(1, NodeSpanType::Region(NodeSpanRegion::Type)),
+            Some(Span::new(file, 11, 19))
+        );
+        assert_eq!(
+            source_index.get_side(2, NodeSpanType::Region(NodeSpanRegion::Type)),
+            None
+        );
+        assert_eq!(
+            source_index.get_side(0, NodeSpanType::Region(NodeSpanRegion::Opening)),
+            Some(Span::new(file, 0, 2))
+        );
+        assert_eq!(
+            source_index.get_side(2, NodeSpanType::Region(NodeSpanRegion::Opening)),
+            None
+        );
     }
 
     #[test]
