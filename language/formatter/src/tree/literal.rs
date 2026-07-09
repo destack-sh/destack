@@ -41,7 +41,7 @@ fn tree_children_layout(
     force_break_attributes: bool,
 ) -> TreeChildrenLayout {
     let tree = context.tree;
-    let mut tree_child_count = 0usize;
+    let mut tree_expression_count = 0usize;
     let mut expression_child_count = 0usize;
     let mut has_breaking_child = false;
     let mut has_non_whitespace_text_child = false;
@@ -61,12 +61,16 @@ fn tree_children_layout(
 
         let value_id = tree_child_value_id(tree, *child_id);
         let Some(value_id) = value_id else {
-            if !matches!(tree.get(*child_id), TreeChild::Text { .. })
-                && !is_non_content_text_separator
-            {
+            // keep comment-only containers layout neutral
+            if matches!(tree.get(*child_id), TreeChild::Empty) {
+                continue;
+            }
+
+            // classify visible text and malformed child slots
+            if !matches!(tree.get(*child_id), TreeChild::Text { .. }) {
                 expression_child_count += 1;
-                only_tree_or_comment_children = false;
-            } else if !is_non_content_text_separator {
+            }
+            if !is_non_content_text_separator {
                 only_tree_or_comment_children = false;
             }
             continue;
@@ -75,13 +79,12 @@ fn tree_children_layout(
         let value = tree.get(value_id);
 
         if matches!(value, Expression::TreeExpression { .. }) {
-            tree_child_count += 1;
+            tree_expression_count += 1;
         }
 
         if !matches!(
             value,
             Expression::TreeExpression { .. }
-                | Expression::Stub
                 | Expression::ScalarLiteral(ScalarLiteral::String(_))
                 | Expression::ScalarLiteral(ScalarLiteral::Character(_))
         ) {
@@ -91,37 +94,30 @@ fn tree_children_layout(
         if tree_child_breaks_element(context, *child_id) {
             has_breaking_child = true;
         }
-        if !matches!(value, Expression::TreeExpression { .. } | Expression::Stub)
-            && !is_non_content_text_separator
-        {
+        if !matches!(value, Expression::TreeExpression { .. }) && !is_non_content_text_separator {
             only_tree_or_comment_children = false;
         }
     }
 
-    let has_tree_child = tree_child_count > 0;
+    let has_tree_expression = tree_expression_count > 0;
     let has_multiple_expression_children = expression_child_count >= 2;
-    let has_tree_and_expression_children = has_tree_child && expression_child_count > 0;
-    let has_tree_and_text_children = has_tree_child && has_non_whitespace_text_child;
-    let tree_should_break_mixed_text = has_tree_and_text_children
-        && (context.options.language_type.is_destack() || tree_child_count > 1);
+    let has_tree_expression_and_text = has_tree_expression && has_non_whitespace_text_child;
+    let should_break_mixed_text = has_tree_expression_and_text && tree_expression_count > 1;
     let force_break =
-        // tag children follow jsx child-list layout
+        // break structurally multiline child lists
         force_break_attributes
             || (has_breaking_child && children.len() > 1)
-            || (has_tree_child && !has_non_whitespace_text_child)
-            || tree_should_break_mixed_text
+            || (has_tree_expression && !has_non_whitespace_text_child)
+            || should_break_mixed_text
             || (has_multiple_expression_children && !has_non_whitespace_text_child);
-    let force_break_with_fill = force_break
-        && has_tree_and_text_children
-        && expression_child_count == 0
-        && !has_tree_and_expression_children;
+    let should_fill_when_broken = force_break && has_tree_expression_and_text;
 
     TreeChildrenLayout {
-        all_tree_children: tree_child_count == children.len(),
+        all_tree_expressions: tree_expression_count == children.len(),
         only_tree_or_comment_children,
         has_visible_text: has_non_whitespace_text_child,
         force_break,
-        force_break_with_fill,
+        should_fill_when_broken,
     }
 }
 
@@ -129,26 +125,26 @@ fn tree_children_layout(
 #[derive(Clone, Copy, Debug)]
 struct TreeChildrenLayout {
     /// Whether every child is a tree expression.
-    all_tree_children: bool,
-    /// Whether every visible child is a tree expression or comment stub.
+    all_tree_expressions: bool,
+    /// Whether every visible child is a tree expression or empty comment container.
     only_tree_or_comment_children: bool,
     /// Whether the child list has visible text content.
     has_visible_text: bool,
     /// Whether the child list must break.
     force_break: bool,
-    /// Whether forced breaks should still use JSX fill layout.
-    force_break_with_fill: bool,
+    /// Whether broken children should use inline fill layout.
+    should_fill_when_broken: bool,
 }
 
 impl TreeChildrenLayout {
     /// Return whether children should use one-child-per-line layout.
     fn should_format_multiline(self) -> bool {
-        self.force_break && !self.force_break_with_fill
+        self.force_break && !self.should_fill_when_broken
     }
 
     /// Return whether children should use tree-per-line layout.
     fn should_format_tree_per_line(self, child_count: usize) -> bool {
-        (self.all_tree_children || self.only_tree_or_comment_children) && child_count > 1
+        (self.all_tree_expressions || self.only_tree_or_comment_children) && child_count > 1
     }
 }
 
@@ -460,7 +456,7 @@ pub(crate) fn tree_literal_wraps_on_break(
         NodeType::Expression => {
             let parent_id = LocalNodeId::<Expression>::new(parent_id);
             match context.tree.get(parent_id) {
-                // jsx-like containers and conditional branches keep children unwrapped
+                // keep tree containers and conditional branches unwrapped
                 Expression::ArrayExpression { .. }
                 | Expression::TupleExpression { .. }
                 | Expression::TreeExpression { .. }
@@ -470,7 +466,7 @@ pub(crate) fn tree_literal_wraps_on_break(
                 } => false,
                 // declaration expressions own their initializer grouping
                 Expression::Let { .. } => false,
-                // return handles jsx wrapping at the statement formatter level
+                // return statements wrap tree values
                 Expression::Return { .. } => false,
                 _ => true,
             }
