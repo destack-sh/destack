@@ -4,7 +4,7 @@ use destack_mir as mir;
 use destack_mir::{TraceMap, TraceVariant};
 
 use destack_program::vm::Cell;
-use destack_program::{AddressSpace, LayoutId};
+use destack_program::{CellLayout, LayoutId};
 
 use crate::LinkResult;
 
@@ -205,14 +205,12 @@ impl ReferenceOffsets {
     }
 
     /// Push one reference offset into the selected storage column.
-    fn push(&mut self, address_space: AddressSpace, offset: u32) {
-        match address_space {
-            AddressSpace::Local => self.local_offsets.push(offset),
-            AddressSpace::Shared => self.shared_offsets.push(offset),
-            AddressSpace::Frame => self.frame_offsets.push(offset),
-            AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Static => {
-                unreachable!("non-traceable address space cannot appear in trace maps")
-            }
+    fn push(&mut self, space: mir::Space, offset: u32) {
+        match space {
+            mir::Space::Local => self.local_offsets.push(offset),
+            mir::Space::Shared => self.shared_offsets.push(offset),
+            mir::Space::Frame => self.frame_offsets.push(offset),
+            mir::Space::Static => unreachable!("static references cannot appear in trace maps"),
         }
     }
 
@@ -583,19 +581,7 @@ impl StorageLayoutBuilder<'_> {
         space: mir::Space,
         layout_id: LayoutId,
     ) -> LinkResult<StorageLayout> {
-        let address_space = match space {
-            mir::Space::Local => match kind {
-                mir::ReferenceKind::Raw => AddressSpace::Raw,
-                _ => AddressSpace::Local,
-            },
-            mir::Space::Shared => match kind {
-                mir::ReferenceKind::Raw => AddressSpace::Raw,
-                _ => AddressSpace::Shared,
-            },
-            mir::Space::Frame => AddressSpace::Frame,
-            mir::Space::Static => AddressSpace::Static,
-        };
-        let cell_layout = address_space.cell_layout();
+        let cell_layout = CellLayout::reference(space, kind);
         let pointer_bytes = self.target_layout.pointer_bytes() as usize;
         let pointer_byte_len = cell_layout.byte_len(pointer_bytes);
         let length_offset = align_offset(pointer_byte_len, pointer_bytes);
@@ -832,7 +818,7 @@ impl StorageLayoutBuilder<'_> {
             return Err(self.program.invalid_input("function environment layout"));
         }
 
-        let Some(reference) = self.trace_address_space(environment_type) else {
+        let Some(reference) = self.trace_space(environment_type) else {
             return Ok(TraceMap::Empty);
         };
 
@@ -968,7 +954,7 @@ impl StorageLayoutBuilder<'_> {
 
         // scalar traceable references contribute one direct offset
         if layout.is_scalar() {
-            if let Some(reference) = self.trace_address_space(ty) {
+            if let Some(reference) = self.trace_space(ty) {
                 offsets.push(reference, base_offset);
             }
 
@@ -996,7 +982,7 @@ impl StorageLayoutBuilder<'_> {
         // slice descriptors trace the backing storage pointer
         let repr_ty = self.tree.repr_type(ty);
         if let mir::Type::Slice { kind, space, .. } = self.tree.get(repr_ty) {
-            if let Some(reference) = Self::trace_address_space_from_parts(*kind, space) {
+            if let Some(reference) = Self::trace_space_from_parts(*kind, space) {
                 offsets.push(reference, base_offset);
             }
 
@@ -1005,7 +991,7 @@ impl StorageLayoutBuilder<'_> {
 
         // tensor view descriptors trace the backing storage pointer
         if let mir::Type::TensorView { kind, space, .. } = self.tree.get(repr_ty) {
-            if let Some(reference) = Self::trace_address_space_from_parts(*kind, space) {
+            if let Some(reference) = Self::trace_space_from_parts(*kind, space) {
                 offsets.push(reference, base_offset);
             }
 
@@ -1042,36 +1028,31 @@ impl StorageLayoutBuilder<'_> {
     }
 
     /// Return the trace column selected by one traceable type.
-    fn trace_address_space(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<AddressSpace> {
+    fn trace_space(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::Space> {
         let ty = self.tree.repr_type(ty);
 
         match self.tree.get(ty) {
-            mir::Type::Reference { kind, space, .. } => {
-                Self::trace_address_space_from_parts(*kind, space)
-            }
+            mir::Type::Reference { kind, space, .. } => Self::trace_space_from_parts(*kind, space),
             _ => None,
         }
     }
 
     /// Return the trace column selected by one reference kind and space.
-    fn trace_address_space_from_parts(
-        kind: mir::ReferenceKind,
-        space: &mir::Space,
-    ) -> Option<AddressSpace> {
+    fn trace_space_from_parts(kind: mir::ReferenceKind, space: &mir::Space) -> Option<mir::Space> {
         match space {
-            mir::Space::Frame => Some(AddressSpace::Frame),
+            mir::Space::Frame => Some(mir::Space::Frame),
             mir::Space::Static => None,
             mir::Space::Local => match kind {
                 mir::ReferenceKind::Raw => None,
                 mir::ReferenceKind::Managed
                 | mir::ReferenceKind::Unique
-                | mir::ReferenceKind::Borrowed => Some(AddressSpace::Local),
+                | mir::ReferenceKind::Borrowed => Some(mir::Space::Local),
             },
             mir::Space::Shared => match kind {
                 mir::ReferenceKind::Raw => None,
                 mir::ReferenceKind::Managed
                 | mir::ReferenceKind::Unique
-                | mir::ReferenceKind::Borrowed => Some(AddressSpace::Shared),
+                | mir::ReferenceKind::Borrowed => Some(mir::Space::Shared),
             },
         }
     }

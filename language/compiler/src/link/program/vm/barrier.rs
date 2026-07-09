@@ -2,7 +2,6 @@ use destack_mir as mir;
 
 use crate::LinkResult;
 
-use destack_program::AddressSpace;
 use destack_program::vm::{Instruction, Op};
 
 use super::lower::BlockLowerer;
@@ -21,19 +20,17 @@ impl<'a> BlockLowerer<'a> {
         // encode the collector that owns this reference
         let object_type = self.value_type_for_value(object)?;
         let object_layout = self.function.operand_for_type(object_type);
-        let Some(Operand::Reference { address_space, .. }) = object_layout else {
+        let Some(Operand::Reference { space, .. }) = object_layout else {
             return Err(
                 self.type_mismatch("managed barrier reference", format!("{object_layout:?}"))
             );
         };
 
-        let op = match address_space {
-            AddressSpace::Local => Op::BarrierWriteHeap,
-            AddressSpace::Shared => Op::BarrierWriteSharedHeap,
+        let op = match space {
+            mir::Space::Local => Op::BarrierWriteHeap,
+            mir::Space::Shared => Op::BarrierWriteSharedHeap,
             _ => {
-                return Err(
-                    self.type_mismatch("managed barrier reference", format!("{address_space:?}"))
-                );
+                return Err(self.type_mismatch("managed barrier reference", format!("{space:?}")));
             }
         };
 

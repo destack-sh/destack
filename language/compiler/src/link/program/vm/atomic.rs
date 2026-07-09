@@ -2,11 +2,11 @@ use destack_mir as mir;
 
 use crate::LinkResult;
 
+use destack_program::CellLayout;
 use destack_program::vm::{
     AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
     AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction, Op,
 };
-use destack_program::{AddressSpace, CellLayout};
 
 use super::super::TypeLinker;
 use super::lower::BlockLowerer;
@@ -239,8 +239,9 @@ impl BlockLowerer<'_> {
             return Err(self.invalid_pointer_type(format!("{pointer:?}")));
         };
 
-        let address_space = type_linker.address_space(space.clone(), *kind);
-        let address = atomic_address(address_space)?;
+        let pointer = type_linker.reference_cell_layout(space.clone(), *kind);
+        let address = atomic_address(pointer)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{pointer:?}")))?;
 
         // require atomic storage
         let pointee = *pointee;
@@ -315,13 +316,14 @@ fn atomic_shape_from_parts(
 }
 
 /// Select the VM atomic address representation.
-fn atomic_address(address_space: AddressSpace) -> LinkResult<AtomicAddress> {
-    match address_space {
-        AddressSpace::Local => Ok(AtomicAddress::Heap),
-        AddressSpace::Shared => Ok(AtomicAddress::SharedHeap),
-        AddressSpace::Raw => Ok(AtomicAddress::Address),
-        AddressSpace::Stack => Ok(AtomicAddress::Stack),
-        AddressSpace::Frame => Ok(AtomicAddress::Frame),
-        AddressSpace::Static => Ok(AtomicAddress::Static),
-    }
+fn atomic_address(pointer: CellLayout) -> Option<AtomicAddress> {
+    Some(match pointer {
+        CellLayout::HeapReference => AtomicAddress::Heap,
+        CellLayout::SharedHeapReference => AtomicAddress::SharedHeap,
+        CellLayout::Address => AtomicAddress::Address,
+        CellLayout::StackPointer => AtomicAddress::Stack,
+        CellLayout::FramePointer => AtomicAddress::Frame,
+        CellLayout::GlobalAddress => AtomicAddress::Static,
+        _ => return None,
+    })
 }

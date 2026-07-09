@@ -1,7 +1,6 @@
 use destack_heap::{AllocationClass, AllocationPlan, AllocationShape};
 use destack_mir as mir;
 
-use destack_program::AddressSpace;
 use destack_program::vm::{AllocationBranch, Edge, Instruction, Op, SliceAllocationBranch};
 
 use crate::LinkResult;
@@ -31,12 +30,12 @@ impl<'a> BlockLowerer<'a> {
     ) -> LinkResult<Instruction> {
         // resolve allocation target and layout
         let layout = self.layout_for_type(layout)?;
-        let address_space = self.function.address_space_for_type(result_type)?;
+        let space = self.function.space_for_type(result_type)?;
 
         // precompute the heap allocation shape
-        let (allocation, class) = self.allocation_plan(pool, address_space, layout)?;
+        let (allocation, class) = self.allocation_plan(pool, space, layout)?;
         let op = self.allocation_op(
-            address_space,
+            space,
             class,
             allocation.is_noscan(),
             allocation.has_shared_reference(),
@@ -74,11 +73,11 @@ impl<'a> BlockLowerer<'a> {
         let (result, success) = self.lower_allocation_success(pool, success)?;
 
         let layout = self.layout_for_type(layout)?;
-        let address_space = self
+        let space = self
             .operand_map()
-            .address_space(result)
+            .space(result)
             .ok_or_else(|| self.invalid_pointer_type(format!("{result:?}")))?;
-        let (allocation, _) = self.allocation_plan(pool, address_space, layout)?;
+        let (allocation, _) = self.allocation_plan(pool, space, layout)?;
         let allocation = pool.allocation_plan(allocation);
         let failure = self.lower_block_edge(pool, failure)?;
         let record = AllocationBranch {
@@ -87,7 +86,7 @@ impl<'a> BlockLowerer<'a> {
             success,
             failure,
         };
-        let op = self.allocation_branch_op(address_space, initialization)?;
+        let op = self.allocation_branch_op(space, initialization)?;
 
         Ok(pool.instruction_with_side(op, record))
     }
@@ -136,25 +135,25 @@ impl<'a> BlockLowerer<'a> {
     ) -> LinkResult<Instruction> {
         // resolve descriptor, backing element, and dynamic length
         let element_layout = self.layout_for_type(element)?;
-        let address_space = self.slice_backing_address_space(result_type)?;
-        let (element, _) = self.allocation_plan(pool, address_space, element_layout)?;
+        let space = self.slice_backing_space(result_type)?;
+        let (element, _) = self.allocation_plan(pool, space, element_layout)?;
         let access = self
             .slice_projection(result_type)
             .ok_or_else(|| self.invalid_instruction("slice projection"))?;
         let element = pool.allocation_plan(element);
         let access = pool.slice_projection(access);
 
-        let op = match address_space {
-            AddressSpace::Local => match initialization {
+        let op = match space {
+            mir::Space::Local => match initialization {
                 AllocationInitialization::Zeroed => Op::AllocateSliceZeroed,
                 AllocationInitialization::Uninit => Op::AllocateSliceUninit,
             },
-            AddressSpace::Shared => match initialization {
+            mir::Space::Shared => match initialization {
                 AllocationInitialization::Zeroed => Op::AllocateSharedSliceZeroed,
                 AllocationInitialization::Uninit => Op::AllocateSharedSliceUninit,
             },
             _ => {
-                return Err(self.invalid_pointer_type(format!("{address_space:?}")));
+                return Err(self.invalid_pointer_type(format!("{space:?}")));
             }
         };
         Ok(Instruction::new(
@@ -180,8 +179,8 @@ impl<'a> BlockLowerer<'a> {
         let result_type = self.value_type_for_value(result)?;
 
         let element_layout = self.layout_for_type(element)?;
-        let address_space = self.slice_backing_address_space(result_type)?;
-        let (element, _) = self.allocation_plan(pool, address_space, element_layout)?;
+        let space = self.slice_backing_space(result_type)?;
+        let (element, _) = self.allocation_plan(pool, space, element_layout)?;
         let element = pool.allocation_plan(element);
         let access = self
             .slice_projection(result_type)
@@ -195,7 +194,7 @@ impl<'a> BlockLowerer<'a> {
             success,
             failure,
         };
-        let op = self.slice_allocation_branch_op(address_space, initialization)?;
+        let op = self.slice_allocation_branch_op(space, initialization)?;
 
         Ok(pool.instruction_with_side(op, record))
     }
@@ -289,15 +288,15 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
     ) -> LinkResult<Instruction> {
         // select the heap family from the value operand
-        let address_space = self
+        let space = self
             .operand_map()
-            .address_space(value)
+            .space(value)
             .ok_or_else(|| self.invalid_pointer_type(format!("{value:?}")))?;
-        let op = match address_space {
-            AddressSpace::Local => Op::PinHeap,
-            AddressSpace::Shared => Op::PinSharedHeap,
-            address_space => {
-                return Err(self.invalid_pointer_type(format!("{address_space:?}")));
+        let op = match space {
+            mir::Space::Local => Op::PinHeap,
+            mir::Space::Shared => Op::PinSharedHeap,
+            space => {
+                return Err(self.invalid_pointer_type(format!("{space:?}")));
             }
         };
 
@@ -313,15 +312,15 @@ impl<'a> BlockLowerer<'a> {
     /// Lower one heap unpin.
     pub(super) fn lower_unpin(&self, value: mir::Value) -> LinkResult<Instruction> {
         // select the heap family from the value operand
-        let address_space = self
+        let space = self
             .operand_map()
-            .address_space(value)
+            .space(value)
             .ok_or_else(|| self.invalid_pointer_type(format!("{value:?}")))?;
-        let op = match address_space {
-            AddressSpace::Local => Op::UnpinHeap,
-            AddressSpace::Shared => Op::UnpinSharedHeap,
-            address_space => {
-                return Err(self.invalid_pointer_type(format!("{address_space:?}")));
+        let op = match space {
+            mir::Space::Local => Op::UnpinHeap,
+            mir::Space::Shared => Op::UnpinSharedHeap,
+            space => {
+                return Err(self.invalid_pointer_type(format!("{space:?}")));
             }
         };
 
@@ -336,21 +335,18 @@ impl<'a> BlockLowerer<'a> {
         Ok(Instruction::new(op, self.cell_offset(value)?, 0, 0, 0))
     }
 
-    /// Return the address space for one slice backing allocation.
-    pub(super) fn slice_backing_address_space(
+    /// Return the space for one slice backing allocation.
+    pub(super) fn slice_backing_space(
         &self,
         result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LinkResult<AddressSpace> {
+    ) -> LinkResult<mir::Space> {
         let mir::Type::Slice { kind, space, .. } = self.function.tree.get(result_type) else {
             return Err(self.type_mismatch("slice result type", format!("{result_type:?}")));
         };
 
-        let address_space = self
-            .function
-            .address_space_for_reference(space.clone(), *kind);
-        match address_space {
-            AddressSpace::Local | AddressSpace::Shared => Ok(address_space),
-            _ => Err(self.invalid_pointer_type(format!("{address_space:?}"))),
+        match (space, kind) {
+            (mir::Space::Local | mir::Space::Shared, _) => Ok(*space),
+            _ => Err(self.invalid_pointer_type(format!("{space:?}"))),
         }
     }
 
@@ -366,13 +362,10 @@ impl<'a> BlockLowerer<'a> {
             return Err(self.invalid_pointer_type(format!("{ty:?}")));
         };
 
-        let address_space = self
-            .function
-            .address_space_for_reference(space.clone(), mir::ReferenceKind::Unique);
-        match address_space {
-            AddressSpace::Local => Ok(Op::FreeHeap),
-            AddressSpace::Shared => Ok(Op::FreeSharedHeap),
-            _ => Err(self.invalid_pointer_type(format!("{address_space:?}"))),
+        match space {
+            mir::Space::Local => Ok(Op::FreeHeap),
+            mir::Space::Shared => Ok(Op::FreeSharedHeap),
+            _ => Err(self.invalid_pointer_type(format!("{space:?}"))),
         }
     }
 }
@@ -387,7 +380,7 @@ impl BlockLowerer<'_> {
     fn allocation_plan(
         &self,
         pool: &mut Pool<'_, '_>,
-        address_space: AddressSpace,
+        space: mir::Space,
         layout: &StorageLayout,
     ) -> LinkResult<(AllocationPlan, AllocationClass)> {
         // resolve the allocation class from the destination space
@@ -400,11 +393,11 @@ impl BlockLowerer<'_> {
             trace_id,
             layout.trace_map.clone(),
         );
-        let allocation = match address_space {
-            AddressSpace::Local => self.function.heap_options.allocation_plan(&shape),
-            AddressSpace::Shared => self.function.shared_heap_options.allocation_plan(&shape),
+        let allocation = match space {
+            mir::Space::Local => self.function.heap_options.allocation_plan(&shape),
+            mir::Space::Shared => self.function.shared_heap_options.allocation_plan(&shape),
             _ => {
-                return Err(self.invalid_pointer_type(format!("{address_space:?}")));
+                return Err(self.invalid_pointer_type(format!("{space:?}")));
             }
         };
         let class = allocation.class;
@@ -415,100 +408,100 @@ impl BlockLowerer<'_> {
     /// Select one heap allocation operation from destination and size class.
     fn allocation_op(
         &self,
-        address_space: AddressSpace,
+        space: mir::Space,
         class: AllocationClass,
         is_noscan: bool,
         has_shared_reference: bool,
         initialization: AllocationInitialization,
     ) -> LinkResult<Op> {
-        match (address_space, class.as_small(), is_noscan, initialization) {
-            (AddressSpace::Local, Some(_), _, AllocationInitialization::Zeroed)
+        match (space, class.as_small(), is_noscan, initialization) {
+            (mir::Space::Local, Some(_), _, AllocationInitialization::Zeroed)
                 if has_shared_reference =>
             {
                 Ok(Op::AllocateHeapSmallSharedEdgeZeroed)
             }
-            (AddressSpace::Local, Some(_), _, AllocationInitialization::Uninit)
+            (mir::Space::Local, Some(_), _, AllocationInitialization::Uninit)
                 if has_shared_reference =>
             {
                 Ok(Op::AllocateHeapSmallSharedEdgeUninit)
             }
-            (AddressSpace::Local, Some(_), true, AllocationInitialization::Zeroed) => {
+            (mir::Space::Local, Some(_), true, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateHeapSmallNoscanZeroed)
             }
-            (AddressSpace::Local, Some(_), true, AllocationInitialization::Uninit) => {
+            (mir::Space::Local, Some(_), true, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateHeapSmallNoscanUninit)
             }
-            (AddressSpace::Local, Some(_), false, AllocationInitialization::Zeroed) => {
+            (mir::Space::Local, Some(_), false, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateHeapSmallScanZeroed)
             }
-            (AddressSpace::Local, Some(_), false, AllocationInitialization::Uninit) => {
+            (mir::Space::Local, Some(_), false, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateHeapSmallScanUninit)
             }
-            (AddressSpace::Local, None, _, AllocationInitialization::Zeroed) => {
+            (mir::Space::Local, None, _, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateHeapZeroed)
             }
-            (AddressSpace::Local, None, _, AllocationInitialization::Uninit) => {
+            (mir::Space::Local, None, _, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateHeapUninit)
             }
-            (AddressSpace::Shared, Some(_), _, AllocationInitialization::Zeroed) => {
+            (mir::Space::Shared, Some(_), _, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateSharedHeapSmallZeroed)
             }
-            (AddressSpace::Shared, Some(_), _, AllocationInitialization::Uninit) => {
+            (mir::Space::Shared, Some(_), _, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateSharedHeapSmallUninit)
             }
-            (AddressSpace::Shared, None, _, AllocationInitialization::Zeroed) => {
+            (mir::Space::Shared, None, _, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateSharedHeapZeroed)
             }
-            (AddressSpace::Shared, None, _, AllocationInitialization::Uninit) => {
+            (mir::Space::Shared, None, _, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateSharedHeapUninit)
             }
-            _ => Err(self.invalid_pointer_type(format!("{address_space:?}"))),
+            _ => Err(self.invalid_pointer_type(format!("{space:?}"))),
         }
     }
 
     /// Select one fallible heap allocation operation from destination space.
     fn allocation_branch_op(
         &self,
-        address_space: AddressSpace,
+        space: mir::Space,
         initialization: AllocationInitialization,
     ) -> LinkResult<Op> {
-        match (address_space, initialization) {
-            (AddressSpace::Local, AllocationInitialization::Zeroed) => {
+        match (space, initialization) {
+            (mir::Space::Local, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateHeapZeroedBranch)
             }
-            (AddressSpace::Local, AllocationInitialization::Uninit) => {
+            (mir::Space::Local, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateHeapUninitBranch)
             }
-            (AddressSpace::Shared, AllocationInitialization::Zeroed) => {
+            (mir::Space::Shared, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateSharedHeapZeroedBranch)
             }
-            (AddressSpace::Shared, AllocationInitialization::Uninit) => {
+            (mir::Space::Shared, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateSharedHeapUninitBranch)
             }
-            _ => Err(self.invalid_pointer_type(format!("{address_space:?}"))),
+            _ => Err(self.invalid_pointer_type(format!("{space:?}"))),
         }
     }
 
     /// Select one fallible slice allocation operation from destination space.
     fn slice_allocation_branch_op(
         &self,
-        address_space: AddressSpace,
+        space: mir::Space,
         initialization: AllocationInitialization,
     ) -> LinkResult<Op> {
-        match (address_space, initialization) {
-            (AddressSpace::Local, AllocationInitialization::Zeroed) => {
+        match (space, initialization) {
+            (mir::Space::Local, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateSliceZeroedBranch)
             }
-            (AddressSpace::Local, AllocationInitialization::Uninit) => {
+            (mir::Space::Local, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateSliceUninitBranch)
             }
-            (AddressSpace::Shared, AllocationInitialization::Zeroed) => {
+            (mir::Space::Shared, AllocationInitialization::Zeroed) => {
                 Ok(Op::AllocateSharedSliceZeroedBranch)
             }
-            (AddressSpace::Shared, AllocationInitialization::Uninit) => {
+            (mir::Space::Shared, AllocationInitialization::Uninit) => {
                 Ok(Op::AllocateSharedSliceUninitBranch)
             }
-            _ => Err(self.invalid_pointer_type(format!("{address_space:?}"))),
+            _ => Err(self.invalid_pointer_type(format!("{space:?}"))),
         }
     }
 }

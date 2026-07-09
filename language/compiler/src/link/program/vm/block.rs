@@ -4,9 +4,7 @@ use destack_heap as heap;
 use destack_mir as mir;
 
 use destack_program::vm::CallTarget;
-use destack_program::{
-    AddressSpace, CellLayout, FrameLayout, FrameSlot, FrameStateId, FunctionId, ScalarFormat,
-};
+use destack_program::{CellLayout, FrameLayout, FrameSlot, FrameStateId, FunctionId, ScalarFormat};
 
 use crate::{LinkError, LinkResult};
 
@@ -223,13 +221,10 @@ impl<'a> FunctionContext<'a> {
         self.operand_lowerer().operand(ty)
     }
 
-    /// Return the address space for one MIR reference type.
-    pub(super) fn address_space_for_type(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> LinkResult<AddressSpace> {
+    /// Return the storage space for one MIR reference type.
+    pub(super) fn space_for_type(&self, ty: mir::LocalNodeId<mir::Type>) -> LinkResult<mir::Space> {
         match self.operand_for_type(ty) {
-            Some(Operand::Reference { address_space, .. }) => Ok(address_space),
+            Some(Operand::Reference { space, .. }) => Ok(space),
             actual => Err(self.invalid_pointer_type(format!("{actual:?}"))),
         }
     }
@@ -316,13 +311,13 @@ impl<'a> FunctionContext<'a> {
         self.program.program().internal(message)
     }
 
-    /// Return the VM address space for one MIR reference type.
-    pub(super) fn address_space_for_reference(
+    /// Return the pointer cell layout for one MIR reference type.
+    pub(super) fn reference_cell_layout(
         &self,
         space: mir::Space,
         kind: mir::ReferenceKind,
-    ) -> AddressSpace {
-        self.type_linker().address_space(space, kind)
+    ) -> CellLayout {
+        self.type_linker().reference_cell_layout(space, kind)
     }
 
     /// Return values stored in one MIR value slice.
