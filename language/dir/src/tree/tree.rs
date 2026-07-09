@@ -995,11 +995,11 @@ mod tests {
         let derivation = destack_core::StringId(1);
 
         // parsed root, one derived node, then replace the root in place
-        let root = tree.insert(Expression::Stub, test_span(0));
+        let root = tree.insert(Expression::Error, test_span(0));
         let derived = tree.reserve_from(crate::NodeType::Expression, root.id, None, derivation);
         let derived: crate::LocalNodeId<Expression> =
-            tree.insert_reserved(derived, Expression::Stub);
-        let preserved = tree.replace(root, Expression::Stub, derivation);
+            tree.insert_reserved(derived, Expression::Error);
+        let preserved = tree.replace(root, Expression::Error, derivation);
 
         // the tombstone carries the original and is hidden from traversal
         assert!(tree.is_detached(preserved.id));
@@ -1015,11 +1015,11 @@ mod tests {
     #[test]
     fn test_restore_mark_replays_typed_arena_tail() {
         let mut tree = Tree::new(test_module_id());
-        let owner = tree.insert(Expression::Stub, test_span(0));
+        let owner = tree.insert(Expression::Error, test_span(0));
         let mark = tree.mark();
 
         let ty = tree.insert(TypeExpression::Missing, test_span(1));
-        let decorator_expression = tree.insert(Expression::Stub, test_span(2));
+        let decorator_expression = tree.insert(Expression::Error, test_span(2));
         let decorator = tree.insert(
             Decorator {
                 expression: decorator_expression,
@@ -1043,11 +1043,11 @@ mod tests {
     #[test]
     fn test_restore_mark_uses_tail_tree_local_node_count() {
         let mut base = Tree::new(test_module_id());
-        base.insert(Expression::Stub, test_span(0));
-        base.insert(Expression::Stub, test_span(1));
+        base.insert(Expression::Error, test_span(0));
+        base.insert(Expression::Error, test_span(1));
 
         let mut tree = Tree::from_base(&base, 4);
-        let retained = tree.insert(Expression::Stub, test_span(2));
+        let retained = tree.insert(Expression::Error, test_span(2));
         let mark = tree.mark();
         let removed = tree.insert(TypeExpression::Missing, test_span(3));
 

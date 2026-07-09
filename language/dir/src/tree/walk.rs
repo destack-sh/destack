@@ -1283,7 +1283,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Debugger => {}
         Expression::Missing => {}
-        Expression::Stub => {}
         Expression::Error => {}
     }
 }
@@ -1826,7 +1825,7 @@ pub fn walk_argument<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        Argument::Error => {}
+        Argument::Elision | Argument::Error => {}
     }
 }
 
