@@ -3,7 +3,7 @@ use crate::{assert_comment, assert_expression_path, assert_node, assert_path, as
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, NodeType, Parameter,
-    PostfixPosition, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    PostfixPosition, ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -443,7 +443,7 @@ fn test_parse_as_cast_missing_type_target() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "");
 
     // value as
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -460,7 +460,7 @@ fn test_parse_satisfies_missing_type_target() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "");
 
     // value satisfies
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -480,12 +480,17 @@ fn test_recover_newline_before_assertion_operator() {
 
             parser.parse();
 
-            test.assert_error_leaves(
+            test.assert_errors(
                 &parser,
                 &[
-                    (Some(NodeType::Expression), None, operator),
-                    (None, None, "number"),
-                    (None, None, ")"),
+                    (
+                        Some(NodeType::Expression),
+                        Some(TokenType::Identifier),
+                        Some(TokenType::CloseParenthesis),
+                        operator,
+                    ),
+                    (None, Some(TokenType::Identifier), None, "number"),
+                    (None, Some(TokenType::CloseParenthesis), None, ")"),
                 ],
             );
         }
@@ -600,40 +605,39 @@ fn test_parse_async_arrow_with_as_parameter() {
     });
 }
 
-/// Recover cast expressions in parenthesized arrow parameters.
+/// Recover cast tails as malformed parameters without abandoning their arrow functions.
 #[test]
-fn test_recover_parenthesized_arrow_parameter_cast() {
-    let mut test = TestParser::new_with_language("(a as T) => {};", LanguageType::TypeScript);
-    let mut parser = test.prepare();
+fn test_recover_arrow_parameter_cast_tails() {
+    let cases = [
+        ("(a as T) => {};", "as"),
+        ("async (a satisfies T) => {};", "satisfies"),
+    ];
 
-    parser.parse();
+    for (source, error_text) in cases {
+        let source = format!("{source}\nconst stable = 1;");
+        let mut test = TestParser::new_with_language(&source, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
 
-    test.assert_error_leaves(
-        &parser,
-        &[
-            (Some(NodeType::Parameter), None, "as"),
-            (None, None, ")"),
-            (Some(NodeType::Expression), None, "}"),
-        ],
-    );
-}
-
-/// Recover cast expressions in async parenthesized arrow parameters.
-#[test]
-fn test_recover_async_parenthesized_arrow_parameter_cast() {
-    let mut test = TestParser::new_with_language("async (a as T) => {};", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    parser.parse();
-
-    test.assert_error_leaves(
-        &parser,
-        &[
-            (Some(NodeType::Parameter), None, "as"),
-            (None, None, ")"),
-            (Some(NodeType::Expression), None, "}"),
-        ],
-    );
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+                assert_eq!(signature.parameters.len(), 1);
+                assert_node!(parser.tree, signature.parameters[0], Parameter::Error);
+                assert!(body.is_some());
+            });
+        });
+        assert_node!(parser.tree, expressions[1], Expression::Let { .. });
+        test.assert_errors(
+            &parser,
+            &[(
+                Some(NodeType::Parameter),
+                Some(TokenType::Identifier),
+                None,
+                error_text,
+            )],
+        );
+    }
 }
 
 /// Parse async arrows with a newline before a return type annotation.
@@ -879,7 +883,7 @@ fn test_report_type_assertion_when_disallow_ambiguous_tree_literal() {
 
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
+    assert_eq!(parser.get_span_str(error.span), "<");
 }
 
 /// Report ambiguous generic arrows in disallow ambiguous mode.
@@ -891,7 +895,7 @@ fn test_report_generic_arrow_when_disallow_ambiguous_tree_literal() {
 
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
+    assert_eq!(parser.get_span_str(error.span), "<");
 }
 
 /// Parse `new` calls with generic receivers and const assertion arguments.
@@ -928,7 +932,7 @@ fn test_report_type_assertion_in_new_receiver() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
+    assert_eq!(parser.get_span_str(error.span), "<");
 }
 
 /// Report unparenthesized cast assignment targets.
@@ -938,7 +942,7 @@ fn test_report_unparenthesized_cast_assignment_target() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "value as number");
+    assert_eq!(parser.get_span_str(error.span), "value as number");
 }
 
 /// Report unparenthesized satisfies assignment targets.
@@ -949,10 +953,7 @@ fn test_report_unparenthesized_satisfies_assignment_target() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(
-        parser.get_span_str(error.leaf_span()),
-        "value satisfies number"
-    );
+    assert_eq!(parser.get_span_str(error.span), "value satisfies number");
 }
 
 /// Parse parenthesized cast assignment targets.

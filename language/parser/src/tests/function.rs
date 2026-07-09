@@ -1,9 +1,9 @@
 use destack_dir::{
-    Argument, Asynchrony, BlockContext, BlockForm, CommentKind, CommentPosition, Declaration,
-    Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase, FunctionRole,
-    GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter, Pattern,
-    ScalarLiteral, ThisForm, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier,
-    WhereClause, YieldCardinality,
+    Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind, CommentPosition,
+    Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
+    FunctionRole, GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter,
+    Pattern, PatternField, ScalarLiteral, ThisForm, TokenType, TypeDeclaration, TypeExpression,
+    TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -62,6 +62,68 @@ fn test_parse_optional_arrow_parameter_without_type() {
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, is_optional, .. } => {
                 assert_string!(parser, *name, "value");
                 assert!(*is_optional);
+            });
+        });
+    });
+    test.assert_no_errors(&parser);
+}
+
+/// Parse relational and shift expressions in arrow parameter defaults.
+#[test]
+fn test_parse_arrow_parameter_defaults_with_angle_operators() {
+    let cases = [
+        ("(value = left < right) => value", BinaryOperator::LessThan),
+        (
+            "(value = left > right) => value",
+            BinaryOperator::GreaterThan,
+        ),
+        (
+            "(value = left << right) => value",
+            BinaryOperator::ShiftLeft,
+        ),
+        (
+            "(value = (left < right)) => value",
+            BinaryOperator::LessThan,
+        ),
+    ];
+
+    for (source, expected_operator) in cases {
+        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                assert_node!(parser.tree, signature.parameters[0], Parameter::Named { default: Some(default), .. } => {
+                    let default = parser.without_parentheses_expression(*default);
+                    assert_node!(parser.tree, default, Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, expected_operator);
+                    });
+                });
+            });
+        });
+        test.assert_no_errors(&parser);
+    }
+}
+
+/// Parse a generic type annotation followed by an arrow parameter default.
+#[test]
+fn test_parse_typed_arrow_parameter_default() {
+    let mut test = TestParser::new_with_language(
+        "(value: Box<Item> = input) => value",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+            assert_node!(parser.tree, signature.parameters[0], Parameter::Named { declared_type: Some(declared_type), default: Some(default), .. } => {
+                assert_node!(parser.tree, *declared_type, TypeExpression::Reference { path, generic_arguments } => {
+                    assert_path!(parser, *path, "Box");
+                    assert_eq!(generic_arguments.len(), 1);
+                });
+                assert_expression_path!(parser, parser.tree.get(*default), "input");
             });
         });
     });
@@ -657,6 +719,107 @@ fn test_parse_function_default_parameter_followed_by_required() {
     });
 }
 
+/// Recover reserved formal parameter bindings while preserving their tree shape.
+#[test]
+fn test_recover_reserved_formal_parameter_bindings() {
+    let cases = [
+        (
+            "function* broken(yield) {}\nconst stable = 1",
+            "yield",
+            false,
+        ),
+        (
+            "function* broken({ yield }) {}\nconst stable = 1",
+            "yield",
+            true,
+        ),
+        (
+            "async function broken(await) {}\nconst stable = 1",
+            "await",
+            false,
+        ),
+        (
+            "async function broken({ await }) {}\nconst stable = 1",
+            "await",
+            true,
+        ),
+    ];
+
+    for (source, binding, is_pattern) in cases {
+        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser
+            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
+            .unwrap();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                assert_eq!(signature.parameters.len(), 1);
+                if is_pattern {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Pattern { pattern, .. } => {
+                        assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                            assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, .. } => {
+                                assert_name!(parser, *name, binding);
+                            });
+                        });
+                    });
+                } else {
+                    assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, .. } => {
+                        assert_string!(parser, *name, binding);
+                    });
+                }
+            });
+        });
+        assert_node!(parser.tree, expressions[1], Expression::Let { .. });
+        test.assert_errors(
+            &parser,
+            &[(None, Some(TokenType::Identifier), None, binding)],
+        );
+    }
+}
+
+/// Recover forbidden `yield` and `await` expressions in formal parameter defaults.
+#[test]
+fn test_recover_forbidden_formal_parameter_default_expressions() {
+    let cases = [
+        (
+            "function* broken(value = yield 1) {}\nconst stable = 1",
+            "yield",
+        ),
+        (
+            "async function broken(value = await load()) {}\nconst stable = 1",
+            "await",
+        ),
+    ];
+
+    for (source, error_text) in cases {
+        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser
+            .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
+            .unwrap();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
+                assert_eq!(signature.parameters.len(), 1);
+                assert_node!(parser.tree, signature.parameters[0], Parameter::Error);
+            });
+        });
+        assert_node!(parser.tree, expressions[1], Expression::Let { .. });
+        test.assert_errors(
+            &parser,
+            &[(
+                Some(NodeType::Parameter),
+                Some(TokenType::Identifier),
+                None,
+                error_text,
+            )],
+        );
+    }
+}
+
 #[test]
 fn test_parse_function_new_type() {
     let mut test = TestParser::new("new(): $");
@@ -1083,21 +1246,21 @@ fn test_parse_function_generator_call_argument_with_bare_yield() {
     });
 }
 
-/// Parse anonymous function expression container spans.
+/// Parse named function expression container spans.
 #[test]
 fn test_parse_function_expression_container_spans() {
     let mut test = TestParser::new_with_language(
-        "bar(...items, function() { return 1; });",
+        "bar(...items, function callback() { return 1; });",
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    // bar(...items, function() { return 1; })
+    // bar(...items, function callback() { return 1; })
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
         assert_eq!(arguments.len(), 2);
 
-        // function() { return 1; }
+        // function callback() { return 1; }
         assert_node!(parser.tree, arguments[1], Argument::Positional { value, .. } => {
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 let parameter_span = parser
@@ -1137,9 +1300,17 @@ function main() {
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
-        &[(None, None, "}"), (Some(NodeType::Expression), None, "}")],
+        &[
+            (None, Some(TokenType::CloseBrace), None, "}"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::CloseBrace),
+                Some(TokenType::CloseParenthesis),
+                "}",
+            ),
+        ],
     );
 
     // top level expressions
@@ -1320,7 +1491,10 @@ fn test_recover_function_generator_delegate_before_following_const() {
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::Expression), None, None, "const")],
+    );
 
     // function *a(){yield*
     // const value = 1}
@@ -1601,7 +1775,7 @@ fn test_report_unparenthesized_arrow_call() {
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
     // (
-    assert_eq!(parser.get_span_str(error.leaf_span()), "(");
+    assert_eq!(parser.get_span_str(error.span), "(");
 
     // source: a => {}()
     let mut test = TestParser::new_with_language("a => {}()", LanguageType::Destack);
@@ -1609,7 +1783,7 @@ fn test_report_unparenthesized_arrow_call() {
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
     // (
-    assert_eq!(parser.get_span_str(error.leaf_span()), "(");
+    assert_eq!(parser.get_span_str(error.span), "(");
 }
 
 /// Parse direct calls on parenthesized arrow functions.
@@ -1637,8 +1811,7 @@ fn test_parse_parenthesized_arrow_call() {
 fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     // source: (() => {})()
     let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
-    let mut parser = test.prepare();
-    parser.apply_options(ParserOptions {
+    let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,

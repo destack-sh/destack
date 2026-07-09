@@ -1,28 +1,15 @@
+use crate::parse::DeclarationHeader;
 use crate::parse::error::ParserResultExt;
 use crate::parse::flags::ParserFlags;
-use crate::parse::scan::DelimiterDepth;
-use crate::parse::{DeclarationHeader, RecoveryPoint};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
-    Asynchrony, BlockContext, ConstructorType, Declaration, ExportKind, Expression,
-    FunctionDeclaration, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
-    FunctionTypeExpression, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
-    TokenType, TypeExpression, WhereClause,
+    Asynchrony, BlockContext, ConstructorType, Declaration, Expression, FunctionDeclaration,
+    FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionTypeExpression,
+    GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
+    WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-
-/// The keywords that can appear before a function declaration.
-pub static FUNCTION_MODIFIERS: [Keyword; 8] = [
-    Keyword::Async,
-    Keyword::Comptime,
-    Keyword::Abstract,
-    Keyword::Override,
-    Keyword::Get,
-    Keyword::Set,
-    Keyword::Constructor,
-    Keyword::New,
-];
 
 /// The parsed head shape that precedes a possible arrow tail.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -37,40 +24,6 @@ impl ArrowHeadKind {
     /// Return whether a colon may start an arrow return type after this head.
     pub(crate) const fn allows_return_type_colon(self, flags: ParserFlags) -> bool {
         !matches!(self, Self::ParenthesizedIdentifier) || !flags.is_in_ternary_condition()
-    }
-}
-
-/// The head shapes accepted by direct arrow-head parsing.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ArrowHeadShape {
-    /// No dynamic parameters: `()`.
-    Empty,
-    /// One named parameter: `(value)` or `(value: Type)`.
-    Named {
-        /// Whether the parameter has a type annotation.
-        has_type_annotation: bool,
-        /// Whether the parameter is optional.
-        is_optional: bool,
-        /// Whether the parameter has a prefix modifier.
-        has_modifier: bool,
-    },
-}
-
-impl ArrowHeadShape {
-    /// Return the arrow head kind for this scanned head.
-    fn kind(self) -> ArrowHeadKind {
-        if matches!(
-            self,
-            Self::Named {
-                has_type_annotation: false,
-                is_optional: false,
-                has_modifier: false,
-            }
-        ) {
-            ArrowHeadKind::ParenthesizedIdentifier
-        } else {
-            ArrowHeadKind::ParameterList
-        }
     }
 }
 
@@ -146,101 +99,22 @@ struct ParsedFunctionBody {
     body_span: Option<Span>,
 }
 
-/// Parsed arrow function syntax.
-struct ParsedArrowFunction {
-    /// The declaration header.
-    header: DeclarationHeader,
-    /// The parsed parameters.
-    parameters: Vec<LocalNodeId<Parameter>>,
-    /// The generic parameter container span.
-    generic_parameter_span: Option<Span>,
-    /// The parameter container span.
-    parameter_span: Option<Span>,
-    /// The optional return type.
-    return_type: Option<LocalNodeId<TypeExpression>>,
-    /// The return type span.
-    return_type_span: Option<Span>,
-    /// The parsed body expression.
-    body: LocalNodeId<Expression>,
-    /// The body container span.
-    body_span: Span,
-}
-
 impl Parser {
     /// Eat a function or lambda declaration.
     ///
-    /// A signature without a body represents an external declaration.
-    ///
     /// Examples:
-    /// ```
-    /// // lambda style (type context)
-    /// (a: int32) => int32
-    /// (int32) => (boolean, int32)
-    /// (x): int32 => x
-    ///
-    /// // lambda style (value context)
-    /// (a) => a > 2
-    /// (a): int32 => a > 2
-    /// (a: int32) => {
-    ///    print("Hello, world!")
+    /// ```ds
+    /// function parse<T>(value: T): T {
+    ///     return value;
     /// }
-    ///
-    /// // function style
-    /// function () // anonymous function with empty signature
-    ///
-    /// function foo() // just declaration, no body, no opening `{`
-    ///
-    /// function foo<T, U>(x: T) => (int32, boolean) where (
-    ///    T: Copy
-    ///    U: Numeric
-    /// ) {
-    ///    print("Hello, world!")
-    /// }
-    ///
-    /// // optional , if newline-delimited
-    /// function longBar<Validate: boolean>(
-    ///   /// doc comment for `a`
-    ///   a: int32
-    ///   /// doc comment for `b`
-    ///   b: boolean
-    ///   // regular comment
-    ///   c: Vector2
-    /// ) => (
-    ///    int32,
-    ///    isGood: boolean
-    /// ) with (
-    ///   Time
-    /// ) {
-    ///    ...
-    /// }
+    /// (value: int32): int32 => value
     /// ```
     pub(crate) fn eat_function(
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        let can_parse_arrow_value = !self.flags.is_in_type()
-            && !self.flags.is_in_match_case()
-            && header == DeclarationHeader::default();
-
-        // parse arrow heads only when the token shape matches
-        if can_parse_arrow_value && self.peek_is(TokenType::OpenParenthesis) {
-            if let Some(function_id) = self.eat_simple_parenthesized_arrow(start, &header)? {
-                return Ok(function_id);
-            }
-
-            if let Some(function_id) = self.eat_parenthesized_arrow(start, &header)? {
-                return Ok(function_id);
-            }
-        } else if can_parse_arrow_value
-            && self.peek_is(TokenType::Identifier)
-            && matches!(self.next_token_type(), TokenType::ArrowWide)
-            && let Some(function_id) = self.eat_identifier_arrow(start, &header)?
-        {
-            return Ok(function_id);
-        }
-
-        let function = self.eat_function_syntax(start, header)?;
+        let function = self.eat_function_syntax(header)?;
 
         Ok(self.insert_function_declaration(start, function))
     }
@@ -251,25 +125,21 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let function = self.eat_function_syntax(start, header)?;
+        let function = self.eat_function_syntax(header)?;
 
         if function.signature.form == FunctionForm::Lambda && function.body.is_none() {
-            return Ok(self.insert_function_type_expression(start, function));
+            return self.insert_function_type_expression(start, function);
         }
 
         Err(ParserError::unexpected(self.anchor_span_here()))
     }
 
     /// Eat one function before inserting a grammar-specific node.
-    fn eat_function_syntax(
-        &mut self,
-        start: &ParserSpanStart,
-        header: DeclarationHeader,
-    ) -> ParserResult<ParsedFunction> {
+    fn eat_function_syntax(&mut self, header: DeclarationHeader) -> ParserResult<ParsedFunction> {
         let head = self.eat_function_head(header)?;
         self.require_function_name(&head)?;
 
-        let parameters = self.eat_function_parameters(start, &head)?;
+        let parameters = self.eat_function_parameters(&head)?;
         let return_part = self.eat_function_return(&head)?;
         let body = self.eat_function_body(&head)?;
 
@@ -377,7 +247,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         function: ParsedFunction,
-    ) -> LocalNodeId<TypeExpression> {
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
         debug_assert_eq!(function.signature.form, FunctionForm::Lambda);
         debug_assert!(function.body.is_none());
 
@@ -398,7 +268,7 @@ impl Parser {
                 parameters: function.signature.parameters,
                 return_type: function.signature.return_type,
             }),
-            _ => unreachable!("expected function or constructor type role"),
+            _ => return Err(ParserError::unexpected(self.anchor_span_here())),
         };
         let type_expression_id = self.insert_node(type_expression, self.get_span_from(start));
 
@@ -429,576 +299,7 @@ impl Parser {
             );
         }
 
-        type_expression_id
-    }
-
-    /// Eat an arrow body.
-    fn eat_arrow_body(
-        &mut self,
-        body_start: &ParserSpanStart,
-    ) -> ParserResult<(LocalNodeId<Expression>, Span)> {
-        if self.is_block_start() {
-            let mut flags = self
-                .flags
-                .in_statement_position()
-                .in_before_block()
-                .not_in_decorator();
-            flags.set_allow_sequence_expression(true);
-            let block_id =
-                self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
-            let body_span = self.get_span_from(body_start);
-            let body = self.tree.insert(Expression::Block(block_id), body_span);
-
-            Ok((body, body_span))
-        } else {
-            let mut flags = self.flags.in_before_block().not_in_decorator();
-            flags.set_allow_sequence_expression(false);
-            let body = self.eat_expression(flags)?;
-            let body_span = self.get_span_from(body_start);
-
-            Ok((body, body_span))
-        }
-    }
-
-    /// Insert an arrow function declaration from parsed parameters and body.
-    fn insert_arrow_declaration(
-        &mut self,
-        start: &ParserSpanStart,
-        arrow: ParsedArrowFunction,
-    ) -> LocalNodeId<Declaration> {
-        let (this_form, this_parameter, parameters) =
-            self.split_this_parameter_maybe(arrow.parameters);
-        let signature = FunctionSignature {
-            asynchrony: Asynchrony::Sync,
-            role: None,
-            form: FunctionForm::Lambda,
-            phase: FunctionPhase::Normal,
-            generic_parameters: vec![],
-            where_clauses: vec![],
-            this_form,
-            this_parameter,
-            parameters,
-            return_type: arrow.return_type,
-            is_abstract: false,
-            is_override: false,
-            is_generator: false,
-        };
-        let function_id = self.insert_node(
-            Declaration::Function(FunctionDeclaration {
-                name: None,
-                export: arrow.header.export,
-                is_ambient: arrow.header.is_ambient,
-                signature,
-                body: Some(arrow.body),
-            }),
-            self.get_span_from(start),
-        );
-        if let Some(span) = arrow.return_type_span {
-            self.tree.set_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::Type),
-                span,
-            );
-        }
-
-        if let Some(span) = arrow.generic_parameter_span {
-            self.tree.set_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::GenericParameters),
-                span,
-            );
-        }
-
-        if let Some(span) = arrow.parameter_span {
-            self.tree.set_side_span(
-                function_id,
-                NodeSpanType::Region(NodeSpanRegion::Parameters),
-                span,
-            );
-        }
-
-        self.tree.set_side_span(
-            function_id,
-            NodeSpanType::Region(NodeSpanRegion::Body),
-            arrow.body_span,
-        );
-
-        function_id
-    }
-
-    /// Scan a parenthesized arrow head without forcing a full pair lookup.
-    fn scan_parenthesized_arrow_head(&mut self) -> Option<(ArrowHeadShape, TokenType)> {
-        if !self.peek_is(TokenType::OpenParenthesis) {
-            return None;
-        }
-
-        self.lookahead(|parser| parser.scan_parenthesized_arrow_head_here())
-    }
-
-    /// Scan a parenthesized arrow head at the current open parenthesis.
-    fn scan_parenthesized_arrow_head_here(&mut self) -> Option<(ArrowHeadShape, TokenType)> {
-        if !self.peek_is(TokenType::OpenParenthesis) {
-            return None;
-        }
-
-        // track the head state
-        let mut semantic_token_count = 0usize;
-        let mut first_token_type = None;
-        let mut second_token_type = None;
-        let mut third_token_type = None;
-        let mut has_parameter = false;
-        let mut has_modifier = false;
-        let mut is_optional = false;
-        let mut has_type_annotation = false;
-        let mut has_type_tokens = false;
-
-        // track nested type annotation delimiters
-        let mut depth = DelimiterDepth::default();
-
-        // eat (
-        self.bump();
-        loop {
-            let token_type = self.peek_token_type();
-            if token_type == TokenType::End {
-                return None;
-            }
-
-            // recover before rescanning later statements
-            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
-            {
-                return None;
-            }
-
-            // top level close: finalize the head
-            if token_type == TokenType::CloseParenthesis && depth.is_top_level() {
-                break;
-            }
-
-            semantic_token_count += 1;
-
-            match semantic_token_count {
-                1 => first_token_type = Some(token_type),
-                2 => second_token_type = Some(token_type),
-                3 => third_token_type = Some(token_type),
-                _ => {}
-            }
-
-            // require at most one named parameter
-            if !has_parameter {
-                if self.language.is_destack()
-                    && (self.is_keyword(Keyword::Comptime)
-                        || self.current_identifier_str_is("comptime"))
-                {
-                    has_modifier = true;
-                    self.bump();
-                    continue;
-                }
-
-                if token_type == TokenType::Identifier {
-                    has_parameter = true;
-                    self.bump();
-                    continue;
-                }
-
-                return None;
-            }
-
-            // optionally allow one top level optional marker
-            if !is_optional && !has_type_annotation && token_type == TokenType::Maybe {
-                is_optional = true;
-                self.bump();
-                continue;
-            }
-
-            // optionally allow one top level type annotation marker
-            if !has_type_annotation {
-                if token_type == TokenType::Colon {
-                    has_type_annotation = true;
-                    self.bump();
-                    continue;
-                }
-
-                return None;
-            }
-
-            // reject additional top level parameters and defaults
-            if depth.is_top_level() && matches!(token_type, TokenType::Comma | TokenType::Assign) {
-                return None;
-            }
-
-            // track nested structures inside the type annotation
-            if !depth.advance(token_type) {
-                return None;
-            }
-            has_type_tokens = true;
-            self.bump();
-        }
-
-        // common heads: (), (x), (x: T)
-        let head_shape = if semantic_token_count == 0 {
-            ArrowHeadShape::Empty
-        } else if semantic_token_count == 1 && first_token_type == Some(TokenType::Identifier) {
-            ArrowHeadShape::Named {
-                has_type_annotation: false,
-                is_optional: false,
-                has_modifier,
-            }
-        } else if semantic_token_count == 3
-            && first_token_type == Some(TokenType::Identifier)
-            && second_token_type == Some(TokenType::Colon)
-            && matches!(
-                third_token_type,
-                Some(TokenType::Identifier | TokenType::Literal)
-            )
-        {
-            ArrowHeadShape::Named {
-                has_type_annotation: true,
-                is_optional: false,
-                has_modifier,
-            }
-        } else if semantic_token_count == 2
-            && first_token_type == Some(TokenType::Identifier)
-            && second_token_type == Some(TokenType::Maybe)
-        {
-            ArrowHeadShape::Named {
-                has_type_annotation: false,
-                is_optional: true,
-                has_modifier,
-            }
-        } else if has_parameter {
-            if has_type_annotation && (!has_type_tokens || !depth.is_top_level()) {
-                return None;
-            }
-
-            ArrowHeadShape::Named {
-                has_type_annotation,
-                is_optional,
-                has_modifier,
-            }
-        } else {
-            ArrowHeadShape::Empty
-        };
-
-        self.bump();
-        let follow_token_type = self.peek_token_type();
-
-        Some((head_shape, follow_token_type))
-    }
-
-    /// Eat a simple parenthesized arrow when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// () => value
-    /// (value) => value
-    /// (value: Type) => value
-    /// ```
-    fn eat_simple_parenthesized_arrow(
-        &mut self,
-        start: &ParserSpanStart,
-        header: &DeclarationHeader,
-    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
-        let Some((head_shape, follow_token_type)) = self.scan_parenthesized_arrow_head() else {
-            return Ok(None);
-        };
-
-        // require an arrow or return type marker after the group
-        if !self.token_starts_arrow_tail(follow_token_type, head_shape.kind()) {
-            return Ok(None);
-        }
-
-        // let the full parameter parser handle modifiers
-        if matches!(
-            head_shape,
-            ArrowHeadShape::Named {
-                has_modifier: true,
-                ..
-            }
-        ) {
-            return Ok(None);
-        }
-
-        // let the full parameter parser preserve receiver shorthand
-        let starts_receiver_shorthand = self.lookahead(|parser| {
-            parser.bump();
-
-            parser.current_token_starts_this_form_parameter()
-        });
-        if starts_receiver_shorthand {
-            return Ok(None);
-        }
-
-        // parse the parenthesized head
-        let parameter_container_start = self.span_start();
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let mut parameters = Vec::with_capacity(1);
-        if let ArrowHeadShape::Named {
-            has_type_annotation,
-            is_optional,
-            has_modifier: _,
-        } = head_shape
-        {
-            let parameter_start = self.span_start();
-            let (parameter_name, parameter_name_span) = self.eat_binding_identifier_with_span()?;
-            if is_optional {
-                self.eat_token(TokenType::Maybe)?;
-            }
-            let (parameter_type, parameter_type_span) = if has_type_annotation {
-                let type_start = self.span_start();
-                self.eat_token(TokenType::Colon)?;
-                let mut type_flags = self.flags.not_in_position().in_type();
-                if self.flags.is_in_type_conditional_right() {
-                    type_flags = type_flags.in_type_conditional_right();
-                }
-                let parameter_type =
-                    self.eat_type_expression_or_recover_missing(type_flags, NodeType::Parameter)?;
-                let parameter_type_span = self.get_span_from(&type_start);
-                (Some(parameter_type), Some(parameter_type_span))
-            } else {
-                (None, None)
-            };
-
-            let parameter_id = self.insert_node(
-                Parameter::Named {
-                    name: parameter_name,
-                    is_optional,
-                    is_comptime: false,
-                    declared_type: parameter_type,
-                    default: None,
-                },
-                self.get_span_from(&parameter_start),
-            );
-            self.tree.set_main_span(parameter_id, parameter_name_span);
-            if let Some(span) = parameter_type_span {
-                self.tree.set_side_span(
-                    parameter_id,
-                    NodeSpanType::Region(NodeSpanRegion::Type),
-                    span,
-                );
-            }
-            parameters.push(parameter_id);
-        }
-        self.eat_list_close_token_or_recover_missing(
-            TokenType::CloseParenthesis,
-            NodeType::Parameter,
-        )?;
-        let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
-
-        let function_id =
-            self.eat_arrow_tail(start, *header, parameters, parameter_container_span)?;
-
-        Ok(Some(function_id))
-    }
-
-    /// Eat a full parameter-list arrow when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// (first, second) => first + second
-    /// ({ value }) => value
-    /// (...items) => items
-    /// ```
-    fn eat_parenthesized_arrow(
-        &mut self,
-        start: &ParserSpanStart,
-        header: &DeclarationHeader,
-    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
-        // require an arrow or return type marker after the parenthesized head
-        let follow_token_type =
-            if let Some((_, follow_token_type)) = self.scan_parenthesized_arrow_head() {
-                follow_token_type
-            } else if let Some(follow_token_type) = self.scan_parenthesized_modified_arrow_head() {
-                follow_token_type
-            } else {
-                return Ok(None);
-            };
-        if !self.token_starts_arrow_tail(follow_token_type, ArrowHeadKind::ParameterList) {
-            return Ok(None);
-        }
-
-        // dynamic parameters
-        let parameter_container_start = self.span_start();
-        self.eat_token(TokenType::OpenParenthesis)?;
-        let parameter_flags = self.flags.with_generator(false).with_forbid_yield(false);
-        let parameters = if self.peek_is(TokenType::CloseParenthesis) {
-            vec![]
-        } else {
-            self.with_flags(parameter_flags, |parser| parser.eat_parameters_body())?
-        };
-        self.eat_list_close_token_or_recover_missing(
-            TokenType::CloseParenthesis,
-            NodeType::Parameter,
-        )?;
-        let parameter_container_span = Some(self.get_span_from(&parameter_container_start));
-
-        let function_id =
-            self.eat_arrow_tail(start, *header, parameters, parameter_container_span)?;
-
-        Ok(Some(function_id))
-    }
-
-    /// Scan a parenthesized arrow head that starts with a parameter modifier.
-    fn scan_parenthesized_modified_arrow_head(&mut self) -> Option<TokenType> {
-        if !self.peek_is(TokenType::OpenParenthesis) {
-            return None;
-        }
-
-        self.lookahead(|parser| parser.scan_parenthesized_modified_arrow_head_here())
-    }
-
-    /// Scan a parenthesized modified arrow head at the current open parenthesis.
-    fn scan_parenthesized_modified_arrow_head_here(&mut self) -> Option<TokenType> {
-        self.bump();
-
-        let starts_modified_parameter = self.language.is_destack()
-            && (self.is_keyword(Keyword::Comptime) || self.current_identifier_str_is("comptime"));
-        if !starts_modified_parameter {
-            return None;
-        }
-
-        let mut depth = DelimiterDepth::default();
-        loop {
-            let token_type = self.peek_token_type();
-            if token_type == TokenType::End {
-                return None;
-            }
-
-            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
-            {
-                return None;
-            }
-
-            if token_type == TokenType::CloseParenthesis && depth.is_top_level() {
-                break;
-            }
-
-            if !depth.advance(token_type) {
-                return None;
-            }
-            self.bump();
-        }
-
-        self.bump();
-
-        Some(self.peek_token_type())
-    }
-
-    /// Return whether the current context lets this token start an arrow tail.
-    fn token_starts_arrow_tail(&self, token_type: TokenType, head: ArrowHeadKind) -> bool {
-        match token_type {
-            TokenType::ArrowWide => true,
-            TokenType::Colon => head.allows_return_type_colon(self.flags),
-            _ => false,
-        }
-    }
-
-    /// Eat an arrow return type and body.
-    ///
-    /// Examples:
-    /// ```ds
-    /// => value
-    /// : string => value
-    /// ```
-    fn eat_arrow_tail(
-        &mut self,
-        start: &ParserSpanStart,
-        header: DeclarationHeader,
-        parameters: Vec<LocalNodeId<Parameter>>,
-        parameter_span: Option<Span>,
-    ) -> ParserResult<LocalNodeId<Declaration>> {
-        let (return_type, return_type_span) = self.eat_arrow_return_type()?;
-
-        self.eat_arrow()?;
-        let body_start = self.span_start();
-        let (body, body_span) = self.eat_arrow_body(&body_start)?;
-
-        Ok(self.insert_arrow_declaration(
-            start,
-            ParsedArrowFunction {
-                header,
-                parameters,
-                generic_parameter_span: None,
-                parameter_span,
-                return_type,
-                return_type_span,
-                body,
-                body_span,
-            },
-        ))
-    }
-
-    /// Eat an explicit arrow return type when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// : string
-    /// ```
-    fn eat_arrow_return_type(
-        &mut self,
-    ) -> ParserResult<(Option<LocalNodeId<TypeExpression>>, Option<Span>)> {
-        if !self.has_lambda_return_type_marker() {
-            return Ok((None, None));
-        }
-
-        // marker
-        let type_start = self.span_start();
-        self.eat_token(TokenType::Colon)?;
-
-        // type
-        let flags = self.arrow_return_type_flags();
-        let return_type =
-            self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
-        let return_type_span = self.get_span_from(&type_start);
-
-        Ok((Some(return_type), Some(return_type_span)))
-    }
-
-    /// Return parser flags for an arrow return type.
-    fn arrow_return_type_flags(&self) -> ParserFlags {
-        let mut flags = self.flags.nested().in_type();
-
-        if self.flags.is_in_type_conditional_right() {
-            flags = flags.in_type_conditional_right();
-        }
-
-        if self.flags.is_in_static() {
-            flags = flags.in_static();
-        }
-
-        flags.in_arrow_return_type()
-    }
-
-    /// Eat an identifier arrow when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value => value
-    /// async => async
-    /// item => item.id
-    /// ```
-    fn eat_identifier_arrow(
-        &mut self,
-        start: &ParserSpanStart,
-        header: &DeclarationHeader,
-    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
-        // parse the single named parameter
-        let parameter_name = self.eat_identifier()?;
-        let parameter_span = self.get_span_from(start);
-        let parameter_id = self.insert_node(
-            Parameter::Named {
-                name: parameter_name,
-                is_optional: false,
-                is_comptime: false,
-                declared_type: None,
-                default: None,
-            },
-            self.get_span_from(start),
-        );
-
-        let function_id =
-            self.eat_arrow_tail(start, *header, vec![parameter_id], Some(parameter_span))?;
-
-        Ok(Some(function_id))
+        Ok(type_expression_id)
     }
 
     /// Eat function modifiers, form, name, and generic parameters.
@@ -1014,8 +315,8 @@ impl Parser {
         let phase = self.eat_function_phase_modifier();
         let is_async = self.eat_function_async_modifier();
         let role = self.eat_function_role();
-        let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
-        let (form, is_generator) = self.eat_function_form(is_generator)?;
+        let is_generator = self.eat_token_if(TokenType::Multiply);
+        let (form, is_generator) = self.eat_function_form(is_generator);
         let (name, name_span) = self.eat_function_name(form)?;
         let (generic_parameters, generic_parameter_span) = self.eat_function_generics()?;
 
@@ -1075,14 +376,14 @@ impl Parser {
     }
 
     /// Eat one function form marker.
-    fn eat_function_form(&mut self, is_generator: bool) -> ParserResult<(FunctionForm, bool)> {
+    fn eat_function_form(&mut self, is_generator: bool) -> (FunctionForm, bool) {
         if self.is_keyword(Keyword::Function) {
             self.bump();
-            let is_generator = is_generator || self.eat_token_maybe(TokenType::Multiply)?;
+            let is_generator = is_generator || self.eat_token_if(TokenType::Multiply);
 
-            Ok((FunctionForm::Function, is_generator))
+            (FunctionForm::Function, is_generator)
         } else {
-            Ok((FunctionForm::Lambda, is_generator))
+            (FunctionForm::Lambda, is_generator)
         }
     }
 
@@ -1117,17 +418,10 @@ impl Parser {
         Ok((generic_parameters, span))
     }
 
-    /// Require statement function declarations to have names.
-    fn require_function_name(&mut self, head: &ParsedFunctionHead) -> ParserResult<()> {
-        if head.form == FunctionForm::Function
-            && self.flags.is_in_statement_position()
-            && head.name.is_none()
-            && head.header.export != Some(ExportKind::Default)
-        {
-            Err(ParserError::expected(
-                self.peek()?.span,
-                TokenType::Identifier,
-            ))
+    /// Require function forms to have names.
+    fn require_function_name(&self, head: &ParsedFunctionHead) -> ParserResult<()> {
+        if head.form == FunctionForm::Function && head.name.is_none() {
+            Err(ParserError::expected(self.peek(), TokenType::Identifier))
         } else {
             Ok(())
         }
@@ -1136,17 +430,15 @@ impl Parser {
     /// Eat function parameters.
     fn eat_function_parameters(
         &mut self,
-        start: &ParserSpanStart,
         head: &ParsedFunctionHead,
     ) -> ParserResult<ParsedFunctionParameters> {
         let has_parenthesized_parameters = head.form == FunctionForm::Function
             || self.flags.is_in_type()
-            || self.peek_is(TokenType::OpenParenthesis)
-            || self.next_token_type() == TokenType::OpenParenthesis;
+            || self.peek_is(TokenType::OpenParenthesis);
         if has_parenthesized_parameters {
             self.eat_parenthesized_function_parameters(head)
         } else {
-            self.eat_bare_function_parameter(start, head)
+            self.eat_bare_function_parameter(head)
         }
     }
 
@@ -1164,14 +456,15 @@ impl Parser {
             let flags = self
                 .flags
                 .with_generator(head.is_generator)
-                .with_forbid_yield(head.is_generator);
+                .with_forbid_yield(head.is_generator)
+                .with_forbid_await(head.is_async);
             self.with_flags(flags, |parser| parser.eat_parameters_body())?
         };
 
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::Parameter,
-        )?;
+        );
 
         Ok(ParsedFunctionParameters {
             parameters,
@@ -1182,13 +475,13 @@ impl Parser {
     /// Eat a single bare lambda parameter.
     fn eat_bare_function_parameter(
         &mut self,
-        start: &ParserSpanStart,
         head: &ParsedFunctionHead,
     ) -> ParserResult<ParsedFunctionParameters> {
         if head.is_generator && self.is_keyword(Keyword::Yield) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
+        let start = self.span_start();
         let name = self.eat_identifier()?;
         let parameter = Parameter::Named {
             name,
@@ -1197,11 +490,12 @@ impl Parser {
             declared_type: None,
             default: None,
         };
-        let parameter = self.insert_node(parameter, self.get_span_from(start));
+        let parameter_span = self.get_span_from(&start);
+        let parameter = self.insert_node(parameter, parameter_span);
 
         Ok(ParsedFunctionParameters {
             parameters: vec![parameter],
-            parameter_span: None,
+            parameter_span: Some(parameter_span),
         })
     }
 
@@ -1284,9 +578,7 @@ impl Parser {
 
     /// Return whether a function return type marker is present.
     fn has_regular_return_type_marker(&mut self) -> bool {
-        self.peek_arrow_is()
-            || self.peek_colon_is()
-            || self.current_token_is_on_new_line() && (self.peek_arrow_is() || self.peek_colon_is())
+        self.peek_arrow_is() || self.peek_colon_is()
     }
 
     /// Build parser flags for a regular function return type.
@@ -1375,9 +667,8 @@ impl Parser {
 
     /// Check whether a lambda return type marker is present.
     fn has_lambda_return_type_marker(&mut self) -> bool {
-        // check for a colon return type
-        let has_colon = self.peek_colon_is() || self.next_token_type() == TokenType::Colon;
-        if has_colon {
+        // value arrows use colon return types
+        if self.peek_colon_is() {
             return true;
         }
 
@@ -1386,6 +677,6 @@ impl Parser {
             return false;
         }
 
-        self.peek_arrow_is() || self.current_token_is_on_new_line() && self.peek_arrow_is()
+        self.peek_arrow_is()
     }
 }

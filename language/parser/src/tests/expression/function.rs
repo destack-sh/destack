@@ -3,8 +3,8 @@ use crate::{assert_expression_path, assert_name, assert_node, assert_path, asser
 use destack_dir::{
     Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FunctionDeclaration,
     FunctionForm, GenericParameter, IfForm, IntegerType, Key, MappedTypeModifier, Name, Parameter,
-    Pattern, PatternField, Property, ScalarLiteral, TupleElement, TypeExpression, TypeLiteral,
-    TypeMember,
+    Pattern, PatternField, Property, ScalarLiteral, TokenType, TupleElement, TypeExpression,
+    TypeLiteral, TypeMember,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -247,6 +247,33 @@ fn test_parse_call_with_function_expression_newline_before_body() {
             });
         });
     });
+}
+
+/// Recover anonymous function arguments without abandoning their call or following statement.
+#[test]
+fn test_recover_anonymous_function_argument() {
+    let mut test = TestParser::new_with_language(
+        "consume(function () {});\nconst stable = 1;",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    assert_eq!(expressions.len(), 2);
+    assert_node!(parser.tree, expressions[0], Expression::Call { arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Error);
+    });
+    assert_node!(parser.tree, expressions[1], Expression::Let { .. });
+    test.assert_errors(
+        &parser,
+        &[(
+            None,
+            Some(TokenType::OpenParenthesis),
+            Some(TokenType::Identifier),
+            "(",
+        )],
+    );
 }
 
 /// Parse a generic lambda function value with a body.
@@ -708,7 +735,7 @@ fn test_parse_function_parameter_readonly_tuple_target_type() {
 #[test]
 fn test_eat_decorator_call_with_function_expression_argument() {
     let mut test = TestParser::new_with_language(
-        r#"computed("fullName", function(this: Foo) {
+        r#"computed("fullName", function fullName(this: Foo) {
   return this.fullName.toUpperCase();
 })"#,
         LanguageType::TypeScript,
