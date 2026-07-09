@@ -6,8 +6,8 @@ use super::frame::{
 use super::{access, function};
 use crate::diagnostic::Error;
 use crate::machine::{Activation, Frame};
-use crate::{Cell, FunctionPointer};
 use destack_program::CellLayout;
+use destack_program::vm::{Cell, FunctionPointer};
 
 use super::Transfer;
 use destack_program::vm::{

@@ -2,17 +2,17 @@ use std::ptr;
 
 use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_mir as mir;
+use destack_mir::Space;
 use destack_program as program;
 use smallvec::SmallVec;
 
-use crate::Cell;
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::machine::{Activation, Frame};
 use destack_program::vm::{
-    ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, Projection, ProjectionId,
+    ArgumentRange, Cell, Instruction, MovePair, MoveRange, MoveSlot, Projection, ProjectionId,
     encode_cell_bytes,
 };
-use destack_program::{AddressSpace, CellLayout, FrameSlot, Program, ScalarFormat, TypeId};
+use destack_program::{CellLayout, FrameSlot, Program, ScalarFormat, TypeId};
 
 use super::access;
 
@@ -318,14 +318,14 @@ pub(crate) fn materialize_value(
                 .ok_or(Error::invalid_instruction())?;
             let shape = program.allocation_shape(layout_id)?;
 
-            match boundary_address_space(program, value.ty)? {
-                AddressSpace::Local => {
+            match boundary_space(program, value.ty)? {
+                Space::Local => {
                     let plan = heap.options().allocation_plan(&shape);
                     let reference = heap.allocate_bytes(plan, &shape.trace_map, &bytes)?;
 
                     Ok(program::Value::HeapReference(reference))
                 }
-                AddressSpace::Shared => {
+                Space::Shared => {
                     let plan = shared.options().allocation_plan(&shape);
                     let reference = shared.allocate_bytes(
                         shared_mark_worker,
@@ -338,7 +338,7 @@ pub(crate) fn materialize_value(
 
                     Ok(program::Value::SharedHeapReference(reference))
                 }
-                address_space => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
+                space => Err(Error::invalid_pointer_type(format!("{space:?}"))),
             }
         }
     }
@@ -385,25 +385,24 @@ fn sign_extend_i128(value: u128, width: u16) -> i128 {
     ((value << shift) as i128) >> shift
 }
 
-/// Return the address space used to package one non-cell boundary value.
-fn boundary_address_space(program: &Program, ty: TypeId) -> Result<AddressSpace, Error> {
+/// Return the space used to package one non-cell boundary value.
+fn boundary_space(program: &Program, ty: TypeId) -> Result<Space, Error> {
     let layout = program
         .layout(ty)
         .ok_or_else(|| Error::invalid_program(format!("missing boundary layout for {ty:?}")))?;
 
-    let address_space = match &layout.shape {
-        program::LayoutShape::Reference(reference) => {
-            reference.address_space().ok_or_else(|| {
-                Error::invalid_program(format!("missing reference address space for {ty:?}"))
-            })?
-        }
-        program::LayoutShape::Slice(slice) => slice.reference.address_space().ok_or_else(|| {
-            Error::invalid_program(format!("missing slice address space for {ty:?}"))
-        })?,
-        _ => AddressSpace::Local,
+    let space = match &layout.shape {
+        program::LayoutShape::Reference(reference) => reference
+            .space()
+            .ok_or_else(|| Error::invalid_program(format!("missing reference space for {ty:?}")))?,
+        program::LayoutShape::Slice(slice) => slice
+            .reference
+            .space()
+            .ok_or_else(|| Error::invalid_program(format!("missing slice space for {ty:?}")))?,
+        _ => Space::Local,
     };
 
-    Ok(address_space)
+    Ok(space)
 }
 
 /// Dematerialize one engine boundary value into frame representation.
@@ -493,20 +492,20 @@ fn dematerialize_bytes(
         .ok_or(Error::invalid_instruction())?;
     let mut bytes = vec![0u8; byte_len];
 
-    match (boundary_address_space(program, ty)?, value) {
-        (AddressSpace::Local, program::Value::HeapReference(reference)) => {
+    match (boundary_space(program, ty)?, value) {
+        (Space::Local, program::Value::HeapReference(reference)) => {
             let address = heap.heap_base_address() + reference.offset();
 
             copy_address_to_slice(address, &mut bytes);
         }
-        (AddressSpace::Shared, program::Value::SharedHeapReference(reference)) => {
+        (Space::Shared, program::Value::SharedHeapReference(reference)) => {
             let address = shared.heap_base_address() + reference.offset();
 
             copy_address_to_slice(address, &mut bytes);
         }
-        (address_space, value) => {
+        (space, value) => {
             return Err(Error::type_mismatch(
-                format!("{address_space:?} frame-backed value"),
+                format!("{space:?} frame-backed value"),
                 format!("{value:?}"),
             ));
         }
@@ -615,19 +614,19 @@ pub(crate) fn materialize_cell(
             bits: value.as_f64().to_bits(),
         }),
         program::LayoutShape::Reference(reference)
-            if reference.address_space() == Some(AddressSpace::Local) =>
+            if reference.cell_layout() == Some(CellLayout::HeapReference) =>
         {
             Ok(program::Value::HeapReference(value.as_heap_reference()))
         }
         program::LayoutShape::Reference(reference)
-            if reference.address_space() == Some(AddressSpace::Shared) =>
+            if reference.cell_layout() == Some(CellLayout::SharedHeapReference) =>
         {
             Ok(program::Value::SharedHeapReference(
                 value.as_shared_heap_reference(),
             ))
         }
         program::LayoutShape::Reference(reference)
-            if reference.address_space() == Some(AddressSpace::Raw) =>
+            if reference.cell_layout() == Some(CellLayout::Address) =>
         {
             Ok(program::Value::Address(value.as_address()))
         }

@@ -3,8 +3,7 @@ use destack_program::GlobalAddress;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::{Cell, FramePointer, StackPointer};
-use destack_program::vm::Projection;
+use destack_program::vm::{Cell, FramePointer, Projection, StackPointer};
 
 /// Return one element byte offset.
 #[inline(always)]

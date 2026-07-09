@@ -1,8 +1,7 @@
 use super::address;
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use destack_program::vm::{Instruction, Projection, ProjectionId};
+use destack_program::vm::{Cell, Instruction, Projection, ProjectionId};
 
 /// Load one array index value from a frame byte offset.
 #[inline(always)]

@@ -16,16 +16,15 @@ use super::scalar::{
     convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
     reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
 };
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::vm::{
-    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, TensorAddress, TensorBinary,
-    TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert,
-    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather,
-    TensorIndexReduce, TensorLayoutId, TensorLayoutView, TensorLoad, TensorPad, TensorReduce,
-    TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose,
-    TensorUnary, TensorView, TensorViewCast, U32RangeId, tensor_element_span_len,
+    Cell, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, TensorAddress,
+    TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
+    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
+    TensorGather, TensorIndexReduce, TensorLayoutId, TensorLayoutView, TensorLoad, TensorPad,
+    TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorUnary, TensorView, TensorViewCast, U32RangeId, tensor_element_span_len,
 };
 use destack_program::{CellLayout, Program, ScalarFormat};
 
@@ -718,11 +717,8 @@ fn execute_tensor_unary_elements(
         dest_offset,
         dest_layout,
         |activation, output_index| {
-            let argument_index = tensor_linear_index(
-                output_index,
-                argument_layout.shape,
-                argument_layout.strides,
-            )?;
+            let argument_index =
+                tensor_linear_index(output_index, argument_layout.shape, argument_layout.strides)?;
             let value = load_tensor_element_at(
                 activation,
                 argument_value,
@@ -3265,7 +3261,15 @@ pub(crate) fn execute_tensor_dot(
                 }
 
                 let lhs_offset =
-                    match tensor_linear_index(&lhs_index, left_layout.shape, left_layout.strides)
+                    match tensor_linear_index(&lhs_index, left_layout.shape, left_layout.strides) {
+                        Ok(offset) => offset,
+                        Err(error) => {
+                            contract_error = Some(error);
+                            return;
+                        }
+                    };
+                let rhs_offset =
+                    match tensor_linear_index(&rhs_index, right_layout.shape, right_layout.strides)
                     {
                         Ok(offset) => offset,
                         Err(error) => {
@@ -3273,17 +3277,6 @@ pub(crate) fn execute_tensor_dot(
                             return;
                         }
                     };
-                let rhs_offset = match tensor_linear_index(
-                    &rhs_index,
-                    right_layout.shape,
-                    right_layout.strides,
-                ) {
-                    Ok(offset) => offset,
-                    Err(error) => {
-                        contract_error = Some(error);
-                        return;
-                    }
-                };
                 let left_element =
                     match load_tensor_element_at(activation, left_value, left_layout, lhs_offset) {
                         Ok(value) => value,
@@ -3660,11 +3653,8 @@ pub(crate) fn execute_tensor_gather(
                 *element = *coord;
             }
 
-            let index_offset = tensor_linear_index(
-                &indices_index,
-                indices_layout.shape,
-                indices_layout.strides,
-            )?;
+            let index_offset =
+                tensor_linear_index(&indices_index, indices_layout.shape, indices_layout.strides)?;
             let index_base = index_offset;
             for (i, &_map_dim) in start_index_map.iter().enumerate() {
                 let element_index = index_base + i;
@@ -3808,11 +3798,8 @@ fn execute_tensor_scatter_elements(
             *element = *coord;
         }
 
-        let index_offset = tensor_linear_index(
-            &indices_index,
-            indices_layout.shape,
-            indices_layout.strides,
-        );
+        let index_offset =
+            tensor_linear_index(&indices_index, indices_layout.shape, indices_layout.strides);
         let Ok(index_offset) = index_offset else {
             scatter_error = Some(Error::invalid_instruction());
             return;

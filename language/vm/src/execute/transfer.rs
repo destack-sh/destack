@@ -1,8 +1,7 @@
-use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Outcome};
 use crate::options::LimitOptions;
-use destack_program::vm::{ArgumentRange, CallTarget, FunctionCode, MoveRange};
+use destack_program::vm::{ArgumentRange, CallTarget, Cell, FunctionCode, MoveRange};
 use destack_program::{FrameStateId, FunctionId, Program, StopReason, TypeId};
 
 use super::frame::move_values_within_frame;

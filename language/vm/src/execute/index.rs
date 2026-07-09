@@ -1,5 +1,5 @@
-use crate::Cell;
 use crate::diagnostic::Error;
+use destack_program::vm::Cell;
 
 /// Map one VM cell to an unsigned index.
 pub(crate) fn cell_to_u64(value: Cell) -> Result<u64, Error> {

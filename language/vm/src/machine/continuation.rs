@@ -1,8 +1,8 @@
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::MachineOptions;
-use crate::{Cell, FramePointer};
 use destack_heap::{HeapResult, RootSlot};
 use destack_mir::TraceMap;
+use destack_program::vm::{Cell, FramePointer};
 use destack_program::{
     Continuation, ContinuationFrame, FrameLayout, FrameMaterialization, FrameSlot, FrameStateId,
     Program,
@@ -122,16 +122,7 @@ impl Machine {
             return Ok(resume_frame_state);
         }
 
-        let point = program.point(frame.function(), frame.block, frame.pc as u32);
-
-        program.frame_state_at(point).ok_or_else(|| {
-            Error::internal(format!(
-                "missing frame state for frame position: {:?} {:?} {}",
-                frame.function(),
-                frame.block,
-                frame.pc
-            ))
-        })
+        frame.state(program).map_err(|error| error.error)
     }
 
     /// Encode frame pointers inside one captured continuation.

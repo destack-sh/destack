@@ -1184,6 +1184,7 @@ macro_rules! dispatch_instruction {
             Op::Assume => $step!(super::execute_assume($activation, instruction)),
             Op::Breakpoint => $transfer!(super::execute_breakpoint(
                 $activation,
+                $block_pc as u32,
                 ($block_pc + 1) as u32
             )),
             Op::BarrierWriteHeap => {
@@ -1277,13 +1278,20 @@ pub(crate) fn dispatch_block(
     block_index: u32,
     pc: usize,
 ) -> Transfer {
-    dispatch_block_inner(activation, function, block_index, pc)
+    match (activation.has_stop_points(), activation.has_watch_points()) {
+        (false, false) => {
+            dispatch_block_inner::<false, false>(activation, function, block_index, pc)
+        }
+        (true, false) => dispatch_block_inner::<true, false>(activation, function, block_index, pc),
+        (false, true) => dispatch_block_inner::<false, true>(activation, function, block_index, pc),
+        (true, true) => dispatch_block_inner::<true, true>(activation, function, block_index, pc),
+    }
 }
 
 /// Dispatch one block in the trusted lowered-code VM.
 #[cfg_attr(debug_assertions, inline(never))]
 #[cfg_attr(not(debug_assertions), inline(always))]
-fn dispatch_block_inner(
+fn dispatch_block_inner<const STOP_POINTS: bool, const WATCH_POINTS: bool>(
     activation: &mut Activation<'_>,
     function: FunctionCode<'_>,
     block_index: u32,
@@ -1291,9 +1299,10 @@ fn dispatch_block_inner(
 ) -> Transfer {
     let program = activation.program;
     let mut function = function;
+    let mut block = block_index;
 
     // start at the requested block offset
-    let (mut block_start, mut pc, mut block_end) = match block_bounds(&function, block_index) {
+    let (mut block_start, mut pc, mut block_end) = match block_bounds(&function, block) {
         Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
         Err(error) => return Transfer::Error(error),
     };
@@ -1304,10 +1313,41 @@ fn dispatch_block_inner(
             return Transfer::Error(Error::invalid_instruction());
         }
 
+        if STOP_POINTS {
+            // stop before executing selected instruction stops
+            match activation.stop_at(function, block, pc - block_start) {
+                Ok(Some((reason, frame_state))) => {
+                    return Transfer::Stop {
+                        reason,
+                        frame_state,
+                    };
+                }
+                Ok(None) => {}
+                Err(error) => return Transfer::Error(error),
+            }
+        }
+
         macro_rules! step {
             ($operation:expr) => {{
                 if let Err(error) = $operation {
                     return Transfer::Error(error);
+                }
+                if WATCH_POINTS {
+                    match activation.watch_memory_at(
+                        function,
+                        block,
+                        pc - block_start,
+                        pc - block_start + 1,
+                    ) {
+                        Ok(Some((reason, frame_state))) => {
+                            return Transfer::Stop {
+                                reason,
+                                frame_state,
+                            };
+                        }
+                        Ok(None) => {}
+                        Err(error) => return Transfer::Error(error),
+                    }
                 }
 
                 pc += 1;
@@ -1329,12 +1369,13 @@ fn dispatch_block_inner(
                                 }
                                 Err(error) => return Transfer::Error(error),
                             };
+                        block = target;
                         continue;
                     }
                     Transfer::Enter => {
                         let frame = activation.active_frame();
                         let function_id = frame.function();
-                        let block = frame.block;
+                        block = frame.block;
                         let Some(next_function) = program.vm_function_by_id(function_id) else {
                             return Transfer::Error(Error::undefined_function(function_id));
                         };
@@ -1361,13 +1402,26 @@ pub(crate) fn dispatch_block_counted(
     block_index: u32,
     pc: usize,
 ) -> BlockDispatch {
-    dispatch_block_counted_inner(activation, function, block_index, pc)
+    match (activation.has_stop_points(), activation.has_watch_points()) {
+        (false, false) => {
+            dispatch_block_counted_inner::<false, false>(activation, function, block_index, pc)
+        }
+        (true, false) => {
+            dispatch_block_counted_inner::<true, false>(activation, function, block_index, pc)
+        }
+        (false, true) => {
+            dispatch_block_counted_inner::<false, true>(activation, function, block_index, pc)
+        }
+        (true, true) => {
+            dispatch_block_counted_inner::<true, true>(activation, function, block_index, pc)
+        }
+    }
 }
 
 /// Dispatch one counted block in the trusted lowered-code VM.
 #[cfg_attr(debug_assertions, inline(never))]
 #[cfg_attr(not(debug_assertions), inline(always))]
-fn dispatch_block_counted_inner(
+fn dispatch_block_counted_inner<const STOP_POINTS: bool, const WATCH_POINTS: bool>(
     activation: &mut Activation<'_>,
     function: FunctionCode<'_>,
     block_index: u32,
@@ -1392,6 +1446,28 @@ fn dispatch_block_counted_inner(
             };
         }
 
+        if STOP_POINTS {
+            // stop before executing selected instruction stops
+            match activation.stop_at(function, block_index, pc - block_start) {
+                Ok(Some((reason, frame_state))) => {
+                    return BlockDispatch {
+                        transfer: Transfer::Stop {
+                            reason,
+                            frame_state,
+                        },
+                        executed,
+                    };
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    return BlockDispatch {
+                        transfer: Transfer::Error(error),
+                        executed,
+                    };
+                }
+            }
+        }
+
         executed += 1;
         macro_rules! step {
             ($operation:expr) => {{
@@ -1400,6 +1476,31 @@ fn dispatch_block_counted_inner(
                         transfer: Transfer::Error(error),
                         executed,
                     };
+                }
+                if WATCH_POINTS {
+                    match activation.watch_memory_at(
+                        function,
+                        block_index,
+                        pc - block_start,
+                        pc - block_start + 1,
+                    ) {
+                        Ok(Some((reason, frame_state))) => {
+                            return BlockDispatch {
+                                transfer: Transfer::Stop {
+                                    reason,
+                                    frame_state,
+                                },
+                                executed,
+                            };
+                        }
+                        Ok(None) => {}
+                        Err(error) => {
+                            return BlockDispatch {
+                                transfer: Transfer::Error(error),
+                                executed,
+                            };
+                        }
+                    }
                 }
 
                 pc += 1;

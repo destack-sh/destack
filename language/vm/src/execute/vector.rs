@@ -10,15 +10,14 @@ use super::scalar::{
     convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
     reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
 };
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_mir as mir;
 use destack_program::ScalarFormat;
 use destack_program::vm::{
-    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, VectorBinary, VectorConvert,
-    VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat,
-    VectorUnary,
+    Cell, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, VectorBinary,
+    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
+    VectorSplat, VectorUnary,
 };
 
 macro_rules! packed_binary_executor {

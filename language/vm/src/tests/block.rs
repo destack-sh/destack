@@ -3,8 +3,8 @@ use crate::tests::{
     assert_runtime_error, assert_runtime_error_matches, create_machine, run_mir, run_mir_expect,
     run_mir_ok,
 };
-use crate::{Cell, FunctionPointer};
 use destack_program::Value;
+use destack_program::vm::{Cell, FunctionPointer};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]

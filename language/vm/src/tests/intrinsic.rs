@@ -1,11 +1,11 @@
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::tests::{
     allocate_local_zeroed, assert_execution_completed, assert_execution_stopped,
     assert_runtime_error_matches, create_machine, run_mir, run_mir_expect, run_mir_ok,
     run_mir_with_frame, run_mir_with_frame_ok, shared_allocation_plan,
 };
-use destack_program::{LayoutShape, Program, StopReason, TypeId, Value};
+use destack_program::vm::Cell;
+use destack_program::{FunctionId, LayoutShape, Program, ProgramPoint, StopReason, TypeId, Value};
 
 /// Return the pointee type for a reference parameter.
 fn reference_pointee_type(program: &Program, ty: TypeId) -> TypeId {
@@ -804,7 +804,12 @@ entry(v0: int32):
         machine.run_function_by_name_yielding("test", &[Value::int32(42)]),
     );
 
-    assert_eq!(reason, StopReason::Breakpoint);
+    assert_eq!(
+        reason,
+        StopReason::Instruction {
+            point: ProgramPoint::new(FunctionId(0), 0),
+        }
+    );
 
     let output = assert_execution_completed(machine.continue_continuation(continuation));
 

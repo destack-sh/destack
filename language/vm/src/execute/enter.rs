@@ -1,4 +1,4 @@
-use crate::Cell;
+use destack_program::vm::Cell;
 
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_arguments_between_frames, move_values,

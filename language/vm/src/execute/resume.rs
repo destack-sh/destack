@@ -1,4 +1,4 @@
-use crate::Cell;
+use destack_program::vm::Cell;
 
 use super::frame::{FrameValue, move_slot_from_frame_slot, store_frame_slot_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
@@ -83,9 +83,13 @@ impl Machine {
             .point_for_frame_state(frame_state_id)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         let frame_entry = program.frame_entry(frame_state_id);
-        let target_block = point.block;
-        let pc = point.pc as usize;
         let expected_function = point.function;
+        let function = program
+            .vm_function_by_id(expected_function)
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(expected_function)))?;
+        let (target_block, pc) = function
+            .location_at(point.operation)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         // resolve the frame and lowered target block
         let frame = self

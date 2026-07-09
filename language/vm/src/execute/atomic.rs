@@ -2,12 +2,11 @@ use std::sync::atomic::{
     AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicU8, AtomicU16, AtomicU32, AtomicU64,
 };
 
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::vm::{
     AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
-    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction, MoveSlot,
+    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Cell, Instruction, MoveSlot,
 };
 
 macro_rules! atomic_ref {

@@ -1,8 +1,8 @@
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 
-use crate::Cell;
 use destack_program::CellLayout;
+use destack_program::vm::Cell;
 
 use super::access;
 

@@ -2,12 +2,11 @@ use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
 use super::scalar::{convert_integer_bytes, integer_bytes_to_cell};
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::CellLayout;
 use destack_program::vm::{
-    AggregateSelect, FloatCast, FloatToIntCast, Instruction, IntToFloatCast, IntegerCast,
+    AggregateSelect, Cell, FloatCast, FloatToIntCast, Instruction, IntToFloatCast, IntegerCast,
     PointerCast, WideIntegerCast,
 };
 

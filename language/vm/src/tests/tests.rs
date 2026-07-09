@@ -10,12 +10,14 @@ use destack_heap::{
 };
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type};
-use destack_program::{Layout, LayoutShape, StaticSpace, StopReason, TypeId, Value};
+use destack_program::{
+    Layout, LayoutShape, Program, StaticSpace, StopReason, TypeId, Value, WatchSet,
+};
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::{Cell, Continuation, Machine, MachineOptions, Outcome};
-use destack_program::vm::{encode_cell_bytes, tensor_element_count};
+use crate::{Continuation, Machine, MachineOptions, Outcome};
+use destack_program::vm::{Cell, encode_cell_bytes, tensor_element_count};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
@@ -142,7 +144,7 @@ pub(crate) fn allocate_local_bytes(
 /// Create heap options for ordinary local VM tests.
 fn test_local_heap_options() -> HeapOptions {
     HeapOptions {
-        address_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
+        memory_map_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
         ..HeapOptions::local()
     }
 }
@@ -150,7 +152,7 @@ fn test_local_heap_options() -> HeapOptions {
 /// Create heap options for ordinary shared VM tests.
 pub(crate) fn test_shared_heap_options() -> SharedHeapOptions {
     SharedHeapOptions {
-        address_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
+        memory_map_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
         ..SharedHeapOptions::default()
     }
 }
@@ -206,7 +208,7 @@ fn build_test_program(
     layouts: destack_mir::LayoutTable,
     dispatch: destack_mir::DispatchTable,
     strings: destack_core::StringPool,
-) -> destack_program::Program {
+) -> Program {
     let options = test_machine_options();
 
     ProgramLinker::new(
@@ -408,6 +410,8 @@ impl TestMachine {
             &self.shared_heap,
             &mut self.shared_cache,
             &self.shared_mark_worker,
+            None,
+            None,
             function,
             arguments,
         )
@@ -428,6 +432,31 @@ impl TestMachine {
             &self.shared_heap,
             &mut self.shared_cache,
             &self.shared_mark_worker,
+            None,
+            None,
+            function,
+            arguments,
+        )
+    }
+
+    /// Run one MIR function by name with watchpoints.
+    pub(crate) fn run_function_by_name_watched(
+        &mut self,
+        function: &str,
+        arguments: &[Value],
+        watch_points: &WatchSet,
+    ) -> RuntimeResult<Outcome> {
+        let function = self.machine.function_id_by_name(function)?;
+
+        self.machine.run_function_yielding(
+            &mut self.local_static,
+            &mut self.shared_static,
+            &mut self.heap,
+            &self.shared_heap,
+            &mut self.shared_cache,
+            &self.shared_mark_worker,
+            None,
+            Some(watch_points),
             function,
             arguments,
         )
@@ -448,6 +477,8 @@ impl TestMachine {
             &self.shared_heap,
             &mut self.shared_cache,
             &self.shared_mark_worker,
+            None,
+            None,
             function,
             arguments,
         )
@@ -466,6 +497,8 @@ impl TestMachine {
             &self.shared_heap,
             &mut self.shared_cache,
             &self.shared_mark_worker,
+            None,
+            None,
             continuation,
             resume_value,
         )
@@ -483,6 +516,29 @@ impl TestMachine {
             &self.shared_heap,
             &mut self.shared_cache,
             &self.shared_mark_worker,
+            None,
+            None,
+            None,
+            continuation,
+        )
+    }
+
+    /// Continue one stopped continuation with watchpoints.
+    pub(crate) fn continue_continuation_watched(
+        &mut self,
+        continuation: Continuation,
+        watch_points: &WatchSet,
+    ) -> RuntimeResult<Outcome> {
+        self.machine.continue_continuation(
+            &mut self.local_static,
+            &mut self.shared_static,
+            &mut self.heap,
+            &self.shared_heap,
+            &mut self.shared_cache,
+            &self.shared_mark_worker,
+            None,
+            Some(watch_points),
+            None,
             continuation,
         )
     }
