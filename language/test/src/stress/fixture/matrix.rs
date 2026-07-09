@@ -424,11 +424,11 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
     let mut source = String::with_capacity(scale * 320);
 
     for index in 0..scale {
-        match index % 10 {
+        match index % 11 {
             0 => {
                 let _ = writeln!(
                     source,
-                    "const brokenTreeClose{index} = <Panel><Item /></Wrong>;"
+                    "const brokenTreeClose{index} = <Panel><Item /></Wrong></Panel>;"
                 );
             }
             1 => {
@@ -444,7 +444,7 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
                 );
             }
             3 => {
-                let _ = writeln!(source, "const brokenTreeNested{index} = <A><B /></C>;");
+                let _ = writeln!(source, "const brokenTreeNested{index} = <A><B /></C></A>;");
             }
             4 => {
                 let _ = writeln!(
@@ -458,16 +458,22 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
             6 => {
                 let _ = writeln!(
                     source,
-                    "const brokenTreeExpression{index} = <Panel>{{value{index} + ;</Panel>;"
+                    "const brokenTreeAncestorClose{index} = <Panel><Item value={{value{index}}} </Panel>;"
                 );
             }
             7 => {
                 let _ = writeln!(
                     source,
-                    "const brokenTreeAttributeName{index} = <Item ={{value{index}}} />;"
+                    "const brokenTreeExpression{index} = <Panel>{{value{index} + ;</Panel>;"
                 );
             }
             8 => {
+                let _ = writeln!(
+                    source,
+                    "const brokenTreeAttributeName{index} = <Item ={{value{index}}} />;"
+                );
+            }
+            9 => {
                 let _ = writeln!(
                     source,
                     "const brokenTreeAttributeString{index} = <Item label=\"unterminated />;"
