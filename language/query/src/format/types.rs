@@ -42,6 +42,13 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
             dir::Type::Parameter(parameter) => return self.generic_parameter(*parameter),
             dir::Type::Erased(_) => "*".to_string(),
             dir::Type::Member(member) => return self.member(*member),
+            dir::Type::Refined(refined) => {
+                let base = self.global(refined.base)?;
+                let key = self.static_key(refined.key)?;
+                let value = self.global(refined.value)?;
+
+                format!("{base}<type {key} = {value}>")
+            }
             dir::Type::EnumMember(member) => return self.symbol(member.member),
             dir::Type::Form(form) => return self.form(*form),
             dir::Type::Dynamic(dynamic) => format!("Dynamic<{}>", self.global(dynamic.constraint)?),
