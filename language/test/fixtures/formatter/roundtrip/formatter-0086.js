@@ -1,7 +1,7 @@
 let _this = this;
 const Normal = {
-    foo: (function () {
-        let _ref = babelHelpers.asyncToGenerator(function* () {
+    foo: (function normal() {
+        let _ref = babelHelpers.asyncToGenerator(function* normalGenerator() {
             console.log(log);
         });
         return function foo() {
@@ -10,16 +10,16 @@ const Normal = {
     })(),
 };
 const StringLiteralKey = {
-    ["bar"]: (function () {
-        let _ref2 = babelHelpers.asyncToGenerator(function* () {});
+    ["bar"]: (function bar() {
+        let _ref2 = babelHelpers.asyncToGenerator(function* barGenerator() {});
         return function bar() {
             return _ref2.apply(this, arguments);
         };
     })(),
 };
 const EmptyStringLiteralKey = {
-    [""]: (function () {
-        let _ref3 = babelHelpers.asyncToGenerator(function* () {
+    [""]: (function empty() {
+        let _ref3 = babelHelpers.asyncToGenerator(function* emptyGenerator() {
             console.log(_this);
         });
         return function _() {
@@ -28,26 +28,26 @@ const EmptyStringLiteralKey = {
     })(),
 };
 const InvalidStringLiteralKey = {
-    ["#"]: (function () {
-        let _ref4 = babelHelpers.asyncToGenerator(function* () {});
+    ["#"]: (function hash() {
+        let _ref4 = babelHelpers.asyncToGenerator(function* hashGenerator() {});
         return function _() {
             return _ref4.apply(this, arguments);
         };
     })(),
-    ["this"]: (function () {
-        let _ref5 = babelHelpers.asyncToGenerator(function* () {});
+    ["this"]: (function thisKey() {
+        let _ref5 = babelHelpers.asyncToGenerator(function* thisKeyGenerator() {});
         return function _this() {
             return _ref5.apply(this, arguments);
         };
     })(),
-    ["#default"]: (function () {
-        let _ref6 = babelHelpers.asyncToGenerator(function* () {});
+    ["#default"]: (function defaultKey() {
+        let _ref6 = babelHelpers.asyncToGenerator(function* defaultKeyGenerator() {});
         return function _default() {
             return _ref6.apply(this, arguments);
         };
     })(),
-    ["O X C"]: (function () {
-        let _ref7 = babelHelpers.asyncToGenerator(function* () {});
+    ["O X C"]: (function oxc() {
+        let _ref7 = babelHelpers.asyncToGenerator(function* oxcGenerator() {});
         return function O_X_C() {
             return _ref7.apply(this, arguments);
         };

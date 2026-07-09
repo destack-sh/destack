@@ -118,7 +118,7 @@ function createVisitorsArr(visitor) {
  * @returns {function} - Combined visitor function
  */
 function combineVisitFunctions(visit1, visit2) {
-    return function (node) {
+    return function visitNode(node) {
         visit1(node);
         visit2(node);
     };
