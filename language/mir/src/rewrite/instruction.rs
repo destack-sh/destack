@@ -131,8 +131,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Free { .. } => false,
 
         // instrumentation and intrinsics may have side effects
-        mir::Instruction::ProfileIncrement { .. }
-        | mir::Instruction::ProfileSample { .. } => false,
+        mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => false,
         mir::Instruction::Breakpoint => false,
         mir::Instruction::Intrinsic { .. } => false,
     }
@@ -303,8 +302,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Free { .. } => true,
 
         // profile instrumentation must be preserved
-        mir::Instruction::ProfileIncrement { .. }
-        | mir::Instruction::ProfileSample { .. } => true,
+        mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => true,
 
         // debugger control must be preserved
         mir::Instruction::Breakpoint => true,
