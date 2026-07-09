@@ -99,8 +99,8 @@ pub enum HeapConfigurationError {
     InvalidPageSizeBytes { bytes: usize },
     /// The configured allocator chunk width is unsupported.
     InvalidAllocatorChunkSizeBytes { bytes: usize },
-    /// The configured virtual address-space width is unsupported.
-    InvalidAddressSpaceSizeBytes { bytes: usize },
+    /// The configured virtual memory map width is unsupported.
+    InvalidMemoryMapSizeBytes { bytes: usize },
     /// The configured allocator chunk width is not aligned to the allocator page width.
     MisalignedAllocatorChunkSize {
         /// The configured allocator page width in bytes.
@@ -108,12 +108,12 @@ pub enum HeapConfigurationError {
         /// The configured allocator chunk width in bytes.
         chunk_size_bytes: usize,
     },
-    /// The configured virtual address-space width is not aligned to the allocator page width.
-    MisalignedAddressSpaceSize {
+    /// The configured virtual memory map width is not aligned to the allocator page width.
+    MisalignedMemoryMapSize {
         /// The configured allocator page width in bytes.
         page_size_bytes: usize,
-        /// The configured virtual address-space width in bytes.
-        address_space_size_bytes: usize,
+        /// The configured virtual memory map width in bytes.
+        memory_map_size_bytes: usize,
     },
     /// The explicit allocator does not match the configured allocator page width.
     AllocatorPageSizeMismatch {
@@ -479,8 +479,8 @@ impl Display for HeapConfigurationError {
             Self::InvalidAllocatorChunkSizeBytes { bytes } => {
                 write!(formatter, "invalid allocator chunk width: {bytes}")
             }
-            Self::InvalidAddressSpaceSizeBytes { bytes } => {
-                write!(formatter, "invalid virtual address-space width: {bytes}")
+            Self::InvalidMemoryMapSizeBytes { bytes } => {
+                write!(formatter, "invalid virtual memory map width: {bytes}")
             }
             Self::MisalignedAllocatorChunkSize {
                 page_size_bytes,
@@ -491,13 +491,13 @@ impl Display for HeapConfigurationError {
                     "allocator chunk width {chunk_size_bytes} is not aligned to allocator page width {page_size_bytes}"
                 )
             }
-            Self::MisalignedAddressSpaceSize {
+            Self::MisalignedMemoryMapSize {
                 page_size_bytes,
-                address_space_size_bytes,
+                memory_map_size_bytes,
             } => {
                 write!(
                     formatter,
-                    "virtual address-space width {address_space_size_bytes} is not aligned to allocator page width {page_size_bytes}"
+                    "virtual memory map width {memory_map_size_bytes} is not aligned to allocator page width {page_size_bytes}"
                 )
             }
             Self::AllocatorPageSizeMismatch {

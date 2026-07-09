@@ -70,8 +70,8 @@ pub enum MemoryOperation {
     ExtendFrameAllocator,
     /// Copy mapped bytes into backing frame storage.
     CopyFrameStorage,
-    /// Reserve virtual address space.
-    ReserveAddressSpace,
+    /// Reserve one virtual memory map.
+    ReserveMemoryMap,
     /// Map one page frame range into virtual address space.
     MapFrameRange,
     /// Change virtual page protection.
@@ -139,7 +139,7 @@ impl Display for MemoryOperation {
             Self::CreateFrameAllocator => write!(formatter, "create frame allocator"),
             Self::ExtendFrameAllocator => write!(formatter, "extend frame allocator"),
             Self::CopyFrameStorage => write!(formatter, "copy frame storage"),
-            Self::ReserveAddressSpace => write!(formatter, "reserve address space"),
+            Self::ReserveMemoryMap => write!(formatter, "reserve memory map"),
             Self::MapFrameRange => write!(formatter, "map frame range"),
             Self::ProtectPages => write!(formatter, "protect pages"),
             Self::InstallWriteWatch => write!(formatter, "install write watch"),

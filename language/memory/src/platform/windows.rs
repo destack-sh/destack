@@ -589,7 +589,7 @@ fn reserve_placeholder(byte_len: usize) -> MemoryResult<*mut u8> {
     };
     if address.is_null() {
         return Err(last_system_error(
-            MemoryOperation::ReserveAddressSpace,
+            MemoryOperation::ReserveMemoryMap,
             Some(byte_len),
         ));
     }

@@ -1,79 +1,79 @@
 use std::hint::black_box;
 use std::mem::size_of;
 
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 
 use crate::config::{PAGE_SIZE_BYTES, SPACE_SIZE_BYTES};
 
-/// One reserved address-space shape used by fork benchmarks.
+/// One reserved memory map shape used by fork benchmarks.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AddressSpaceShape {
+pub(crate) struct MemoryMapShape {
     /// The reserved virtual byte width.
-    space_size_bytes: usize,
+    reserved_size_bytes: usize,
     /// The active byte prefix to materialize.
     active_bytes: usize,
 }
 
-impl AddressSpaceShape {
-    /// Return the default reserved address-space shape.
+impl MemoryMapShape {
+    /// Return the default reserved memory map shape.
     pub(crate) const fn reserved() -> Self {
         Self {
-            space_size_bytes: SPACE_SIZE_BYTES,
+            reserved_size_bytes: SPACE_SIZE_BYTES,
             active_bytes: 0,
         }
     }
 
-    /// Return the default space shape with a materialized page prefix.
+    /// Return the default memory map shape with a materialized page prefix.
     pub(crate) const fn materialized_pages(page_count: usize) -> Self {
         Self {
-            space_size_bytes: SPACE_SIZE_BYTES,
+            reserved_size_bytes: SPACE_SIZE_BYTES,
             active_bytes: page_count * PAGE_SIZE_BYTES,
         }
     }
 
-    /// Return an address-space shape with a materialized byte prefix.
-    pub(crate) const fn materialized_bytes(space_size_bytes: usize, active_bytes: usize) -> Self {
+    /// Return a memory map shape with a materialized byte prefix.
+    pub(crate) const fn materialized_bytes(
+        reserved_size_bytes: usize,
+        active_bytes: usize,
+    ) -> Self {
         Self {
-            space_size_bytes,
+            reserved_size_bytes,
             active_bytes,
         }
     }
 
-    /// Reserve this address space without materializing pages.
-    pub(crate) fn reserve(self) -> AddressSpace {
-        AddressSpace::reserve(self.space_size_bytes, PAGE_SIZE_BYTES)
-            .expect("address space should reserve")
+    /// Reserve this memory map without materializing pages.
+    pub(crate) fn reserve(self) -> MemoryMap {
+        MemoryMap::reserve(self.reserved_size_bytes, PAGE_SIZE_BYTES)
+            .expect("memory map should reserve")
     }
 
-    /// Reserve this address space and materialize its active prefix.
-    pub(crate) fn materialize(self) -> AddressSpace {
-        let space = self.reserve();
+    /// Reserve this memory map and materialize its active prefix.
+    pub(crate) fn materialize(self) -> MemoryMap {
+        let map = self.reserve();
         let page = vec![0xAB; PAGE_SIZE_BYTES];
         let page_count = self.active_bytes.div_ceil(PAGE_SIZE_BYTES);
 
         // materialize only the active pages requested by the benchmark
         for page_index in 0..page_count {
             let offset = page_index * PAGE_SIZE_BYTES;
-            space
-                .write_bytes(offset, &page)
-                .expect("address space page write should succeed");
+            map.write_bytes(offset, &page)
+                .expect("memory map page write should succeed");
         }
 
-        space
+        map
     }
 
-    /// Fork one materialized address space lazily.
-    pub(crate) fn fork_lazy_pair(self) -> (AddressSpace, AddressSpace) {
+    /// Fork one materialized memory map lazily.
+    pub(crate) fn fork_lazy_pair(self) -> (MemoryMap, MemoryMap) {
         let parent = self.materialize();
-        let child = parent
-            .fork_lazy()
-            .expect("address space fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
 
         (parent, child)
     }
 
-    /// Fork one materialized address space lazily and return its first word address.
-    pub(crate) fn fork_lazy_word(self) -> (AddressSpace, AddressSpace, *mut usize) {
+    /// Fork one materialized memory map lazily and return its first word address.
+    pub(crate) fn fork_lazy_word(self) -> (MemoryMap, MemoryMap, *mut usize) {
         let (parent, child) = self.fork_lazy_pair();
         let address = child
             .address(0, size_of::<usize>())
@@ -83,8 +83,8 @@ impl AddressSpaceShape {
         (parent, child, address)
     }
 
-    /// Fork one materialized address space eagerly and return its first word address.
-    pub(crate) fn fork_eager_word(self) -> (AddressSpace, AddressSpace, *mut usize) {
+    /// Fork one materialized memory map eagerly and return its first word address.
+    pub(crate) fn fork_eager_word(self) -> (MemoryMap, MemoryMap, *mut usize) {
         let parent = self.materialize();
         let child = parent
             .fork_eager(0..parent.byte_len())
@@ -97,11 +97,8 @@ impl AddressSpaceShape {
         (parent, child, address)
     }
 
-    /// Fork one materialized address space lazily and return its first page-range address.
-    pub(crate) fn fork_lazy_pages(
-        self,
-        page_count: usize,
-    ) -> (AddressSpace, AddressSpace, *mut usize) {
+    /// Fork one materialized memory map lazily and return its first page-range address.
+    pub(crate) fn fork_lazy_pages(self, page_count: usize) -> (MemoryMap, MemoryMap, *mut usize) {
         let (parent, child) = self.fork_lazy_pair();
         let byte_len = page_count * PAGE_SIZE_BYTES;
         let address = child
@@ -113,10 +110,10 @@ impl AddressSpaceShape {
     }
 }
 
-/// One live address-space lineage used by fork benchmarks.
+/// One live memory map lineage used by fork benchmarks.
 pub(crate) struct ForkLineage {
-    /// The live spaces from root to leaf.
-    spaces: Vec<AddressSpace>,
+    /// The live maps from root to leaf.
+    maps: Vec<MemoryMap>,
 }
 
 impl ForkLineage {
@@ -126,60 +123,56 @@ impl ForkLineage {
         ancestor_count: usize,
         dirty_page_count: usize,
     ) -> Self {
-        let shape = AddressSpaceShape::materialized_pages(page_count);
+        let shape = MemoryMapShape::materialized_pages(page_count);
 
         Self::with_shape(shape, ancestor_count, dirty_page_count)
     }
 
     /// Build one live fork chain from active byte counts.
     pub(crate) fn with_bytes(
-        space_size_bytes: usize,
+        reserved_size_bytes: usize,
         active_bytes: usize,
         ancestor_count: usize,
         dirty_bytes: usize,
     ) -> Self {
-        let shape = AddressSpaceShape::materialized_bytes(space_size_bytes, active_bytes);
+        let shape = MemoryMapShape::materialized_bytes(reserved_size_bytes, active_bytes);
         let dirty_page_count = dirty_bytes.div_ceil(PAGE_SIZE_BYTES);
 
         Self::with_shape(shape, ancestor_count, dirty_page_count)
     }
 
-    /// Fork the live leaf space.
-    pub(crate) fn fork_leaf(&self) -> AddressSpace {
-        self.spaces
+    /// Fork the live leaf map.
+    pub(crate) fn fork_leaf(&self) -> MemoryMap {
+        self.maps
             .last()
             .expect("fork lineage should keep one leaf")
             .fork_lazy()
-            .expect("nested address space fork should succeed")
+            .expect("nested memory map fork should succeed")
     }
 
-    /// Build one live fork chain from a materialized address-space shape.
-    fn with_shape(
-        shape: AddressSpaceShape,
-        ancestor_count: usize,
-        dirty_page_count: usize,
-    ) -> Self {
-        let mut spaces = Vec::with_capacity(ancestor_count + 1);
+    /// Build one live fork chain from a materialized memory map shape.
+    fn with_shape(shape: MemoryMapShape, ancestor_count: usize, dirty_page_count: usize) -> Self {
+        let mut maps = Vec::with_capacity(ancestor_count + 1);
         let root = shape.materialize();
-        spaces.push(root);
+        maps.push(root);
 
         // keep every ancestor live so nested forks retain shared frames
         for ancestor_index in 0..ancestor_count {
-            let child = spaces[ancestor_index]
+            let child = maps[ancestor_index]
                 .fork_lazy()
-                .expect("address space fork should succeed");
-            spaces.push(child);
+                .expect("memory map fork should succeed");
+            maps.push(child);
         }
 
         // dirty the leaf after the chain is built
         let page = vec![0xA5; PAGE_SIZE_BYTES];
-        let leaf = spaces.last().expect("fork lineage should keep one leaf");
+        let leaf = maps.last().expect("fork lineage should keep one leaf");
         for page_index in 0..dirty_page_count {
             let offset = page_index * PAGE_SIZE_BYTES;
             leaf.write_bytes(offset, black_box(&page))
-                .expect("forked address space write should succeed");
+                .expect("forked memory map write should succeed");
         }
 
-        Self { spaces }
+        Self { maps }
     }
 }

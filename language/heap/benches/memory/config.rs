@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use destack_heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
 
-/// The virtual memory range reserved by address-space benchmarks.
+/// The virtual memory range reserved by memory map benchmarks.
 pub(crate) const SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
 /// The allocator page width used by heap benchmarks.
 pub(crate) const PAGE_SIZE_BYTES: usize = DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;

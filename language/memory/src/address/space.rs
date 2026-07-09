@@ -237,9 +237,7 @@ mod tests {
             .write_bytes(0, &initial)
             .expect("parent write should succeed");
 
-        let child = parent
-            .fork_lazy()
-            .expect("memory map fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
 
         // write across two page boundaries in the child
         child
@@ -267,9 +265,7 @@ mod tests {
             .write_bytes(0, &[1, 2, 3, 4])
             .expect("parent write should succeed");
 
-        let child = parent
-            .fork_lazy()
-            .expect("memory map fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
         // SAFETY: child_address points at four materialized bytes in the child mapping
@@ -294,9 +290,7 @@ mod tests {
             .write_bytes(0, &[1, 2, 3, 4])
             .expect("parent write should succeed");
 
-        let child = parent
-            .fork_lazy()
-            .expect("memory map fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
         let parent_address = parent.address(0, 4).expect("parent address should resolve");
 
         // SAFETY: parent_address points at four materialized bytes in the parent mapping
@@ -321,9 +315,7 @@ mod tests {
             .write_bytes(0, &[1, 2, 3, 4])
             .expect("parent write should succeed");
 
-        let child = parent
-            .fork_lazy()
-            .expect("memory map fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
         // SAFETY: child_address points at four materialized bytes in the child mapping
@@ -349,9 +341,7 @@ mod tests {
             .write_bytes(0, &[1, 2, 3, 4])
             .expect("parent write should succeed");
 
-        let child = parent
-            .fork_lazy()
-            .expect("memory map fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
         // SAFETY: child_address points at four materialized bytes in the child mapping
@@ -389,9 +379,7 @@ mod tests {
             .write_bytes(0, &[1, 2, 3, 4])
             .expect("parent write should succeed");
 
-        let child = parent
-            .fork_lazy()
-            .expect("memory map fork should succeed");
+        let child = parent.fork_lazy().expect("memory map fork should succeed");
         let grandchild = child.fork_lazy().expect("child fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
         let grandchild_address = grandchild
