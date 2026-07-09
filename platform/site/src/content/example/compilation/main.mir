@@ -1,0 +1,8 @@
+function @fahrenheit(v0: float64) -> float64 {
+block0(v0: float64):
+    v1: float64 = fconst 1.8
+    v2: float64 = binary.mul v0, v1
+    v3: float64 = fconst 32.0
+    v4: float64 = binary.add v2, v3
+    return v4
+}
