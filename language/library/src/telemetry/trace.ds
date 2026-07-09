@@ -1,112 +1,20 @@
 import { Promise } from "destack:async";
+import { Context } from "destack:context";
 
 import { Fields } from "./field.ds";
-
-/// Distributed trace identifier.
-export newtype TraceId = uint128;
-
-/// Span identifier inside one trace.
-export newtype SpanId = uint64;
-
-/// Span relationship and transport kind.
-export enum SpanKind {
-    /// Internal work inside one runtime.
-    Internal = 1,
-    /// Server-side request handling.
-    Server = 2,
-    /// Client-side outbound request.
-    Client = 3,
-    /// Producer-side message send.
-    Producer = 4,
-    /// Consumer-side message receive.
-    Consumer = 5,
-}
-
-/// Span completion status.
-export enum SpanStatus {
-    /// No explicit status has been set.
-    Unset = 1,
-    /// Work completed successfully.
-    Ok = 2,
-    /// Work completed with an error.
-    Error = 3,
-}
-
-/// Trace identity for one active span.
-export struct SpanContext {
-    /// Trace containing this span.
-    traceId: TraceId;
-
-    /// Span identifier.
-    spanId: SpanId;
-
-    /// Parent span identifier when present.
-    parentSpanId?: SpanId;
-}
-
-/// Span start options.
-export struct SpanOptions {
-    /// Span kind.
-    kind?: SpanKind;
-
-    /// Parent span context.
-    parent?: SpanContext;
-
-    /// Structured fields attached to the start record.
-    fields?: Fields;
-}
-
-/// Trace event kind.
-export enum TraceEventKind {
-    /// Span start.
-    Start = 1,
-    /// Span event.
-    Event = 2,
-    /// Span fields update.
-    Fields = 3,
-    /// Span failure.
-    Error = 4,
-    /// Span end.
-    End = 5,
-}
-
-/// Trace event record.
-export struct TraceRecord {
-    /// Event kind.
-    kind: TraceEventKind;
-
-    /// Trace containing this record.
-    traceId: TraceId;
-
-    /// Span containing this record.
-    spanId: SpanId;
-
-    /// Parent span identifier when present.
-    parentSpanId?: SpanId;
-
-    /// Span kind on start records.
-    spanKind?: SpanKind;
-
-    /// Span name.
-    name: string;
-
-    /// Event name when available.
-    event?: string;
-
-    /// Span status when available.
-    status?: SpanStatus;
-
-    /// Structured fields attached to this record.
-    fields?: Fields;
-
-    /// Error value when available.
-    error?: unknown;
-}
+import {
+    SpanContext,
+    SpanKind,
+    SpanOptions,
+    SpanStatus,
+    TraceEntry,
+    TraceEventKind,
+} from "./record.ds";
 
 /// Trace event sink.
 export newtype interface TraceSink {
-    /// Write one trace record.
-    write(&readonly this, record: TraceRecord): void;
+    /// Write one trace entry.
+    write(&readonly this, entry: &readonly TraceEntry): void;
 }
 
 /// Active trace span.
@@ -131,7 +39,7 @@ export class Span {
 
     /// Create a span.
     constructor(
-        name: string,
+        name: &readonly string,
         context: SpanContext,
         kind?: SpanKind,
         fields?: Fields,
@@ -142,7 +50,7 @@ export class Span {
         this.kind = kind ?? SpanKind.Internal;
         this.sink = sink;
 
-        writeTrace(this.sink, TraceRecord {
+        writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.Start,
             traceId: context.traceId,
             spanId: context.spanId,
@@ -155,22 +63,22 @@ export class Span {
 
     /// Add fields to this span.
     addFields(&readonly this, fields: Fields): void {
-        writeTrace(this.sink, TraceRecord {
+        writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.Fields,
             traceId: this.context.traceId,
             spanId: this.context.spanId,
-            name: this.name,
+            name: &readonly this.name,
             fields,
         });
     }
 
     /// Add one event to this span.
-    event(&readonly this, name: string, fields?: Fields): void {
-        writeTrace(this.sink, TraceRecord {
+    event(&readonly this, name: &readonly string, fields?: Fields): void {
+        writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.Event,
             traceId: this.context.traceId,
             spanId: this.context.spanId,
-            name: this.name,
+            name: &readonly this.name,
             event: name,
             fields,
         });
@@ -184,11 +92,11 @@ export class Span {
     /// Mark this span as failed.
     error(&exclusive this, error: unknown): void {
         this.status = SpanStatus.Error;
-        writeTrace(this.sink, TraceRecord {
+        writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.Error,
             traceId: this.context.traceId,
             spanId: this.context.spanId,
-            name: this.name,
+            name: &readonly this.name,
             error,
         });
     }
@@ -201,11 +109,11 @@ export class Span {
 
         this.isEnded = true;
         this.status = status ?? this.status;
-        writeTrace(this.sink, TraceRecord {
+        writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.End,
             traceId: this.context.traceId,
             spanId: this.context.spanId,
-            name: this.name,
+            name: &readonly this.name,
             status: this.status,
         });
     }
@@ -222,13 +130,18 @@ export class Tracer {
     }
 
     /// Start one span.
-    start(&readonly this, name: string, options?: SpanOptions): Span {
-        const context = createSpanContext(options?.parent);
+    start(&readonly this, name: &readonly string, options?: SpanOptions): Span {
+        const context = Context.current().telemetry.createSpanContext(options?.parent);
         new Span(name, context, options?.kind, options?.fields, this.sink)
     }
 
     /// Run `body` inside one span.
-    span<T>(&readonly this, name: string, body: (span: Span) => T, options?: SpanOptions): T {
+    span<T>(
+        &readonly this,
+        name: &readonly string,
+        body: (span: Span) => T,
+        options?: SpanOptions,
+    ): T {
         let active = this.start(name, options);
         const value = body(active);
         active.end();
@@ -239,7 +152,7 @@ export class Tracer {
     /// Run async `body` inside one span.
     spanAsync<T>(
         &readonly this,
-        name: string,
+        name: &readonly string,
         body: (span: Span) => Promise<T>,
         options?: SpanOptions,
     ): Promise<T> {
@@ -255,49 +168,29 @@ export function tracer(): Tracer {
 }
 
 /// Start one span with the default tracer.
-export function start(name: string, options?: SpanOptions): Span {
+export function start(name: &readonly string, options?: SpanOptions): Span {
     tracer().start(name, options)
 }
 
 /// Run `body` inside one span.
-export function span<T>(name: string, body: (span: Span) => T, options?: SpanOptions): T {
+export function span<T>(name: &readonly string, body: (span: Span) => T, options?: SpanOptions): T {
     tracer().span(name, body, options)
 }
 
 /// Run async `body` inside one span.
 export function spanAsync<T>(
-    name: string,
+    name: &readonly string,
     body: (span: Span) => Promise<T>,
     options?: SpanOptions,
 ): Promise<T> {
     tracer().spanAsync(name, body, options)
 }
 
-/// Create trace identity for one span.
-@binding("destack.telemetry.span.context", {
-    effect: "deterministic",
-    requires: ["runtime.telemetry.write"],
-    families: ["windows", "unix", "wasm"],
-    provider: "runtime",
-    affinity: "worker",
-})
-export declare function createSpanContext(parent?: SpanContext): SpanContext;
-
-/// Write one trace record to a trace sink.
-function writeTrace(sink: readonly TraceSink | undefined, record: TraceRecord): void {
+/// Write one trace entry to a trace sink.
+function writeTrace(sink: readonly TraceSink | undefined, entry: TraceEntry): void {
     if (sink == undefined) {
-        emitTrace(record)
+        Context.current().telemetry.emitTrace(&readonly entry)
     } else {
-        sink.write(record)
+        sink.write(&readonly entry)
     }
 }
-
-/// Emit one trace record to the runtime telemetry collector.
-@binding("destack.telemetry.trace.emit", {
-    effect: "deterministic",
-    requires: ["runtime.telemetry.write"],
-    families: ["windows", "unix", "wasm"],
-    provider: "runtime",
-    affinity: "worker",
-})
-export declare function emitTrace(record: TraceRecord): void;

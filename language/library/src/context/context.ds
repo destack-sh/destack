@@ -15,6 +15,7 @@ import { NetBinding } from "destack:net/binding";
 import { OsBinding } from "destack:os/binding";
 import { ProcessBinding } from "destack:process/binding";
 import { RandomBinding } from "destack:random/binding";
+import { TelemetryBinding } from "destack:telemetry/binding";
 import { TimeBinding } from "destack:time/binding";
 import { TlsBinding } from "destack:tls/binding";
 import { TopologyBinding } from "destack:topology/binding";
@@ -118,6 +119,10 @@ export class Context {
     /// Current random binding family.
     @intrinsic("context.random")
     get random(): Dynamic<RandomBinding>;
+
+    /// Current telemetry binding family.
+    @intrinsic("context.telemetry")
+    get telemetry(): Dynamic<TelemetryBinding>;
 
     /// Current time binding family.
     @intrinsic("context.time")

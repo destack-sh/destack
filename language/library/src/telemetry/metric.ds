@@ -1,41 +1,13 @@
+import { Context } from "destack:context";
 import { Duration } from "destack:time";
 
 import { Fields } from "./field.ds";
+import { InstrumentKind, MetricEntry } from "./record.ds";
 
-/// Metric instrument kind.
-export enum InstrumentKind {
-    /// Monotonic counter.
-    Counter = 1,
-    /// Non-monotonic counter.
-    UpDownCounter = 2,
-    /// Instantaneous gauge.
-    Gauge = 3,
-    /// Distribution histogram.
-    Histogram = 4,
-}
-
-/// Metric sample.
-export struct MetricRecord {
-    /// Instrument kind.
-    kind: InstrumentKind;
-
-    /// Instrument name.
-    name: string;
-
-    /// Recorded value.
-    value: number;
-
-    /// Unit name when available.
-    unit?: string;
-
-    /// Structured fields attached to this sample.
-    fields?: Fields;
-}
-
-/// Metric sample sink.
+/// Metric entry sink.
 export newtype interface MetricSink {
-    /// Record one metric sample.
-    record(&readonly this, record: MetricRecord): void;
+    /// Write one metric entry.
+    write(&readonly this, entry: &readonly MetricEntry): void;
 }
 
 /// Monotonic metric counter.
@@ -58,13 +30,15 @@ export class Counter {
 
     /// Add to this counter.
     add(&readonly this, value: number, fields?: Fields): void {
-        recordMetric(this.sink, MetricRecord {
+        const entry = MetricEntry {
             kind: InstrumentKind.Counter,
-            name: this.name,
+            name: &readonly this.name,
             value,
-            unit: this.unit,
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
             fields,
-        });
+        };
+
+        writeMetric(this.sink, &readonly entry);
     }
 }
 
@@ -88,13 +62,15 @@ export class UpDownCounter {
 
     /// Add to this counter.
     add(&readonly this, value: number, fields?: Fields): void {
-        recordMetric(this.sink, MetricRecord {
+        const entry = MetricEntry {
             kind: InstrumentKind.UpDownCounter,
-            name: this.name,
+            name: &readonly this.name,
             value,
-            unit: this.unit,
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
             fields,
-        });
+        };
+
+        writeMetric(this.sink, &readonly entry);
     }
 }
 
@@ -118,13 +94,15 @@ export class Gauge {
 
     /// Record this gauge value.
     set(&readonly this, value: number, fields?: Fields): void {
-        recordMetric(this.sink, MetricRecord {
+        const entry = MetricEntry {
             kind: InstrumentKind.Gauge,
-            name: this.name,
+            name: &readonly this.name,
             value,
-            unit: this.unit,
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
             fields,
-        });
+        };
+
+        writeMetric(this.sink, &readonly entry);
     }
 }
 
@@ -148,13 +126,15 @@ export class Histogram {
 
     /// Record one histogram sample.
     record(&readonly this, value: number, fields?: Fields): void {
-        recordMetric(this.sink, MetricRecord {
+        const entry = MetricEntry {
             kind: InstrumentKind.Histogram,
-            name: this.name,
+            name: &readonly this.name,
             value,
-            unit: this.unit,
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
             fields,
-        });
+        };
+
+        writeMetric(this.sink, &readonly entry);
     }
 }
 
@@ -224,21 +204,11 @@ export function duration(name: string, value: Duration, fields?: Fields): void {
     meter().duration(name, value, fields);
 }
 
-/// Record one metric sample.
-function recordMetric(sink: readonly MetricSink | undefined, record: MetricRecord): void {
+/// Write one metric entry.
+function writeMetric(sink: readonly MetricSink | undefined, entry: &readonly MetricEntry): void {
     if (sink == undefined) {
-        emitMetric(record)
+        Context.current().telemetry.emitMetric(entry)
     } else {
-        sink.record(record)
+        sink.write(entry)
     }
 }
-
-/// Emit one metric record to the runtime telemetry collector.
-@binding("destack.telemetry.metric.emit", {
-    effect: "deterministic",
-    requires: ["runtime.telemetry.write"],
-    families: ["windows", "unix", "wasm"],
-    provider: "runtime",
-    affinity: "worker",
-})
-export declare function emitMetric(record: MetricRecord): void;

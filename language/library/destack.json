@@ -230,6 +230,9 @@
     "./telemetry": {
       "path": "./src/telemetry/index.ds"
     },
+    "./telemetry/binding": {
+      "path": "./src/telemetry/binding/index.ds"
+    },
     "./tensor": {
       "path": "./src/tensor/index.ds"
     },

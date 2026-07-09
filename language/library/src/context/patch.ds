@@ -15,6 +15,7 @@ import { NetBinding } from "destack:net/binding";
 import { OsBinding } from "destack:os/binding";
 import { ProcessBinding } from "destack:process/binding";
 import { RandomBinding } from "destack:random/binding";
+import { TelemetryBinding } from "destack:telemetry/binding";
 import { TimeBinding } from "destack:time/binding";
 import { TlsBinding } from "destack:tls/binding";
 import { TopologyBinding } from "destack:topology/binding";
@@ -25,41 +26,43 @@ import { ContextEntry } from "./entry.ds";
 /// Scoped context override payload.
 @languageItem("context.ContextPatch")
 export struct ContextPatch {
-    /// AccessibilityBinding binding family override.
+    /// Accessibility binding family override.
     accessibility?: Dynamic<AccessibilityBinding>;
-    /// AudioBinding binding family override.
+    /// Audio binding family override.
     audio?: Dynamic<AudioBinding>;
     /// Compute binding family override.
     compute?: Dynamic<ComputeBinding>;
-    /// CryptoBinding binding family override.
+    /// Crypto binding family override.
     crypto?: Dynamic<CryptoBinding>;
-    /// DeviceBinding binding family override.
+    /// Device binding family override.
     device?: Dynamic<DeviceBinding>;
-    /// DisplayBinding binding family override.
+    /// Display binding family override.
     display?: Dynamic<DisplayBinding>;
     /// Filesystem binding family override.
     fs?: Dynamic<FsBinding>;
     /// GPU binding family override.
     gpu?: Dynamic<GpuBinding>;
-    /// InputBinding binding family override.
+    /// Input binding family override.
     input?: Dynamic<InputBinding>;
     /// IO binding family override.
     io?: Dynamic<IoBinding>;
     /// IPC binding family override.
     ipc?: Dynamic<IpcBinding>;
-    /// MemoryBinding binding family override.
+    /// Memory binding family override.
     memory?: Dynamic<MemoryBinding>;
     /// Network binding family override.
     net?: Dynamic<NetBinding>;
     /// Operating system binding family override.
     os?: Dynamic<OsBinding>;
-    /// ProcessBinding binding family override.
+    /// Process binding family override.
     process?: Dynamic<ProcessBinding>;
-    /// RandomBinding binding family override.
+    /// Random binding family override.
     random?: Dynamic<RandomBinding>;
-    /// TimeBinding binding family override.
+    /// Telemetry binding family override.
+    telemetry?: Dynamic<TelemetryBinding>;
+    /// Time binding family override.
     time?: Dynamic<TimeBinding>;
-    /// TopologyBinding binding family override.
+    /// Topology binding family override.
     topology?: Dynamic<TopologyBinding>;
     /// TLS binding family override.
     tls?: Dynamic<TlsBinding>;
