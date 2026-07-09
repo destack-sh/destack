@@ -57,6 +57,8 @@ pub enum Type {
     This,
     /// Member type selected from an owner type, like `T.Output`.
     Member(MemberType),
+    /// Applied type refined by one associated member equality, like `Iterator<type Item = uint8>`.
+    Refined(RefinedType),
     /// Singleton enum member type, like `Mode.Read`.
     EnumMember(EnumMemberType),
 
@@ -197,6 +199,7 @@ impl Type {
             Self::This => TypeFlags::HAS_THIS,
             Self::Reference(_) => TypeFlags::HAS_REFERENCE,
             Self::Member(_) => TypeFlags::HAS_MEMBER,
+            Self::Refined(_) => TypeFlags::HAS_MEMBER,
             Self::Operation(TypeOperation::Infer(_)) => {
                 TypeFlags::HAS_OPERATION | TypeFlags::HAS_INFER
             }
@@ -577,6 +580,23 @@ pub struct MemberType {
     pub arguments: TypeListId,
     /// The declaring scope qualifying the projection.
     pub qualifier: Option<GlobalTypeId>,
+}
+
+/// One associated member equality refining an applied type.
+///
+/// Examples:
+/// ```ds
+/// function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8;
+/// function stream<S: Source<type Chunk = string, type Error = E>>(source: S): E;
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct RefinedType {
+    /// The refined base application.
+    pub base: GlobalTypeId,
+    /// The refined associated member key.
+    pub key: StaticKey,
+    /// The required associated member type.
+    pub value: GlobalTypeId,
 }
 
 /// Singleton type of one enum member.

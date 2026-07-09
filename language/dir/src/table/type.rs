@@ -268,6 +268,10 @@ impl<'a> TypeTable<'a> {
                 }
             }
             Type::EnumMember(member) => visit(member.owner),
+            Type::Refined(refined) => {
+                visit(refined.base);
+                visit(refined.value);
+            }
 
             // memory forms
             Type::Form(form) => {
