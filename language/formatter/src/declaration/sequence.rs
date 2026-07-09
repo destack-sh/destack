@@ -9,7 +9,8 @@ use crate::declaration::statement::{
 };
 use crate::declaration::{
     expression_needs_statement_terminator, statement_trailing_comment_anchor_end,
-    write_statement_terminator, write_statement_terminator_with_following_start,
+    write_semicolonless_statement_comments, write_statement_terminator,
+    write_statement_terminator_with_following_start,
 };
 use crate::expression::format_expression;
 use crate::file::{
@@ -395,11 +396,11 @@ fn format_statement_sequence_expression<'ast>(
         write!(f, [token(")")])?;
     }
 
-    if expression_needs_statement_terminator(
-        f.context(),
-        expression,
-        allow_value_tail && is_expression_context_tail,
-    ) {
+    let needs_terminator =
+        expression_needs_statement_terminator(f.context(), expression, expression_is_value_tail);
+
+    // write the statement terminator and its comments
+    if needs_terminator {
         if let Some(following_expression_start) = following_expression_start {
             let anchor_end = statement_trailing_comment_anchor_end(f.context(), expression_id);
             write_statement_terminator_with_following_start(
@@ -411,6 +412,10 @@ fn format_statement_sequence_expression<'ast>(
         } else {
             write_statement_terminator(f, expression_id)?;
         }
+    }
+    // preserve comments owned by a semicolonless statement
+    else {
+        write_semicolonless_statement_comments(f, expression_id, following_expression_start)?;
     }
 
     write_expression_postfix_annotations(f, expression_id, expression, is_ignored, false)?;
