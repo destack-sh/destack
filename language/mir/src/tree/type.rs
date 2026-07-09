@@ -42,7 +42,8 @@ impl Access {
 }
 
 /// Space for a reference.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+#[repr(u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum Space {
     /// Local runtime storage.
     #[default]
