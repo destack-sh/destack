@@ -107,6 +107,11 @@ impl Default for TestMachine {
 }
 
 impl TestMachine {
+    /// Build one test machine from explicit MIR text.
+    pub(crate) const fn with_mir(mir: &'static str) -> Self {
+        Self { mir }
+    }
+
     /// Build one VM machine for this test machine.
     pub(crate) fn machine(self) -> vm::Machine {
         vm_machine_from_mir(self.mir)
@@ -709,7 +714,7 @@ pub(crate) fn start_worker_continuation(
     };
     let args = [program::Value::int32(value)];
     let outcome = machine
-        .run(context, &Entry::new(entry), &args, None)
+        .run(context, &Entry::new(entry), &args, None, None)
         .expect("test continuation should start");
 
     match outcome {

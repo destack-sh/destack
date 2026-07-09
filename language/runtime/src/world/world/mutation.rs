@@ -10,7 +10,6 @@ use crate::host::ResourceId;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 use crate::world::debug::{
     Breakpoint, BreakpointTarget, Probe, ProbeAction, ProbeId, ProbeTarget, Watchpoint,
-    WatchpointId, WatchpointTarget,
 };
 use crate::world::observation::Observation;
 use crate::world::policy::{Policy, Rule, RuleId};
@@ -145,17 +144,17 @@ pub enum Mutation {
     /// Remove one debugger watchpoint.
     RemoveWatchpoint {
         /// Watchpoint identifier to remove.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// Enable one debugger watchpoint.
     EnableWatchpoint {
         /// Watchpoint identifier to enable.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// Disable one debugger watchpoint.
     DisableWatchpoint {
         /// Watchpoint identifier to disable.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// Add one debugger probe.
     AddProbe {
@@ -909,9 +908,15 @@ impl World {
     }
 
     /// Add one debugger watchpoint.
-    pub fn add_watchpoint(&mut self, target: WatchpointTarget) -> RuntimeResult<WatchpointId> {
+    pub fn add_watchpoint(
+        &mut self,
+        runtime_id: Option<RuntimeId>,
+        worker_id: Option<WorkerId>,
+        access: program::MemoryAccess,
+        target: program::MemoryTarget,
+    ) -> RuntimeResult<program::WatchpointId> {
         let watchpoint_id = self.state.debugger.allocate_watchpoint_id();
-        let watchpoint = Watchpoint::new(watchpoint_id, target);
+        let watchpoint = Watchpoint::new(watchpoint_id, runtime_id, worker_id, access, target);
 
         self.mutate(Mutation::AddWatchpoint { watchpoint })?;
 
@@ -924,17 +929,20 @@ impl World {
     }
 
     /// Remove one debugger watchpoint.
-    pub fn remove_watchpoint(&mut self, watchpoint_id: WatchpointId) -> RuntimeResult<()> {
+    pub fn remove_watchpoint(&mut self, watchpoint_id: program::WatchpointId) -> RuntimeResult<()> {
         self.mutate(Mutation::RemoveWatchpoint { watchpoint_id })
     }
 
     /// Enable one debugger watchpoint.
-    pub fn enable_watchpoint(&mut self, watchpoint_id: WatchpointId) -> RuntimeResult<()> {
+    pub fn enable_watchpoint(&mut self, watchpoint_id: program::WatchpointId) -> RuntimeResult<()> {
         self.mutate(Mutation::EnableWatchpoint { watchpoint_id })
     }
 
     /// Disable one debugger watchpoint.
-    pub fn disable_watchpoint(&mut self, watchpoint_id: WatchpointId) -> RuntimeResult<()> {
+    pub fn disable_watchpoint(
+        &mut self,
+        watchpoint_id: program::WatchpointId,
+    ) -> RuntimeResult<()> {
         self.mutate(Mutation::DisableWatchpoint { watchpoint_id })
     }
 

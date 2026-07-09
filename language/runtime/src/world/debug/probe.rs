@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::host::binding::BindingId;
 use crate::runtime::{RuntimeId, WorkerId};
 
-use super::{MemoryAccess, MemoryTarget};
-
 /// Runtime probe identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProbeId(u64);
@@ -73,9 +71,9 @@ pub struct MemoryProbe {
     /// Worker that executes the memory access.
     pub worker_id: Option<WorkerId>,
     /// Memory access operation selected by the probe.
-    pub access: MemoryAccess,
+    pub access: program::MemoryAccess,
     /// Memory target selected by the probe.
-    pub target: MemoryTarget,
+    pub target: program::MemoryTarget,
 }
 
 /// Allocation probe target.

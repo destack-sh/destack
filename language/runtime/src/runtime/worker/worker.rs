@@ -33,10 +33,12 @@ pub struct Worker {
     pub(crate) options: Arc<RuntimeOptions>,
     /// Immutable executable program.
     pub(crate) program: Arc<program::Program>,
-    /// Debugger generation used to derive stop points.
-    pub(crate) stop_generation: u64,
+    /// Debugger generation used to derive executable debug sets.
+    pub(crate) debug_generation: u64,
     /// Executable stop points active for this worker.
     pub(crate) stop_points: program::StopSet,
+    /// Executable watchpoints active for this worker.
+    pub(crate) watch_points: program::WatchSet,
 
     /// External resource table.
     pub(crate) resources: ResourceTable,
@@ -312,8 +314,9 @@ impl Worker {
             environment,
             options: Arc::new(options.clone()),
             program,
-            stop_generation: world.debugger.generation(),
+            debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
+            watch_points: world.debugger.watch_set(runtime_id, worker_id),
             resources,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             binding_table,
@@ -665,8 +668,9 @@ impl Worker {
             diagnostics,
             binding_table,
             program: self.program.clone(),
-            stop_generation: self.stop_generation,
+            debug_generation: self.debug_generation,
             stop_points: self.stop_points.clone(),
+            watch_points: self.watch_points.clone(),
             shared_mark_worker,
             shared_cache,
             heap,
@@ -752,8 +756,9 @@ impl Worker {
             environment,
             options,
             program,
-            stop_generation: world.debugger.generation(),
+            debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
+            watch_points: world.debugger.watch_set(runtime_id, worker_id),
             resources,
             diagnostics,
             binding_table,

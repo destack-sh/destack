@@ -4,9 +4,9 @@ use crate::host::ResourceId;
 use crate::runtime::scheduler::RunnableId;
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeId, WorkerId};
+use crate::world::ProbeId;
 use crate::world::policy::RuleId;
 use crate::world::topology::{EdgeId, EdgeKind, EntityId, EntityKind};
-use crate::world::{ProbeId, WatchpointId};
 use destack_heap as heap;
 use destack_program as program;
 
@@ -141,27 +141,27 @@ pub enum Observation {
     /// runtime.debug.watchpoint.added
     WatchpointAdded {
         /// Added watchpoint identifier.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// runtime.debug.watchpoint.updated
     WatchpointUpdated {
         /// Updated watchpoint identifier.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// runtime.debug.watchpoint.removed
     WatchpointRemoved {
         /// Removed watchpoint identifier.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// runtime.debug.watchpoint.enabled
     WatchpointEnabled {
         /// Enabled watchpoint identifier.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// runtime.debug.watchpoint.disabled
     WatchpointDisabled {
         /// Disabled watchpoint identifier.
-        watchpoint_id: WatchpointId,
+        watchpoint_id: program::WatchpointId,
     },
     /// runtime.debug.probe.added
     ProbeAdded {
