@@ -1,7 +1,7 @@
 use super::slice::{load_slice_length_at, store_slice_at};
 use crate::diagnostic::{Error, ReferenceKind, ResourceError};
 use crate::machine::Activation;
-use crate::{Cell, StackPointer};
+use destack_program::vm::{Cell, StackPointer};
 
 use super::Transfer;
 use destack_heap::{HeapError, HeapReferenceKind};

@@ -1,4 +1,4 @@
-use crate::Cell;
+use destack_program::vm::Cell;
 
 use super::frame::{frame_value_from_cell, materialize_value, store_frame_slot_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
@@ -72,7 +72,7 @@ impl Activation<'_> {
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let point = program.point(caller.function(), caller.block, caller.pc as u32);
+        let point = caller.point(program)?;
         if let Some(destination) = program.return_destination_at(point).map_err(Error::from)? {
             store_frame_slot_value(caller, destination, returned).map_err(RuntimeError::new)?;
         }

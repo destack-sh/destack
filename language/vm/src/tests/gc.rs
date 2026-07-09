@@ -1,10 +1,10 @@
-use crate::Cell;
 use crate::tests::{allocate_local_bytes, allocate_local_zeroed, create_test_heap, trace_view};
 use destack_heap::{
     AllocationShape, Heap, HeapAllocationError, HeapError, HeapReference, HeapResult, RootSlot,
     visit_heap_references,
 };
 use destack_mir::TraceMap;
+use destack_program::vm::Cell;
 
 /// Allocate one managed cell for tests.
 fn allocate(heap: &mut Heap) -> HeapReference {

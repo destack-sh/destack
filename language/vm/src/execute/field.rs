@@ -1,8 +1,7 @@
 use super::address;
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use destack_program::vm::Instruction;
+use destack_program::vm::{Cell, Instruction};
 
 /// Return one directly encoded byte offset.
 #[inline(always)]

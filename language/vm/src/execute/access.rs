@@ -6,7 +6,7 @@ use destack_program::{CellLayout, GlobalAddress};
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::{Cell, FramePointer, StackPointer};
+use destack_program::vm::{Cell, FramePointer, StackPointer};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 

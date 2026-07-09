@@ -1,15 +1,15 @@
 use destack_heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 
-use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use destack_program::StackImage;
+use destack_program::vm::Cell;
 
 /// Page-backed byte stack for one machine.
 #[derive(Debug)]
 pub(crate) struct Stack {
-    /// The stack address space.
-    space: AddressSpace,
+    /// The stack memory map.
+    map: MemoryMap,
     /// The live byte length.
     len: usize,
     /// The hard byte limit.
@@ -19,12 +19,12 @@ pub(crate) struct Stack {
 impl Stack {
     /// Create one empty stack with a hard byte limit.
     pub(crate) fn new(limit_bytes: usize) -> RuntimeResult<Self> {
-        // create the backing address space once
-        let space = AddressSpace::reserve(limit_bytes, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES)
+        // create the backing memory map once
+        let map = MemoryMap::reserve(limit_bytes, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES)
             .map_err(Error::from)?;
 
         Ok(Self {
-            space,
+            map,
             len: 0,
             limit_bytes,
         })
@@ -50,7 +50,7 @@ impl Stack {
     pub(crate) fn fork(&self) -> RuntimeResult<Self> {
         // fork the page map, not the bytes
         let stack = Self {
-            space: self.space.fork_lazy().map_err(Error::from)?,
+            map: self.map.fork_lazy().map_err(Error::from)?,
             len: self.len,
             limit_bytes: self.limit_bytes,
         };
@@ -61,7 +61,7 @@ impl Stack {
     /// Capture the live stack bytes.
     pub(crate) fn image(&self) -> RuntimeResult<StackImage> {
         let bytes = self
-            .space
+            .map
             .read_bytes(0, self.len)
             .map_err(Error::from)
             .map_err(RuntimeError::new)?;
@@ -106,7 +106,7 @@ impl Stack {
         let old_len = self.len;
         let base = self.reserve(byte_len, alignment)?;
 
-        self.space
+        self.map
             .zero(old_len, self.len - old_len)
             .map_err(Error::from)?;
 
@@ -156,7 +156,7 @@ impl Stack {
     #[inline]
     pub(crate) fn address(&self, offset: usize, byte_len: usize) -> RuntimeResult<usize> {
         let address = self
-            .space
+            .map
             .address(offset, byte_len)
             .map_err(Error::from)
             .map_err(RuntimeError::new)?;
@@ -167,7 +167,7 @@ impl Stack {
     /// Copy bytes into one live byte range.
     #[inline]
     pub(crate) fn copy_bytes(&self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {
-        self.space
+        self.map
             .write_bytes(offset, bytes)
             .map_err(Error::from)
             .map_err(RuntimeError::new)

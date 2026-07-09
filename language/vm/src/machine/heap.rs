@@ -6,8 +6,8 @@ use destack_mir::TraceMap;
 use destack_program::vm::{AllocationPlanId, SmallAllocationPlanId, TensorLayout};
 
 use super::Activation;
-use crate::Cell;
 use crate::diagnostic::Error;
+use destack_program::vm::Cell;
 
 impl Activation<'_> {
     /// Borrow the worker heap for this activation.

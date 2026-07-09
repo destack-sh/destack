@@ -4,10 +4,9 @@ use std::mem;
 use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
-use crate::Cell;
 use crate::diagnostic::Error;
 use destack_program::ScalarFormat;
-use destack_program::vm::{BinaryFloatKernel, UnaryFloatKernel};
+use destack_program::vm::{BinaryFloatKernel, Cell, UnaryFloatKernel};
 
 /// Return one integer scalar layout.
 #[inline(always)]

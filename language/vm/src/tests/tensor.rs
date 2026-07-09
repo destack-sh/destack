@@ -1,10 +1,10 @@
-use crate::Cell;
 use crate::diagnostic::{Error, ProgramError};
 use crate::tests::{
     TestMachine, assert_runtime_error_matches, run_mir_expect, run_mir_with_frame,
     run_mir_with_frame_ok,
 };
 use destack_program::Value;
+use destack_program::vm::Cell;
 
 /// Return one float16 test cell.
 fn float16_cell(value: f64) -> Cell {

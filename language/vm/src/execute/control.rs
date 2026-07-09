@@ -1,6 +1,6 @@
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
+use destack_program::vm::Cell;
 
 use super::Transfer;
 use destack_program::vm::{
@@ -71,17 +71,24 @@ macro_rules! fixed_compare_branch_executor {
 
 /// Stop execution at one debugger breakpoint.
 #[inline(always)]
-pub(crate) fn execute_breakpoint(activation: &mut Activation<'_>, next_pc: u32) -> Transfer {
+pub(crate) fn execute_breakpoint(
+    activation: &mut Activation<'_>,
+    current_pc: u32,
+    next_pc: u32,
+) -> Transfer {
     let frame = activation.active_frame();
-    let point = activation
-        .program
-        .point(frame.function(), frame.block, next_pc);
-    let Some(frame_state) = activation.program.frame_state_at(point) else {
+    let Ok(point) = frame.point_at(activation.program, current_pc) else {
+        return Transfer::Error(Error::invalid_instruction());
+    };
+    let Ok(resume_point) = frame.point_at(activation.program, next_pc) else {
+        return Transfer::Error(Error::invalid_instruction());
+    };
+    let Some(frame_state) = activation.program.frame_state_at(resume_point) else {
         return Transfer::Error(Error::invalid_instruction());
     };
 
     Transfer::Stop {
-        reason: StopReason::Breakpoint,
+        reason: StopReason::Instruction { point },
         frame_state,
     }
 }

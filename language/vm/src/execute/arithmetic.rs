@@ -10,11 +10,10 @@ use super::scalar::{
     remainder_unsigned_bytes_value, shift_left_bytes_value, shift_right_signed_bytes_value,
     shift_right_unsigned_bytes_value, subtract_bytes_value, xor_bytes_value,
 };
-use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_program::ScalarFormat;
-use destack_program::vm::{BinaryFloat, ConstValueId, Instruction, UnaryFloat};
+use destack_program::vm::{BinaryFloat, Cell, ConstValueId, Instruction, UnaryFloat};
 
 const INTEGER_SIGN_BIT: u32 = 1 << 16;
 const INTEGER_WIDTH_MASK: u32 = INTEGER_SIGN_BIT - 1;

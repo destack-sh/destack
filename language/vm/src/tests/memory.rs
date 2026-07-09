@@ -1,11 +1,13 @@
-use crate::Cell;
 use crate::tests::{
-    create_machine, create_machine_with_target_layout, run_mir_expect, run_mir_ok,
-    run_mir_with_frame_ok,
+    assert_execution_completed, assert_execution_stopped, create_machine,
+    create_machine_with_target_layout, run_mir_expect, run_mir_ok, run_mir_with_frame_ok,
 };
 use destack_heap::{HeapReference, SharedHeap, SharedHeapReference};
 use destack_mir::{TargetLayout, TraceMap};
-use destack_program::Value;
+use destack_program::vm::Cell;
+use destack_program::{
+    MemoryAccess, MemoryRange, MemoryStop, MemoryTarget, StopReason, Value, WatchSet, WatchpointId,
+};
 
 /// Decode one native-width heap reference from materialized bytes.
 fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
@@ -153,6 +155,226 @@ entry:
 }
 "#;
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
+}
+
+/// Watchpoints stop after a matching heap store.
+#[test]
+fn test_watchpoint_stops_at_heap_store() {
+    let mir = r#"
+function loadStore(): int32 {
+entry:
+    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}
+"#;
+    let mut machine = create_machine(mir);
+    let write_site = machine
+        .machine
+        .program()
+        .sites()
+        .memory_sites(machine.machine.program().sections())
+        .iter()
+        .copied()
+        .find(|site| site.access == MemoryAccess::Write)
+        .expect("program should contain one write site");
+    let watchpoint_id = WatchpointId::new(1);
+    let watch_points = WatchSet::new(vec![MemoryStop::new(
+        watchpoint_id,
+        MemoryAccess::Write,
+        MemoryTarget::Point(write_site.point),
+    )]);
+
+    let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
+        "loadStore",
+        &[],
+        &watch_points,
+    ));
+
+    assert_eq!(
+        reason,
+        StopReason::Watchpoint {
+            watchpoint_id,
+            point: write_site.point,
+        }
+    );
+
+    let output = assert_execution_completed(
+        machine.continue_continuation_watched(continuation, &watch_points),
+    );
+
+    assert_eq!(output, Value::int32(42));
+}
+
+/// Watchpoints stop after a matching heap load.
+#[test]
+fn test_watchpoint_stops_at_heap_load() {
+    let mir = r#"
+function loadStore(): int32 {
+entry:
+    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}
+"#;
+    let mut machine = create_machine(mir);
+    let read_site = machine
+        .machine
+        .program()
+        .sites()
+        .memory_sites(machine.machine.program().sections())
+        .iter()
+        .copied()
+        .find(|site| site.access == MemoryAccess::Read)
+        .expect("program should contain one read site");
+    let watchpoint_id = WatchpointId::new(1);
+    let watch_points = WatchSet::new(vec![MemoryStop::new(
+        watchpoint_id,
+        MemoryAccess::Read,
+        MemoryTarget::Point(read_site.point),
+    )]);
+
+    let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
+        "loadStore",
+        &[],
+        &watch_points,
+    ));
+
+    assert_eq!(
+        reason,
+        StopReason::Watchpoint {
+            watchpoint_id,
+            point: read_site.point,
+        }
+    );
+
+    let output = assert_execution_completed(
+        machine.continue_continuation_watched(continuation, &watch_points),
+    );
+
+    assert_eq!(output, Value::int32(42));
+}
+
+/// Watchpoints stop after a write to a matching local heap range.
+#[test]
+fn test_watchpoint_stops_at_heap_store_range() {
+    let mir = r#"
+function loadStore(): int32 {
+entry:
+    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}
+"#;
+    let mut machine = create_machine(mir);
+    let write_site = machine
+        .machine
+        .program()
+        .sites()
+        .memory_sites(machine.machine.program().sections())
+        .iter()
+        .copied()
+        .find(|site| site.access == MemoryAccess::Write)
+        .expect("program should contain one write site");
+    let watchpoint_id = WatchpointId::new(1);
+    let watch_points = WatchSet::new(vec![MemoryStop::new(
+        watchpoint_id,
+        MemoryAccess::Write,
+        MemoryTarget::Range(MemoryRange::local_heap(0, 1024 * 1024)),
+    )]);
+
+    let (continuation, reason) = assert_execution_stopped(machine.run_function_by_name_watched(
+        "loadStore",
+        &[],
+        &watch_points,
+    ));
+
+    assert_eq!(
+        reason,
+        StopReason::Watchpoint {
+            watchpoint_id,
+            point: write_site.point,
+        }
+    );
+
+    let output = assert_execution_completed(
+        machine.continue_continuation_watched(continuation, &watch_points),
+    );
+
+    assert_eq!(output, Value::int32(42));
+}
+
+/// Watchpoints ignore writes outside the selected memory range.
+#[test]
+fn test_watchpoint_ignores_unmatched_heap_store_range() {
+    let mir = r#"
+function loadStore(): int32 {
+entry:
+    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}
+"#;
+    let mut machine = create_machine(mir);
+    let watch_points = WatchSet::new(vec![MemoryStop::new(
+        WatchpointId::new(1),
+        MemoryAccess::Write,
+        MemoryTarget::Range(MemoryRange::shared_heap(0, 1024 * 1024)),
+    )]);
+
+    let output = assert_execution_completed(machine.run_function_by_name_watched(
+        "loadStore",
+        &[],
+        &watch_points,
+    ));
+
+    assert_eq!(output, Value::int32(42));
+}
+
+/// Watchpoints ignore memory sites with a different access.
+#[test]
+fn test_watchpoint_ignores_unmatched_memory_access() {
+    let mir = r#"
+function loadStore(): int32 {
+entry:
+    v0: ref<int32, managed, mutable> = new.zeroed int32
+    v1: int32 = 42
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}
+"#;
+    let mut machine = create_machine(mir);
+    let write_site = machine
+        .machine
+        .program()
+        .sites()
+        .memory_sites(machine.machine.program().sections())
+        .iter()
+        .copied()
+        .find(|site| site.access == MemoryAccess::Write)
+        .expect("program should contain one write site");
+    let watch_points = WatchSet::new(vec![MemoryStop::new(
+        WatchpointId::new(1),
+        MemoryAccess::Read,
+        MemoryTarget::Point(write_site.point),
+    )]);
+
+    let output = assert_execution_completed(machine.run_function_by_name_watched(
+        "loadStore",
+        &[],
+        &watch_points,
+    ));
+
+    assert_eq!(output, Value::int32(42));
 }
 
 /// Uninitialized heap allocation completes after explicit stores.

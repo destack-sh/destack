@@ -4,11 +4,10 @@ use destack_mir as mir;
 
 use super::Activation;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::{Cell, FramePointer};
-use destack_program::vm::{ArgumentRange, FunctionCode, MoveSlot, ProgramPoint};
+use destack_program::vm::{ArgumentRange, Cell, FramePointer, FunctionCode, MoveSlot};
 use destack_program::{
     ContinuationFrame, FrameImage, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FunctionId,
-    Program,
+    Program, ProgramPoint,
 };
 
 /// Call frame in the VM machine.
@@ -68,6 +67,59 @@ impl Frame {
     #[inline(always)]
     pub(crate) fn frame_layout(&self) -> FrameLayoutId {
         self.frame_layout
+    }
+
+    /// Return one program point at this frame's current position.
+    pub(crate) fn point(&self, program: &Program) -> RuntimeResult<ProgramPoint> {
+        self.point_at(program, self.pc as u32)
+    }
+
+    /// Return one program point at a program counter in this frame's current block.
+    pub(crate) fn point_at(&self, program: &Program, pc: u32) -> RuntimeResult<ProgramPoint> {
+        let function = program
+            .vm_function_by_id(self.function())
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(self.function())))?;
+        let operation = function
+            .operation_at(self.block, pc)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+
+        Ok(ProgramPoint::new(self.function(), operation))
+    }
+
+    /// Return the resumable state for this frame's current position.
+    pub(crate) fn state(&self, program: &Program) -> RuntimeResult<FrameStateId> {
+        if let Some(return_state) = self.return_state {
+            return Ok(return_state);
+        }
+
+        let point = self.point(program)?;
+        let state = program.frame_state_at(point).ok_or_else(|| {
+            RuntimeError::new(Error::internal(format!(
+                "missing frame state for frame point: {point:?}"
+            )))
+        })?;
+
+        Ok(state)
+    }
+
+    /// Return the lowered VM position for one program point.
+    fn position(
+        program: &Program,
+        point: ProgramPoint,
+    ) -> RuntimeResult<(FunctionId, FrameLayoutId, u32, usize)> {
+        let function = program
+            .vm_function_by_id(point.function)
+            .ok_or_else(|| RuntimeError::new(Error::undefined_function(point.function)))?;
+        let (block, pc) = function
+            .location_at(point.operation)
+            .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+
+        Ok((
+            function.function.function,
+            function.function.frame_layout,
+            block,
+            pc,
+        ))
     }
 
     /// Retarget this frame to one lowered function and stack range.
@@ -263,12 +315,7 @@ impl Frame {
 
     /// Capture one immutable frame image.
     pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameImage> {
-        let point = ProgramPoint::new(self.function(), self.block, self.pc as u32);
-        let frame_state = program.frame_state_at(point).ok_or_else(|| {
-            RuntimeError::new(Error::internal(format!(
-                "missing frame state for image point: {point:?}"
-            )))
-        })?;
+        let frame_state = self.state(program)?;
 
         Ok(FrameImage {
             frame_state,
@@ -288,25 +335,20 @@ impl Frame {
         let point = program
             .point_for_frame_state(image.frame_state)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+        let (function, frame_layout, block, pc) = Self::position(program, point)?;
 
-        // resolve the lowered function for this frame
-        let function_ref = program
-            .vm_function_by_id(point.function)
-            .ok_or_else(|| RuntimeError::new(Error::undefined_function(point.function)))?;
-
-        let layout_id = function_ref.function.frame_layout;
         let layout = program
-            .frame_layout_by_id(layout_id)
+            .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if image.byte_len() < layout.byte_len() as usize {
             return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
         Ok(Self {
-            function: function_ref.function.function,
-            frame_layout: function_ref.function.frame_layout,
-            block: point.block,
-            pc: point.pc as usize,
+            function,
+            frame_layout,
+            block,
+            pc,
             return_state: image.return_state,
             stack_offset,
             byte_len: image.byte_len(),
@@ -324,25 +366,20 @@ impl Frame {
         let point = program
             .point_for_frame_state(frame.frame_state)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
+        let (function, frame_layout, block, pc) = Self::position(program, point)?;
 
-        // resolve the lowered function for this frame
-        let function_ref = program
-            .vm_function_by_id(point.function)
-            .ok_or_else(|| RuntimeError::new(Error::undefined_function(point.function)))?;
-
-        let layout_id = function_ref.function.frame_layout;
         let layout = program
-            .frame_layout_by_id(layout_id)
+            .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         if frame.byte_len() < layout.byte_len() as usize {
             return Err(RuntimeError::new(Error::invalid_instruction()));
         }
 
         Ok(Self {
-            function: function_ref.function.function,
-            frame_layout: function_ref.function.frame_layout,
-            block: point.block,
-            pc: point.pc as usize,
+            function,
+            frame_layout,
+            block,
+            pc,
             return_state: frame.return_state,
             stack_offset,
             byte_len: frame.byte_len(),

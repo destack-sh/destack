@@ -12,9 +12,10 @@ use destack_program::{FrameLayout, GlobalLocation, Program};
 use program::{StaticImage, StaticSpace};
 use serde::{Deserialize, Serialize};
 
+use crate::Result as VmResult;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult, StackTraceFrame};
 use crate::options::{LimitOptions, MachineOptions};
-use crate::{Cell, Result as VmResult};
+use destack_program::vm::Cell;
 
 use super::{Continuation, Frame, FrameImage, Stack, StackImage};
 
@@ -165,6 +166,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<program::Value> {
@@ -177,6 +180,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             func_id,
             &arguments,
         )
@@ -191,6 +196,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
@@ -206,6 +213,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             func_id,
             arguments,
         )
@@ -220,6 +229,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<Outcome> {
@@ -232,6 +243,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             func_id,
             &arguments,
         )
@@ -246,6 +259,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -261,6 +276,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             func_id,
             arguments,
         )
@@ -275,6 +292,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         continuation: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<Outcome> {
@@ -290,6 +309,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             continuation,
             resume_value,
         )
@@ -304,6 +325,9 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
+        resume_skip: Option<program::ResumeSkip>,
         continuation: Continuation,
     ) -> RuntimeResult<Outcome> {
         let program = Arc::clone(&self.program);
@@ -318,6 +342,9 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
+            resume_skip,
             continuation,
         )
     }

@@ -220,6 +220,7 @@ impl Machine {
         entry: &Entry,
         args: &[program::Value],
         stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         let id = self.id;
 
@@ -239,6 +240,7 @@ impl Machine {
                         context.shared_cache,
                         context.shared_mark_worker,
                         stop_points,
+                        watch_points,
                         function_id,
                         args,
                     )
@@ -248,7 +250,9 @@ impl Machine {
             }
             Engine::Native { vm, code } => {
                 let program = vm.program();
-                if stop_points.is_none_or(program::StopSet::is_empty) {
+                if stop_points.is_none_or(program::StopSet::is_empty)
+                    && watch_points.is_none_or(program::WatchSet::is_empty)
+                {
                     match code.entry_by_name(program, entry.name()) {
                         Ok(entry) => {
                             let outcome = code
@@ -276,6 +280,7 @@ impl Machine {
                         context.shared_cache,
                         context.shared_mark_worker,
                         stop_points,
+                        watch_points,
                         function_id,
                         args,
                     )
@@ -293,6 +298,7 @@ impl Machine {
         continuation: Continuation,
         value: program::Value,
         stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         if continuation.machine() != self.id {
             return Err(machine_continuation_mismatch(
@@ -316,6 +322,7 @@ impl Machine {
                     context.shared_cache,
                     context.shared_mark_worker,
                     stop_points,
+                    watch_points,
                     continuation,
                     value,
                 )
@@ -328,6 +335,7 @@ impl Machine {
 
                 // resume natively when a matching resume entry exists
                 if stop_points.is_none_or(program::StopSet::is_empty)
+                    && watch_points.is_none_or(program::WatchSet::is_empty)
                     && code
                         .can_resume(&continuation)
                         .map_err(native_runtime_error)?
@@ -350,6 +358,7 @@ impl Machine {
                         context.shared_cache,
                         context.shared_mark_worker,
                         stop_points,
+                        watch_points,
                         continuation,
                         value,
                     )
@@ -367,7 +376,8 @@ impl Machine {
         context: ProgramActivation<'_>,
         continuation: Continuation,
         stop_points: Option<&program::StopSet>,
-        skip_breakpoint: Option<program::BreakpointId>,
+        watch_points: Option<&program::WatchSet>,
+        resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         if continuation.machine() != self.id {
             return Err(machine_continuation_mismatch(
@@ -393,7 +403,8 @@ impl Machine {
             context.shared_cache,
             context.shared_mark_worker,
             stop_points,
-            skip_breakpoint,
+            watch_points,
+            resume_skip,
             continuation,
         )
         .map_err(Box::<RuntimeError>::from)?;
@@ -710,6 +721,7 @@ fn outcome_from_native(
                 context.shared_heap,
                 context.shared_cache,
                 context.shared_mark_worker,
+                None,
                 None,
                 None,
                 continuation,

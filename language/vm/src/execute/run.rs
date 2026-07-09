@@ -3,12 +3,12 @@ use program::{FrameStateId, FunctionId, StaticSpace};
 
 use super::frame::dematerialize_value;
 use super::{dispatch_block, dispatch_block_counted};
-use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
 use destack_heap::{AllocationCache, Heap, SharedHeap, SharedMarkWorker};
 use destack_program::Program;
+use destack_program::vm::Cell;
 
 impl Machine {
     /// Execute a function by id.
@@ -25,6 +25,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
@@ -37,6 +39,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             function_id,
             arguments,
         )?;
@@ -61,6 +65,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -108,6 +114,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             function_id,
             arguments,
         )
@@ -126,6 +134,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         continuation: Continuation,
         received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
@@ -147,6 +157,8 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
             resume_frame_index,
             frame_state,
             received_value,
@@ -164,6 +176,9 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
+        resume_skip: Option<program::ResumeSkip>,
         continuation: Continuation,
     ) -> RuntimeResult<Outcome> {
         if !self.frames.is_empty() {
@@ -184,6 +199,9 @@ impl Machine {
             shared,
             shared_cache,
             shared_mark_worker,
+            stop_points,
+            watch_points,
+            resume_skip,
             resume_frame_index,
             frame_state,
         )
@@ -200,6 +218,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         resume_frame_index: usize,
         frame_state: FrameStateId,
         received_value: program::Value,
@@ -244,6 +264,9 @@ impl Machine {
             shared,
             shared_mark_worker,
             shared_cache,
+            stop_points,
+            watch_points,
+            None,
         );
 
         activation.run_loop(program, limits)
@@ -265,6 +288,9 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
+        resume_skip: Option<program::ResumeSkip>,
         frame_index: usize,
         frame_state: FrameStateId,
     ) -> RuntimeResult<Outcome> {
@@ -284,6 +310,9 @@ impl Machine {
             shared,
             shared_mark_worker,
             shared_cache,
+            stop_points,
+            watch_points,
+            resume_skip,
         );
 
         activation.run_loop(program, limits)
@@ -300,6 +329,8 @@ impl Machine {
         shared: &SharedHeap,
         shared_cache: &mut AllocationCache,
         shared_mark_worker: &SharedMarkWorker,
+        stop_points: Option<&program::StopSet>,
+        watch_points: Option<&program::WatchSet>,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -346,6 +377,9 @@ impl Machine {
             shared,
             shared_mark_worker,
             shared_cache,
+            stop_points,
+            watch_points,
+            None,
         );
 
         // bind explicit entry arguments through the same frame move path as MIR values

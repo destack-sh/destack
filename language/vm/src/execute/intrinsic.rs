@@ -4,11 +4,10 @@ use std::{ptr, slice};
 use destack_mir as mir;
 use smallvec::SmallVec;
 
-use crate::Cell;
 use crate::diagnostic::{Error, RuntimeResult};
-use destack_program::AddressSpace;
+use destack_program::CellLayout;
 use destack_program::vm::{
-    ArgumentRange, Instruction, IntrinsicCall, IntrinsicDest, IntrinsicOperand, MoveSlot,
+    ArgumentRange, Cell, Instruction, IntrinsicCall, IntrinsicDest, IntrinsicOperand, MoveSlot,
 };
 
 use crate::machine::Activation;
@@ -665,7 +664,7 @@ impl Activation<'_> {
 
         match operand {
             IntrinsicOperand::Reference {
-                address_space: AddressSpace::Raw,
+                cell_layout: CellLayout::Address,
                 ..
             } => Ok(value.as_address()),
             _ => Err(self

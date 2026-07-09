@@ -1,6 +1,7 @@
 use destack_heap::HeapReference;
 use destack_program::Program;
-use destack_vm::{Cell, Continuation, Frame, StackPointer};
+use destack_program::vm::{Cell, StackPointer};
+use destack_vm::{Continuation, Frame};
 
 fn main() {
     println!("Program: {} bytes", std::mem::size_of::<Program>());
