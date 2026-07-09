@@ -1233,19 +1233,81 @@ import { Phantom } from "destack:memory";
 const marker: Phantom<int32> = Phantom<int32>.default();
 /// @type.symbol symbol=marker source=marker type=memory.phantom.Phantom<int32>
 /// @resolution.name source=Phantom target=memory.phantom.Phantom
-/// @type.node source=Phantom type=memory.phantom.Phantom
 /// @type.node source=Phantom<int32> type=memory.phantom.Phantom<int32>
 /// @type.node source=Phantom<int32>.default type=() => memory.phantom.Phantom<int32>
 /// @type.node source=Phantom<int32>.default() type=memory.phantom.Phantom<int32>
 /// @resolution.name source=Phantom target=memory.phantom.Phantom
 /// @resolution.member source=Phantom<int32>.default receiver=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default
-/// @resolution.call source=Phantom<int32>.default() parameters=() return=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32>
+/// @resolution.call source=Phantom<int32>.default() parameters=() return=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32> instance=memory.phantom.Phantom<int32>.<extension#1>.default
 /// @resolution.instantiation source=Phantom<int32> target=memory.phantom.Phantom instance=memory.phantom.Phantom<int32>
 /// @generic.instance source=Phantom<int32> id=memory.phantom.Phantom<int32>
 /// @generic.instance source=Phantom<int32>.default id=memory.phantom.Phantom<int32>
 /// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>
+/// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>.<extension#1>.default
 
 /// @generic.instance id=memory.phantom.Phantom<int32> template=memory.phantom.Phantom arguments=(int32)
+/// @generic.instance id=memory.phantom.Phantom<int32>.<extension#1>.default template=memory.phantom.default arguments=(int32)
+"#,
+    );
+}
+
+#[test]
+fn test_placement_commutes_with_ownership() {
+    let session = TestSession::single(
+        r#"
+struct Cell {
+    value: int32;
+}
+
+declare const outer: shared ^Cell;
+declare const inner: ^shared Cell;
+
+outer satisfies ^shared Cell;
+inner satisfies shared ^Cell;
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Cell {
+    value: int32;
+}
+
+declare const outer: shared ^Cell;
+declare const inner: shared ^Cell;
+
+outer satisfies ^shared Cell;
+inner satisfies shared ^Cell;
+
+=== checked ===
+struct Cell {
+/// @type.symbol symbol=Cell type=Cell
+/// @definition.struct symbol=Cell
+/// @definition.field symbol=Cell.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Cell.value source="value: int32" type=int32
+
+}
+
+declare const outer: shared ^Cell;
+/// @type.symbol symbol=outer source=outer type=Placed<Owned<Cell>, "shared"> reduced=Placed<Cell, "shared">
+/// @resolution.name source=Cell target=Cell
+
+declare const inner: ^shared Cell;
+/// @type.symbol symbol=inner source=inner type=Placed<Owned<Cell>, "shared"> reduced=Placed<Cell, "shared">
+/// @resolution.name source=Cell target=Cell
+
+outer satisfies ^shared Cell;
+/// @resolution.name source=outer target=outer
+/// @resolution.name source=Cell target=Cell
+
+inner satisfies shared ^Cell;
+/// @resolution.name source=inner target=inner
+/// @resolution.name source=Cell target=Cell
 "#,
     );
 }

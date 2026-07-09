@@ -176,7 +176,7 @@ for (const key in target) {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'string' is not assignable to type '\"a\" | \"b\"'"
+/// @diagnostic.error code=EC201 message="type 'string' does not satisfy '\"a\" | \"b\"'"
 /// @diagnostic.label line=5 column=9 span="satisfies" line_source="key satisfies \"a\" | \"b\";"
 "#,
     );

@@ -137,7 +137,7 @@ struct Point {
 let point: ^Point = ^Point { x: 1 };
 let borrow: Borrowed<Point, "static", "mutable"> = &point;
 let copied: Point = borrow as Point;
-let owned: ^Point = borrow as ^Point;
+let owned: ^Point = borrow as Point;
 
 === checked ===
 struct Point {
@@ -206,10 +206,9 @@ class User {}
 let owned: ^User = new User();
 /// @type.symbol symbol=owned source=owned type=Owned<User>
 /// @resolution.name source=User target=User
-/// @type.node source="new User()" type=User
-/// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+/// @type.node source="new User()" type=Owned<User>
+/// @resolution.construct source="new User()" parameters=() return=Owned<User> kind=class target=User constructor=default
 /// @resolution.name source=User target=User
-
 "#,
         r#""#,
     );

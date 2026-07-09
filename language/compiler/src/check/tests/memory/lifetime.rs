@@ -111,7 +111,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
 /// @resolution.name source=Node target=Node
 
     return flag ? a : b;
-    /// @type.node source="flag ? a : b" type=Borrowed<Node, choose.L0, "mutable"> | Borrowed<Node, choose.L1, "mutable">
+    /// @type.node source="flag ? a : b" type=Borrowed<Node, choose.L0 | choose.L1, "mutable">
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=choose.flag
     /// @type.node source=a type=Borrowed<Node, choose.L0, "mutable">
@@ -405,13 +405,13 @@ interface Viewing {
 /// @type.symbol symbol=Viewing type=Viewing
 /// @definition.interface symbol=Viewing template=()
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
-/// @definition.method symbol=Viewing.view slot=view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Viewing) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1>
+/// @definition.method symbol=Viewing.view slot=view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1>
 
     type View;
 
     view<comptime A: Access = "readonly">(this: WithAccess<&this, A>): WithAccess<&this.View, A>;
     /// @generic.template symbol=Viewing.view parent=template#0 parameters=(comptime A#1: memory.access.Access = "readonly", comptime L1: Lifetime)
-    /// @type.symbol symbol=Viewing.view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Viewing) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1> reduced=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Viewing) => Borrowed<this.View, Viewing.view.L1, A#1>
+    /// @type.symbol symbol=Viewing.view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1> reduced=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: Borrowed<Viewing, Viewing.view.L1, A#1>) => Borrowed<this.View, Viewing.view.L1, A#1>
     /// @type.symbol symbol=Viewing.view.A source="comptime A: Access = \"readonly\"" type=A#1
     /// @resolution.name source=Access target=memory.access.Access
     /// @type.symbol symbol=Viewing.view.this source="this: WithAccess<&this, A>" type=memory.type.WithAccess<Borrowed<this, Viewing.view.L1, "mutable">, A#1> reduced=Borrowed<this, Viewing.view.L1, A#1>
@@ -433,6 +433,7 @@ struct Buffer {
 }
 
 extension of Buffer implements Viewing {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.implements symbol=<module>#2 source=Viewing target=Viewing
 /// @definition.associated.type symbol=View source="type View = int32" key=View value=int32
@@ -444,7 +445,7 @@ extension of Buffer implements Viewing {
     /// @type.symbol symbol=View source="type View = int32" type=int32
 
     view<comptime A: Access = "readonly">(this: WithAccess<&Buffer, A>): WithAccess<&int32, A> {
-    /// @generic.template symbol=view parameters=(comptime A#2: memory.access.Access = "readonly", comptime L1: Lifetime)
+    /// @generic.template symbol=view parent=template#1 parameters=(comptime A#2: memory.access.Access = "readonly", comptime L1: Lifetime)
     /// @type.symbol symbol=view type=<comptime A#2: memory.access.Access = "readonly", comptime view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Buffer, view.L1, "mutable">, A#2>) => memory.type.WithAccess<Borrowed<int32, view.L1, "mutable">, A#2> reduced=<comptime A#2: memory.access.Access = "readonly", comptime view.L1: Lifetime>(this: Borrowed<Buffer, view.L1, A#2>) => Borrowed<int32, view.L1, A#2>
     /// @type.symbol symbol=view.A source="comptime A: Access = \"readonly\"" type=A#2
     /// @resolution.name source=Access target=memory.access.Access
@@ -463,6 +464,7 @@ extension of Buffer implements Viewing {
 }
 
 /// @generic.instance id="memory.type.WithAccess<Borrowed<Buffer, view.L1, \"mutable\">, A#2>" template=memory.type.WithAccess arguments=(Borrowed<Buffer, view.L1, "mutable">, A#2)
+/// @generic.instance id="memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, \"mutable\">, A#1>" template=memory.type.WithAccess arguments=(Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1)
 /// @generic.instance id="memory.type.WithAccess<Borrowed<int32, view.L1, \"mutable\">, A#2>" template=memory.type.WithAccess arguments=(Borrowed<int32, view.L1, "mutable">, A#2)
 /// @generic.instance id="memory.type.WithAccess<Borrowed<this, Viewing.view.L1, \"mutable\">, A#1>" template=memory.type.WithAccess arguments=(Borrowed<this, Viewing.view.L1, "mutable">, A#1)
 /// @generic.instance id="memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, \"mutable\">, A#1>" template=memory.type.WithAccess arguments=(Borrowed<this.View, Viewing.view.L1, "mutable">, A#1)

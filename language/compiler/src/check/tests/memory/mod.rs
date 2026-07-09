@@ -5,3 +5,4 @@ mod owned;
 mod receiver;
 mod space;
 mod r#type;
+mod view;
