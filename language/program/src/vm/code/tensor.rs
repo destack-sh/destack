@@ -2,8 +2,8 @@ use destack_core::{EntryRange, EntryStore, SectionEntry};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::vm::error::Result;
-use crate::{AddressSpace, ScalarFormat};
+use crate::vm::error::{Error, Result};
+use crate::{CellLayout, ScalarFormat};
 
 use super::Projection;
 
@@ -25,15 +25,16 @@ pub enum TensorAddress {
 }
 
 impl TensorAddress {
-    /// Return the tensor address for one address space.
-    pub fn from_address_space(address_space: AddressSpace) -> Result<Self> {
-        Ok(match address_space {
-            AddressSpace::Local => Self::Heap,
-            AddressSpace::Shared => Self::SharedHeap,
-            AddressSpace::Raw => Self::Address,
-            AddressSpace::Stack => Self::Stack,
-            AddressSpace::Frame => Self::Frame,
-            AddressSpace::Static => Self::Static,
+    /// Return the tensor address for one pointer cell layout.
+    pub fn from_cell_layout(cell_layout: CellLayout) -> Result<Self> {
+        Ok(match cell_layout {
+            CellLayout::HeapReference => Self::Heap,
+            CellLayout::SharedHeapReference => Self::SharedHeap,
+            CellLayout::Address => Self::Address,
+            CellLayout::StackPointer => Self::Stack,
+            CellLayout::FramePointer => Self::Frame,
+            CellLayout::GlobalAddress => Self::Static,
+            _ => return Err(Error::invalid_instruction()),
         })
     }
 }

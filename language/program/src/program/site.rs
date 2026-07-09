@@ -1,8 +1,9 @@
 use destack_core::{Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice};
+use destack_mir::Space;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{AddressSpace, FunctionId, LayoutId, ProgramPoint, TypeId};
+use super::{FunctionId, LayoutId, ProgramPoint, TypeId};
 
 /// Executable program sites used by debugging, probes, and observations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -99,8 +100,8 @@ pub struct AllocationSite {
     pub operation: AllocationOperation,
     /// The byte initialization mode.
     pub initialization: AllocationInitialization,
-    /// The address space receiving the allocated storage.
-    pub address_space: AddressSpace,
+    /// The storage space receiving the allocated storage.
+    pub space: Space,
     /// The type produced by the allocation expression.
     pub result_type: TypeId,
     /// The type used for the allocated storage.
@@ -137,8 +138,8 @@ pub struct MemorySite {
     pub point: ProgramPoint,
     /// The memory operation performed at the site.
     pub access: MemoryAccess,
-    /// The address space accessed by the operation.
-    pub address_space: AddressSpace,
+    /// The storage space accessed by the operation.
+    pub space: Space,
     /// The loaded or stored value type.
     pub value_type: TypeId,
 }
@@ -165,8 +166,8 @@ pub struct CallSite {
     pub mode: CallMode,
     /// The dispatch mechanism used by the call.
     pub dispatch: CallDispatch,
-    /// The receiver address space for virtual and dynamic calls.
-    pub address_space: Optional<AddressSpace>,
+    /// The receiver storage space for virtual and dynamic calls.
+    pub space: Optional<Space>,
     /// The resolved callee for direct calls.
     pub target: Optional<FunctionId>,
     /// The type that defines the virtual or dynamic dispatch slot.
@@ -199,6 +200,18 @@ pub enum CallDispatch {
     Dynamic,
     /// Call through a function value.
     Indirect,
+}
+
+impl MemoryAccess {
+    /// Return whether this access selector matches one concrete memory access.
+    pub const fn selects(self, access: Self) -> bool {
+        match (self, access) {
+            (Self::ReadWrite, _) => true,
+            (Self::Read, Self::Read | Self::ReadWrite) => true,
+            (Self::Write, Self::Write | Self::ReadWrite) => true,
+            (Self::Read, Self::Write) | (Self::Write, Self::Read) => false,
+        }
+    }
 }
 
 // SAFETY: site rows are fixed-width program section entries.

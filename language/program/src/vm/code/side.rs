@@ -5,7 +5,7 @@ use destack_mir::{
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, CellLayout, FrameStateId, ScalarFormat};
+use crate::{CellLayout, FrameStateId, ScalarFormat};
 
 use super::{
     ArgumentRange, AtomicOrder, AtomicShape, CallTarget, MoveRange, MoveSlot, Projection,
@@ -970,10 +970,10 @@ pub enum IntrinsicOperand {
         /// The concrete float format.
         format: FloatType,
     },
-    /// Reference value with address space.
+    /// Reference value with executable cell layout.
     Reference {
-        /// The reference address space.
-        address_space: AddressSpace,
+        /// The reference cell layout.
+        cell_layout: CellLayout,
     },
 }
 

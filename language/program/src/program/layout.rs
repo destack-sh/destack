@@ -200,38 +200,6 @@ impl ScalarFormat {
     }
 }
 
-/// Runtime address space for addressable values.
-#[repr(u32)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum AddressSpace {
-    /// Local heap storage.
-    Local,
-    /// Shared heap storage.
-    Shared,
-    /// Unchecked raw address operations.
-    Raw,
-    /// Stack pointer.
-    Stack,
-    /// Frame pointer.
-    Frame,
-    /// Global address.
-    Static,
-}
-
-impl AddressSpace {
-    /// Return the cell layout used by this address operation family.
-    pub const fn cell_layout(self) -> CellLayout {
-        match self {
-            Self::Local => CellLayout::HeapReference,
-            Self::Shared => CellLayout::SharedHeapReference,
-            Self::Raw => CellLayout::Address,
-            Self::Stack => CellLayout::StackPointer,
-            Self::Frame => CellLayout::FramePointer,
-            Self::Static => CellLayout::GlobalAddress,
-        }
-    }
-}
-
 /// One-cell storage layout for a scalar or pointer value.
 #[repr(C, u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -269,6 +237,18 @@ pub enum CellLayout {
 }
 
 impl CellLayout {
+    /// Return the executable cell layout for one reference.
+    #[inline(always)]
+    pub fn reference(space: Space, kind: ReferenceKind) -> Self {
+        match (space, kind) {
+            (Space::Local | Space::Shared, ReferenceKind::Raw) => Self::Address,
+            (Space::Local, _) => Self::HeapReference,
+            (Space::Shared, _) => Self::SharedHeapReference,
+            (Space::Frame, _) => Self::FramePointer,
+            (Space::Static, _) => Self::GlobalAddress,
+        }
+    }
+
     /// Return the memory byte width for this cell layout.
     #[inline(always)]
     pub fn byte_len(self, pointer_bytes: usize) -> usize {
@@ -286,65 +266,6 @@ impl CellLayout {
             | Self::FramePointer
             | Self::FunctionPointer => pointer_bytes,
             Self::GlobalAddress => GlobalAddress::BYTE_LEN,
-        }
-    }
-}
-
-/// Storage class for one reference value.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum ReferenceStorage {
-    /// Worker-local heap.
-    Local,
-    /// Runtime-shared heap.
-    Shared,
-    /// Frame bytes.
-    Frame,
-    /// Static image memory.
-    Static,
-}
-
-impl From<Space> for ReferenceStorage {
-    /// Convert a MIR storage space into a lowered reference storage.
-    fn from(space: Space) -> Self {
-        match space {
-            Space::Local => Self::Local,
-            Space::Shared => Self::Shared,
-            Space::Frame => Self::Frame,
-            Space::Static => Self::Static,
-        }
-    }
-}
-
-impl ReferenceStorage {
-    /// Decode reference storage from packed bits.
-    pub fn from_bits(bits: u8) -> Option<Self> {
-        match bits {
-            0 => Some(Self::Local),
-            1 => Some(Self::Frame),
-            2 => Some(Self::Static),
-            3 => Some(Self::Shared),
-            _ => None,
-        }
-    }
-
-    /// Encode reference storage as packed bits.
-    pub fn to_bits(self) -> u8 {
-        match self {
-            Self::Local => 0,
-            Self::Frame => 1,
-            Self::Static => 2,
-            Self::Shared => 3,
-        }
-    }
-
-    /// Return a human-readable label for diagnostics.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Local => "local",
-            Self::Shared => "shared",
-            Self::Frame => "frame",
-            Self::Static => "static",
         }
     }
 }
@@ -398,7 +319,7 @@ impl ReferenceFlags {
             Access::Mutable => 1,
             Access::Exclusive => 2,
         };
-        let storage_bits = u16::from(ReferenceStorage::from(space).to_bits());
+        let storage_bits = u16::from(Self::space_bits(space));
         let nullability_bits = match nullability {
             Nullability::None => 0,
             Nullability::Null => 1,
@@ -412,6 +333,27 @@ impl ReferenceFlags {
         bits |= storage_bits << Self::STORAGE_SHIFT;
 
         Self { bits }
+    }
+
+    /// Decode reference storage from packed bits.
+    fn space_from_bits(bits: u8) -> Option<Space> {
+        match bits {
+            0 => Some(Space::Local),
+            1 => Some(Space::Frame),
+            2 => Some(Space::Static),
+            3 => Some(Space::Shared),
+            _ => None,
+        }
+    }
+
+    /// Encode reference storage as packed bits.
+    fn space_bits(space: Space) -> u8 {
+        match space {
+            Space::Local => 0,
+            Space::Frame => 1,
+            Space::Static => 2,
+            Space::Shared => 3,
+        }
     }
 
     /// Return the reference kind when available.
@@ -449,10 +391,10 @@ impl ReferenceFlags {
     }
 
     /// Return the reference storage.
-    pub fn storage(self) -> Option<ReferenceStorage> {
+    pub fn space(self) -> Option<Space> {
         let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
 
-        ReferenceStorage::from_bits(bits)
+        Self::space_from_bits(bits)
     }
 
     /// Return the raw flags bits.
@@ -591,22 +533,28 @@ pub struct ReferenceLayout {
 }
 
 impl ReferenceLayout {
-    /// Return the address space implied by this reference.
-    pub fn address_space(&self) -> Option<AddressSpace> {
-        Some(match (self.flags.kind()?, self.flags.storage()?) {
-            (_, ReferenceStorage::Frame) => AddressSpace::Frame,
-            (_, ReferenceStorage::Static) => AddressSpace::Static,
-            (ReferenceKind::Raw, ReferenceStorage::Local | ReferenceStorage::Shared) => {
-                AddressSpace::Raw
-            }
-            (_, ReferenceStorage::Local) => AddressSpace::Local,
-            (_, ReferenceStorage::Shared) => AddressSpace::Shared,
-        })
+    /// Return the storage space implied by this reference.
+    pub fn space(&self) -> Option<Space> {
+        self.flags.space()
+    }
+
+    /// Return the traced heap space when this reference names heap storage.
+    pub fn heap_space(&self) -> Option<Space> {
+        let kind = self.flags.kind()?;
+        if kind == ReferenceKind::Raw {
+            return None;
+        }
+
+        match self.space()? {
+            Space::Local => Some(Space::Local),
+            Space::Shared => Some(Space::Shared),
+            Space::Frame | Space::Static => None,
+        }
     }
 
     /// Return the native cell layout for this reference.
     pub fn cell_layout(&self) -> Option<CellLayout> {
-        Some(self.address_space()?.cell_layout())
+        Some(CellLayout::reference(self.space()?, self.flags.kind()?))
     }
 }
 
@@ -967,9 +915,7 @@ fn build_signature(signature: Signature, parameters: &mut EntryStore<TypeId>) ->
 unsafe impl SectionEntry for Layout {}
 unsafe impl SectionEntry for LayoutId {}
 unsafe impl SectionEntry for ScalarFormat {}
-unsafe impl SectionEntry for AddressSpace {}
 unsafe impl SectionEntry for CellLayout {}
-unsafe impl SectionEntry for ReferenceStorage {}
 unsafe impl SectionEntry for ReferenceFlags {}
 unsafe impl SectionEntry for LayoutShape {}
 unsafe impl SectionEntry for SliceLayout {}
@@ -985,3 +931,58 @@ unsafe impl SectionEntry for LayoutField {}
 unsafe impl SectionEntry for VariantCaseLayout {}
 unsafe impl SectionEntry for TensorSharding {}
 unsafe impl SectionEntry for TensorShardingAxis {}
+
+#[cfg(test)]
+mod tests {
+    use destack_mir::{Access, Nullability, ReferenceKind, Space};
+
+    use crate::{CellLayout, ReferenceFlags, ReferenceLayout, TypeId};
+
+    /// Create one reference layout for reference storage tests.
+    fn reference(kind: ReferenceKind, space: Space) -> ReferenceLayout {
+        ReferenceLayout {
+            pointee: TypeId(1),
+            flags: ReferenceFlags::new(kind, space, Access::Readonly, Nullability::None),
+        }
+    }
+
+    /// Managed local references trace local heap storage.
+    #[test]
+    fn test_reference_layout_traces_local_heap_storage() {
+        let reference = reference(ReferenceKind::Managed, Space::Local);
+
+        assert_eq!(reference.heap_space(), Some(Space::Local));
+        assert_eq!(reference.cell_layout(), Some(CellLayout::HeapReference));
+    }
+
+    /// Managed shared references trace shared heap storage.
+    #[test]
+    fn test_reference_layout_traces_shared_heap_storage() {
+        let reference = reference(ReferenceKind::Managed, Space::Shared);
+
+        assert_eq!(reference.heap_space(), Some(Space::Shared));
+        assert_eq!(
+            reference.cell_layout(),
+            Some(CellLayout::SharedHeapReference)
+        );
+    }
+
+    /// Raw references use native address cells and do not trace heap storage.
+    #[test]
+    fn test_reference_layout_rejects_raw_heap_tracing() {
+        let reference = reference(ReferenceKind::Raw, Space::Local);
+
+        assert_eq!(reference.heap_space(), None);
+        assert_eq!(reference.cell_layout(), Some(CellLayout::Address));
+    }
+
+    /// Frame and static references are not heap edges.
+    #[test]
+    fn test_reference_layout_rejects_frame_and_static_heap_tracing() {
+        let frame = reference(ReferenceKind::Borrowed, Space::Frame);
+        let static_reference = reference(ReferenceKind::Borrowed, Space::Static);
+
+        assert_eq!(frame.heap_space(), None);
+        assert_eq!(static_reference.heap_space(), None);
+    }
+}

@@ -3,17 +3,17 @@ use destack_heap::{
     AllocationShape, HeapEdge, HeapOptions, HeapReference, HeapResult, ReferenceRange, RootSlot,
     SharedHeapOptions, SharedHeapReference, TraceTable, TraceView, visit_heap_root_slots,
 };
-use destack_mir::{ReferenceKind, TargetLayout, TraceId, TraceMap};
+use destack_mir::{ReferenceKind, Space, TargetLayout, TraceId, TraceMap};
 use destack_serde::Reflect;
 use destack_source::ContentId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AddressSpace, CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization,
-    FrameSlot, FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature,
-    FunctionTable, Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout,
-    LayoutField, LayoutId, LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, ScalarFormat,
-    Signature, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable, native, vm,
+    CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization, FrameSlot,
+    FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature, FunctionTable,
+    Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
+    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, ScalarFormat, Signature, SiteTable,
+    StaticImage, StaticSpace, StringTable, TypeId, TypeTable, native, vm,
 };
 use vm::error::{Error, Result};
 
@@ -624,11 +624,9 @@ impl Program {
             return Ok(None);
         }
 
-        match reference.address_space() {
-            Some(AddressSpace::Local) => Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits)))),
-            Some(AddressSpace::Shared) => {
-                Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits))))
-            }
+        match reference.heap_space() {
+            Some(Space::Local) => Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits)))),
+            Some(Space::Shared) => Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))),
             _ => Ok(None),
         }
     }
