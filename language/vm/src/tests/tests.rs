@@ -11,7 +11,8 @@ use destack_heap::{
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{LocalNodeId, TargetLayout, TensorDimension, TraceMap, Type};
 use destack_program::{
-    Layout, LayoutShape, Program, StaticSpace, StopReason, TypeId, Value, WatchSet,
+    Layout, LayoutShape, Profile, ProfileOptions, Program, StaticSpace, StopReason, TypeId, Value,
+    WatchSet,
 };
 use destack_source::{DiagnosticSeverity, FileId, PackageId, Uri};
 
@@ -412,9 +413,44 @@ impl TestMachine {
             &self.shared_mark_worker,
             None,
             None,
+            None,
             function,
             arguments,
         )
+    }
+
+    /// Run one MIR function by name while recording a runtime profile.
+    pub(crate) fn run_function_by_name_profiled(
+        &mut self,
+        function: &str,
+        arguments: &[Value],
+        profile: &mut Profile,
+    ) -> RuntimeResult<Value> {
+        let function = self.machine.function_id_by_name(function)?;
+
+        self.machine.run_function(
+            &mut self.local_static,
+            &mut self.shared_static,
+            &mut self.heap,
+            &self.shared_heap,
+            &mut self.shared_cache,
+            &self.shared_mark_worker,
+            None,
+            None,
+            Some(profile),
+            function,
+            arguments,
+        )
+    }
+
+    /// Create one empty runtime profile for this machine program.
+    pub(crate) fn empty_profile(&self) -> Profile {
+        self.empty_profile_with_options(ProfileOptions::STANDARD)
+    }
+
+    /// Create one empty runtime profile with explicit options.
+    pub(crate) fn empty_profile_with_options(&self, options: ProfileOptions) -> Profile {
+        Profile::new(self.machine.program(), options)
     }
 
     /// Run one MIR function by name with yield support.
@@ -434,6 +470,31 @@ impl TestMachine {
             &self.shared_mark_worker,
             None,
             None,
+            None,
+            function,
+            arguments,
+        )
+    }
+
+    /// Run one MIR function by name with yield support and profile recording.
+    pub(crate) fn run_function_by_name_yielding_profiled(
+        &mut self,
+        function: &str,
+        arguments: &[Value],
+        profile: &mut Profile,
+    ) -> RuntimeResult<Outcome> {
+        let function = self.machine.function_id_by_name(function)?;
+
+        self.machine.run_function_yielding(
+            &mut self.local_static,
+            &mut self.shared_static,
+            &mut self.heap,
+            &self.shared_heap,
+            &mut self.shared_cache,
+            &self.shared_mark_worker,
+            None,
+            None,
+            Some(profile),
             function,
             arguments,
         )
@@ -457,6 +518,7 @@ impl TestMachine {
             &self.shared_mark_worker,
             None,
             Some(watch_points),
+            None,
             function,
             arguments,
         )
@@ -479,6 +541,7 @@ impl TestMachine {
             &self.shared_mark_worker,
             None,
             None,
+            None,
             function,
             arguments,
         )
@@ -499,6 +562,29 @@ impl TestMachine {
             &self.shared_mark_worker,
             None,
             None,
+            None,
+            continuation,
+            resume_value,
+        )
+    }
+
+    /// Resume one yielded continuation with profile recording.
+    pub(crate) fn resume_profiled(
+        &mut self,
+        continuation: Continuation,
+        resume_value: Value,
+        profile: &mut Profile,
+    ) -> RuntimeResult<Outcome> {
+        self.machine.resume(
+            &mut self.local_static,
+            &mut self.shared_static,
+            &mut self.heap,
+            &self.shared_heap,
+            &mut self.shared_cache,
+            &self.shared_mark_worker,
+            None,
+            None,
+            Some(profile),
             continuation,
             resume_value,
         )
@@ -516,6 +602,7 @@ impl TestMachine {
             &self.shared_heap,
             &mut self.shared_cache,
             &self.shared_mark_worker,
+            None,
             None,
             None,
             None,
@@ -538,6 +625,7 @@ impl TestMachine {
             &self.shared_mark_worker,
             None,
             Some(watch_points),
+            None,
             None,
             continuation,
         )

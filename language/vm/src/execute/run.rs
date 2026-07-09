@@ -2,7 +2,7 @@ use destack_program as program;
 use program::{FrameStateId, FunctionId, StaticSpace};
 
 use super::frame::dematerialize_value;
-use super::{dispatch_block, dispatch_block_counted};
+use super::{dispatch_block, dispatch_block_limited};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
@@ -27,6 +27,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
@@ -41,6 +42,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             function_id,
             arguments,
         )?;
@@ -67,6 +69,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -116,6 +119,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             function_id,
             arguments,
         )
@@ -136,6 +140,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         continuation: Continuation,
         received_value: program::Value,
     ) -> RuntimeResult<Outcome> {
@@ -159,6 +164,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             resume_frame_index,
             frame_state,
             received_value,
@@ -178,6 +184,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
         continuation: Continuation,
     ) -> RuntimeResult<Outcome> {
@@ -201,6 +208,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             resume_skip,
             resume_frame_index,
             frame_state,
@@ -220,6 +228,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        mut profile: Option<&mut program::Profile>,
         resume_frame_index: usize,
         frame_state: FrameStateId,
         received_value: program::Value,
@@ -255,6 +264,17 @@ impl Machine {
             anchor: error.anchor,
         })?;
 
+        if let Some(profile) = profile.as_deref_mut() {
+            let Some((site, _)) = program
+                .sites()
+                .continuation_state(program.sections(), frame_state)
+            else {
+                return Err(RuntimeError::new(Error::invalid_instruction()));
+            };
+
+            profile.record_continuation_resume(site);
+        }
+
         let mut activation = Activation::new(
             program,
             self,
@@ -266,10 +286,11 @@ impl Machine {
             shared_cache,
             stop_points,
             watch_points,
+            profile,
             None,
         );
 
-        activation.run_loop(program, limits)
+        activation.run_loop(limits)
     }
 
     /// Assemble a completed execution outcome.
@@ -290,6 +311,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
         frame_index: usize,
         frame_state: FrameStateId,
@@ -312,10 +334,11 @@ impl Machine {
             shared_cache,
             stop_points,
             watch_points,
+            profile,
             resume_skip,
         );
 
-        activation.run_loop(program, limits)
+        activation.run_loop(limits)
     }
 
     /// Run one lowered function from its entry block.
@@ -331,6 +354,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         function_id: FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -379,6 +403,7 @@ impl Machine {
             shared_cache,
             stop_points,
             watch_points,
+            profile,
             None,
         );
 
@@ -412,13 +437,14 @@ impl Machine {
             destination.copy_from_slice(&bytes);
         }
 
-        activation.run_loop(program, limits)
+        activation.run_loop(limits)
     }
 }
 
 impl Activation<'_> {
     /// Run the machine loop from the current stack.
-    fn run_loop(&mut self, program: &Program, limits: LimitOptions) -> RuntimeResult<Outcome> {
+    fn run_loop(&mut self, limits: LimitOptions) -> RuntimeResult<Outcome> {
+        let program = self.program;
         let mut lowered_instructions_executed = 0;
 
         // require at least one live frame before stepping
@@ -455,14 +481,13 @@ impl Activation<'_> {
                 let frame_index = self.machine.frames.len() - 1;
                 self.bind_frame(frame_index).map_err(RuntimeError::new)?;
 
-                if limits.max_instructions.is_some() {
-                    let block_run =
-                        dispatch_block_counted(self, current_func, block_index, start_pc);
-
-                    (block_run.transfer, block_run.executed)
+                let block_run = if limits.max_instructions.is_some() {
+                    dispatch_block_limited(self, current_func, block_index, start_pc)
                 } else {
-                    (dispatch_block(self, current_func, block_index, start_pc), 0)
-                }
+                    dispatch_block(self, current_func, block_index, start_pc)
+                };
+
+                (block_run.transfer, block_run.executed)
             };
 
             // record the instructions covered by this block cache

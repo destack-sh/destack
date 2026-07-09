@@ -47,9 +47,31 @@ pub(crate) struct BlockDispatch {
     pub(crate) executed: u64,
 }
 
+impl BlockDispatch {
+    /// Create one dispatch result.
+    #[inline(always)]
+    fn new(transfer: Transfer, executed: u64) -> Self {
+        Self { transfer, executed }
+    }
+
+    /// Create one failed dispatch result.
+    #[inline(always)]
+    fn error(error: Error, executed: u64) -> Self {
+        Self::new(Transfer::Error(error), executed)
+    }
+}
+
 /// Dispatch one lowered instruction through caller supplied fallthrough and transfer handlers.
 macro_rules! dispatch_instruction {
-    ($activation:ident, $function:ident, $pc:ident, $block_pc:expr, $step:ident, $transfer:ident) => {
+    (
+        $activation:ident,
+        $function:ident,
+        $block:expr,
+        $pc:ident,
+        $block_pc:expr,
+        $step:ident,
+        $transfer:ident
+    ) => {
         let instruction = &$function.code[$pc];
 
         match instruction.op {
@@ -1267,71 +1289,186 @@ macro_rules! dispatch_instruction {
             }
             Op::YieldCell => $transfer!(super::execute_yield_cell($activation, instruction)),
             Op::YieldAddress => $transfer!(super::execute_yield_address($activation, instruction)),
+            Op::ProfileIncrement => {
+                if PROFILE {
+                    $step!(super::execute_profile_increment(
+                        $activation,
+                        $function,
+                        $block,
+                        $block_pc
+                    ))
+                } else {
+                    $step!(Ok(()))
+                }
+            }
+            Op::ProfileSample => {
+                if PROFILE {
+                    $step!(super::execute_profile_sample(
+                        $activation,
+                        $function,
+                        $block,
+                        $block_pc,
+                        instruction
+                    ))
+                } else {
+                    $step!(Ok(()))
+                }
+            }
         }
     };
 }
 
 /// Dispatch one block until it produces a control transfer.
-pub(crate) fn dispatch_block(
-    activation: &mut Activation<'_>,
-    function: FunctionCode<'_>,
+pub(crate) fn dispatch_block<'run>(
+    activation: &mut Activation<'run>,
+    function: FunctionCode<'run>,
     block_index: u32,
     pc: usize,
-) -> Transfer {
-    match (activation.has_stop_points(), activation.has_watch_points()) {
-        (false, false) => {
-            dispatch_block_inner::<false, false>(activation, function, block_index, pc)
+) -> BlockDispatch {
+    select_instrumentation::<false>(activation, function, block_index, pc)
+}
+
+/// Dispatch one block without following transfers.
+pub(crate) fn dispatch_block_limited<'run>(
+    activation: &mut Activation<'run>,
+    function: FunctionCode<'run>,
+    block_index: u32,
+    pc: usize,
+) -> BlockDispatch {
+    select_instrumentation::<true>(activation, function, block_index, pc)
+}
+
+/// Select one dispatch specialization for active instrumentation.
+fn select_instrumentation<'run, const LIMITED: bool>(
+    activation: &mut Activation<'run>,
+    function: FunctionCode<'run>,
+    block_index: u32,
+    pc: usize,
+) -> BlockDispatch {
+    match (
+        activation.has_stop_points(),
+        activation.has_watch_points(),
+        activation.has_profile(),
+    ) {
+        (false, false, false) => dispatch_block_inner::<false, false, false, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (true, false, false) => dispatch_block_inner::<true, false, false, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (false, true, false) => dispatch_block_inner::<false, true, false, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (true, true, false) => dispatch_block_inner::<true, true, false, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (false, false, true) => dispatch_block_inner::<false, false, true, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (true, false, true) => dispatch_block_inner::<true, false, true, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (false, true, true) => dispatch_block_inner::<false, true, true, LIMITED>(
+            activation,
+            function,
+            block_index,
+            pc,
+        ),
+        (true, true, true) => {
+            dispatch_block_inner::<true, true, true, LIMITED>(activation, function, block_index, pc)
         }
-        (true, false) => dispatch_block_inner::<true, false>(activation, function, block_index, pc),
-        (false, true) => dispatch_block_inner::<false, true>(activation, function, block_index, pc),
-        (true, true) => dispatch_block_inner::<true, true>(activation, function, block_index, pc),
     }
 }
 
 /// Dispatch one block in the trusted lowered-code VM.
 #[cfg_attr(debug_assertions, inline(never))]
 #[cfg_attr(not(debug_assertions), inline(always))]
-fn dispatch_block_inner<const STOP_POINTS: bool, const WATCH_POINTS: bool>(
-    activation: &mut Activation<'_>,
-    function: FunctionCode<'_>,
+fn dispatch_block_inner<
+    'run,
+    const STOP_POINTS: bool,
+    const WATCH_POINTS: bool,
+    const PROFILE: bool,
+    const LIMITED: bool,
+>(
+    activation: &mut Activation<'run>,
+    mut function: FunctionCode<'run>,
     block_index: u32,
     pc: usize,
-) -> Transfer {
+) -> BlockDispatch {
     let program = activation.program;
-    let mut function = function;
     let mut block = block_index;
-
-    // start at the requested block offset
     let (mut block_start, mut pc, mut block_end) = match block_bounds(&function, block) {
         Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
-        Err(error) => return Transfer::Error(error),
+        Err(error) => return BlockDispatch::error(error, 0),
     };
+    let mut executed = 0;
 
     loop {
         // guard against malformed block tables
         if pc >= block_end {
-            return Transfer::Error(Error::invalid_instruction());
+            return BlockDispatch::error(Error::invalid_instruction(), executed);
         }
 
         if STOP_POINTS {
             // stop before executing selected instruction stops
             match activation.stop_at(function, block, pc - block_start) {
                 Ok(Some((reason, frame_state))) => {
-                    return Transfer::Stop {
-                        reason,
-                        frame_state,
-                    };
+                    return BlockDispatch::new(
+                        Transfer::Stop {
+                            reason,
+                            frame_state,
+                        },
+                        executed,
+                    );
                 }
                 Ok(None) => {}
-                Err(error) => return Transfer::Error(error),
+                Err(error) => return BlockDispatch::error(error, executed),
             }
+        }
+
+        if LIMITED {
+            executed += 1;
         }
 
         macro_rules! step {
             ($operation:expr) => {{
                 if let Err(error) = $operation {
-                    return Transfer::Error(error);
+                    return BlockDispatch::error(error, executed);
                 }
+
+                // record fallthrough profile effects before watchpoint stops
+                if PROFILE {
+                    let instruction = &function.code[pc];
+
+                    if let Err(error) = activation.record_profile_step_at(
+                        function,
+                        block,
+                        pc - block_start,
+                        instruction,
+                    ) {
+                        return BlockDispatch::error(error, executed);
+                    }
+                }
+
+                // stop after memory operations when a watchpoint matches
                 if WATCH_POINTS {
                     match activation.watch_memory_at(
                         function,
@@ -1340,13 +1477,16 @@ fn dispatch_block_inner<const STOP_POINTS: bool, const WATCH_POINTS: bool>(
                         pc - block_start + 1,
                     ) {
                         Ok(Some((reason, frame_state))) => {
-                            return Transfer::Stop {
-                                reason,
-                                frame_state,
-                            };
+                            return BlockDispatch::new(
+                                Transfer::Stop {
+                                    reason,
+                                    frame_state,
+                                },
+                                executed,
+                            );
                         }
                         Ok(None) => {}
-                        Err(error) => return Transfer::Error(error),
+                        Err(error) => return BlockDispatch::error(error, executed),
                     }
                 }
 
@@ -1357,166 +1497,84 @@ fn dispatch_block_inner<const STOP_POINTS: bool, const WATCH_POINTS: bool>(
 
         macro_rules! transfer {
             ($operation:expr) => {{
-                match $operation {
+                let transfer = $operation;
+
+                // record transfer profile effects before applying the transfer
+                if PROFILE {
+                    let instruction = &function.code[pc];
+
+                    if let Transfer::Jump { block: target, .. } = transfer {
+                        if let Err(error) = activation.record_profile_jump_at(
+                            function,
+                            block,
+                            pc - block_start,
+                            instruction,
+                            target,
+                        ) {
+                            return BlockDispatch::error(error, executed);
+                        }
+                    }
+
+                    if instruction.op.is_call() {
+                        if let Err(error) =
+                            activation.record_profile_call_at(function, block, pc - block_start)
+                        {
+                            return BlockDispatch::error(error, executed);
+                        }
+                    }
+                }
+
+                if LIMITED {
+                    return BlockDispatch::new(transfer, executed);
+                }
+
+                match transfer {
                     Transfer::Jump {
                         block: target,
                         moves,
                     } => {
+                        // enter same-frame jump target
                         (block_start, pc, block_end) =
                             match enter_block(activation, &function, target, moves) {
                                 Ok((block_start, block_end)) => {
                                     (block_start, block_start, block_end)
                                 }
-                                Err(error) => return Transfer::Error(error),
+                                Err(error) => return BlockDispatch::error(error, executed),
                             };
                         block = target;
                         continue;
                     }
                     Transfer::Enter => {
+                        // rebind the dispatch loop after a call returns
                         let frame = activation.active_frame();
                         let function_id = frame.function();
                         block = frame.block;
                         let Some(next_function) = program.vm_function_by_id(function_id) else {
-                            return Transfer::Error(Error::undefined_function(function_id));
+                            return BlockDispatch::error(
+                                Error::undefined_function(function_id),
+                                executed,
+                            );
                         };
                         function = next_function;
                         (block_start, pc, block_end) = match block_bounds(&function, block) {
                             Ok((block_start, block_end)) => (block_start, block_start, block_end),
-                            Err(error) => return Transfer::Error(error),
+                            Err(error) => return BlockDispatch::error(error, executed),
                         };
                         continue;
                     }
-                    transfer => return transfer,
+                    transfer => return BlockDispatch::new(transfer, executed),
                 }
             }};
         }
 
-        dispatch_instruction!(activation, function, pc, pc - block_start, step, transfer);
-    }
-}
-
-/// Dispatch one block and count executed instructions.
-pub(crate) fn dispatch_block_counted(
-    activation: &mut Activation<'_>,
-    function: FunctionCode<'_>,
-    block_index: u32,
-    pc: usize,
-) -> BlockDispatch {
-    match (activation.has_stop_points(), activation.has_watch_points()) {
-        (false, false) => {
-            dispatch_block_counted_inner::<false, false>(activation, function, block_index, pc)
-        }
-        (true, false) => {
-            dispatch_block_counted_inner::<true, false>(activation, function, block_index, pc)
-        }
-        (false, true) => {
-            dispatch_block_counted_inner::<false, true>(activation, function, block_index, pc)
-        }
-        (true, true) => {
-            dispatch_block_counted_inner::<true, true>(activation, function, block_index, pc)
-        }
-    }
-}
-
-/// Dispatch one counted block in the trusted lowered-code VM.
-#[cfg_attr(debug_assertions, inline(never))]
-#[cfg_attr(not(debug_assertions), inline(always))]
-fn dispatch_block_counted_inner<const STOP_POINTS: bool, const WATCH_POINTS: bool>(
-    activation: &mut Activation<'_>,
-    function: FunctionCode<'_>,
-    block_index: u32,
-    pc: usize,
-) -> BlockDispatch {
-    let (block_start, mut pc, block_end) = match block_bounds(&function, block_index) {
-        Ok((block_start, block_end)) => (block_start, block_start + pc, block_end),
-        Err(error) => {
-            return BlockDispatch {
-                transfer: Transfer::Error(error),
-                executed: 0,
-            };
-        }
-    };
-    let mut executed = 0;
-
-    loop {
-        if pc >= block_end {
-            return BlockDispatch {
-                transfer: Transfer::Error(Error::invalid_instruction()),
-                executed,
-            };
-        }
-
-        if STOP_POINTS {
-            // stop before executing selected instruction stops
-            match activation.stop_at(function, block_index, pc - block_start) {
-                Ok(Some((reason, frame_state))) => {
-                    return BlockDispatch {
-                        transfer: Transfer::Stop {
-                            reason,
-                            frame_state,
-                        },
-                        executed,
-                    };
-                }
-                Ok(None) => {}
-                Err(error) => {
-                    return BlockDispatch {
-                        transfer: Transfer::Error(error),
-                        executed,
-                    };
-                }
-            }
-        }
-
-        executed += 1;
-        macro_rules! step {
-            ($operation:expr) => {{
-                if let Err(error) = $operation {
-                    return BlockDispatch {
-                        transfer: Transfer::Error(error),
-                        executed,
-                    };
-                }
-                if WATCH_POINTS {
-                    match activation.watch_memory_at(
-                        function,
-                        block_index,
-                        pc - block_start,
-                        pc - block_start + 1,
-                    ) {
-                        Ok(Some((reason, frame_state))) => {
-                            return BlockDispatch {
-                                transfer: Transfer::Stop {
-                                    reason,
-                                    frame_state,
-                                },
-                                executed,
-                            };
-                        }
-                        Ok(None) => {}
-                        Err(error) => {
-                            return BlockDispatch {
-                                transfer: Transfer::Error(error),
-                                executed,
-                            };
-                        }
-                    }
-                }
-
-                pc += 1;
-                continue;
-            }};
-        }
-
-        macro_rules! transfer {
-            ($operation:expr) => {{
-                return BlockDispatch {
-                    transfer: $operation,
-                    executed,
-                };
-            }};
-        }
-
-        dispatch_instruction!(activation, function, pc, pc - block_start, step, transfer);
+        dispatch_instruction!(
+            activation,
+            function,
+            block,
+            pc,
+            pc - block_start,
+            step,
+            transfer
+        );
     }
 }

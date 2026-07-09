@@ -168,6 +168,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<program::Value> {
@@ -182,6 +183,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             func_id,
             &arguments,
         )
@@ -198,6 +200,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<program::Value> {
@@ -215,6 +218,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             func_id,
             arguments,
         )
@@ -231,6 +235,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         func_id: program::FunctionId,
         arguments: &[program::Value],
     ) -> RuntimeResult<Outcome> {
@@ -245,6 +250,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             func_id,
             &arguments,
         )
@@ -261,6 +267,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         func_id: program::FunctionId,
         arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
@@ -278,6 +285,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             func_id,
             arguments,
         )
@@ -294,6 +302,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         continuation: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<Outcome> {
@@ -311,6 +320,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             continuation,
             resume_value,
         )
@@ -327,6 +337,7 @@ impl Machine {
         shared_mark_worker: &SharedMarkWorker,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
         continuation: Continuation,
     ) -> RuntimeResult<Outcome> {
@@ -344,6 +355,7 @@ impl Machine {
             shared_mark_worker,
             stop_points,
             watch_points,
+            profile,
             resume_skip,
             continuation,
         )

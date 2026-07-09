@@ -8,6 +8,7 @@ mod gc;
 mod global;
 mod intrinsic;
 mod memory;
+mod profile;
 mod tensor;
 mod tests;
 mod vector;

@@ -152,6 +152,8 @@ impl Activation<'_> {
 
         // capture the continuation after packaging the yielded result
         let continuation = self.capture_continuation(program, resume_frame_index, frame_state)?;
+        self.record_profile_continuation_capture(frame_state)
+            .map_err(RuntimeError::new)?;
 
         Ok(Outcome::Yielded {
             continuation,
