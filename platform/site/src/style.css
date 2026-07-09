@@ -37,6 +37,8 @@
 
 html,
 body {
+    max-width: 100%;
+    overflow-x: clip;
     overscroll-behavior: none;
 }
 
@@ -49,6 +51,436 @@ button {
     font-size: 1.625rem;
     font-weight: 900;
     line-height: 1;
+}
+
+.site-topbar,
+.site-footer {
+    max-width: 100vw;
+    border-color: var(--theme-frame);
+    background: var(--theme-page);
+    color: var(--theme-text);
+}
+
+.site-topbar {
+    border-bottom-width: 1px;
+}
+
+.site-topbar__body,
+.site-footer__body {
+    display: flex;
+    width: 100%;
+    max-width: 82rem;
+    height: 3.5rem;
+    margin: 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0 2.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.site-topbar__brand {
+    flex: none;
+    font-size: 0.8125rem;
+    font-weight: 900;
+}
+
+.site-topbar nav {
+    display: flex;
+    min-width: 0;
+    overflow: hidden;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1.5rem;
+}
+
+.site-topbar a:hover {
+    color: var(--color-destack-accent);
+}
+
+.site-footer {
+    border-top-width: 1px;
+}
+
+.site-footer__body {
+    color: var(--theme-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.site-footer nav {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.site-footer a:hover {
+    color: var(--color-destack-accent);
+}
+
+.home-page {
+    width: 100%;
+    max-width: min(82rem, 100vw);
+    margin: 0 auto;
+    padding: 0 2.5rem;
+}
+
+.home-hero {
+    display: grid;
+    min-height: 40rem;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    align-items: center;
+    gap: 4rem;
+    padding: 4.5rem 0;
+}
+
+.home-hero__copy {
+    min-width: 0;
+}
+
+.home-hero h1 {
+    margin: 0;
+    color: var(--theme-text);
+    font-size: 3rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.home-hero__statement {
+    margin: 1.25rem 0 0;
+    color: var(--theme-text);
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.home-points {
+    display: grid;
+    max-width: 40rem;
+    gap: 0.75rem;
+    margin: 2rem 0 0;
+    padding: 0;
+    color: var(--theme-soft);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.65;
+    list-style: none;
+}
+
+.home-points li {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    gap: 0.25rem;
+}
+
+.home-points li::before {
+    color: var(--color-destack-accent);
+    content: "+";
+    font-weight: 900;
+}
+
+.home-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-top: 2rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.home-actions a {
+    color: var(--theme-text);
+}
+
+.home-actions a:hover {
+    color: #9f3517;
+}
+
+.ascii-planet {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    justify-items: center;
+    margin: 0;
+}
+
+.ascii-planet__art {
+    display: grid;
+    grid-template-areas: "planet";
+}
+
+.ascii-planet__art pre {
+    grid-area: planet;
+    width: 64ch;
+    height: 38.4em;
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.2;
+    white-space: pre;
+}
+
+.ascii-planet__surface {
+    background-image: url("/brand/favicon/favicon.png");
+    background-position: center;
+    background-size: 100% 100%;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.ascii-planet__ring {
+    color: #75675e;
+    text-shadow: 0 1px 0 #ffffff;
+}
+
+.ascii-planet__shadow {
+    width: auto !important;
+    height: auto !important;
+    margin-top: -4.5rem !important;
+    color: #9aa7ad;
+    font-size: 0.6875rem !important;
+    font-weight: 700;
+    letter-spacing: 0.0625rem;
+}
+
+.home-compile {
+    margin-bottom: 4rem;
+}
+
+.home-compile__header {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    border-top: 1px solid var(--theme-frame);
+    border-bottom: 1px solid var(--theme-frame);
+    padding: 0.625rem 0.75rem;
+    font-size: 0.6875rem;
+}
+
+.home-compile__header h2 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: 900;
+}
+
+.home-compile__header span {
+    color: var(--theme-soft);
+    font-weight: 600;
+}
+
+.home-compile__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4rem minmax(0, 1.35fr);
+    align-items: center;
+    padding-top: 1.25rem;
+}
+
+.home-compile__branch {
+    display: grid;
+    place-items: center;
+    align-self: center;
+    margin: 0;
+    color: var(--color-destack-accent);
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.home-compile__outputs {
+    display: grid;
+    min-width: 0;
+    gap: 1.25rem;
+}
+
+.home-code {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    margin: 0;
+    border: 1px solid var(--theme-frame);
+}
+
+.home-code figcaption {
+    border-bottom: 1px solid var(--theme-frame);
+    padding: 0.5rem 0.75rem;
+    color: var(--theme-text);
+    font-size: 0.6875rem;
+    font-weight: 900;
+}
+
+.home-code pre {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    margin: 0;
+    background: #f8fafb;
+    padding: 1rem;
+    color: var(--theme-text);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.65;
+}
+
+.home-code code {
+    display: block;
+    min-width: max-content;
+}
+
+.home-code span[data-k="keyword"] {
+    color: #9f3517;
+    font-weight: 800;
+}
+
+.home-code span[data-k="type"] {
+    color: var(--syntax-type);
+}
+
+.home-code span[data-k="literal"] {
+    color: var(--syntax-literal);
+}
+
+.home-code span[data-k="name"] {
+    color: var(--syntax-name);
+}
+
+.home-code span[data-k="punct"] {
+    color: var(--syntax-punct);
+}
+
+.home-install {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 4rem;
+    border-top: 1px solid var(--theme-frame);
+    border-bottom: 1px solid var(--theme-frame);
+    padding: 1rem 0.75rem;
+}
+
+.home-install header {
+    display: block;
+    font-size: 0.6875rem;
+}
+
+.home-install h2 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: 900;
+}
+
+.home-install code {
+    display: block;
+    overflow: auto;
+    padding: 0;
+    color: var(--theme-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.home-install code span {
+    color: #9f3517;
+}
+
+@media (max-width: 767px) {
+    .site-topbar__body,
+    .site-footer__body {
+        gap: 0.75rem;
+        padding: 0 1rem;
+    }
+
+    .site-topbar nav {
+        gap: 0.75rem;
+        font-size: 0.6875rem;
+    }
+
+    .site-topbar nav a:first-child {
+        display: none;
+    }
+
+    .site-footer__body {
+        font-size: 0.75rem;
+    }
+
+    .site-footer__body > span:last-child {
+        display: none;
+    }
+
+    .site-footer nav {
+        gap: 0.75rem;
+    }
+
+    .home-page {
+        padding: 0 1rem;
+    }
+
+    .home-hero {
+        min-height: 0;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2.5rem;
+        padding: 3.5rem 0;
+    }
+
+    .home-hero h1 {
+        font-size: 2.5rem;
+    }
+
+    .home-hero__statement {
+        font-size: 1.0625rem;
+    }
+
+    .home-points {
+        font-size: 0.75rem;
+    }
+
+    .ascii-planet__art pre {
+        font-size: 0.5rem;
+    }
+
+    .ascii-planet__shadow {
+        margin-top: -3rem !important;
+        font-size: 0.5rem !important;
+    }
+
+    .home-compile {
+        margin-bottom: 3rem;
+    }
+
+    .home-compile__header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.125rem;
+    }
+
+    .home-compile__body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .home-compile__branch {
+        min-height: 2.5rem;
+        transform: rotate(90deg);
+    }
+
+    .home-code pre {
+        font-size: 0.625rem;
+    }
+
+    .home-install {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 3rem;
+        padding: 0.875rem 0;
+    }
+
+    .home-install code {
+        padding: 0;
+        font-size: 0.6875rem;
+    }
 }
 
 @media (min-width: 768px) {
