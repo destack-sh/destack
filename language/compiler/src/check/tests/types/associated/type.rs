@@ -28,20 +28,25 @@ declare const value: Box<string>.Item;
 === checked ===
 struct Box<T> {
 /// @generic.template symbol=Box parameters=(T)
-/// @type.symbol symbol=Box type=Box<T>
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(T)
+/// @definition.associated.type symbol=Box.Item source="type Item = T" key=Item value=T
+/// @definition.field symbol=Box.value source="value: T" key=value type=T
+/// @type.symbol symbol=Box.T source=T type=T
 
     type Item = T;
-    /// @type.symbol symbol=Box.Item type=T
+    /// @type.symbol symbol=Box.Item source="type Item = T" type=T
+    /// @resolution.name source=T target=Box.T
 
     value: T;
-    /// @type.symbol symbol=Box.value type=T
+    /// @type.symbol symbol=Box.value source="value: T" type=T
+    /// @resolution.name source=T target=Box.T
+
 }
 
 declare const value: Box<string>.Item;
+/// @type.symbol symbol=value source=value type=Box<string>.Item reduced=string
 /// @resolution.name source=Box target=Box
-/// @resolution.member source=Box<string>.Item receiver=Box<string> kind=symbol target=Box.Item
-/// @generic.instance source="Box<string>" id=Box<string>
-/// @type.symbol symbol=value type=string
 
 /// @generic.instance id=Box<string> template=Box arguments=(string)
 "#,
@@ -69,23 +74,26 @@ class Packet {
     type Size = uint32;
 }
 
-const size = Packet.Size;
+const size: uint32 = Packet.Size;
 
 === checked ===
 class Packet {
 /// @type.symbol symbol=Packet type=Packet
+/// @definition.class symbol=Packet
+/// @definition.associated.type symbol=Packet.Size source="type Size = uint32" key=Size value=uint32
 
     type Size = uint32;
-    /// @type.symbol symbol=Packet.Size type=uint32
+    /// @type.symbol symbol=Packet.Size source="type Size = uint32" type=uint32
+
 }
 
 const size = Packet.Size;
+/// @type.symbol symbol=size source=size type=uint32
 /// @resolution.name source=Packet target=Packet
-
+/// @resolution.member source=Packet.Size receiver=Packet kind=symbol target=Packet.Size
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="missing member 'Size'"
-/// @diagnostic.label line=6 column=21 source="const size = Packet.Size;"
+
 "#,
     );
 }
@@ -125,24 +133,29 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
+/// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => this.Item
 
     type Item;
-    /// @type.symbol symbol=Iterator.Item type=Iterator.Item
 
     next(): this.Item;
-    /// @resolution.member source=this.Item receiver=Iterator kind=symbol target=Iterator.Item
-    /// @type.symbol symbol=Iterator.next type=(this: Iterator) => Iterator.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: Iterator) => this.Item
+
 }
 
 function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 /// @generic.template symbol=nextByte parameters=(I: Iterator<type Item = uint8>)
 /// @type.symbol symbol=nextByte type=<I: Iterator<type Item = uint8>>(I) => uint8
+/// @type.symbol symbol=nextByte.I source="I: Iterator<type Item = uint8>" type=I
 /// @resolution.name source=Iterator target=Iterator
+/// @type.symbol symbol=nextByte.iter source="iter: I" type=I
+/// @resolution.name source=I target=nextByte.I
 
     return iter.next();
-    /// @resolution.name source=iter target=iter
+    /// @resolution.name source=iter target=nextByte.iter
     /// @resolution.member source=iter.next receiver=I kind=symbol target=Iterator.next
-    /// @resolution.call source=iter.next() parameters=() return=uint8 kind=symbol target=Iterator.next receiver=I
+    /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
+
 }
 "#,
     );
@@ -197,9 +210,8 @@ declare const made: Made<Factory>;
 
 === checked ===
 interface Producing {
-/// @generic.template symbol=Producing parameters=()
 /// @type.symbol symbol=Producing type=Producing
-/// @definition.interface symbol=Producing template=()
+/// @definition.interface symbol=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
 /// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => this.Output
 
@@ -211,9 +223,8 @@ interface Producing {
 }
 
 class Factory implements Producing {
-/// @generic.template symbol=Factory parameters=()
 /// @type.symbol symbol=Factory type=Factory
-/// @definition.class symbol=Factory template=()
+/// @definition.class symbol=Factory
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
@@ -249,7 +260,9 @@ declare const made: Made<Factory>;
 }
 
 #[test]
-fn test_associated_type_default_flows_through_constraint() {
+fn test_associated_type_default_stays_conformance_only() {
+    // a defaulted associated type fills conforming implementers, but an
+    // implementer may override it, so rigid bounds never observe the default
     let session = TestSession::single(
         r#"
 interface Iterator {
@@ -264,7 +277,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 "#,
     );
 
-    session.assert_dir_checked(
+    session.assert_dir_checked_and_diagnostics(
         "main.ds",
         DirRows::checked(),
         r#"
@@ -283,25 +296,37 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 interface Iterator {
 /// @type.symbol symbol=Iterator type=Iterator
 /// @definition.interface symbol=Iterator
+/// @definition.associated.type symbol=Iterator.Item source="type Item = uint8" key=Item value=uint8
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: Iterator) => this.Item
 
     type Item = uint8;
-    /// @type.symbol symbol=Iterator.Item type=uint8
+    /// @type.symbol symbol=Iterator.Item source="type Item = uint8" type=uint8
 
     next(): this.Item;
-    /// @resolution.member source=this.Item receiver=Iterator kind=symbol target=Iterator.Item
-    /// @type.symbol symbol=Iterator.next type=(this: Iterator) => uint8
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: Iterator) => this.Item
+
 }
 
 function nextDefault<I: Iterator>(iter: I): uint8 {
 /// @generic.template symbol=nextDefault parameters=(I: Iterator)
 /// @type.symbol symbol=nextDefault type=<I: Iterator>(I) => uint8
+/// @type.symbol symbol=nextDefault.I source="I: Iterator" type=I
 /// @resolution.name source=Iterator target=Iterator
+/// @type.symbol symbol=nextDefault.iter source="iter: I" type=I
+/// @resolution.name source=I target=nextDefault.I
 
     return iter.next();
-    /// @resolution.name source=iter target=iter
+    /// @resolution.name source=iter target=nextDefault.iter
     /// @resolution.member source=iter.next receiver=I kind=symbol target=Iterator.next
-    /// @resolution.call source=iter.next() parameters=() return=uint8 kind=symbol target=Iterator.next receiver=I
+    /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
+
 }
+"#,
+        r#"
+/// @diagnostic.error code=EC210 message="type 'I.Item' is not assignable to the declared result type 'uint8'"
+/// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
+/// @diagnostic.error code=EC200 message="type 'I.Item' is not assignable to type 'uint8'"
+/// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
 "#,
     );
 }

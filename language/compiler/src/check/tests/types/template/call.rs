@@ -26,17 +26,21 @@ segment satisfies "users";
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
-/// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
-/// @type.symbol symbol=value type=`id:${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const segment = parse("id:users");
-/// @type.symbol symbol=segment type="users"
+/// @type.symbol symbol=segment source=segment type="users"
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"id:users\")" parameters=(`id:${"users"}`) return="users" kind=symbol target=parse instance="parse<\"users\">"
+/// @resolution.call source="parse(\"id:users\")" parameters=(`id:${"users"}`) arguments=(provided("id:users") as `id:${"users"}`) return="users" kind=symbol target=parse instance="parse<\"users\">"
 /// @generic.instance source="parse(\"id:users\")" id="parse<\"users\">"
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
+
 /// @generic.instance id="parse<\"users\">" template=parse arguments=("users")
 "#,
     );
@@ -61,24 +65,28 @@ key satisfies "id:users";
 === annotated ===
 declare function build<T: string>(value: T): `id:${T}`;
 
-const key: `id:${"users"}` = build<"users">("users");
+const key = build<"users">("users");
 
 key satisfies "id:users";
 
 === checked ===
 declare function build<T: string>(value: T): `id:${T}`;
 /// @generic.template symbol=build parameters=(T: string)
-/// @type.symbol symbol=build type=<T: string>(T) => `id:${T}`
-/// @type.symbol symbol=value type=T
+/// @type.symbol symbol=build source="declare function build<T: string>(value: T): `id:${T}`" type=<T: string>(T) => `id:${T}`
+/// @type.symbol symbol=build.T source="T: string" type=T
+/// @type.symbol symbol=build.value source="value: T" type=T
+/// @resolution.name source=T target=build.T
+/// @resolution.name source=T target=build.T
 
 const key = build("users");
-/// @type.symbol symbol=key type=`id:${"users"}`
+/// @type.symbol symbol=key source=key type=`id:${"users"}` reduced="id:users"
 /// @resolution.name source=build target=build
-/// @resolution.call source="build(\"users\")" parameters=("users") return=`id:${"users"}` kind=symbol target=build instance="build<\"users\">"
+/// @resolution.call source="build(\"users\")" parameters=("users") arguments=(provided("users") as "users") return=`id:${"users"}` kind=symbol target=build instance="build<\"users\">"
 /// @generic.instance source="build(\"users\")" id="build<\"users\">"
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
+
 /// @generic.instance id="build<\"users\">" template=build arguments=("users")
 "#,
     );
@@ -114,21 +122,25 @@ text satisfies string;
 === checked ===
 declare function identity<T: string>(value: `${T}`): T;
 /// @generic.template symbol=identity parameters=(T: string)
-/// @type.symbol symbol=identity type=<T: string>(`${T}`) => T
-/// @type.symbol symbol=value type=`${T}`
+/// @type.symbol symbol=identity source="declare function identity<T: string>(value: `${T}`): T" type=<T: string>(`${T}`) => T
+/// @type.symbol symbol=identity.T source="T: string" type=T
+/// @type.symbol symbol=identity.value source="value: `${T}`" type=`${T}`
+/// @resolution.name source=T target=identity.T
+/// @resolution.name source=T target=identity.T
 
 let value = "users";
 /// @type.symbol symbol=value source=value type=string
 
 const text = identity(value);
-/// @type.symbol symbol=text type=string
+/// @type.symbol symbol=text source=text type=string
 /// @resolution.name source=identity target=identity
-/// @resolution.name source=value target=value
-/// @resolution.call source=identity(value) parameters=(`${string}`) return=string kind=symbol target=identity instance=identity<string>
+/// @resolution.call source=identity(value) parameters=(`${string}`) arguments=(provided(value) as `${string}`) return=string kind=symbol target=identity instance=identity<string>
 /// @generic.instance source=identity(value) id=identity<string>
+/// @resolution.name source=value target=value
 
 text satisfies string;
 /// @resolution.name source=text target=text
+
 /// @generic.instance id=identity<string> template=identity arguments=(string)
 "#,
     );
@@ -160,19 +172,26 @@ parse(key);
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
-/// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
-/// @type.symbol symbol=value type=`id:${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 let key = "id:users";
 /// @type.symbol symbol=key source=key type=string
 
 parse(key);
 /// @resolution.name source=parse target=parse
+/// @resolution.call source=parse(key) parameters=(`id:${<error>}`) arguments=(provided(key) as `id:${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @generic.instance source=parse(key) id=parse<<error>>
 /// @resolution.name source=key target=key
+
+/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'string' is not assignable to type '`id:${string}`'"
-/// @diagnostic.label line=6 column=1 source="parse(key);"
+/// @diagnostic.error code=EC209 message="argument of type 'string' is not assignable to parameter of type '`id:${_}`'"
+/// @diagnostic.label line=6 column=7 span="key" line_source="parse(key);"
 "#,
     );
 }
@@ -203,17 +222,21 @@ segment satisfies "";
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
-/// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
-/// @type.symbol symbol=value type=`id:${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const segment = parse("id:");
-/// @type.symbol symbol=segment type=""
+/// @type.symbol symbol=segment source=segment type=""
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"id:\")" parameters=(`id:${""}`) return="" kind=symbol target=parse instance="parse<\"\">"
+/// @resolution.call source="parse(\"id:\")" parameters=(`id:${""}`) arguments=(provided("id:") as `id:${""}`) return="" kind=symbol target=parse instance="parse<\"\">"
 /// @generic.instance source="parse(\"id:\")" id="parse<\"\">"
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
+
 /// @generic.instance id="parse<\"\">" template=parse arguments=("")
 "#,
     );
@@ -244,18 +267,22 @@ value satisfies 42;
 
 === checked ===
 declare function parse<T: number>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=(T: number)
-/// @type.symbol symbol=parse type=<T: number>(`${T}`) => T
-/// @type.symbol symbol=value type=`${T}`
+/// @generic.template symbol=parse parameters=(T: float64)
+/// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
+/// @type.symbol symbol=parse.T source="T: number" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const value = parse("42");
-/// @type.symbol symbol=value type=42
+/// @type.symbol symbol=value source=value type=42
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"42\")" parameters=(`${42}`) return=42 kind=symbol target=parse instance=parse<42>
+/// @resolution.call source="parse(\"42\")" parameters=(`${42}`) arguments=(provided("42") as `${42}`) return=42 kind=symbol target=parse instance=parse<42>
 /// @generic.instance source="parse(\"42\")" id=parse<42>
 
 value satisfies 42;
 /// @resolution.name source=value target=value
+
 /// @generic.instance id=parse<42> template=parse arguments=(42)
 "#,
     );
@@ -282,16 +309,23 @@ parse("no");
 
 === checked ===
 declare function parse<T: number>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=(T: number)
-/// @type.symbol symbol=parse type=<T: number>(`${T}`) => T
-/// @type.symbol symbol=value type=`${T}`
+/// @generic.template symbol=parse parameters=(T: float64)
+/// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
+/// @type.symbol symbol=parse.T source="T: number" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 parse("no");
 /// @resolution.name source=parse target=parse
+/// @resolution.call source="parse(\"no\")" parameters=(`${<error>}`) arguments=(provided("no") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @generic.instance source="parse(\"no\")" id=parse<<error>>
+
+/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"no\"' is not assignable to type '`${number}`'"
-/// @diagnostic.label line=4 column=1 source="parse(\"no\");"
+/// @diagnostic.error code=EC209 message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"
+/// @diagnostic.label line=4 column=7 span="\"no\"" line_source="parse(\"no\");"
 "#,
     );
 }

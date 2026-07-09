@@ -401,9 +401,8 @@ import { todo } from "destack:error";
 import { WithAccess, Access } from "destack:memory";
 
 interface Viewing {
-/// @generic.template symbol=Viewing parameters=()
 /// @type.symbol symbol=Viewing type=Viewing
-/// @definition.interface symbol=Viewing template=()
+/// @definition.interface symbol=Viewing
 /// @definition.associated.type symbol=Viewing.View source="type View" key=View
 /// @definition.method symbol=Viewing.view slot=view type=<comptime A#1: memory.access.Access = "readonly", comptime Viewing.view.L1: Lifetime>(this: memory.type.WithAccess<Borrowed<Viewing, Viewing.view.L1, "mutable">, A#1>) => memory.type.WithAccess<Borrowed<this.View, Viewing.view.L1, "mutable">, A#1>
 
@@ -433,7 +432,6 @@ struct Buffer {
 }
 
 extension of Buffer implements Viewing {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.implements symbol=<module>#2 source=Viewing target=Viewing
 /// @definition.associated.type symbol=View source="type View = int32" key=View value=int32

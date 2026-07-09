@@ -25,30 +25,35 @@ const bytes: [uint8; 4] = take<4>([1, 2, 3, 4]);
 
 === checked ===
 function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
-/// @generic.template symbol=take parameters=(comptime N: uint)
-/// @type.symbol symbol=value type=[uint8; N]
-/// @resolution.name source=N target=N
-/// @resolution.name source=N target=N
+/// @generic.template symbol=take parameters=(comptime N: uint64)
+/// @type.symbol symbol=take type=<comptime N: uint64>(FixedArray<uint8, N>) => FixedArray<uint8, N>
+/// @type.symbol symbol=take.N source="comptime N: uint" type=N
+/// @type.symbol symbol=take.value source="value: [uint8; N]" type=FixedArray<uint8, N>
+/// @resolution.name source=N target=take.N
+/// @resolution.name source=N target=take.N
 
     return value;
-    /// @resolution.name source=value target=value
-    /// @type.node source=value type=[uint8; N]
+    /// @type.node source=value type=FixedArray<uint8, N>
+    /// @resolution.name source=value target=take.value
 
 }
 
 const bytes = take<4>([1, 2, 3, 4]);
-/// @type.symbol symbol=bytes type=[uint8; 4]
+/// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
+/// @type.node source="take<4>([1, 2, 3, 4])" type=FixedArray<uint8, 4>
+/// @type.node source=take type=(FixedArray<uint8, 4>) => FixedArray<uint8, 4>
 /// @resolution.name source=take target=take
-/// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=([uint8; 4]) return=[uint8; 4] kind=symbol target=take instance=take<4>
+/// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=(FixedArray<uint8, 4>) arguments=(provided([1, 2, 3, 4]) as FixedArray<uint8, 4>) return=FixedArray<uint8, 4> kind=symbol target=take instance=take<4>
 /// @generic.instance source="take<4>([1, 2, 3, 4])" id=take<4>
-/// @type.node source="take<4>([1, 2, 3, 4])" type=[uint8; 4]
-/// @type.node source=[1, 2, 3, 4] type=[uint8; 4]
-/// @type.node source=1 type=uint8
-/// @type.node source=2 type=uint8
-/// @type.node source=3 type=uint8
-/// @type.node source=4 type=uint8
+/// @type.node source=[1, 2, 3, 4] type=FixedArray<uint8, 4>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
+/// @type.node source=4 type=4
+
 /// @generic.instance id=take<4> template=take arguments=(4)
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -76,28 +81,30 @@ const value: int32 = choose<true>(1);
 
 === checked ===
 function choose<comptime Flag: boolean = true>(value: int32): int32 {
-/// @generic.template source=declaration parameters=(comptime Flag: boolean = true)
-/// @type.symbol symbol=choose type=<Flag: boolean = true>(int32) => int32
+/// @generic.template symbol=choose parameters=(comptime Flag: boolean = true)
+/// @type.symbol symbol=choose type=<comptime Flag: boolean = true>(int32) => int32
+/// @type.symbol symbol=choose.Flag source="comptime Flag: boolean = true" type=Flag
 /// @type.node source=true type=true
-/// @type.symbol symbol=value#1 source="value: int32" type=int32
+/// @type.symbol symbol=choose.value source="value: int32" type=int32
 
     return value;
     /// @type.node source=value type=int32
-    /// @resolution.name source=value target=value#1
+    /// @resolution.name source=value target=choose.value
 
 }
 
 const value = choose(1);
-/// @type.symbol symbol=value#2 source=value type=int32
-/// @generic.instance source=choose(1) id=choose<true>
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source=choose type=(int32) => int32
 /// @type.node source=choose(1) type=int32
 /// @resolution.name source=choose target=choose
-/// @resolution.call source=choose(1) parameters=(int32) return=int32 kind=symbol target=choose instance=choose<true>
-/// @type.node source=1 type=int32
+/// @resolution.call source=choose(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=symbol target=choose instance=choose<true>
+/// @generic.instance source=choose(1) id=choose<true>
+/// @type.node source=1 type=1
 
 /// @generic.instance id=choose<true> template=choose arguments=(true)
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -121,14 +128,14 @@ declare const read: Read;
 
 === checked ===
 type Read = <comptime N: uint>() => [uint8; N];
-/// @type.symbol symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" type=<N: uint>() => FixedArray<uint8, N>
-/// @definition.type symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" value=<N: uint>() => FixedArray<uint8, N>
-/// @generic.template source=type_expression parameters=(comptime N: uint)
-/// @type.symbol symbol=N source="comptime N: uint" type=N
-/// @resolution.name source=N target=N
+/// @type.symbol symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" type=Function<(), FixedArray<uint8, N>>
+/// @definition.type symbol=Read source="type Read = <comptime N: uint>() => [uint8; N]" value=Function<(), FixedArray<uint8, N>>
+/// @generic.template source=type_expression parameters=(comptime N: uint64)
+/// @type.symbol symbol=Read.N source="comptime N: uint" type=N
+/// @resolution.name source=N target=Read.N
 
 declare const read: Read;
-/// @type.symbol symbol=read source=read type=Read
+/// @type.symbol symbol=read source=read type=Read reduced=Function<(), FixedArray<uint8, N>>
 /// @resolution.name source=Read target=Read
 "#,
     );
@@ -159,28 +166,25 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 
 === checked ===
 type Tagged<comptime Tag: string> = { tag: Tag };
-/// @generic.template source=declaration parameters=(comptime Tag: string)
+/// @generic.template symbol=Tagged parameters=(comptime Tag: string)
 /// @type.symbol symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" type={ tag: Tag }
-/// @definition.type symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" template=LocalGenericTemplateId(0) value={ tag: Tag }
-/// @type.symbol symbol=Tagged.tag source="tag: Tag" type=Tag
+/// @definition.type symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" template=(comptime Tag: string) value={ tag: Tag }
+/// @type.symbol symbol=Tagged.Tag source="comptime Tag: string" type=Tag
 /// @resolution.name source=Tag target=Tagged.Tag
 
 type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
-/// @generic.template source=declaration parameters=(comptime Config: { name: string; enabled: boolean })
+/// @generic.template symbol=Flagged parameters=(comptime Config: { name: string; enabled: boolean })
 /// @type.symbol symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" type=Config
-/// @definition.type symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" template=LocalGenericTemplateId(1) value=Config
-/// @type.symbol symbol=Flagged.name source="name: string" type=string
-/// @type.symbol symbol=Flagged.enabled source="enabled: boolean" type=boolean
+/// @definition.type symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" template=(comptime Config: { name: string; enabled: boolean }) value=Config
+/// @type.symbol symbol=Flagged.Config source="comptime Config: { name: string; enabled: boolean }" type=Config
 /// @resolution.name source=Config target=Flagged.Config
 
 declare const tagged: Tagged<"alpha">;
-/// @type.symbol symbol=tagged source=tagged type=Tagged<"alpha">
-/// @generic.instance source="Tagged<\"alpha\">" id="Tagged<\"alpha\">"
+/// @type.symbol symbol=tagged source=tagged type=Tagged<"alpha"> reduced={ tag: "alpha" }
 /// @resolution.name source=Tagged target=Tagged
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
-/// @type.symbol symbol=flagged source=flagged type=Flagged<{ name: "search"; enabled: true }>
-/// @generic.instance source="Flagged<{ name: \"search\"; enabled: true }>" id="Flagged<{ name: \"search\"; enabled: true }>"
+/// @type.symbol symbol=flagged source=flagged type=Flagged<{ name: "search"; enabled: true }> reduced={ name: "search"; enabled: true }
 /// @resolution.name source=Flagged target=Flagged
 
 /// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" template=Flagged arguments=({ name: "search"; enabled: true })

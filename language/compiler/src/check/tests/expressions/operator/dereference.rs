@@ -14,12 +14,12 @@ const value = *shared;
         DirRows::checked(),
         r#"
 === annotated ===
-declare const shared: &readonly int32;
+declare const shared: Borrowed<int32, "static", "readonly">;
 const value: int32 = *shared;
 
 === checked ===
 declare const shared: &readonly int32;
-/// @type.symbol symbol=shared source=shared type=Borrowed<int32, <error>, "readonly">
+/// @type.symbol symbol=shared source=shared type=Borrowed<int32, "static", "readonly">
 
 const value = *shared;
 /// @type.symbol symbol=value source=value type=int32

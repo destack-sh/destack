@@ -266,3 +266,127 @@ let owned: ^Point = point;
         r#""#,
     );
 }
+
+#[test]
+fn test_class_reference_coerces_to_readonly_borrow() {
+    let session = TestSession::single(
+        r#"
+class User {
+    name!: string;
+}
+
+declare const user: User;
+declare function inspect(view: &readonly User): string;
+
+const name = inspect(user);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class User {
+    name!: string;
+}
+
+declare const user: User;
+declare function inspect<comptime L0: Lifetime>(view: Borrowed<User, L0, "readonly">): string;
+
+const name: string = inspect(user as Borrowed<User, L0, "readonly">);
+
+=== checked ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.field symbol=User.name source="name!: string" key=name type=string
+
+    name!: string;
+    /// @type.symbol symbol=User.name source="name!: string" type=string
+
+}
+
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.name source=User target=User
+
+declare function inspect(view: &readonly User): string;
+/// @generic.template symbol=inspect parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=inspect source="declare function inspect(view: &readonly User): string" type=<comptime inspect.L0: Lifetime>(Borrowed<User, inspect.L0, "readonly">) => string
+/// @type.symbol symbol=inspect.view source="view: &readonly User" type=Borrowed<User, inspect.L0, "readonly">
+/// @resolution.name source=User target=User
+
+const name = inspect(user);
+/// @type.symbol symbol=name source=name type=string
+/// @resolution.name source=inspect target=inspect
+/// @resolution.call source=inspect(user) parameters=(Borrowed<User, inspect.L0, "readonly">) arguments=(provided(user) as Borrowed<User, inspect.L0, "readonly">) return=string kind=symbol target=inspect
+/// @resolution.name source=user target=user
+"#,
+        r#"
+
+"#,
+    );
+}
+
+#[test]
+fn test_class_reference_rejects_exclusive_borrow_coercion() {
+    let session = TestSession::single(
+        r#"
+class User {
+    name!: string;
+}
+
+declare const user: User;
+declare function rename(view: &exclusive User): void;
+
+rename(user);
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class User {
+    name!: string;
+}
+
+declare const user: User;
+declare function rename<comptime L0: Lifetime>(view: Borrowed<User, L0, "exclusive">): void;
+
+rename(user);
+
+=== checked ===
+class User {
+/// @type.symbol symbol=User type=User
+/// @definition.class symbol=User
+/// @definition.field symbol=User.name source="name!: string" key=name type=string
+
+    name!: string;
+    /// @type.symbol symbol=User.name source="name!: string" type=string
+
+}
+
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
+/// @resolution.name source=User target=User
+
+declare function rename(view: &exclusive User): void;
+/// @generic.template symbol=rename parameters=(comptime L0: Lifetime)
+/// @type.symbol symbol=rename source="declare function rename(view: &exclusive User): void" type=<comptime rename.L0: Lifetime>(Borrowed<User, rename.L0, "exclusive">) => void
+/// @type.symbol symbol=rename.view source="view: &exclusive User" type=Borrowed<User, rename.L0, "exclusive">
+/// @resolution.name source=User target=User
+
+rename(user);
+/// @resolution.name source=rename target=rename
+/// @resolution.call source=rename(user) parameters=(Borrowed<User, rename.L0, "exclusive">) arguments=(provided(user) as Borrowed<User, rename.L0, "exclusive">) return=void kind=symbol target=rename
+/// @resolution.name source=user target=user
+"#,
+        r#"
+/// @diagnostic.error code=EC209 message="argument of type 'User' is not assignable to parameter of type '&exclusive User'"
+/// @diagnostic.label line=9 column=8 span="user" line_source="rename(user);"
+"#,
+    );
+}

@@ -77,14 +77,16 @@ extension<T> of Sealed<T> {
 
         this.open()
         /// @resolution.member source=this.open receiver=Sealed<T#3> kind=symbol target=Wrapper.open adjustments=(backing)
-        /// @resolution.call source=this.open() parameters=() return=T#3 kind=symbol target=Wrapper.open receiver=Wrapper<T#3> adjustments=(backing)
+        /// @resolution.call source=this.open() parameters=() return=T#3 kind=symbol target=Wrapper.open receiver=Wrapper<T#3> adjustments=(backing) instance=Wrapper<T#3>.open
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Sealed<T#3>
+        /// @generic.instance source=this.open() id=Wrapper<T#3>.open
 
     }
 }
 
 /// @generic.instance id=Sealed<T#3> template=Sealed arguments=(T#3)
 /// @generic.instance id=Wrapper<T#1> template=Wrapper arguments=(T#1)
+/// @generic.instance id=Wrapper<T#3>.open template=Wrapper.open arguments=(T#3)
 "#,
         r#""#,
     );

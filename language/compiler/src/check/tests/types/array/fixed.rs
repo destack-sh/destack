@@ -24,7 +24,10 @@ declare const bytes: [uint8; 4];
 const byte = bytes[1];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.name source=bytes target=bytes
-/// @resolution.call source=bytes[1] parameters=(usize) arguments=(provided(1) as usize) return=uint8 kind=symbol target=collections.array.index#1 receiver=FixedArray<uint8, 4>
+/// @resolution.call source=bytes[1] parameters=(usize) arguments=(provided(1) as usize) return=uint8 kind=symbol target=collections.array.index#1 receiver=FixedArray<uint8, 4> instance="FixedArray<uint8, 4>.<extension#1>.index#1"
+/// @generic.instance source=bytes[1] id="FixedArray<uint8, 4>.<extension#1>.index#1"
+
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#1>.index#1" template=collections.array.index#1 arguments=(uint8, 4, uint8, 4)
 "#,
     );
 }

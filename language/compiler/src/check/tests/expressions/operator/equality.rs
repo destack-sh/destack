@@ -224,7 +224,6 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=ops.equality.PartialEqual arguments=(Badge)
 /// @definition.method symbol=equal slot=equal type=(this: Badge, Badge) => boolean

@@ -45,8 +45,8 @@ rectangle.start.x satisfies int32;
 
 === checked ===
 type Point = {
-/// @type.symbol symbol=Point source="type Point = {\n    x: int32;\n    y: int32;\n}" type={ x: int32; y: int32 }
-/// @definition.type symbol=Point source="type Point = {\n    x: int32;\n    y: int32;\n}" value={ x: int32; y: int32 }
+/// @type.symbol symbol=Point type={ x: int32; y: int32 }
+/// @definition.type symbol=Point value={ x: int32; y: int32 }
 
     x: int32;
     y: int32;
@@ -55,16 +55,16 @@ type Point = {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
+/// @definition.field symbol=Rectangle.start source="start: Point" key=start type=Point
 
     start: Point;
-    /// @type.symbol symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Rectangle.start source="start: Point" type=Point reduced={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }
 
 const rectangle = Rectangle {
-/// @type.symbol symbol=rectangle type=Rectangle
+/// @type.symbol symbol=rectangle source=rectangle type=Rectangle
 /// @resolution.name source=Rectangle target=Rectangle
 
     start: { x: 0, y: 0 },
@@ -122,8 +122,8 @@ const rectangle: Rectangle = Rectangle {
 
 === checked ===
 type Point = {
-/// @type.symbol symbol=Point source="type Point = {\n    x: int32;\n    y: int32;\n}" type={ x: int32; y: int32 }
-/// @definition.type symbol=Point source="type Point = {\n    x: int32;\n    y: int32;\n}" value={ x: int32; y: int32 }
+/// @type.symbol symbol=Point type={ x: int32; y: int32 }
+/// @definition.type symbol=Point value={ x: int32; y: int32 }
 
     x: int32;
     y: int32;
@@ -132,30 +132,31 @@ type Point = {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
+/// @definition.field symbol=Rectangle.start source="start: Point" key=start type=Point
 
     start: Point;
-    /// @type.symbol symbol=Rectangle.start source="start: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Rectangle.start source="start: Point" type=Point reduced={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }
 
 const rectangle = Rectangle {
-/// @type.symbol symbol=rectangle type=Rectangle
+/// @type.symbol symbol=rectangle source=rectangle type=Rectangle
 /// @resolution.name source=Rectangle target=Rectangle
 
     start: { x: 0, y: 0, z: 0 },
 };
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'z' in object literal for type '{ x: int32; y: int32 }'"
-/// @diagnostic.label line=11 column=27 source="    start: { x: 0, y: 0, z: 0 },"
+/// @diagnostic.error code=EC205 message="unknown property 'z' in object literal for type 'Point'"
+/// @diagnostic.label line=12 column=12 span="{ x: 0, y: 0, z: 0 }" line_source="start: { x: 0, y: 0, z: 0 },"
 "#,
     );
 }
 
 #[test]
-fn test_interface_field_induces_hidden_generic_parameters() {
+fn test_interface_fields_erase_to_dynamic_storage() {
+    // interface-typed fields erase to Dynamic storage: only lifetimes induce generics
     let session = TestSession::single(
         r#"
 interface PointLike {
@@ -183,8 +184,8 @@ const rectangle = Rectangle {
     end: Offset { x: 1, y: 1 },
 };
 
-rectangle.start satisfies Point;
-rectangle.end satisfies Offset;
+rectangle.start satisfies PointLike;
+rectangle.end satisfies PointLike;
 "#,
     );
 
@@ -198,9 +199,9 @@ interface PointLike {
     y: int32;
 }
 
-struct Rectangle<T0: PointLike, T1: PointLike> {
-    start: T0;
-    end: T1;
+struct Rectangle {
+    start: Dynamic<PointLike>;
+    end: Dynamic<PointLike>;
 }
 
 struct Point implements PointLike {
@@ -213,13 +214,13 @@ struct Offset implements PointLike {
     y: int32;
 }
 
-const rectangle: Rectangle<Point, Offset> = Rectangle<Point, Offset> {
-    start: Point { x: 0, y: 0 },
-    end: Offset { x: 1, y: 1 },
+const rectangle: Rectangle = Rectangle {
+    start: Point { x: 0, y: 0 } as Dynamic<PointLike>,
+    end: Offset { x: 1, y: 1 } as Dynamic<PointLike>,
 };
 
-rectangle.start satisfies Point;
-rectangle.end satisfies Offset;
+rectangle.start satisfies PointLike;
+rectangle.end satisfies PointLike;
 
 === checked ===
 interface PointLike {
@@ -237,18 +238,17 @@ interface PointLike {
 }
 
 struct Rectangle {
-/// @generic.template symbol=Rectangle parameters=(T0: PointLike, T1: PointLike)
 /// @type.symbol symbol=Rectangle type=Rectangle
-/// @definition.struct symbol=Rectangle template=LocalGenericTemplateId(0)
-/// @definition.field symbol=Rectangle.start source="start: PointLike" type=T0
-/// @definition.field symbol=Rectangle.end source="end: PointLike" type=T1
+/// @definition.struct symbol=Rectangle
+/// @definition.field symbol=Rectangle.end source="end: PointLike" key=end type=Dynamic<PointLike>
+/// @definition.field symbol=Rectangle.start source="start: PointLike" key=start type=Dynamic<PointLike>
 
     start: PointLike;
-    /// @type.symbol symbol=Rectangle.start source="start: PointLike" type=T0
+    /// @type.symbol symbol=Rectangle.start source="start: PointLike" type=Dynamic<PointLike>
     /// @resolution.name source=PointLike target=PointLike
 
     end: PointLike;
-    /// @type.symbol symbol=Rectangle.end source="end: PointLike" type=T1
+    /// @type.symbol symbol=Rectangle.end source="end: PointLike" type=Dynamic<PointLike>
     /// @resolution.name source=PointLike target=PointLike
 
 }
@@ -256,6 +256,8 @@ struct Rectangle {
 struct Point implements PointLike {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.where symbol=Point source=PointLike relation=satisfies left=this right=PointLike
+/// @definition.implements symbol=Point source=PointLike target=PointLike
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Point.y source="y: int32" key=y type=int32
 /// @resolution.name source=PointLike target=PointLike
@@ -271,6 +273,8 @@ struct Point implements PointLike {
 struct Offset implements PointLike {
 /// @type.symbol symbol=Offset type=Offset
 /// @definition.struct symbol=Offset
+/// @definition.where symbol=Offset source=PointLike relation=satisfies left=this right=PointLike
+/// @definition.implements symbol=Offset source=PointLike target=PointLike
 /// @definition.field symbol=Offset.x source="x: int32" key=x type=int32
 /// @definition.field symbol=Offset.y source="y: int32" key=y type=int32
 /// @resolution.name source=PointLike target=PointLike
@@ -284,9 +288,8 @@ struct Offset implements PointLike {
 }
 
 const rectangle = Rectangle {
-/// @type.symbol symbol=rectangle type=Rectangle<Point, Offset>
+/// @type.symbol symbol=rectangle source=rectangle type=Rectangle
 /// @resolution.name source=Rectangle target=Rectangle
-/// @generic.instance source=Rectangle id="Rectangle<Point, Offset>"
 
     start: Point { x: 0, y: 0 },
     /// @resolution.name source=Point target=Point
@@ -296,16 +299,15 @@ const rectangle = Rectangle {
 
 };
 
-rectangle.start satisfies Point;
+rectangle.start satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
-/// @resolution.member source=rectangle.start receiver=Rectangle<Point, Offset> kind=symbol target=Rectangle.start instance="Rectangle<Point, Offset>"
-/// @resolution.name source=Point target=Point
+/// @resolution.member source=rectangle.start receiver=Rectangle kind=symbol target=Rectangle.start
+/// @resolution.name source=PointLike target=PointLike
 
-rectangle.end satisfies Offset;
+rectangle.end satisfies PointLike;
 /// @resolution.name source=rectangle target=rectangle
-/// @resolution.member source=rectangle.end receiver=Rectangle<Point, Offset> kind=symbol target=Rectangle.end instance="Rectangle<Point, Offset>"
-/// @resolution.name source=Offset target=Offset
-/// @generic.instance id="Rectangle<Point, Offset>" template=Rectangle arguments=(Point, Offset)
+/// @resolution.member source=rectangle.end receiver=Rectangle kind=symbol target=Rectangle.end
+/// @resolution.name source=PointLike target=PointLike
 "#,
     );
 }
@@ -352,11 +354,11 @@ struct Rectangle {
 type Shape = Circle | Rectangle;
 
 const shapes: Array<Shape> = [
-    Circle { radius: 1.0 },
-    Rectangle { width: 1.0, height: 1.0 },
+    Circle { radius: 1.0 } as Shape,
+    Rectangle { width: 1.0, height: 1.0 } as Shape,
 ];
 
-const first: Shape = shapes[0];
+const first: Circle | Rectangle = shapes[0];
 first satisfies Shape;
 
 === checked ===
@@ -373,8 +375,8 @@ struct Circle {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.width source="width: float64" key=width type=float64
 /// @definition.field symbol=Rectangle.height source="height: float64" key=height type=float64
+/// @definition.field symbol=Rectangle.width source="width: float64" key=width type=float64
 
     width: float64;
     /// @type.symbol symbol=Rectangle.width source="width: float64" type=float64
@@ -404,13 +406,17 @@ const shapes: Array<Shape> = [
 ];
 
 const first = shapes[0];
-/// @type.symbol symbol=first type=Shape
+/// @type.symbol symbol=first source=first type=Circle | Rectangle
 /// @resolution.name source=shapes target=shapes
-/// @resolution.call source=shapes[0] parameters=(usize) return=Shape kind=symbol target=collections.array.index#9 receiver=Array<Shape>
+/// @resolution.call source=shapes[0] parameters=(usize) arguments=(provided(0) as usize) return=Circle | Rectangle kind=symbol target=collections.array.index#4 receiver=Array<Shape> instance="Array<Circle | Rectangle>.<extension#6>.index#4"
+/// @generic.instance source=shapes[0] id="Array<Circle | Rectangle>.<extension#6>.index#4"
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
 /// @resolution.name source=Shape target=Shape
+
+/// @generic.instance id="Array<Circle | Rectangle>.<extension#6>.index#4" template=collections.array.index#4 arguments=(Circle | Rectangle, Circle | Rectangle)
+/// @generic.instance id=Array<Shape> template=collections.array.Array arguments=(Shape)
 "#,
     );
 }
@@ -445,7 +451,7 @@ struct Player {
 }
 
 const player: Player = Player {
-    mode: "active",
+    mode: "active" as Mode,
 };
 
 player.mode satisfies Mode;
@@ -458,10 +464,10 @@ type Mode = "active" | "paused";
 struct Player {
 /// @type.symbol symbol=Player type=Player
 /// @definition.struct symbol=Player
-/// @definition.field symbol=Player.mode source="mode: Mode" type=Mode
+/// @definition.field symbol=Player.mode source="mode: Mode" key=mode type=Mode
 
     mode: Mode;
-    /// @type.symbol symbol=Player.mode source="mode: Mode" type=Mode
+    /// @type.symbol symbol=Player.mode source="mode: Mode" type=Mode reduced="active" | "paused"
     /// @resolution.name source=Mode target=Mode
 
 }
@@ -471,8 +477,6 @@ const player = Player {
 /// @resolution.name source=Player target=Player
 
     mode: "active",
-    /// @type.node source="\"active\"" type="active"
-
 };
 
 player.mode satisfies Mode;
@@ -494,7 +498,7 @@ struct Segment {
 }
 
 class Marker {
-    position: Point;
+    position!: Point;
 }
 
 declare const segment: Segment;
@@ -517,7 +521,7 @@ struct Segment {
 }
 
 class Marker {
-    position: Point;
+    position!: Point;
 }
 
 declare const segment: Segment;
@@ -534,10 +538,10 @@ type Point = { x: int32; y: int32 };
 struct Segment {
 /// @type.symbol symbol=Segment type=Segment
 /// @definition.struct symbol=Segment
-/// @definition.field symbol=Segment.start source="start: Point" type={ x: int32; y: int32 }
+/// @definition.field symbol=Segment.start source="start: Point" key=start type=Point
 
     start: Point;
-    /// @type.symbol symbol=Segment.start source="start: Point" type={ x: int32; y: int32 }
+    /// @type.symbol symbol=Segment.start source="start: Point" type=Point reduced={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }
@@ -545,10 +549,10 @@ struct Segment {
 class Marker {
 /// @type.symbol symbol=Marker type=Marker
 /// @definition.class symbol=Marker
-/// @definition.field symbol=Marker.position source="position: Point" type={ x: int32; y: int32 }
+/// @definition.field symbol=Marker.position source="position!: Point" key=position type=Point
 
-    position: Point;
-    /// @type.symbol symbol=Marker.position source="position: Point" type={ x: int32; y: int32 }
+    position!: Point;
+    /// @type.symbol symbol=Marker.position source="position!: Point" type=Point reduced={ x: int32; y: int32 }
     /// @resolution.name source=Point target=Point
 
 }

@@ -24,17 +24,22 @@ segment satisfies "row";
 === checked ===
 declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
-/// @type.symbol symbol=parse type=<T: string>(`${T}-${T}`) => T
-/// @type.symbol symbol=value type=`${T}-${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}-${T}`" type=`${T}-${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const segment = parse("row-row");
-/// @type.symbol symbol=segment type="row"
+/// @type.symbol symbol=segment source=segment type="row"
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"row-row\")" parameters=(`${"row"}-${"row"}`) return="row" kind=symbol target=parse instance="parse<\"row\">"
+/// @resolution.call source="parse(\"row-row\")" parameters=(`${"row"}-${"row"}`) arguments=(provided("row-row") as `${"row"}-${"row"}`) return="row" kind=symbol target=parse instance="parse<\"row\">"
 /// @generic.instance source="parse(\"row-row\")" id="parse<\"row\">"
 
 segment satisfies "row";
 /// @resolution.name source=segment target=segment
+
 /// @generic.instance id="parse<\"row\">" template=parse arguments=("row")
 "#,
     );
@@ -62,15 +67,23 @@ parse("row-col");
 === checked ===
 declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
-/// @type.symbol symbol=parse type=<T: string>(`${T}-${T}`) => T
-/// @type.symbol symbol=value type=`${T}-${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}-${T}`" type=`${T}-${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 parse("row-col");
 /// @resolution.name source=parse target=parse
+/// @resolution.call source="parse(\"row-col\")" parameters=(`${<error>}-${<error>}`) arguments=(provided("row-col") as `${<error>}-${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @generic.instance source="parse(\"row-col\")" id=parse<<error>>
+
+/// @generic.instance id=parse<<error>> template=parse arguments=(<error>)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"row-col\"' is not assignable to type '`${T}-${T}`'"
-/// @diagnostic.label line=4 column=1 source="parse(\"row-col\");"
+/// @diagnostic.error code=EC209 message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"
+/// @diagnostic.label line=4 column=7 span="\"row-col\"" line_source="parse(\"row-col\");"
 "#,
     );
 }
@@ -91,26 +104,39 @@ segment satisfies "users";
         DirRows::checked(),
         r#"
 === annotated ===
-declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
+declare function withParsed<T: string, U>(value: `id:${T}`, callback: (arg0: T) => U): U;
 
-const segment: "users" = withParsed<"users", "users">("id:users", (segment: "users") => segment);
+const segment: "users" = withParsed<"users", "users">(
+    "id:users",
+    (segment: "users"): "users" => segment,
+);
 segment satisfies "users";
 
 === checked ===
 declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 /// @generic.template symbol=withParsed parameters=(T: string, U)
-/// @type.symbol symbol=withParsed type=<T: string, U>(`id:${T}`, (T) => U) => U
-/// @type.symbol symbol=value type=`id:${T}`
-/// @type.symbol symbol=callback type=(T) => U
+/// @type.symbol symbol=withParsed type=<T: string, U>(`id:${T}`, Function<(T,), U>) => U
+/// @type.symbol symbol=withParsed.T source="T: string" type=T
+/// @type.symbol symbol=withParsed.U source=U type=U
+/// @type.symbol symbol=withParsed.value source="value: `id:${T}`" type=`id:${T}`
+/// @resolution.name source=T target=withParsed.T
+/// @type.symbol symbol=withParsed.callback source="callback: (segment: T) => U" type=Function<(T,), U>
+/// @resolution.name source=T target=withParsed.T
+/// @resolution.name source=U target=withParsed.U
+/// @resolution.name source=U target=withParsed.U
 
 const segment = withParsed("id:users", (segment) => segment);
-/// @type.symbol symbol=segment type="users"
+/// @type.symbol symbol=segment source=segment type="users"
 /// @resolution.name source=withParsed target=withParsed
-/// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
+/// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
 /// @generic.instance source="withParsed(\"id:users\", (segment) => segment)" id="withParsed<\"users\", \"users\">"
+/// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users">
+/// @type.symbol symbol=symbol7.segment source=segment type="users"
+/// @resolution.name source=segment target=symbol7.segment
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
+
 /// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
 "#,
     );
@@ -144,21 +170,25 @@ segment satisfies "users" | "posts";
 === checked ===
 declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
-/// @type.symbol symbol=parse type=<T: string>(`id:${T}`) => T
-/// @type.symbol symbol=value type=`id:${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
+/// @type.symbol symbol=parse.T source="T: string" type=T
+/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const input = true ? "id:users" : "id:posts";
-/// @type.symbol symbol=input type="id:users" | "id:posts"
+/// @type.symbol symbol=input source=input type="id:users" | "id:posts"
 
 const segment = parse(input);
-/// @type.symbol symbol=segment type="users" | "posts"
+/// @type.symbol symbol=segment source=segment type="users" | "posts"
 /// @resolution.name source=parse target=parse
-/// @resolution.name source=input target=input
-/// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
+/// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) arguments=(provided(input) as `id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
 /// @generic.instance source=parse(input) id="parse<\"users\" | \"posts\">"
+/// @resolution.name source=input target=input
 
 segment satisfies "users" | "posts";
 /// @resolution.name source=segment target=segment
+
 /// @generic.instance id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 "#,
     );

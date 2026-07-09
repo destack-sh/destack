@@ -70,7 +70,7 @@ const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -95,7 +95,7 @@ const value: "ready" = "ready";
 /// @type.symbol symbol=value source=value type="ready"
 /// @type.node source="\"ready\"" type="ready"
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -120,7 +120,7 @@ const value: true = true;
 /// @type.symbol symbol=value source=value type=true
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=2 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -196,7 +196,7 @@ const value = 42 satisfies int32;
 /// @type.node source="42 satisfies int32" type=42
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -312,7 +312,7 @@ const mode = value.env.mode;
 /// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } kind=field key=env
 /// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }

@@ -26,7 +26,7 @@ extension Arithmetic<T: Scalar> of T {
 interface Scalar {}
 
 function checkedAdd<T: Scalar>(a: T, b: T): T | undefined {
-    undefined
+    undefined as T | undefined
 }
 
 extension Arithmetic<T: Scalar> of T {
@@ -72,7 +72,7 @@ extension Arithmetic<T: Scalar> of T {
 
         checkedAdd(this, other)
         /// @type.node source="checkedAdd(this, other)" type=T#2 | undefined
-        /// @type.node source=checkedAdd type=<T#1: Scalar>(T#1, T#1) => T#1 | undefined
+        /// @type.node source=checkedAdd type=(T#2, T#2) => T#2 | undefined
         /// @resolution.name source=checkedAdd target=checkedAdd
         /// @resolution.call source="checkedAdd(this, other)" parameters=(T#2, T#2) arguments=(provided(this) as T#2, provided(other) as T#2) return=T#2 | undefined kind=symbol target=checkedAdd instance=checkedAdd<T#2>
         /// @generic.instance source="checkedAdd(this, other)" id=checkedAdd<T#2>
@@ -86,7 +86,7 @@ extension Arithmetic<T: Scalar> of T {
 
 /// @generic.instance id=checkedAdd<T#2> template=checkedAdd arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=13 constraints=4 obligations=4 solutions=1 bounds=3 decisions=12
+/// @check.stats.solve variables=1 types=13 constraints=1 obligations=4 solutions=1 bounds=4 decisions=12
 "#,
         r#"
 "#,
@@ -156,7 +156,7 @@ extension Forward<T> of T {
 
         choose(this, other)
         /// @type.node source="choose(this, other)" type=T#2
-        /// @type.node source=choose type=<T#1>(T#1, T#1) => T#1
+        /// @type.node source=choose type=(T#2, T#2) => T#2
         /// @resolution.name source=choose target=choose
         /// @resolution.call source="choose(this, other)" parameters=(T#2, T#2) arguments=(provided(this) as T#2, provided(other) as T#2) return=T#2 kind=symbol target=choose instance=choose<T#2>
         /// @generic.instance source="choose(this, other)" id=choose<T#2>
@@ -170,7 +170,7 @@ extension Forward<T> of T {
 
 /// @generic.instance id=choose<T#2> template=choose arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=7 constraints=4 obligations=3 solutions=1 bounds=3 decisions=11
+/// @check.stats.solve variables=1 types=7 constraints=1 obligations=3 solutions=1 bounds=4 decisions=11
 "#,
         r#"
 "#,
@@ -203,7 +203,7 @@ declare class Box<T> {
 function read<T, comptime L1: Lifetime>(
     source: Borrowed<Box<T>, L1, "readonly">,
 ): Borrowed<T, L1, "readonly"> {
-    return source.get<T, L1>();
+    return source.get<T>();
 }
 
 === checked ===
@@ -234,19 +234,19 @@ function read<T>(source: &readonly Box<T>): &readonly T {
     return source.get();
     /// @type.node source=source type=Borrowed<Box<T#2>, read.L1, "readonly">
     /// @type.node source=source.get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#2>, Box.get.L0, "readonly">) => Borrowed<T#2, Box.get.L0, "readonly">
-    /// @type.node source=source.get() type=Borrowed<T#2, read.L1, "readonly">
+    /// @type.node source=source.get() type=Borrowed<T#2, Box.get.L0, "readonly">
     /// @resolution.name source=source target=read.source
     /// @resolution.member source=source.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> kind=symbol target=Box.get
-    /// @resolution.call source=source.get() parameters=() return=Borrowed<T#2, read.L1, "readonly"> kind=symbol target=Box.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> instance=Box<T#2>.get<read.L1>
+    /// @resolution.call source=source.get() parameters=() return=Borrowed<T#2, Box.get.L0, "readonly"> kind=symbol target=Box.get receiver=Borrowed<Box<T#2>, read.L1, "readonly"> instance=Box<T#2>.get
     /// @generic.instance source=source id=Box<T#2>
     /// @generic.instance source=source.get id=Box<T#2>
-    /// @generic.instance source=source.get() id=Box<T#2>.get<read.L1>
+    /// @generic.instance source=source.get() id=Box<T#2>.get
 
 }
 
 /// @generic.instance id=Box<T#1> template=Box arguments=(T#1)
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
-/// @generic.instance id=Box<T#2>.get<read.L1> template=Box.get arguments=(T#2, read.L1)
+/// @generic.instance id=Box<T#2>.get template=Box.get arguments=(T#2)
 "#,
     );
 }

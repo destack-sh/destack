@@ -62,8 +62,6 @@ const value: string = Symbol.create("id");
         r#"
 /// @diagnostic.error code=EC200 message="type 'symbol' is not assignable to type 'string'"
 /// @diagnostic.label line=2 column=23 span="Symbol.create(\"id\")" line_source="const value: string = Symbol.create(\"id\");"
-/// @diagnostic.error code=EC200 message="type 'symbol' is not assignable to type 'string'"
-/// @diagnostic.label line=2 column=23 span="Symbol.create(\"id\")" line_source="const value: string = Symbol.create(\"id\");"
 "#,
     );
 }
@@ -129,8 +127,6 @@ const value: number = Symbol.create("id");
 /// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type 'symbol' is not assignable to type 'float64'"
-/// @diagnostic.label line=2 column=23 span="Symbol.create(\"id\")" line_source="const value: number = Symbol.create(\"id\");"
 /// @diagnostic.error code=EC200 message="type 'symbol' is not assignable to type 'float64'"
 /// @diagnostic.label line=2 column=23 span="Symbol.create(\"id\")" line_source="const value: number = Symbol.create(\"id\");"
 "#,

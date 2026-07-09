@@ -148,9 +148,8 @@ class Meter {
 
 === checked ===
 newtype interface Sink {
-/// @generic.template symbol=Sink parameters=()
 /// @type.symbol symbol=Sink type=Sink
-/// @definition.interface symbol=Sink template=() nominal=true
+/// @definition.interface symbol=Sink nominal=true
 /// @definition.method symbol=Sink.write source="write(value: string): void" slot=write type=(this: Sink, string) => void
 
     write(value: string): void;

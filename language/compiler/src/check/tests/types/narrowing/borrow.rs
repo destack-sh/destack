@@ -261,7 +261,7 @@ function value<L: Lifetime, R: Lifetime>(
     right: Borrowed<Number, R, "mutable">,
     flag: boolean,
 ): Borrowed<string | int32, L | R, "mutable"> {
-    return flag ? &left.value : &right.value;
+    return (flag ? &left.value : &right.value) as Borrowed<string | int32, L | R, "mutable">;
 }
 
 === checked ===

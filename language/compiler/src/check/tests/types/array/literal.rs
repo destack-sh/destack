@@ -22,7 +22,7 @@ const pair: [int32; 2] = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=5 constraints=3 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -49,7 +49,6 @@ const pair: [int32; 2] = [1, 2, 3];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
-
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
@@ -82,7 +81,7 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
 /// @type.node source=3 type=3
 /// @type.node source=4 type=4
 
-/// @check.stats.solve variables=1 types=9 constraints=5 obligations=0 solutions=1 bounds=2 decisions=0
+/// @check.stats.solve variables=1 types=9 constraints=0 obligations=0 solutions=1 bounds=2 decisions=0
 "#,
     );
 }
@@ -137,7 +136,7 @@ const values: [_; 3] = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=1 types=8 constraints=4 obligations=0 solutions=1 bounds=3 decisions=0
+/// @check.stats.solve variables=1 types=7 constraints=0 obligations=0 solutions=1 bounds=3 decisions=0
 "#,
     );
 }
@@ -212,15 +211,16 @@ const values: Slice<float64> = [1, 2, 3] as Slice<float64>;
 
 === checked ===
 const values = [1, 2, 3] as Slice<_>;
-/// @type.symbol symbol=values source=values type=collections.slice.Slice<float64>
+/// @type.symbol symbol=values source=values type=Slice<float64>
 /// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<float64>
 /// @type.node source=[1, 2, 3] type=Array<float64>
+/// @generic.instance source="[1, 2, 3] as Slice<_>" id=Slice<float64>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 /// @resolution.name source=Slice target=collections.slice.Slice
 
-/// @generic.instance id=collections.slice.Slice<float64> template=collections.slice.Slice arguments=(float64)
+/// @generic.instance id=Slice<float64> template=collections.slice.Slice arguments=(float64)
 "#,
     );
 }

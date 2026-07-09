@@ -25,19 +25,19 @@ const hexadecimal: Numeric = "0x1";
 
 === checked ===
 type Numeric = `${number}`;
-/// @type.symbol symbol=Numeric source="type Numeric = `${number}`" type=`${number}`
-/// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${number}`
+/// @type.symbol symbol=Numeric source="type Numeric = `${number}`" type=`${float64}`
+/// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
 
 const decimal: Numeric = "42";
-/// @type.symbol symbol=decimal source=decimal type=`${number}`
+/// @type.symbol symbol=decimal source=decimal type=Numeric reduced=`${float64}`
 /// @resolution.name source=Numeric target=Numeric
 
 const exponent: Numeric = "1e3";
-/// @type.symbol symbol=exponent source=exponent type=`${number}`
+/// @type.symbol symbol=exponent source=exponent type=Numeric reduced=`${float64}`
 /// @resolution.name source=Numeric target=Numeric
 
 const hexadecimal: Numeric = "0x1";
-/// @type.symbol symbol=hexadecimal source=hexadecimal type=`${number}`
+/// @type.symbol symbol=hexadecimal source=hexadecimal type=Numeric reduced=`${float64}`
 /// @resolution.name source=Numeric target=Numeric
 "#,
     );
@@ -64,16 +64,16 @@ const bad: Numeric = "NaN";
 
 === checked ===
 type Numeric = `${number}`;
-/// @type.symbol symbol=Numeric source="type Numeric = `${number}`" type=`${number}`
-/// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${number}`
+/// @type.symbol symbol=Numeric source="type Numeric = `${number}`" type=`${float64}`
+/// @definition.type symbol=Numeric source="type Numeric = `${number}`" value=`${float64}`
 
 const bad: Numeric = "NaN";
-/// @type.symbol symbol=bad source=bad type=`${number}`
+/// @type.symbol symbol=bad source=bad type=Numeric reduced=`${float64}`
 /// @resolution.name source=Numeric target=Numeric
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"NaN\"' is not assignable to type 'Numeric'"
-/// @diagnostic.label line=4 column=7 source="const bad: Numeric = \"NaN\";"
+/// @diagnostic.label line=4 column=22 span="\"NaN\"" line_source="const bad: Numeric = \"NaN\";"
 "#,
     );
 }
@@ -107,15 +107,15 @@ type Big = `${bigint}`;
 /// @definition.type symbol=Big source="type Big = `${bigint}`" value=`${bigint}`
 
 const decimal: Big = "900";
-/// @type.symbol symbol=decimal source=decimal type=`${bigint}`
+/// @type.symbol symbol=decimal source=decimal type=Big reduced=`${bigint}`
 /// @resolution.name source=Big target=Big
 
 const negative: Big = "-1";
-/// @type.symbol symbol=negative source=negative type=`${bigint}`
+/// @type.symbol symbol=negative source=negative type=Big reduced=`${bigint}`
 /// @resolution.name source=Big target=Big
 
 const hexadecimal: Big = "0x1";
-/// @type.symbol symbol=hexadecimal source=hexadecimal type=`${bigint}`
+/// @type.symbol symbol=hexadecimal source=hexadecimal type=Big reduced=`${bigint}`
 /// @resolution.name source=Big target=Big
 "#,
     );
@@ -146,12 +146,12 @@ type Small = `${int8}`;
 /// @definition.type symbol=Small source="type Small = `${int8}`" value=`${int8}`
 
 const bad: Small = "128";
-/// @type.symbol symbol=bad source=bad type=`${int8}`
+/// @type.symbol symbol=bad source=bad type=Small reduced=`${int8}`
 /// @resolution.name source=Small target=Small
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"128\"' is not assignable to type 'Small'"
-/// @diagnostic.label line=4 column=7 source="const bad: Small = \"128\";"
+/// @diagnostic.label line=4 column=20 span="\"128\"" line_source="const bad: Small = \"128\";"
 "#,
     );
 }
@@ -174,24 +174,28 @@ value satisfies number;
 === annotated ===
 declare function parse<T: number>(value: `${T}`): T;
 
-const value: number = parse<number>("1e3");
+const value: 1000 = parse<1000>("1e3");
 value satisfies number;
 
 === checked ===
 declare function parse<T: number>(value: `${T}`): T;
-/// @generic.template symbol=parse parameters=(T: number)
-/// @type.symbol symbol=parse type=<T: number>(`${T}`) => T
-/// @type.symbol symbol=value type=`${T}`
+/// @generic.template symbol=parse parameters=(T: float64)
+/// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
+/// @type.symbol symbol=parse.T source="T: number" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const value = parse("1e3");
-/// @type.symbol symbol=value type=number
+/// @type.symbol symbol=value source=value type=1000
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"1e3\")" parameters=(`${number}`) return=number kind=symbol target=parse instance=parse<number>
-/// @generic.instance source="parse(\"1e3\")" id=parse<number>
+/// @resolution.call source="parse(\"1e3\")" parameters=(`${1000}`) arguments=(provided("1e3") as `${1000}`) return=1000 kind=symbol target=parse instance=parse<1000>
+/// @generic.instance source="parse(\"1e3\")" id=parse<1000>
 
 value satisfies number;
 /// @resolution.name source=value target=value
-/// @generic.instance id=parse<number> template=parse arguments=(number)
+
+/// @generic.instance id=parse<1000> template=parse arguments=(1000)
 "#,
     );
 }
@@ -213,20 +217,26 @@ parse("128");
 === annotated ===
 declare function parse<T: int8>(value: `${T}`): T;
 
-parse("128");
+parse<128>("128");
 
 === checked ===
 declare function parse<T: int8>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: int8)
-/// @type.symbol symbol=parse type=<T: int8>(`${T}`) => T
-/// @type.symbol symbol=value type=`${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: int8>(value: `${T}`): T" type=<T: int8>(`${T}`) => T
+/// @type.symbol symbol=parse.T source="T: int8" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 parse("128");
 /// @resolution.name source=parse target=parse
+/// @resolution.call source="parse(\"128\")" parameters=(`${128}`) arguments=(provided("128") as `${128}`) return=128 kind=symbol target=parse instance=parse<128>
+/// @generic.instance source="parse(\"128\")" id=parse<128>
+
+/// @generic.instance id=parse<128> template=parse arguments=(128)
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '\"128\"' is not assignable to type '`${int8}`'"
-/// @diagnostic.label line=4 column=1 source="parse(\"128\");"
+
 "#,
     );
 }
@@ -255,18 +265,22 @@ value satisfies -1n;
 === checked ===
 declare function parse<T: bigint>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: bigint)
-/// @type.symbol symbol=parse type=<T: bigint>(`${T}`) => T
-/// @type.symbol symbol=value type=`${T}`
+/// @type.symbol symbol=parse source="declare function parse<T: bigint>(value: `${T}`): T" type=<T: bigint>(`${T}`) => T
+/// @type.symbol symbol=parse.T source="T: bigint" type=T
+/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
+/// @resolution.name source=T target=parse.T
+/// @resolution.name source=T target=parse.T
 
 const value = parse("-1");
-/// @type.symbol symbol=value type=-1n
+/// @type.symbol symbol=value source=value type=-1n
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"-1\")" parameters=(`${-1n}`) return=-1n kind=symbol target=parse instance="parse<-1n>"
-/// @generic.instance source="parse(\"-1\")" id="parse<-1n>"
+/// @resolution.call source="parse(\"-1\")" parameters=(`${-1n}`) arguments=(provided("-1") as `${-1n}`) return=-1n kind=symbol target=parse instance=parse<-1n>
+/// @generic.instance source="parse(\"-1\")" id=parse<-1n>
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
-/// @generic.instance id="parse<-1n>" template=parse arguments=(-1n)
+
+/// @generic.instance id=parse<-1n> template=parse arguments=(-1n)
 "#,
     );
 }

@@ -243,9 +243,8 @@ const ok = value instanceof Named;
 
 === checked ===
 interface Named {
-/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named template=()
+/// @definition.interface symbol=Named
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
     name: string;

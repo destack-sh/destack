@@ -190,9 +190,8 @@ newtype interface Sink {
 
 === checked ===
 newtype interface Sink {
-/// @generic.template symbol=Sink parameters=()
 /// @type.symbol symbol=Sink type=Sink
-/// @definition.interface symbol=Sink template=() nominal=true
+/// @definition.interface symbol=Sink nominal=true
 /// @definition.method symbol=Sink.write source="write(&readonly this, value: string): void" slot=write type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<Sink, Sink.write.L0, "readonly">, string) => void
 
     write(&readonly this, value: string): void;

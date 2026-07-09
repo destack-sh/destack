@@ -27,8 +27,8 @@ flags.b satisfies boolean;
 
 === checked ===
 type Flags = Record<"a" | "b", boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=types.object.Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
-/// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=types.object.Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
+/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
+/// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
 /// @resolution.name source=Record target=types.object.Record
 
 const flags: Flags = { a: true, b: false };
@@ -43,7 +43,7 @@ flags.b satisfies boolean;
 /// @resolution.name source=flags target=flags
 /// @resolution.member source=flags.b receiver={ a: boolean; b: boolean } kind=field key=b
 
-/// @generic.instance id="types.object.Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
+/// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
 "#,
     );
 }
@@ -75,8 +75,8 @@ flags[2] satisfies string;
 
 === checked ===
 type Flags = Record<1 | 2, string>;
-/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type=types.object.Record<1 | 2, string> reduced={ 1: string; 2: string }
-/// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value=types.object.Record<1 | 2, string> reduced={ 1: string; 2: string }
+/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type=Record<1 | 2, string> reduced={ 1: string; 2: string }
+/// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value=Record<1 | 2, string> reduced={ 1: string; 2: string }
 /// @resolution.name source=Record target=types.object.Record
 
 const flags: Flags = { 1: "one", 2: "two" };
@@ -91,7 +91,7 @@ flags[2] satisfies string;
 /// @resolution.name source=flags target=flags
 /// @resolution.member source=flags[2] receiver={ 1: string; 2: string } kind=field key=2
 
-/// @generic.instance id="types.object.Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
+/// @generic.instance id="Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
 "#,
     );
 }
@@ -117,18 +117,18 @@ const flags: Flags = { a: true };
 
 === checked ===
 type Flags = Record<"a" | "b", boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=types.object.Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
-/// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=types.object.Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
+/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
+/// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
 /// @resolution.name source=Record target=types.object.Record
 
 const flags: Flags = { a: true };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ a: boolean; b: boolean }
 /// @resolution.name source=Flags target=Flags
 
-/// @generic.instance id="types.object.Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
+/// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property 'b' for type '{ a: boolean; b: boolean }'"
+/// @diagnostic.error code=EC215 message="missing required property 'b' for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true }" line_source="const flags: Flags = { a: true };"
 "#,
     );
@@ -155,18 +155,18 @@ const flags: Flags = { 1: "one" };
 
 === checked ===
 type Flags = Record<1 | 2, string>;
-/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type=types.object.Record<1 | 2, string> reduced={ 1: string; 2: string }
-/// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value=types.object.Record<1 | 2, string> reduced={ 1: string; 2: string }
+/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type=Record<1 | 2, string> reduced={ 1: string; 2: string }
+/// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value=Record<1 | 2, string> reduced={ 1: string; 2: string }
 /// @resolution.name source=Record target=types.object.Record
 
 const flags: Flags = { 1: "one" };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ 1: string; 2: string }
 /// @resolution.name source=Flags target=Flags
 
-/// @generic.instance id="types.object.Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
+/// @generic.instance id="Record<1 | 2, string>" template=types.object.Record arguments=(1 | 2, string)
 "#,
         r#"
-/// @diagnostic.error code=EC215 message="missing required property '2' for type '{ 1: string; 2: string }'"
+/// @diagnostic.error code=EC215 message="missing required property '2' for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ 1: \"one\" }" line_source="const flags: Flags = { 1: \"one\" };"
 "#,
     );
@@ -193,18 +193,18 @@ const flags: Flags = { a: true, b: false, c: true };
 
 === checked ===
 type Flags = Record<"a" | "b", boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=types.object.Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
-/// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=types.object.Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
+/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
+/// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=Record<"a" | "b", boolean> reduced={ a: boolean; b: boolean }
 /// @resolution.name source=Record target=types.object.Record
 
 const flags: Flags = { a: true, b: false, c: true };
 /// @type.symbol symbol=flags source=flags type=Flags reduced={ a: boolean; b: boolean }
 /// @resolution.name source=Flags target=Flags
 
-/// @generic.instance id="types.object.Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
+/// @generic.instance id="Record<\"a\" | \"b\", boolean>" template=types.object.Record arguments=("a" | "b", boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'c' in object literal for type '{ a: boolean; b: boolean }'"
+/// @diagnostic.error code=EC205 message="unknown property 'c' in object literal for type 'Flags'"
 /// @diagnostic.label line=4 column=22 span="{ a: true, b: false, c: true }" line_source="const flags: Flags = { a: true, b: false, c: true };"
 "#,
     );
@@ -227,14 +227,14 @@ type Bad = Record<{ name: string }, boolean>;
 
 === checked ===
 type Bad = Record<{ name: string }, boolean>;
-/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=types.object.Record<{ name: string }, boolean> reduced=<error>
-/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=types.object.Record<{ name: string }, boolean> reduced=<error>
+/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=Record<{ name: string }, boolean> reduced=<error>
+/// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=Record<{ name: string }, boolean> reduced=<error>
 /// @resolution.name source=Record target=types.object.Record
 
-/// @generic.instance id="types.object.Record<{ name: string }, boolean>" template=types.object.Record arguments=({ name: string }, boolean)
+/// @generic.instance id="Record<{ name: string }, boolean>" template=types.object.Record arguments=({ name: string }, boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC201 message="type '{ name: string }' does not satisfy 'types.object.PropertyKey'"
+/// @diagnostic.error code=EC201 message="type '{ name: string }' does not satisfy 'PropertyKey'"
 /// @diagnostic.label line=2 column=12 span="Record" line_source="type Bad = Record<{ name: string }, boolean>;"
 "#,
     );
@@ -272,8 +272,8 @@ declare const key: unique symbol;
 /// @type.symbol symbol=key source=key type=unique symbol
 
 type Flags = Record<typeof key, boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<typeof key, boolean>" type=types.object.Record<typeof key, boolean> reduced={ [key]: boolean }
-/// @definition.type symbol=Flags source="type Flags = Record<typeof key, boolean>" value=types.object.Record<typeof key, boolean> reduced={ [key]: boolean }
+/// @type.symbol symbol=Flags source="type Flags = Record<typeof key, boolean>" type=Record<typeof key, boolean> reduced={ [key]: boolean }
+/// @definition.type symbol=Flags source="type Flags = Record<typeof key, boolean>" value=Record<typeof key, boolean> reduced={ [key]: boolean }
 /// @resolution.name source=Record target=types.object.Record
 /// @resolution.name source=key target=key
 
@@ -287,7 +287,7 @@ flags[key] satisfies boolean;
 /// @resolution.member source=flags[key] receiver={ [key]: boolean } kind=field key=key
 /// @resolution.name source=key target=key
 
-/// @generic.instance id="types.object.Record<typeof key, boolean>" template=types.object.Record arguments=(typeof key, boolean)
+/// @generic.instance id="Record<typeof key, boolean>" template=types.object.Record arguments=(typeof key, boolean)
 "#,
     );
 }
@@ -312,36 +312,36 @@ const value = read(point);
 === annotated ===
 type Bag = Record<string, int32>;
 
-declare function read<T0: Bag>(bag: T0): int32 | undefined;
+declare function read(bag: Bag): int32 | undefined;
 
 const point: { x: int32 } = { x: 1 };
-const value = read(point);
+const value: int32 | undefined = read(point);
 
 === checked ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=types.object.Record<string, int32> reduced={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=types.object.Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare function read(bag: Bag): int32 | undefined;
-/// @generic.template symbol=read parameters=(T0: Bag)
-/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=<read.T0: Bag>(read.T0) => int32 | undefined reduced=<read.T0: Bag>(read.T0) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=read.T0
+/// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
+/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag reduced={ [P: string]: int32 }
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
 /// @type.symbol symbol=point source=point type={ x: int32 }
 
 const value = read(point);
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.name source=read target=read
+/// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
 
-/// @generic.instance id="types.object.Record<string, int32>" template=types.object.Record arguments=(string, int32)
+/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
         r#"
 /// @diagnostic.error code=EC216 message="type '{ x: int32 }' is missing IndexSet<string> with input 'int32' for writable index signature"
-/// @diagnostic.label line=7 column=15 span="read(point)" line_source="const value = read(point);"
+/// @diagnostic.label line=7 column=20 span="point" line_source="const value = read(point);"
 "#,
     );
 }
@@ -371,8 +371,8 @@ bag["missing"] satisfies int32 | undefined;
 
 === checked ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=types.object.Record<string, int32> reduced={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=types.object.Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare const bag: Bag;
@@ -383,7 +383,7 @@ bag["missing"] satisfies int32 | undefined;
 /// @resolution.name source=bag target=bag
 /// @resolution.member source="bag[\"missing\"]" receiver={ [P: string]: int32 } kind=index key=string
 
-/// @generic.instance id="types.object.Record<string, int32>" template=types.object.Record arguments=(string, int32)
+/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
     );
 }
@@ -417,12 +417,12 @@ value satisfies int32 | undefined;
 
 === checked ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=types.object.Record<string, int32> reduced={ [P: string]: int32 }
-/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=types.object.Record<string, int32> reduced={ [P: string]: int32 }
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32> reduced={ [P: string]: int32 }
+/// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32> reduced={ [P: string]: int32 }
 /// @resolution.name source=Record target=types.object.Record
 
 declare const map: Map<string, int32>;
-/// @type.symbol symbol=map source=map type=collections.map.Map<string, int32>
+/// @type.symbol symbol=map source=map type=Map<string, int32>
 /// @resolution.name source=Map target=collections.map.Map
 
 const bag: Bag = map;
@@ -438,8 +438,8 @@ const value = bag["missing"];
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
 
-/// @generic.instance id="collections.map.Map<string, int32>" template=collections.map.Map arguments=(string, int32)
-/// @generic.instance id="types.object.Record<string, int32>" template=types.object.Record arguments=(string, int32)
+/// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
+/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
 "#,
     );
 }
@@ -467,8 +467,8 @@ empty satisfies Empty;
 
 === checked ===
 type Empty = Record<never, boolean>;
-/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type=types.object.Record<never, boolean> reduced={}
-/// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value=types.object.Record<never, boolean> reduced={}
+/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type=Record<never, boolean> reduced={}
+/// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value=Record<never, boolean> reduced={}
 /// @resolution.name source=Record target=types.object.Record
 
 const empty: Empty = {};
@@ -479,7 +479,7 @@ empty satisfies Empty;
 /// @resolution.name source=empty target=empty
 /// @resolution.name source=Empty target=Empty
 
-/// @generic.instance id="types.object.Record<never, boolean>" template=types.object.Record arguments=(never, boolean)
+/// @generic.instance id="Record<never, boolean>" template=types.object.Record arguments=(never, boolean)
 "#,
     );
 }
@@ -505,18 +505,18 @@ const empty: Empty = { value: true };
 
 === checked ===
 type Empty = Record<never, boolean>;
-/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type=types.object.Record<never, boolean> reduced={}
-/// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value=types.object.Record<never, boolean> reduced={}
+/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type=Record<never, boolean> reduced={}
+/// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value=Record<never, boolean> reduced={}
 /// @resolution.name source=Record target=types.object.Record
 
 const empty: Empty = { value: true };
 /// @type.symbol symbol=empty source=empty type=Empty reduced={}
 /// @resolution.name source=Empty target=Empty
 
-/// @generic.instance id="types.object.Record<never, boolean>" template=types.object.Record arguments=(never, boolean)
+/// @generic.instance id="Record<never, boolean>" template=types.object.Record arguments=(never, boolean)
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'value' in object literal for type '{}'"
+/// @diagnostic.error code=EC205 message="unknown property 'value' in object literal for type 'Empty'"
 /// @diagnostic.label line=4 column=22 span="{ value: true }" line_source="const empty: Empty = { value: true };"
 "#,
     );

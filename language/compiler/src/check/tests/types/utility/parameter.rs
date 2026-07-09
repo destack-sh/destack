@@ -23,8 +23,8 @@ ok satisfies (string, number);
 
 === checked ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=types.function.Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=types.function.Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
 /// @resolution.name source=Parameters target=types.function.Parameters
 
 const ok: Args = ("Ada", 1);
@@ -34,7 +34,7 @@ const ok: Args = ("Ada", 1);
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
 
-/// @generic.instance id="types.function.Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
+/// @generic.instance id="Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
 "#,
     );
 }
@@ -58,23 +58,23 @@ const full: Args = ("Ada", 1);
 type Args = Parameters<(name: string, count?: number) => boolean>;
 
 const short: Args = ("Ada",);
-const full: Args = ("Ada", 1);
+const full: Args = ("Ada", 1 as float64 | undefined);
 
 === checked ===
 type Args = Parameters<(name: string, count?: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=types.function.Parameters<Function<(string, float64), boolean>> reduced=(string, float64?)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=types.function.Parameters<Function<(string, float64), boolean>> reduced=(string, float64?)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=Parameters<Function<(string, float64 | undefined), boolean>> reduced=(string, float64 | undefined?)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=Parameters<Function<(string, float64 | undefined), boolean>> reduced=(string, float64 | undefined?)
 /// @resolution.name source=Parameters target=types.function.Parameters
 
 const short: Args = ("Ada",);
-/// @type.symbol symbol=short source=short type=Args reduced=(string, float64?)
+/// @type.symbol symbol=short source=short type=Args reduced=(string, float64 | undefined?)
 /// @resolution.name source=Args target=Args
 
 const full: Args = ("Ada", 1);
-/// @type.symbol symbol=full source=full type=Args reduced=(string, float64?)
+/// @type.symbol symbol=full source=full type=Args reduced=(string, float64 | undefined?)
 /// @resolution.name source=Args target=Args
 
-/// @generic.instance id="types.function.Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
+/// @generic.instance id="Parameters<Function<(string, float64 | undefined), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64 | undefined), boolean>)
 "#,
     );
 }
@@ -100,15 +100,15 @@ const ok: Args = ("Ada", true, false);
 
 === checked ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=types.function.Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=types.function.Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=Parameters<Function<(string, ...boolean[]), void>> reduced=(string, ...boolean[])
 /// @resolution.name source=Parameters target=types.function.Parameters
 
 const ok: Args = ("Ada", true, false);
 /// @type.symbol symbol=ok source=ok type=Args reduced=(string, ...boolean[])
 /// @resolution.name source=Args target=Args
 
-/// @generic.instance id="types.function.Parameters<Function<(string, ...boolean[]), void>>" template=types.function.Parameters arguments=(Function<(string, ...boolean[]), void>)
+/// @generic.instance id="Parameters<Function<(string, ...boolean[]), void>>" template=types.function.Parameters arguments=(Function<(string, ...boolean[]), void>)
 "#,
     );
 }
@@ -134,15 +134,15 @@ const bad: Args = ("Ada", "one");
 
 === checked ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=types.function.Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=types.function.Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>> reduced=(string, float64)
 /// @resolution.name source=Parameters target=types.function.Parameters
 
 const bad: Args = ("Ada", "one");
 /// @type.symbol symbol=bad source=bad type=Args reduced=(string, float64)
 /// @resolution.name source=Args target=Args
 
-/// @generic.instance id="types.function.Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
+/// @generic.instance id="Parameters<Function<(string, float64), boolean>>" template=types.function.Parameters arguments=(Function<(string, float64), boolean>)
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"one\"' is not assignable to type 'float64'"

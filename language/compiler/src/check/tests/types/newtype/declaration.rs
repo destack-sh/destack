@@ -5,13 +5,13 @@ fn test_newtype_over_interface_requires_explicit_implements() {
     let session = TestSession::single(
         r#"
 interface Writer {
-    write(bytes: readonly uint8[]): uint;
+    write(bytes: readonly uint8[]): usize;
 }
 
 newtype NamedWriter = Writer;
 
 struct Buffer {
-    write(bytes: readonly uint8[]): uint {
+    write(bytes: readonly uint8[]): usize {
         bytes.length
     }
 }
@@ -26,13 +26,13 @@ const writer: NamedWriter = Buffer {};
         r#"
 === annotated ===
 interface Writer {
-    write(bytes: readonly uint8[]): uint;
+    write(bytes: readonly uint8[]): usize;
 }
 
 newtype NamedWriter = Writer;
 
 struct Buffer {
-    write(bytes: readonly uint8[]): uint {
+    write(bytes: readonly uint8[]): usize {
         bytes.length
     }
 }
@@ -43,11 +43,11 @@ const writer: NamedWriter = Buffer {};
 interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" key=write type=(readonly uint8[]) => uint
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: Writer, readonly Array<uint8>) => usize
 
-    write(bytes: readonly uint8[]): uint;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(readonly uint8[]) => uint
-    /// @type.symbol symbol=bytes type=readonly uint8[]
+    write(bytes: readonly uint8[]): usize;
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: Writer, readonly Array<uint8>) => usize
+    /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
 
 }
 
@@ -59,16 +59,15 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=(this: Buffer, readonly uint8[]) => uint
+/// @definition.method symbol=Buffer.write slot=write type=(this: Buffer, readonly Array<uint8>) => usize
 
-    write(bytes: readonly uint8[]): uint {
-    /// @type.symbol symbol=Buffer.write type=(this: Buffer, readonly uint8[]) => uint
-    /// @type.symbol symbol=bytes type=readonly uint8[]
+    write(bytes: readonly uint8[]): usize {
+    /// @type.symbol symbol=Buffer.write type=(this: Buffer, readonly Array<uint8>) => usize
+    /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly Array<uint8>
 
         bytes.length
-        /// @type.node source=bytes.length type=usize
-        /// @resolution.name source=bytes target=bytes
-        /// @resolution.member source=bytes.length receiver=readonly uint8[] kind=builtin builtin=length
+        /// @resolution.name source=bytes target=Buffer.write.bytes
+        /// @resolution.member source=bytes.length receiver=readonly Array<uint8> kind=symbol target=collections.array.length#2
 
     }
 }
@@ -80,7 +79,7 @@ const writer: NamedWriter = Buffer {};
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'Buffer' is not assignable to type 'NamedWriter'"
-/// @diagnostic.label line=14 column=29 source="const writer: NamedWriter = Buffer {};"
+/// @diagnostic.label line=14 column=29 span="Buffer {}" line_source="const writer: NamedWriter = Buffer {};"
 "#,
     );
 }

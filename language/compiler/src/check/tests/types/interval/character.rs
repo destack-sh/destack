@@ -27,18 +27,16 @@ type LowerAscii = 'a'..='z';
 /// @definition.type symbol=LowerAscii source="type LowerAscii = 'a'..='z'" value='a'..='z'
 
 const letter: LowerAscii = 'm';
-/// @type.symbol symbol=letter source=letter type='a'..='z'
+/// @type.symbol symbol=letter source=letter type=LowerAscii reduced='a'..='z'
 /// @resolution.name source=LowerAscii target=LowerAscii
-/// @type.node source="'m'" type='m'
 
 const bad: LowerAscii = 'A';
-/// @type.symbol symbol=bad source=bad type='a'..='z'
+/// @type.symbol symbol=bad source=bad type=LowerAscii reduced='a'..='z'
 /// @resolution.name source=LowerAscii target=LowerAscii
-/// @type.node source="'A'" type='A'
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type ''A'' is not assignable to type 'LowerAscii'"
-/// @diagnostic.label line=5 column=7 source="const bad: LowerAscii = 'A';"
+/// @diagnostic.label line=5 column=25 span="'A'" line_source="const bad: LowerAscii = 'A';"
 "#,
     );
 }

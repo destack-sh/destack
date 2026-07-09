@@ -31,8 +31,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=7 constraints=2 obligations=0 solutions=0 bounds=0 decisions=1
-
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Person'"
@@ -79,7 +78,7 @@ const value: Person = source;
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
 
-/// @check.stats.solve variables=0 types=9 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -130,7 +129,7 @@ function keep<T: { name: string }>(value: T): T {
 const value = keep({ name: "Ada", extra: true });
 /// @type.symbol symbol=value source=value type={ name: string; extra: boolean }
 /// @type.node source="keep({ name: \"Ada\", extra: true })" type={ name: string; extra: boolean }
-/// @type.node source=keep type=<T: { name: string }>(T) => T
+/// @type.node source=keep type=({ name: string; extra: boolean }) => { name: string; extra: boolean }
 /// @resolution.name source=keep target=keep
 /// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) arguments=(provided({ name: "Ada", extra: true }) as { name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
 /// @generic.instance source="keep({ name: \"Ada\", extra: true })" id="keep<{ name: string; extra: boolean }>"
