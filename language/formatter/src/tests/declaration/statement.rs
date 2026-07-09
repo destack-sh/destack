@@ -167,6 +167,32 @@ const visit = () => {
     );
 }
 
+/// Preserve comments owned by semicolonless control and value expressions.
+#[test]
+fn test_format_semicolonless_statement_comments() {
+    assert_format_program!(
+        r#"function value(): Status {
+  if (ready) {
+    primary
+  } else {
+    secondary
+  } // conditional
+  fallback // tail
+}
+"#,
+        r#"function value(): Status {
+    if (ready) {
+        primary
+    } else {
+        secondary
+    } // conditional
+    fallback // tail
+}
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Void function bodies should keep terminal expressions statement-position.
 #[test]
 fn test_format_void_function_body_inserts_terminal_semicolon() {

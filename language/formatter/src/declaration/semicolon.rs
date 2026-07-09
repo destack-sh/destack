@@ -13,8 +13,8 @@ use crate::file::node_has_trailing_ignore_directive;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_source::Span;
 
-/// Return same-line trailing comments that follow one statement terminator anchor.
-fn statement_terminator_comments_after(
+/// Return trailing comments that follow one statement anchor.
+fn statement_trailing_comments_after(
     context: &DestackFormatContext<'_>,
     mut anchor_end: u32,
 ) -> Vec<Comment> {
@@ -57,14 +57,19 @@ fn statement_terminator_comments_after(
 }
 
 /// Return trailing statement comments with one explicit following sibling start.
-fn statement_terminator_comments_between(
+fn statement_trailing_comments_between(
     context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
     anchor_end: u32,
     following_span_start: u32,
-    allow_own_line_comments: bool,
 ) -> Vec<Comment> {
     let comments = context.comments();
     let comments_before_following = comments.comments_before(following_span_start);
+    let allow_own_line_comments = variable_statement_owns_comments_before_semicolon(
+        context,
+        expression_id,
+        following_span_start,
+    );
     let mut cursor = anchor_end;
     let mut collected = Vec::new();
 
@@ -109,7 +114,7 @@ fn statement_terminator_comments_between(
 }
 
 /// Return whether one variable declaration owns comments before its source semicolon.
-fn variable_statement_has_delayed_semicolon_comments(
+fn variable_statement_owns_comments_before_semicolon(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     following_span_start: u32,
@@ -144,12 +149,12 @@ pub(crate) fn write_statement_terminator_after_anchor<'ast>(
 ) -> FormatResult<()> {
     write!(f, [token(";")])?;
 
-    let comments = statement_terminator_comments_after(f.context(), anchor_end);
+    let comments = statement_trailing_comments_after(f.context(), anchor_end);
     if comments.is_empty() {
         return Ok(());
     }
 
-    write_statement_terminator_comments(f, anchor_end, &comments, false)
+    write_statement_trailing_comments(f, anchor_end, &comments, false)
 }
 
 /// Write one statement terminator with one explicit following sibling start.
@@ -161,26 +166,21 @@ pub(crate) fn write_statement_terminator_with_following_start<'ast>(
 ) -> FormatResult<()> {
     write!(f, [token(";")])?;
 
-    let allow_own_line_comments = variable_statement_has_delayed_semicolon_comments(
+    let comments = statement_trailing_comments_between(
         f.context(),
         expression_id,
-        following_span_start,
-    );
-    let comments = statement_terminator_comments_between(
-        f.context(),
         anchor_end,
         following_span_start,
-        allow_own_line_comments,
     );
     if comments.is_empty() {
         return Ok(());
     }
 
-    write_statement_terminator_comments(f, anchor_end, &comments, true)
+    write_statement_trailing_comments(f, anchor_end, &comments, true)
 }
 
-/// Write statement separator comments after one statement terminator.
-fn write_statement_terminator_comments<'ast>(
+/// Write trailing comments owned by one statement.
+fn write_statement_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     anchor_end: u32,
     comments: &[Comment],
@@ -198,8 +198,7 @@ fn write_statement_terminator_comments<'ast>(
             first_comment_span.start,
         ));
 
-    // statement-separator own-line comments should stay in the statement flow,
-    // not in the generic trailing line-suffix path
+    // keep own line comments in the statement flow
     if comment_is_on_own_line {
         let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
             for (index, comment) in comments.iter().copied().enumerate() {
@@ -220,11 +219,11 @@ fn write_statement_terminator_comments<'ast>(
         return write!(f, [hard_line_break(), content]);
     }
 
-    write_inline_statement_terminator_comments(f, comments)
+    write_inline_statement_trailing_comments(f, comments)
 }
 
-/// Write same-line statement terminator comments.
-fn write_inline_statement_terminator_comments<'ast>(
+/// Write same-line trailing statement comments.
+fn write_inline_statement_trailing_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
@@ -281,6 +280,37 @@ fn write_inline_statement_terminator_comments<'ast>(
     }
 
     Ok(())
+}
+
+/// Write trailing comments owned by a statement without a semicolon.
+pub(crate) fn write_semicolonless_statement_comments<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+    following_span_start: Option<u32>,
+) -> FormatResult<()> {
+    let anchor_end = statement_trailing_comment_anchor_end(f.context(), expression_id);
+
+    // collect comments up to the following statement
+    let (comments, is_own_line_indented) = if let Some(following_span_start) = following_span_start
+    {
+        let comments = statement_trailing_comments_between(
+            f.context(),
+            expression_id,
+            anchor_end,
+            following_span_start,
+        );
+
+        (comments, true)
+    }
+    // collect comments through the end of the file
+    else {
+        (
+            statement_trailing_comments_after(f.context(), anchor_end),
+            false,
+        )
+    };
+
+    write_statement_trailing_comments(f, anchor_end, &comments, is_own_line_indented)
 }
 
 /// Return whether one export expression still needs the outer statement terminator.
