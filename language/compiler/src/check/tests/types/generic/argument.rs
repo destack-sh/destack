@@ -24,15 +24,17 @@ type Clone<T> = { [K in keyof T]: T[K] };
 /// @definition.type symbol=Clone source="type Clone<T> = { [K in keyof T]: T[K] }" template=(T) value={ [K in keyof T]: T[K] }
 /// @type.symbol symbol=Clone.T source=T type=T
 /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
-/// @type.symbol symbol=K source=[K in keyof T] type=K
+/// @type.symbol symbol=Clone.K source=[K in keyof T] type=K
 /// @resolution.name source=T target=Clone.T
 /// @resolution.name source=T target=Clone.T
-/// @resolution.name source=K target=K
+/// @resolution.name source=K target=Clone.K
 
 type Actual = Clone<{ readonly name: string; age?: int32 }>;
-/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type={ readonly name: string; age?: int32 }
-/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value={ readonly name: string; age?: int32 }
+/// @type.symbol symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" type=Clone<{ readonly name: string; age?: int32 }> reduced={ readonly name: string; age?: int32 }
+/// @definition.type symbol=Actual source="type Actual = Clone<{ readonly name: string; age?: int32 }>" value=Clone<{ readonly name: string; age?: int32 }> reduced={ readonly name: string; age?: int32 }
 /// @resolution.name source=Clone target=Clone
+
+/// @generic.instance id="Clone<{ readonly name: string; age?: int32 }>" template=Clone arguments=({ readonly name: string; age?: int32 })
 "#,
     );
 }
@@ -62,17 +64,20 @@ declare const bytes: Bytes;
 type Slots<comptime N: usize> = [uint8; N];
 /// @generic.template symbol=Slots parameters=(comptime N: usize)
 /// @type.symbol symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" type=FixedArray<uint8, N>
-/// @definition.type symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" template=LocalGenericTemplateId(0) value=FixedArray<uint8, N>
-/// @type.symbol symbol=Slots.N source="comptime N: usize" type=usize
+/// @definition.type symbol=Slots source="type Slots<comptime N: usize> = [uint8; N]" template=(comptime N: usize) value=FixedArray<uint8, N>
+/// @type.symbol symbol=Slots.N source="comptime N: usize" type=N
+/// @resolution.name source=N target=Slots.N
 
 type Bytes = Slots<16>;
-/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=FixedArray<uint8, 16>
-/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=FixedArray<uint8, 16>
+/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=Slots<16> reduced=FixedArray<uint8, 16>
+/// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=Slots<16> reduced=FixedArray<uint8, 16>
 /// @resolution.name source=Slots target=Slots
 
 declare const bytes: Bytes;
-/// @type.symbol symbol=bytes source=bytes type=Bytes
+/// @type.symbol symbol=bytes source=bytes type=Bytes reduced=FixedArray<uint8, 16>
 /// @resolution.name source=Bytes target=Bytes
+
+/// @generic.instance id=Slots<16> template=Slots arguments=(16)
 "#,
     );
 }
@@ -96,7 +101,7 @@ function print(value: Printable): string {
 === annotated ===
 type Printable = { print(): string };
 
-function print<T0: Printable>(value: T0): string {
+function print(value: Printable): string {
     return value.print();
 }
 
@@ -106,17 +111,16 @@ type Printable = { print(): string };
 /// @definition.type symbol=Printable source="type Printable = { print(): string }" value={ print(): string }
 
 function print(value: Printable): string {
-/// @generic.template symbol=print parameters=(T0: Printable origin=induced.parameter_constraint)
-/// @type.symbol symbol=print type=<print.T0: Printable>(print.T0) => string
-/// @type.symbol symbol=value source="value: Printable" type=print.T0
+/// @type.symbol symbol=print type=(Printable) => string
+/// @type.symbol symbol=print.value source="value: Printable" type=Printable reduced={ print(): string }
 /// @resolution.name source=Printable target=Printable
 
     return value.print();
-    /// @type.node source=value type=print.T0
+    /// @type.node source=value type=Printable reduced={ print(): string }
     /// @type.node source=value.print type=() => string
     /// @type.node source=value.print() type=string
-    /// @resolution.name source=value target=value
-    /// @resolution.member source=value.print receiver=print.T0 kind=field key=print
+    /// @resolution.name source=value target=print.value
+    /// @resolution.member source=value.print receiver={ print(): string } kind=field key=print
     /// @resolution.call source=value.print() parameters=() return=string kind=expression
 
 }
@@ -162,7 +166,7 @@ struct Rectangle {
 }
 
 function makeCircle(): Shape {
-    return Circle { radius: 1.0 };
+    return Circle { radius: 1.0 } as Shape;
 }
 
 === checked ===
@@ -185,8 +189,8 @@ struct Circle {
 struct Rectangle {
 /// @type.symbol symbol=Rectangle type=Rectangle
 /// @definition.struct symbol=Rectangle
-/// @definition.field symbol=Rectangle.width source="width: float64" key=width type=float64
 /// @definition.field symbol=Rectangle.height source="height: float64" key=height type=float64
+/// @definition.field symbol=Rectangle.width source="width: float64" key=width type=float64
 
     width: float64;
     /// @type.symbol symbol=Rectangle.width source="width: float64" type=float64
@@ -202,7 +206,6 @@ function makeCircle(): Shape {
 
     return Circle { radius: 1.0 };
     /// @resolution.name source=Circle target=Circle
-    /// @type.node source=1.0 type=float64
 
 }
 "#,

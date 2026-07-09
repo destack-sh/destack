@@ -95,7 +95,6 @@ struct Vector {
 }
 
 extension of Vector implements Add<Vector> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Vector
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=ops.plus.Add arguments=(Vector)
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
@@ -224,7 +223,6 @@ struct Score {
 }
 
 extension of Score implements Add<Score> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
@@ -327,7 +325,6 @@ struct Score {
 }
 
 extension of Score implements Add {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add target=ops.plus.Add arguments=(this)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score

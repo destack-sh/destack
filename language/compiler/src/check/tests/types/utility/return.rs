@@ -23,16 +23,18 @@ ok satisfies string;
 
 === checked ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>> reduced=string
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>> reduced=string
 /// @resolution.name source=ReturnType target=types.function.ReturnType
 
 const ok: Value = "ready";
-/// @type.symbol symbol=ok source=ok type=string
+/// @type.symbol symbol=ok source=ok type=Value reduced=string
 /// @resolution.name source=Value target=Value
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
+
+/// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
 "#,
     );
 }
@@ -60,17 +62,19 @@ const second: Value = "b" as Value;
 
 === checked ===
 type Value = ReturnType<() => "a" | "b">;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type="a" | "b"
-/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value="a" | "b"
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type=ReturnType<Function<(), "a" | "b">> reduced="a" | "b"
+/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value=ReturnType<Function<(), "a" | "b">> reduced="a" | "b"
 /// @resolution.name source=ReturnType target=types.function.ReturnType
 
 const first: Value = "a";
-/// @type.symbol symbol=first source=first type="a" | "b"
+/// @type.symbol symbol=first source=first type=Value reduced="a" | "b"
 /// @resolution.name source=Value target=Value
 
 const second: Value = "b";
-/// @type.symbol symbol=second source=second type="a" | "b"
+/// @type.symbol symbol=second source=second type=Value reduced="a" | "b"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="ReturnType<Function<(), \"a\" | \"b\">>" template=types.function.ReturnType arguments=(Function<(), "a" | "b">)
 "#,
     );
 }
@@ -96,17 +100,19 @@ const bad: Value = 1;
 
 === checked ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=string
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>> reduced=string
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>> reduced=string
 /// @resolution.name source=ReturnType target=types.function.ReturnType
 
 const bad: Value = 1;
-/// @type.symbol symbol=bad source=bad type=string
+/// @type.symbol symbol=bad source=bad type=Value reduced=string
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="ReturnType<Function<(), string>>" template=types.function.ReturnType arguments=(Function<(), string>)
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '1' is not assignable to type 'Value'"
-/// @diagnostic.label line=4 column=7 source="const bad: Value = 1;"
+/// @diagnostic.label line=4 column=20 span="1" line_source="const bad: Value = 1;"
 "#,
     );
 }

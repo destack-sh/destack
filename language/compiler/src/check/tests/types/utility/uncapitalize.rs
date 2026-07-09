@@ -21,13 +21,15 @@ const ok: Value = "hello";
 
 === checked ===
 type Value = Uncapitalize<"Hello">;
-/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type="hello"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value="hello"
+/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type=Uncapitalize<"Hello"> reduced="hello"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value=Uncapitalize<"Hello"> reduced="hello"
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 const ok: Value = "hello";
-/// @type.symbol symbol=ok source=ok type=Value
+/// @type.symbol symbol=ok source=ok type=Value reduced="hello"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="Uncapitalize<\"Hello\">" template=types.string.Uncapitalize arguments=("Hello")
 "#,
     );
 }
@@ -57,16 +59,18 @@ value satisfies "yes" | "no";
 
 === checked ===
 type Value = Uncapitalize<"Yes" | "No">;
-/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" type="yes" | "no"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" value="yes" | "no"
+/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" type=Uncapitalize<"Yes" | "No"> reduced="yes" | "no"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Yes\" | \"No\">" value=Uncapitalize<"Yes" | "No"> reduced="yes" | "no"
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value
+/// @type.symbol symbol=value source=value type=Value reduced="yes" | "no"
 /// @resolution.name source=Value target=Value
 
 value satisfies "yes" | "no";
 /// @resolution.name source=value target=value
+
+/// @generic.instance id="Uncapitalize<\"Yes\" | \"No\">" template=types.string.Uncapitalize arguments=("Yes" | "No")
 "#,
     );
 }
@@ -92,13 +96,15 @@ const bad: Value = "Hello";
 
 === checked ===
 type Value = Uncapitalize<"Hello">;
-/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type="hello"
-/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value="hello"
+/// @type.symbol symbol=Value source="type Value = Uncapitalize<\"Hello\">" type=Uncapitalize<"Hello"> reduced="hello"
+/// @definition.type symbol=Value source="type Value = Uncapitalize<\"Hello\">" value=Uncapitalize<"Hello"> reduced="hello"
 /// @resolution.name source=Uncapitalize target=types.string.Uncapitalize
 
 const bad: Value = "Hello";
-/// @type.symbol symbol=bad source=bad type=Value
+/// @type.symbol symbol=bad source=bad type=Value reduced="hello"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="Uncapitalize<\"Hello\">" template=types.string.Uncapitalize arguments=("Hello")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"Hello\"' is not assignable to type 'Value'"

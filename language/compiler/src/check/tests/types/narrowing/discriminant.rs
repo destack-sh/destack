@@ -368,7 +368,7 @@ function read(state: State, next: State): int32 {
 }
 "#,
         r#"
-/// @diagnostic.error code=EC300 message="member 'reactions' does not exist on type 'Pending | Fulfilled'"
+/// @diagnostic.error code=EC300 message="member 'reactions' does not exist on type 'State'"
 /// @diagnostic.label line=18 column=22 span="reactions" line_source="return state.reactions;"
 "#,
     );
@@ -598,8 +598,9 @@ class Cell<T> {
 
             this.consume(this.state.value);
             /// @resolution.member source=this.consume receiver=Cell<T#5> kind=symbol target=Cell.consume
-            /// @resolution.call source=this.consume(this.state.value) parameters=(T#5) arguments=(provided(this.state.value) as T#5) return=void kind=symbol target=Cell.consume receiver=Cell<T#5>
+            /// @resolution.call source=this.consume(this.state.value) parameters=(T#5) arguments=(provided(this.state.value) as T#5) return=void kind=symbol target=Cell.consume receiver=Cell<T#5> instance=Cell<T#5>.consume
             /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
+            /// @generic.instance source=this.consume(this.state.value) id=Cell<T#5>.consume
             /// @resolution.member source=this.state receiver=Cell<T#5> kind=symbol target=Cell.state
             /// @resolution.member source=this.state.value receiver=Fulfilled<T#5> kind=symbol target=Fulfilled.value
             /// @resolution.receiver source=this kind=this declaration=Cell type=Cell<T#5>
@@ -642,6 +643,7 @@ class Cell<T> {
 }
 
 /// @generic.instance id=Cell<T#5> template=Cell arguments=(T#5)
+/// @generic.instance id=Cell<T#5>.consume template=Cell.consume arguments=(T#5)
 /// @generic.instance id=Fulfilled<T#4> template=Fulfilled arguments=(T#4)
 /// @generic.instance id=Pending<T#4> template=Pending arguments=(T#4)
 /// @generic.instance id=Pending<T#5> template=Pending arguments=(T#5)

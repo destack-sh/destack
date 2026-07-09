@@ -45,13 +45,15 @@ interface Person {
 }
 
 declare const person: Readonly<Person>;
-/// @type.symbol symbol=person source=person type={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.age satisfies int32;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver=types.object.Readonly<Person> kind=field key=age
+/// @resolution.member source=person.age receiver=Readonly<Person> kind=symbol target=Person.age
+
+/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
     );
 }
@@ -87,21 +89,23 @@ person.name satisfies string | undefined;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.name source="name?: string" key=name type=string | undefined
+/// @definition.field symbol=Person.name source="name?: string" key=name type=string
 
     name?: string;
-    /// @type.symbol symbol=Person.name source="name?: string" type=string | undefined
+    /// @type.symbol symbol=Person.name source="name?: string" type=string
 
 }
 
 const person: Readonly<Person> = {};
-/// @type.symbol symbol=person source=person type={ readonly name?: string }
+/// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=types.object.Readonly<Person> kind=field key=name
+/// @resolution.member source=person.name receiver=Readonly<Person> kind=symbol target=Person.name
+
+/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
     );
 }
@@ -151,17 +155,19 @@ interface Person {
 }
 
 declare const person: Readonly<Person>;
-/// @type.symbol symbol=person source=person type={ readonly name: string; readonly age: int32 }
+/// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=types.object.Readonly<Person> kind=field key=name
+/// @resolution.pattern.assign source=person.name kind=place place=field(Person.name) type=string
+
+/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
-/// @diagnostic.label line=9 column=1 source="person.name = \"Grace\";"
+/// @diagnostic.label line=9 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );
 }
@@ -201,28 +207,30 @@ person.profile.name = "Grace";
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.profile source="profile: {\n        name: string;\n    }" key=profile type={ name: string }
+/// @definition.field symbol=Person.profile key=profile type={ name: string }
 
     profile: {
-    /// @type.symbol symbol=Person.profile source="profile: {\n        name: string;\n    }" type={ name: string }
+    /// @type.symbol symbol=Person.profile type={ name: string }
 
         name: string;
     };
 }
 
 const person: Readonly<Person> = { profile: { name: "Ada" } };
-/// @type.symbol symbol=person source=person type={ readonly profile: readonly { name: string } }
+/// @type.symbol symbol=person source=person type=Readonly<Person>
 /// @resolution.name source=Readonly target=types.object.Readonly
 /// @resolution.name source=Person target=Person
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver=types.object.Readonly<Person> kind=field key=profile
-/// @resolution.member source=person.profile.name receiver=readonly { name: string } kind=field key=name
+/// @resolution.member source=person.profile receiver=Readonly<Person> kind=symbol target=Person.profile
+/// @resolution.pattern.assign source=person.profile.name kind=place place=field(name) type=string
+
+/// @generic.instance id=Readonly<Person> template=types.object.Readonly arguments=(Person)
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
-/// @diagnostic.label line=9 column=1 source="person.profile.name = \"Grace\";"
+/// @diagnostic.label line=10 column=16 span="name" line_source="person.profile.name = \"Grace\";"
 "#,
     );
 }

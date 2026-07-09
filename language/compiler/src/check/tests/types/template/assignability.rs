@@ -33,11 +33,11 @@ type Tight = `user-${string}-id`;
 /// @definition.type symbol=Tight source="type Tight = `user-${string}-id`" value=`user-${string}-id`
 
 declare const tight: Tight;
-/// @type.symbol symbol=tight source=tight type=`user-${string}-id`
+/// @type.symbol symbol=tight source=tight type=Tight reduced=`user-${string}-id`
 /// @resolution.name source=Tight target=Tight
 
 const loose: Loose = tight;
-/// @type.symbol symbol=loose source=loose type=`${string}-id`
+/// @type.symbol symbol=loose source=loose type=Loose reduced=`${string}-id`
 /// @resolution.name source=Loose target=Loose
 /// @resolution.name source=tight target=tight
 "#,
@@ -77,17 +77,17 @@ type Tight = `user-${string}-id`;
 /// @definition.type symbol=Tight source="type Tight = `user-${string}-id`" value=`user-${string}-id`
 
 declare const loose: Loose;
-/// @type.symbol symbol=loose source=loose type=`${string}-id`
+/// @type.symbol symbol=loose source=loose type=Loose reduced=`${string}-id`
 /// @resolution.name source=Loose target=Loose
 
 const tight: Tight = loose;
-/// @type.symbol symbol=tight source=tight type=`user-${string}-id`
+/// @type.symbol symbol=tight source=tight type=Tight reduced=`user-${string}-id`
 /// @resolution.name source=Tight target=Tight
 /// @resolution.name source=loose target=loose
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'Loose' is not assignable to type 'Tight'"
-/// @diagnostic.label line=6 column=7 source="const tight: Tight = loose;"
+/// @diagnostic.label line=6 column=22 span="loose" line_source="const tight: Tight = loose;"
 "#,
     );
 }
@@ -117,19 +117,19 @@ const id: StringId = numeric;
 
 === checked ===
 type NumericId = `id-${number}`;
-/// @type.symbol symbol=NumericId source="type NumericId = `id-${number}`" type=`id-${number}`
-/// @definition.type symbol=NumericId source="type NumericId = `id-${number}`" value=`id-${number}`
+/// @type.symbol symbol=NumericId source="type NumericId = `id-${number}`" type=`id-${float64}`
+/// @definition.type symbol=NumericId source="type NumericId = `id-${number}`" value=`id-${float64}`
 
 type StringId = `id-${string}`;
 /// @type.symbol symbol=StringId source="type StringId = `id-${string}`" type=`id-${string}`
 /// @definition.type symbol=StringId source="type StringId = `id-${string}`" value=`id-${string}`
 
 declare const numeric: NumericId;
-/// @type.symbol symbol=numeric source=numeric type=`id-${number}`
+/// @type.symbol symbol=numeric source=numeric type=NumericId reduced=`id-${float64}`
 /// @resolution.name source=NumericId target=NumericId
 
 const id: StringId = numeric;
-/// @type.symbol symbol=id source=id type=`id-${string}`
+/// @type.symbol symbol=id source=id type=StringId reduced=`id-${string}`
 /// @resolution.name source=StringId target=StringId
 /// @resolution.name source=numeric target=numeric
 "#,
@@ -161,25 +161,25 @@ const numeric: NumericId = id;
 
 === checked ===
 type NumericId = `id-${number}`;
-/// @type.symbol symbol=NumericId source="type NumericId = `id-${number}`" type=`id-${number}`
-/// @definition.type symbol=NumericId source="type NumericId = `id-${number}`" value=`id-${number}`
+/// @type.symbol symbol=NumericId source="type NumericId = `id-${number}`" type=`id-${float64}`
+/// @definition.type symbol=NumericId source="type NumericId = `id-${number}`" value=`id-${float64}`
 
 type StringId = `id-${string}`;
 /// @type.symbol symbol=StringId source="type StringId = `id-${string}`" type=`id-${string}`
 /// @definition.type symbol=StringId source="type StringId = `id-${string}`" value=`id-${string}`
 
 declare const id: StringId;
-/// @type.symbol symbol=id source=id type=`id-${string}`
+/// @type.symbol symbol=id source=id type=StringId reduced=`id-${string}`
 /// @resolution.name source=StringId target=StringId
 
 const numeric: NumericId = id;
-/// @type.symbol symbol=numeric source=numeric type=`id-${number}`
+/// @type.symbol symbol=numeric source=numeric type=NumericId reduced=`id-${float64}`
 /// @resolution.name source=NumericId target=NumericId
 /// @resolution.name source=id target=id
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'StringId' is not assignable to type 'NumericId'"
-/// @diagnostic.label line=6 column=7 source="const numeric: NumericId = id;"
+/// @diagnostic.label line=6 column=28 span="id" line_source="const numeric: NumericId = id;"
 "#,
     );
 }

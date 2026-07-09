@@ -59,7 +59,6 @@ struct Force {
 }
 
 extension of Force implements Multiply<float64> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
@@ -149,7 +148,6 @@ newtype Meters = float64;
 /// @definition.newtype symbol=Meters source="newtype Meters = float64" value=float64
 
 extension of Meters implements Multiply<Meters> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Meters
 /// @definition.implements symbol=<module>#2 source=Multiply<Meters> target=ops.multiply.Multiply arguments=(Meters)
 /// @definition.associated.type symbol=Output source="type Output = float64" key=Output value=float64

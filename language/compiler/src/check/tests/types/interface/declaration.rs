@@ -30,18 +30,18 @@ interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
 /// @definition.field symbol=Person.id source="readonly id: string" key=id type=string
-/// @definition.field symbol=Person.name source="name?: string" key=name type=string | undefined
+/// @definition.field symbol=Person.name source="name?: string" key=name type=string
 /// @definition.method symbol=Person.rename source="rename(value: string): void" slot=rename type=(this: Person, string) => void
 
     readonly id: string;
     /// @type.symbol symbol=Person.id source="readonly id: string" type=string
 
     name?: string;
-    /// @type.symbol symbol=Person.name source="name?: string" type=string | undefined
+    /// @type.symbol symbol=Person.name source="name?: string" type=string
 
     rename(value: string): void;
     /// @type.symbol symbol=Person.rename source="rename(value: string): void" type=(this: Person, string) => void
-    /// @type.symbol symbol=value source="value: string" type=string
+    /// @type.symbol symbol=Person.rename.value source="value: string" type=string
 
 }
 "#,
@@ -77,9 +77,8 @@ interface Serialize<S: Serializer> {
 
 === checked ===
 interface Serializer {
-/// @generic.template symbol=Serializer parameters=()
 /// @type.symbol symbol=Serializer type=Serializer
-/// @definition.interface symbol=Serializer template=()
+/// @definition.interface symbol=Serializer
 /// @definition.method symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" slot=serializeValue type=<T: Serialize<this>>(this: Serializer, T) => void
 
     serializeValue<T: Serialize<this>>(value: T): void;

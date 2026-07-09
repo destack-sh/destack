@@ -49,7 +49,8 @@ function paint(item: Drawable): void {
     /// @resolution.call source=item.draw() parameters=() return=void kind=symbol target=Drawable.draw receiver=Drawable adjustments=(dynamic)
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]

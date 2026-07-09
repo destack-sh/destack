@@ -28,20 +28,24 @@ channel satisfies `topic:${"orders"}`;
 === checked ===
 class Topic<T: string> {
 /// @generic.template symbol=Topic parameters=(T: string)
-/// @type.symbol symbol=Topic type=<T: string> Topic<T>
+/// @type.symbol symbol=Topic type=Topic
+/// @definition.class symbol=Topic template=(T: string)
+/// @definition.associated.type symbol=Topic.Channel source="type Channel = `topic:${T}`" key=Channel value=`topic:${T}`
+/// @type.symbol symbol=Topic.T source="T: string" type=T
 
     type Channel = `topic:${T}`;
-    /// @type.symbol symbol=Topic.Channel type=`topic:${T}`
+    /// @type.symbol symbol=Topic.Channel source="type Channel = `topic:${T}`" type=`topic:${T}`
     /// @resolution.name source=T target=Topic.T
+
 }
 
 declare const channel: Topic<"orders">.Channel;
-/// @type.symbol symbol=channel source=channel type=`topic:${"orders"}`
+/// @type.symbol symbol=channel source=channel type=Topic<"orders">.Channel reduced="topic:orders"
 /// @resolution.name source=Topic target=Topic
-/// @generic.instance source="Topic<\"orders\">" id="Topic<\"orders\">"
 
 channel satisfies `topic:${"orders"}`;
 /// @resolution.name source=channel target=channel
+
 /// @generic.instance id="Topic<\"orders\">" template=Topic arguments=("orders")
 "#,
     );
@@ -86,34 +90,49 @@ handlers["on-message"] satisfies string;
 
 === checked ===
 interface EventShape<T> {
-/// @generic.template symbol=EventShape parameters=(T)
-/// @type.symbol symbol=EventShape type=<T> EventShape<T>
+/// @generic.template symbol=EventShape parameters=(T#1)
+/// @type.symbol symbol=EventShape type=EventShape
+/// @definition.interface symbol=EventShape template=(T#1)
+/// @definition.where symbol=EventShape relation=satisfies left=this right=EventShape<T#1>
+/// @definition.associated.type symbol=EventShape.Handlers key=Handlers value={ [K in keyof T#1 as `on-${K}`]: T#1[K] }
+/// @type.symbol symbol=EventShape.T source=T type=T#1
 
     type Handlers = {
-    /// @type.symbol symbol=EventShape.Handlers type={ [K in keyof T as `on-${K}`]: T[K] }
+    /// @type.symbol symbol=EventShape.Handlers type={ [K in keyof T#1 as `on-${K}`]: T#1[K] }
 
         [K in keyof T as `on-${K}`]: T[K];
+        /// @generic.template source=type_mapped_parameter parameters=(K: keyof T#1)
+        /// @type.symbol symbol=EventShape.Handlers.K source=[K in keyof T as `on-${K}`] type=K
+        /// @resolution.name source=T target=EventShape.T
+        /// @resolution.name source=K target=EventShape.Handlers.K
+        /// @resolution.name source=T target=EventShape.T
+        /// @resolution.name source=K target=EventShape.Handlers.K
+
     };
 }
 
 class Bus<T> implements EventShape<T> {}
-/// @generic.template symbol=Bus parameters=(T)
-/// @type.symbol symbol=Bus type=<T> Bus<T>
+/// @generic.template symbol=Bus parameters=(T#2)
+/// @type.symbol symbol=Bus source="class Bus<T> implements EventShape<T> {}" type=Bus
+/// @definition.class symbol=Bus source="class Bus<T> implements EventShape<T> {}" template=(T#2)
+/// @definition.where symbol=Bus source=EventShape<T> relation=satisfies left=this right=EventShape<T#2>
+/// @definition.implements symbol=Bus source=EventShape<T> target=EventShape arguments=(T#2)
+/// @type.symbol symbol=Bus.T source=T type=T#2
 /// @resolution.name source=EventShape target=EventShape
 /// @resolution.name source=T target=Bus.T
 
 declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
-/// @type.symbol symbol=handlers source=handlers type={ "on-ready": boolean; "on-message": string }
+/// @type.symbol symbol=handlers source=handlers type=Bus<{ ready: boolean; message: string }>.Handlers reduced={ on-ready: boolean; on-message: string }
 /// @resolution.name source=Bus target=Bus
-/// @generic.instance source="Bus<{ ready: boolean; message: string }>" id="Bus<{ ready: boolean; message: string }>"
 
 handlers["on-ready"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-ready\"]" receiver={ "on-ready": boolean; "on-message": string } kind=field key=on-ready
+/// @resolution.member source="handlers[\"on-ready\"]" receiver={ on-ready: boolean; on-message: string } kind=field key=on-ready
 
 handlers["on-message"] satisfies string;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-message\"]" receiver={ "on-ready": boolean; "on-message": string } kind=field key=on-message
+/// @resolution.member source="handlers[\"on-message\"]" receiver={ on-ready: boolean; on-message: string } kind=field key=on-message
+
 /// @generic.instance id="Bus<{ ready: boolean; message: string }>" template=Bus arguments=({ ready: boolean; message: string })
 "#,
     );
@@ -147,19 +166,25 @@ kind satisfies "login";
 === checked ===
 class EventName<T: string> {
 /// @generic.template symbol=EventName parameters=(T: string)
-/// @type.symbol symbol=EventName type=<T: string> EventName<T>
+/// @type.symbol symbol=EventName type=EventName
+/// @definition.class symbol=EventName template=(T: string)
+/// @definition.associated.type symbol=EventName.Kind source="type Kind = T extends `evt:${infer Name}` ? Name : never" key=Kind value="T extends `evt:${infer Name}` ? EventName.Kind.Name : never"
+/// @type.symbol symbol=EventName.T source="T: string" type=T
 
     type Kind = T extends `evt:${infer Name}` ? Name : never;
-    /// @type.symbol symbol=EventName.Kind type=T extends `evt:${infer Name}` ? Name : never
+    /// @type.symbol symbol=EventName.Kind source="type Kind = T extends `evt:${infer Name}` ? Name : never" type=T extends `evt:${infer Name}` ? EventName.Kind.Name : never
+    /// @resolution.name source=T target=EventName.T
+    /// @resolution.name source=Name target=EventName.Kind.Name
+
 }
 
 declare const kind: EventName<"evt:login">.Kind;
-/// @type.symbol symbol=kind source=kind type="login"
+/// @type.symbol symbol=kind source=kind type=EventName<"evt:login">.Kind reduced="login"
 /// @resolution.name source=EventName target=EventName
-/// @generic.instance source="EventName<\"evt:login\">" id="EventName<\"evt:login\">"
 
 kind satisfies "login";
 /// @resolution.name source=kind target=kind
+
 /// @generic.instance id="EventName<\"evt:login\">" template=EventName arguments=("evt:login")
 "#,
     );

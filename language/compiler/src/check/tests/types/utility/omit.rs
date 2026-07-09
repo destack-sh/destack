@@ -37,9 +37,9 @@ person.active satisfies boolean;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.name source="name: string" key=name type=string
-/// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.active source="active: boolean" key=active type=boolean
+/// @definition.field symbol=Person.age source="age: int32" key=age type=int32
+/// @definition.field symbol=Person.name source="name: string" key=name type=string
 
     name: string;
     /// @type.symbol symbol=Person.name source="name: string" type=string
@@ -53,17 +53,19 @@ interface Person {
 }
 
 declare const person: Omit<Person, "age">;
-/// @type.symbol symbol=person source=person type={ name: string; active: boolean }
+/// @type.symbol symbol=person source=person type=Omit<Person, "age"> reduced={ name: string; active: boolean }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=Omit<Person, "age"> kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; active: boolean } kind=field key=name
 
 person.active satisfies boolean;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.active receiver=Omit<Person, "age"> kind=field key=active
+/// @resolution.member source=person.active receiver={ name: string; active: boolean } kind=field key=active
+
+/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
     );
 }
@@ -101,9 +103,9 @@ const age = person.age;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.name source="name: string" key=name type=string
-/// @definition.field symbol=Person.age source="age: int32" key=age type=int32
 /// @definition.field symbol=Person.active source="active: boolean" key=active type=boolean
+/// @definition.field symbol=Person.age source="age: int32" key=age type=int32
+/// @definition.field symbol=Person.name source="name: string" key=name type=string
 
     name: string;
     /// @type.symbol symbol=Person.name source="name: string" type=string
@@ -117,17 +119,19 @@ interface Person {
 }
 
 declare const person: Omit<Person, "age">;
-/// @type.symbol symbol=person source=person type={ name: string; active: boolean }
+/// @type.symbol symbol=person source=person type=Omit<Person, "age"> reduced={ name: string; active: boolean }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const age = person.age;
-/// @type.symbol symbol=age type=<error>
+/// @type.symbol symbol=age source=age type=<error>
 /// @resolution.name source=person target=person
+
+/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="member 'age' does not exist on type 'Omit<Person, \"age\">'"
-/// @diagnostic.label line=9 column=13 source="const age = person.age;"
+/// @diagnostic.label line=9 column=20 span="age" line_source="const age = person.age;"
 "#,
     );
 }
@@ -179,18 +183,20 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
-/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age"> reduced={ name: string }
+/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age"> reduced={ name: string }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ name: string }
+/// @type.symbol symbol=person source=person type=WithoutAge reduced={ name: string }
 /// @resolution.name source=WithoutAge target=WithoutAge
 
 person satisfies WithoutAge;
 /// @resolution.name source=person target=person
 /// @resolution.name source=WithoutAge target=WithoutAge
+
+/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
     );
 }
@@ -240,18 +246,20 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
-/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value={ name: string }
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age"> reduced={ name: string }
+/// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age"> reduced={ name: string }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAge = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type={ name: string }
+/// @type.symbol symbol=person source=person type=WithoutAge reduced={ name: string }
 /// @resolution.name source=WithoutAge target=WithoutAge
+
+/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'age' in object literal for type '{ name: string }'"
-/// @diagnostic.label line=9 column=44 source="const person: WithoutAge = { name: \"Ada\", age: 42 };"
+/// @diagnostic.error code=EC205 message="unknown property 'age' in object literal for type 'WithoutAge'"
+/// @diagnostic.label line=9 column=28 span="{ name: \"Ada\", age: 42 }" line_source="const person: WithoutAge = { name: \"Ada\", age: 42 };"
 "#,
     );
 }
@@ -301,14 +309,16 @@ interface Person {
 }
 
 type WithoutAll = Omit<Person, "name" | "age">;
-/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type={}
-/// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value={}
+/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type=Omit<Person, "name" | "age"> reduced={}
+/// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value=Omit<Person, "name" | "age"> reduced={}
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: WithoutAll = {};
-/// @type.symbol symbol=person source=person type={}
+/// @type.symbol symbol=person source=person type=WithoutAll reduced={}
 /// @resolution.name source=WithoutAll target=WithoutAll
+
+/// @generic.instance id="Omit<Person, \"name\" | \"age\">" template=types.object.Omit arguments=(Person, "name" | "age")
 "#,
     );
 }
@@ -360,18 +370,20 @@ interface Person {
 }
 
 type Same = Omit<Person, "missing">;
-/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type={ name: string; age: int32 }
-/// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value={ name: string; age: int32 }
+/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type=Omit<Person, "missing"> reduced={ name: string; age: int32 }
+/// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value=Omit<Person, "missing"> reduced={ name: string; age: int32 }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: Same = { name: "Ada", age: 42 };
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=Same reduced={ name: string; age: int32 }
 /// @resolution.name source=Same target=Same
 
 person satisfies Person;
 /// @resolution.name source=person target=person
 /// @resolution.name source=Person target=Person
+
+/// @generic.instance id="Omit<Person, \"missing\">" template=types.object.Omit arguments=(Person, "missing")
 "#,
     );
 }
@@ -423,22 +435,24 @@ interface Person {
 }
 
 type NameOnly = Omit<Person, "age">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type={ readonly name: string }
-/// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value={ readonly name: string }
+/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type=Omit<Person, "age"> reduced={ readonly name: string }
+/// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value=Omit<Person, "age"> reduced={ readonly name: string }
 /// @resolution.name source=Omit target=types.object.Omit
 /// @resolution.name source=Person target=Person
 
 const person: NameOnly = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ readonly name: string }
+/// @type.symbol symbol=person source=person type=NameOnly reduced={ readonly name: string }
 /// @resolution.name source=NameOnly target=NameOnly
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=Omit<Person, "age"> kind=field key=name
+/// @resolution.pattern.assign source=person.name kind=place place=field(name) type=string
+
+/// @generic.instance id="Omit<Person, \"age\">" template=types.object.Omit arguments=(Person, "age")
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
-/// @diagnostic.label line=10 column=1 source="person.name = \"Grace\";"
+/// @diagnostic.label line=10 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );
 }

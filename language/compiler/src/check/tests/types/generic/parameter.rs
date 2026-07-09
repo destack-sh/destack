@@ -57,7 +57,7 @@ const first = values[0];
 === annotated ===
 declare function id<const T>(value: T): T;
 
-const values: readonly [1, 2] = id<readonly [1, 2]>([1, 2]);
+const values: [1, 2] = id<[1, 2]>([1, 2]);
 const first: 1 = values[0];
 
 === checked ===
@@ -70,17 +70,17 @@ declare function id<const T>(value: T): T;
 /// @resolution.name source=T target=id.T
 
 const values = id([1, 2]);
-/// @type.symbol symbol=values source=values type=readonly [1, 2]
+/// @type.symbol symbol=values source=values type=[1, 2]
 /// @resolution.name source=id target=id
-/// @resolution.call source="id([1, 2])" parameters=(readonly [1, 2]) arguments=(provided([1, 2]) as readonly [1, 2]) return=readonly [1, 2] kind=symbol target=id instance="id<readonly [1, 2]>"
-/// @generic.instance source="id([1, 2])" id="id<readonly [1, 2]>"
+/// @resolution.call source="id([1, 2])" parameters=([1, 2]) arguments=(provided([1, 2]) as [1, 2]) return=[1, 2] kind=symbol target=id instance="id<[1, 2]>"
+/// @generic.instance source="id([1, 2])" id="id<[1, 2]>"
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=1
 /// @resolution.name source=values target=values
-/// @resolution.member source=values[0] receiver=readonly [1, 2] kind=element index=0
+/// @resolution.member source=values[0] receiver=[1, 2] kind=element index=0
 
-/// @generic.instance id="id<readonly [1, 2]>" template=id arguments=(readonly [1, 2])
+/// @generic.instance id="id<[1, 2]>" template=id arguments=([1, 2])
 "#,
     );
 }
@@ -127,7 +127,7 @@ const first = values[0];
 /// @resolution.call source=values[0] parameters=(usize) arguments=(provided(0) as usize) return=float64 kind=symbol target=collections.array.index#4 receiver=Array<float64> instance=Array<float64>.<extension#6>.index#4
 /// @generic.instance source=values[0] id=Array<float64>.<extension#6>.index#4
 
-/// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, collections.array.<module>#7.L1, collections.array.<module>#7.L2, collections.array.<module>#7.L3, float64)
+/// @generic.instance id=Array<float64>.<extension#6>.index#4 template=collections.array.index#4 arguments=(float64, float64)
 /// @generic.instance id=id<Array<float64>> template=id arguments=(Array<float64>)
 "#,
     );
@@ -164,6 +164,7 @@ declare const values: (1 | 2)[];
 
 take(values);
 /// @resolution.name source=take target=take
+/// @resolution.call source=take(values) parameters=(Array<float64>) arguments=(provided(values) as Array<float64>) return=void kind=symbol target=take
 /// @resolution.name source=values target=values
 "#,
         r#"
@@ -190,7 +191,7 @@ take([1, 2]);
 === annotated ===
 declare function take(values: Slice<float64>): void;
 
-take([1, 2] as Slice<float64>);
+take([1, 2]);
 
 === checked ===
 declare function take(values: Slice<float64>): void;
@@ -264,9 +265,10 @@ declare function take(values: [float64; 2]): void;
 
 take([1, 2, 3]);
 /// @resolution.name source=take target=take
+/// @resolution.call source="take([1, 2, 3])" parameters=(FixedArray<float64, 2>) arguments=(provided([1, 2, 3]) as FixedArray<float64, 2>) return=void kind=symbol target=take
 "#,
         r#"
-/// @diagnostic.error code=EC209 message="argument of type 'Array<1 | 2 | 3>' is not assignable to parameter of type 'FixedArray<float64, 2>'"
+/// @diagnostic.error code=EC209 message="argument of type 'FixedArray<float64, 3>' is not assignable to parameter of type 'FixedArray<float64, 2>'"
 /// @diagnostic.label line=4 column=6 span="[1, 2, 3]" line_source="take([1, 2, 3]);"
 "#,
     );
@@ -792,7 +794,6 @@ class Box<K> {
     }
 
     check(): boolean where K: Equal<K> {
-    /// @generic.template symbol=Box.check parent=template#2 parameters=()
     /// @type.symbol symbol=Box.check type=(this: Box<K>) => boolean
     /// @resolution.name source=K target=Box.K
     /// @resolution.name source=Equal target=Equal
@@ -1385,7 +1386,7 @@ function zero<T: Numeric>(): T {
 fn test_generic_float_arithmetic_accepts_scalar_literals() {
     let session = TestSession::single(
         r#"
-interface Float {}
+import { Float } from "destack:math";
 
 declare function log<T: Float>(value: T): T;
 declare function sqrt<T: Float>(value: T): T;
@@ -1401,7 +1402,7 @@ function asinh<T: Float>(x: T): T {
         DirRows::checked(),
         r#"
 === annotated ===
-interface Float {}
+import { Float } from "destack:math";
 
 declare function log<T: Float>(value: T): T;
 declare function sqrt<T: Float>(value: T): T;
@@ -1411,33 +1412,31 @@ function asinh<T: Float>(x: T): T {
 }
 
 === checked ===
-interface Float {}
-/// @type.symbol symbol=Float source="interface Float {}" type=Float
-/// @definition.interface symbol=Float source="interface Float {}"
+import { Float } from "destack:math";
 
 declare function log<T: Float>(value: T): T;
-/// @generic.template symbol=log parameters=(T#1: Float)
-/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: Float>(T#1) => T#1
+/// @generic.template symbol=log parameters=(T#1: math.scalar.Float)
+/// @type.symbol symbol=log source="declare function log<T: Float>(value: T): T" type=<T#1: math.scalar.Float>(T#1) => T#1
 /// @type.symbol symbol=log.T source="T: Float" type=T#1
-/// @resolution.name source=Float target=Float
+/// @resolution.name source=Float target=math.scalar.Float
 /// @type.symbol symbol=log.value source="value: T" type=T#1
 /// @resolution.name source=T target=log.T
 /// @resolution.name source=T target=log.T
 
 declare function sqrt<T: Float>(value: T): T;
-/// @generic.template symbol=sqrt parameters=(T#2: Float)
-/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: Float>(T#2) => T#2
+/// @generic.template symbol=sqrt parameters=(T#2: math.scalar.Float)
+/// @type.symbol symbol=sqrt source="declare function sqrt<T: Float>(value: T): T" type=<T#2: math.scalar.Float>(T#2) => T#2
 /// @type.symbol symbol=sqrt.T source="T: Float" type=T#2
-/// @resolution.name source=Float target=Float
+/// @resolution.name source=Float target=math.scalar.Float
 /// @type.symbol symbol=sqrt.value source="value: T" type=T#2
 /// @resolution.name source=T target=sqrt.T
 /// @resolution.name source=T target=sqrt.T
 
 function asinh<T: Float>(x: T): T {
-/// @generic.template symbol=asinh parameters=(T#3: Float)
-/// @type.symbol symbol=asinh type=<T#3: Float>(T#3) => T#3
+/// @generic.template symbol=asinh parameters=(T#3: math.scalar.Float)
+/// @type.symbol symbol=asinh type=<T#3: math.scalar.Float>(T#3) => T#3
 /// @type.symbol symbol=asinh.T source="T: Float" type=T#3
-/// @resolution.name source=Float target=Float
+/// @resolution.name source=Float target=math.scalar.Float
 /// @type.symbol symbol=asinh.x source="x: T" type=T#3
 /// @resolution.name source=T target=asinh.T
 /// @resolution.name source=T target=asinh.T
@@ -1447,13 +1446,14 @@ function asinh<T: Float>(x: T): T {
     /// @resolution.call source="log(x + sqrt(x * x + 1))" parameters=(T#3) arguments=(provided(x + sqrt(x * x + 1)) as T#3) return=T#3 kind=symbol target=log instance=log<T#3>
     /// @generic.instance source="log(x + sqrt(x * x + 1))" id=log<T#3>
     /// @resolution.name source=x target=asinh.x
+    /// @resolution.call source="x + sqrt(x * x + 1)" parameters=() return=T#3 kind=builtin builtin=binary.add
     /// @resolution.name source=sqrt target=sqrt
     /// @resolution.call source="sqrt(x * x + 1)" parameters=(T#3) arguments=(provided(x * x + 1) as T#3) return=T#3 kind=symbol target=sqrt instance=sqrt<T#3>
     /// @generic.instance source="sqrt(x * x + 1)" id=sqrt<T#3>
     /// @resolution.name source=x target=asinh.x
+    /// @resolution.call source="x * x + 1" parameters=() return=T#3 kind=builtin builtin=binary.add
     /// @resolution.call source="x * x" parameters=() return=T#3 kind=builtin builtin=binary.multiply
     /// @resolution.name source=x target=asinh.x
-    /// @resolution.call source="x * x + 1" parameters=() return=T#3 kind=builtin builtin=binary.add
 
 }
 
@@ -1758,7 +1758,7 @@ function check<T>(a: T): T | undefined {
         return undefined as T | undefined;
     }
 
-    result
+    result as T | undefined
 }
 
 === checked ===

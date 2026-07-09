@@ -29,15 +29,15 @@ posts satisfies Route;
 
 === checked ===
 type Route = `api:${"users" | "posts"}`;
-/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}`
-/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}`
+/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
+/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
 
 const users: Route = "api:users";
-/// @type.symbol symbol=users source=users type=`api:${"users" | "posts"}`
+/// @type.symbol symbol=users source=users type=Route reduced="api:users" | "api:posts"
 /// @resolution.name source=Route target=Route
 
 const posts: Route = "api:posts";
-/// @type.symbol symbol=posts source=posts type=`api:${"users" | "posts"}`
+/// @type.symbol symbol=posts source=posts type=Route reduced="api:users" | "api:posts"
 /// @resolution.name source=Route target=Route
 
 users satisfies "api:users" | "api:posts";
@@ -75,24 +75,24 @@ const bad: Route = "fr-users";
 
 === checked ===
 type Route = `${"en" | "de"}-${"users" | "posts"}`;
-/// @type.symbol symbol=Route source="type Route = `${\"en\" | \"de\"}-${\"users\" | \"posts\"}`" type=`${"en" | "de"}-${"users" | "posts"}`
-/// @definition.type symbol=Route source="type Route = `${\"en\" | \"de\"}-${\"users\" | \"posts\"}`" value=`${"en" | "de"}-${"users" | "posts"}`
+/// @type.symbol symbol=Route source="type Route = `${\"en\" | \"de\"}-${\"users\" | \"posts\"}`" type=`${"en" | "de"}-${"users" | "posts"}` reduced="en-users" | "en-posts" | "de-users" | "de-posts"
+/// @definition.type symbol=Route source="type Route = `${\"en\" | \"de\"}-${\"users\" | \"posts\"}`" value=`${"en" | "de"}-${"users" | "posts"}` reduced="en-users" | "en-posts" | "de-users" | "de-posts"
 
 const enUsers: Route = "en-users";
-/// @type.symbol symbol=enUsers source=enUsers type=`${"en" | "de"}-${"users" | "posts"}`
+/// @type.symbol symbol=enUsers source=enUsers type=Route reduced="en-users" | "en-posts" | "de-users" | "de-posts"
 /// @resolution.name source=Route target=Route
 
 const dePosts: Route = "de-posts";
-/// @type.symbol symbol=dePosts source=dePosts type=`${"en" | "de"}-${"users" | "posts"}`
+/// @type.symbol symbol=dePosts source=dePosts type=Route reduced="en-users" | "en-posts" | "de-users" | "de-posts"
 /// @resolution.name source=Route target=Route
 
 const bad: Route = "fr-users";
-/// @type.symbol symbol=bad source=bad type=`${"en" | "de"}-${"users" | "posts"}`
+/// @type.symbol symbol=bad source=bad type=Route reduced="en-users" | "en-posts" | "de-users" | "de-posts"
 /// @resolution.name source=Route target=Route
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"fr-users\"' is not assignable to type 'Route'"
-/// @diagnostic.label line=6 column=7 source="const bad: Route = \"fr-users\";"
+/// @diagnostic.label line=6 column=20 span="\"fr-users\"" line_source="const bad: Route = \"fr-users\";"
 "#,
     );
 }
@@ -118,16 +118,16 @@ const bad: Route = "api:orders";
 
 === checked ===
 type Route = `api:${"users" | "posts"}`;
-/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}`
-/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}`
+/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
+/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
 
 const bad: Route = "api:orders";
-/// @type.symbol symbol=bad source=bad type=`api:${"users" | "posts"}`
+/// @type.symbol symbol=bad source=bad type=Route reduced="api:users" | "api:posts"
 /// @resolution.name source=Route target=Route
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"api:orders\"' is not assignable to type 'Route'"
-/// @diagnostic.label line=4 column=7 source="const bad: Route = \"api:orders\";"
+/// @diagnostic.label line=4 column=20 span="\"api:orders\"" line_source="const bad: Route = \"api:orders\";"
 "#,
     );
 }
@@ -159,16 +159,16 @@ type PrimitiveText = `${boolean}-${null}-${undefined}`;
 /// @definition.type symbol=PrimitiveText source="type PrimitiveText = `${boolean}-${null}-${undefined}`" value=`${boolean}-${null}-${undefined}`
 
 const ok: PrimitiveText = "true-null-undefined";
-/// @type.symbol symbol=ok source=ok type=`${boolean}-${null}-${undefined}`
+/// @type.symbol symbol=ok source=ok type=PrimitiveText reduced=`${boolean}-${null}-${undefined}`
 /// @resolution.name source=PrimitiveText target=PrimitiveText
 
 const bad: PrimitiveText = "yes-null-undefined";
-/// @type.symbol symbol=bad source=bad type=`${boolean}-${null}-${undefined}`
+/// @type.symbol symbol=bad source=bad type=PrimitiveText reduced=`${boolean}-${null}-${undefined}`
 /// @resolution.name source=PrimitiveText target=PrimitiveText
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"yes-null-undefined\"' is not assignable to type 'PrimitiveText'"
-/// @diagnostic.label line=5 column=7 source="const bad: PrimitiveText = \"yes-null-undefined\";"
+/// @diagnostic.label line=5 column=28 span="\"yes-null-undefined\"" line_source="const bad: PrimitiveText = \"yes-null-undefined\";"
 "#,
     );
 }
@@ -194,16 +194,16 @@ const bad: Nothing = "id:anything";
 
 === checked ===
 type Nothing = `id:${never}`;
-/// @type.symbol symbol=Nothing source="type Nothing = `id:${never}`" type=never
-/// @definition.type symbol=Nothing source="type Nothing = `id:${never}`" value=never
+/// @type.symbol symbol=Nothing source="type Nothing = `id:${never}`" type=`id:${never}` reduced=never
+/// @definition.type symbol=Nothing source="type Nothing = `id:${never}`" value=`id:${never}` reduced=never
 
 const bad: Nothing = "id:anything";
-/// @type.symbol symbol=bad source=bad type=never
+/// @type.symbol symbol=bad source=bad type=Nothing reduced=never
 /// @resolution.name source=Nothing target=Nothing
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"id:anything\"' is not assignable to type 'Nothing'"
-/// @diagnostic.label line=4 column=7 source="const bad: Nothing = \"id:anything\";"
+/// @diagnostic.label line=4 column=22 span="\"id:anything\"" line_source="const bad: Nothing = \"id:anything\";"
 "#,
     );
 }
@@ -238,7 +238,7 @@ declare const value: string;
 /// @type.symbol symbol=value source=value type=string
 
 const ok: AnyString = value;
-/// @type.symbol symbol=ok source=ok type=`${string}${string}`
+/// @type.symbol symbol=ok source=ok type=AnyString reduced=`${string}${string}`
 /// @resolution.name source=AnyString target=AnyString
 /// @resolution.name source=value target=value
 "#,
@@ -270,11 +270,11 @@ item satisfies `item:${number}`;
 
 === checked ===
 type NumericRoute = `item:${number}`;
-/// @type.symbol symbol=NumericRoute source="type NumericRoute = `item:${number}`" type=`item:${number}`
-/// @definition.type symbol=NumericRoute source="type NumericRoute = `item:${number}`" value=`item:${number}`
+/// @type.symbol symbol=NumericRoute source="type NumericRoute = `item:${number}`" type=`item:${float64}`
+/// @definition.type symbol=NumericRoute source="type NumericRoute = `item:${number}`" value=`item:${float64}`
 
 const item: NumericRoute = "item:42";
-/// @type.symbol symbol=item source=item type=`item:${number}`
+/// @type.symbol symbol=item source=item type=NumericRoute reduced=`item:${float64}`
 /// @resolution.name source=NumericRoute target=NumericRoute
 
 item satisfies `item:${number}`;
@@ -304,16 +304,16 @@ const bad: NumericRoute = "item:abc";
 
 === checked ===
 type NumericRoute = `item:${number}`;
-/// @type.symbol symbol=NumericRoute source="type NumericRoute = `item:${number}`" type=`item:${number}`
-/// @definition.type symbol=NumericRoute source="type NumericRoute = `item:${number}`" value=`item:${number}`
+/// @type.symbol symbol=NumericRoute source="type NumericRoute = `item:${number}`" type=`item:${float64}`
+/// @definition.type symbol=NumericRoute source="type NumericRoute = `item:${number}`" value=`item:${float64}`
 
 const bad: NumericRoute = "item:abc";
-/// @type.symbol symbol=bad source=bad type=`item:${number}`
+/// @type.symbol symbol=bad source=bad type=NumericRoute reduced=`item:${float64}`
 /// @resolution.name source=NumericRoute target=NumericRoute
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"item:abc\"' is not assignable to type 'NumericRoute'"
-/// @diagnostic.label line=4 column=7 source="const bad: NumericRoute = \"item:abc\";"
+/// @diagnostic.label line=4 column=27 span="\"item:abc\"" line_source="const bad: NumericRoute = \"item:abc\";"
 "#,
     );
 }
@@ -339,11 +339,11 @@ const value: Nested = "prefix-id-1";
 
 === checked ===
 type Nested = `prefix-${`id-${number}`}`;
-/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${number}`}`
-/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${number}`}`
+/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${float64}`}`
+/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${float64}`}`
 
 const value: Nested = "prefix-id-1";
-/// @type.symbol symbol=value source=value type=`prefix-${`id-${number}`}`
+/// @type.symbol symbol=value source=value type=Nested reduced=`prefix-${`id-${float64}`}`
 /// @resolution.name source=Nested target=Nested
 "#,
     );
@@ -370,16 +370,16 @@ const value: Nested = "prefix-id-a";
 
 === checked ===
 type Nested = `prefix-${`id-${number}`}`;
-/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${number}`}`
-/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${number}`}`
+/// @type.symbol symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" type=`prefix-${`id-${float64}`}`
+/// @definition.type symbol=Nested source="type Nested = `prefix-${`id-${number}`}`" value=`prefix-${`id-${float64}`}`
 
 const value: Nested = "prefix-id-a";
-/// @type.symbol symbol=value source=value type=`prefix-${`id-${number}`}`
+/// @type.symbol symbol=value source=value type=Nested reduced=`prefix-${`id-${float64}`}`
 /// @resolution.name source=Nested target=Nested
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"prefix-id-a\"' is not assignable to type 'Nested'"
-/// @diagnostic.label line=4 column=7 source="const value: Nested = \"prefix-id-a\";"
+/// @diagnostic.label line=4 column=23 span="\"prefix-id-a\"" line_source="const value: Nested = \"prefix-id-a\";"
 "#,
     );
 }

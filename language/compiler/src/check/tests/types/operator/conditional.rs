@@ -125,8 +125,8 @@ declare const value: Result;
 === checked ===
 type Wrapped<T> = (T,) extends (string,) ? "yes" : "no";
 /// @generic.template symbol=Wrapped parameters=(T)
-/// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no"
-/// @definition.type symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" template=(T) value=(T,) extends (string,) ? "yes" : "no"
+/// @type.symbol symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" type=(T,) extends (string,) ? "yes" : "no" reduced="no"
+/// @definition.type symbol=Wrapped source="type Wrapped<T> = (T,) extends (string,) ? \"yes\" : \"no\"" template=(T) value=(T,) extends (string,) ? "yes" : "no" reduced="no"
 /// @type.symbol symbol=Wrapped.T source=T type=T
 /// @resolution.name source=T target=Wrapped.T
 
@@ -459,8 +459,8 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 type Value = Unbox<Box<"a"> | Box<"b">>;
 
-const first: Value = "a";
-const second: Value = "b";
+const first: Value = "a" as Value;
+const second: Value = "b" as Value;
 
 === checked ===
 type Box<T> = { value: T };

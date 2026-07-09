@@ -27,18 +27,16 @@ type Small = 1n..=10n;
 /// @definition.type symbol=Small source="type Small = 1n..=10n" value=1n..=10n
 
 const value: Small = 5n;
-/// @type.symbol symbol=value source=value type=1n..=10n
+/// @type.symbol symbol=value source=value type=Small reduced=1n..=10n
 /// @resolution.name source=Small target=Small
-/// @type.node source=5n type=5n
 
 const bad: Small = 11n;
-/// @type.symbol symbol=bad source=bad type=1n..=10n
+/// @type.symbol symbol=bad source=bad type=Small reduced=1n..=10n
 /// @resolution.name source=Small target=Small
-/// @type.node source=11n type=11n
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '11n' is not assignable to type 'Small'"
-/// @diagnostic.label line=5 column=7 source="const bad: Small = 11n;"
+/// @diagnostic.label line=5 column=20 span="11n" line_source="const bad: Small = 11n;"
 "#,
     );
 }

@@ -373,7 +373,6 @@ new Box(true);
 /// @type.node source="new Box(true)" type=<error>
 /// @resolution.name source=Box target=Box
 /// @type.node source=true type=true
-
 "#,
         r#"
 /// @diagnostic.error code=EC311 message="no constructor matches arguments ('true')"

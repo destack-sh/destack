@@ -59,9 +59,8 @@ const text: string = boxed.read<Document>();
 
 === checked ===
 interface Readable {
-/// @generic.template symbol=Readable parameters=()
 /// @type.symbol symbol=Readable type=Readable
-/// @definition.interface symbol=Readable template=()
+/// @definition.interface symbol=Readable
 /// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: Readable) => string
 
     read(): string;
@@ -126,9 +125,11 @@ const text = boxed.read();
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.name source=boxed target=boxed
 /// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=read
-/// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Document>
+/// @resolution.call source=boxed.read() parameters=() return=string kind=symbol target=read receiver=Box<Document> instance=Box<Document>.<extension#1>.read
+/// @generic.instance source=boxed.read() id=Box<Document>.<extension#1>.read
 
 /// @generic.instance id=Box<Document> template=Box arguments=(Document)
+/// @generic.instance id=Box<Document>.<extension#1>.read template=read arguments=(Document)
 /// @generic.instance id=Box<T#2> template=Box arguments=(T#2)
 "#,
     );
@@ -185,9 +186,8 @@ boxed.read();
 
 === checked ===
 interface Readable {
-/// @generic.template symbol=Readable parameters=()
 /// @type.symbol symbol=Readable type=Readable
-/// @definition.interface symbol=Readable template=()
+/// @definition.interface symbol=Readable
 /// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: Readable) => string
 
     read(): string;
@@ -434,7 +434,7 @@ export extension<T> of Pack<T> where T: Copy {
 
 export extension<T> of Pack<T> where T: Copy {
     twice(&readonly this): T {
-        this.duplicate<T, L0>()
+        this.duplicate<T>()
     }
 }
 
@@ -503,19 +503,18 @@ export extension<T> of Pack<T> where T: Copy {
         /// @type.node source=this.duplicate type=<comptime duplicate.L0: Lifetime>(this: Borrowed<Pack<T#3>, duplicate.L0, "readonly">) => T#3
         /// @type.node source=this.duplicate() type=T#3
         /// @resolution.member source=this.duplicate receiver=Borrowed<Pack<T#3>, twice.L0, "readonly"> kind=symbol target=duplicate
-        /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=Borrowed<Pack<T#3>, twice.L0, "readonly"> instance=duplicate<twice.L0>
+        /// @resolution.call source=this.duplicate() parameters=() return=T#3 kind=symbol target=duplicate receiver=Borrowed<Pack<T#3>, twice.L0, "readonly"> instance=Pack<T#3>.<extension#1>.duplicate
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=Borrowed<Pack<T#3>, twice.L0, "readonly">
         /// @generic.instance source=this id=Pack<T#3>
         /// @generic.instance source=this.duplicate id=Pack<T#3>
-        /// @generic.instance source=this.duplicate() id=duplicate<twice.L0>
+        /// @generic.instance source=this.duplicate() id=Pack<T#3>.<extension#1>.duplicate
 
     }
 }
 
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=duplicate<twice.L0> template=duplicate arguments=(twice.L0)
-
+/// @generic.instance id=Pack<T#3>.<extension#1>.duplicate template=duplicate arguments=(T#3)
 "#,
         r#""#,
     );

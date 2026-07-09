@@ -129,7 +129,6 @@ export struct Force {
 }
 
 extension of Force implements Multiply<float64> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
@@ -252,7 +251,6 @@ import { Multiply } from "destack:ops";
 import { Force } from "./force.ds";
 
 extension of Force implements Multiply<float64> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force

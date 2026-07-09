@@ -34,9 +34,10 @@ export interface Box<T> {
 
 === checked ===
 export interface Box<T> {
-/// @generic.template source=declaration parameters=(T)
-/// @type.symbol symbol=Box type=Box<T>
-/// @definition.interface symbol=Box template=LocalGenericTemplateId(0)
+/// @generic.template symbol=Box parameters=(T)
+/// @type.symbol symbol=Box type=Box
+/// @definition.interface symbol=Box template=(T)
+/// @definition.where symbol=Box relation=satisfies left=this right=Box<T>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
 
@@ -57,11 +58,10 @@ type Wrapped<T> = Box<T>;
 import { Box } from "./lib.ds";
 
 type Wrapped<T> = Box<T>;
-/// @generic.template source=declaration parameters=(T)
+/// @generic.template symbol=Wrapped parameters=(T)
 /// @type.symbol symbol=Wrapped source="type Wrapped<T> = Box<T>" type=lib.Box<T>
 /// @definition.type symbol=Wrapped source="type Wrapped<T> = Box<T>" template=(T) value=lib.Box<T>
 /// @type.symbol symbol=Wrapped.T source=T type=T
-/// @generic.instance source=Box<T> id=lib.Box<T>
 /// @resolution.name source=Box target=lib.Box
 /// @resolution.name source=T target=Wrapped.T
 
@@ -108,30 +108,31 @@ export newtype interface Equal<T = this> extends PartialEqual<T> {}
 
 === checked ===
 export newtype interface PartialEqual<T = this> {
-/// @generic.template source=declaration parameters=(T#1 = PartialEqual<T#1>)
-/// @type.symbol symbol=PartialEqual type=PartialEqual<T#1>
-/// @definition.interface symbol=PartialEqual template=LocalGenericTemplateId(0) nominal=true
+/// @generic.template symbol=PartialEqual parameters=(T#1 = this)
+/// @type.symbol symbol=PartialEqual type=PartialEqual
+/// @definition.interface symbol=PartialEqual template=(T#1 = this) nominal=true
+/// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
 /// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: PartialEqual<T#1>, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
     /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: PartialEqual<T#1>, T#1) => boolean
-    /// @type.symbol symbol=other source="other: T" type=T#1
+    /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
 }
 
 export newtype interface Equal<T = this> extends PartialEqual<T> {}
-/// @generic.template source=declaration parameters=(T#2 = Equal<T#2>)
-/// @type.symbol symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal<T#2>
-/// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=LocalGenericTemplateId(1) nominal=true
-/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual instance=PartialEqual<T#2>
+/// @generic.template symbol=Equal parameters=(T#2 = this)
+/// @type.symbol symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
+/// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(T#2 = this) nominal=true
+/// @definition.where symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
+/// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual arguments=(T#2)
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
-/// @generic.instance source=PartialEqual<T> id=PartialEqual<T#2>
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=Equal.T
 
-/// @generic.instance id=PartialEqual<T#2> template=PartialEqual arguments=(T#2)
+/// @generic.instance id=PartialEqual<T#1> template=PartialEqual arguments=(T#1)
 
 === main.ds ===
 
@@ -146,7 +147,6 @@ import { Equal } from "./ops.ds";
 type Used = Equal<string>;
 /// @type.symbol symbol=Used source="type Used = Equal<string>" type=ops.Equal<string>
 /// @definition.type symbol=Used source="type Used = Equal<string>" value=ops.Equal<string>
-/// @generic.instance source=Equal<string> id=ops.Equal<string>
 /// @resolution.name source=Equal target=ops.Equal
 
 /// @generic.instance id=ops.Equal<string> template=ops.Equal arguments=(string)
@@ -189,16 +189,16 @@ export function identity<T>(value: T): T {
 
 === checked ===
 export function identity<T>(value: T): T {
-/// @generic.template source=declaration parameters=(T)
+/// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=value source="value: T" type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
     return value;
     /// @type.node source=value type=T
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=identity.value
 
 }
 
@@ -207,33 +207,34 @@ export function identity<T>(value: T): T {
 === annotated ===
 import { identity } from "./lib.ds";
 
-const number: float64 = identity<float64>(1);
-const text: string = identity<string>("x");
+const number: 1 = identity<1>(1);
+const text: "x" = identity<"x">("x");
 
 === checked ===
 import { identity } from "./lib.ds";
 
 const number = identity(1);
-/// @type.symbol symbol=number source=number type=float64
-/// @generic.instance source=identity(1) id=lib.identity<float64>
-/// @type.node source=identity type=(float64) => float64
-/// @type.node source=identity(1) type=float64
+/// @type.symbol symbol=number source=number type=1
+/// @type.node source=identity type=(1) => 1
+/// @type.node source=identity(1) type=1
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source=identity(1) parameters=(float64) return=float64 kind=symbol target=lib.identity instance=lib.identity<float64>
-/// @type.node source=1 type=float64
+/// @resolution.call source=identity(1) parameters=(1) arguments=(provided(1) as 1) return=1 kind=symbol target=lib.identity instance=lib.identity<1>
+/// @generic.instance source=identity(1) id=lib.identity<1>
+/// @type.node source=1 type=1
 
 const text = identity("x");
-/// @type.symbol symbol=text source=text type=string
-/// @generic.instance source="identity(\"x\")" id=lib.identity<string>
-/// @type.node source="identity(\"x\")" type=string
-/// @type.node source=identity type=(string) => string
+/// @type.symbol symbol=text source=text type="x"
+/// @type.node source="identity(\"x\")" type="x"
+/// @type.node source=identity type=("x") => "x"
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=(string) return=string kind=symbol target=lib.identity instance=lib.identity<string>
-/// @type.node source="\"x\"" type=string
+/// @resolution.call source="identity(\"x\")" parameters=("x") arguments=(provided("x") as "x") return="x" kind=symbol target=lib.identity instance="lib.identity<\"x\">"
+/// @generic.instance source="identity(\"x\")" id="lib.identity<\"x\">"
+/// @type.node source="\"x\"" type="x"
 
-/// @generic.instance id=lib.identity<float64> template=lib.identity arguments=(float64)
-/// @generic.instance id=lib.identity<string> template=lib.identity arguments=(string)
-"#);
+/// @generic.instance id="lib.identity<\"x\">" template=lib.identity arguments=("x")
+/// @generic.instance id=lib.identity<1> template=lib.identity arguments=(1)
+"#,
+    );
 }
 
 #[test]
@@ -270,15 +271,15 @@ export function identity<T>(value: T): T {
 
 === checked ===
 export function identity<T>(value: T) {
-/// @generic.template source=declaration parameters=(T)
+/// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=value source="value: T" type=T
+/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 
     return value;
     /// @type.node source=value type=T
-    /// @resolution.name source=value target=value
+    /// @resolution.name source=value target=identity.value
 
 }
 
@@ -287,22 +288,23 @@ export function identity<T>(value: T) {
 === annotated ===
 import { identity } from "./lib.ds";
 
-const text: string = identity<string>("x");
+const text: "x" = identity<"x">("x");
 
 === checked ===
 import { identity } from "./lib.ds";
 
 const text = identity("x");
-/// @type.symbol symbol=text source=text type=string
-/// @generic.instance source="identity(\"x\")" id=lib.identity<string>
-/// @type.node source="identity(\"x\")" type=string
-/// @type.node source=identity type=(string) => string
+/// @type.symbol symbol=text source=text type="x"
+/// @type.node source="identity(\"x\")" type="x"
+/// @type.node source=identity type=("x") => "x"
 /// @resolution.name source=identity target=lib.identity
-/// @resolution.call source="identity(\"x\")" parameters=(string) return=string kind=symbol target=lib.identity instance=lib.identity<string>
-/// @type.node source="\"x\"" type=string
+/// @resolution.call source="identity(\"x\")" parameters=("x") arguments=(provided("x") as "x") return="x" kind=symbol target=lib.identity instance="lib.identity<\"x\">"
+/// @generic.instance source="identity(\"x\")" id="lib.identity<\"x\">"
+/// @type.node source="\"x\"" type="x"
 
-/// @generic.instance id=lib.identity<string> template=lib.identity arguments=(string)
-"#);
+/// @generic.instance id="lib.identity<\"x\">" template=lib.identity arguments=("x")
+"#,
+    );
 }
 
 #[test]
@@ -318,14 +320,17 @@ const value = probe(todo("iter"));
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 interface Iter<T, R = unknown> {
     next(): T;
 }
 
-declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
-const value: boolean = probe<never>(todo("iter" as string | undefined));
+declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
+const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
 interface Iter<T, R = unknown> {
@@ -344,22 +349,22 @@ interface Iter<T, R = unknown> {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @generic.template symbol=probe parameters=(T0: Iter<int32, unknown>)
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=<probe.T0: Iter<int32, unknown>>(probe.T0) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=probe.T0
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<Iter<int32, unknown>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<Iter<int32, unknown>>
 /// @resolution.name source=Iter target=Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
-/// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<Iter<int32, unknown>>) arguments=(provided(todo("iter")) as Dynamic<Iter<int32, unknown>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
 /// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
-/// @generic.instance id=probe<never> template=probe arguments=(never)
-"#, "");
+/// @generic.instance id="Iter<int32, unknown>" template=Iter arguments=(int32, unknown)
+"#,
+        "",
+    );
 }
 
 #[test]
@@ -390,7 +395,10 @@ const value = probe(todo("iter"));
         )
         .build();
 
-    session.assert_dir_checked_many(&["inner.ds", "lib.ds", "main.ds"], DirRows::checked(), r#"
+    session.assert_dir_checked_many(
+        &["inner.ds", "lib.ds", "main.ds"],
+        DirRows::checked(),
+        r#"
 === inner.ds ===
 
 === annotated ===
@@ -429,28 +437,27 @@ export { Iter } from "./inner.ds";
 === annotated ===
 import { Iter } from "./lib.ds";
 
-declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
-const value: boolean = probe<never>(todo("iter" as string | undefined));
+declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
+const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
 import { Iter } from "./lib.ds";
 
 declare function probe(values: Iter<int32>): boolean;
-/// @generic.template symbol=probe parameters=(T0: inner.Iter<int32, unknown>)
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=<probe.T0: inner.Iter<int32, unknown>>(probe.T0) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=probe.T0
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<inner.Iter<int32, unknown>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<inner.Iter<int32, unknown>>
 /// @resolution.name source=Iter target=inner.Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
-/// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<inner.Iter<int32, unknown>>) arguments=(provided(todo("iter")) as Dynamic<inner.Iter<int32, unknown>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
-/// @generic.instance id=probe<never> template=probe arguments=(never)
-"#);
+/// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
+"#,
+    );
 }
 
 #[test]
@@ -482,7 +489,10 @@ export interface Iter<T, R = unknown> {
         )
         .build();
 
-    session.assert_dir_checked_many(&["a.ds", "b.ds"], DirRows::checked(), r#"
+    session.assert_dir_checked_many(
+        &["a.ds", "b.ds"],
+        DirRows::checked(),
+        r#"
 === a.ds ===
 
 === annotated ===
@@ -492,16 +502,15 @@ export interface Marker {
     marked: boolean;
 }
 
-declare function probe<T0: Iter<int32, unknown>>(values: T0): boolean;
-const value: boolean = probe<never>(todo("iter" as string | undefined));
+declare function probe(values: Dynamic<Iter<int32, unknown>>): boolean;
+const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
 import { Iter } from "./b.ds";
 
 export interface Marker {
-/// @generic.template symbol=Marker parameters=()
 /// @type.symbol symbol=Marker type=Marker
-/// @definition.interface symbol=Marker template=()
+/// @definition.interface symbol=Marker
 /// @definition.field symbol=Marker.marked source="marked: boolean" key=marked type=boolean
 
     marked: boolean;
@@ -510,20 +519,18 @@ export interface Marker {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @generic.template symbol=probe parameters=(T0: b.Iter<int32, b.ds.type3>)
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=<probe.T0: b.Iter<int32, b.ds.type3>>(probe.T0) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=probe.T0
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Dynamic<b.Iter<int32, b.ds.type3>>) => boolean
+/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Dynamic<b.Iter<int32, b.ds.type3>>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(never) arguments=(provided(todo("iter")) as never) return=boolean kind=symbol target=probe instance=probe<never>
-/// @generic.instance source="probe(todo(\"iter\"))" id=probe<never>
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(Dynamic<b.Iter<int32, b.ds.type3>>) arguments=(provided(todo("iter")) as Dynamic<b.Iter<int32, b.ds.type3>>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=error.panic.todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=error.panic.todo
 
-/// @generic.instance id=probe<never> template=probe arguments=(never)
+/// @generic.instance id="b.Iter<int32, b.ds.type3>" template=b.Iter arguments=(int32, b.ds.type3)
 
 === b.ds ===
 
@@ -559,7 +566,8 @@ export interface Iter<T, R = unknown> {
 }
 
 /// @generic.instance id="Iter<T, R>" template=Iter arguments=(T, R)
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -581,7 +589,10 @@ const out = unwrap(built);
 "#,
     );
 
-    session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 struct Wrap<T> {
     value: T;
@@ -593,7 +604,7 @@ function unwrap(wrapped: Wrap<float64>): float64 {
     }
 }
 
-const built: Wrap<float64> = Wrap { value: 1 };
+const built: Wrap<float64> = Wrap<float64> { value: 1 };
 const out: float64 = unwrap(built);
 
 === checked ===
@@ -639,5 +650,7 @@ const out = unwrap(built);
 /// @resolution.name source=built target=built
 
 /// @generic.instance id=Wrap<float64> template=Wrap arguments=(float64)
-"#, "");
+"#,
+        "",
+    );
 }

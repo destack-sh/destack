@@ -196,6 +196,7 @@ interface Printable {
 class Document implements Printable {
 /// @type.symbol symbol=Document type=Document
 /// @definition.class symbol=Document
+/// @definition.where symbol=Document source=Printable relation=satisfies left=this right=Printable
 /// @definition.implements symbol=Document source=Printable target=Printable
 /// @definition.method symbol=Document.print source="print(): void {}" slot=print type=(this: Document) => void
 /// @resolution.name source=Printable target=Printable
@@ -311,6 +312,7 @@ interface Drawable {
 class Point implements Drawable {
 /// @type.symbol symbol=Point type=Point
 /// @definition.class symbol=Point
+/// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
 /// @definition.field symbol=Point.x source="x: int32 = 0" key=x type=int32
 /// @resolution.name source=Drawable target=Drawable
@@ -388,6 +390,7 @@ interface Drawable extends Named {
 class Point implements Drawable {
 /// @type.symbol symbol=Point type=Point
 /// @definition.class symbol=Point
+/// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
 /// @definition.method symbol=Point.draw source="draw(): void {}" slot=draw type=(this: Point) => void
 /// @resolution.name source=Drawable target=Drawable

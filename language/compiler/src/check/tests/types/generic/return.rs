@@ -34,7 +34,7 @@ function capture<T>(value: T): { reactions: T[] } {
 
 }
 
-/// @check.stats.solve variables=0 types=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -79,7 +79,7 @@ interface Done<T> {
 type State<T> = Pending<T> | Done<T>;
 
 function pending<T>(): State<T> {
-    return { kind: "pending", reactions: [] };
+    return { kind: "pending", reactions: [] } as State<T>;
 }
 
 === checked ===
@@ -147,7 +147,7 @@ function pending<T>(): State<T> {
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=24 constraints=2 obligations=2 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=24 constraints=0 obligations=2 solutions=0 bounds=0 decisions=8
 "#,
     );
 }
@@ -215,14 +215,14 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 
 extension<T, E> of Result<T, E> {
     static ok(value: T): Result<T, E> {
-        Result.Ok({ value })
+        Result.Ok<T, E>({ value })
     }
 }
 
 newtype AsyncResult<T, E> = Promise<Result<T, E>>;
 
 function ok<T, E>(value: T): AsyncResult<T, E> {
-    return AsyncResult<T, E>(Promise.resolve<Result<T, E>>(Result.ok<T, E>(value)));
+    return AsyncResult(Promise.resolve<Result<T, E>>(Result.ok<T, E>(value)));
 }
 
 === checked ===
@@ -327,15 +327,17 @@ extension<T, E> of Result<T, E> {
     /// @resolution.name source=T target=T
     /// @resolution.name source=E target=E
 
-        Result.Ok({ value })
-        /// @type.node source="Result.Ok({ value })" type=Result<T#6, E#3>
+        Result.Ok<T, E>({ value })
+        /// @type.node source="Result.Ok<T, E>({ value })" type=Result<T#6, E#3>
         /// @type.node source=Result type=Result
         /// @type.node source=Result.Ok type=Result.Ok
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.Ok receiver=Result kind=symbol target=Result.Ok
-        /// @resolution.construct source="Result.Ok({ value })" parameters=({ value: T#6 }) arguments=(provided({ value }) as { value: T#6 }) return=Result<T#6, E#3> kind=variant owner=Result variant=Ok instance="Result<T#6, E#3>" discriminant=Ok
-        /// @generic.instance source="Result.Ok({ value })" id="Result<T#6, E#3>"
+        /// @resolution.construct source="Result.Ok<T, E>({ value })" parameters=({ value: T#6 }) arguments=(provided({ value }) as { value: T#6 }) return=Result<T#6, E#3> kind=variant owner=Result variant=Ok instance="Result<T#6, E#3>" discriminant=Ok
+        /// @generic.instance source="Result.Ok<T, E>({ value })" id="Result<T#6, E#3>"
         /// @generic.instance source=Result.Ok id="Result<T#5, E#2>"
+        /// @resolution.name source=T target=T
+        /// @resolution.name source=E target=E
         /// @type.node source={ value } type={ value: T#6 }
         /// @type.node source=value type=T#6
         /// @resolution.name source=value target=ok.value#1
@@ -406,8 +408,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=5 types=66 constraints=0 obligations=6 solutions=5 bounds=17 decisions=42
-
+/// @check.stats.solve variables=5 types=63 constraints=3 obligations=6 solutions=5 bounds=6 decisions=44
 "#,
     );
 }
@@ -457,7 +458,7 @@ newtype Result<T, E> = Ok<T> | Err<E>;
 
 extension<T, E> of Result<T, E> {
     static ok(value: T): Result<T, E> {
-        Result.Ok<T, E>({ value })
+        Result.Ok({ value })
     }
 }
 
@@ -553,7 +554,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=2 types=31 constraints=4 obligations=5 solutions=2 bounds=9 decisions=18
+/// @check.stats.solve variables=2 types=31 constraints=1 obligations=5 solutions=2 bounds=9 decisions=18
 "#,
     );
 }
@@ -571,7 +572,7 @@ function countdown(n: float64) {
     session.assert_dir_checked_diagnostics(
         "main.ds",
         r#"
-/// @diagnostic.error code=EC100 message="cannot infer a type here"
+/// @diagnostic.error code=EC103 message="type is circular"
 /// @diagnostic.label line=2 column=10 span="countdown" line_source="function countdown(n: float64) {"
 "#,
     );

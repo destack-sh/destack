@@ -25,15 +25,18 @@ matched satisfies "a" | "c";
 
 === checked ===
 type Match = Extract<"a" | "b" | "c", "a" | "c">;
-/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type="a" | "c"
-/// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value="a" | "c"
+/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type=Extract<"a" | "b" | "c", "a" | "c"> reduced="a" | "c"
+/// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value=Extract<"a" | "b" | "c", "a" | "c"> reduced="a" | "c"
 /// @resolution.name source=Extract target=types.object.Extract
 
 declare const matched: Match;
-/// @type.symbol symbol=matched source=matched type="a" | "c"
+/// @type.symbol symbol=matched source=matched type=Match reduced="a" | "c"
 /// @resolution.name source=Match target=Match
 
 matched satisfies "a" | "c";
+/// @resolution.name source=matched target=matched
+
+/// @generic.instance id="Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" template=types.object.Extract arguments=("a" | "b" | "c", "a" | "c")
 "#,
     );
 }
@@ -59,17 +62,19 @@ const bad: Match = "b";
 
 === checked ===
 type Match = Extract<"a" | "b" | "c", "a" | "c">;
-/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type="a" | "c"
-/// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value="a" | "c"
+/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type=Extract<"a" | "b" | "c", "a" | "c"> reduced="a" | "c"
+/// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value=Extract<"a" | "b" | "c", "a" | "c"> reduced="a" | "c"
 /// @resolution.name source=Extract target=types.object.Extract
 
 const bad: Match = "b";
-/// @type.symbol symbol=bad source=bad type="a" | "c"
+/// @type.symbol symbol=bad source=bad type=Match reduced="a" | "c"
 /// @resolution.name source=Match target=Match
+
+/// @generic.instance id="Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" template=types.object.Extract arguments=("a" | "b" | "c", "a" | "c")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"b\"' is not assignable to type 'Match'"
-/// @diagnostic.label line=4 column=7 source="const bad: Match = \"b\";"
+/// @diagnostic.label line=4 column=20 span="\"b\"" line_source="const bad: Match = \"b\";"
 "#,
     );
 }
@@ -95,17 +100,19 @@ let bad: Match = "a";
 
 === checked ===
 type Match = Extract<never, "a">;
-/// @type.symbol symbol=Match source="type Match = Extract<never, \"a\">" type=never
-/// @definition.type symbol=Match source="type Match = Extract<never, \"a\">" value=never
+/// @type.symbol symbol=Match source="type Match = Extract<never, \"a\">" type=Extract<never, "a"> reduced=never
+/// @definition.type symbol=Match source="type Match = Extract<never, \"a\">" value=Extract<never, "a"> reduced=never
 /// @resolution.name source=Extract target=types.object.Extract
 
 let bad: Match = "a";
-/// @type.symbol symbol=bad source=bad type=never
+/// @type.symbol symbol=bad source=bad type=Match reduced=never
 /// @resolution.name source=Match target=Match
+
+/// @generic.instance id="Extract<never, \"a\">" template=types.object.Extract arguments=(never, "a")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"a\"' is not assignable to type 'Match'"
-/// @diagnostic.label line=4 column=5 source="let bad: Match = \"a\";"
+/// @diagnostic.label line=4 column=18 span="\"a\"" line_source="let bad: Match = \"a\";"
 "#,
     );
 }

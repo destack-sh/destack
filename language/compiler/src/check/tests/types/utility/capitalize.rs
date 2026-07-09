@@ -21,13 +21,15 @@ const ok: Value = "Hello";
 
 === checked ===
 type Value = Capitalize<"hello">;
-/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
-/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
+/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type=Capitalize<"hello"> reduced="Hello"
+/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value=Capitalize<"hello"> reduced="Hello"
 /// @resolution.name source=Capitalize target=types.string.Capitalize
 
 const ok: Value = "Hello";
-/// @type.symbol symbol=ok source=ok type=Value
+/// @type.symbol symbol=ok source=ok type=Value reduced="Hello"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="Capitalize<\"hello\">" template=types.string.Capitalize arguments=("hello")
 "#,
     );
 }
@@ -57,16 +59,18 @@ value satisfies "Yes" | "No";
 
 === checked ===
 type Value = Capitalize<"yes" | "no">;
-/// @type.symbol symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" type="Yes" | "No"
-/// @definition.type symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" value="Yes" | "No"
+/// @type.symbol symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" type=Capitalize<"yes" | "no"> reduced="Yes" | "No"
+/// @definition.type symbol=Value source="type Value = Capitalize<\"yes\" | \"no\">" value=Capitalize<"yes" | "no"> reduced="Yes" | "No"
 /// @resolution.name source=Capitalize target=types.string.Capitalize
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=Value
+/// @type.symbol symbol=value source=value type=Value reduced="Yes" | "No"
 /// @resolution.name source=Value target=Value
 
 value satisfies "Yes" | "No";
 /// @resolution.name source=value target=value
+
+/// @generic.instance id="Capitalize<\"yes\" | \"no\">" template=types.string.Capitalize arguments=("yes" | "no")
 "#,
     );
 }
@@ -92,13 +96,15 @@ const bad: Value = "hello";
 
 === checked ===
 type Value = Capitalize<"hello">;
-/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type="Hello"
-/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value="Hello"
+/// @type.symbol symbol=Value source="type Value = Capitalize<\"hello\">" type=Capitalize<"hello"> reduced="Hello"
+/// @definition.type symbol=Value source="type Value = Capitalize<\"hello\">" value=Capitalize<"hello"> reduced="Hello"
 /// @resolution.name source=Capitalize target=types.string.Capitalize
 
 const bad: Value = "hello";
-/// @type.symbol symbol=bad source=bad type=Value
+/// @type.symbol symbol=bad source=bad type=Value reduced="Hello"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="Capitalize<\"hello\">" template=types.string.Capitalize arguments=("hello")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"hello\"' is not assignable to type 'Value'"

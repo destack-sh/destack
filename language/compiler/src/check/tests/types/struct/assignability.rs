@@ -155,10 +155,10 @@ counter satisfies HasCount;
 interface HasCount {
 /// @type.symbol symbol=HasCount type=HasCount
 /// @definition.interface symbol=HasCount
-/// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32 | undefined
+/// @definition.field symbol=HasCount.count source="count?: int32" key=count type=int32
 
     count?: int32;
-    /// @type.symbol symbol=HasCount.count source="count?: int32" type=int32 | undefined
+    /// @type.symbol symbol=HasCount.count source="count?: int32" type=int32
 
 }
 
@@ -225,6 +225,7 @@ interface Drawable {
 struct Point implements Drawable {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
+/// @definition.where symbol=Point source=Drawable relation=satisfies left=this right=Drawable
 /// @definition.implements symbol=Point source=Drawable target=Drawable
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @resolution.name source=Drawable target=Drawable
@@ -287,7 +288,9 @@ interface Right extends Base<int32> {}
 struct Point implements Left, Right {}
 /// @type.symbol symbol=Point source="struct Point implements Left, Right {}" type=Point
 /// @definition.struct symbol=Point source="struct Point implements Left, Right {}"
+/// @definition.where symbol=Point source=Left relation=satisfies left=this right=Left
 /// @definition.implements symbol=Point source=Left target=Left
+/// @definition.where symbol=Point source=Right relation=satisfies left=this right=Right
 /// @definition.implements symbol=Point source=Right target=Right
 /// @resolution.name source=Left target=Left
 /// @resolution.name source=Right target=Right

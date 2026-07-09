@@ -21,13 +21,15 @@ const ok: Value = "HELLO";
 
 === checked ===
 type Value = Uppercase<"hello">;
-/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type="HELLO"
-/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value="HELLO"
+/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type=Uppercase<"hello"> reduced="HELLO"
+/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value=Uppercase<"hello"> reduced="HELLO"
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 const ok: Value = "HELLO";
-/// @type.symbol symbol=ok source=ok type=Value
+/// @type.symbol symbol=ok source=ok type=Value reduced="HELLO"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
 "#,
     );
 }
@@ -57,16 +59,18 @@ method satisfies "GET" | "POST";
 
 === checked ===
 type Method = Uppercase<"get" | "post">;
-/// @type.symbol symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" type="GET" | "POST"
-/// @definition.type symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" value="GET" | "POST"
+/// @type.symbol symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" type=Uppercase<"get" | "post"> reduced="GET" | "POST"
+/// @definition.type symbol=Method source="type Method = Uppercase<\"get\" | \"post\">" value=Uppercase<"get" | "post"> reduced="GET" | "POST"
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 declare const method: Method;
-/// @type.symbol symbol=method source=method type=Method
+/// @type.symbol symbol=method source=method type=Method reduced="GET" | "POST"
 /// @resolution.name source=Method target=Method
 
 method satisfies "GET" | "POST";
 /// @resolution.name source=method target=method
+
+/// @generic.instance id="Uppercase<\"get\" | \"post\">" template=types.string.Uppercase arguments=("get" | "post")
 "#,
     );
 }
@@ -92,13 +96,15 @@ const bad: Value = "hello";
 
 === checked ===
 type Value = Uppercase<"hello">;
-/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type="HELLO"
-/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value="HELLO"
+/// @type.symbol symbol=Value source="type Value = Uppercase<\"hello\">" type=Uppercase<"hello"> reduced="HELLO"
+/// @definition.type symbol=Value source="type Value = Uppercase<\"hello\">" value=Uppercase<"hello"> reduced="HELLO"
 /// @resolution.name source=Uppercase target=types.string.Uppercase
 
 const bad: Value = "hello";
-/// @type.symbol symbol=bad source=bad type=Value
+/// @type.symbol symbol=bad source=bad type=Value reduced="HELLO"
 /// @resolution.name source=Value target=Value
+
+/// @generic.instance id="Uppercase<\"hello\">" template=types.string.Uppercase arguments=("hello")
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"hello\"' is not assignable to type 'Value'"

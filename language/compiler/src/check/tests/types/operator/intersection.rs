@@ -37,24 +37,24 @@ type Aged = { age: int32 };
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
 
 type Person = Named & Aged;
-/// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
-/// @definition.type symbol=Person source="type Person = Named & Aged" value={ name: string; age: int32 }
+/// @type.symbol symbol=Person source="type Person = Named & Aged" type=Named & Aged reduced={ name: string; age: int32 }
+/// @definition.type symbol=Person source="type Person = Named & Aged" value=Named & Aged reduced={ name: string; age: int32 }
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Aged target=Aged
 
 declare const person: Person;
-/// @type.symbol symbol=person source=person type={ name: string } & { age: int32 }
+/// @type.symbol symbol=person source=person type=Person reduced={ name: string; age: int32 }
 /// @resolution.name source=Person target=Person
 
 const name = person.name;
 /// @type.symbol symbol=name source=name type=string
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver={ name: string } & { age: int32 } kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=field key=name
 
 const age = person.age;
 /// @type.symbol symbol=age source=age type=int32
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver={ name: string } & { age: int32 } kind=field key=age
+/// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=field key=age
 "#,
     );
 }
@@ -92,18 +92,18 @@ type Aged = { age: int32 };
 /// @definition.type symbol=Aged source="type Aged = { age: int32 }" value={ age: int32 }
 
 type Person = Named & Aged;
-/// @type.symbol symbol=Person source="type Person = Named & Aged" type={ name: string; age: int32 }
-/// @definition.type symbol=Person source="type Person = Named & Aged" value={ name: string; age: int32 }
+/// @type.symbol symbol=Person source="type Person = Named & Aged" type=Named & Aged reduced={ name: string; age: int32 }
+/// @definition.type symbol=Person source="type Person = Named & Aged" value=Named & Aged reduced={ name: string; age: int32 }
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Aged target=Aged
 
 const person: Person = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ name: string } & { age: int32 }
+/// @type.symbol symbol=person source=person type=Person reduced={ name: string; age: int32 }
 /// @resolution.name source=Person target=Person
 "#,
         r#"
 /// @diagnostic.error code=EC215 message="missing required property 'age' for type 'Person'"
-/// @diagnostic.label line=6 column=7 source="const person: Person = { name: \"Ada\" };"
+/// @diagnostic.label line=6 column=24 span="{ name: \"Ada\" }" line_source="const person: Person = { name: \"Ada\" };"
 "#,
     );
 }
@@ -141,18 +141,18 @@ type TextValue = { value: string };
 /// @definition.type symbol=TextValue source="type TextValue = { value: string }" value={ value: string }
 
 type Value = NumberValue & TextValue;
-/// @type.symbol symbol=Value source="type Value = NumberValue & TextValue" type={ value: never }
-/// @definition.type symbol=Value source="type Value = NumberValue & TextValue" value={ value: never }
+/// @type.symbol symbol=Value source="type Value = NumberValue & TextValue" type=NumberValue & TextValue reduced={ value: int32 & string }
+/// @definition.type symbol=Value source="type Value = NumberValue & TextValue" value=NumberValue & TextValue reduced={ value: int32 & string }
 /// @resolution.name source=NumberValue target=NumberValue
 /// @resolution.name source=TextValue target=TextValue
 
 const value: Value = { value: "ok" };
-/// @type.symbol symbol=value source=value type={ value: int32 } & { value: string }
+/// @type.symbol symbol=value source=value type=Value reduced={ value: int32 & string }
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '{ value: \"ok\" }' is not assignable to type 'Value'"
-/// @diagnostic.label line=6 column=7 source="const value: Value = { value: \"ok\" };"
+/// @diagnostic.error code=EC200 message="type '\"ok\"' is not assignable to type 'int32 & string'"
+/// @diagnostic.label line=6 column=31 span="\"ok\"" line_source="const value: Value = { value: \"ok\" };"
 "#,
     );
 }
@@ -194,22 +194,22 @@ type Narrow = { value: string; extra: string };
 /// @definition.type symbol=Narrow source="type Narrow = { value: string; extra: string }" value={ value: string; extra: string }
 
 type Value = Wide & Narrow;
-/// @type.symbol symbol=Value source="type Value = Wide & Narrow" type={ value: string; extra: string }
-/// @definition.type symbol=Value source="type Value = Wide & Narrow" value={ value: string; extra: string }
+/// @type.symbol symbol=Value source="type Value = Wide & Narrow" type=Wide & Narrow reduced={ value: string | int32 & string; extra: string }
+/// @definition.type symbol=Value source="type Value = Wide & Narrow" value=Wide & Narrow reduced={ value: string | int32 & string; extra: string }
 /// @resolution.name source=Wide target=Wide
 /// @resolution.name source=Narrow target=Narrow
 
 const value: Value = { value: "ok", extra: "yes" };
-/// @type.symbol symbol=value source=value type={ value: string | int32 } & { value: string; extra: string }
+/// @type.symbol symbol=value source=value type=Value reduced={ value: string | int32 & string; extra: string }
 /// @resolution.name source=Value target=Value
 
 value.value satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.value receiver={ value: string | int32 } & { value: string; extra: string } kind=field key=value
+/// @resolution.member source=value.value receiver={ value: string | int32 & string; extra: string } kind=field key=value
 
 value.extra satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.member source=value.extra receiver={ value: string | int32 } & { value: string; extra: string } kind=field key=extra
+/// @resolution.member source=value.extra receiver={ value: string | int32 & string; extra: string } kind=field key=extra
 "#,
     );
 }
@@ -235,16 +235,16 @@ let value: Both = "ok";
 
 === checked ===
 type Both = string & int32;
-/// @type.symbol symbol=Both source="type Both = string & int32" type=never
-/// @definition.type symbol=Both source="type Both = string & int32" value=never
+/// @type.symbol symbol=Both source="type Both = string & int32" type=string & int32
+/// @definition.type symbol=Both source="type Both = string & int32" value=string & int32
 
 let value: Both = "ok";
-/// @type.symbol symbol=value source=value type=never
+/// @type.symbol symbol=value source=value type=Both reduced=string & int32
 /// @resolution.name source=Both target=Both
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"ok\"' is not assignable to type 'Both'"
-/// @diagnostic.label line=4 column=5 source="let value: Both = \"ok\";"
+/// @diagnostic.label line=4 column=19 span="\"ok\"" line_source="let value: Both = \"ok\";"
 "#,
     );
 }
@@ -270,16 +270,16 @@ let value: Value = ();
 
 === checked ===
 type Value = void & never;
-/// @type.symbol symbol=Value source="type Value = void & never" type=never
-/// @definition.type symbol=Value source="type Value = void & never" value=never
+/// @type.symbol symbol=Value source="type Value = void & never" type=void & never
+/// @definition.type symbol=Value source="type Value = void & never" value=void & never
 
 let value: Value = ();
-/// @type.symbol symbol=value source=value type=never
+/// @type.symbol symbol=value source=value type=Value reduced=void & never
 /// @resolution.name source=Value target=Value
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '()' is not assignable to type 'Value'"
-/// @diagnostic.label line=4 column=5 source="let value: Value = ();"
+/// @diagnostic.label line=4 column=20 span="()" line_source="let value: Value = ();"
 "#,
     );
 }

@@ -35,8 +35,6 @@ const mode: Mode = 1;
 /// @definition.enum symbol=Mode
 /// @definition.variant symbol=Mode.Read source="Read = 1" key=Read
 /// @definition.variant symbol=Mode.Write source="Write = 2" key=Write
-/// @layout.type type=Mode shape=enum size=1 align=1 backing=uint8
-/// @layout.type type=uint8 shape=scalar size=1 align=1
 /// @resolution.name source=repr target=decorator.representation.repr
 
 enum Mode {
@@ -58,10 +56,10 @@ const mode: Mode = 1;
 /// @resolution.name source=Mode target=Mode
 "#,
         r#"
-/// @diagnostic.error code=EC200 message="type '1' is not assignable to type 'Mode'"
-/// @diagnostic.label line=9 column=20 span="1" line_source="const mode: Mode = 1;"
 /// @diagnostic.error code=EC200 message="type 'Mode.Read' is not assignable to type 'uint8'"
 /// @diagnostic.label line=8 column=25 span="Read" line_source="const raw: uint8 = Mode.Read;"
+/// @diagnostic.error code=EC200 message="type '1' is not assignable to type 'Mode'"
+/// @diagnostic.label line=9 column=20 span="1" line_source="const mode: Mode = 1;"
 "#,
     );
 }

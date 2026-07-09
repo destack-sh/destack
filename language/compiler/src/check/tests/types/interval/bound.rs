@@ -29,23 +29,20 @@ type Count = 0..5;
 /// @definition.type symbol=Count source="type Count = 0..5" value=0..5
 
 const low: Count = 0;
-/// @type.symbol symbol=low source=low type=0..5
+/// @type.symbol symbol=low source=low type=Count reduced=0..5
 /// @resolution.name source=Count target=Count
-/// @type.node source=0 type=0
 
 const high: Count = 4;
-/// @type.symbol symbol=high source=high type=0..5
+/// @type.symbol symbol=high source=high type=Count reduced=0..5
 /// @resolution.name source=Count target=Count
-/// @type.node source=4 type=4
 
 const bad: Count = 5;
-/// @type.symbol symbol=bad source=bad type=0..5
+/// @type.symbol symbol=bad source=bad type=Count reduced=0..5
 /// @resolution.name source=Count target=Count
-/// @type.node source=5 type=5
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '5' is not assignable to type 'Count'"
-/// @diagnostic.label line=6 column=7 source="const bad: Count = 5;"
+/// @diagnostic.label line=6 column=20 span="5" line_source="const bad: Count = 5;"
 "#,
     );
 }
@@ -79,23 +76,20 @@ type Digit = 0..=9;
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
 
 const zero: Digit = 0;
-/// @type.symbol symbol=zero source=zero type=0..=9
+/// @type.symbol symbol=zero source=zero type=Digit reduced=0..=9
 /// @resolution.name source=Digit target=Digit
-/// @type.node source=0 type=0
 
 const nine: Digit = 9;
-/// @type.symbol symbol=nine source=nine type=0..=9
+/// @type.symbol symbol=nine source=nine type=Digit reduced=0..=9
 /// @resolution.name source=Digit target=Digit
-/// @type.node source=9 type=9
 
 const bad: Digit = 10;
-/// @type.symbol symbol=bad source=bad type=0..=9
+/// @type.symbol symbol=bad source=bad type=Digit reduced=0..=9
 /// @resolution.name source=Digit target=Digit
-/// @type.node source=10 type=10
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '10' is not assignable to type 'Digit'"
-/// @diagnostic.label line=6 column=7 source="const bad: Digit = 10;"
+/// @diagnostic.label line=6 column=20 span="10" line_source="const bad: Digit = 10;"
 "#,
     );
 }
@@ -127,14 +121,13 @@ type Offset = -4..=4;
 /// @definition.type symbol=Offset source="type Offset = -4..=4" value=-4..=4
 
 const left: Offset = -4;
-/// @type.symbol symbol=left source=left type=-4..=4
+/// @type.symbol symbol=left source=left type=Offset reduced=-4..=4
 /// @resolution.name source=Offset target=Offset
-/// @type.node source=-4 type=-4
+/// @resolution.call source=-4 parameters=() return=-4 kind=builtin builtin=unary.negate
 
 const right: Offset = 4;
-/// @type.symbol symbol=right source=right type=-4..=4
+/// @type.symbol symbol=right source=right type=Offset reduced=-4..=4
 /// @resolution.name source=Offset target=Offset
-/// @type.node source=4 type=4
 "#,
     );
 }
@@ -161,7 +154,7 @@ type Count = 0..;
 "#,
         r#"
 /// @diagnostic.error code=EC502 message="interval type must be bounded"
-/// @diagnostic.label line=2 column=14 source="0.."
+/// @diagnostic.label line=2 column=15 span=".." line_source="type Count = 0..;"
 "#,
     );
 }
@@ -188,7 +181,7 @@ type Count = ..;
 "#,
         r#"
 /// @diagnostic.error code=EC502 message="interval type must be bounded"
-/// @diagnostic.label line=2 column=14 source=".."
+/// @diagnostic.label line=2 column=14 span=".." line_source="type Count = ..;"
 "#,
     );
 }
@@ -215,7 +208,7 @@ type Unit = 0.0..=1.0;
 "#,
         r#"
 /// @diagnostic.error code=EC503 message="interval type bounds must be integer, bigint, or char literals"
-/// @diagnostic.label line=2 column=13 source="0.0..=1.0"
+/// @diagnostic.label line=2 column=16 span="..=" line_source="type Unit = 0.0..=1.0;"
 "#,
     );
 }
@@ -242,7 +235,7 @@ type Mixed = 0..='z';
 "#,
         r#"
 /// @diagnostic.error code=EC503 message="interval type bounds must be integer, bigint, or char literals"
-/// @diagnostic.label line=2 column=14 source="0..='z'"
+/// @diagnostic.label line=2 column=15 span="..=" line_source="type Mixed = 0..='z';"
 "#,
     );
 }

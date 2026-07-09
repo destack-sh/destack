@@ -8,7 +8,8 @@ fn test_global_binding_resolves_without_import() {
             r#"
 {
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.ds"],
+        "emitCheckedTypes": true
     }
 }
 "#,
@@ -43,8 +44,8 @@ global {
 === checked ===
 global {
     const answer: int32 = 42;
-    /// @type.symbol symbol=answer type=int32
-    /// @type.node source=42 type=int32
+    /// @type.symbol symbol=answer source=answer type=int32
+    /// @type.node source=42 type=42
 
 }
 
@@ -55,7 +56,7 @@ const value: int32 = answer;
 
 === checked ===
 const value = answer;
-/// @type.symbol symbol=value type=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source=answer type=int32
 /// @resolution.name source=answer target=globals.answer
 "#,

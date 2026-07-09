@@ -163,7 +163,6 @@ struct Flags {
 }
 
 extension of Flags implements And<Flags> {
-/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=ops.bitwise.And arguments=(Flags)
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags

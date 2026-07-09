@@ -35,29 +35,31 @@ person.age satisfies int32;
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.age source="age?: int32" key=age type=int32 | undefined
+/// @definition.field symbol=Person.age source="age?: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
     name: string;
     /// @type.symbol symbol=Person.name source="name: string" type=string
 
     age?: int32;
-    /// @type.symbol symbol=Person.age source="age?: int32" type=int32 | undefined
+    /// @type.symbol symbol=Person.age source="age?: int32" type=int32
 
 }
 
 declare const person: Required<Person>;
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string; age: int32 }
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=types.object.Required<Person> kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string; age: int32 } kind=field key=name
 
 person.age satisfies int32;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver=types.object.Required<Person> kind=field key=age
+/// @resolution.member source=person.age receiver={ name: string; age: int32 } kind=field key=age
+
+/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
     );
 }
@@ -91,25 +93,27 @@ const person: Required<Person> = { name: "Ada" };
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.age source="age?: int32" key=age type=int32 | undefined
+/// @definition.field symbol=Person.age source="age?: int32" key=age type=int32
 /// @definition.field symbol=Person.name source="name: string" key=name type=string
 
     name: string;
     /// @type.symbol symbol=Person.name source="name: string" type=string
 
     age?: int32;
-    /// @type.symbol symbol=Person.age source="age?: int32" type=int32 | undefined
+    /// @type.symbol symbol=Person.age source="age?: int32" type=int32
 
 }
 
 const person: Required<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ name: string; age: int32 }
+/// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string; age: int32 }
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
+
+/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
         r#"
 /// @diagnostic.error code=EC215 message="missing required property 'age' for type 'Required<Person>'"
-/// @diagnostic.label line=7 column=34 source="const person: Required<Person> = { name: \"Ada\" };"
+/// @diagnostic.label line=7 column=34 span="{ name: \"Ada\" }" line_source="const person: Required<Person> = { name: \"Ada\" };"
 "#,
     );
 }
@@ -136,7 +140,7 @@ interface Person {
     name?: string | undefined;
 }
 
-const person: Required<Person> = { name: undefined };
+const person: Required<Person> = { name: undefined as string | undefined };
 person.name satisfies string | undefined;
 
 === checked ===
@@ -151,13 +155,15 @@ interface Person {
 }
 
 const person: Required<Person> = { name: undefined };
-/// @type.symbol symbol=person source=person type={ name: string | undefined }
+/// @type.symbol symbol=person source=person type=Required<Person> reduced={ name: string | undefined }
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=types.object.Required<Person> kind=field key=name
+/// @resolution.member source=person.name receiver={ name: string | undefined } kind=field key=name
+
+/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
     );
 }
@@ -191,25 +197,27 @@ person.name = "Grace";
 interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person
-/// @definition.field symbol=Person.name source="readonly name?: string" key=name type=string | undefined
+/// @definition.field symbol=Person.name source="readonly name?: string" key=name type=string
 
     readonly name?: string;
-    /// @type.symbol symbol=Person.name source="readonly name?: string" type=string | undefined
+    /// @type.symbol symbol=Person.name source="readonly name?: string" type=string
 
 }
 
 const person: Required<Person> = { name: "Ada" };
-/// @type.symbol symbol=person source=person type={ readonly name: string }
+/// @type.symbol symbol=person source=person type=Required<Person> reduced={ readonly name: string }
 /// @resolution.name source=Required target=types.object.Required
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=types.object.Required<Person> kind=field key=name
+/// @resolution.pattern.assign source=person.name kind=place place=field(name) type=string
+
+/// @generic.instance id=Required<Person> template=types.object.Required arguments=(Person)
 "#,
         r#"
 /// @diagnostic.error code=EC214 message="cannot assign to readonly member 'name'"
-/// @diagnostic.label line=7 column=1 source="person.name = \"Grace\";"
+/// @diagnostic.label line=7 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );
 }

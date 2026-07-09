@@ -228,7 +228,7 @@ const value: Box<int32> = _(1);
 === annotated ===
 newtype Box<T> = T;
 
-const value: Box<int32> = Box<int32>(1);
+const value: Box<int32> = Box(1);
 
 === checked ===
 newtype Box<T> = T;
@@ -271,7 +271,7 @@ function from<T, E>(value: E): Result<T, E> {
 newtype Result<T, E> = T | E;
 
 function from<T, E>(value: E): Result<T, E> {
-    Result<T, E>(value as T | E)
+    Result(value as T | E)
 }
 
 === checked ===

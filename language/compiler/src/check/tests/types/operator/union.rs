@@ -22,7 +22,7 @@ let value: string | int32 = "hello";
 /// @type.symbol symbol=value source=value type=string | int32
 
 value = 42;
-/// @resolution.name source=value target=value
+/// @resolution.pattern.assign source=value kind=place place=binding(value) type=string | int32
 "#,
     );
 }
@@ -84,12 +84,12 @@ type A = { a: int32 } | { b: string };
 /// @definition.type symbol=A source="type A = { a: int32 } | { b: string }" value={ a: int32 } | { b: string }
 
 type B = A | { c: boolean };
-/// @type.symbol symbol=B source="type B = A | { c: boolean }" type={ a: int32 } | { b: string } | { c: boolean }
-/// @definition.type symbol=B source="type B = A | { c: boolean }" value={ a: int32 } | { b: string } | { c: boolean }
+/// @type.symbol symbol=B source="type B = A | { c: boolean }" type=A | { c: boolean }
+/// @definition.type symbol=B source="type B = A | { c: boolean }" value=A | { c: boolean }
 /// @resolution.name source=A target=A
 
 const value: B = { c: true };
-/// @type.symbol symbol=value source=value type={ a: int32 } | { b: string } | { c: boolean }
+/// @type.symbol symbol=value source=value type=B reduced=A | { c: boolean }
 /// @resolution.name source=B target=B
 
 value satisfies { a: int32 } | { b: string } | { c: boolean };
@@ -125,7 +125,7 @@ type A = never | string;
 /// @definition.type symbol=A source="type A = never | string" value=string
 
 const value: A = "hello";
-/// @type.symbol symbol=value source=value type=string
+/// @type.symbol symbol=value source=value type=A reduced=string
 /// @resolution.name source=A target=A
 
 value satisfies string;
@@ -161,7 +161,7 @@ type Value = void | never;
 /// @definition.type symbol=Value source="type Value = void | never" value=void
 
 const value: Value = ();
-/// @type.symbol symbol=value source=value type=void
+/// @type.symbol symbol=value source=value type=Value reduced=void
 /// @resolution.name source=Value target=Value
 
 value satisfies void;
@@ -239,7 +239,7 @@ shape.draw();
 }
 
 #[test]
-fn test_union_alias_parameter_induces_constrained_generic() {
+fn test_union_alias_parameter_dispatches_each_variant() {
     let session = TestSession::single(
         r#"
 struct Rectangle {
@@ -273,7 +273,7 @@ struct Circle {
 
 type Shape = Rectangle | Circle;
 
-function draw<T0: Shape>(shape: T0): void {
+function draw(shape: Shape): void {
     shape.draw();
 }
 
@@ -305,15 +305,14 @@ type Shape = Rectangle | Circle;
 /// @resolution.name source=Circle target=Circle
 
 function draw(shape: Shape): void {
-/// @generic.template symbol=draw parameters=(T0: Shape)
-/// @type.symbol symbol=draw type=<draw.T0: Shape>(draw.T0) => void
-/// @type.symbol symbol=shape source="shape: Shape" type=draw.T0
+/// @type.symbol symbol=draw type=(Shape) => void
+/// @type.symbol symbol=draw.shape source="shape: Shape" type=Shape reduced=Rectangle | Circle
 /// @resolution.name source=Shape target=Shape
 
     shape.draw();
-    /// @resolution.name source=shape target=shape
-    /// @resolution.member source=shape.draw receiver=draw.T0 kind=universal targets=[Rectangle.draw, Circle.draw]
-    /// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw] receiver=draw.T0
+    /// @resolution.name source=shape target=draw.shape
+    /// @resolution.member source=shape.draw receiver=Rectangle | Circle kind=universal targets=[Rectangle.draw, Circle.draw]
+    /// @resolution.call source=shape.draw() parameters=() return=void kind=universal targets=[Rectangle.draw, Circle.draw]
 
 }
 "#);

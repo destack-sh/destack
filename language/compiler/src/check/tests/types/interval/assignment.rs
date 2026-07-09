@@ -30,14 +30,13 @@ declare const value: int32;
 /// @type.symbol symbol=value source=value type=int32
 
 const digit: Digit = value;
-/// @type.symbol symbol=digit source=digit type=0..=9
+/// @type.symbol symbol=digit source=digit type=Digit reduced=0..=9
 /// @resolution.name source=Digit target=Digit
-/// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
-/// @diagnostic.label line=5 column=7 source="const digit: Digit = value;"
+/// @diagnostic.label line=5 column=22 span="value" line_source="const digit: Digit = value;"
 "#,
     );
 }
@@ -69,20 +68,18 @@ type Digit = 0..=9;
 /// @definition.type symbol=Digit source="type Digit = 0..=9" value=0..=9
 
 declare const digit: Digit;
-/// @type.symbol symbol=digit source=digit type=0..=9
+/// @type.symbol symbol=digit source=digit type=Digit reduced=0..=9
 /// @resolution.name source=Digit target=Digit
 
 const next: Digit = digit + 1;
-/// @type.symbol symbol=next source=next type=0..=9
+/// @type.symbol symbol=next source=next type=Digit reduced=0..=9
 /// @resolution.name source=Digit target=Digit
-/// @type.node source="digit + 1" type=int32
-/// @type.node source=digit type=0..=9
 /// @resolution.name source=digit target=digit
-/// @type.node source=1 type=1
+/// @resolution.call source="digit + 1" parameters=() return=int32 kind=builtin builtin=binary.add
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'int32' is not assignable to type 'Digit'"
-/// @diagnostic.label line=5 column=7 source="const next: Digit = digit + 1;"
+/// @diagnostic.label line=5 column=27 span="+" line_source="const next: Digit = digit + 1;"
 "#,
     );
 }
@@ -116,23 +113,20 @@ type Edge = 0..=3 | 252..=255;
 /// @definition.type symbol=Edge source="type Edge = 0..=3 | 252..=255" value=0..=3 | 252..=255
 
 const low: Edge = 2;
-/// @type.symbol symbol=low source=low type=0..=3 | 252..=255
+/// @type.symbol symbol=low source=low type=Edge reduced=0..=3 | 252..=255
 /// @resolution.name source=Edge target=Edge
-/// @type.node source=2 type=2
 
 const high: Edge = 254;
-/// @type.symbol symbol=high source=high type=0..=3 | 252..=255
+/// @type.symbol symbol=high source=high type=Edge reduced=0..=3 | 252..=255
 /// @resolution.name source=Edge target=Edge
-/// @type.node source=254 type=254
 
 const bad: Edge = 128;
-/// @type.symbol symbol=bad source=bad type=0..=3 | 252..=255
+/// @type.symbol symbol=bad source=bad type=Edge reduced=0..=3 | 252..=255
 /// @resolution.name source=Edge target=Edge
-/// @type.node source=128 type=128
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '128' is not assignable to type 'Edge'"
-/// @diagnostic.label line=6 column=7 source="const bad: Edge = 128;"
+/// @diagnostic.label line=6 column=19 span="128" line_source="const bad: Edge = 128;"
 "#,
     );
 }
@@ -166,19 +160,15 @@ newtype Port = 1..=65535;
 const raw: Port = 443;
 /// @type.symbol symbol=raw source=raw type=Port
 /// @resolution.name source=Port target=Port
-/// @type.node source=443 type=443
 
 const port = Port(443);
 /// @type.symbol symbol=port source=port type=Port
-/// @type.node source=Port type=Port
-/// @type.node source=Port(443) type=Port
 /// @resolution.name source=Port target=Port
-/// @resolution.construct source=Port(443) parameters=(443) return=Port kind=newtype target=Port
-/// @type.node source=443 type=443
+/// @resolution.construct source=Port(443) parameters=(1..=65535) arguments=(provided(443) as 1..=65535) return=Port kind=newtype target=Port
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '443' is not assignable to type 'Port'"
-/// @diagnostic.label line=4 column=7 source="const raw: Port = 443;"
+/// @diagnostic.label line=4 column=19 span="443" line_source="const raw: Port = 443;"
 "#,
     );
 }

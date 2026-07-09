@@ -21,27 +21,33 @@ handler.run(1) satisfies number;
 === annotated ===
 type Handler = { run: (value: number) => number };
 
-const handler: { run: (number) => number } = {
-    run: (value: number) => value + 1,
+const handler: { run: (arg0: float64) => float64 } = {
+    run: (value: float64): float64 => value + 1,
 } satisfies Handler;
 
 handler.run(1) satisfies number;
 
 === checked ===
 type Handler = { run: (value: number) => number };
-/// @type.symbol symbol=Handler source="type Handler = { run: (value: number) => number }" type={ run: (number) => number }
-/// @definition.type symbol=Handler source="type Handler = { run: (value: number) => number }" value={ run: (number) => number }
+/// @type.symbol symbol=Handler source="type Handler = { run: (value: number) => number }" type={ run: Function<(float64,), float64> }
+/// @definition.type symbol=Handler source="type Handler = { run: (value: number) => number }" value={ run: Function<(float64,), float64> }
 
 const handler = {
+/// @type.symbol symbol=handler source=handler type={ run: Function<(float64,), float64> }
+
     run: (value) => value + 1,
+    /// @type.symbol symbol=symbol5 source="(value) => value + 1" type=Function<(float64,), float64>
+    /// @type.symbol symbol=symbol5.value source=value type=float64
+    /// @resolution.name source=value target=symbol5.value
+    /// @resolution.call source="value + 1" parameters=() return=float64 kind=builtin builtin=binary.add
+
 } satisfies Handler;
-/// @type.symbol symbol=handler source=handler type={ run: (number) => number }
 /// @resolution.name source=Handler target=Handler
 
 handler.run(1) satisfies number;
 /// @resolution.name source=handler target=handler
-/// @resolution.member source=handler.run receiver={ run: (number) => number } kind=field key=run
-/// @resolution.call source=handler.run(1) parameters=(number) return=number kind=symbol target=handler.run
+/// @resolution.member source=handler.run receiver={ run: Function<(float64,), float64> } kind=field key=run
+/// @resolution.call source=handler.run(1) parameters=(float64) arguments=(provided(1) as float64) return=float64 kind=expression
 "#,
     );
 }
@@ -102,20 +108,20 @@ const value = { a: 1, b: 2 } satisfies Shape;
 === annotated ===
 type Shape = { a: number };
 
-const value = { a: 1, b: 2 } satisfies Shape;
+const value: { a: 1; b: 2 } = { a: 1, b: 2 } satisfies Shape;
 
 === checked ===
 type Shape = { a: number };
-/// @type.symbol symbol=Shape source="type Shape = { a: number }" type={ a: number }
-/// @definition.type symbol=Shape source="type Shape = { a: number }" value={ a: number }
+/// @type.symbol symbol=Shape source="type Shape = { a: number }" type={ a: float64 }
+/// @definition.type symbol=Shape source="type Shape = { a: number }" value={ a: float64 }
 
 const value = { a: 1, b: 2 } satisfies Shape;
 /// @type.symbol symbol=value source=value type={ a: 1; b: 2 }
 /// @resolution.name source=Shape target=Shape
 "#,
         r#"
-/// @diagnostic.error code=EC205 message="unknown property 'b' in object literal for type '{ a: number }'"
-/// @diagnostic.label line=4 column=15 source="const value = { a: 1, b: 2 } satisfies Shape;"
+/// @diagnostic.error code=EC205 message="unknown property 'b' in object literal for type 'Shape'"
+/// @diagnostic.label line=4 column=30 span="satisfies" line_source="const value = { a: 1, b: 2 } satisfies Shape;"
 "#,
     );
 }

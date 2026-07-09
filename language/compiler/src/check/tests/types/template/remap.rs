@@ -42,32 +42,41 @@ handlers["on-message"] satisfies (value: string) => void;
 === checked ===
 type Handlers<T> = {
 /// @generic.template symbol=Handlers parameters=(T)
-/// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: (value: T[K]) => void }
+/// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
+/// @definition.type symbol=Handlers template=(T) value={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
+/// @type.symbol symbol=Handlers.T source=T type=T
 
     [K in keyof T as `on-${K}`]: (value: T[K]) => void;
+    /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+    /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
+    /// @resolution.name source=T target=Handlers.T
+    /// @resolution.name source=K target=Handlers.K
+    /// @resolution.name source=T target=Handlers.T
+    /// @resolution.name source=K target=Handlers.K
+
 };
 
 type Events = {
-/// @type.symbol symbol=Events source="type Events = {\n    ready: boolean;\n    message: string;\n}" type={ ready: boolean; message: string }
-/// @definition.type symbol=Events source="type Events = {\n    ready: boolean;\n    message: string;\n}" value={ ready: boolean; message: string }
+/// @type.symbol symbol=Events type={ ready: boolean; message: string }
+/// @definition.type symbol=Events value={ ready: boolean; message: string }
 
     ready: boolean;
     message: string;
 };
 
 declare const handlers: Handlers<Events>;
-/// @type.symbol symbol=handlers source=handlers type=Handlers<Events>
+/// @type.symbol symbol=handlers source=handlers type=Handlers<Events> reduced={ on-ready: Function<(boolean,), void>; on-message: Function<(string,), void> }
 /// @resolution.name source=Handlers target=Handlers
 /// @resolution.name source=Events target=Events
-/// @generic.instance source="Handlers<Events>" id=Handlers<Events>
 
 handlers["on-ready"] satisfies (value: boolean) => void;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-ready\"]" receiver=Handlers<Events> kind=field key=on-ready
+/// @resolution.member source="handlers[\"on-ready\"]" receiver={ on-ready: Function<(Events["ready"],), void>; on-message: Function<(Events["message"],), void> } kind=field key=on-ready
 
 handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-message\"]" receiver=Handlers<Events> kind=field key=on-message
+/// @resolution.member source="handlers[\"on-message\"]" receiver={ on-ready: Function<(Events["ready"],), void>; on-message: Function<(Events["message"],), void> } kind=field key=on-message
+
 /// @generic.instance id=Handlers<Events> template=Handlers arguments=(Events)
 "#,
     );
@@ -115,32 +124,43 @@ getters.getAge satisfies () => int32;
 === checked ===
 type Getters<T> = {
 /// @generic.template symbol=Getters parameters=(T)
-/// @type.symbol symbol=Getters type={ [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K] }
+/// @type.symbol symbol=Getters type={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
+/// @definition.type symbol=Getters template=(T) value={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
+/// @type.symbol symbol=Getters.T source=T type=T
 
     [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K];
+    /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+    /// @type.symbol symbol=Getters.K source=[K in keyof T as `get${Capitalize<string & K>}`] type=K
+    /// @resolution.name source=T target=Getters.T
+    /// @resolution.name source=Capitalize target=types.string.Capitalize
+    /// @resolution.name source=K target=Getters.K
+    /// @resolution.name source=T target=Getters.T
+    /// @resolution.name source=K target=Getters.K
+
 };
 
 type Person = {
-/// @type.symbol symbol=Person source="type Person = {\n    name: string;\n    age: int32;\n}" type={ name: string; age: int32 }
-/// @definition.type symbol=Person source="type Person = {\n    name: string;\n    age: int32;\n}" value={ name: string; age: int32 }
+/// @type.symbol symbol=Person type={ name: string; age: int32 }
+/// @definition.type symbol=Person value={ name: string; age: int32 }
 
     name: string;
     age: int32;
 };
 
 declare const getters: Getters<Person>;
-/// @type.symbol symbol=getters source=getters type=Getters<Person>
+/// @type.symbol symbol=getters source=getters type=Getters<Person> reduced={ getName: Function<(), string>; getAge: Function<(), int32> }
 /// @resolution.name source=Getters target=Getters
 /// @resolution.name source=Person target=Person
-/// @generic.instance source="Getters<Person>" id=Getters<Person>
 
 getters.getName satisfies () => string;
 /// @resolution.name source=getters target=getters
-/// @resolution.member source=getters.getName receiver=Getters<Person> kind=field key=getName
+/// @resolution.member source=getters.getName receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } kind=field key=getName
 
 getters.getAge satisfies () => int32;
 /// @resolution.name source=getters target=getters
-/// @resolution.member source=getters.getAge receiver=Getters<Person> kind=field key=getAge
+/// @resolution.member source=getters.getAge receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } kind=field key=getAge
+
+/// @generic.instance id="Capitalize<string & K>" template=types.string.Capitalize arguments=(string & K)
 /// @generic.instance id=Getters<Person> template=Getters arguments=(Person)
 "#,
     );
@@ -179,23 +199,32 @@ value satisfies string;
 type Handlers<T> = {
 /// @generic.template symbol=Handlers parameters=(T)
 /// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: T[K] }
+/// @definition.type symbol=Handlers template=(T) value={ [K in keyof T as `on-${K}`]: T[K] }
+/// @type.symbol symbol=Handlers.T source=T type=T
 
     [K in keyof T as `on-${K}`]: T[K];
+    /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+    /// @type.symbol symbol=Handlers.K source=[K in keyof T as `on-${K}`] type=K
+    /// @resolution.name source=T target=Handlers.T
+    /// @resolution.name source=K target=Handlers.K
+    /// @resolution.name source=T target=Handlers.T
+    /// @resolution.name source=K target=Handlers.K
+
 };
 
 type Value = Handlers<{ name: string }>["on-name"];
-/// @type.symbol symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" type=string
-/// @definition.type symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" value=string
+/// @type.symbol symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" type=Handlers<{ name: string }>["on-name"] reduced=string
+/// @definition.type symbol=Value source="type Value = Handlers<{ name: string }>[\"on-name\"]" value=Handlers<{ name: string }>["on-name"] reduced=string
 /// @resolution.name source=Handlers target=Handlers
-/// @generic.instance source="Handlers<{ name: string }>" id=Handlers<{ name: string }>
 
 declare const value: Value;
-/// @type.symbol symbol=value source=value type=string
+/// @type.symbol symbol=value source=value type=Value reduced=string
 /// @resolution.name source=Value target=Value
 
 value satisfies string;
 /// @resolution.name source=value target=value
-/// @generic.instance id=Handlers<{ name: string }> template=Handlers arguments=({ name: string })
+
+/// @generic.instance id="Handlers<{ name: string }>" template=Handlers arguments=({ name: string })
 "#,
     );
 }
@@ -239,8 +268,8 @@ names.user satisfies string;
 
 === checked ===
 type Events = {
-/// @type.symbol symbol=Events source="type Events = {\n    userCreated: string;\n    orderPaid: int32;\n}" type={ userCreated: string; orderPaid: int32 }
-/// @definition.type symbol=Events source="type Events = {\n    userCreated: string;\n    orderPaid: int32;\n}" value={ userCreated: string; orderPaid: int32 }
+/// @type.symbol symbol=Events type={ userCreated: string; orderPaid: int32 }
+/// @definition.type symbol=Events value={ userCreated: string; orderPaid: int32 }
 
     userCreated: string;
     orderPaid: int32;
@@ -248,20 +277,30 @@ type Events = {
 
 type Names<T> = {
 /// @generic.template symbol=Names parameters=(T)
-/// @type.symbol symbol=Names type={ [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K] }
+/// @type.symbol symbol=Names type={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
+/// @definition.type symbol=Names template=(T) value={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
+/// @type.symbol symbol=Names.T source=T type=T
 
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
+    /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+    /// @type.symbol symbol=Names.K source=[K in keyof T as K extends `${infer Name}Created` ? Name : never] type=K
+    /// @resolution.name source=T target=Names.T
+    /// @resolution.name source=K target=Names.K
+    /// @resolution.name source=Name target=Names.Name
+    /// @resolution.name source=T target=Names.T
+    /// @resolution.name source=K target=Names.K
+
 };
 
 declare const names: Names<Events>;
-/// @type.symbol symbol=names source=names type=Names<Events>
+/// @type.symbol symbol=names source=names type=Names<Events> reduced={ user: string }
 /// @resolution.name source=Names target=Names
 /// @resolution.name source=Events target=Events
-/// @generic.instance source="Names<Events>" id=Names<Events>
 
 names.user satisfies string;
 /// @resolution.name source=names target=names
-/// @resolution.member source=names.user receiver=Names<Events> kind=field key=user
+/// @resolution.member source=names.user receiver={ user: string } kind=field key=user
+
 /// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
     );
@@ -304,8 +343,8 @@ const missing = names.orderPaid;
 
 === checked ===
 type Events = {
-/// @type.symbol symbol=Events source="type Events = {\n    userCreated: string;\n    orderPaid: int32;\n}" type={ userCreated: string; orderPaid: int32 }
-/// @definition.type symbol=Events source="type Events = {\n    userCreated: string;\n    orderPaid: int32;\n}" value={ userCreated: string; orderPaid: int32 }
+/// @type.symbol symbol=Events type={ userCreated: string; orderPaid: int32 }
+/// @definition.type symbol=Events value={ userCreated: string; orderPaid: int32 }
 
     userCreated: string;
     orderPaid: int32;
@@ -313,25 +352,35 @@ type Events = {
 
 type Names<T> = {
 /// @generic.template symbol=Names parameters=(T)
-/// @type.symbol symbol=Names type={ [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K] }
+/// @type.symbol symbol=Names type={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
+/// @definition.type symbol=Names template=(T) value={ [K in keyof T as K extends `${infer Name}Created` ? Names.Name : never]: T[K] }
+/// @type.symbol symbol=Names.T source=T type=T
 
     [K in keyof T as K extends `${infer Name}Created` ? Name : never]: T[K];
+    /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+    /// @type.symbol symbol=Names.K source=[K in keyof T as K extends `${infer Name}Created` ? Name : never] type=K
+    /// @resolution.name source=T target=Names.T
+    /// @resolution.name source=K target=Names.K
+    /// @resolution.name source=Name target=Names.Name
+    /// @resolution.name source=T target=Names.T
+    /// @resolution.name source=K target=Names.K
+
 };
 
 declare const names: Names<Events>;
-/// @type.symbol symbol=names source=names type=Names<Events>
+/// @type.symbol symbol=names source=names type=Names<Events> reduced={ user: string }
 /// @resolution.name source=Names target=Names
 /// @resolution.name source=Events target=Events
-/// @generic.instance source="Names<Events>" id=Names<Events>
 
 const missing = names.orderPaid;
-/// @type.symbol symbol=missing type=<error>
+/// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.name source=names target=names
+
 /// @generic.instance id=Names<Events> template=Names arguments=(Events)
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="member 'orderPaid' does not exist on type 'Names<Events>'"
-/// @diagnostic.label line=12 column=17 source="const missing = names.orderPaid;"
+/// @diagnostic.label line=12 column=23 span="orderPaid" line_source="const missing = names.orderPaid;"
 "#,
     );
 }
@@ -362,7 +411,7 @@ type HandlerMap<T> = {
     [K in keyof T as `on-${K}`]: T[K];
 };
 
-const handlers: { "on-open": boolean; "on-close": boolean } = {
+const handlers: { on-open: true; on-close: false } = {
     "on-open": true,
     "on-close": false,
 } satisfies HandlerMap<{ open: boolean; close: boolean }>;
@@ -373,23 +422,30 @@ handlers["on-open"] satisfies boolean;
 type HandlerMap<T> = {
 /// @generic.template symbol=HandlerMap parameters=(T)
 /// @type.symbol symbol=HandlerMap type={ [K in keyof T as `on-${K}`]: T[K] }
+/// @definition.type symbol=HandlerMap template=(T) value={ [K in keyof T as `on-${K}`]: T[K] }
+/// @type.symbol symbol=HandlerMap.T source=T type=T
 
     [K in keyof T as `on-${K}`]: T[K];
+    /// @generic.template source=type_mapped_parameter parameters=(K: keyof T)
+    /// @type.symbol symbol=HandlerMap.K source=[K in keyof T as `on-${K}`] type=K
+    /// @resolution.name source=T target=HandlerMap.T
+    /// @resolution.name source=K target=HandlerMap.K
+    /// @resolution.name source=T target=HandlerMap.T
+    /// @resolution.name source=K target=HandlerMap.K
+
 };
 
 const handlers = {
-/// @type.symbol symbol=handlers type={ "on-open": boolean; "on-close": boolean }
+/// @type.symbol symbol=handlers source=handlers type={ on-open: true; on-close: false }
 
     "on-open": true,
     "on-close": false,
 } satisfies HandlerMap<{ open: boolean; close: boolean }>;
 /// @resolution.name source=HandlerMap target=HandlerMap
-/// @generic.instance source="HandlerMap<{ open: boolean; close: boolean }>" id=HandlerMap<{ open: boolean; close: boolean }>
 
 handlers["on-open"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.member source="handlers[\"on-open\"]" receiver={ "on-open": boolean; "on-close": boolean } kind=field key=on-open
-/// @generic.instance id=HandlerMap<{ open: boolean; close: boolean }> template=HandlerMap arguments=({ open: boolean; close: boolean })
+/// @resolution.member source="handlers[\"on-open\"]" receiver={ on-open: true; on-close: false } kind=field key=on-open
 "#,
     );
 }

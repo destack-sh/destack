@@ -33,11 +33,12 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route | undefined;
-/// @type.symbol symbol=route source=route type=`api:${string}` | undefined
+/// @type.symbol symbol=route source=route type=Route | undefined
 /// @resolution.name source=Route target=Route
 
 if (route != undefined) {
 /// @resolution.name source=route target=route
+/// @resolution.call source="route != undefined" parameters=() return=boolean kind=builtin builtin=binary.not_equal
 
     route satisfies Route;
     /// @resolution.name source=route target=route
@@ -85,11 +86,12 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route;
-/// @type.symbol symbol=route source=route type=`api:${string}`
+/// @type.symbol symbol=route source=route type=Route reduced=`api:${string}`
 /// @resolution.name source=Route target=Route
 
 if (route == "api:users") {
 /// @resolution.name source=route target=route
+/// @resolution.call source="route == \"api:users\"" parameters=() return=boolean kind=builtin builtin=binary.equal
 
     route satisfies Route;
     /// @resolution.name source=route target=route
@@ -140,19 +142,23 @@ section satisfies "users" | "posts";
 
 === checked ===
 type Route = `api:${"users" | "posts"}`;
-/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}`
-/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}`
+/// @type.symbol symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" type=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
+/// @definition.type symbol=Route source="type Route = `api:${\"users\" | \"posts\"}`" value=`api:${"users" | "posts"}` reduced="api:users" | "api:posts"
 
 const route: Route = "api:users";
-/// @type.symbol symbol=route source=route type=`api:${"users" | "posts"}`
+/// @type.symbol symbol=route source=route type=Route reduced="api:users" | "api:posts"
 /// @resolution.name source=Route target=Route
 
 const section = match (route) {
-/// @type.symbol symbol=section type="users" | "posts"
+/// @type.symbol symbol=section source=section type="users" | "posts"
 /// @resolution.name source=route target=route
 
     "api:users" => "users"
+    /// @resolution.pattern source="\"api:users\"" kind=literal value="api:users"
+
     "api:posts" => "posts"
+    /// @resolution.pattern source="\"api:posts\"" kind=literal value="api:posts"
+
 };
 
 section satisfies "users" | "posts";

@@ -15,21 +15,28 @@ const slice = bytes[1..3];
         r#"
 === annotated ===
 declare const bytes: [uint8; 4];
-const slice: Slice<uint8> = bytes[1..3];
+const slice: WithAccess<Borrowed<[uint8], L0, "mutable">, "readonly"> = bytes[1..3];
 
 === checked ===
 declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes source=bytes type=FixedArray<uint8, 4>
 
 const slice = bytes[1..3];
-/// @type.symbol symbol=slice source=slice type=collections.slice.Slice<uint8>
+/// @type.symbol symbol=slice source=slice type=memory.type.WithAccess<Borrowed<Slice<uint8>, collections.array.index#3.L0, "mutable">, "readonly"> reduced=Borrowed<Slice<uint8>, collections.array.index#3.L0, "readonly">
 /// @type.node source=bytes type=FixedArray<uint8, 4>
-/// @type.node source=bytes[1..3] type=collections.slice.Slice<uint8>
+/// @type.node source=bytes[1..3] type=memory.type.WithAccess<Borrowed<Slice<uint8>, collections.array.index#3.L0, "mutable">, "readonly"> reduced=Borrowed<Slice<uint8>, collections.array.index#3.L0, "readonly">
 /// @resolution.name source=bytes target=bytes
-/// @resolution.call source=bytes[1..3] parameters=(Range<1 | 3>) return=collections.slice.Slice<uint8> kind=symbol target=collections.array.index#6 receiver=FixedArray<uint8, 4>
+/// @resolution.call source=bytes[1..3] parameters=(Range<usize>) arguments=(provided(1..3) as Range<usize>) return=memory.type.WithAccess<Borrowed<Slice<uint8>, collections.array.index#3.L0, "mutable">, "readonly"> kind=symbol target=collections.array.index#3 receiver=FixedArray<uint8, 4> adjustments=(borrow) instance="FixedArray<uint8, 4>.<extension#3>.index#3"
+/// @generic.instance source=bytes[1..3] id="FixedArray<uint8, 4>.<extension#3>.index#3"
+/// @generic.instance source=bytes[1..3] id="memory.type.WithAccess<Borrowed<Slice<uint8>, collections.array.index#3.L0, \"mutable\">, \"readonly\">"
 /// @type.node source=1 type=1
-/// @type.node source=1..3 type=Range<1 | 3>
+/// @type.node source=1..3 type=Range<usize>
+/// @generic.instance source=1..3 id=Range<usize>
 /// @type.node source=3 type=3
+
+/// @generic.instance id="FixedArray<uint8, 4>.<extension#3>.index#3" template=collections.array.index#3 arguments=(uint8, 4, Range<usize>, uint8, 4, Range<usize>, "readonly")
+/// @generic.instance id="memory.type.WithAccess<Borrowed<Slice<uint8>, collections.array.index#3.L0, \"mutable\">, \"readonly\">" template=memory.type.WithAccess arguments=(Borrowed<Slice<uint8>, collections.array.index#3.L0, "mutable">, "readonly")
+/// @generic.instance id=Range<usize> template=range.range.Range arguments=(usize)
 "#,
     );
 }

@@ -608,7 +608,7 @@ extension of int32 implements Doubling {
     type Output = int32;
 
     double(): int32.Output {
-        todo("double")
+        todo("double" as string | undefined)
     }
 }
 
@@ -691,7 +691,7 @@ extension<T, E> of Result<T, E> implements Source<E>, Carrier {
     type Error = E;
 
     static from(value: E): Result<T, E> {
-        todo("from")
+        todo("from" as string | undefined)
     }
 }
 
@@ -802,7 +802,7 @@ extension of int32 implements Halving {
     type Output = int32;
 
     halve(&readonly this): Borrowed<int32, L0, "readonly">.Output {
-        todo("halve")
+        todo("halve" as string | undefined)
     }
 }
 
@@ -831,7 +831,7 @@ extension of int32 implements Halving {
     /// @type.symbol symbol=Output source="type Output = int32" type=int32
 
     halve(&readonly this): this.Output {
-    /// @generic.template symbol=halve parameters=(comptime L0: Lifetime)
+    /// @generic.template symbol=halve parent=template#1 parameters=(comptime L0: Lifetime)
     /// @type.symbol symbol=halve type=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => Borrowed<int32, halve.L0, "readonly">.Output reduced=<comptime halve.L0: Lifetime>(this: Borrowed<int32, halve.L0, "readonly">) => int32
     /// @type.symbol symbol=halve.this source="&readonly this" type=Borrowed<this, halve.L0, "readonly">
 
@@ -907,7 +907,7 @@ extension of Cell implements Reading {
     type Output = int32;
 
     read(): Cell.Output {
-        todo("read")
+        todo("read" as string | undefined)
     }
 }
 
@@ -915,7 +915,7 @@ extension of Cell implements Writing {
     type Output = float64;
 
     write(): Cell.Output {
-        todo("write")
+        todo("write" as string | undefined)
     }
 }
 
@@ -1234,7 +1234,7 @@ interface Has<T> {
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
-    /// @generic.template symbol=Has.has parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @generic.template symbol=Has.has parent=template#1 parameters=(comptime L0: Lifetime)
     /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<comptime Has.has.L0: Lifetime>(this: Has<T#1>, Borrowed<T#1, Has.has.L0, "readonly">) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=Borrowed<T#1, Has.has.L0, "readonly">
     /// @resolution.name source=T target=Has.T
@@ -1266,7 +1266,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Marker>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#2 parameters=(Q: Marker, comptime L1: Lifetime)
+    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, comptime L1: Lifetime)
     /// @type.symbol symbol=has type=<Q: Marker, comptime has.L1: Lifetime>(this: Pack<T#3>, Borrowed<Q, has.L1, "readonly">) => boolean
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
@@ -1281,7 +1281,6 @@ export extension<T> of Pack<T> implements Has<T> {
 
 /// @generic.instance id=Has<T#1> template=Has arguments=(T#1)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-
 "#,
         r#"/// @diagnostic.error code=EC203 message="type 'Pack<T>' does not implement interface 'Has'"
 /// @diagnostic.label line=12 column=43 span="Has" line_source="export extension<T> of Pack<T> implements Has<T> {"

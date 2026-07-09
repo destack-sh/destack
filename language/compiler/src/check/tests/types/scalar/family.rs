@@ -26,8 +26,8 @@ struct Vector<T: Numeric> {
     x: T;
 }
 
-const ints: Vector<int32> = Vector { x: 1 as int32 };
-const floats: Vector<float32> = Vector { x: 1.5 as float32 };
+const ints: Vector<int32> = Vector<int32> { x: 1 as int32 };
+const floats: Vector<float32> = Vector<float32> { x: 1.5 as float32 };
 
 === checked ===
 import { Numeric } from "destack:math";
@@ -83,8 +83,8 @@ struct Index<T: int> {
     value: T;
 }
 
-const wide: Index<int64> = Index { value: 1 as int64 };
-const narrow: Index<int32> = Index { value: 1 as int32 };
+const wide: Index<int64> = Index<int64> { value: 1 as int64 };
+const narrow: Index<int32> = Index<int32> { value: 1 as int32 };
 
 === checked ===
 struct Index<T: int> {
