@@ -209,20 +209,20 @@ call(
 );
 ```
 
-### multiple function expressions break
+### multiple named function expressions break
 
-Function expressions break to multiple lines when repeated.
+Named function expressions break to multiple lines when repeated.
 
 ```ts:main.ts
-call(function () { return foo; }, function () { return bar; })
+call(function first() { return foo; }, function second() { return bar; })
 ```
 
 ```ts expected
 call(
-    function () {
+    function first() {
         return foo;
     },
-    function () {
+    function second() {
         return bar;
     },
 );

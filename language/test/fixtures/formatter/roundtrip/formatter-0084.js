@@ -13,7 +13,7 @@ class Foo {
         let _o$Foo, _o$Foo2, _o$Foo3, _o$Foo4, _o$Foo$self, _fn, _fn$Foo$self;
         const Foo = this;
         const o = { Foo };
-        const fn = function () {
+        const fn = function getObject() {
             return o;
         };
         (Foo === null || Foo === void 0 ? void 0 : Foo["m"].bind(Foo))();
