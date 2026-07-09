@@ -38,7 +38,7 @@ class Cell<T> {
 
 function capture<T>(): void {
     let seen: Consume<T> | undefined = undefined as Consume<T> | undefined;
-    let cell: Cell<T> = new Cell<T>((inner: (arg0: T) => void): void => {
+    let cell: Cell<T> = new Cell<T>((inner: Consume<T>): void => {
         seen = inner as Consume<T> | undefined;
     });
     cell;
@@ -91,17 +91,19 @@ function capture<T>(): void {
     /// @resolution.construct parameters=(Function<(Consume<T#3>,), void>) arguments=(provided(argument) as Function<(Consume<T#3>,), void>) return=Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
     /// @resolution.name source=Cell target=Cell
     /// @resolution.name source=T target=capture.T
-    /// @type.symbol symbol=capture.symbol11 type=Function<(Function<(T#3,), void>,), void>
-    /// @type.node type=Function<(Function<(T#3,), void>,), void>
-    /// @type.symbol symbol=capture.symbol11.inner source=inner type=Function<(T#3,), void>
+    /// @type.symbol symbol=capture.symbol13 type=Function<(Consume<T#3>,), void>
+    /// @type.node type=Function<(Consume<T#3>,), void>
+    /// @type.symbol symbol=capture.symbol13.inner source=inner type=Consume<T#3> reduced=Function<(T#3,), void>
 
         seen = inner;
-        /// @type.node source="seen = inner" type=Function<(T#3,), void>
+        /// @type.node source="seen = inner" type=Consume<T#3> reduced=Function<(T#3,), void>
         /// @type.node source=seen type=Consume<T#3> | undefined
         /// @resolution.pattern.assign source=seen kind=place place=binding(capture.seen) type=Consume<T#3> | undefined
+        /// @generic.instance source="seen = inner" id=Consume<T#3>
         /// @generic.instance source=seen id=Consume<T#3>
-        /// @type.node source=inner type=Function<(T#3,), void>
-        /// @resolution.name source=inner target=capture.symbol11.inner
+        /// @type.node source=inner type=Consume<T#3> reduced=Function<(T#3,), void>
+        /// @resolution.name source=inner target=capture.symbol13.inner
+        /// @generic.instance source=inner id=Consume<T#3>
 
     });
     cell;
@@ -198,16 +200,16 @@ function capture(): void {
     /// @type.node type=Cell<int32>
     /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
     /// @resolution.name source=Cell target=Cell
-    /// @type.symbol symbol=capture.symbol8 type=Function<(int32,), void>
+    /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
     /// @type.node type=Function<(int32,), void>
-    /// @type.symbol symbol=capture.symbol8.inner source=inner type=int32
+    /// @type.symbol symbol=capture.symbol9.inner source=inner type=int32
 
         seen = inner;
         /// @type.node source="seen = inner" type=int32
         /// @type.node source=seen type=int32 | undefined
         /// @resolution.pattern.assign source=seen kind=place place=binding(capture.seen) type=int32 | undefined
         /// @type.node source=inner type=int32
-        /// @resolution.name source=inner target=capture.symbol8.inner
+        /// @resolution.name source=inner target=capture.symbol9.inner
 
     });
     cell;

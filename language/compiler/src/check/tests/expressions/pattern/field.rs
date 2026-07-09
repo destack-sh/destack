@@ -25,6 +25,7 @@ declare const point: { x: int32 };
 
 let { y } = point;
 /// @resolution.pattern source={ y } kind=object fields={}
+/// @type.symbol symbol=y source=y type=<error>
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
 "#,

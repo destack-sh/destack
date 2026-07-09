@@ -18,7 +18,9 @@ const result = parse("id");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_node_types().without_reference_types(),
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types(),
         r#"
 === annotated ===
 function parse(value: string): "string" {
@@ -34,7 +36,7 @@ const result: "string" = parse("id");
 === checked ===
 function parse(value: string): "string" {
 /// @type.symbol symbol=parse#1 type=(string) => "string"
-/// @type.symbol symbol=value#1 type=string
+/// @type.symbol symbol=parse.value#1 source="value: string" type=string
 
     return "string";
     /// @type.node source="\"string\"" type="string"
@@ -43,7 +45,7 @@ function parse(value: string): "string" {
 
 function parse(value: "id"): "literal" {
 /// @type.symbol symbol=parse#2 type=("id") => "literal"
-/// @type.symbol symbol=value#2 type="id"
+/// @type.symbol symbol=parse.value#2 source="value: \"id\"" type="id"
 
     return "literal";
     /// @type.node source="\"literal\"" type="literal"
@@ -51,11 +53,11 @@ function parse(value: "id"): "literal" {
 }
 
 const result = parse("id");
-/// @type.symbol symbol=result type="string"
+/// @type.symbol symbol=result source=result type="string"
 /// @type.node source="parse(\"id\")" type="string"
 /// @resolution.name source=parse target=[parse#1, parse#2]
-/// @resolution.call source="parse(\"id\")" parameters=(string) return="string" kind=symbol target=parse#1
-/// @type.node source="\"id\"" type=string
+/// @resolution.call source="parse(\"id\")" parameters=(string) arguments=(provided("id") as string) return="string" kind=symbol target=parse#1
+/// @type.node source="\"id\"" type="id"
 "#,
     );
 }
@@ -86,21 +88,20 @@ parse(true);
 === checked ===
 declare function parse(value: string): int32;
 /// @type.symbol symbol=parse#1 source="declare function parse(value: string): int32" type=(string) => int32
-/// @type.symbol symbol=value#1 source="value: string" type=string
+/// @type.symbol symbol=parse.value#1 source="value: string" type=string
 
 declare function parse(value: int32): int32;
 /// @type.symbol symbol=parse#2 source="declare function parse(value: int32): int32" type=(int32) => int32
-/// @type.symbol symbol=value#2 source="value: int32" type=int32
+/// @type.symbol symbol=parse.value#2 source="value: int32" type=int32
 
 parse(true);
 /// @type.node source=parse(true) type=<error>
 /// @resolution.name source=parse target=[parse#1, parse#2]
 /// @type.node source=true type=true
-
 "#,
         r#"
 /// @diagnostic.error code=EC302 message="no overload matches arguments ('true')"
-/// @diagnostic.label line=5 column=1 source="parse(true);"
+/// @diagnostic.label line=5 column=1 span="parse(true)" line_source="parse(true);"
 "#,
     );
 }
@@ -123,11 +124,11 @@ function parse(value: string): int32;
 === checked ===
 function parse(value: string): int32;
 /// @type.symbol symbol=parse source="function parse(value: string): int32" type=(string) => int32
-/// @type.symbol symbol=value source="value: string" type=string
+/// @type.symbol symbol=parse.value source="value: string" type=string
 "#,
         r#"
 /// @diagnostic.error code=EC611 message="declaration 'parse' requires a body"
-/// @diagnostic.label line=2 column=1 source="function parse(value: string): int32;"
+/// @diagnostic.label line=2 column=10 span="parse" line_source="function parse(value: string): int32;"
 "#,
     );
 }

@@ -221,11 +221,14 @@ declare const status: Status;
 /// @resolution.name source=Status target=Status
 
 match (status) {
+/// @type.node type=<error>
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
 
     Other.Ok(value) => value
     /// @resolution.name source=Other.Ok target=Other
+    /// @type.symbol symbol=value source=value type=<error>
+    /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
 
 }
@@ -285,11 +288,14 @@ declare const status: Status;
 /// @resolution.name source=Status target=Status
 
 match (status) {
+/// @type.node type=<error>
 /// @type.node source=status type=Status
 /// @resolution.name source=status target=status
 
     Status.Done(value) => value
     /// @resolution.name source=Status.Done target=Status
+    /// @type.symbol symbol=value source=value type=<error>
+    /// @type.node source=value type=<error>
     /// @resolution.name source=value target=value
 
 }

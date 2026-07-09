@@ -243,8 +243,9 @@ const ok = value instanceof Named;
 
 === checked ===
 interface Named {
+/// @generic.template symbol=Named parameters=()
 /// @type.symbol symbol=Named type=Named
-/// @definition.interface symbol=Named
+/// @definition.interface symbol=Named template=()
 /// @definition.field symbol=Named.name source="name: string" key=name type=string
 
     name: string;
@@ -382,17 +383,19 @@ function adopt<T>(value: T): void {
         /// @type.node source=value.then type=(this: Deferred<*>, Function<(*,), void>) => void
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then receiver=T#2 & Deferred<*> kind=symbol target=Deferred.then
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*>
+        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> instance=Deferred<*>.then
+        /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
         /// @generic.instance source=value id=Deferred<*>
         /// @generic.instance source=value.then id=Deferred<*>
-        /// @type.symbol symbol=adopt.symbol9 source="(value) => {}" type=Function<(*,), void>
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
         /// @type.node source="(value) => {}" type=Function<(*,), void>
-        /// @type.symbol symbol=adopt.symbol9.value source=value type=*
+        /// @type.symbol symbol=adopt.symbol10.value source=value type=*
 
     }
 }
 
 /// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
+/// @generic.instance id=Deferred<*>.then template=Deferred.then arguments=(*)
 /// @generic.instance id=Deferred<T#1> template=Deferred arguments=(T#1)
 "#,
     );
@@ -465,22 +468,23 @@ function adopt<T>(value: T | Deferred<T>): void {
         value.then((value) => {});
         /// @type.node source="value.then((value) => {})" type=void
         /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
-        /// @type.node source=value.then type=(this: Deferred<*>, Function<(*,), void>) => void | (this: Deferred<T#2>, Function<(T#2,), void>) => void
+        /// @type.node source=value.then type=(this: Deferred<*>, Function<(*,), void>) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> | Deferred<T#2> kind=universal targets=[Deferred.then, Deferred.then]
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=universal targets=[Deferred.then, Deferred.then]
+        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> | Deferred<T#2> kind=symbol target=Deferred.then
+        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> | Deferred<T#2> instance=Deferred<*>.then
+        /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
         /// @generic.instance source=value id=Deferred<*>
         /// @generic.instance source=value id=Deferred<T#2>
         /// @generic.instance source=value.then id=Deferred<*>
-        /// @generic.instance source=value.then id=Deferred<T#2>
-        /// @type.symbol symbol=adopt.symbol9 source="(value) => {}" type=Function<(* | T#2,), void>
-        /// @type.node source="(value) => {}" type=Function<(* | T#2,), void>
-        /// @type.symbol symbol=adopt.symbol9.value source=value type=* | T#2
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
+        /// @type.node source="(value) => {}" type=Function<(*,), void>
+        /// @type.symbol symbol=adopt.symbol10.value source=value type=*
 
     }
 }
 
 /// @generic.instance id=Deferred<*> template=Deferred arguments=(*)
+/// @generic.instance id=Deferred<*>.then template=Deferred.then arguments=(*)
 /// @generic.instance id=Deferred<T#1> template=Deferred arguments=(T#1)
 /// @generic.instance id=Deferred<T#2> template=Deferred arguments=(T#2)
 "#,

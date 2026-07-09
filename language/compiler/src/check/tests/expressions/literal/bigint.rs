@@ -70,7 +70,7 @@ const value: bigint = 42n;
 /// @type.symbol symbol=value source=value type=bigint
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -95,8 +95,7 @@ const value: number = 42n;
 /// @type.symbol symbol=value source=value type=float64
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '42n' is not assignable to type 'float64'"
@@ -125,7 +124,7 @@ const value: bigint | string = 42n;
 /// @type.symbol symbol=value source=value type=bigint | string
 /// @type.node source=42n type=42n
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

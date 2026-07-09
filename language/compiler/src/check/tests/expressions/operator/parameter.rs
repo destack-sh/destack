@@ -10,7 +10,10 @@ function square<T: int32 | float64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 function square<T: int32 | float64>(value: T): T {
     return value * value;
@@ -31,7 +34,8 @@ function square<T: int32 | float64>(value: T): T {
     /// @resolution.name source=value target=square.value
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -44,7 +48,10 @@ function scale<T>(left: T, right: T): T where T: int32 | float64 {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 function scale<T>(left: T, right: T): T where T: int32 | float64 {
     return left * right;
@@ -68,7 +75,8 @@ function scale<T>(left: T, right: T): T where T: int32 | float64 {
     /// @resolution.name source=right target=scale.right
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -81,7 +89,10 @@ function decrement<T: int32 | float64>(value: T): T {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 function decrement<T: int32 | float64>(value: T): T {
     return value - 1;
@@ -101,7 +112,8 @@ function decrement<T: int32 | float64>(value: T): T {
     /// @resolution.call source="value - 1" parameters=() return=T kind=builtin builtin=binary.subtract
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -114,7 +126,10 @@ function ordered<T: int32 | float64>(left: T, right: T): boolean {
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 function ordered<T: int32 | float64>(left: T, right: T): boolean {
     return left < right;
@@ -136,7 +151,8 @@ function ordered<T: int32 | float64>(left: T, right: T): boolean {
     /// @resolution.name source=right target=ordered.right
 
 }
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -329,7 +345,10 @@ const doubled = value * value;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 declare const value: int32 | float64;
 const doubled: int32 | float64 = value * value;
@@ -343,7 +362,8 @@ const doubled = value * value;
 /// @resolution.name source=value target=value
 /// @resolution.call source="value * value" parameters=() return=int32 | float64 kind=builtin builtin=binary.multiply
 /// @resolution.name source=value target=value
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -373,17 +393,20 @@ function square<T: Multiply<T>>(value: T): T.Output {
 /// @generic.template symbol=square parameters=(T: Multiply<T>)
 /// @type.symbol symbol=square type=<T: Multiply<T>>(T) => T.Output
 /// @type.symbol symbol=square.T source="T: Multiply<T>" type=T
-/// @resolution.name source=Multiply target=Multiply
+/// @resolution.name source=Multiply target=ops.multiply.Multiply
 /// @resolution.name source=T target=square.T
 /// @type.symbol symbol=square.value source="value: T" type=T
 /// @resolution.name source=T target=square.T
-/// @resolution.name source=T target=square.T
+/// @resolution.name source=T.Output target=square.T
 
     return value * value;
-    /// @resolution.call source="value * value" parameters=() return=T.Output kind=symbol target=Multiply.multiply
     /// @resolution.name source=value target=square.value
+    /// @resolution.call source="value * value" parameters=(T) arguments=(provided(value) as T) return=T.Output kind=symbol target=ops.multiply.Multiply.multiply receiver=T instance=Multiply<T>.multiply
+    /// @generic.instance source="value * value" id=Multiply<T>.multiply
     /// @resolution.name source=value target=square.value
 
 }
+
+/// @generic.instance id=Multiply<T>.multiply template=ops.multiply.Multiply.multiply arguments=(T, T)
 "#);
 }

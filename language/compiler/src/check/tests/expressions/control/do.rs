@@ -16,26 +16,26 @@ const value = do {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const value: float64 = do {
+const value: 3 = do {
     const base: 1 = 1;
     base + 2
 };
 
 === checked ===
 const value = do {
-/// @type.symbol symbol=value source=value type=float64
-/// @type.node type=float64
+/// @type.symbol symbol=value source=value type=3
+/// @type.node type=3
 
     const base = 1;
     /// @type.symbol symbol=base source=base type=1
     /// @type.node source=1 type=1
 
     base + 2
-    /// @type.node source="base + 2" type=float64
+    /// @type.node source="base + 2" type=3
     /// @type.node source=base type=1
     /// @resolution.name source=base target=base
-    /// @resolution.call source="base + 2" parameters=() return=float64 kind=builtin builtin=binary.add
-    /// @type.node source=2 type=float64
+    /// @resolution.call source="base + 2" parameters=() return=3 kind=builtin builtin=binary.add
+    /// @type.node source=2 type=2
 
 };
 "#,
@@ -83,10 +83,11 @@ const value = do {
 };
 
 scoped;
+/// @type.node source=scoped type=<error>
 "#,
         r#"
 /// @diagnostic.error code=EC308 message="cannot find 'scoped'"
-/// @diagnostic.label line=7 column=1 source="scoped;"
+/// @diagnostic.label line=7 column=1 span="scoped" line_source="scoped;"
 "#,
     );
 }

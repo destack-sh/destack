@@ -25,7 +25,7 @@ const value = 1;
 "#,
         r#"
 /// @diagnostic.error code=EC308 message="cannot find 'missing'"
-/// @diagnostic.label line=2 column=2 source="@missing"
+/// @diagnostic.label line=2 column=2 span="missing" line_source="@missing"
 "#,
     );
 }
@@ -69,7 +69,7 @@ const value = 1;
 "#,
         r#"
 /// @diagnostic.error code=EC309 message="ambiguous reference 'mark'"
-/// @diagnostic.label line=5 column=2 source="@mark"
+/// @diagnostic.label line=5 column=2 span="mark" line_source="@mark"
 "#,
     );
 }

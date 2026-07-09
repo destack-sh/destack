@@ -70,7 +70,7 @@ const value: char = 'a';
 /// @type.symbol symbol=value source=value type=char
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -95,8 +95,7 @@ const value: string = 'a';
 /// @type.symbol symbol=value source=value type=string
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'string'"
@@ -125,8 +124,7 @@ const value: int32 = 'a';
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type ''a'' is not assignable to type 'int32'"
@@ -155,7 +153,7 @@ const value: char | string = 'a';
 /// @type.symbol symbol=value source=value type=char | string
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

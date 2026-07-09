@@ -45,9 +45,9 @@ const value: readonly (1, "two", true) = (1, "two", true) as const;
 
 === checked ===
 const value = (1, "two", true) as const;
-/// @type.symbol symbol=value source=value type=readonly (1, "two", true)
-/// @type.node source="(1, \"two\", true) as const" type=readonly (1, "two", true)
-/// @type.node source=(1, "two", true) type=readonly (1, "two", true)
+/// @type.symbol symbol=value source=value type=readonly (1, "two", true) reduced=(1, "two", true)
+/// @type.node source="(1, \"two\", true) as const" type=readonly (1, "two", true) reduced=(1, "two", true)
+/// @type.node source=(1, "two", true) type=readonly (1, "two", true) reduced=(1, "two", true)
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
@@ -136,7 +136,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.node source=1 type=1
 /// @type.node source="\"a\"" type="a"
 
-/// @check.stats.solve variables=0 types=9 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -163,8 +163,7 @@ const value: (number, string) = (1, 2);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '2' is not assignable to type 'string'"

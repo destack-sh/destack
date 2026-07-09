@@ -21,7 +21,7 @@ const value = if (enabled) {
 === annotated ===
 declare const enabled: boolean;
 
-const value: float64 = if (enabled) {
+const value: 1 | 2 = if (enabled) {
     1
 } else {
     2
@@ -32,17 +32,17 @@ declare const enabled: boolean;
 /// @type.symbol symbol=enabled source=enabled type=boolean
 
 const value = if (enabled) {
-/// @type.symbol symbol=value source=value type=float64
-/// @type.node type=float64
+/// @type.symbol symbol=value source=value type=1 | 2
+/// @type.node type=1 | 2
 /// @type.node source=enabled type=boolean
 /// @resolution.name source=enabled target=enabled
 
     1
-    /// @type.node source=1 type=float64
+    /// @type.node source=1 type=1
 
 } else {
     2
-    /// @type.node source=2 type=float64
+    /// @type.node source=2 type=2
 
 };
 "#,
@@ -71,16 +71,16 @@ function add(left: int32, right: int32): int32 {
 === checked ===
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
-/// @type.symbol symbol=left source="left: int32" type=int32
-/// @type.symbol symbol=right source="right: int32" type=int32
+/// @type.symbol symbol=add.left source="left: int32" type=int32
+/// @type.symbol symbol=add.right source="right: int32" type=int32
 
     left + right
     /// @type.node source="left + right" type=int32
     /// @type.node source=left type=int32
-    /// @resolution.name source=left target=left
+    /// @resolution.name source=left target=add.left
     /// @resolution.call source="left + right" parameters=() return=int32 kind=builtin builtin=binary.add
     /// @type.node source=right type=int32
-    /// @resolution.name source=right target=right
+    /// @resolution.name source=right target=add.right
 
 }
 "#,

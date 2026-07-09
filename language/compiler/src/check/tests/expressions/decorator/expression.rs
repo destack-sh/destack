@@ -33,7 +33,7 @@ const value = 1;
 "#,
         r#"
 /// @diagnostic.error code=EC310 message="decorator must name a declaration"
-/// @diagnostic.label line=4 column=2 source="@subject.field"
+/// @diagnostic.label line=4 column=10 span="field" line_source="@subject.field"
 "#,
     );
 }

@@ -14,20 +14,26 @@ const next = () => count + 1;
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-let count: int32 = 1;
-const next: Function<(), int32> = () => count + 1;
+let count: float64 = 1;
+const next: () => float64 = (): float64 => count + 1;
 
 === checked ===
 let count = 1;
-/// @type.symbol symbol=count type=int32
+/// @type.symbol symbol=count source=count type=float64
+/// @type.node source=1 type=1
 
 const next = () => count + 1;
-/// @type.symbol symbol=next type=Function<(), int32>
+/// @type.symbol symbol=next source=next type=Function<(), float64>
+/// @type.symbol symbol=symbol2 source="() => count + 1" type=Function<(), float64>
+/// @type.node source="() => count + 1" type=Function<(), float64>
+/// @capture.function function=symbol2 bindings=1 frames=(main.<frame0>)
+/// @capture.binding function=symbol2 symbol=count mode=manage type=float64 frame=main.<frame0>
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: float64 }> fields={ count: float64 }
+/// @type.node source="count + 1" type=float64
+/// @type.node source=count type=float64
 /// @resolution.name source=count target=count
-/// @type.node source="count + 1" type=int32
-/// @capture.function function=next bindings=1 frames=(main.<frame0>)
-/// @capture.output function=next symbol=count mode=manage type=int32 frame=main.<frame0>
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields={ count: int32 }
+/// @resolution.call source="count + 1" parameters=() return=float64 kind=builtin builtin=binary.add
+/// @type.node source=1 type=1
 "#,
     );
 }
@@ -57,60 +63,81 @@ const boo = () => {
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-let a: int32 = 0;
-let b: int32 = 0;
-let c: int32 = 0;
+let a: float64 = 0;
+let b: float64 = 0;
+let c: float64 = 0;
 
-const foo: Function<(), void> = () => {
+const foo: () => void = (): void => {
     a += 1;
     b += 1;
 };
 
-const boo: Function<(), void> = () => {
+const boo: () => void = (): void => {
     b += 1;
     c += 1;
 };
 
 === checked ===
 let a = 0;
-/// @type.symbol symbol=a type=int32
+/// @type.symbol symbol=a source=a type=float64
+/// @type.node source=0 type=0
 
 let b = 0;
-/// @type.symbol symbol=b type=int32
+/// @type.symbol symbol=b source=b type=float64
+/// @type.node source=0 type=0
 
 let c = 0;
-/// @type.symbol symbol=c type=int32
+/// @type.symbol symbol=c source=c type=float64
+/// @type.node source=0 type=0
 
 const foo = () => {
-/// @type.symbol symbol=foo type=Function<(), void>
+/// @type.symbol symbol=foo source=foo type=Function<(), void>
+/// @type.symbol symbol=symbol4 type=Function<(), void>
+/// @type.node type=Function<(), void>
+/// @capture.function function=symbol4 bindings=2 frames=(main.<frame0>)
+/// @capture.binding function=symbol4 symbol=a mode=manage type=float64 frame=main.<frame0>
+/// @capture.binding function=symbol4 symbol=b mode=manage type=float64 frame=main.<frame0>
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ a: float64; b: float64; c: float64 }> fields={ a: float64, b: float64, c: float64 }
 
     a += 1;
-    /// @resolution.name source=a target=a
-    /// @type.node source="a += 1" type=int32
+    /// @type.node source="a += 1" type=float64
+    /// @type.node source=a type=float64
+    /// @resolution.call source="a += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.pattern.assign source=a kind=place place=binding(a) type=float64
+    /// @type.node source=1 type=1
 
     b += 1;
-    /// @resolution.name source=b target=b
-    /// @type.node source="b += 1" type=int32
+    /// @type.node source="b += 1" type=float64
+    /// @type.node source=b type=float64
+    /// @resolution.call source="b += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.pattern.assign source=b kind=place place=binding(b) type=float64
+    /// @type.node source=1 type=1
+
 };
-/// @capture.function function=foo bindings=2 frames=(main.<frame0>)
-/// @capture.output function=foo symbol=a mode=manage type=int32 frame=main.<frame0>
-/// @capture.output function=foo symbol=b mode=manage type=int32 frame=main.<frame0>
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ a: int32; b: int32; c: int32 }> fields={ a: int32, b: int32, c: int32 }
 
 const boo = () => {
-/// @type.symbol symbol=boo type=Function<(), void>
+/// @type.symbol symbol=boo source=boo type=Function<(), void>
+/// @type.symbol symbol=symbol6 type=Function<(), void>
+/// @type.node type=Function<(), void>
+/// @capture.function function=symbol6 bindings=2 frames=(main.<frame0>)
+/// @capture.binding function=symbol6 symbol=b mode=manage type=float64 frame=main.<frame0>
+/// @capture.binding function=symbol6 symbol=c mode=manage type=float64 frame=main.<frame0>
 
     b += 1;
-    /// @resolution.name source=b target=b
-    /// @type.node source="b += 1" type=int32
+    /// @type.node source="b += 1" type=float64
+    /// @type.node source=b type=float64
+    /// @resolution.call source="b += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.pattern.assign source=b kind=place place=binding(b) type=float64
+    /// @type.node source=1 type=1
 
     c += 1;
-    /// @resolution.name source=c target=c
-    /// @type.node source="c += 1" type=int32
+    /// @type.node source="c += 1" type=float64
+    /// @type.node source=c type=float64
+    /// @resolution.call source="c += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.pattern.assign source=c kind=place place=binding(c) type=float64
+    /// @type.node source=1 type=1
+
 };
-/// @capture.function function=boo bindings=2 frames=(main.<frame0>)
-/// @capture.output function=boo symbol=b mode=manage type=int32 frame=main.<frame0>
-/// @capture.output function=boo symbol=c mode=manage type=int32 frame=main.<frame0>
 "#,
     );
 }
@@ -135,37 +162,46 @@ const next = () => count + step;
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-let count: int32 = 1;
-let step: int32 = 2;
+let count: float64 = 1;
+let step: float64 = 2;
 
 @capture({
     default: "manage",
     step: "copy",
 })
-const next: Function<(), int32> = () => count + step;
+const next: () => float64 = (): float64 => count + step;
 
 === checked ===
 let count = 1;
-/// @type.symbol symbol=count type=int32
+/// @type.symbol symbol=count source=count type=float64
+/// @type.node source=1 type=1
 
 let step = 2;
-/// @type.symbol symbol=step type=int32
+/// @type.symbol symbol=step source=step type=float64
+/// @type.node source=2 type=2
 
 @capture({
+/// @resolution.name source=capture target=decorator.capture.capture
+
     default: "manage",
     step: "copy",
 })
 const next = () => count + step;
-/// @type.symbol symbol=next type=Function<(), int32>
+/// @type.symbol symbol=next source=next type=Function<(), float64>
+/// @type.symbol symbol=symbol3 source="() => count + step" type=Function<(), float64>
+/// @type.node source="() => count + step" type=Function<(), float64>
+/// @capture.function function=symbol3 bindings=2 frames=(main.<frame0>)
+/// @capture.binding function=symbol3 symbol=count mode=manage type=float64 frame=main.<frame0>
+/// @capture.binding function=symbol3 symbol=step mode=copy type=float64
+/// @capture.directive function=symbol3 default=manage rules=1
+/// @capture.rule function=symbol3 binding=step mode=copy
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: float64 }> fields={ count: float64 }
+/// @type.node source="count + step" type=float64
+/// @type.node source=count type=float64
 /// @resolution.name source=count target=count
+/// @resolution.call source="count + step" parameters=() return=float64 kind=builtin builtin=binary.add
+/// @type.node source=step type=float64
 /// @resolution.name source=step target=step
-/// @type.node source="count + step" type=int32
-/// @capture.function function=next bindings=2 frames=(main.<frame0>)
-/// @capture.output function=next symbol=count mode=manage type=int32 frame=main.<frame0>
-/// @capture.output function=next symbol=step mode=copy type=int32
-/// @capture.directive function=next default=manage rules=1
-/// @capture.rule function=next binding=step mode=copy
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields={ count: int32 }
 "#,
     );
 }
@@ -175,7 +211,7 @@ fn test_owned_callable_captures_mixed_capture_modes() {
     let session = TestSession::single(
         r#"
 struct Socket {
-    write(message: string): void;
+    write(message: string): void {}
 }
 
 let count = 0;
@@ -198,58 +234,82 @@ const send: ^Function<(string,), void> = (message) => {
         r#"
 === annotated ===
 struct Socket {
-    write(message: string): void;
+    write(message: string): void {}
 }
 
-let count: int32 = 0;
+let count: float64 = 0;
 let socket: Socket = Socket {};
 
 @capture({
     default: "manage",
     socket: "move",
 })
-const send: ^Function<(string,), void> = (message) => {
+const send: ^Function<(string,), void> = ((message: string): void => {
     count += 1;
     socket.write(message);
-};
+}) as ^Function<(string,), void>;
 
 === checked ===
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
+/// @definition.struct symbol=Socket
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=(this: Socket, string) => void
 
-    write(message: string): void;
-    /// @type.symbol symbol=Socket.write type=(this: Socket, string) => void
+    write(message: string): void {}
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=(this: Socket, string) => void
+    /// @capture.function function=Socket.write bindings=0
+    /// @type.symbol symbol=Socket.write.message source="message: string" type=string
+
 }
 
 let count = 0;
-/// @type.symbol symbol=count type=int32
+/// @type.symbol symbol=count source=count type=float64
+/// @type.node source=0 type=0
 
 let socket = Socket {};
-/// @type.symbol symbol=socket type=Socket
+/// @type.symbol symbol=socket source=socket type=Socket
+/// @type.node source="Socket {}" type=Socket
+/// @resolution.name source=Socket target=Socket
 
 @capture({
+/// @resolution.name source=capture target=decorator.capture.capture
+
     default: "manage",
     socket: "move",
 })
 const send: ^Function<(string,), void> = (message) => {
-/// @type.symbol symbol=send type=Owned<Function<(string,), void>>
+/// @type.symbol symbol=send source=send type=Owned<Function<(string,), void>>
+/// @resolution.name source=Function target=types.function.Function
+/// @type.symbol symbol=symbol7 type=Function<(string,), void>
+/// @type.node type=Function<(string,), void>
+/// @capture.function function=symbol7 bindings=2 frames=(main.<frame0>)
+/// @capture.binding function=symbol7 symbol=count mode=manage type=float64 frame=main.<frame0>
+/// @capture.binding function=symbol7 symbol=socket mode=move type=Socket
+/// @capture.directive function=symbol7 default=manage rules=1
+/// @capture.rule function=symbol7 binding=socket mode=move
+/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: float64 }> fields={ count: float64 }
+/// @type.symbol symbol=symbol7.message source=message type=string
 
     count += 1;
-    /// @resolution.name source=count target=count
-    /// @type.node source="count += 1" type=int32
+    /// @type.node source="count += 1" type=float64
+    /// @type.node source=count type=float64
+    /// @resolution.call source="count += 1" parameters=() return=float64 kind=builtin builtin=binary.add
+    /// @resolution.pattern.assign source=count kind=place place=binding(count) type=float64
+    /// @type.node source=1 type=1
 
     socket.write(message);
+    /// @type.node source=socket type=Socket
+    /// @type.node source=socket.write type=(this: Socket, string) => void
+    /// @type.node source=socket.write(message) type=void
     /// @resolution.name source=socket target=socket
     /// @resolution.member source=socket.write receiver=Socket kind=symbol target=Socket.write
-    /// @resolution.name source=message target=message
-    /// @resolution.call source="socket.write(message)" parameters=(string) return=void kind=symbol target=Socket.write receiver=Socket
+    /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket
+    /// @type.node source=message type=string
+    /// @resolution.name source=message target=symbol7.message
+
 };
-/// @capture.function function=send bindings=2 frames=(main.<frame0>)
-/// @capture.output function=send symbol=count mode=manage type=int32 frame=main.<frame0>
-/// @capture.output function=send symbol=socket mode=move type=Socket
-/// @capture.directive function=send default=manage rules=1
-/// @capture.rule function=send binding=socket mode=move
-/// @capture.frame frame=main.<frame0> scope=<module> type=Managed<{ count: int32 }> fields={ count: int32 }
+
+/// @generic.instance id="Function<(string,), void>" template=types.function.Function arguments=((string,), void)
 "#,
     );
 }
@@ -258,7 +318,7 @@ const send: ^Function<(string,), void> = (message) => {
 fn test_managed_closure_captures_copy_binding() {
     let session = TestSession::single(
         r#"
-class Client {
+declare class Client {
     read(): Promise<string>;
 }
 
@@ -274,38 +334,55 @@ const load = async () => await client.read();
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
-class Client {
+declare class Client {
     read(): Promise<string>;
 }
 
 let client: Client = new Client();
 
 @capture("copy")
-const load: Function<(), Promise<string>> = async () => await client.read();
+const load = async () => await client.read();
 
 === checked ===
-class Client {
+declare class Client {
 /// @type.symbol symbol=Client type=Client
+/// @definition.class symbol=Client
+/// @definition.method symbol=Client.read source="read(): Promise<string>" slot=read type=(this: Client) => Promise<string>
 
     read(): Promise<string>;
-    /// @type.symbol symbol=Client.read type=(this: Client) => Promise<string>
+    /// @type.symbol symbol=Client.read source="read(): Promise<string>" type=(this: Client) => Promise<string>
+    /// @resolution.name source=Promise target=async.promise.Promise
+
 }
 
 let client = new Client();
+/// @type.symbol symbol=client source=client type=Client
+/// @type.node source="new Client()" type=Client
+/// @resolution.construct source="new Client()" parameters=() return=Client kind=class target=Client constructor=default
 /// @resolution.name source=Client target=Client
-/// @resolution.call source="new Client()" parameters=() return=Client kind=construct target=Client.constructor
-/// @type.symbol symbol=client type=Client
 
 @capture("copy")
+/// @resolution.name source=capture target=decorator.capture.capture
+
 const load = async () => await client.read();
-/// @type.symbol symbol=load type=Function<(), Promise<string>>
+/// @type.symbol symbol=load source=load type=Function<(), Promise<string>>
+/// @type.symbol symbol=symbol5 source="async () => await client.read()" type=Function<(), Promise<string>>
+/// @type.node source="async () => await client.read()" type=Function<(), Promise<string>>
+/// @generic.instance source="async () => await client.read()" id=Promise<string>
+/// @capture.function function=symbol5 bindings=1
+/// @capture.binding function=symbol5 symbol=client mode=copy type=Client
+/// @capture.directive function=symbol5 default=copy rules=0
+/// @type.node source="await client.read()" type=string
+/// @type.node source=client type=Client
+/// @type.node source=client.read type=(this: Client) => Promise<string>
+/// @type.node source=client.read() type=Promise<string>
 /// @resolution.name source=client target=client
 /// @resolution.member source=client.read receiver=Client kind=symbol target=Client.read
-/// @resolution.call source="client.read()" parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
-/// @type.node source="await client.read()" type=string
-/// @capture.function function=load bindings=1
-/// @capture.output function=load symbol=client mode=copy type=Client
-/// @capture.directive function=load default=copy rules=0
+/// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client
+/// @generic.instance source=client.read id=Promise<string>
+/// @generic.instance source=client.read() id=Promise<string>
+
+/// @generic.instance id=Promise<string> template=async.promise.Promise arguments=(string)
 "#,
     );
 }
@@ -315,7 +392,7 @@ fn test_closure_captures_lexical_this_receiver() {
     let session = TestSession::single(
         r#"
 class Counter {
-    value: int32;
+    value: int32 = 0;
 
     make(): () => int32 {
         return () => this.value;
@@ -330,29 +407,38 @@ class Counter {
         r#"
 === annotated ===
 class Counter {
-    value: int32;
+    value: int32 = 0;
 
     make(): () => int32 {
-        return () => this.value;
+        return (): int32 => this.value;
     }
 }
 
 === checked ===
 class Counter {
 /// @type.symbol symbol=Counter type=Counter
+/// @definition.class symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32 = 0" key=value type=int32
+/// @definition.method symbol=Counter.make slot=make type=(this: Counter) => Function<(), int32>
 
-    value: int32;
-    /// @type.symbol symbol=Counter.value type=int32
+    value: int32 = 0;
+    /// @type.symbol symbol=Counter.value source="value: int32 = 0" type=int32
+    /// @type.node source=0 type=0
 
     make(): () => int32 {
     /// @type.symbol symbol=Counter.make type=(this: Counter) => Function<(), int32>
+    /// @capture.function function=Counter.make bindings=0
 
         return () => this.value;
-        /// @resolution.name source=this target=this
-        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+        /// @type.symbol symbol=Counter.make.symbol6 source="() => this.value" type=Function<(), int32>
+        /// @type.node source="() => this.value" type=Function<(), int32>
+        /// @capture.function function=Counter.make.symbol6 bindings=0
+        /// @capture.receiver function=Counter.make.symbol6 symbol=this mode=manage type=Counter
+        /// @type.node source=this type=Counter
         /// @type.node source=this.value type=int32
-        /// @capture.function function=Counter.make.<lambda0> bindings=0
-        /// @capture.receiver function=Counter.make.<lambda0> symbol=this mode=manage type=Counter
+        /// @resolution.name source=this target=Counter.make.this
+        /// @resolution.member source=this.value receiver=Counter kind=symbol target=Counter.value
+
     }
 }
 "#,

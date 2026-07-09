@@ -16,7 +16,7 @@ class Bag<T> {
         r#"
 === annotated ===
 class Bag<T> {
-    values: T[] = Array.new() as T[];
+    values: T[] = Array.new<T>() as T[];
 }
 
 === checked ===
@@ -35,13 +35,15 @@ class Bag<T> {
     /// @type.node source=Array.new() type=Owned<Array<T>>
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array kind=symbol target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new receiver=Array
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<T>> kind=symbol target=collections.array.new receiver=Array instance=Array<T>.<extension#6>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#6>
     /// @generic.instance source=Array.new() id=Array<T>
+    /// @generic.instance source=Array.new() id=Array<T>.<extension#6>.new
 
 }
 
 /// @generic.instance id=Array<T> template=collections.array.Array arguments=(T)
+/// @generic.instance id=Array<T>.<extension#6>.new template=collections.array.new arguments=(T)
 /// @generic.instance id=Array<collections.array.T#6> template=collections.array.Array arguments=(collections.array.T#6)
 "#,
         r#""#,
@@ -65,7 +67,7 @@ function build(): void {
         r#"
 === annotated ===
 function build(): void {
-    let values: int32[] = Array.new() as int32[];
+    let values: int32[] = Array.new<int32>() as int32[];
     values;
 }
 
@@ -80,9 +82,10 @@ function build(): void {
     /// @type.node source=Array.new() type=Owned<Array<int32>>
     /// @resolution.name source=Array target=collections.array.Array
     /// @resolution.member source=Array.new receiver=Array kind=symbol target=collections.array.new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new receiver=Array
+    /// @resolution.call source=Array.new() parameters=() return=Owned<Array<int32>> kind=symbol target=collections.array.new receiver=Array instance=Array<int32>.<extension#6>.new
     /// @generic.instance source=Array.new id=Array<collections.array.T#6>
     /// @generic.instance source=Array.new() id=Array<int32>
+    /// @generic.instance source=Array.new() id=Array<int32>.<extension#6>.new
 
     values;
     /// @type.node source=values type=Array<int32>
@@ -92,6 +95,7 @@ function build(): void {
 
 /// @generic.instance id=Array<collections.array.T#6> template=collections.array.Array arguments=(collections.array.T#6)
 /// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#6>.new template=collections.array.new arguments=(int32)
 "#,
         r#""#,
     );
@@ -133,7 +137,7 @@ struct Pair<T> {
 
 export extension<T: Numeric> of Pair<T> {
     static zero(): Pair<T> {
-        Pair { x: 0, y: 0 }
+        Pair<T> { x: 0, y: 0 }
     }
 }
 
@@ -183,7 +187,6 @@ export extension<T: Numeric> of Pair<T> {
 }
 
 /// @generic.instance id=Pair<T#2> template=Pair arguments=(T#2)
-
 "#,
         r#""#,
     );
@@ -218,7 +221,7 @@ struct Tag<T> {
 
 export extension<T> of Tag<T> {
     static new(name: string): Tag<T> {
-        Tag { name }
+        Tag<T> { name }
     }
 }
 
@@ -260,7 +263,6 @@ export extension<T> of Tag<T> {
 }
 
 /// @generic.instance id=Tag<T#2> template=Tag arguments=(T#2)
-
 "#,
         r#""#,
     );

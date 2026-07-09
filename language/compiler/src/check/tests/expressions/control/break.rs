@@ -18,7 +18,7 @@ while (true) {
         r#"
 === annotated ===
 while (true) {
-    const stop: Function<(), void> = (): void => {
+    const stop: () => void = (): void => {
         break;
     };
 }
@@ -40,7 +40,7 @@ while (true) {
 "#,
         r#"
 /// @diagnostic.error code=EC402 message="break statement has no target"
-/// @diagnostic.label line=4 column=9 source="break;"
+/// @diagnostic.label line=4 column=9 span="break" line_source="break;"
 "#,
     );
 }
