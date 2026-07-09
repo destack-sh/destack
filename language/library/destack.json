@@ -167,6 +167,9 @@
     "./path": {
       "path": "./src/path/index.ds"
     },
+    "./profile": {
+      "path": "./src/profile/index.ds"
+    },
     "./prelude": {
       "path": "./src/prelude.ds"
     },

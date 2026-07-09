@@ -50,6 +50,7 @@ export * as macro from "./macro";
 export * as net from "./net";
 export * as os from "./os";
 export * as path from "./path";
+export * as profile from "./profile";
 export * as process from "./process";
 export * as random from "./random";
 export * as range from "./range";
