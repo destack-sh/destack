@@ -270,17 +270,13 @@ impl Parser {
         }
 
         let after_key_token_type = self.token_type_at_offset(2);
-        matches!(after_key_token_type, TokenType::Colon | TokenType::Maybe)
+        after_key_token_type == TokenType::Colon
     }
 
     /// Return whether a bracket key starts a statement object literal.
     fn bracket_key_starts_statement_object(&mut self) -> bool {
-        self.lookahead(|parser| {
-            matches!(
-                parser.scan_bracket_follow_token_at_offset(1),
-                Some(TokenType::Colon | TokenType::Maybe)
-            )
-        })
+        self.lookahead(|parser| parser.scan_bracket_follow_token_at_offset(1))
+            == Some(TokenType::Colon)
     }
 
     /// Return whether a token can start a statement object key.
