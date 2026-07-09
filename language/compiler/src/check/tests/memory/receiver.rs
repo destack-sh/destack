@@ -168,3 +168,41 @@ class Counter {
 "#,
     );
 }
+
+#[test]
+fn test_interface_receivers_induce_lifetimes_like_class_receivers() {
+    let session = TestSession::single(
+        r#"
+newtype interface Sink {
+    write(&readonly this, value: string): void;
+}
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Sink {
+    write(&readonly this, value: string): void;
+}
+
+=== checked ===
+newtype interface Sink {
+/// @generic.template symbol=Sink parameters=()
+/// @type.symbol symbol=Sink type=Sink
+/// @definition.interface symbol=Sink template=() nominal=true
+/// @definition.method symbol=Sink.write source="write(&readonly this, value: string): void" slot=write type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<Sink, Sink.write.L0, "readonly">, string) => void
+
+    write(&readonly this, value: string): void;
+    /// @generic.template symbol=Sink.write parent=template#0 parameters=(comptime L0: Lifetime)
+    /// @type.symbol symbol=Sink.write source="write(&readonly this, value: string): void" type=<comptime Sink.write.L0: Lifetime>(this: Borrowed<Sink, Sink.write.L0, "readonly">, string) => void
+    /// @type.symbol symbol=Sink.write.this source="&readonly this" type=Borrowed<this, Sink.write.L0, "readonly">
+    /// @type.symbol symbol=Sink.write.value source="value: string" type=string
+
+}
+"#,
+        r#""#,
+    );
+}
