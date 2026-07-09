@@ -32,7 +32,7 @@ impl From<GlobalId> for u32 {
 
 /// Storage location for one program global.
 #[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum GlobalLocation {
     /// Immutable program constant storage.
     Constant = 0,
