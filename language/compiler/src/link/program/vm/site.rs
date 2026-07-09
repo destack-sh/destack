@@ -2,7 +2,7 @@ use destack_core::Optional;
 use destack_mir as mir;
 use destack_program::{
     AllocationInitialization, AllocationOperation, AllocationSite, CallDispatch, CallMode,
-    CallSite, MemoryAccess, MemorySite, ProgramPoint,
+    CallSite, CounterSite, MemoryAccess, MemorySite, ProgramPoint, SampleSite,
 };
 
 use crate::LinkResult;
@@ -253,6 +253,49 @@ impl BlockLowerer<'_> {
         Ok(site)
     }
 
+    /// Build an executable counter site for one MIR instruction.
+    pub(super) fn counter_site_for_instruction(
+        &self,
+        instruction: &mir::Instruction,
+        pc: u32,
+    ) -> LinkResult<Option<CounterSite>> {
+        let point = self.program_point(pc);
+
+        let site = match instruction {
+            mir::Instruction::ProfileIncrement { counter } => Some(CounterSite {
+                point,
+                counter: self.function.program_counter(*counter)?,
+            }),
+            _ => None,
+        };
+
+        Ok(site)
+    }
+
+    /// Build an executable sample site for one MIR instruction.
+    pub(super) fn sample_site_for_instruction(
+        &self,
+        instruction: &mir::Instruction,
+        pc: u32,
+    ) -> LinkResult<Option<SampleSite>> {
+        let point = self.program_point(pc);
+
+        let site = match instruction {
+            mir::Instruction::ProfileSample { counter, value } => {
+                let value_type = self.value_type_for_value(*value)?;
+
+                Some(SampleSite {
+                    point,
+                    counter: self.function.program_counter(*counter)?,
+                    value_type: self.function.program.type_id(value_type),
+                })
+            }
+            _ => None,
+        };
+
+        Ok(site)
+    }
+
     /// Build an executable call site for one MIR terminator.
     pub(super) fn call_site_for_terminator(
         &self,
@@ -341,7 +384,7 @@ impl BlockLowerer<'_> {
     }
 
     /// Return the executable point for one lowered instruction offset.
-    fn program_point(&self, pc: u32) -> ProgramPoint {
+    pub(super) fn program_point(&self, pc: u32) -> ProgramPoint {
         let function = self.function.program_function(self.function.function_id);
         let operation = self.block_start + pc;
 

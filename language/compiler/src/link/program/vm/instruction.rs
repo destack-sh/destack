@@ -394,6 +394,14 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Instruction::Breakpoint => Instruction::new(Op::Breakpoint, 0, 0, 0, 0),
 
+            mir::Instruction::ProfileIncrement { .. } => {
+                Instruction::new(Op::ProfileIncrement, 0, 0, 0, 0)
+            }
+
+            mir::Instruction::ProfileSample { value, .. } => {
+                Instruction::new(Op::ProfileSample, self.cell_offset(*value)?, 0, 0, 0)
+            }
+
             mir::Instruction::Intrinsic {
                 destination,
                 intrinsic,

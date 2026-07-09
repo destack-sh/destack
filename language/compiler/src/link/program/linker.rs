@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_core::{SectionPacker, StringId, StringPool};
 use destack_heap as heap;
 use destack_mir as mir;
-use destack_program::{FunctionId, GlobalId, Program, SiteTable, StringTable, TypeId};
+use destack_program::{CounterId, FunctionId, GlobalId, Program, SiteTable, StringTable, TypeId};
 use destack_source::PackageId;
 
 use crate::{LinkError, LinkResult};
@@ -39,6 +39,8 @@ pub struct ProgramLinker {
     types_by_id: Vec<mir::TypeId>,
     /// Dense program global ids keyed by MIR global id.
     global_ids: HashMap<mir::GlobalId, GlobalId>,
+    /// Dense program counter ids keyed by function-local MIR counter id.
+    counter_ids: HashMap<(mir::FunctionId, mir::CounterId), CounterId>,
 }
 
 impl ProgramLinker {
@@ -58,6 +60,7 @@ impl ProgramLinker {
         let function_ids = Self::build_function_ids(&tree);
         let (type_ids, types_by_id) = Self::build_type_ids(&tree);
         let global_ids = Self::build_global_ids(&tree);
+        let counter_ids = Self::build_counter_ids(&tree);
 
         Self {
             package,
@@ -73,6 +76,7 @@ impl ProgramLinker {
             type_ids,
             types_by_id,
             global_ids,
+            counter_ids,
         }
     }
 
@@ -119,6 +123,10 @@ impl ProgramLinker {
             vm.allocation_sites,
             vm.memory_sites,
             vm.call_sites,
+            vm.edge_sites,
+            vm.continuation_sites,
+            vm.counter_sites,
+            vm.sample_sites,
         );
 
         // assemble the durable program
@@ -290,6 +298,18 @@ impl ProgramLinker {
         self.global_ids[&global]
     }
 
+    /// Return the program counter id for one function-local MIR counter.
+    pub(crate) fn counter_id(
+        &self,
+        function: mir::FunctionId,
+        counter: mir::CounterId,
+    ) -> LinkResult<CounterId> {
+        self.counter_ids
+            .get(&(function, counter))
+            .copied()
+            .ok_or_else(|| self.invalid_input(format!("profile counter {counter:?}")))
+    }
+
     /// Build dense function ids from MIR storage order.
     fn build_function_ids(tree: &mir::Tree) -> HashMap<mir::FunctionId, FunctionId> {
         tree.iter_nodes::<mir::Function>()
@@ -320,5 +340,31 @@ impl ProgramLinker {
             .enumerate()
             .map(|(index, (global, _))| (global, GlobalId::from(index as u32)))
             .collect()
+    }
+
+    /// Build dense counter ids from executable profile instructions.
+    fn build_counter_ids(
+        tree: &mir::Tree,
+    ) -> HashMap<(mir::FunctionId, mir::CounterId), CounterId> {
+        let mut counter_ids = HashMap::new();
+
+        // assign counters in deterministic tree order
+        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+            for &block_id in function.blocks() {
+                let block = tree.get(block_id);
+                for &instruction_id in &block.instructions {
+                    let instruction = tree.get(instruction_id);
+                    let counter = match instruction {
+                        mir::Instruction::ProfileIncrement { counter }
+                        | mir::Instruction::ProfileSample { counter, .. } => *counter,
+                        _ => continue,
+                    };
+                    let next = CounterId(counter_ids.len() as u32);
+                    counter_ids.entry((function_id, counter)).or_insert(next);
+                }
+            }
+        }
+
+        counter_ids
     }
 }

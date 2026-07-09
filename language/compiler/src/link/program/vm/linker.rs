@@ -6,8 +6,8 @@ use destack_mir as mir;
 use destack_mir::TraceTable;
 use destack_program::vm::{self, CallTarget, SideTableBuilder};
 use destack_program::{
-    AllocationSite, CallSite, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, FrameTable,
-    FunctionId, GlobalId, MemorySite, TypeId,
+    AllocationSite, CallSite, ContinuationSite, CounterSite, EdgeSite, FrameLayout, FrameLayoutId,
+    FrameSlot, FrameStateId, FrameTable, FunctionId, GlobalId, MemorySite, SampleSite, TypeId,
 };
 
 use crate::LinkResult;
@@ -29,6 +29,14 @@ pub(crate) struct Code {
     pub(crate) memory_sites: Vec<MemorySite>,
     /// Executable call sites.
     pub(crate) call_sites: Vec<CallSite>,
+    /// Executable control-flow edge sites.
+    pub(crate) edge_sites: Vec<EdgeSite>,
+    /// Executable continuation sites.
+    pub(crate) continuation_sites: Vec<ContinuationSite>,
+    /// Explicit counter sites.
+    pub(crate) counter_sites: Vec<CounterSite>,
+    /// Explicit sample sites.
+    pub(crate) sample_sites: Vec<SampleSite>,
 }
 
 /// Link MIR functions into VM code and frame metadata.
@@ -66,6 +74,14 @@ pub(crate) struct Linker<'a> {
     memory_sites: Vec<MemorySite>,
     /// Executable call sites.
     call_sites: Vec<CallSite>,
+    /// Executable control-flow edge sites.
+    edge_sites: Vec<EdgeSite>,
+    /// Executable continuation sites.
+    continuation_sites: Vec<ContinuationSite>,
+    /// Explicit counter sites.
+    counter_sites: Vec<CounterSite>,
+    /// Explicit sample sites.
+    sample_sites: Vec<SampleSite>,
 }
 
 impl<'a> Linker<'a> {
@@ -99,6 +115,10 @@ impl<'a> Linker<'a> {
             allocation_sites: Vec::new(),
             memory_sites: Vec::new(),
             call_sites: Vec::new(),
+            edge_sites: Vec::new(),
+            continuation_sites: Vec::new(),
+            counter_sites: Vec::new(),
+            sample_sites: Vec::new(),
         };
 
         linker.build_call_targets();
@@ -122,6 +142,10 @@ impl<'a> Linker<'a> {
             allocation_sites: self.allocation_sites,
             memory_sites: self.memory_sites,
             call_sites: self.call_sites,
+            edge_sites: self.edge_sites,
+            continuation_sites: self.continuation_sites,
+            counter_sites: self.counter_sites,
+            sample_sites: self.sample_sites,
         })
     }
 
@@ -315,6 +339,10 @@ impl<'a> Linker<'a> {
             allocation_sites,
             memory_sites,
             call_sites,
+            edge_sites,
+            continuation_sites,
+            counter_sites,
+            sample_sites,
         } = lowered;
 
         // append the frame layout before assigning resume states
@@ -336,6 +364,10 @@ impl<'a> Linker<'a> {
         self.allocation_sites.extend(allocation_sites);
         self.memory_sites.extend(memory_sites);
         self.call_sites.extend(call_sites);
+        self.edge_sites.extend(edge_sites);
+        self.continuation_sites.extend(continuation_sites);
+        self.counter_sites.extend(counter_sites);
+        self.sample_sites.extend(sample_sites);
 
         Ok(function)
     }
