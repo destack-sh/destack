@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 use crate::TraceView;
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
@@ -25,7 +25,7 @@ pub(crate) struct HeapStorage {
     /// The shared heap storage allocator for every block.
     pub(crate) allocator: Arc<Allocator>,
     /// The fixed live byte mapping for shared heap storage.
-    pub(crate) mapping: AddressSpace,
+    pub(crate) mapping: MemoryMap,
     /// The shared heap block state.
     pub(crate) state: RwLock<HeapState>,
     /// The exact shared heap accounting state.
@@ -50,9 +50,8 @@ impl HeapStorage {
         options.validate()?;
         options.validate_allocator(&allocator)?;
 
-        // reserve the shared address space
-        let mapping =
-            AddressSpace::reserve(options.address_space_size_bytes, options.page_size_bytes)?;
+        // reserve the shared memory map
+        let mapping = MemoryMap::reserve(options.memory_map_size_bytes, options.page_size_bytes)?;
 
         // initialize shared heap metadata
         let store = HeapState {

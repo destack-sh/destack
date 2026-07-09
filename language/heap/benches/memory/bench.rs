@@ -1,23 +1,23 @@
-mod address;
 mod allocation;
 mod config;
+mod fork;
 mod graph;
 mod heap;
-mod space;
+mod map;
 mod trace;
 mod workload;
 
 use criterion::{criterion_group, criterion_main};
 
-use address::bench_address_space;
 use allocation::{
     bench_heap_allocation, bench_heap_allocation_matrix, bench_shared_parallel_allocation,
 };
+use map::bench_memory_map;
 use workload::bench_heap_workload;
 
 criterion_group!(
     benches,
-    bench_address_space,
+    bench_memory_map,
     bench_heap_allocation,
     bench_heap_allocation_matrix,
     bench_shared_parallel_allocation,

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::TraceView;
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 use destack_mir::TraceMap;
 
 use super::{
@@ -39,7 +39,7 @@ pub(crate) struct HeapStorage {
     /// The next unused byte offset in heap storage.
     pub(crate) next_offset: usize,
     /// The fixed live byte mapping for heap storage.
-    pub(crate) mapping: AddressSpace,
+    pub(crate) mapping: MemoryMap,
     /// The exact live heap usage.
     pub(crate) usage: AllocationUsage,
     /// The exact live heap young space usage.
@@ -62,8 +62,7 @@ impl HeapStorage {
         options: &HeapOptions,
     ) -> Result<Self, HeapError> {
         let mut page_span_cache = PageSpanCache::new(allocator.pages_per_chunk());
-        let mapping =
-            AddressSpace::reserve(options.address_space_size_bytes, options.page_size_bytes)?;
+        let mapping = MemoryMap::reserve(options.memory_map_size_bytes, options.page_size_bytes)?;
 
         // reserve one fixed young space page span up front
         let young = YoungSpace::new(

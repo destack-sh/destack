@@ -52,29 +52,29 @@ pub(crate) fn validate_allocator_chunk_size_bytes(
     Ok(allocator_chunk_size_bytes)
 }
 
-/// Validate one configured virtual address-space size against one allocator page size.
-pub(crate) fn validate_address_space_size_bytes(
+/// Validate one configured virtual memory map size against one allocator page size.
+pub(crate) fn validate_memory_map_size_bytes(
     page_size_bytes: usize,
-    address_space_size_bytes: usize,
+    memory_map_size_bytes: usize,
 ) -> Result<usize, HeapError> {
-    if address_space_size_bytes == 0 {
+    if memory_map_size_bytes == 0 {
         return Err(HeapError::configuration(
-            HeapConfigurationError::InvalidAddressSpaceSizeBytes {
-                bytes: address_space_size_bytes,
+            HeapConfigurationError::InvalidMemoryMapSizeBytes {
+                bytes: memory_map_size_bytes,
             },
         ));
     }
 
-    if !address_space_size_bytes.is_multiple_of(page_size_bytes) {
+    if !memory_map_size_bytes.is_multiple_of(page_size_bytes) {
         return Err(HeapError::configuration(
-            HeapConfigurationError::MisalignedAddressSpaceSize {
+            HeapConfigurationError::MisalignedMemoryMapSize {
                 page_size_bytes,
-                address_space_size_bytes,
+                memory_map_size_bytes,
             },
         ));
     }
 
-    Ok(address_space_size_bytes)
+    Ok(memory_map_size_bytes)
 }
 
 /// Validate one configured small-block alignment.

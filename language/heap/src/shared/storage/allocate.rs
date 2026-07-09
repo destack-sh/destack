@@ -779,7 +779,7 @@ impl HeapStorage {
         let first_offset = align_up(store.next_offset, alignment);
         let next_offset = first_offset + byte_len;
 
-        // reject ranges outside the reserved shared address space
+        // reject ranges outside the reserved shared memory map
         if next_offset > self.mapping.byte_len() {
             return Err(HeapError::InvalidByteRange {
                 start: first_offset,

@@ -8,11 +8,11 @@ use crate::allocator::{
     SizeClassTable,
 };
 use crate::{
-    AllocationClass, AllocationPlan, AllocationShape, DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
-    DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
+    AllocationClass, AllocationPlan, AllocationShape, DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
+    DEFAULT_MEMORY_MAP_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
     DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES, GcOptions, HeapConfigurationError,
-    HeapError, allocation_class, validate_address_space_size_bytes,
-    validate_allocator_chunk_size_bytes, validate_page_size_bytes, validate_size_class_alignment,
+    HeapError, allocation_class, validate_allocator_chunk_size_bytes,
+    validate_memory_map_size_bytes, validate_page_size_bytes, validate_size_class_alignment,
     validate_small_span_size_bytes,
 };
 
@@ -30,7 +30,7 @@ pub struct HeapOptions {
     /// The byte size for heap small-block spans.
     pub heap_small_size_bytes: usize,
     /// The virtual byte capacity for heap storage.
-    pub address_space_size_bytes: usize,
+    pub memory_map_size_bytes: usize,
     /// The byte size for allocator pages.
     pub page_size_bytes: usize,
     /// The byte size for one physical allocator chunk.
@@ -91,7 +91,7 @@ impl HeapOptions {
             heap_young_size_bytes: DEFAULT_YOUNG_SIZE_BYTES,
             max_heap_young_allocation_size_bytes: DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
             heap_small_size_bytes: DEFAULT_SMALL_SIZE_BYTES,
-            address_space_size_bytes: DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
+            memory_map_size_bytes: DEFAULT_MEMORY_MAP_SIZE_BYTES,
             page_size_bytes: DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
             allocator_chunk_size_bytes: DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
@@ -103,7 +103,7 @@ impl HeapOptions {
         self.gc.validate()?;
         validate_page_size_bytes(self.page_size_bytes)?;
         validate_allocator_chunk_size_bytes(self.page_size_bytes, self.allocator_chunk_size_bytes)?;
-        validate_address_space_size_bytes(self.page_size_bytes, self.address_space_size_bytes)?;
+        validate_memory_map_size_bytes(self.page_size_bytes, self.memory_map_size_bytes)?;
 
         validate_size_class_alignment(&self.size_classes, self.small_allocation_alignment_bytes)?;
         validate_small_span_size_bytes(self.heap_small_size_bytes, &self.size_classes)?;

@@ -1,4 +1,4 @@
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 
 /// The source bytes used to initialize one block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,7 +24,7 @@ impl<'a> Payload<'a> {
     #[inline(always)]
     pub(crate) fn initialize_mapped(
         &self,
-        mapping: &AddressSpace,
+        mapping: &MemoryMap,
         offset: usize,
         clear_byte_len: usize,
     ) {
@@ -58,7 +58,7 @@ impl<'a> Payload<'a> {
 
     /// Initialize one already-zeroed materialized mapped byte range from this payload.
     #[inline(always)]
-    pub(crate) fn initialize_zeroed_mapped(&self, mapping: &AddressSpace, offset: usize) {
+    pub(crate) fn initialize_zeroed_mapped(&self, mapping: &MemoryMap, offset: usize) {
         if let Self::Bytes(bytes) = self {
             // SAFETY: block paths materialize the destination before publishing it
             unsafe {

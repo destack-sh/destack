@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::TraceView;
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -31,7 +31,7 @@ pub(crate) struct HeapStorageImage {
     /// The configured local page width.
     page_size_bytes: usize,
     /// The reserved virtual byte capacity for heap storage.
-    address_space_size_bytes: usize,
+    memory_map_size_bytes: usize,
     /// The captured heap blocks in large space.
     blocks: Box<[LargeBlockImage]>,
 
@@ -61,7 +61,7 @@ impl HeapStorageImage {
         small_bytes: usize,
         spans: Box<[SmallSpanImage]>,
         page_size_bytes: usize,
-        address_space_size_bytes: usize,
+        memory_map_size_bytes: usize,
         blocks: Box<[LargeBlockImage]>,
         young_size_bytes: usize,
         max_young_allocation_bytes: usize,
@@ -77,7 +77,7 @@ impl HeapStorageImage {
             small_bytes,
             spans,
             page_size_bytes,
-            address_space_size_bytes,
+            memory_map_size_bytes,
             blocks,
             young_size_bytes,
             max_young_allocation_bytes,
@@ -115,8 +115,8 @@ impl HeapStorageImage {
     }
 
     /// Return the reserved virtual byte capacity for heap storage.
-    pub(crate) const fn address_space_size_bytes(&self) -> usize {
-        self.address_space_size_bytes
+    pub(crate) const fn memory_map_size_bytes(&self) -> usize {
+        self.memory_map_size_bytes
     }
 
     /// Return the captured heap blocks in large space.
@@ -431,7 +431,7 @@ impl HeapStorage {
         let small = Self::restore_small_storage(allocator.as_ref(), image)?;
         let large = Self::restore_large_storage(allocator.as_ref(), image)?;
         let mut mapping =
-            AddressSpace::reserve(image.address_space_size_bytes(), image.page_size_bytes())?;
+            MemoryMap::reserve(image.memory_map_size_bytes(), image.page_size_bytes())?;
         restore_image_mapping(image, &mut mapping)?;
         let max_young_allocation_bytes = if image.young().capacity_bytes() == 0 {
             0
@@ -807,7 +807,7 @@ fn restored_young_usage(image: &HeapStorageImage) -> AllocationUsage {
 }
 
 /// Restore one heap mapping from one image.
-fn restore_image_mapping(image: &HeapStorageImage, mapping: &mut AddressSpace) -> HeapResult<()> {
+fn restore_image_mapping(image: &HeapStorageImage, mapping: &mut MemoryMap) -> HeapResult<()> {
     // restore the young mapped range first
     if !image.young().bytes().is_empty() {
         mapping.write_bytes(0, image.young().bytes())?;

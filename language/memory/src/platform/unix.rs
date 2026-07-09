@@ -237,11 +237,11 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
         });
     }
 
-    // reserve address space without committing mapped pages
+    // reserve virtual memory without committing mapped pages
     let address = map_anonymous(byte_len, libc::PROT_NONE);
     if address == libc::MAP_FAILED {
         return Err(last_system_error(
-            MemoryOperation::ReserveAddressSpace,
+            MemoryOperation::ReserveMemoryMap,
             Some(byte_len),
         ));
     }

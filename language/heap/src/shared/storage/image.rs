@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_memory::AddressSpace;
+use destack_memory::MemoryMap;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ pub(crate) struct HeapStorageImage {
     /// The configured shared page width.
     page_size_bytes: usize,
     /// The reserved virtual byte capacity for shared heap storage.
-    address_space_size_bytes: usize,
+    memory_map_size_bytes: usize,
     /// The captured shared heap blocks in large space.
     blocks: Box<[LargeBlockImage]>,
     /// The captured free shared heap large-block ids.
@@ -52,7 +52,7 @@ impl HeapStorageImage {
         small_bytes: usize,
         spans: Box<[SmallSpanImage]>,
         page_size_bytes: usize,
-        address_space_size_bytes: usize,
+        memory_map_size_bytes: usize,
         blocks: Box<[LargeBlockImage]>,
         free_large_block_ids: Box<[u64]>,
         next_unused_large_block_id: u64,
@@ -66,7 +66,7 @@ impl HeapStorageImage {
             small_bytes,
             spans,
             page_size_bytes,
-            address_space_size_bytes,
+            memory_map_size_bytes,
             blocks,
             free_large_block_ids,
             next_unused_large_block_id,
@@ -98,8 +98,8 @@ impl HeapStorageImage {
     }
 
     /// Return the reserved virtual byte capacity for shared heap storage.
-    pub(crate) const fn address_space_size_bytes(&self) -> usize {
-        self.address_space_size_bytes
+    pub(crate) const fn memory_map_size_bytes(&self) -> usize {
+        self.memory_map_size_bytes
     }
 
     /// Return the captured shared heap blocks in large space.
@@ -231,7 +231,7 @@ impl HeapStorage {
         image: &HeapStorageImage,
     ) -> HeapResult<Self> {
         let mut mapping =
-            AddressSpace::reserve(image.address_space_size_bytes(), image.page_size_bytes())?;
+            MemoryMap::reserve(image.memory_map_size_bytes(), image.page_size_bytes())?;
         restore_shared_mapping(image, &mut mapping)?;
         let mut store = Self::restore_state(image, allocator.as_ref())?;
 
@@ -460,7 +460,7 @@ impl HeapStorage {
 }
 
 /// Restore one shared heap mapping from one image.
-fn restore_shared_mapping(image: &HeapStorageImage, mapping: &mut AddressSpace) -> HeapResult<()> {
+fn restore_shared_mapping(image: &HeapStorageImage, mapping: &mut MemoryMap) -> HeapResult<()> {
     // restore each captured small span range
     for span in image.spans() {
         if span.bytes.is_empty() {
