@@ -42,15 +42,16 @@ pub(crate) enum WorkerRunOutcome {
 }
 
 impl Worker {
-    /// Refresh derived stop points when debugger configuration changed.
-    fn refresh_stop_points(&mut self, world: &WorldState) {
+    /// Refresh derived debug sets when debugger configuration changed.
+    fn refresh_debugger(&mut self, world: &WorldState) {
         let generation = world.debugger.generation();
-        if self.stop_generation == generation {
+        if self.debug_generation == generation {
             return;
         }
 
         self.stop_points = world.debugger.stop_set(self.runtime_id, self.id);
-        self.stop_generation = generation;
+        self.watch_points = world.debugger.watch_set(self.runtime_id, self.id);
+        self.debug_generation = generation;
     }
 
     /// Build one runtime-owned binding call.
@@ -88,7 +89,7 @@ impl Worker {
         args: &[program::Value],
         poller: &mut dyn HostPoller,
     ) -> RuntimeResult<program::Value> {
-        self.refresh_stop_points(world);
+        self.refresh_debugger(world);
 
         // execute the entrypoint with yielding enabled
         let _guard = enter_runnable_scope(RunnableScope::empty());
@@ -100,6 +101,7 @@ impl Worker {
             local_static,
             machine,
             stop_points,
+            watch_points,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -114,7 +116,7 @@ impl Worker {
                 constant_space,
             },
         };
-        let outcome = machine.run(context, entry, args, Some(stop_points))?;
+        let outcome = machine.run(context, entry, args, Some(stop_points), Some(watch_points))?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -984,7 +986,7 @@ impl Worker {
         runnable: Continuation,
         resume_value: program::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
-        self.refresh_stop_points(world);
+        self.refresh_debugger(world);
 
         let mut call_context = self.binding_call(world, host, host_queue);
         let Worker {
@@ -994,6 +996,7 @@ impl Worker {
             local_static,
             machine,
             stop_points,
+            watch_points,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -1009,7 +1012,13 @@ impl Worker {
             },
         };
 
-        machine.resume(context, runnable, resume_value, Some(stop_points))
+        machine.resume(
+            context,
+            runnable,
+            resume_value,
+            Some(stop_points),
+            Some(watch_points),
+        )
     }
 
     /// Continue one stopped machine continuation.
@@ -1024,7 +1033,7 @@ impl Worker {
         runnable: Continuation,
         stop_reason: program::StopReason,
     ) -> RuntimeResult<Outcome<Continuation>> {
-        self.refresh_stop_points(world);
+        self.refresh_debugger(world);
 
         let mut call_context = self.binding_call(world, host, host_queue);
         let Worker {
@@ -1034,6 +1043,7 @@ impl Worker {
             local_static,
             machine,
             stop_points,
+            watch_points,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -1049,12 +1059,15 @@ impl Worker {
             },
         };
 
-        let skip_breakpoint = match stop_reason {
-            program::StopReason::Breakpoint { breakpoint_id } => Some(breakpoint_id),
-            program::StopReason::Instruction { .. } => None,
-        };
+        let resume_skip = stop_reason.resume_skip();
 
-        machine.continue_continuation(context, runnable, Some(stop_points), skip_breakpoint)
+        machine.continue_continuation(
+            context,
+            runnable,
+            Some(stop_points),
+            Some(watch_points),
+            resume_skip,
+        )
     }
 
     /// Reject ordinary event-loop execution while this worker is stopped.

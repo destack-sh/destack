@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_program as program;
 
 use crate::runtime::{RuntimeId, WorkerId};
-use crate::world::{ProbeId, WatchpointId};
+use crate::world::ProbeId;
 
 use super::{Breakpoint, Probe, Watchpoint};
 
@@ -63,11 +63,11 @@ impl Debugger {
     }
 
     /// Allocate one watchpoint id.
-    pub fn allocate_watchpoint_id(&mut self) -> WatchpointId {
+    pub fn allocate_watchpoint_id(&mut self) -> program::WatchpointId {
         let id = self.next_watchpoint_id;
         self.next_watchpoint_id = id + 1;
 
-        WatchpointId::new(id)
+        program::WatchpointId::new(id)
     }
 
     /// Allocate one probe id.
@@ -155,7 +155,7 @@ impl Debugger {
     }
 
     /// Remove one watchpoint.
-    pub fn remove_watchpoint(&mut self, id: WatchpointId) -> bool {
+    pub fn remove_watchpoint(&mut self, id: program::WatchpointId) -> bool {
         let Some(index) = self
             .watchpoints
             .iter()
@@ -171,7 +171,7 @@ impl Debugger {
     }
 
     /// Set one watchpoint enabled state.
-    pub fn set_watchpoint_enabled(&mut self, id: WatchpointId, is_enabled: bool) -> bool {
+    pub fn set_watchpoint_enabled(&mut self, id: program::WatchpointId, is_enabled: bool) -> bool {
         let Some(watchpoint) = self
             .watchpoints
             .iter_mut()
@@ -249,11 +249,31 @@ impl Debugger {
                 breakpoint.target.point,
                 program::StopReason::Breakpoint {
                     breakpoint_id: breakpoint.id,
+                    point: breakpoint.target.point,
                 },
             ));
         }
 
         program::StopSet::new(instructions)
+    }
+
+    /// Build the executable watch set for one worker.
+    pub fn watch_set(&self, runtime_id: RuntimeId, worker_id: WorkerId) -> program::WatchSet {
+        let mut memory = Vec::new();
+
+        // collect executable memory stops
+        for watchpoint in &self.watchpoints {
+            if !watchpoint.is_enabled {
+                continue;
+            }
+            if !watchpoint.selects(runtime_id, worker_id) {
+                continue;
+            }
+
+            memory.push(watchpoint.memory_stop());
+        }
+
+        program::WatchSet::new(memory)
     }
 
     /// Advance the debugger generation after one configuration mutation.
