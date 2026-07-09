@@ -33,7 +33,7 @@ impl Parser {
         }
 
         let checkpoint = if head == LambdaHead::Tentative {
-            Some((self.checkpoint(), self.tree.next_id()))
+            Some(self.checkpoint())
         } else {
             None
         };
@@ -41,11 +41,11 @@ impl Parser {
         match self.eat_function(start, DeclarationHeader::default()) {
             Ok(declaration) => Ok(Some(self.declaration_expression(start, declaration))),
             Err(error) => {
-                let Some((checkpoint, mark)) = checkpoint else {
+                let Some(checkpoint) = checkpoint else {
                     return self.definite_lambda_error(error);
                 };
 
-                self.restore(checkpoint, mark);
+                self.restore(checkpoint);
                 Err(error)
             }
         }
@@ -96,10 +96,10 @@ impl Parser {
         error: ParserError,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         if self.peek_is(TokenType::CloseParenthesis) {
-            let error = ParserError::unexpected(self.peek()?);
-            self.error(&error);
+            let error = ParserError::unexpected(self.peek());
+            self.report_error(&error);
 
-            return Err(ParserError::from_source(error.span, error));
+            return Err(error);
         }
 
         Err(error)
@@ -227,14 +227,13 @@ impl Parser {
 
     /// Return whether a return type annotation is followed by an arrow.
     fn return_type_is_followed_by_arrow(&mut self) -> bool {
-        let mut depth = DelimiterDepth::default();
+        let mut depth = DelimiterDepth::type_expression();
 
         loop {
             let token_type = self.peek_token_type();
 
             // recover before rescanning later statements
-            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
-            {
+            if self.semicolon_precedes_recovery_point(RecoveryPoint::Statement) {
                 return false;
             }
 

@@ -86,13 +86,24 @@ fn test_parse_parenthesized_tree_callback_body() {
     });
 }
 
+/// Recover an ambiguous generic arrow as an unterminated tree literal.
 #[test]
-fn test_report_generic_arrow_without_tree_disambiguator() {
+fn test_recover_generic_arrow_without_tree_disambiguator() {
     let mut test = TestParser::new_with_language("<R>(x: R) => x", LanguageType::TypeScriptXml);
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let expression = parser.eat_expression(parser.flags).unwrap();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "");
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children: Some(children), .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "R");
+        assert_eq!(children.len(), 2);
+        assert_node!(parser.tree, children[0], TreeChild::Text { value } => {
+            assert_string!(parser, *value, "(x: R) =");
+        });
+        assert_node!(parser.tree, children[1], TreeChild::Text { value } => {
+            assert_string!(parser, *value, "> x");
+        });
+    });
 }
 
 #[test]
@@ -330,7 +341,7 @@ fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_lengt
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
         assert_eq!(attributes.len(), 2);
@@ -493,9 +504,7 @@ fn test_parse_tree_text_after_comment_expression_container() {
         assert_expression_path!(parser, parser.tree.get(*left), "test");
         let children = children.as_ref().expect("expected children");
         assert_eq!(children.len(), 2);
-        assert_node!(parser.tree, children[0], TreeChild::Expression { value } => {
-            assert_node!(parser.tree, *value, Expression::Stub);
-        });
+        assert_node!(parser.tree, children[0], TreeChild::Empty);
         assert_node!(parser.tree, children[1], TreeChild::Text { value } => {
             assert_string!(parser, *value, "\n     some\n     text\n");
         });

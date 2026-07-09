@@ -227,11 +227,10 @@ impl Parser {
         }
 
         let checkpoint = self.checkpoint();
-        let mark = self.tree.next_id();
         match self.eat_parenthesized_value_chain_at_cursor(start) {
             Ok(expression) => Ok(Some(expression)),
             Err(_) if self.parenthesized_chain_may_be_arrow_head() => {
-                self.restore(checkpoint, mark);
+                self.restore(checkpoint);
 
                 Ok(None)
             }
