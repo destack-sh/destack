@@ -29,6 +29,17 @@ fn assert_string_type_literal(parser: &Parser, value: LocalNodeId<TypeExpression
     });
 }
 
+/// Assert one type argument is a plain type reference.
+fn assert_type_argument_reference(
+    parser: &Parser,
+    argument: LocalNodeId<GenericArgument>,
+    expected_path: &str,
+) {
+    assert_node!(parser.tree, argument, GenericArgument::Type { value } => {
+        assert_plain_type_reference(parser, *value, expected_path);
+    });
+}
+
 /// Assert `DeepPick<Actual, Expected>`.
 fn assert_deep_pick_actual_expected(parser: &Parser, value: LocalNodeId<TypeExpression>) {
     assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
@@ -589,6 +600,103 @@ fn test_parse_typeof_query_with_type_identifier() {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
                 assert_expression_path!(parser, parser.tree.get(*value), "type");
+            });
+        });
+    });
+}
+
+/// Parse typeof queries over instantiated value references.
+#[test]
+fn test_parse_typeof_query_with_instantiation() {
+    let mut test = TestParser::new_with_language(
+        "type A<U> = InstanceType<typeof Array<U>>",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type A<U> = InstanceType<typeof Array<U>>
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "InstanceType");
+                assert_eq!(generic_arguments.len(), 1);
+
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
+                        assert_node!(parser.tree, *value, Expression::Instantiation { left, generic_arguments } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "Array");
+                            assert_eq!(generic_arguments.len(), 1);
+                            assert_type_argument_reference(&parser, generic_arguments[0], "U");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse typeof query instantiations in TSX mode.
+#[test]
+fn test_parse_typeof_query_instantiation_in_tsx_mode() {
+    let mut test = TestParser::new_with_language(
+        "type T = Callback<typeof something<Type1, Type2>>",
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = Callback<typeof something<Type1, Type2>>
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                assert_path!(parser, *path, "Callback");
+                assert_eq!(generic_arguments.len(), 1);
+
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
+                        assert_node!(parser.tree, *value, Expression::Instantiation { left, generic_arguments } => {
+                            assert_expression_path!(parser, parser.tree.get(*left), "something");
+                            assert_eq!(generic_arguments.len(), 2);
+                            assert_type_argument_reference(&parser, generic_arguments[0], "Type1");
+                            assert_type_argument_reference(&parser, generic_arguments[1], "Type2");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse typeof query instantiations on member references.
+#[test]
+fn test_parse_typeof_query_with_member_instantiation() {
+    let mut test = TestParser::new_with_language(
+        "type T<U> = typeof namespace.Factory<U>",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T<U> = typeof namespace.Factory<U>
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::TypeOf { value } => {
+                assert_node!(parser.tree, *value, Expression::Instantiation { left, generic_arguments } => {
+                    assert_eq!(generic_arguments.len(), 1);
+                    assert_type_argument_reference(&parser, generic_arguments[0], "U");
+
+                    assert_node!(parser.tree, *left, Expression::Member { left, name } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "namespace");
+                        assert_string!(parser, name.expect("expected member name"), "Factory");
+                    });
+                });
             });
         });
     });

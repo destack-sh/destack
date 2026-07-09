@@ -330,6 +330,7 @@ impl Parser {
     /// value
     /// namespace.value
     /// namespace.value.member
+    /// namespace.value<T>
     /// ```
     fn eat_typeof_reference_value(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
@@ -344,7 +345,8 @@ impl Parser {
             );
         }
 
-        if let Some(generic_arguments) = self.eat_typeof_instantiation_arguments() {
+        if self.type_generic_arguments_start_here() {
+            let generic_arguments = self.eat_type_generic_arguments()?;
             value = self.insert_node(
                 Expression::Instantiation {
                     left: value,
@@ -355,31 +357,6 @@ impl Parser {
         }
 
         Ok(value)
-    }
-
-    /// Eat type query instantiation arguments when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// <string>
-    /// <string, number>
-    /// <<T>() => T>
-    /// ```
-    fn eat_typeof_instantiation_arguments(
-        &mut self,
-    ) -> Option<Vec<LocalNodeId<destack_dir::GenericArgument>>> {
-        if self.current_token_is_on_new_line() {
-            return None;
-        }
-
-        if !matches!(
-            self.peek_token_type(),
-            TokenType::LessThan | TokenType::ShiftLeft
-        ) {
-            return None;
-        }
-
-        self.eat_generic_arguments_if_valid(true)
     }
 
     /// Return whether the current token continues a typeof reference path.
