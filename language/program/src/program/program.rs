@@ -12,8 +12,9 @@ use crate::{
     CellLayout, DispatchTable, FrameLayout, FrameLayoutId, FrameMaterialization, FrameSlot,
     FrameSlotId, FrameStateId, FrameTable, Function, FunctionId, FunctionSignature, FunctionTable,
     Global, GlobalAddress, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField, LayoutId,
-    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, ScalarFormat, Signature, SiteTable,
-    StaticImage, StaticSpace, StringTable, TypeId, TypeTable, native, vm,
+    LayoutShape, LayoutTable, ProgramInfo, ProgramPoint, SampleKey, SampleSite, SampleValue,
+    ScalarFormat, Signature, SiteTable, StaticImage, StaticSpace, StringTable, TypeId, TypeTable,
+    native, vm,
 };
 use vm::error::{Error, Result};
 
@@ -211,6 +212,13 @@ impl Program {
     /// Return executable program sites.
     pub fn sites(&self) -> &SiteTable {
         &self.sites
+    }
+
+    /// Decode one profile sample key using its executable site type.
+    pub fn sample_value(&self, site: &SampleSite, key: SampleKey) -> Option<SampleValue> {
+        let layout = self.cell_layout(site.value_type)?;
+
+        Some(key.decode(layout))
     }
 
     /// Return whether one concrete type satisfies one runtime type.

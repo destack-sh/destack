@@ -1,7 +1,13 @@
+use destack_heap::{HeapReference, SharedHeapReference};
+use destack_mir::FloatType;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::{AllocationSiteId, CallSiteId, ContinuationSiteId, CounterId, EdgeSiteId, Program};
+use crate::GlobalAddress;
+
+use super::{
+    AllocationSiteId, CallSiteId, CellLayout, ContinuationSiteId, CounterId, EdgeSiteId, Program,
+};
 
 const STANDARD_SAMPLE_BUCKET_LIMIT: u32 = 32;
 
@@ -82,12 +88,62 @@ pub struct SampleProfile {
 }
 
 /// One tracked sample value bucket.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SampleBucket {
-    /// Raw sampled value bits.
-    pub bits: u64,
-    /// Number of samples with these bits.
+    /// Exact sampled value key.
+    pub key: SampleKey,
+    /// Number of samples with this key.
     pub count: u64,
+}
+
+/// One exact sampled executable cell key.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct SampleKey(u64);
+
+/// One decoded sampled executable cell value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum SampleValue {
+    /// Void value.
+    Void,
+    /// Boolean value.
+    Boolean(bool),
+    /// Signed integer value.
+    Int {
+        /// The integer payload.
+        value: i64,
+        /// The integer width in bits.
+        width: u8,
+    },
+    /// Unsigned integer value.
+    Uint {
+        /// The integer payload.
+        value: u64,
+        /// The integer width in bits.
+        width: u8,
+    },
+    /// Floating-point value.
+    Float {
+        /// The floating-point payload bits.
+        bits: u64,
+        /// The floating-point format.
+        format: FloatType,
+    },
+    /// Local heap reference value.
+    HeapReference(HeapReference),
+    /// Shared heap reference value.
+    SharedHeapReference(SharedHeapReference),
+    /// Native address value.
+    Address(u64),
+    /// Stack pointer value.
+    StackPointer(u64),
+    /// Frame pointer value.
+    FramePointer(u64),
+    /// Global address value.
+    GlobalAddress(GlobalAddress),
+    /// Function pointer value.
+    FunctionPointer(u64),
 }
 
 impl Profile {
@@ -164,10 +220,93 @@ impl Profile {
         self.continuations[site.index()].resumed += 1;
     }
 
-    /// Record one sampled cell value.
+    /// Record one sampled cell value key.
     #[inline]
-    pub fn record_sample(&mut self, counter: CounterId, bits: u64) {
-        self.samples[counter.index()].record(bits, self.options.sample_bucket_limit);
+    pub fn record_sample(&mut self, counter: CounterId, key: u64) {
+        self.samples[counter.index()].record(SampleKey::new(key), self.options.sample_bucket_limit);
+    }
+}
+
+impl SampleKey {
+    /// Create one sample key from executable cell bits.
+    pub const fn new(bits: u64) -> Self {
+        Self(bits)
+    }
+
+    /// Return the raw executable sample key.
+    pub const fn raw(self) -> u64 {
+        self.0
+    }
+
+    /// Decode this key using one executable cell layout.
+    pub const fn decode(self, layout: CellLayout) -> SampleValue {
+        match layout {
+            CellLayout::Void => SampleValue::Void,
+            CellLayout::Boolean => SampleValue::Boolean(self.0 != 0),
+            CellLayout::Int { width } => SampleValue::Int {
+                value: self.signed(width),
+                width,
+            },
+            CellLayout::Uint { width } => SampleValue::Uint {
+                value: self.unsigned(width),
+                width,
+            },
+            CellLayout::Float16 => SampleValue::Float {
+                bits: self.unsigned(16),
+                format: FloatType::Float16,
+            },
+            CellLayout::Bfloat16 => SampleValue::Float {
+                bits: self.unsigned(16),
+                format: FloatType::Bfloat16,
+            },
+            CellLayout::Float32 => SampleValue::Float {
+                bits: self.unsigned(32),
+                format: FloatType::Float32,
+            },
+            CellLayout::Float64 => SampleValue::Float {
+                bits: self.0,
+                format: FloatType::Float64,
+            },
+            CellLayout::HeapReference => {
+                SampleValue::HeapReference(HeapReference::from_bits(self.0 as usize))
+            }
+            CellLayout::SharedHeapReference => {
+                SampleValue::SharedHeapReference(SharedHeapReference::from_bits(self.0 as usize))
+            }
+            CellLayout::Address => SampleValue::Address(self.0),
+            CellLayout::StackPointer => SampleValue::StackPointer(self.0),
+            CellLayout::FramePointer => SampleValue::FramePointer(self.0),
+            CellLayout::GlobalAddress => {
+                SampleValue::GlobalAddress(GlobalAddress::from_bits(self.0))
+            }
+            CellLayout::FunctionPointer => SampleValue::FunctionPointer(self.0),
+        }
+    }
+
+    /// Decode this key as a truncated signed integer.
+    const fn signed(self, width: u8) -> i64 {
+        if width >= u64::BITS as u8 {
+            return self.0 as i64;
+        }
+
+        let mask = (1u64 << width) - 1;
+        let value = self.0 & mask;
+        let sign_bit = 1u64 << (width - 1);
+
+        if value & sign_bit != 0 {
+            (value | !mask) as i64
+        } else {
+            value as i64
+        }
+    }
+
+    /// Decode this key as a truncated unsigned integer.
+    const fn unsigned(self, width: u8) -> u64 {
+        if width >= u64::BITS as u8 {
+            return self.0;
+        }
+
+        self.0 & ((1u64 << width) - 1)
     }
 }
 
@@ -256,18 +395,18 @@ impl SampleProfile {
         self.count == 0 && self.buckets.is_empty() && self.overflow == 0
     }
 
-    /// Record one raw sample value.
-    pub fn record(&mut self, bits: u64, bucket_limit: u32) {
+    /// Record one raw sample key.
+    pub fn record(&mut self, key: SampleKey, bucket_limit: u32) {
         self.count += 1;
 
-        if let Some(bucket) = self.buckets.iter_mut().find(|bucket| bucket.bits == bits) {
+        if let Some(bucket) = self.buckets.iter_mut().find(|bucket| bucket.key == key) {
             bucket.count += 1;
 
             return;
         }
 
         if self.buckets.len() < bucket_limit as usize {
-            self.buckets.push(SampleBucket { bits, count: 1 });
+            self.buckets.push(SampleBucket { key, count: 1 });
         } else {
             self.overflow += 1;
         }
