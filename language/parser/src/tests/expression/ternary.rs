@@ -1,4 +1,4 @@
-use crate::tests::TestParser;
+use crate::tests::{TestParser, block_expression_ids};
 use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     AssignOperator, BinaryOperator, Block, CommentKind, Declaration, Declarator, ExportKind,
@@ -18,6 +18,38 @@ fn test_parse_if_ternary() {
         assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
         assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+    });
+}
+
+/// Keep statement-position identifier and array ternaries out of object parsing.
+#[test]
+fn test_parse_statement_position_ternaries() {
+    let mut test = TestParser::new("{ condition ? first : second; [condition] ? third : fourth; }");
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Block(block_id) => {
+        let expressions = block_expression_ids(parser.tree.get(*block_id));
+        assert_eq!(expressions.len(), 2);
+
+        assert_node!(parser.tree, expressions[0], Expression::If { condition, then_expression, else_expression: Some(else_expression), .. } => {
+            let condition_id = condition.as_expression().expect("expected expression condition");
+            assert_expression_path!(parser, parser.tree.get(condition_id), "condition");
+            assert_expression_path!(parser, parser.tree.get(*then_expression), "first");
+            assert_expression_path!(parser, parser.tree.get(*else_expression), "second");
+        });
+
+        assert_node!(parser.tree, expressions[1], Expression::If { condition, then_expression, else_expression: Some(else_expression), .. } => {
+            let condition_id = condition.as_expression().expect("expected expression condition");
+            assert_node!(parser.tree, condition_id, Expression::ArrayExpression { elements } => {
+                assert_eq!(elements.len(), 1);
+            });
+            assert_expression_path!(parser, parser.tree.get(*then_expression), "third");
+            assert_expression_path!(parser, parser.tree.get(*else_expression), "fourth");
+        });
     });
 }
 
