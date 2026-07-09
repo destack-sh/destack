@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use destack_core::SectionPacker;
 use destack_mir as mir;
 use destack_program::{
-    AddressSpace, CellLayout, ElementLayout, FunctionLayoutBuilder, LayoutField, LayoutId,
-    LayoutShapeBuilder, NewtypeLayout, ReferenceFlags, ReferenceLayout, ScalarFormat, Signature,
-    SliceLayout, TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder,
-    TensorViewLayoutBuilder, TypeDescriptorBuilder, TypeId, TypeTable, VariantCaseLayout,
-    VariantLayoutBuilder, VariantTagLayout,
+    CellLayout, ElementLayout, FunctionLayoutBuilder, LayoutField, LayoutId, LayoutShapeBuilder,
+    NewtypeLayout, ReferenceFlags, ReferenceLayout, ScalarFormat, Signature, SliceLayout,
+    TensorLayoutBuilder, TensorShardingAxis, TensorShardingBuilder, TensorViewLayoutBuilder,
+    TypeDescriptorBuilder, TypeId, TypeTable, VariantCaseLayout, VariantLayoutBuilder,
+    VariantTagLayout,
 };
 
 use crate::LinkResult;
@@ -208,26 +208,13 @@ impl<'a> TypeLinker<'a> {
         supertypes
     }
 
-    /// Map a MIR reference kind to one runtime address space.
-    pub(crate) fn address_space(
+    /// Map a MIR reference to one executable pointer cell layout.
+    pub(crate) fn reference_cell_layout(
         &self,
         space: mir::Space,
         kind: mir::ReferenceKind,
-    ) -> AddressSpace {
-        match space {
-            mir::Space::Local => match kind {
-                mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => AddressSpace::Local,
-                mir::ReferenceKind::Borrowed => AddressSpace::Local,
-                mir::ReferenceKind::Raw => AddressSpace::Raw,
-            },
-            mir::Space::Shared => match kind {
-                mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => AddressSpace::Shared,
-                mir::ReferenceKind::Borrowed => AddressSpace::Shared,
-                mir::ReferenceKind::Raw => AddressSpace::Raw,
-            },
-            mir::Space::Frame => AddressSpace::Frame,
-            mir::Space::Static => AddressSpace::Static,
-        }
+    ) -> CellLayout {
+        CellLayout::reference(space, kind)
     }
 
     /// Return the program storage type for one MIR type.
@@ -288,9 +275,7 @@ impl<'a> TypeLinker<'a> {
             mir::Type::Float(mir::FloatType::Float32) => Some(CellLayout::Float32),
             mir::Type::Float(mir::FloatType::Float64) => Some(CellLayout::Float64),
             mir::Type::Reference { kind, space, .. } => {
-                let address_space = self.address_space(space.clone(), *kind);
-
-                Some(address_space.cell_layout())
+                Some(self.reference_cell_layout(space.clone(), *kind))
             }
             mir::Type::FunctionPointer { .. } => Some(CellLayout::FunctionPointer),
             mir::Type::Tensor { .. } => Some(CellLayout::HeapReference),
@@ -331,7 +316,7 @@ impl<'a> TypeLinker<'a> {
                 ..
             } => Some(LayoutShapeBuilder::Reference(ReferenceLayout {
                 pointee: self.type_id(*pointee),
-                flags: ReferenceFlags::new(*kind, space.clone(), *access, *nullability),
+                flags: ReferenceFlags::new(*kind, *space, *access, *nullability),
             })),
             mir::Type::FunctionPointer { signature } => Some(LayoutShapeBuilder::FunctionPointer(
                 self.signature(*signature)?,
@@ -357,7 +342,7 @@ impl<'a> TypeLinker<'a> {
         Some(LayoutShapeBuilder::Slice(SliceLayout {
             reference: ReferenceLayout {
                 pointee: self.type_id(*element),
-                flags: ReferenceFlags::new(*kind, space.clone(), *access, *nullability),
+                flags: ReferenceFlags::new(*kind, *space, *access, *nullability),
             },
         }))
     }

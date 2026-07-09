@@ -1,6 +1,6 @@
 use destack_mir as mir;
 use destack_program::vm::IntrinsicOperand;
-use destack_program::{AddressSpace, ReferenceFlags, TypeId};
+use destack_program::{CellLayout, ReferenceFlags, TypeId};
 
 use super::super::TypeLinker;
 use super::linker::Linker;
@@ -19,7 +19,8 @@ pub(super) enum Operand {
     /// Reference value with pointee type.
     Reference {
         pointee: TypeId,
-        address_space: AddressSpace,
+        space: mir::Space,
+        cell_layout: CellLayout,
         reference: ReferenceFlags,
     },
     /// Function pointer value with result type.
@@ -46,8 +47,8 @@ impl Operand {
                 is_signed: signed,
             }),
             Self::Float { format } => Some(IntrinsicOperand::Float { format }),
-            Self::Reference { address_space, .. } => {
-                Some(IntrinsicOperand::Reference { address_space })
+            Self::Reference { cell_layout, .. } => {
+                Some(IntrinsicOperand::Reference { cell_layout })
             }
             Self::FunctionPointer { .. } | Self::Aggregate { .. } | Self::Sequence { .. } => None,
         }
@@ -146,12 +147,13 @@ impl<'a> OperandLowerer<'a> {
                 nullability,
                 ..
             } => {
-                let address_space = self.type_linker.address_space(space.clone(), *kind);
+                let cell_layout = self.type_linker.reference_cell_layout(*space, *kind);
 
                 Some(Operand::Reference {
                     pointee: self.type_id(*pointee),
-                    address_space,
-                    reference: ReferenceFlags::new(*kind, space.clone(), *access, *nullability),
+                    space: *space,
+                    cell_layout,
+                    reference: ReferenceFlags::new(*kind, *space, *access, *nullability),
                 })
             }
             mir::Type::FunctionSignature { .. } => None,
@@ -231,11 +233,22 @@ impl OperandMap {
         }
     }
 
-    /// Return the address space for a value when available.
-    pub(super) fn address_space(&self, value: mir::Value) -> Option<AddressSpace> {
+    /// Return the storage space for a value when available.
+    pub(super) fn space(&self, value: mir::Value) -> Option<mir::Space> {
         match self.get(value) {
-            Some(Operand::Reference { address_space, .. }) => Some(address_space),
-            Some(Operand::Aggregate { .. } | Operand::Sequence { .. }) => Some(AddressSpace::Frame),
+            Some(Operand::Reference { space, .. }) => Some(space),
+            Some(Operand::Aggregate { .. } | Operand::Sequence { .. }) => Some(mir::Space::Frame),
+            _ => None,
+        }
+    }
+
+    /// Return the pointer cell layout for a value when available.
+    pub(super) fn pointer_cell_layout(&self, value: mir::Value) -> Option<CellLayout> {
+        match self.get(value) {
+            Some(Operand::Reference { cell_layout, .. }) => Some(cell_layout),
+            Some(Operand::Aggregate { .. } | Operand::Sequence { .. }) => {
+                Some(CellLayout::FramePointer)
+            }
             _ => None,
         }
     }
@@ -249,7 +262,7 @@ impl OperandMap {
         match self.get(value) {
             Some(Operand::Reference {
                 pointee,
-                address_space: AddressSpace::Local | AddressSpace::Shared,
+                space: mir::Space::Local | mir::Space::Shared,
                 ..
             }) => program.type_by_id(pointee),
             _ => None,
@@ -265,8 +278,12 @@ impl OperandMap {
         match self.get(value) {
             Some(Operand::Reference {
                 pointee,
-                address_space:
-                    AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Frame | AddressSpace::Static,
+                space: mir::Space::Frame | mir::Space::Static,
+                ..
+            }) => program.type_by_id(pointee),
+            Some(Operand::Reference {
+                pointee,
+                cell_layout: CellLayout::Address,
                 ..
             }) => program.type_by_id(pointee),
             _ => None,

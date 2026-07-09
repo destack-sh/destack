@@ -1,6 +1,7 @@
 use destack_mir as mir;
 
 use destack_program::vm::{Instruction, Op, Projection};
+use destack_program::{CellLayout, TypeId};
 
 use crate::LinkResult;
 
@@ -11,13 +12,13 @@ use super::op::{select_frame_value_load_op, select_frame_value_store_op};
 #[derive(Clone, Copy)]
 struct FrameRange {
     /// The program type written into this byte range.
-    value_type: destack_program::TypeId,
+    value_type: TypeId,
     /// The byte offset from the frame value base.
     byte_offset: usize,
     /// The byte width of this byte range.
     byte_len: usize,
     /// The cell representation for this range.
-    cell_layout: Option<destack_program::CellLayout>,
+    cell_layout: Option<CellLayout>,
 }
 
 impl FrameRange {
@@ -32,7 +33,7 @@ impl FrameRange {
     }
 
     /// Return the cell representation for this range.
-    fn cell_layout(self) -> Option<destack_program::CellLayout> {
+    fn cell_layout(self) -> Option<CellLayout> {
         self.cell_layout
     }
 

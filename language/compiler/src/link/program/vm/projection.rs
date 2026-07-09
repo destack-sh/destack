@@ -4,8 +4,8 @@ use super::layout::StorageLayout;
 use super::lower::BlockLowerer;
 use super::value::Operand;
 use crate::LinkResult;
+use destack_program::CellLayout;
 use destack_program::vm::{Projection, SliceProjection, SlotProjection};
-use destack_program::{AddressSpace, CellLayout};
 
 impl<'a> BlockLowerer<'a> {
     /// Return one lowered layout by MIR type.
@@ -241,10 +241,7 @@ impl<'a> BlockLowerer<'a> {
 
         let element_layout = self.layouts().get(&element_type)?;
         let element_cell_layout = self.access_cell_layout(element_type);
-        let pointer_address_space = self
-            .function
-            .address_space_for_reference(space.clone(), *kind);
-        let pointer_cell_layout = pointer_address_space.cell_layout();
+        let pointer_cell_layout = self.function.reference_cell_layout(*space, *kind);
         let pointer_bytes = self.function.pointer_bytes() as usize;
         let pointer_byte_len = pointer_cell_layout.byte_len(pointer_bytes);
         let length_offset = pointer_byte_len.next_multiple_of(pointer_bytes);
@@ -265,11 +262,11 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Resolve the backing address space for one slice descriptor type.
-    pub(super) fn slice_element_address_space(
+    /// Resolve the backing pointer layout for one slice descriptor type.
+    pub(super) fn slice_element_cell_layout(
         &self,
         slice_type: mir::LocalNodeId<mir::Type>,
-    ) -> Option<AddressSpace> {
+    ) -> Option<CellLayout> {
         let mir::Type::Slice { kind, space, .. } = self
             .function
             .tree
@@ -278,10 +275,7 @@ impl<'a> BlockLowerer<'a> {
             return None;
         };
 
-        Some(
-            self.function
-                .address_space_for_reference(space.clone(), *kind),
-        )
+        Some(self.function.reference_cell_layout(*space, *kind))
     }
 
     /// Build one pointee projection from one storage layout.
@@ -317,17 +311,25 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Resolve the address space for one tensor value type.
-    pub(super) fn tensor_view_address_space(
+    /// Resolve the pointer layout for one tensor value type.
+    pub(super) fn tensor_view_cell_layout(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
-    ) -> Option<AddressSpace> {
+    ) -> Option<CellLayout> {
         match self.function.tree.get(self.function.tree.repr_type(ty)) {
-            mir::Type::Tensor { .. } => Some(AddressSpace::Local),
-            mir::Type::TensorView { kind, space, .. } => Some(
-                self.function
-                    .address_space_for_reference(space.clone(), *kind),
-            ),
+            mir::Type::Tensor { .. } => Some(CellLayout::HeapReference),
+            mir::Type::TensorView { kind, space, .. } => {
+                Some(self.function.reference_cell_layout(*space, *kind))
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve the storage space for one tensor value type.
+    pub(super) fn tensor_view_space(&self, ty: mir::LocalNodeId<mir::Type>) -> Option<mir::Space> {
+        match self.function.tree.get(self.function.tree.repr_type(ty)) {
+            mir::Type::Tensor { .. } => Some(mir::Space::Local),
+            mir::Type::TensorView { space, .. } => Some(*space),
             _ => None,
         }
     }

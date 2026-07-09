@@ -22,10 +22,10 @@ impl<'a> BlockLowerer<'a> {
         if let Some(access) =
             pointee_type.and_then(|pointee_type| self.slice_projection(pointee_type))
         {
-            let address_space = pointee_type
-                .and_then(|pointee_type| self.slice_element_address_space(pointee_type))
-                .ok_or_else(|| self.invalid_instruction("slice element address space"))?;
-            let op = select_slice_element_addr_op(address_space)
+            let pointer = pointee_type
+                .and_then(|pointee_type| self.slice_element_cell_layout(pointee_type))
+                .ok_or_else(|| self.invalid_instruction("slice element pointer layout"))?;
+            let op = select_slice_element_addr_op(pointer)
                 .ok_or_else(|| self.invalid_instruction("slice element address operation"))?;
             let access = pool.slice_projection(access);
 

@@ -6,7 +6,7 @@ use destack_program::vm::{
     IndirectCall, IndirectCallBranch, IndirectTailCall, Instruction, Op, TailCall, TailCallDynamic,
     TailCallVirtual,
 };
-use destack_program::{AddressSpace, FrameStateId, Signature};
+use destack_program::{FrameStateId, Signature};
 
 use super::lower::BlockLowerer;
 use super::pool::Pool;
@@ -101,14 +101,14 @@ impl<'a> BlockLowerer<'a> {
         let arguments = pool.argument_range(self.function.tree.get_values(call.arguments))?;
 
         // compile the receiver table access
-        let address_space = self.receiver_address_space(receiver)?;
+        let space = self.receiver_space(receiver)?;
         let receiver_type = self.receiver_pointee_type(receiver);
         let table_field = self
             .virtual_table_projection(receiver_type)
             .ok_or_else(|| self.invalid_instruction("virtual call table field"))?;
         let table_field = pool.projection(table_field);
-        let op = virtual_call_op(address_space)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{address_space:?}")))?;
+        let op = virtual_call_op(space)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{space:?}")))?;
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
@@ -135,14 +135,14 @@ impl<'a> BlockLowerer<'a> {
         let arguments = pool.argument_range(self.function.tree.get_values(call.arguments))?;
 
         // compile the receiver table access
-        let address_space = self.receiver_address_space(receiver)?;
+        let space = self.receiver_space(receiver)?;
         let receiver_type = self.receiver_pointee_type(receiver);
         let table_field = self
             .dynamic_table_projection(receiver_type)
             .ok_or_else(|| self.invalid_instruction("dynamic call table field"))?;
         let table_field = pool.projection(table_field);
-        let op = dynamic_call_op(address_space)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{address_space:?}")))?;
+        let op = dynamic_call_op(space)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{space:?}")))?;
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
@@ -356,14 +356,14 @@ impl<'a> BlockLowerer<'a> {
         let arguments = self.function.values(call.arguments);
         let arguments = pool.argument_range(arguments)?;
         let target_state = self.call_target_state()?;
-        let address_space = self.receiver_address_space(receiver)?;
+        let space = self.receiver_space(receiver)?;
         let receiver_type = self.receiver_pointee_type(receiver);
         let table_field = self
             .virtual_table_projection(receiver_type)
             .ok_or_else(|| self.invalid_instruction("virtual call table field"))?;
         let table_field = pool.projection(table_field);
-        let op = virtual_call_branch_op(address_space)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{address_space:?}")))?;
+        let op = virtual_call_branch_op(space)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{space:?}")))?;
 
         Ok(pool.instruction_with_side(
             op,
@@ -388,14 +388,14 @@ impl<'a> BlockLowerer<'a> {
         let arguments = self.function.values(call.arguments);
         let arguments = pool.argument_range(arguments)?;
         let target_state = self.call_target_state()?;
-        let address_space = self.receiver_address_space(receiver)?;
+        let space = self.receiver_space(receiver)?;
         let receiver_type = self.receiver_pointee_type(receiver);
         let table_field = self
             .dynamic_table_projection(receiver_type)
             .ok_or_else(|| self.invalid_instruction("dynamic call table field"))?;
         let table_field = pool.projection(table_field);
-        let op = dynamic_call_branch_op(address_space)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{address_space:?}")))?;
+        let op = dynamic_call_branch_op(space)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{space:?}")))?;
 
         Ok(pool.instruction_with_side(
             op,
@@ -476,14 +476,14 @@ impl<'a> BlockLowerer<'a> {
     ) -> LinkResult<Instruction> {
         let arguments = self.function.values(call.arguments);
         let arguments = pool.argument_range(arguments)?;
-        let address_space = self.receiver_address_space(receiver)?;
+        let space = self.receiver_space(receiver)?;
         let receiver_type = self.receiver_pointee_type(receiver);
         let table_field = self
             .virtual_table_projection(receiver_type)
             .ok_or_else(|| self.invalid_instruction("virtual tail call table field"))?;
         let table_field = pool.projection(table_field);
-        let op = virtual_tail_call_op(address_space)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{address_space:?}")))?;
+        let op = virtual_tail_call_op(space)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{space:?}")))?;
 
         Ok(pool.instruction_with_side(
             op,
@@ -506,14 +506,14 @@ impl<'a> BlockLowerer<'a> {
     ) -> LinkResult<Instruction> {
         let arguments = self.function.values(call.arguments);
         let arguments = pool.argument_range(arguments)?;
-        let address_space = self.receiver_address_space(receiver)?;
+        let space = self.receiver_space(receiver)?;
         let receiver_type = self.receiver_pointee_type(receiver);
         let table_field = self
             .dynamic_table_projection(receiver_type)
             .ok_or_else(|| self.invalid_instruction("dynamic tail call table field"))?;
         let table_field = pool.projection(table_field);
-        let op = dynamic_tail_call_op(address_space)
-            .ok_or_else(|| self.invalid_pointer_type(format!("{address_space:?}")))?;
+        let op = dynamic_tail_call_op(space)
+            .ok_or_else(|| self.invalid_pointer_type(format!("{space:?}")))?;
 
         Ok(pool.instruction_with_side(
             op,
@@ -532,10 +532,10 @@ impl<'a> BlockLowerer<'a> {
             .heap_pointee_type(self.function.program, receiver)
     }
 
-    /// Return the address space for one virtual or dynamic receiver.
-    fn receiver_address_space(&self, receiver: mir::Value) -> LinkResult<AddressSpace> {
+    /// Return the storage space for one virtual or dynamic receiver.
+    fn receiver_space(&self, receiver: mir::Value) -> LinkResult<mir::Space> {
         self.operand_map()
-            .address_space(receiver)
+            .space(receiver)
             .ok_or_else(|| self.invalid_pointer_type(format!("{receiver:?}")))
     }
 }
@@ -579,56 +579,56 @@ impl IndirectCallee {
     }
 }
 
-/// Return the virtual call op for one receiver address space.
-fn virtual_call_op(address_space: AddressSpace) -> Option<Op> {
-    match address_space {
-        AddressSpace::Local => Some(Op::CallVirtualLocal),
-        AddressSpace::Shared => Some(Op::CallVirtualShared),
+/// Return the virtual call op for one receiver space.
+fn virtual_call_op(space: mir::Space) -> Option<Op> {
+    match space {
+        mir::Space::Local => Some(Op::CallVirtualLocal),
+        mir::Space::Shared => Some(Op::CallVirtualShared),
         _ => None,
     }
 }
 
-/// Return the virtual call terminator op for one receiver address space.
-fn virtual_call_branch_op(address_space: AddressSpace) -> Option<Op> {
-    match address_space {
-        AddressSpace::Local => Some(Op::CallVirtualLocalBranch),
-        AddressSpace::Shared => Some(Op::CallVirtualSharedBranch),
+/// Return the virtual call terminator op for one receiver space.
+fn virtual_call_branch_op(space: mir::Space) -> Option<Op> {
+    match space {
+        mir::Space::Local => Some(Op::CallVirtualLocalBranch),
+        mir::Space::Shared => Some(Op::CallVirtualSharedBranch),
         _ => None,
     }
 }
 
-/// Return the virtual tail call op for one receiver address space.
-fn virtual_tail_call_op(address_space: AddressSpace) -> Option<Op> {
-    match address_space {
-        AddressSpace::Local => Some(Op::TailCallVirtualLocal),
-        AddressSpace::Shared => Some(Op::TailCallVirtualShared),
+/// Return the virtual tail call op for one receiver space.
+fn virtual_tail_call_op(space: mir::Space) -> Option<Op> {
+    match space {
+        mir::Space::Local => Some(Op::TailCallVirtualLocal),
+        mir::Space::Shared => Some(Op::TailCallVirtualShared),
         _ => None,
     }
 }
 
-/// Return the dynamic call op for one receiver address space.
-fn dynamic_call_op(address_space: AddressSpace) -> Option<Op> {
-    match address_space {
-        AddressSpace::Local => Some(Op::CallDynamicLocal),
-        AddressSpace::Shared => Some(Op::CallDynamicShared),
+/// Return the dynamic call op for one receiver space.
+fn dynamic_call_op(space: mir::Space) -> Option<Op> {
+    match space {
+        mir::Space::Local => Some(Op::CallDynamicLocal),
+        mir::Space::Shared => Some(Op::CallDynamicShared),
         _ => None,
     }
 }
 
-/// Return the dynamic call terminator op for one receiver address space.
-fn dynamic_call_branch_op(address_space: AddressSpace) -> Option<Op> {
-    match address_space {
-        AddressSpace::Local => Some(Op::CallDynamicLocalBranch),
-        AddressSpace::Shared => Some(Op::CallDynamicSharedBranch),
+/// Return the dynamic call terminator op for one receiver space.
+fn dynamic_call_branch_op(space: mir::Space) -> Option<Op> {
+    match space {
+        mir::Space::Local => Some(Op::CallDynamicLocalBranch),
+        mir::Space::Shared => Some(Op::CallDynamicSharedBranch),
         _ => None,
     }
 }
 
-/// Return the dynamic tail call op for one receiver address space.
-fn dynamic_tail_call_op(address_space: AddressSpace) -> Option<Op> {
-    match address_space {
-        AddressSpace::Local => Some(Op::TailCallDynamicLocal),
-        AddressSpace::Shared => Some(Op::TailCallDynamicShared),
+/// Return the dynamic tail call op for one receiver space.
+fn dynamic_tail_call_op(space: mir::Space) -> Option<Op> {
+    match space {
+        mir::Space::Local => Some(Op::TailCallDynamicLocal),
+        mir::Space::Shared => Some(Op::TailCallDynamicShared),
         _ => None,
     }
 }

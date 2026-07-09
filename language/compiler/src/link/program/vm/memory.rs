@@ -134,11 +134,11 @@ impl<'a> BlockLowerer<'a> {
         pointer: mir::Value,
     ) -> LinkResult<Instruction> {
         let access = self.pointee_projection_for_value(pointer)?;
-        let address_space = self
+        let pointer_layout = self
             .operand_map()
-            .address_space(pointer)
+            .pointer_cell_layout(pointer)
             .ok_or_else(|| self.invalid_pointer_type(format!("{pointer:?}")))?;
-        let op = select_load_op(address_space, access)
+        let op = select_load_op(pointer_layout, access)
             .ok_or_else(|| self.invalid_instruction("load operation"))?;
         if !access.is_cell() {
             let access = pool.projection(access);
@@ -169,11 +169,11 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
     ) -> LinkResult<Instruction> {
         let access = self.pointee_projection_for_value(pointer)?;
-        let address_space = self
+        let pointer_layout = self
             .operand_map()
-            .address_space(pointer)
+            .pointer_cell_layout(pointer)
             .ok_or_else(|| self.invalid_pointer_type(format!("{pointer:?}")))?;
-        let op = select_store_op(address_space, access)
+        let op = select_store_op(pointer_layout, access)
             .ok_or_else(|| self.invalid_instruction("store operation"))?;
 
         if !access.is_cell() {

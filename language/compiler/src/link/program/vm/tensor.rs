@@ -2,7 +2,7 @@ use destack_mir as mir;
 
 use crate::LinkResult;
 
-use destack_program::AddressSpace;
+use destack_program::CellLayout;
 use destack_program::vm::{
     Instruction, Op, Projection, TensorAddress, TensorBinary, TensorBroadcast, TensorConcat,
     TensorContiguousBinary, TensorConvert, TensorConvolution, TensorConvolutionDimensionsBuilder,
@@ -53,8 +53,8 @@ impl<'a> BlockLowerer<'a> {
                 let view_layout = self.tensor_layout(pool, view_type)?;
                 let indices =
                     self.cell_offset_range(pool, self.function.tree.get_values(*indices))?;
-                let (address_space, element) = self.tensor_view_projection(view_type)?;
-                let address = self.tensor_address(address_space)?;
+                let (pointer, element) = self.tensor_view_projection(view_type)?;
+                let address = self.tensor_address(pointer)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
@@ -104,8 +104,8 @@ impl<'a> BlockLowerer<'a> {
                 let view_layout = self.tensor_layout(pool, view_type)?;
                 let indices =
                     self.cell_offset_range(pool, self.function.tree.get_values(*indices))?;
-                let (address_space, element) = self.tensor_view_projection(view_type)?;
-                let address = self.tensor_address(address_space)?;
+                let (pointer, element) = self.tensor_view_projection(view_type)?;
+                let address = self.tensor_address(pointer)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
@@ -126,8 +126,8 @@ impl<'a> BlockLowerer<'a> {
                 let value = *value;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let (address_space, element) = self.tensor_view_projection(view_type)?;
-                let address = self.tensor_address(address_space)?;
+                let (pointer, element) = self.tensor_view_projection(view_type)?;
+                let address = self.tensor_address(pointer)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
@@ -733,8 +733,8 @@ impl<'a> BlockLowerer<'a> {
                 let source_type = self.value_type_for_value(view)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let (address_space, element) = self.tensor_view_projection(source_type)?;
-                let address = self.tensor_address(address_space)?;
+                let (pointer, element) = self.tensor_view_projection(source_type)?;
+                let address = self.tensor_address(pointer)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
@@ -757,28 +757,28 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Return one tensor address class for an VM address space.
-    fn tensor_address(&self, address_space: AddressSpace) -> LinkResult<TensorAddress> {
-        TensorAddress::from_address_space(address_space)
-            .map_err(|_| self.invalid_pointer_type(format!("{address_space:?}")))
+    /// Return one tensor address class for one pointer layout.
+    fn tensor_address(&self, pointer: CellLayout) -> LinkResult<TensorAddress> {
+        TensorAddress::from_cell_layout(pointer)
+            .map_err(|_| self.invalid_pointer_type(format!("{pointer:?}")))
     }
 
-    /// Return the backing address space and element projection for one tensor view.
+    /// Return the backing pointer layout and element projection for one tensor view.
     fn tensor_view_projection(
         &self,
         view_type: mir::LocalNodeId<mir::Type>,
-    ) -> LinkResult<(AddressSpace, Projection)> {
+    ) -> LinkResult<(CellLayout, Projection)> {
         let element_type = self
             .tensor_element_type(view_type)
             .ok_or_else(|| self.invalid_instruction("tensor view element"))?;
-        let address_space = self
-            .tensor_view_address_space(view_type)
-            .ok_or_else(|| self.invalid_instruction("tensor view address space"))?;
+        let pointer = self
+            .tensor_view_cell_layout(view_type)
+            .ok_or_else(|| self.invalid_instruction("tensor view pointer layout"))?;
         let projection = self
             .tensor_element_projection(element_type)
             .ok_or_else(|| self.invalid_instruction("tensor view element projection"))?;
 
-        Ok((address_space, projection))
+        Ok((pointer, projection))
     }
 
     /// Return the VM tensor layout for one tensor type.

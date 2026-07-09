@@ -1,8 +1,8 @@
 use destack_core::Optional;
 use destack_mir as mir;
 use destack_program::{
-    AddressSpace, AllocationInitialization, AllocationOperation, AllocationSite, CallDispatch,
-    CallMode, CallSite, MemoryAccess, MemorySite, ProgramPoint,
+    AllocationInitialization, AllocationOperation, AllocationSite, CallDispatch, CallMode,
+    CallSite, MemoryAccess, MemorySite, ProgramPoint,
 };
 
 use crate::LinkResult;
@@ -358,16 +358,16 @@ impl BlockLowerer<'_> {
         initialization: allocation::AllocationInitialization,
     ) -> LinkResult<AllocationSite> {
         let storage_layout = self.layout_for_type(storage_type)?.layout_id;
-        let address_space = match allocation {
-            AllocationOperation::Object => self.function.address_space_for_type(result_type)?,
-            AllocationOperation::Slice => self.slice_backing_address_space(result_type)?,
+        let space = match allocation {
+            AllocationOperation::Object => self.function.space_for_type(result_type)?,
+            AllocationOperation::Slice => self.slice_backing_space(result_type)?,
         };
 
         Ok(AllocationSite {
             point,
             operation: allocation,
             initialization: self.allocation_initialization(initialization),
-            address_space,
+            space,
             result_type: self.function.program.type_id(result_type),
             storage_type: self.function.program.type_id(storage_type),
             storage_layout,
@@ -409,12 +409,12 @@ impl BlockLowerer<'_> {
         pointer: mir::Value,
         value_type: mir::TypeId,
     ) -> LinkResult<MemorySite> {
-        let address_space = self
+        let space = self
             .operand_map()
-            .address_space(pointer)
+            .space(pointer)
             .ok_or_else(|| self.invalid_pointer_type(format!("{pointer:?}")))?;
 
-        Ok(self.memory_site_entry(point, access, address_space, value_type))
+        Ok(self.memory_site_entry(point, access, space, value_type))
     }
 
     /// Build one tensor memory access site row.
@@ -425,14 +425,14 @@ impl BlockLowerer<'_> {
         view: mir::Value,
     ) -> LinkResult<MemorySite> {
         let view_type = self.value_type_for_value(view)?;
-        let address_space = self
-            .tensor_view_address_space(view_type)
-            .ok_or_else(|| self.invalid_instruction("tensor view address space"))?;
+        let space = self
+            .tensor_view_space(view_type)
+            .ok_or_else(|| self.invalid_instruction("tensor view space"))?;
         let value_type = self
             .tensor_element_type(view_type)
             .ok_or_else(|| self.invalid_instruction("tensor view element"))?;
 
-        Ok(self.memory_site_entry(point, access, address_space, value_type))
+        Ok(self.memory_site_entry(point, access, space, value_type))
     }
 
     /// Build one memory site row from resolved components.
@@ -440,13 +440,13 @@ impl BlockLowerer<'_> {
         &self,
         point: ProgramPoint,
         access: MemoryAccess,
-        address_space: AddressSpace,
+        space: mir::Space,
         value_type: mir::TypeId,
     ) -> MemorySite {
         MemorySite {
             point,
             access,
-            address_space,
+            space,
             value_type: self.function.program.type_id(value_type),
         }
     }
@@ -463,7 +463,7 @@ impl BlockLowerer<'_> {
             point,
             mode,
             dispatch: CallDispatch::Direct,
-            address_space: Optional::none(),
+            space: Optional::none(),
             target: Optional::some(self.function.program_function(function)),
             dispatch_type: Optional::none(),
             signature_type: self.function.program.type_id(signature_type),
@@ -482,16 +482,16 @@ impl BlockLowerer<'_> {
         slot: mir::DispatchSlot,
         signature_type: mir::TypeId,
     ) -> LinkResult<CallSite> {
-        let address_space = self
+        let space = self
             .operand_map()
-            .address_space(receiver)
+            .space(receiver)
             .ok_or_else(|| self.invalid_pointer_type(format!("{receiver:?}")))?;
 
         Ok(CallSite {
             point,
             mode,
             dispatch,
-            address_space: Optional::some(address_space),
+            space: Optional::some(space),
             target: Optional::none(),
             dispatch_type: Optional::some(self.function.program.type_id(dispatch_type)),
             signature_type: self.function.program.type_id(signature_type),
@@ -510,7 +510,7 @@ impl BlockLowerer<'_> {
             point,
             mode,
             dispatch: CallDispatch::Indirect,
-            address_space: Optional::none(),
+            space: Optional::none(),
             target: Optional::none(),
             dispatch_type: Optional::none(),
             signature_type: self.function.program.type_id(signature_type),

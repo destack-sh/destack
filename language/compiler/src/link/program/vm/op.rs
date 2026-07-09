@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
+use destack_program::CellLayout;
 use destack_program::vm::{Op, Projection};
-use destack_program::{AddressSpace, CellLayout};
 
 use super::value::{Operand, OperandMap};
 
@@ -369,105 +369,107 @@ pub(super) fn select_wide_integer_unary_op(
     })
 }
 
-/// Select a load handler for one known address space and projection.
-pub(super) fn select_load_op(address_space: AddressSpace, projection: Projection) -> Option<Op> {
+/// Select a load handler for one pointer cell layout and projection.
+pub(super) fn select_load_op(pointer: CellLayout, projection: Projection) -> Option<Op> {
     if !projection.is_cell() {
-        return select_aggregate_load_op(address_space);
+        return select_aggregate_load_op(pointer);
     }
 
     let layout = projection.cell_layout()?;
     let load = scalar_load(layout)?;
 
-    select_scalar_load_op(address_space, load)
+    select_scalar_load_op(pointer, load)
 }
 
-/// Select a store handler for one known address space and projection.
-pub(super) fn select_store_op(address_space: AddressSpace, projection: Projection) -> Option<Op> {
+/// Select a store handler for one pointer cell layout and projection.
+pub(super) fn select_store_op(pointer: CellLayout, projection: Projection) -> Option<Op> {
     if !projection.is_cell() {
-        return select_aggregate_store_op(address_space);
+        return select_aggregate_store_op(pointer);
     }
 
     let layout = projection.cell_layout()?;
     let store = scalar_store(layout)?;
 
-    select_scalar_store_op(address_space, store)
+    select_scalar_store_op(pointer, store)
 }
 
 /// Select one scalar load operation.
-fn select_scalar_load_op(address_space: AddressSpace, load: ScalarLoad) -> Option<Op> {
-    Some(match (address_space, load) {
-        (AddressSpace::Local, ScalarLoad::U8) => Op::LoadHeapU8,
-        (AddressSpace::Local, ScalarLoad::I8) => Op::LoadHeapI8,
-        (AddressSpace::Local, ScalarLoad::U16) => Op::LoadHeapU16,
-        (AddressSpace::Local, ScalarLoad::I16) => Op::LoadHeapI16,
-        (AddressSpace::Local, ScalarLoad::U32) => Op::LoadHeapU32,
-        (AddressSpace::Local, ScalarLoad::I32) => Op::LoadHeapI32,
-        (AddressSpace::Local, ScalarLoad::Width64) => Op::LoadHeap64,
-        (AddressSpace::Shared, ScalarLoad::U8) => Op::LoadSharedHeapU8,
-        (AddressSpace::Shared, ScalarLoad::I8) => Op::LoadSharedHeapI8,
-        (AddressSpace::Shared, ScalarLoad::U16) => Op::LoadSharedHeapU16,
-        (AddressSpace::Shared, ScalarLoad::I16) => Op::LoadSharedHeapI16,
-        (AddressSpace::Shared, ScalarLoad::U32) => Op::LoadSharedHeapU32,
-        (AddressSpace::Shared, ScalarLoad::I32) => Op::LoadSharedHeapI32,
-        (AddressSpace::Shared, ScalarLoad::Width64) => Op::LoadSharedHeap64,
-        (AddressSpace::Raw, ScalarLoad::U8) => Op::LoadRawU8,
-        (AddressSpace::Raw, ScalarLoad::I8) => Op::LoadRawI8,
-        (AddressSpace::Raw, ScalarLoad::U16) => Op::LoadRawU16,
-        (AddressSpace::Raw, ScalarLoad::I16) => Op::LoadRawI16,
-        (AddressSpace::Raw, ScalarLoad::U32) => Op::LoadRawU32,
-        (AddressSpace::Raw, ScalarLoad::I32) => Op::LoadRawI32,
-        (AddressSpace::Raw, ScalarLoad::Width64) => Op::LoadRaw64,
-        (AddressSpace::Stack, ScalarLoad::U8) => Op::LoadStackU8,
-        (AddressSpace::Stack, ScalarLoad::I8) => Op::LoadStackI8,
-        (AddressSpace::Stack, ScalarLoad::U16) => Op::LoadStackU16,
-        (AddressSpace::Stack, ScalarLoad::I16) => Op::LoadStackI16,
-        (AddressSpace::Stack, ScalarLoad::U32) => Op::LoadStackU32,
-        (AddressSpace::Stack, ScalarLoad::I32) => Op::LoadStackI32,
-        (AddressSpace::Stack, ScalarLoad::Width64) => Op::LoadStack64,
-        (AddressSpace::Frame, ScalarLoad::U8) => Op::LoadFrameU8,
-        (AddressSpace::Frame, ScalarLoad::I8) => Op::LoadFrameI8,
-        (AddressSpace::Frame, ScalarLoad::U16) => Op::LoadFrameU16,
-        (AddressSpace::Frame, ScalarLoad::I16) => Op::LoadFrameI16,
-        (AddressSpace::Frame, ScalarLoad::U32) => Op::LoadFrameU32,
-        (AddressSpace::Frame, ScalarLoad::I32) => Op::LoadFrameI32,
-        (AddressSpace::Frame, ScalarLoad::Width64) => Op::LoadFrame64,
-        (AddressSpace::Static, ScalarLoad::U8) => Op::LoadStaticU8,
-        (AddressSpace::Static, ScalarLoad::I8) => Op::LoadStaticI8,
-        (AddressSpace::Static, ScalarLoad::U16) => Op::LoadStaticU16,
-        (AddressSpace::Static, ScalarLoad::I16) => Op::LoadStaticI16,
-        (AddressSpace::Static, ScalarLoad::U32) => Op::LoadStaticU32,
-        (AddressSpace::Static, ScalarLoad::I32) => Op::LoadStaticI32,
-        (AddressSpace::Static, ScalarLoad::Width64) => Op::LoadStatic64,
+fn select_scalar_load_op(pointer: CellLayout, load: ScalarLoad) -> Option<Op> {
+    Some(match (pointer, load) {
+        (CellLayout::HeapReference, ScalarLoad::U8) => Op::LoadHeapU8,
+        (CellLayout::HeapReference, ScalarLoad::I8) => Op::LoadHeapI8,
+        (CellLayout::HeapReference, ScalarLoad::U16) => Op::LoadHeapU16,
+        (CellLayout::HeapReference, ScalarLoad::I16) => Op::LoadHeapI16,
+        (CellLayout::HeapReference, ScalarLoad::U32) => Op::LoadHeapU32,
+        (CellLayout::HeapReference, ScalarLoad::I32) => Op::LoadHeapI32,
+        (CellLayout::HeapReference, ScalarLoad::Width64) => Op::LoadHeap64,
+        (CellLayout::SharedHeapReference, ScalarLoad::U8) => Op::LoadSharedHeapU8,
+        (CellLayout::SharedHeapReference, ScalarLoad::I8) => Op::LoadSharedHeapI8,
+        (CellLayout::SharedHeapReference, ScalarLoad::U16) => Op::LoadSharedHeapU16,
+        (CellLayout::SharedHeapReference, ScalarLoad::I16) => Op::LoadSharedHeapI16,
+        (CellLayout::SharedHeapReference, ScalarLoad::U32) => Op::LoadSharedHeapU32,
+        (CellLayout::SharedHeapReference, ScalarLoad::I32) => Op::LoadSharedHeapI32,
+        (CellLayout::SharedHeapReference, ScalarLoad::Width64) => Op::LoadSharedHeap64,
+        (CellLayout::Address, ScalarLoad::U8) => Op::LoadRawU8,
+        (CellLayout::Address, ScalarLoad::I8) => Op::LoadRawI8,
+        (CellLayout::Address, ScalarLoad::U16) => Op::LoadRawU16,
+        (CellLayout::Address, ScalarLoad::I16) => Op::LoadRawI16,
+        (CellLayout::Address, ScalarLoad::U32) => Op::LoadRawU32,
+        (CellLayout::Address, ScalarLoad::I32) => Op::LoadRawI32,
+        (CellLayout::Address, ScalarLoad::Width64) => Op::LoadRaw64,
+        (CellLayout::StackPointer, ScalarLoad::U8) => Op::LoadStackU8,
+        (CellLayout::StackPointer, ScalarLoad::I8) => Op::LoadStackI8,
+        (CellLayout::StackPointer, ScalarLoad::U16) => Op::LoadStackU16,
+        (CellLayout::StackPointer, ScalarLoad::I16) => Op::LoadStackI16,
+        (CellLayout::StackPointer, ScalarLoad::U32) => Op::LoadStackU32,
+        (CellLayout::StackPointer, ScalarLoad::I32) => Op::LoadStackI32,
+        (CellLayout::StackPointer, ScalarLoad::Width64) => Op::LoadStack64,
+        (CellLayout::FramePointer, ScalarLoad::U8) => Op::LoadFrameU8,
+        (CellLayout::FramePointer, ScalarLoad::I8) => Op::LoadFrameI8,
+        (CellLayout::FramePointer, ScalarLoad::U16) => Op::LoadFrameU16,
+        (CellLayout::FramePointer, ScalarLoad::I16) => Op::LoadFrameI16,
+        (CellLayout::FramePointer, ScalarLoad::U32) => Op::LoadFrameU32,
+        (CellLayout::FramePointer, ScalarLoad::I32) => Op::LoadFrameI32,
+        (CellLayout::FramePointer, ScalarLoad::Width64) => Op::LoadFrame64,
+        (CellLayout::GlobalAddress, ScalarLoad::U8) => Op::LoadStaticU8,
+        (CellLayout::GlobalAddress, ScalarLoad::I8) => Op::LoadStaticI8,
+        (CellLayout::GlobalAddress, ScalarLoad::U16) => Op::LoadStaticU16,
+        (CellLayout::GlobalAddress, ScalarLoad::I16) => Op::LoadStaticI16,
+        (CellLayout::GlobalAddress, ScalarLoad::U32) => Op::LoadStaticU32,
+        (CellLayout::GlobalAddress, ScalarLoad::I32) => Op::LoadStaticI32,
+        (CellLayout::GlobalAddress, ScalarLoad::Width64) => Op::LoadStatic64,
+        _ => return None,
     })
 }
 
 /// Select one scalar store operation.
-fn select_scalar_store_op(address_space: AddressSpace, store: ScalarStore) -> Option<Op> {
-    Some(match (address_space, store) {
-        (AddressSpace::Local, ScalarStore::Width8) => Op::StoreHeap8,
-        (AddressSpace::Local, ScalarStore::Width16) => Op::StoreHeap16,
-        (AddressSpace::Local, ScalarStore::Width32) => Op::StoreHeap32,
-        (AddressSpace::Local, ScalarStore::Width64) => Op::StoreHeap64,
-        (AddressSpace::Shared, ScalarStore::Width8) => Op::StoreSharedHeap8,
-        (AddressSpace::Shared, ScalarStore::Width16) => Op::StoreSharedHeap16,
-        (AddressSpace::Shared, ScalarStore::Width32) => Op::StoreSharedHeap32,
-        (AddressSpace::Shared, ScalarStore::Width64) => Op::StoreSharedHeap64,
-        (AddressSpace::Raw, ScalarStore::Width8) => Op::StoreRaw8,
-        (AddressSpace::Raw, ScalarStore::Width16) => Op::StoreRaw16,
-        (AddressSpace::Raw, ScalarStore::Width32) => Op::StoreRaw32,
-        (AddressSpace::Raw, ScalarStore::Width64) => Op::StoreRaw64,
-        (AddressSpace::Stack, ScalarStore::Width8) => Op::StoreStack8,
-        (AddressSpace::Stack, ScalarStore::Width16) => Op::StoreStack16,
-        (AddressSpace::Stack, ScalarStore::Width32) => Op::StoreStack32,
-        (AddressSpace::Stack, ScalarStore::Width64) => Op::StoreStack64,
-        (AddressSpace::Frame, ScalarStore::Width8) => Op::StoreFrame8,
-        (AddressSpace::Frame, ScalarStore::Width16) => Op::StoreFrame16,
-        (AddressSpace::Frame, ScalarStore::Width32) => Op::StoreFrame32,
-        (AddressSpace::Frame, ScalarStore::Width64) => Op::StoreFrame64,
-        (AddressSpace::Static, ScalarStore::Width8) => Op::StoreStatic8,
-        (AddressSpace::Static, ScalarStore::Width16) => Op::StoreStatic16,
-        (AddressSpace::Static, ScalarStore::Width32) => Op::StoreStatic32,
-        (AddressSpace::Static, ScalarStore::Width64) => Op::StoreStatic64,
+fn select_scalar_store_op(pointer: CellLayout, store: ScalarStore) -> Option<Op> {
+    Some(match (pointer, store) {
+        (CellLayout::HeapReference, ScalarStore::Width8) => Op::StoreHeap8,
+        (CellLayout::HeapReference, ScalarStore::Width16) => Op::StoreHeap16,
+        (CellLayout::HeapReference, ScalarStore::Width32) => Op::StoreHeap32,
+        (CellLayout::HeapReference, ScalarStore::Width64) => Op::StoreHeap64,
+        (CellLayout::SharedHeapReference, ScalarStore::Width8) => Op::StoreSharedHeap8,
+        (CellLayout::SharedHeapReference, ScalarStore::Width16) => Op::StoreSharedHeap16,
+        (CellLayout::SharedHeapReference, ScalarStore::Width32) => Op::StoreSharedHeap32,
+        (CellLayout::SharedHeapReference, ScalarStore::Width64) => Op::StoreSharedHeap64,
+        (CellLayout::Address, ScalarStore::Width8) => Op::StoreRaw8,
+        (CellLayout::Address, ScalarStore::Width16) => Op::StoreRaw16,
+        (CellLayout::Address, ScalarStore::Width32) => Op::StoreRaw32,
+        (CellLayout::Address, ScalarStore::Width64) => Op::StoreRaw64,
+        (CellLayout::StackPointer, ScalarStore::Width8) => Op::StoreStack8,
+        (CellLayout::StackPointer, ScalarStore::Width16) => Op::StoreStack16,
+        (CellLayout::StackPointer, ScalarStore::Width32) => Op::StoreStack32,
+        (CellLayout::StackPointer, ScalarStore::Width64) => Op::StoreStack64,
+        (CellLayout::FramePointer, ScalarStore::Width8) => Op::StoreFrame8,
+        (CellLayout::FramePointer, ScalarStore::Width16) => Op::StoreFrame16,
+        (CellLayout::FramePointer, ScalarStore::Width32) => Op::StoreFrame32,
+        (CellLayout::FramePointer, ScalarStore::Width64) => Op::StoreFrame64,
+        (CellLayout::GlobalAddress, ScalarStore::Width8) => Op::StoreStatic8,
+        (CellLayout::GlobalAddress, ScalarStore::Width16) => Op::StoreStatic16,
+        (CellLayout::GlobalAddress, ScalarStore::Width32) => Op::StoreStatic32,
+        (CellLayout::GlobalAddress, ScalarStore::Width64) => Op::StoreStatic64,
+        _ => return None,
     })
 }
 
@@ -499,26 +501,28 @@ pub(super) fn select_frame_value_store_op(projection: Projection) -> Option<Op> 
 }
 
 /// Select one aggregate load operation.
-fn select_aggregate_load_op(address_space: AddressSpace) -> Option<Op> {
-    Some(match address_space {
-        AddressSpace::Local => Op::LoadHeapAggregate,
-        AddressSpace::Shared => Op::LoadSharedHeapAggregate,
-        AddressSpace::Raw => Op::LoadRawAggregate,
-        AddressSpace::Stack => Op::LoadStackAggregate,
-        AddressSpace::Frame => Op::LoadFrameAggregate,
-        AddressSpace::Static => Op::LoadStaticAggregate,
+fn select_aggregate_load_op(pointer: CellLayout) -> Option<Op> {
+    Some(match pointer {
+        CellLayout::HeapReference => Op::LoadHeapAggregate,
+        CellLayout::SharedHeapReference => Op::LoadSharedHeapAggregate,
+        CellLayout::Address => Op::LoadRawAggregate,
+        CellLayout::StackPointer => Op::LoadStackAggregate,
+        CellLayout::FramePointer => Op::LoadFrameAggregate,
+        CellLayout::GlobalAddress => Op::LoadStaticAggregate,
+        _ => return None,
     })
 }
 
 /// Select one aggregate store operation.
-fn select_aggregate_store_op(address_space: AddressSpace) -> Option<Op> {
-    Some(match address_space {
-        AddressSpace::Local => Op::StoreHeapAggregate,
-        AddressSpace::Shared => Op::StoreSharedHeapAggregate,
-        AddressSpace::Raw => Op::StoreRawAggregate,
-        AddressSpace::Stack => Op::StoreStackAggregate,
-        AddressSpace::Frame => Op::StoreFrameAggregate,
-        AddressSpace::Static => Op::StoreStaticAggregate,
+fn select_aggregate_store_op(pointer: CellLayout) -> Option<Op> {
+    Some(match pointer {
+        CellLayout::HeapReference => Op::StoreHeapAggregate,
+        CellLayout::SharedHeapReference => Op::StoreSharedHeapAggregate,
+        CellLayout::Address => Op::StoreRawAggregate,
+        CellLayout::StackPointer => Op::StoreStackAggregate,
+        CellLayout::FramePointer => Op::StoreFrameAggregate,
+        CellLayout::GlobalAddress => Op::StoreStaticAggregate,
+        _ => return None,
     })
 }
 
@@ -527,7 +531,7 @@ pub(super) fn select_field_addr_op(operand_map: &OperandMap, base: mir::Value) -
     let operand = operand_map.get(base)?;
     match operand {
         Operand::Aggregate { .. } => Some(Op::AddressFrameValueOffset),
-        Operand::Reference { address_space, .. } => select_offset_address_op(address_space),
+        Operand::Reference { cell_layout, .. } => select_offset_address_op(cell_layout),
         _ => None,
     }
 }
@@ -537,44 +541,47 @@ pub(super) fn select_element_addr_op(operand_map: &OperandMap, array: mir::Value
     let operand = operand_map.get(array)?;
     match operand {
         Operand::Aggregate { .. } | Operand::Sequence { .. } => Some(Op::AddressFrameValueElement),
-        Operand::Reference { address_space, .. } => select_index_address_op(address_space),
+        Operand::Reference { cell_layout, .. } => select_index_address_op(cell_layout),
         _ => None,
     }
 }
 
-/// Select a slice element address handler based on the backing address space.
-pub(super) fn select_slice_element_addr_op(address_space: AddressSpace) -> Option<Op> {
-    Some(match address_space {
-        AddressSpace::Local => Op::AddressHeapSliceElement,
-        AddressSpace::Shared => Op::AddressSharedHeapSliceElement,
-        AddressSpace::Raw => Op::AddressRawSliceElement,
-        AddressSpace::Stack => Op::AddressStackSliceElement,
-        AddressSpace::Frame => Op::AddressFrameSliceElement,
-        AddressSpace::Static => Op::GlobalAddressSliceElement,
+/// Select a slice element address handler based on the backing pointer layout.
+pub(super) fn select_slice_element_addr_op(pointer: CellLayout) -> Option<Op> {
+    Some(match pointer {
+        CellLayout::HeapReference => Op::AddressHeapSliceElement,
+        CellLayout::SharedHeapReference => Op::AddressSharedHeapSliceElement,
+        CellLayout::Address => Op::AddressRawSliceElement,
+        CellLayout::StackPointer => Op::AddressStackSliceElement,
+        CellLayout::FramePointer => Op::AddressFrameSliceElement,
+        CellLayout::GlobalAddress => Op::GlobalAddressSliceElement,
+        _ => return None,
     })
 }
 
 /// Select one indexed address operation.
-fn select_index_address_op(address_space: AddressSpace) -> Option<Op> {
-    Some(match address_space {
-        AddressSpace::Frame => Op::AddressFrameElement,
-        AddressSpace::Local => Op::AddressHeapElement,
-        AddressSpace::Shared => Op::AddressSharedHeapElement,
-        AddressSpace::Raw => Op::AddressRawElement,
-        AddressSpace::Stack => Op::AddressStackElement,
-        AddressSpace::Static => Op::GlobalAddressElement,
+fn select_index_address_op(pointer: CellLayout) -> Option<Op> {
+    Some(match pointer {
+        CellLayout::FramePointer => Op::AddressFrameElement,
+        CellLayout::HeapReference => Op::AddressHeapElement,
+        CellLayout::SharedHeapReference => Op::AddressSharedHeapElement,
+        CellLayout::Address => Op::AddressRawElement,
+        CellLayout::StackPointer => Op::AddressStackElement,
+        CellLayout::GlobalAddress => Op::GlobalAddressElement,
+        _ => return None,
     })
 }
 
 /// Select one fixed-offset address operation.
-fn select_offset_address_op(address_space: AddressSpace) -> Option<Op> {
-    Some(match address_space {
-        AddressSpace::Frame => Op::AddressFrameOffset,
-        AddressSpace::Local => Op::AddressHeapOffset,
-        AddressSpace::Shared => Op::AddressSharedHeapOffset,
-        AddressSpace::Raw => Op::AddressRawOffset,
-        AddressSpace::Stack => Op::AddressStackOffset,
-        AddressSpace::Static => Op::GlobalAddressOffset,
+fn select_offset_address_op(pointer: CellLayout) -> Option<Op> {
+    Some(match pointer {
+        CellLayout::FramePointer => Op::AddressFrameOffset,
+        CellLayout::HeapReference => Op::AddressHeapOffset,
+        CellLayout::SharedHeapReference => Op::AddressSharedHeapOffset,
+        CellLayout::Address => Op::AddressRawOffset,
+        CellLayout::StackPointer => Op::AddressStackOffset,
+        CellLayout::GlobalAddress => Op::GlobalAddressOffset,
+        _ => return None,
     })
 }
 

@@ -4,7 +4,6 @@ use crate::LinkResult;
 
 use destack_heap::{HeapReference, SharedHeapReference};
 
-use destack_program::ReferenceStorage;
 use destack_program::vm::{Cell, ConstValueBuilder, Instruction, Op};
 
 use super::lower::BlockLowerer;
@@ -58,7 +57,7 @@ impl<'a> BlockLowerer<'a> {
 
         match reference.kind() {
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique)
-                if matches!(reference.storage(), Some(ReferenceStorage::Shared)) =>
+                if matches!(reference.space(), Some(mir::Space::Shared)) =>
             {
                 Cell::shared_heap_reference(SharedHeapReference::NULL)
             }
