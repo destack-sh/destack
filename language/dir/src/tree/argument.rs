@@ -243,6 +243,8 @@ pub enum Argument {
         label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },
+    /// Elided array element.
+    Elision,
     /// Malformed argument slot.
     Error,
 }
@@ -260,7 +262,7 @@ impl Argument {
             | Argument::Labeled { value, .. }
             | Argument::Positional { value }
             | Argument::Spread { value, .. } => Some(*value),
-            Argument::Error => None,
+            Argument::Elision | Argument::Error => None,
         }
     }
 }

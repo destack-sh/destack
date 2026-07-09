@@ -325,6 +325,8 @@ pub enum TreeChild {
     Spread { value: LocalNodeId<Expression> },
     /// Nested tree expression child.
     Tree { value: LocalNodeId<Expression> },
+    /// Empty expression container child.
+    Empty,
     /// Malformed child slot.
     Error,
 }
@@ -337,7 +339,7 @@ impl TreeChild {
     /// Return the value expression carried by this child when present.
     pub const fn value(&self) -> Option<LocalNodeId<Expression>> {
         match self {
-            Self::Text { .. } | Self::Error => None,
+            Self::Text { .. } | Self::Empty | Self::Error => None,
             Self::Expression { value } | Self::Spread { value } | Self::Tree { value } => {
                 Some(*value)
             }

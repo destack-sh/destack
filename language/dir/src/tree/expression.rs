@@ -817,9 +817,6 @@ pub enum Expression {
     /// Missing expression child.
     Missing,
 
-    /// Stub placeholder.
-    Stub,
-
     /// Error placeholder.
     Error,
 }
