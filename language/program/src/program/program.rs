@@ -468,6 +468,11 @@ impl Program {
         self.layouts().get(sections, layout_id)
     }
 
+    /// Return one runtime layout by id.
+    pub fn layout_by_id(&self, layout: LayoutId) -> Option<&Layout> {
+        self.layouts().get(self.sections(), layout)
+    }
+
     /// Return one field by layout index.
     pub fn layout_field_at(&self, layout: &Layout, index: u32) -> Option<&LayoutField> {
         self.layouts.field_at(self.sections(), layout, index)

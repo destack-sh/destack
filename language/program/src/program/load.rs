@@ -356,7 +356,16 @@ mod tests {
         let frames = FrameTable::pack(&mut sections, Vec::new(), Vec::new());
         let functions = FunctionTable::pack(&mut sections, Vec::new(), Vec::new());
         let dispatch = DispatchTable::pack(&mut sections, Vec::new(), Vec::new(), Vec::new());
-        let sites = SiteTable::pack(&mut sections, Vec::new(), Vec::new(), Vec::new());
+        let sites = SiteTable::pack(
+            &mut sections,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         let globals = GlobalTable::pack(&mut sections, Vec::new());
 
         // build empty static images and VM code
