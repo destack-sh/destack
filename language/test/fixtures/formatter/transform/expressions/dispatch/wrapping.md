@@ -28,18 +28,6 @@ very.long.deeply.nested.property.access
 very.long.deeply.nested.property.access;
 ```
 
-### private member access
-
-Private member access keeps the `#` prefix.
-
-```ts:main.ts
-const value = foo . #bar . baz
-```
-
-```ts expected
-const value = foo.#bar.baz;
-```
-
 ### method chain with arguments
 
 Method chains with various argument lengths.

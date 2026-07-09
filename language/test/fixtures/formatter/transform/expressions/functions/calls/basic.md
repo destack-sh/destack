@@ -42,7 +42,7 @@ foo();
 
 Blank lines between the callee and argument list are removed.
 
-```ts:main.ts
+```ds:main.ds
 gen
 
     ("a");
@@ -54,7 +54,7 @@ gen
       "b");
 ```
 
-```ts expected
+```ds expected
 gen("a");
 
 gen("b");
@@ -76,11 +76,11 @@ foo(x);
 
 Calls on parenthesized instantiation expressions keep the parentheses.
 
-```ts:main.ts
+```ds:main.ds
 const value = (makeFactory<number>)(config)
 ```
 
-```ts expected
+```ds expected
 const value = makeFactory<number>(config);
 ```
 

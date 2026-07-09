@@ -1,6 +1,6 @@
-# TSX Attributes
+# Tree Attributes
 
-TSX attribute fixtures cover attribute spacing, expressions, comments, spread attributes, and wrapping options.
+Tree attribute fixtures cover spacing, expressions, comments, spread attributes, and wrapping.
 
 ## Attribute Forms
 
@@ -8,23 +8,23 @@ TSX attribute fixtures cover attribute spacing, expressions, comments, spread at
 
 Attribute spacing is normalized without rewriting expression attribute values.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Button disabled={true} count={ 1 } label="Ok" />
 ```
 
-```tsx expected
+```ds expected
 const node = <Button disabled={true} count={1} label="Ok" />;
 ```
 
-### string expression attribute quote style
+### string expression attributes
 
-String literal expression containers keep their braces while quote style is normalized.
+String literal expression containers keep their braces.
 
-```tsx:main.tsx
-const node = <div title={"Hello"} className={'card'} />
+```ds:main.ds
+const node = <div title={"Hello"} className={"card"} />
 ```
 
-```tsx expected
+```ds expected
 const node = <div title={"Hello"} className={"card"} />;
 ```
 
@@ -32,11 +32,11 @@ const node = <div title={"Hello"} className={"card"} />;
 
 Mixed attribute types stay ordered and normalized.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Input name="search" value={query} onChange={(e) => setQuery(e.target.value)} />
 ```
 
-```tsx expected
+```ds expected
 const node = <Input name="search" value={query} onChange={(e) => setQuery(e.target.value)} />;
 ```
 
@@ -44,11 +44,11 @@ const node = <Input name="search" value={query} onChange={(e) => setQuery(e.targ
 
 Complex expression attributes remain wrapped in braces.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div className={cx("a", { b: cond })} />
 ```
 
-```tsx expected
+```ds expected
 const node = <div className={cx("a", { b: cond })} />;
 ```
 
@@ -56,7 +56,7 @@ const node = <div className={cx("a", { b: cond })} />;
 
 Template attributes keep multiline interpolation comments indented from the template segment.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Panel className={`
   color: ${theme?.activeColor[
     // selected mode
@@ -65,7 +65,7 @@ const node = <Panel className={`
 `} />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Panel
         className={`
@@ -84,7 +84,7 @@ const node = (
 
 Trailing attribute comments stay attached to the same attributes.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div
   key={formMessageId} // key-tail
   initial={{ opacity: 0, y: -5, height: 0 }} // initial-tail
@@ -92,7 +92,7 @@ const node = <div
 ></div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div
         key={formMessageId} // key-tail
@@ -106,13 +106,13 @@ const node = (
 
 Trailing comments after the final attribute keep the closing bracket on the next line.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Widget
   title="Settings" // title-tail
 />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Widget
         title="Settings" // title-tail
@@ -124,14 +124,14 @@ const node = (
 
 Comments after the tag name stay before the first attribute.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Widget
   /* tag-tail */
   title="Settings"
 />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Widget
         /* tag-tail */
@@ -146,11 +146,11 @@ const node = (
 
 Spread attributes preserve their position in the attribute list.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Widget {...props} kind="primary" {...extra} />
 ```
 
-```tsx expected
+```ds expected
 const node = <Widget {...props} kind="primary" {...extra} />;
 ```
 
@@ -158,7 +158,7 @@ const node = <Widget {...props} kind="primary" {...extra} />;
 
 Spread attribute comments stay attached to the same attribute boundaries.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Widget
   // props-leading
   {...props} // props-tail
@@ -168,7 +168,7 @@ const node = <Widget
 />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Widget
         // props-leading
@@ -186,11 +186,11 @@ const node = (
 
 Long attribute lists break across lines.
 
-```tsx:main.tsx line-width=40
+```ds:main.ds line-width=40
 const node = <Panel title="Settings" description="Long description" icon={settingsIcon} />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Panel
         title="Settings"
@@ -204,11 +204,11 @@ const node = (
 
 Long expression attribute values break inside the expression container.
 
-```tsx:main.tsx line-width=45
+```ds:main.ds line-width=45
 const node = <Panel options={{ label: "Settings", description: "Long description" }} />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Panel
         options={{
@@ -219,15 +219,15 @@ const node = (
 );
 ```
 
-### jsx callback attribute breaks around return element
+### tree callback attribute breaks around return element
 
-JSX-returning callback attributes break the element and callback body vertically.
+Tree-returning callback attributes break the element and callback body vertically.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <List renderItem={(item) => <Item key={item.id}>{item.name}</Item>} />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <List
         renderItem={(item) => (

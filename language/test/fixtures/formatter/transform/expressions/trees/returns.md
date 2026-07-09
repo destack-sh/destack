@@ -1,10 +1,10 @@
 # Tree Returns
 
-## Return Statements with JSX
+## Return Statements
 
-### return jsx inline
+### return tree inline
 
-Short JSX in return statements stays inline.
+Short tree literals in return statements stay inline.
 
 ```ds
 return <App />
@@ -14,9 +14,9 @@ return <App />
 return <App />;
 ```
 
-### return jsx multiline gets wrapped
+### return tree multiline gets wrapped
 
-When JSX in return breaks, it gets wrapped in parentheses.
+Multiline returned tree literals use parentheses.
 
 ```ds line-width=30
 return <App prop="value" another="thing" />
@@ -31,9 +31,9 @@ return (
 );
 ```
 
-### return nested jsx wrapped
+### return nested tree wrapped
 
-Nested JSX in returns also gets wrapped.
+Nested returned tree literals also use parentheses.
 
 ```ds line-width=40
 return <Container><Header /><Content /></Container>

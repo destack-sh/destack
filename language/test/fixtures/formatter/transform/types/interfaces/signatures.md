@@ -31,17 +31,17 @@ interface Constructor {
 ```
 
 
-## TypeScript Signatures
+## Signatures
 
 ### new signature in interface
 
-TypeScript `new` signatures keep a space before parameter lists.
+Constructor signatures keep a space before parameter lists.
 
-```ts:main.ts
+```ds:main.ds
 interface Creator { new(...args): Foo }
 ```
 
-```ts expected
+```ds expected
 interface Creator {
     new (...args): Foo;
 }
@@ -51,11 +51,11 @@ interface Creator {
 
 Call signatures format without a name and include semicolons.
 
-```ts:main.ts
+```ds:main.ds
 interface Callable { (...args): Foo }
 ```
 
-```ts expected
+```ds expected
 interface Callable {
     (...args): Foo;
 }

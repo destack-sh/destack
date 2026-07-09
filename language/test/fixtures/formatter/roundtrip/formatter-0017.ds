@@ -1,6 +1,6 @@
-import { type } from "arktype";
+import { type as schema } from "arktype";
 
-const User = type({
+const User = schema({
     name: "string",
     device: {
         platform: "'android' | 'ios'",

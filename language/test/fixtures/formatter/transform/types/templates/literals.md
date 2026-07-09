@@ -6,7 +6,7 @@
 
 Template literal types stay inline with `=` at wider line widths.
 
-```ts:main.ts
+```ds:main.ds
 type templateLiteralType = `${
   TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
     ? "_"
@@ -14,7 +14,7 @@ type templateLiteralType = `${
 }`;
 ```
 
-```ts expected
+```ds expected
 type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
     ? "_"
     : ""}`;
@@ -24,7 +24,7 @@ type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringCo
 
 Template literal types break after `=` when the configured line width is narrower.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 type templateLiteralType = `${
   TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
     ? "_"
@@ -32,7 +32,7 @@ type templateLiteralType = `${
 }`;
 ```
 
-```ts expected
+```ds expected
 type templateLiteralType =
     `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
         ? "_"
@@ -43,8 +43,8 @@ type templateLiteralType =
 
 Nested template literal types break with stable indentation.
 
-```ts:main.ts line-width=80
-type CamelToSnakeCase<TCamelCaseString extends string> =
+```ds:main.ds line-width=80
+type CamelToSnakeCase<TCamelCaseString: string> =
   TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
     ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
         ? "_"
@@ -52,8 +52,8 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
     : TCamelCaseString
 ```
 
-```ts expected
-type CamelToSnakeCase<TCamelCaseString extends string> =
+```ds expected
+type CamelToSnakeCase<TCamelCaseString: string> =
     TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
         ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
               ? "_"

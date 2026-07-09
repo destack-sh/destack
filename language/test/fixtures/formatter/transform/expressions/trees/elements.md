@@ -1,6 +1,6 @@
-# TSX Tree Literals
+# Tree Literals
 
-TSX tree fixtures cover elements, generic tags, attributes, expressions, and multiline wrappers.
+Tree literal fixtures cover elements, generic tags, attributes, expressions, and multiline wrappers.
 
 ## Elements
 
@@ -8,11 +8,11 @@ TSX tree fixtures cover elements, generic tags, attributes, expressions, and mul
 
 Text content stays inline when it fits.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>Hello</div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div>Hello</div>;
 ```
 
@@ -20,35 +20,35 @@ const node = <div>Hello</div>;
 
 Member expression tags keep the dotted path.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <UI.Button label="Ok" />
 ```
 
-```tsx expected
+```ds expected
 const node = <UI.Button label="Ok" />;
 ```
 
 ### text whitespace normalizes
 
-Whitespace in JSX text collapses to single spaces.
+Whitespace in tree text collapses to single spaces.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>  Hello   World </div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div> Hello World </div>;
 ```
 
-### whitespace expression containers are preserved
+### whitespace expression containers normalize
 
-Whitespace expression containers stay as string literals.
+Whitespace expression containers normalize to tree text spacing.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{" "}Hello{" "}World{" "}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div> Hello World </div>;
 ```
 
@@ -58,11 +58,11 @@ const node = <div> Hello World </div>;
 
 Generic tag parameters stay attached to the tag name.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Component<any>></Component>
 ```
 
-```tsx expected
+```ds expected
 const node = <Component<any>></Component>;
 ```
 
@@ -70,11 +70,11 @@ const node = <Component<any>></Component>;
 
 Generic opening tags do not repeat parameters on closing tags.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Widget<string>>Hello</Widget>
 ```
 
-```tsx expected
+```ds expected
 const node = <Widget<string>>Hello</Widget>;
 ```
 
@@ -82,11 +82,11 @@ const node = <Widget<string>>Hello</Widget>;
 
 Generic tags format with attributes normally.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Select<Option> value={"ok"}  disabled={true}/>
 ```
 
-```tsx expected
+```ds expected
 const node = <Select<Option> value={"ok"} disabled={true} />;
 ```
 
@@ -94,11 +94,11 @@ const node = <Select<Option> value={"ok"} disabled={true} />;
 
 Nested generic tags keep paired angle closings.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Component<Array<string>> />
 ```
 
-```tsx expected
+```ds expected
 const node = <Component<Array<string>> />;
 ```
 
@@ -106,11 +106,11 @@ const node = <Component<Array<string>> />;
 
 Long generic tags still break like normal.
 
-```tsx:main.tsx line-width=30
+```ds:main.ds line-width=30
 const node = <Panel<Props> title="Settings" description="Long description" />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Panel<Props>
         title="Settings"
@@ -121,15 +121,15 @@ const node = (
 
 ## Attributes
 
-### boolean attribute shorthand
+### explicit boolean expression attributes
 
-Boolean attributes omit `={true}`.
+Boolean expression attribute values remain explicit.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Button disabled={true} primary={true} />
 ```
 
-```tsx expected
+```ds expected
 const node = <Button disabled={true} primary={true} />;
 ```
 
@@ -137,11 +137,11 @@ const node = <Button disabled={true} primary={true} />;
 
 Spread attributes keep braces and spacing.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <Button {...props} size="large" />
 ```
 
-```tsx expected
+```ds expected
 const node = <Button {...props} size="large" />;
 ```
 
@@ -149,13 +149,13 @@ const node = <Button {...props} size="large" />;
 
 ### conditional child stays inline
 
-Conditional JSX expressions stay inline when they fit.
+Conditional tree expressions stay inline when they fit.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{ready && <Spinner />}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div>{ready && <Spinner />}</div>;
 ```
 
@@ -163,11 +163,11 @@ const node = <div>{ready && <Spinner />}</div>;
 
 Fragments with multiple children break across lines.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <><Header /><Body /><Footer /></>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <>
         <Header />
@@ -181,13 +181,13 @@ const node = (
 
 ### multiline element wraps in parentheses
 
-Multiline JSX in assignments is wrapped in parentheses.
+Multiline tree in assignments is wrapped in parentheses.
 
-```tsx:main.tsx line-width=30
+```ds:main.ds line-width=30
 const node = <Panel title="Settings" description="Long description" />
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <Panel
         title="Settings"

@@ -47,7 +47,7 @@ impl FormatterSuite {
         let roundtrip_dir = base_dir.join("roundtrip");
         let roundtrip_tests = discover_file_cases(
             &roundtrip_dir,
-            &["ds", ".d.ds", "js", "jsx", "ts", "tsx", ".d.ts"],
+            &["ds", ".d.ds"],
             "destack_test::formatter::roundtrip",
         )
         .map_err(|error| {

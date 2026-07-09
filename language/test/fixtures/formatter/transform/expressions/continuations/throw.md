@@ -4,7 +4,7 @@
 
 ### throw expression
 
-Throw statements keep JavaScript-target exception syntax formatted.
+Throw statements keep exception syntax formatted.
 
 ```ds
 throw new Error("message")

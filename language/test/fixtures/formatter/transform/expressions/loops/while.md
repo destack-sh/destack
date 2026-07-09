@@ -34,11 +34,11 @@ while (i < 10 && running) {
 
 Do-while loops put `while` on the same line as the closing brace.
 
-```ts:main.ts
+```ds:main.ds
 do{process()}while(condition)
 ```
 
-```ts expected
+```ds expected
 do {
     process();
 } while (condition);

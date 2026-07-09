@@ -48,13 +48,13 @@ function sum(...numbers: number[]): number {
 
 Explicit `this` parameters stay first in the list.
 
-```ts:main.ts
+```ds:main.ds
 function bind(this: Handler, event: Event) { this.handle(event) }
 ```
 
-```ts expected
+```ds expected
 function bind(this: Handler, event: Event) {
-    this.handle(event);
+    this.handle(event)
 }
 ```
 

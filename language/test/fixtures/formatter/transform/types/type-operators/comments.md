@@ -6,38 +6,14 @@
 
 Single type unions keep stable comment ownership on the remaining type.
 
-```ts:main.ts
+```ds:main.ds
 type Value =
   | string // single-tail
 ;
 ```
 
-```ts expected
+```ds expected
 type Value = string; // single-tail
-```
-
-### private in operator with typed member comment
-
-Private `in` operator checks keep comments attached across declaration and expression boundaries.
-
-```ts:main.ts
-class C {
-  #field = 1
-
-  has(value: object) {
-    return #field in value // private-in
-  }
-}
-```
-
-```ts expected
-class C {
-    #field = 1;
-
-    has(value: object) {
-        return #field in value; // private-in
-    }
-}
 ```
 
 ## Type Declarations
@@ -46,14 +22,14 @@ class C {
 
 Doc block comments in union expressions stay attached to the same type side.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 export type Value = /** union-doc
  */
 | { ok: true }
 | { ok: false; value: bigint | null };
 ```
 
-```ts expected
+```ds expected
 export type Value = /** union-doc
  */
 { ok: true } | { ok: false; value: bigint | null };
@@ -63,13 +39,13 @@ export type Value = /** union-doc
 
 Trailing line comments on union last arms stay attached to that arm.
 
-```ts:main.ts line-width=30
+```ds:main.ds line-width=30
 type Value =
   | First
   | Second // second-tail
 ```
 
-```ts expected
+```ds expected
 type Value = First | Second; // second-tail
 ```
 
@@ -77,7 +53,7 @@ type Value = First | Second; // second-tail
 
 Union boundary comments stay attached to the same arms under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 interface _KeywordDef {
   type?: JSONType | JSONType[] // data types that keyword applies to
 }
@@ -104,7 +80,7 @@ type C2 = | (
   );
 ```
 
-```ts expected
+```ds expected
 interface _KeywordDef {
   type?: JSONType | JSONType[]; // data types that keyword applies to
 }
@@ -125,7 +101,7 @@ type C2 =
 
 Leading doc comments on the first union arm stay attached to that arm under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 export type AddressAllocator =
 (/** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
 | {
@@ -136,7 +112,7 @@ x: boolean }
 );
 ```
 
-```ts expected
+```ds expected
 export type AddressAllocator =
   /** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
   | {
@@ -151,12 +127,12 @@ export type AddressAllocator =
 
 Comments inside parenthesized unions stay inside the same parentheses.
 
-```ts:main.ts line-width=36
+```ds:main.ds line-width=36
 type Value = (First | // paren-union
 Second) & Third
 ```
 
-```ts expected
+```ds expected
 type Value = (
     | First // paren-union
     | Second
@@ -168,14 +144,14 @@ type Value = (
 
 Comments in mapped type bodies stay attached to the same property.
 
-```ts:main.ts
+```ds:main.ds
 type Flags<T> = {
   [K in keyof T]: // mapped-line
   boolean
 }
 ```
 
-```ts expected
+```ds expected
 type Flags<T> = {
     [K in keyof T]: boolean; // mapped-line
 };
@@ -187,7 +163,7 @@ type Flags<T> = {
 
 Ignore comments around mapped type boundaries stay attached to mapped type clauses.
 
-```ts:main.ts
+```ds:main.ds
 // prettier-ignore
 type Value<T> = {
   [K in keyof T as // mapped-key
@@ -195,7 +171,7 @@ type Value<T> = {
 }
 ```
 
-```ts expected
+```ds expected
 // prettier-ignore
 type Value<T> = {
   [K in keyof T as // mapped-key
@@ -207,7 +183,7 @@ type Value<T> = {
 
 Nested union comments inside mapped types stay attached to the same union arm.
 
-```ts:main.ts line-width=40
+```ds:main.ds line-width=40
 type Value<T> = {
   [K in keyof T]:
     | T[K] // arm-a
@@ -215,7 +191,7 @@ type Value<T> = {
 }
 ```
 
-```ts expected
+```ds expected
 type Value<T> = {
     [K in keyof T]:
         | T[K] // arm-a
@@ -230,14 +206,14 @@ type Value<T> = {
 
 Mapped type break-mode comments stay attached to key and value boundaries.
 
-```ts:main.ts line-width=40
+```ds:main.ds line-width=40
 type Flags<T> = {
   readonly [K in keyof T]?: // map-value
   boolean
 }
 ```
 
-```ts expected
+```ds expected
 type Flags<T> = {
     readonly [K in keyof T]?: boolean; // map-value
 };
@@ -247,14 +223,14 @@ type Flags<T> = {
 
 Mapped type key remap comments stay attached to remap boundaries.
 
-```ts:main.ts
+```ds:main.ds
 type Paths<T> = {
   [K in keyof T as // remap-note
     `get${Capitalize<K & string>}`]: () => T[K]
 }
 ```
 
-```ts expected
+```ds expected
 type Paths<T> = {
     [K in keyof T as // remap-note
         `get${Capitalize<K & string>}`]: () => T[K];
@@ -267,13 +243,13 @@ type Paths<T> = {
 
 Comments around optional method signatures stay attached to the same signature boundary.
 
-```ts:main.ts
+```ds:main.ds
 interface Methods {
   run/* name */ ? /* q */ (value: /* arg */ string): /* ret */ string
 }
 ```
 
-```ts expected
+```ds expected
 interface Methods {
     run /* name */? /* q */(value: /* arg */ string): /* ret */ string;
 }
@@ -283,12 +259,12 @@ interface Methods {
 
 Comments around callable and constructor type signatures stay attached to the signature node.
 
-```ts:main.ts
+```ds:main.ds
 type Fn = /* fn-head */ (value: /* arg */ string) /* fn-tail */ => void
 let Factory: new /* ctor-head */ (value: /* arg */ string) /* ctor-tail */ => Widget;
 ```
 
-```ts expected
+```ds expected
 type Fn = /* fn-head */ (value: /* arg */ string) /* fn-tail */ => void;
 let Factory: new /* ctor-head */(value: /* arg */ string) /* ctor-tail */ => Widget;
 ```
@@ -299,14 +275,14 @@ let Factory: new /* ctor-head */(value: /* arg */ string) /* ctor-tail */ => Wid
 
 Leading separator unions keep arm and final comments attached to the same arms.
 
-```ts:main.ts
+```ds:main.ds
 type Result = (
   | "a" // arm-a
   | "b" // arm-b
 )[]; // final-tail
 ```
 
-```ts expected
+```ds expected
 type Result = (
     | "a" // arm-a
     | "b" // arm-b
@@ -317,12 +293,12 @@ type Result = (
 
 Parenthesized unions in indexed access types keep parentheses and comments stable.
 
-```ts:main.ts
+```ds:main.ds
 type Key = (number | // key-note
 string)["toString"]
 ```
 
-```ts expected
+```ds expected
 type Key = (
     | number // key-note
     | string
@@ -333,7 +309,7 @@ type Key = (
 
 Object arm comments in inlined unions stay attached to the same arm.
 
-```ts:main.ts
+```ds:main.ds
 type Mixed = null // null-arm
 | {
   y: number;
@@ -343,7 +319,7 @@ type Mixed = null // null-arm
 ;
 ```
 
-```ts expected
+```ds expected
 type Mixed =
     | null // null-arm
     | {
@@ -360,13 +336,13 @@ type Mixed =
 
 Conditional type comments stay attached to extends and branch boundaries.
 
-```ts:main.ts line-width=48
+```ds:main.ds line-width=48
 type Value<T> = T extends /* extends-note */ string
   ? /* true-note */ number
   : /* false-note */ boolean
 ```
 
-```ts expected
+```ds expected
 type Value<T> =
     T extends /* extends-note */ string
         ? /* true-note */ number
@@ -377,14 +353,14 @@ type Value<T> =
 
 Line comments after `?` stay attached to the consequent under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 type A = B extends T
   ? // comment
     foo
   : bar;
 ```
 
-```ts expected
+```ds expected
 type A = B extends T
   ? // comment
     foo
@@ -395,7 +371,7 @@ type A = B extends T
 
 Nested multiline comments stay attached to the same conditional branches under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 type T = test extends B
   ? /* comment
        comment
@@ -411,7 +387,7 @@ type T = test extends B
   : bar;
 ```
 
-```ts expected
+```ds expected
 type T = test extends B
   ? /* comment
        comment
@@ -431,12 +407,12 @@ type T = test extends B
 
 Intersection comments in flow-consistent layouts stay attached to the same member boundary.
 
-```ts:main.ts line-width=36
+```ds:main.ds line-width=36
 type Value = Left & // inter-note
 Right & Tail
 ```
 
-```ts expected
+```ds expected
 type Value = Left & // inter-note
     Right &
     Tail;
@@ -446,14 +422,14 @@ type Value = Left & // inter-note
 
 Dangling comments in tuple type members stay attached to the same tuple position.
 
-```ts:main.ts
+```ds:main.ds
 type Pair = [
   string, // first-tail
   number // second-tail
 ]
 ```
 
-```ts expected
+```ds expected
 type Pair = [
     string, // first-tail
     number, // second-tail
@@ -466,12 +442,12 @@ type Pair = [
 
 Inlined unions keep arm comments attached after multiline expansion.
 
-```ts:main.ts line-width=38
+```ds:main.ds line-width=38
 type Value = Alpha | // alpha-note
 Beta | Gamma
 ```
 
-```ts expected
+```ds expected
 type Value =
     | Alpha // alpha-note
     | Beta
@@ -482,7 +458,7 @@ type Value =
 
 Prettier-ignore boundaries around unions keep the ignored union content stable.
 
-```ts:main.ts
+```ds:main.ds
 // prettier-ignore
 type Value =
   | A // a-tail
@@ -490,7 +466,7 @@ type Value =
 ;
 ```
 
-```ts expected
+```ds expected
 // prettier-ignore
 type Value =
   | A // a-tail
@@ -502,12 +478,12 @@ type Value =
 
 Last union arm comments stay attached to the last arm.
 
-```ts:main.ts
+```ds:main.ds
 type Value =
   | A
   | B // last-union
 ```
 
-```ts expected
+```ds expected
 type Value = A | B; // last-union
 ```

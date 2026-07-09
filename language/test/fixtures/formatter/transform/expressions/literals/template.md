@@ -106,7 +106,7 @@ const x = `status: ${active ? "on" : "off"}`;
 
 Long chained expressions inside template literals break cleanly.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 const A = {
   "--theme-primary": `hsl(${theme?.activeColor[
     mode === "dark" ? "dark" : "light"
@@ -114,7 +114,7 @@ const A = {
 };
 ```
 
-```ts expected
+```ds expected
 const A = {
     "--theme-primary": `hsl(${
         theme?.activeColor[mode === "dark" ? "dark" : "light"]
@@ -126,7 +126,7 @@ const A = {
 
 Comments inside an indented multiline template interpolation keep the expression indented under `${`.
 
-```ts:main.ts
+```ds:main.ds
 const css = `
   color: ${theme?.activeColor[
     // selected mode
@@ -135,7 +135,7 @@ const css = `
 `;
 ```
 
-```ts expected
+```ds expected
 const css = `
   color: ${
       theme?.activeColor[
@@ -150,7 +150,7 @@ const css = `
 
 Each interpolation derives indentation from the preceding template segment.
 
-```ts:main.ts
+```ds:main.ds
 const css = `
   color: ${theme?.activeColor[
     // selected mode
@@ -163,7 +163,7 @@ const css = `
 `;
 ```
 
-```ts expected
+```ds expected
 const css = `
   color: ${
       theme?.activeColor[

@@ -6,7 +6,7 @@
 
 Ambient declaration forms are parsed and formatted.
 
-```ts:main.ts
+```ds:main.ds
 declare type A = true;
 declare function b(): "hello";
 declare const foo: "bar";
@@ -16,7 +16,7 @@ declare interface Shape {}
 declare class Box {}
 ```
 
-```ts expected
+```ds expected
 declare type A = true;
 declare function b(): "hello";
 declare const foo: "bar";
@@ -46,7 +46,7 @@ module {
 
 Overload signatures with optional and rest parameters are parsed.
 
-```ts:main.ts
+```ds:main.ds
 function fn4a(x?: number, y: string)
 function fn4a() {}
 
@@ -54,7 +54,7 @@ function fn5(x: string, y: string, ...rest: any[])
 function fn5() {}
 ```
 
-```ts expected
+```ds expected
 function fn4a(x?: number, y: string);
 function fn4a() {}
 

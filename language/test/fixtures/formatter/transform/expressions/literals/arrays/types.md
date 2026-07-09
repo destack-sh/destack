@@ -44,10 +44,10 @@ const x: number[] = [1, 2, 3];
 
 Const assertions stay on the same line as the array literal.
 
-```ts:main.ts
+```ds:main.ds
 const values = [1, 2, 3] as const
 ```
 
-```ts expected
+```ds expected
 const values = [1, 2, 3] as const;
 ```

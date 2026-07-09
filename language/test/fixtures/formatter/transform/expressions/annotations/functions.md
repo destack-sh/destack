@@ -30,17 +30,17 @@ function build(value: Buffer): @addrspace("shared") &Buffer {
 }
 ```
 
-### TypeScript return type decorator annotation stays inline
+### return type decorator annotation stays inline
 
 Decorator prefixed return types stay attached after `:` under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 {
     function build(value: Buffer): @addrspace("shared") &Buffer { return value; }
 }
 ```
 
-```ts expected
+```ds expected
 {
   function build(value: Buffer): @addrspace("shared") &Buffer {
     return value;
@@ -52,7 +52,7 @@ Decorator prefixed return types stay attached after `:` under non-default format
 
 Comments between method signatures and bodies stay at the boundary.
 
-```ts:main.ts
+```ds:main.ds
 class Box {
   run(): number // method-body
   {
@@ -61,7 +61,7 @@ class Box {
 }
 ```
 
-```ts expected
+```ds expected
 class Box {
     run(): number {
         // method-body

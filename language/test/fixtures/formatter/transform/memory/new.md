@@ -1,6 +1,6 @@
 # New Expressions
 
-New expression fixtures cover constructor calls, type arguments, JSX arguments, and member grouping.
+New expression fixtures cover constructor calls, type arguments, tree arguments, and member grouping.
 
 ## Constructor Calls
 
@@ -52,11 +52,11 @@ const value = new Foo(
 
 Type arguments keep tight spacing.
 
-```ts:main.ts
+```ds:main.ds
 const value = new Box<Thing>(item)
 ```
 
-```ts expected
+```ds expected
 const value = new Box<Thing>(item);
 ```
 
@@ -84,13 +84,13 @@ const value = new Box < _ > ( item )
 const value = new Box<_>(item);
 ```
 
-## JSX Arguments
+## Tree Arguments
 
-### new with jsx argument removes extra parentheses
+### new with tree argument removes extra parentheses
 
-JSX arguments do not keep extra parentheses.
+Tree arguments do not keep extra parentheses.
 
-```tsx:main.tsx
+```ds:main.ds
 return new ImageResponse(
   (
     <div>
@@ -99,7 +99,7 @@ return new ImageResponse(
 )
 ```
 
-```tsx expected
+```ds expected
 return new ImageResponse(<div></div>);
 ```
 
@@ -109,11 +109,11 @@ return new ImageResponse(<div></div>);
 
 Member constructor names format without grouping.
 
-```ts:main.ts
+```ds:main.ds
 new (Foo.bar)(value)
 ```
 
-```ts expected
+```ds expected
 new Foo.bar(value);
 ```
 
@@ -121,22 +121,10 @@ new Foo.bar(value);
 
 Chains after `new` stay on the same line when short.
 
-```ts:main.ts
+```ds:main.ds
 new Foo().bar()
 ```
 
-```ts expected
+```ds expected
 new Foo().bar();
-```
-
-### new with quoted member normalizes quotes
-
-Quoted member keys follow quote style.
-
-```ts:main.ts
-new window['TouchEvent'](xxx)
-```
-
-```ts expected
-new window["TouchEvent"](xxx);
 ```

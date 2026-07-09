@@ -32,11 +32,11 @@ first = second = third;
 
 Poorly breakable call chains should break after `=`.
 
-```ts:main.ts line-width=20
+```ds:main.ds line-width=20
 result = api.namespace.member().tail()
 ```
 
-```ts expected
+```ds expected
 result =
     api.namespace
         .member()
@@ -47,11 +47,11 @@ result =
 
 Long call initializers break after `=`.
 
-```ts:main.ts line-width=30
+```ds:main.ds line-width=30
 const veryLongPackageBindingName = loadPackage(jestPath)
 ```
 
-```ts expected
+```ds expected
 const veryLongPackageBindingName =
     loadPackage(jestPath);
 ```
@@ -60,11 +60,11 @@ const veryLongPackageBindingName =
 
 Interpolated template arguments should not trigger the poorly breakable shortcut.
 
-```ts:main.ts line-width=30
+```ds:main.ds line-width=30
 const veryLongBindingName = namespace.foo(`hello ${name}`)
 ```
 
-```ts expected
+```ds expected
 const veryLongBindingName =
     namespace.foo(
         `hello ${name}`,
@@ -75,12 +75,12 @@ const veryLongBindingName =
 
 Long left-hand sides with string RHS values should break after `=`.
 
-```ts:main.ts line-width=20
+```ds:main.ds line-width=20
 const veryLongVariableName = "value"
 veryLongVariableName = "value"
 ```
 
-```ts expected
+```ds expected
 const veryLongVariableName =
     "value";
 veryLongVariableName =
@@ -129,11 +129,11 @@ value &&= compute();
 
 Nullish coalescing assignment keeps spaces around the operator.
 
-```ts:main.ts
+```ds:main.ds
 value ??= fallback
 ```
 
-```ts expected
+```ds expected
 value ??= fallback;
 ```
 
@@ -165,11 +165,11 @@ flags <<= 1;
 
 Non-null assertions do not require parentheses on assignment.
 
-```ts:main.ts
+```ds:main.ds
 (pendingSetRef.flags!) |= SchedulerJobFlags.DISPOSED
 ```
 
-```ts expected
+```ds expected
 pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 ```
 
@@ -177,12 +177,12 @@ pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 
 `as` and `satisfies` assertions keep parentheses when used as assignment targets.
 
-```ts:main.ts
+```ds:main.ds
 (pendingSetRef.flags as T) |= SchedulerJobFlags.DISPOSED
 (pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED
 ```
 
-```ts expected
+```ds expected
 (pendingSetRef.flags as T) |= SchedulerJobFlags.DISPOSED;
 (pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED;
 ```
@@ -193,11 +193,11 @@ pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 
 Array rest patterns format with spread in assignment.
 
-```ts:main.ts
+```ds:main.ds
 [...rest] = arr
 ```
 
-```ts expected
+```ds expected
 [...rest] = arr;
 ```
 
@@ -256,11 +256,11 @@ Object assignment targets keep member and index targets.
 
 Nested assignment targets keep aliases, defaults, computed keys, and rest fields.
 
-```ts:main.ts
+```ds:main.ds
 ({ a, b: { c = d }, [key]: target[index], ...rest } = source)
 ```
 
-```ts expected
+```ds expected
 ({
     a,
     b: { c = d },
@@ -273,10 +273,10 @@ Nested assignment targets keep aliases, defaults, computed keys, and rest fields
 
 Array assignment targets keep elisions, defaults, nested targets, and rest fields.
 
-```ts:main.ts
+```ds:main.ds
 [first, , second = fallback, { value: object.property }, ...rest] = source
 ```
 
-```ts expected
+```ds expected
 [first, , second = fallback, { value: object.property }, ...rest] = source;
 ```

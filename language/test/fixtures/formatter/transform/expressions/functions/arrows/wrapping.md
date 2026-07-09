@@ -52,14 +52,14 @@ const handler = (event) => ({
 
 Chain returns in arrow bodies keep each chain segment on its own line.
 
-```ts:main.ts line-width=60
+```ds:main.ds line-width=60
 const normalize = (id) =>
   id
-    .replace('@', resolve(__dirname, './mods/'))
-    .replace('#', resolve(__dirname, '../../'))
+    .replace("@", resolve(__dirname, "./mods/"))
+    .replace("#", resolve(__dirname, "../../"))
 ```
 
-```ts expected
+```ds expected
 const normalize = (id) =>
     id
         .replace("@", resolve(__dirname, "./mods/"))

@@ -56,7 +56,7 @@ const x = 1;
 
 Block doc comments format fenced code block indentation.
 
-```ts:main.ts indent-style=tab
+```ds:main.ds indent-style=tab
 /**
  * Description text.
  *
@@ -70,7 +70,7 @@ Block doc comments format fenced code block indentation.
 function withFencedCodeBlock() {}
 ```
 
-```ts expected
+```ds expected
 /**
  * Description text.
  *
@@ -90,12 +90,12 @@ function withFencedCodeBlock() {}
 
 Formatter ignore directives preserve the original statement formatting.
 
-```ts:main.ts
+```ds:main.ds
 // format-ignore
 call(   a, b)
 ```
 
-```ts expected
+```ds expected
 // format-ignore
 call(   a, b)
 ```
@@ -104,12 +104,12 @@ call(   a, b)
 
 Prettier ignore directives preserve the original statement formatting.
 
-```ts:main.ts
+```ds:main.ds
 // prettier-ignore
 call(   a, b)
 ```
 
-```ts expected
+```ds expected
 // prettier-ignore
 call(   a, b)
 ```
@@ -118,7 +118,7 @@ call(   a, b)
 
 Ignore ranges preserve the original formatting between the start and end markers.
 
-```ts:main.ts
+```ds:main.ds
 // format-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -126,7 +126,7 @@ const other =    value +  1
 const ok = 1
 ```
 
-```ts expected
+```ds expected
 // format-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -138,7 +138,7 @@ const ok = 1;
 
 Prettier ignore ranges preserve the original formatting between the start and end markers.
 
-```ts:main.ts
+```ds:main.ds
 // prettier-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -146,7 +146,7 @@ const other =    value +  1
 const ok = 1
 ```
 
-```ts expected
+```ds expected
 // prettier-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -158,12 +158,12 @@ const ok = 1;
 
 Biome format ignore directives preserve the original statement formatting.
 
-```ts:main.ts
+```ds:main.ds
 // biome-ignore format
 call(   a, b)
 ```
 
-```ts expected
+```ds expected
 // biome-ignore format
 call(   a, b)
 ```
@@ -172,7 +172,7 @@ call(   a, b)
 
 TypeScript diagnostic directives preserve the comment but still format code.
 
-```ts:main.ts
+```ds:main.ds
 // @ts-expect-error keep spacing
 call(   a, b)
 
@@ -180,7 +180,7 @@ call(   a, b)
 value   =   compute(  1,  2)
 ```
 
-```ts expected
+```ds expected
 // @ts-expect-error keep spacing
 call(a, b);
 

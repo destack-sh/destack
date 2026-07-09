@@ -6,7 +6,7 @@
 
 Trailing comments inside method parameter lists stay attached to the same parameter.
 
-```ts:main.ts
+```ds:main.ds
 interface Worker {
   run(
     value: string, // value-tail
@@ -14,7 +14,7 @@ interface Worker {
 }
 ```
 
-```ts expected
+```ds expected
 interface Worker {
     run(
         value: string, // value-tail
@@ -26,14 +26,14 @@ interface Worker {
 
 Boundary comments around method return types stay attached to the same method signature.
 
-```ts:main.ts
+```ds:main.ds
 interface Worker {
   run(): // return-tail
   Promise<void>
 }
 ```
 
-```ts expected
+```ds expected
 interface Worker {
     run(): // return-tail
     Promise<void>;

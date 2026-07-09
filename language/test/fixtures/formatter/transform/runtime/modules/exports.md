@@ -82,11 +82,11 @@ export * from "module";
 
 Namespace re-exports keep spacing and semicolons.
 
-```ts:main.ts
+```ds:main.ds
 export * as Utils from "module"
 ```
 
-```ts expected
+```ds expected
 export * as Utils from "module";
 ```
 

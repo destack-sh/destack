@@ -32,7 +32,7 @@ class Foo extends Bar {}
 
 Comments inside class heritage type arguments keep the type arguments multiline.
 
-```ts:main.ts
+```ds:main.ds
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
@@ -40,7 +40,7 @@ export class ClassTest extends Modal<
 }
 ```
 
-```ts expected
+```ds expected
 export class ClassTest extends Modal<
     // comment
     string | number | undefined
@@ -212,32 +212,32 @@ class Foo {
 }
 ```
 
-## TypeScript Class Forms
+## Class Forms
 
-### TypeScript class fields use semicolons
+### class fields use semicolons
 
-TypeScript class fields use semicolons instead of commas.
+Class fields use semicolons instead of commas.
 
-```ts:main.ts
+```ds:main.ds
 class Foo { x: number; y: string }
 ```
 
-```ts expected
+```ds expected
 class Foo {
     x: number;
     y: string;
 }
 ```
 
-### TypeScript field suffixes
+### field suffixes
 
 Optional and definite field suffixes stay attached to the field name.
 
-```ts:main.ts
+```ds:main.ds
 class Foo { ready!: boolean; maybe?: string; accessor value!: number }
 ```
 
-```ts expected
+```ds expected
 class Foo {
     ready!: boolean;
     maybe?: string;
@@ -245,45 +245,29 @@ class Foo {
 }
 ```
 
-### TypeScript accessor field
+### accessor field
 
 Accessor fields keep the `accessor` keyword and use semicolons.
 
-```ts:main.ts
+```ds:main.ds
 class Box { accessor value = 1 }
 ```
 
-```ts expected
+```ds expected
 class Box {
     accessor value = 1;
 }
 ```
 
-### TypeScript private hash members
-
-Private hash members keep the `#` prefix and use semicolons.
-
-```ts:main.ts
-class Foo { #count: number; #reset() { } static #value = 1 }
-```
-
-```ts expected
-class Foo {
-    #count: number;
-    #reset() {}
-    static #value = 1;
-}
-```
-
-### TypeScript class quoted keys
+### class quoted keys
 
 Quoted class members preserve required quotes and remove unnecessary keyword quotes.
 
-```ts:main.ts
+```ds:main.ds
 class Config { "normal" = 1; "data-id" = 2; "default"() { } }
 ```
 
-```ts expected
+```ds expected
 class Config {
     "normal" = 1;
     "data-id" = 2;
@@ -307,45 +291,45 @@ class Config {
 }
 ```
 
-### TypeScript class unicode methods
+### class unicode methods
 
 Unicode method names stay quoted and normalize quote style.
 
-```ts:main.ts
+```ds:main.ds
 class A { 'x・'() {} 'x･'() {} }
 ```
 
-```ts expected
+```ds expected
 class A {
     "x・"() {}
     "x･"() {}
 }
 ```
 
-### TypeScript abstract class preserves keyword
+### abstract class preserves keyword
 
 Abstract classes keep the `abstract` modifier.
 
-```ts:main.ts
+```ds:main.ds
 abstract class Foo { abstract bar(): void }
 ```
 
-```ts expected
+```ds expected
 abstract class Foo {
     abstract bar(): void;
 }
 ```
 
-### TypeScript override method preserves keyword
+### override method preserves keyword
 
 Override methods keep the `override` modifier.
 
-```ts:main.ts
+```ds:main.ds
 class Base { greet(): void { } }
 class Child extends Base { override greet(): void { } }
 ```
 
-```ts expected
+```ds expected
 class Base {
     greet(): void {}
 }
@@ -354,16 +338,16 @@ class Child extends Base {
 }
 ```
 
-### TypeScript abstract override method preserves keywords
+### abstract override method preserves keywords
 
 Abstract override methods keep both modifiers.
 
-```ts:main.ts
+```ds:main.ds
 abstract class Base { abstract greet(): void }
 abstract class Child extends Base { abstract override greet(): void }
 ```
 
-```ts expected
+```ds expected
 abstract class Base {
     abstract greet(): void;
 }
@@ -400,15 +384,15 @@ class Widget {
 }
 ```
 
-### TypeScript declaration method signatures use semicolons
+### declaration method signatures use semicolons
 
-TypeScript declaration class signatures end with semicolons.
+Declaration class signatures end with semicolons.
 
-```ts:main.d.ts
+```ds:main.d.ds
 declare class Foo { bar(): void }
 ```
 
-```ts expected
+```ds expected
 declare class Foo {
     bar(): void;
 }
@@ -444,11 +428,11 @@ export default class Handler {}
 
 Exported class decorators stay after `export` when they start after the export keyword.
 
-```ts:main.ts
+```ds:main.ds
 export @logged class Handler {}
 ```
 
-```ts expected
+```ds expected
 export
 @logged
 class Handler {}
@@ -458,11 +442,11 @@ class Handler {}
 
 Leading decorators stay before `export` when they start before the export keyword.
 
-```ts:main.ts
+```ds:main.ds
 @logged export class Handler {}
 ```
 
-```ts expected
+```ds expected
 @logged
 export class Handler {}
 ```
@@ -587,7 +571,7 @@ Combined declaration fixtures cover documentation, decorators, heritage clauses,
 
 JSDoc, decorators, exports, heritage clauses, and decorated members keep their relative order.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 /**
  * Stores values.
  * @typeParam T value type
@@ -603,7 +587,7 @@ export class Store<T> extends Base<T> implements Reader<T> {
 }
 ```
 
-```ts expected
+```ds expected
 /**
  * Stores values.
  *

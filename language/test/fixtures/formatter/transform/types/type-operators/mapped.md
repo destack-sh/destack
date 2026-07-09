@@ -6,11 +6,11 @@
 
 Mapped types include spaces when bracket spacing is enabled.
 
-```ts:main.ts
+```ds:main.ds
 export type Bar<T> = {[P in keyof T]: string}
 ```
 
-```ts expected
+```ds expected
 export type Bar<T> = { [P in keyof T]: string };
 ```
 
@@ -18,12 +18,12 @@ export type Bar<T> = { [P in keyof T]: string };
 
 Mapped type modifiers keep their prefixes and suffixes.
 
-```ts:main.ts
+```ds:main.ds
 type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] }
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] }
 ```
 
-```ts expected
+```ds expected
 type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] };
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 ```
@@ -32,11 +32,11 @@ type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 
 Mapped type key remaps keep `as` spacing.
 
-```ts:main.ts
+```ds:main.ds
 type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] }
 ```
 
-```ts expected
+```ds expected
 type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] };
 ```
 
@@ -69,11 +69,11 @@ type Values<T> = {
 
 Short exported mapped types stay inline under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 export type Bar<T> = {[P in keyof T]: string}
 ```
 
-```ts expected
+```ds expected
 export type Bar<T> = { [P in keyof T]: string };
 ```
 
@@ -81,7 +81,7 @@ export type Bar<T> = { [P in keyof T]: string };
 
 Mapped types with `as` remaps preserve their remap expressions under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 type MappedTypeWithNewKeys<T> = {
   [K in keyof T as NewKeyType]: T[K]
 };
@@ -95,7 +95,7 @@ type PickByValueType<T, U> = {
 };
 ```
 
-```ts expected
+```ds expected
 type MappedTypeWithNewKeys<T> = {
   [K in keyof T as NewKeyType]: T[K];
 };

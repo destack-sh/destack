@@ -4,7 +4,7 @@
 
 ### tree element with attributes
 
-JSX-compliant: non-string values need braces, spacing is normalized.
+Non-string attribute values use braces with normalized spacing.
 
 ```ds
 <Entity  a = {1}  b = {2}  />
