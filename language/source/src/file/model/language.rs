@@ -42,6 +42,21 @@ impl TryFrom<FileType> for LanguageType {
     }
 }
 
+impl From<LanguageType> for FileType {
+    /// Convert one source language into its corresponding file type.
+    fn from(language: LanguageType) -> Self {
+        match language {
+            LanguageType::Destack => Self::Destack,
+            LanguageType::DestackDeclaration => Self::DestackDeclaration,
+            LanguageType::JavaScript => Self::JavaScript,
+            LanguageType::JavaScriptXml => Self::JavaScriptXml,
+            LanguageType::TypeScript => Self::TypeScript,
+            LanguageType::TypeScriptDeclaration => Self::TypeScriptDeclaration,
+            LanguageType::TypeScriptXml => Self::TypeScriptXml,
+        }
+    }
+}
+
 impl LanguageType {
     /// Whether this is a declaration file.
     #[inline]
