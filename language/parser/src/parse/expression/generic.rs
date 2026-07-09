@@ -6,11 +6,8 @@ use destack_dir::{GenericArgument, Keyword, LocalNodeId, TokenType, TypeExpressi
 impl Parser {
     /// Return whether a generic arrow starts here.
     pub(crate) fn can_start_generic_arrow_expression(&mut self) -> bool {
-        let requires_tree_disambiguator = self.language.is_typescript()
-            && (self.language.supports_jsx() || self.flags.is_disallow_ambiguous_tree_literal());
-        if self.flags.is_disallow_ambiguous_tree_literal() && !self.language.is_typescript() {
-            return false;
-        }
+        let requires_tree_disambiguator =
+            self.language.supports_jsx() || self.flags.is_disallow_ambiguous_tree_literal();
 
         self.peek_generic_arrow_after_type_parameters(requires_tree_disambiguator)
     }

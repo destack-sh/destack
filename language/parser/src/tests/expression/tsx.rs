@@ -7,12 +7,10 @@ use destack_dir::{
 };
 use destack_source::LanguageType;
 
+/// Parse a constrained generic arrow whose body is a tree literal.
 #[test]
-fn test_parse_generic_arrow_with_extends_before_tree() {
-    let mut test = TestParser::new_with_language(
-        "<P extends object>(x: P) => <Foo />",
-        LanguageType::TypeScriptXml,
-    );
+fn test_parse_constrained_generic_arrow_before_tree() {
+    let mut test = TestParser::new("<P: Model>(x: P) => <Foo />");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -20,10 +18,10 @@ fn test_parse_generic_arrow_with_extends_before_tree() {
             assert_eq!(signature.form, FunctionForm::Lambda);
             let generic_parameters = &signature.generic_parameters;
             assert_eq!(generic_parameters.len(), 1);
-            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint, .. } => {
+            assert_node!(parser.tree, generic_parameters[0], GenericParameter::Type { name, constraint: Some(constraint), .. } => {
                 assert_string!(parser, *name, "P");
-                assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Object);
+                assert_node!(parser.tree, *constraint, TypeExpression::Reference { path, .. } => {
+                    assert_path!(parser, *path, "Model");
                 });
             });
             assert_eq!(signature.parameters.len(), 1);
@@ -42,6 +40,8 @@ fn test_parse_generic_arrow_with_extends_before_tree() {
             });
         });
     });
+
+    test.assert_no_errors(&parser);
 }
 
 #[test]
@@ -89,7 +89,7 @@ fn test_parse_parenthesized_tree_callback_body() {
 /// Recover an ambiguous generic arrow as an unterminated tree literal.
 #[test]
 fn test_recover_generic_arrow_without_tree_disambiguator() {
-    let mut test = TestParser::new_with_language("<R>(x: R) => x", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<R>(x: R) => x");
     let mut parser = test.prepare();
     let expression = parser.eat_expression(parser.flags).unwrap();
 
@@ -174,9 +174,10 @@ fn test_parse_generic_arrow_with_default_in_disallow_ambiguous_mode() {
     test.assert_no_errors(&parser);
 }
 
+/// Parse a trailing comma as a generic arrow tree disambiguator.
 #[test]
 fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
-    let mut test = TestParser::new_with_language("<T,>(x: T): T => x", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<T,>(x: T): T => x");
     let mut parser = test.prepare();
 
     // <T,>(x: T): T => x
@@ -204,6 +205,8 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
             });
         });
     });
+
+    test.assert_no_errors(&parser);
 }
 
 #[test]

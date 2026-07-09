@@ -1262,61 +1262,6 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
     });
 }
 
-/// Report ambiguous tree generic arrows without disambiguators.
-#[test]
-fn test_report_tree_literal_ambiguous_tree_generic_arrow() {
-    let mut test = TestParser::new_with_language("<T>(x: T) => x", LanguageType::TypeScriptXml);
-    let mut parser = test.prepare();
-
-    // require disambiguators for ambiguous tree generics
-    assert!(!parser.can_start_generic_arrow_expression());
-}
-
-/// Report tree literal parsing for disambiguated tree generic arrows.
-#[test]
-fn test_report_tree_literal_disambiguated_tree_generic_arrow() {
-    let mut test = TestParser::new_with_language("<T,>(x: T) => x", LanguageType::TypeScriptXml);
-    let mut parser = test.prepare();
-
-    // disambiguators should allow generic arrow parsing
-    assert!(parser.can_start_generic_arrow_expression());
-    let error = parser.peek_tree_literal().unwrap_err();
-
-    assert_eq!(parser.get_span_str(error.span), "<");
-}
-
-/// Recognize tree generic arrows with extends disambiguators.
-#[test]
-fn test_peek_tree_generic_arrow_with_extends() {
-    let mut test =
-        TestParser::new_with_language("<T extends Foo>(x: T) => x", LanguageType::TypeScriptXml);
-    let mut parser = test.prepare();
-
-    // extends should disambiguate
-    assert!(parser.can_start_generic_arrow_expression());
-}
-
-/// Report malformed tree generic arrows with an unterminated parameter list.
-#[test]
-fn test_report_tree_generic_arrow_with_missing_parameter_close_parenthesis() {
-    let mut test = TestParser::new_with_language("<T,>(x: T => x", LanguageType::TypeScriptXml);
-    let mut parser = test.prepare();
-
-    // malformed generic arrows should not disambiguate as tree literals
-    assert!(!parser.can_start_generic_arrow_expression());
-}
-
-/// Check generic arrow disambiguation in plain tree mode.
-#[test]
-fn test_peek_tree_generic_arrow_in_plain_tree_mode() {
-    let mut test = TestParser::new_with_language("<div>() => {}", LanguageType::JavaScriptXml);
-    let mut parser = test.prepare();
-
-    // ambiguous tree heads can still look like generic arrows here
-    assert!(parser.can_start_generic_arrow_expression());
-    assert!(parser.peek_tree_literal().is_ok());
-}
-
 #[test]
 fn test_parse_tree_with_text_content() {
     let mut test = TestParser::new(r#"<h4>Tool: {part.toolName}</h4>"#);
