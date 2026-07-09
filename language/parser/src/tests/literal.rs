@@ -1,8 +1,8 @@
 use destack_dir::{
     Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType, FunctionDeclaration,
-    FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType, Key, Name, Parameter,
-    Property, ScalarAlias, ScalarLiteral, TemplateLiteral, TokenType, TreeAttribute,
-    TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
+    FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType, Key, Name, NodeType,
+    Parameter, Pattern, Property, ScalarAlias, ScalarLiteral, TemplateLiteral, TokenType,
+    TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -266,7 +266,7 @@ fn test_report_unterminated_regex_literal() {
     let mut parser = test.prepare();
     let error = parser.eat_regex_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "/42");
+    assert_eq!(parser.get_span_str(error.span), "/42");
 }
 
 /// Report regex literals with raw line terminators.
@@ -278,7 +278,7 @@ fn test_report_regex_literal_with_line_terminator() {
     let mut parser = test.prepare();
     let error = parser.eat_regex_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "/test\n/");
+    assert_eq!(parser.get_span_str(error.span), "/test\n/");
 }
 
 /// Parse a template string literal.
@@ -450,7 +450,7 @@ fn test_report_template_literal_legacy_octal_escape() {
     let mut parser = test.prepare();
     let error = parser.eat_template_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), r"`\1`");
+    assert_eq!(parser.get_span_str(error.span), r"`\1`");
 }
 
 #[test]
@@ -593,14 +593,8 @@ fn test_parse_sparse_array_middle_hole() {
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         }
     );
-    // hole (stub)
-    assert_node!(
-        parser.tree,
-        elements[1],
-        Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Stub);
-        }
-    );
+    // hole
+    assert_node!(parser.tree, elements[1], Argument::Elision);
     // 3
     assert_node!(
         parser.tree,
@@ -618,14 +612,8 @@ fn test_parse_sparse_array_leading_hole() {
 
     let elements = parser.eat_array_literal().unwrap();
     assert_eq!(elements.len(), 2);
-    // hole (stub)
-    assert_node!(
-        parser.tree,
-        elements[0],
-        Argument::Positional { value } => {
-            assert_node!(parser.tree, *value, Expression::Stub);
-        }
-    );
+    // hole
+    assert_node!(parser.tree, elements[0], Argument::Elision);
     // 1
     assert_node!(
         parser.tree,
@@ -771,6 +759,192 @@ fn test_parse_tree_fragment_with_attributes() {
         });
 
         assert!(children.is_none());
+    });
+}
+
+/// Recover one malformed tree attribute without losing following attributes.
+#[test]
+fn test_recover_tree_attribute_missing_value() {
+    let mut test = TestParser::new(r#"<Panel broken= next="ok" />"#);
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::TreeAttribute),
+            Some(TokenType::Identifier),
+            None,
+            "next",
+        )],
+    );
+    assert_node!(parser.tree, expression, Expression::TreeExpression { attributes: Some(attributes), .. } => {
+        assert_eq!(attributes.len(), 2);
+        assert_node!(parser.tree, attributes[0], TreeAttribute::Error);
+        assert_eq!(parser.get_span_str(parser.tree.get_span(attributes[0])), "broken=");
+        assert_node!(parser.tree, attributes[1], TreeAttribute::Named { name, value: Some(TreeAttributeValue::String(value)) } => {
+            assert_string!(parser, name.string(), "next");
+            assert_string!(parser, *value, "ok");
+        });
+    });
+}
+
+/// Recover one malformed spread attribute without losing following attributes.
+#[test]
+fn test_recover_tree_spread_attribute_missing_value() {
+    let mut test = TestParser::new("<Panel {...} next />");
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::TreeAttribute),
+            Some(TokenType::CloseBrace),
+            None,
+            "}",
+        )],
+    );
+    assert_node!(parser.tree, expression, Expression::TreeExpression { attributes: Some(attributes), .. } => {
+        assert_eq!(attributes.len(), 2);
+        assert_node!(parser.tree, attributes[0], TreeAttribute::Error);
+        assert_eq!(parser.get_span_str(parser.tree.get_span(attributes[0])), "{...}");
+        assert_node!(parser.tree, attributes[1], TreeAttribute::Named { name, value: None } => {
+            assert_string!(parser, name.string(), "next");
+        });
+    });
+}
+
+/// Recover one malformed expression child without losing following children.
+#[test]
+fn test_recover_tree_expression_child() {
+    let mut test = TestParser::new("<Panel>{,}<Child /></Panel>");
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::TreeChild), Some(TokenType::Comma), None, ",")],
+    );
+    assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
+        assert_eq!(children.len(), 2);
+        assert_node!(parser.tree, children[0], TreeChild::Error);
+        assert_eq!(parser.get_span_str(parser.tree.get_span(children[0])), "{,}");
+        assert_node!(parser.tree, children[1], TreeChild::Tree { value } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { .. });
+        });
+    });
+}
+
+/// Recover one unterminated expression child at its enclosing closing tag.
+#[test]
+fn test_recover_unterminated_tree_expression_child() {
+    let mut test = TestParser::new("<Panel>{value + ;</Panel>");
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::TreeChild),
+            Some(TokenType::Semicolon),
+            None,
+            ";",
+        )],
+    );
+    assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
+        assert_eq!(children.len(), 1);
+        assert_node!(parser.tree, children[0], TreeChild::Error);
+        assert_eq!(parser.get_span_str(parser.tree.get_span(children[0])), "{value + ;");
+    });
+}
+
+/// Recover missing inner closing tags at the matching ancestor closing tag.
+#[test]
+fn test_recover_tree_ancestor_closing_tag() {
+    let mut test = TestParser::new("<Panel><Item></Panel>");
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::Expression), None, None, "</Panel>")],
+    );
+    assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
+        assert_eq!(children.len(), 1);
+        assert_node!(parser.tree, children[0], TreeChild::Tree { value } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { children: Some(children), .. } => {
+                assert!(children.is_empty());
+            });
+        });
+    });
+}
+
+/// Recover a malformed nested opening before a matching ancestor closing tag.
+#[test]
+fn test_recover_tree_opening_at_ancestor_closing_tag() {
+    let mut test = TestParser::new(
+        "const broken = <Panel><Item><Child flag={ ;</Panel>;\nconst recovered = 1;",
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_errors(
+        &parser,
+        &[
+            (
+                Some(NodeType::TreeChild),
+                Some(TokenType::LessThan),
+                Some(TokenType::GreaterThan),
+                "<",
+            ),
+            (Some(NodeType::Expression), None, None, "</Panel>"),
+        ],
+    );
+    assert_eq!(expressions.len(), 2);
+    assert_node!(parser.tree, expressions[1], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let declarator = parser.tree.get(declarators[0]);
+        assert_node!(parser.tree, declarator.pattern, Pattern::Binding { name, .. } => {
+            assert_string!(parser, *name, "recovered");
+        });
+    });
+}
+
+/// Recover one mismatched closing tag without losing later children.
+#[test]
+fn test_recover_tree_mismatched_closing_tag() {
+    let mut test = TestParser::new("<Panel></Other><Child /></Panel>");
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::TreeChild), None, None, "</Other>")],
+    );
+    assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
+        assert_eq!(children.len(), 2);
+        assert_node!(parser.tree, children[0], TreeChild::Error);
+        assert_eq!(parser.get_span_str(parser.tree.get_span(children[0])), "</Other>");
+        assert_node!(parser.tree, children[1], TreeChild::Tree { value } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { .. });
+        });
+    });
+}
+
+/// Recover missing closing tags at EOF without losing nested children.
+#[test]
+fn test_recover_tree_closing_tag_at_eof() {
+    let mut test = TestParser::new("<Panel><Child />");
+    let mut parser = test.prepare();
+    let expression = parser.eat_tree_literal().unwrap();
+
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    assert_node!(parser.tree, expression, Expression::TreeExpression { children: Some(children), .. } => {
+        assert_eq!(children.len(), 1);
+        assert_node!(parser.tree, children[0], TreeChild::Tree { value } => {
+            assert_node!(parser.tree, *value, Expression::TreeExpression { .. });
+        });
     });
 }
 
@@ -1108,7 +1282,7 @@ fn test_report_tree_literal_disambiguated_tree_generic_arrow() {
     assert!(parser.can_start_generic_arrow_expression());
     let error = parser.peek_tree_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
+    assert_eq!(parser.get_span_str(error.span), "<");
 }
 
 /// Recognize tree generic arrows with extends disambiguators.
@@ -1834,11 +2008,11 @@ fn test_parse_tree_after_class_block_newline() {
     let mut parser = test.prepare();
 
     // class declaration
-    let class_expr = parser.try_eat_statement_expression().unwrap();
+    let class_expr = parser.eat_statement_expression_or_recover();
     assert_node!(parser.tree, class_expr, Expression::Declaration(_));
 
     // tree literal expression
-    let tree_expr = parser.try_eat_statement_expression().unwrap();
+    let tree_expr = parser.eat_statement_expression_or_recover();
     assert_node!(parser.tree, tree_expr, Expression::TreeExpression { .. });
 }
 
@@ -2340,7 +2514,7 @@ fn test_report_tree_literal_namespace_member_path_parse_error() {
     let error = parser
         .eat_tree_literal()
         .expect_err("expected parse failure for namespace member path");
-    assert_eq!(parser.get_span_str(error.leaf_span()), "/");
+    assert_eq!(parser.get_span_str(error.span), "/");
 }
 
 /// Parse tree children after newline-terminated declarations.
@@ -2555,7 +2729,7 @@ fn test_report_tree_after_expression_newline() {
     // require a valid expression continuation after the newline
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "<");
+    assert_eq!(parser.get_span_str(error.span), "<");
 }
 
 #[test]

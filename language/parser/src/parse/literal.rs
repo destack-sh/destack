@@ -38,12 +38,12 @@ struct OpenTreeLiteral {
     close_follow_mode: ContextualLexMode,
 }
 
-/// The result of parsing one tree literal opening.
-enum TreeLiteralOpen {
-    /// A complete self-closing tree expression.
-    Complete(LocalNodeId<Expression>),
-    /// An open tree expression.
-    Open(Box<OpenTreeLiteral>),
+/// One parsed tree literal closing.
+struct TreeLiteralClose {
+    /// The closing tag path, or none for a fragment.
+    path: Option<Path>,
+    /// The complete closing tag span.
+    span: Span,
 }
 
 impl Parser {
@@ -168,9 +168,9 @@ impl Parser {
     #[inline]
     pub fn peek_scalar_literal(&mut self) -> ParserResult<TokenSpan> {
         if self.peek_is(TokenType::Literal) {
-            Ok(self.peek()?)
+            Ok(self.peek())
         } else {
-            Err(ParserError::unexpected(self.peek()?))
+            Err(ParserError::unexpected(self.peek()))
         }
     }
 
@@ -192,7 +192,7 @@ impl Parser {
     /// /abc/g
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParserResult<ScalarLiteral> {
-        let literal_span = self.eat()?;
+        let literal_span = self.eat();
         let Some(body) = literal_span.token.literal() else {
             return Err(ParserError::unexpected(literal_span));
         };
@@ -510,56 +510,10 @@ impl Parser {
     /// Re-lex and eat the current regex literal.
     pub(crate) fn eat_regex_literal(&mut self) -> ParserResult<ScalarLiteral> {
         if !self.re_lex_regex() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         self.eat_scalar_literal()
-    }
-
-    /// Parse one tree child scalar literal and advance in the requested mode.
-    pub(crate) fn eat_tree_child_scalar_expression(
-        &mut self,
-        follow_mode: ContextualLexMode,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        let token = self.peek()?;
-        let Some(body) = token.token.literal() else {
-            return Err(ParserError::unexpected(token));
-        };
-        let literal_str = self.file.span_str(token.span);
-        let scalar_literal = match body {
-            TokenLiteral::Character {
-                is_terminated,
-                is_html_entity,
-            } => {
-                if !is_terminated || !is_html_entity {
-                    return Err(ParserError::expected_for(
-                        token.span,
-                        TokenType::Literal,
-                        NodeType::Expression,
-                    ));
-                }
-
-                decode_html_entity(literal_str)
-                    .map(ScalarLiteral::Character)
-                    .ok_or_else(|| {
-                        ParserError::expected_for(
-                            token.span,
-                            TokenType::Literal,
-                            NodeType::Expression,
-                        )
-                    })?
-            }
-            TokenLiteral::TreeString => {
-                let string_id = self.strings.intern(literal_str);
-                ScalarLiteral::String(string_id)
-            }
-            _ => return Err(ParserError::unexpected(token)),
-        };
-
-        // continue in the owning tree scope
-        self.bump_with_contextual_lex_mode(follow_mode);
-
-        Ok(self.insert_node(Expression::ScalarLiteral(scalar_literal), token.span))
     }
 
     /// Parse an integer literal with saturation for values outside i64.
@@ -715,9 +669,7 @@ impl Parser {
             return false;
         }
 
-        let Ok(next) = self.peek() else {
-            return false;
-        };
+        let next = self.peek();
         if next.token.ty() != TokenType::Identifier {
             return false;
         }
@@ -729,9 +681,9 @@ impl Parser {
     #[inline]
     pub fn peek_template_literal(&mut self) -> ParserResult<TokenSpan> {
         if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
-            Ok(self.peek()?)
+            Ok(self.peek())
         } else {
-            Err(ParserError::unexpected(self.peek()?))
+            Err(ParserError::unexpected(self.peek()))
         }
     }
 
@@ -815,7 +767,7 @@ impl Parser {
         allow_legacy_octal_escapes: bool,
         mut parse_span: impl FnMut(&mut Parser) -> ParserResult<T>,
     ) -> ParserResult<(Vec<StringId>, Vec<T>)> {
-        let next = self.eat()?;
+        let next = self.eat();
         let next_str = self.file.span_str(next.span);
 
         // template string without interpolation
@@ -851,7 +803,7 @@ impl Parser {
             while !self.peek_is(TokenType::TemplateStringEnd) {
                 // middle chunk: remove } prefix and ${ suffix
                 if self.peek_is(TokenType::TemplateStringMiddle) {
-                    let token = self.eat()?;
+                    let token = self.eat();
                     let token_str = self.file.span_str(token.span);
                     let string = Self::template_chunk_body(token_str, 1, 2);
                     self.validate_template_literal_chunk_maybe(
@@ -869,7 +821,7 @@ impl Parser {
                     if !self.peek_is(TokenType::TemplateStringMiddle)
                         && !self.peek_is(TokenType::TemplateStringEnd)
                     {
-                        return Err(ParserError::unexpected(self.peek()?));
+                        return Err(ParserError::unexpected(self.peek()));
                     }
                     spans.push(span);
                 }
@@ -1118,18 +1070,12 @@ impl Parser {
 
                 // leading hole: if we expected an element but got separator instead
                 if expect_element {
-                    let stub = self
-                        .tree
-                        .insert(Expression::Stub, self.get_span_from(&start));
-                    let hole = self.insert_node(
-                        Argument::Positional { value: stub },
-                        self.get_span_from(&start),
-                    );
+                    let hole = self.insert_node(Argument::Elision, self.get_span_from(&start));
                     elements.push(hole);
                 }
 
                 // consume optional newlines before comma and then the comma itself
-                self.eat_item_stop()?;
+                self.eat_comma()?;
 
                 expect_element = true;
                 continue;
@@ -1237,8 +1183,7 @@ impl Parser {
                 return None;
             }
 
-            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
-            {
+            if self.semicolon_precedes_recovery_point(RecoveryPoint::Statement) {
                 return None;
             }
 
@@ -1315,10 +1260,7 @@ impl Parser {
             match token_type {
                 TokenType::End => return false,
                 TokenType::Semicolon
-                    if self.current_semicolon_precedes_recovery_point(
-                        token_type,
-                        RecoveryPoint::Statement,
-                    ) =>
+                    if self.semicolon_precedes_recovery_point(RecoveryPoint::Statement) =>
                 {
                     return false;
                 }
@@ -1344,9 +1286,9 @@ impl Parser {
         let mark = self.cursor_checkpoint();
         let result = (|| {
             if !self.peek_is(TokenType::LessThan) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
-            let unexpected_span = self.peek()?.span;
+            let unexpected_span = self.peek().span;
 
             // probe the immediate tree head shape in tag mode
             self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
@@ -1390,7 +1332,7 @@ impl Parser {
     ) -> ParserResult<bool> {
         let mut skipped = false;
         loop {
-            let token = self.peek()?;
+            let token = self.peek();
 
             // skip non-meaningful whitespace-only tree strings
             if token.token.ty() == TokenType::Literal
@@ -1446,29 +1388,65 @@ impl Parser {
         &mut self,
         follow_mode: ContextualLexMode,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let first = self.eat_tree_literal_open(follow_mode)?;
-        let mut stack = match first {
-            TreeLiteralOpen::Complete(expression_id) => return Ok(expression_id),
-            TreeLiteralOpen::Open(tree_literal) => vec![tree_literal],
-        };
+        let (first, is_self_closing) = self.eat_tree_literal_open(follow_mode)?;
+        if is_self_closing {
+            return self.insert_tree_literal_expression(first, false, None);
+        }
+        let mut stack = vec![first];
 
         loop {
             self.skip_tree_whitespace_in_child_mode(ContextualLexMode::TreeChild)?;
 
+            // preserve the open tree stack when closing tags are missing at EOF
+            if self.peek_is(TokenType::End) {
+                self.report_unexpected_for_here(NodeType::Expression);
+                return self.finish_unclosed_tree_literals(stack);
+            }
+
             let Some(current) = stack.last() else {
                 return Err(ParserError::unexpected(self.anchor_span_here()));
             };
+            let closing_start = self.span_start();
             let body_span = self.try_eat_tree_literal_closing(
                 current.path.as_ref(),
                 current.close_follow_mode,
                 current.body_start,
-            )?;
+            );
+            let body_span = match body_span {
+                Ok(body_span) => body_span,
+                Err(error) => {
+                    // close missing inner tags when this closing belongs to an ancestor
+                    let matching_closing = match self.peek_tree_literal_closing() {
+                        Ok(Some(closing)) => stack
+                            .iter()
+                            .rposition(|tree_literal| tree_literal.path == closing.path)
+                            .map(|matching_index| (matching_index, closing.span)),
+                        Ok(None) | Err(_) => None,
+                    };
+                    if let Some((matching_index, closing_span)) = matching_closing
+                        && matching_index + 1 < stack.len()
+                    {
+                        while stack.len() > matching_index + 1 {
+                            self.recover_unclosed_tree_literal(&mut stack, closing_span)?;
+                        }
+                        continue;
+                    }
+
+                    // otherwise preserve the unmatched or malformed closing as a child
+                    let child = self.recover_tree_child(&closing_start, error);
+                    let Some(parent) = stack.last_mut() else {
+                        return Err(ParserError::unexpected(self.anchor_span_here()));
+                    };
+                    parent.children.push(child);
+                    continue;
+                }
+            };
             if let Some(body_span) = body_span {
                 let Some(tree_literal) = stack.pop() else {
                     return Err(ParserError::unexpected(self.anchor_span_here()));
                 };
                 let expression_id =
-                    self.insert_tree_literal_expression(*tree_literal, true, Some(body_span))?;
+                    self.insert_tree_literal_expression(tree_literal, true, Some(body_span))?;
 
                 if let Some(parent) = stack.last_mut() {
                     let child = self.insert_tree_literal_child(expression_id);
@@ -1480,15 +1458,33 @@ impl Parser {
             }
 
             if self.peek_is(TokenType::LessThan) && self.peek_tree_literal().is_ok() {
-                match self.eat_tree_literal_open(ContextualLexMode::TreeChild)? {
-                    TreeLiteralOpen::Complete(expression_id) => {
-                        let child = self.insert_tree_literal_child(expression_id);
+                let child_start = self.span_start();
+                let child_checkpoint = self.checkpoint();
+                let child = self.eat_tree_literal_open(ContextualLexMode::TreeChild);
+                let child = match child {
+                    Ok(child) => child,
+                    Err(error) => {
+                        self.restore(child_checkpoint);
+                        let child = self.recover_tree_child(&child_start, error);
                         let Some(parent) = stack.last_mut() else {
                             return Err(ParserError::unexpected(self.anchor_span_here()));
                         };
                         parent.children.push(child);
+                        continue;
                     }
-                    TreeLiteralOpen::Open(tree_literal) => stack.push(tree_literal),
+                };
+
+                let (tree_literal, is_self_closing) = child;
+                if is_self_closing {
+                    let expression_id =
+                        self.insert_tree_literal_expression(tree_literal, false, None)?;
+                    let child = self.insert_tree_literal_child(expression_id);
+                    let Some(parent) = stack.last_mut() else {
+                        return Err(ParserError::unexpected(self.anchor_span_here()));
+                    };
+                    parent.children.push(child);
+                } else {
+                    stack.push(tree_literal);
                 }
                 continue;
             }
@@ -1500,11 +1496,19 @@ impl Parser {
                 .flags
                 .with_ambient_context(element_ambient_context)
                 .with_expression_context(element_expression_context);
+            let child_start = self.span_start();
+            let child_checkpoint = self.checkpoint();
             let old_flags = self.swap_flags(flags);
             let child = self.eat_tree_child_with_follow(ContextualLexMode::TreeChild);
             self.restore_flags(old_flags);
 
-            let child = child?;
+            let child = match child {
+                Ok(child) => child,
+                Err(error) => {
+                    self.restore(child_checkpoint);
+                    self.recover_tree_child(&child_start, error)
+                }
+            };
             let Some(parent) = stack.last_mut() else {
                 return Err(ParserError::unexpected(self.anchor_span_here()));
             };
@@ -1512,11 +1516,62 @@ impl Parser {
         }
     }
 
+    /// Finish open tree literals at EOF while preserving their parsed children.
+    fn finish_unclosed_tree_literals(
+        &mut self,
+        mut stack: Vec<OpenTreeLiteral>,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let body_end = self.anchor_span_here().start;
+
+        loop {
+            let Some(tree_literal) = stack.pop() else {
+                return Err(ParserError::unexpected(self.anchor_span_here()));
+            };
+            let body_span = Span::new(self.file_id, tree_literal.body_start, body_end);
+            let expression_id =
+                self.insert_tree_literal_expression(tree_literal, true, Some(body_span))?;
+
+            // attach each completed inner tree to its open parent
+            if let Some(parent) = stack.last_mut() {
+                let child = self.insert_tree_literal_child(expression_id);
+                parent.children.push(child);
+                continue;
+            }
+
+            return Ok(expression_id);
+        }
+    }
+
+    /// Finish one unclosed inner tree before an ancestor closing tag.
+    fn recover_unclosed_tree_literal(
+        &mut self,
+        stack: &mut Vec<OpenTreeLiteral>,
+        closing_span: Span,
+    ) -> ParserResult<()> {
+        let error = ParserError::unexpected_for(closing_span, NodeType::Expression);
+        self.report_error(&error);
+
+        let Some(tree_literal) = stack.pop() else {
+            return Err(ParserError::unexpected(self.anchor_span_here()));
+        };
+        let body_span = Span::new(self.file_id, tree_literal.body_start, closing_span.start);
+        let expression_id =
+            self.insert_tree_literal_expression(tree_literal, true, Some(body_span))?;
+
+        let Some(parent) = stack.last_mut() else {
+            return Err(ParserError::unexpected(self.anchor_span_here()));
+        };
+        let child = self.insert_tree_literal_child(expression_id);
+        parent.children.push(child);
+
+        Ok(())
+    }
+
     /// Eat one tree literal opening.
     fn eat_tree_literal_open(
         &mut self,
         follow_mode: ContextualLexMode,
-    ) -> ParserResult<TreeLiteralOpen> {
+    ) -> ParserResult<(OpenTreeLiteral, bool)> {
         let start = self.span_start();
         self.eat_tree_opening_angle()?;
 
@@ -1528,7 +1583,7 @@ impl Parser {
 
             // jsx namespace names cannot be followed by member access
             if self.tree_literal_path_has_namespace_member(&path) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             path_segment_spans = Some(segment_spans);
@@ -1571,9 +1626,7 @@ impl Parser {
                 body_start: opening_span.end,
                 close_follow_mode: follow_mode,
             };
-            let expression_id = self.insert_tree_literal_expression(tree_literal, false, None)?;
-
-            return Ok(TreeLiteralOpen::Complete(expression_id));
+            return Ok((tree_literal, true));
         }
 
         // enter tree child lexing after an opening tag
@@ -1582,17 +1635,20 @@ impl Parser {
         let body_start = opening_span.end;
         self.skip_tree_whitespace_in_child_mode(ContextualLexMode::TreeChild)?;
 
-        Ok(TreeLiteralOpen::Open(Box::new(OpenTreeLiteral {
-            start,
-            path,
-            path_segment_spans,
-            generic_arguments,
-            attributes,
-            children: Vec::new(),
-            opening_span,
-            body_start,
-            close_follow_mode: follow_mode,
-        })))
+        Ok((
+            OpenTreeLiteral {
+                start,
+                path,
+                path_segment_spans,
+                generic_arguments,
+                attributes,
+                children: Vec::new(),
+                opening_span,
+                body_start,
+                close_follow_mode: follow_mode,
+            },
+            false,
+        ))
     }
 
     /// Eat tree literal header attributes.
@@ -1607,6 +1663,12 @@ impl Parser {
         let mut attributes = Vec::new();
         while self.has_more_tokens() {
             self.skip_tree_whitespace()?;
+
+            // leave enclosing closing tags for the open tree stack
+            if self.peek_starts_tree_literal_close() {
+                return Err(ParserError::expected(self.peek(), TokenType::GreaterThan));
+            }
+
             if self.peek_is(TokenType::Divide) || self.peek_starts_tree_tag_close() {
                 break;
             }
@@ -1618,10 +1680,18 @@ impl Parser {
                 .with_ambient_context(attribute_ambient_context)
                 .with_expression_context(attribute_expression_context);
             let old_flags = self.swap_flags(flags);
+            let attribute_start = self.span_start();
+            let attribute_checkpoint = self.checkpoint();
             let attribute = self.eat_tree_attribute();
             self.restore_flags(old_flags);
 
-            let attribute = attribute?;
+            let attribute = match attribute {
+                Ok(attribute) => attribute,
+                Err(error) => {
+                    self.restore(attribute_checkpoint);
+                    self.recover_tree_attribute(&attribute_start, error)
+                }
+            };
             attributes.push(attribute);
         }
 
@@ -1641,40 +1711,81 @@ impl Parser {
 
         let body_end = self.span_start().token_start();
         let body_span = Span::new(self.file_id, body_start, body_end);
+        let closing_span_start = self.span_start();
         let closing_start = self.cursor_checkpoint();
-        self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
+        let result = self.try_eat_tree_literal_close(follow_mode);
+        let result = result.and_then(|closing| {
+            let Some(closing) = closing else {
+                return Ok(None);
+            };
 
-        if !self.peek_is(TokenType::Divide) {
+            if closing.path.as_ref() != path {
+                return Err(ParserError::unexpected(
+                    self.get_span_from(&closing_span_start),
+                ));
+            }
+
+            Ok(Some(body_span))
+        });
+
+        if result.is_err() {
             self.rewind(closing_start);
+        }
+
+        result
+    }
+
+    /// Peek one tree literal closing without consuming it.
+    fn peek_tree_literal_closing(&mut self) -> ParserResult<Option<TreeLiteralClose>> {
+        let checkpoint = self.cursor_checkpoint();
+        let closing = self.try_eat_tree_literal_close(ContextualLexMode::TreeChild);
+        self.rewind(checkpoint);
+
+        closing
+    }
+
+    /// Try to eat one tree literal closing.
+    fn try_eat_tree_literal_close(
+        &mut self,
+        follow_mode: ContextualLexMode,
+    ) -> ParserResult<Option<TreeLiteralClose>> {
+        if !self.peek_is(TokenType::LessThan) {
+            return Ok(None);
+        }
+
+        let start = self.span_start();
+        let checkpoint = self.cursor_checkpoint();
+        self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
+        if !self.peek_is(TokenType::Divide) {
+            self.rewind(checkpoint);
             return Ok(None);
         }
         self.bump();
 
-        if path.is_none() && self.peek_starts_tree_tag_close() {
+        let result = (|| {
+            let path = if self.peek_starts_tree_tag_close() {
+                None
+            } else {
+                let path = self.eat_tree_literal_path()?;
+                if self.tree_literal_path_has_namespace_member(&path) {
+                    return Err(ParserError::unexpected(self.peek()));
+                }
+
+                Some(path)
+            };
+
+            self.skip_tree_whitespace()?;
             self.eat_tree_tag_close(follow_mode)?;
-            return Ok(Some(body_span));
+            let span = self.get_span_from(&start);
+
+            Ok(Some(TreeLiteralClose { path, span }))
+        })();
+
+        if result.is_err() {
+            self.rewind(checkpoint);
         }
 
-        if path.is_some() && self.peek_starts_tree_tag_close() {
-            return Err(ParserError::unexpected(self.peek()?));
-        }
-
-        let Some(path) = path else {
-            return Err(ParserError::unexpected(self.peek()?));
-        };
-
-        let closing_path = self.eat_tree_literal_path()?;
-        if self.tree_literal_path_has_namespace_member(&closing_path) {
-            return Err(ParserError::unexpected(self.peek()?));
-        }
-
-        self.skip_tree_whitespace()?;
-        self.eat_tree_tag_close(follow_mode)?;
-        if closing_path != *path {
-            return Err(ParserError::unexpected(self.peek()?));
-        }
-
-        Ok(Some(body_span))
+        result
     }
 
     /// Insert one tree literal expression from an open tree literal.

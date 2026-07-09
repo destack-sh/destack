@@ -14,6 +14,7 @@ use crate::parse::argument::BindingModifiers;
 use crate::parse::flags::ParserFlags;
 use crate::parse::scope::ExpressionScope;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use std::mem;
 
 /// The keywords that can appear before a binding.
 pub static BINDING_MODIFIERS: [Keyword; 9] = [
@@ -276,7 +277,7 @@ impl Parser {
             && modifiers.is_some_and(|modifiers| modifiers.visibility.is_some())
             && !allow_private_accessor_visibility
         {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // reject impossible optional and definite fields
@@ -284,7 +285,7 @@ impl Parser {
             let error_span = self
                 .prev()
                 .map(|token| token.span)
-                .unwrap_or(self.peek()?.span);
+                .unwrap_or(self.peek().span);
             return Err(ParserError::unexpected(error_span));
         }
 
@@ -293,7 +294,7 @@ impl Parser {
             let error_span = self
                 .prev()
                 .map(|token| token.span)
-                .unwrap_or(self.peek()?.span);
+                .unwrap_or(self.peek().span);
             return Err(ParserError::unexpected(error_span));
         }
 
@@ -301,7 +302,7 @@ impl Parser {
             let error_span = self
                 .prev()
                 .map(|token| token.span)
-                .unwrap_or(self.peek()?.span);
+                .unwrap_or(self.peek().span);
             return Err(ParserError::unexpected(error_span));
         }
 
@@ -315,7 +316,7 @@ impl Parser {
             && !self.current_token_is_on_new_line()
             && self.peek_is(TokenType::Identifier)
         {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         Ok(())
@@ -530,7 +531,7 @@ impl Parser {
         let role = self.eat_method_role_maybe(allow_constructor_mode, allow_new_mode);
 
         // generator and key
-        let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
+        let is_generator = self.eat_token_if(TokenType::Multiply);
         let (key, key_span) = if let Some((key, span)) = self.eat_property_key_with_span()? {
             (Some(key), Some(span))
         } else {
@@ -549,7 +550,7 @@ impl Parser {
         {
             match key.as_ref() {
                 Some(Key::Name(Name::Identifier(name))) => Some(*name),
-                _ => return Err(ParserError::unexpected(self.peek()?)),
+                _ => return Err(ParserError::unexpected(self.peek())),
             }
         } else {
             None
@@ -642,18 +643,18 @@ impl Parser {
                 && !self.is_any_stop()
                 && !self.peek_is(TokenType::CloseBrace)
             {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
         } else {
             if self.peek_is(TokenType::OpenBrace) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             if !self.current_token_is_on_new_line()
                 && !self.is_any_stop()
                 && !self.peek_is(TokenType::CloseBrace)
             {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
         }
 
@@ -728,7 +729,7 @@ impl Parser {
 
         // reject impossible associated modifiers
         if modifiers.is_some_and(|modifiers| modifiers.is_static) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // keyword and name
@@ -934,16 +935,16 @@ impl Parser {
         Ok(Some(member_id))
     }
 
-    /// Try to eat a property and recover one malformed member when possible.
-    pub fn try_eat_property(&mut self) -> ParserResult<LocalNodeId<Property>> {
+    /// Eat one property, recovering malformed input as an error node.
+    pub fn eat_property_or_recover(&mut self) -> LocalNodeId<Property> {
         match self.eat_property() {
-            Ok(property_id) => Ok(property_id),
+            Ok(property_id) => property_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::Property);
-                let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
+                let span = err.span;
+                let recovered_span = self.recover_body(span, Some(err));
 
-                Ok(self.insert_node(Property::Error, recovered_span))
+                self.insert_node(Property::Error, recovered_span)
             }
         }
     }
@@ -969,10 +970,7 @@ impl Parser {
 
             // stop at declaration recovery boundaries
             if token_type == TokenType::Semicolon {
-                if self.current_semicolon_precedes_recovery_point(
-                    token_type,
-                    RecoveryPoint::Declaration,
-                ) {
+                if self.semicolon_precedes_recovery_point(RecoveryPoint::Declaration) {
                     break;
                 }
 
@@ -982,27 +980,27 @@ impl Parser {
 
             // skip separators
             if token_type == TokenType::Comma {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
                 continue;
             }
 
-            let property = self.try_eat_object_property()?;
+            let property = self.eat_object_property_or_recover();
             properties.push(property);
         }
 
         Ok(properties)
     }
 
-    /// Try to eat one object literal property with recovery.
-    fn try_eat_object_property(&mut self) -> ParserResult<LocalNodeId<Property>> {
+    /// Eat one object property, recovering malformed input as an error node.
+    fn eat_object_property_or_recover(&mut self) -> LocalNodeId<Property> {
         match self.eat_object_property() {
-            Ok(property_id) => Ok(property_id),
+            Ok(property_id) => property_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::Property);
-                let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
+                let span = err.span;
+                let recovered_span = self.recover_body(span, Some(err));
 
-                Ok(self.insert_node(Property::Error, recovered_span))
+                self.insert_node(Property::Error, recovered_span)
             }
         }
     }
@@ -1098,7 +1096,7 @@ impl Parser {
             return self.eat_simple_object_shorthand_field(start, key, key_span);
         }
 
-        Err(ParserError::unexpected(self.peek()?))
+        Err(ParserError::unexpected(self.peek()))
     }
 
     /// Eat one simple `key: value` object field.
@@ -1325,12 +1323,12 @@ impl Parser {
             && !is_generator
             && self.peek_is(TokenType::OpenParenthesis)
         {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // modifiers without a key or call signature are invalid
         if key.is_none() && modifiers.is_some() && !is_method {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // reject definite assertions on plain properties
@@ -1338,30 +1336,30 @@ impl Parser {
             let error_span = self
                 .prev()
                 .map(|token| token.span)
-                .unwrap_or(self.peek()?.span);
+                .unwrap_or(self.peek().span);
             return Err(ParserError::unexpected(error_span));
         }
 
         // unkeyed field separators are invalid
         if key.is_none() && (self.peek_colon_is() || self.peek_is(TokenType::Assign)) {
             return Err(ParserError::expected(
-                self.peek()?.span,
+                self.peek().span,
                 TokenType::Identifier,
             ));
         }
 
         // getters and setters require method form
         if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && !is_method {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         if is_method {
             // associated comptime constants cannot use method form
             if associated_comptime_name.is_some() {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
             if modifiers.is_some_and(|modifiers| modifiers.is_comptime) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             // abstraction
@@ -1374,7 +1372,7 @@ impl Parser {
             if modifiers.is_some_and(|modifiers| modifiers.is_virtual)
                 && matches!(role, Some(FunctionRole::Constructor | FunctionRole::New))
             {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             // modifiers postfix (again after parameters)
@@ -1553,7 +1551,7 @@ impl Parser {
             // unkeyed empty heads are not properties
             if modifiers.is_none() && key.is_none() && value.is_none() && default.is_none() {
                 return Err(ParserError::expected(
-                    self.peek()?.span,
+                    self.peek().span,
                     TokenType::Identifier,
                 ));
             }
@@ -1561,17 +1559,17 @@ impl Parser {
             // field construction requires a key
             let Some(key) = key else {
                 return Err(ParserError::expected(
-                    self.peek()?.span,
+                    self.peek().span,
                     TokenType::Identifier,
                 ));
             };
 
             // keyed fields without `:` or `=` are invalid unless they were shorthand
             if value.is_none() {
-                return Err(ParserError::expected(self.peek()?, TokenType::Colon));
+                return Err(ParserError::expected(self.peek(), TokenType::Colon));
             }
             let Some(value) = value else {
-                return Err(ParserError::expected(self.peek()?, TokenType::Colon));
+                return Err(ParserError::expected(self.peek(), TokenType::Colon));
             };
 
             let property = Property::Field {
@@ -1611,8 +1609,8 @@ impl Parser {
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if !pending_property_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek()?);
-                    self.error(&error);
+                    let error = ParserError::unexpected(self.peek());
+                    self.report_error(&error);
                     pending_property_decorators.clear();
                 }
                 break;
@@ -1625,7 +1623,7 @@ impl Parser {
             }
             // consume comma separators between properties
             else if token_type == TokenType::Comma {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
                 continue;
             }
             // consume any stop
@@ -1640,38 +1638,34 @@ impl Parser {
 
                 continue;
             }
-            // keep eating properties
+            // parse and recover one property
             else {
-                match self.try_eat_property() {
-                    Ok(property_id) => {
-                        if !pending_property_decorators.is_empty() {
-                            self.attach_decorators(
-                                property_id.id,
-                                std::mem::take(&mut pending_property_decorators),
-                            );
-                        }
-                        properties.push(property_id);
-                    }
-                    Err(_) => continue, // keep eating other properties
+                let property_id = self.eat_property_or_recover();
+                if !pending_property_decorators.is_empty() {
+                    self.attach_decorators(
+                        property_id.id,
+                        mem::take(&mut pending_property_decorators),
+                    );
                 }
+                properties.push(property_id);
             }
         }
         Ok(properties)
     }
 
-    /// Try to eat a type member and recover one malformed member when possible.
-    pub(crate) fn try_eat_type_member(
+    /// Eat one type member, recovering malformed input as an error node.
+    pub(crate) fn eat_type_member_or_recover(
         &mut self,
         container_kind: TypeMemberContainerKind,
-    ) -> ParserResult<LocalNodeId<TypeMember>> {
+    ) -> LocalNodeId<TypeMember> {
         match self.eat_type_member(container_kind) {
-            Ok(member_id) => Ok(member_id),
+            Ok(member_id) => member_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::TypeMember);
-                let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
+                let span = err.span;
+                let recovered_span = self.recover_body(span, Some(err));
 
-                Ok(self.insert_node(TypeMember::Error, recovered_span))
+                self.insert_node(TypeMember::Error, recovered_span)
             }
         }
     }
@@ -1706,7 +1700,7 @@ impl Parser {
         }
 
         if associated_modifiers.is_some() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // static
@@ -1758,7 +1752,7 @@ impl Parser {
         // index signature
         if self.type_member_starts_index_signature() {
             if is_abstract {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let key_start = self.span_start();
@@ -1785,7 +1779,7 @@ impl Parser {
 
             // optional index signatures
             let optional_start = self.span_start();
-            let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
+            let is_optional = self.eat_token_if(TokenType::Maybe);
             let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
             let type_start = self.span_start();
@@ -1838,7 +1832,7 @@ impl Parser {
 
         // optional
         let optional_start = self.span_start();
-        let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
+        let is_optional = self.eat_token_if(TokenType::Maybe);
         let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
         // method
@@ -1855,11 +1849,11 @@ impl Parser {
             );
         if is_method {
             if is_readonly {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && key.is_none() {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let role = if key.is_none() && role.is_none() {
@@ -1901,7 +1895,7 @@ impl Parser {
                     signature: call_signature_from_function_signature(signature),
                 },
                 (None, Some(FunctionRole::Getter | FunctionRole::Setter)) => {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
             };
             let member_id = self.insert_node(member, self.get_span_from(&start));
@@ -1946,17 +1940,17 @@ impl Parser {
         // field
         let Some(key) = key else {
             return Err(ParserError::expected(
-                self.peek()?.span,
+                self.peek().span,
                 TokenType::Identifier,
             ));
         };
 
         if is_abstract {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         let type_start = self.span_start();
-        let declared_type = if self.eat_token_maybe(TokenType::Colon)? {
+        let declared_type = if self.eat_token_if(TokenType::Colon) {
             Some(
                 if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
                     self.recover_missing_type_expression_here(NodeType::TypeMember)
@@ -2018,7 +2012,7 @@ impl Parser {
         let (key, key_span) = self.eat_key_with_span()?;
 
         let optional_start = self.span_start();
-        let is_optional = self.eat_token_maybe(TokenType::Maybe)?;
+        let is_optional = self.eat_token_if(TokenType::Maybe);
         let optional_span = is_optional.then(|| self.get_span_from(&optional_start));
 
         let type_start = self.span_start();
@@ -2090,8 +2084,8 @@ impl Parser {
             // close the member list
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if !pending_member_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek()?);
-                    self.error(&error);
+                    let error = ParserError::unexpected(self.peek());
+                    self.report_error(&error);
                     pending_member_decorators.clear();
                 }
 
@@ -2107,7 +2101,7 @@ impl Parser {
             }
             // skip item separators
             else if token_type == TokenType::Comma {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
                 previous_member_had_error = false;
 
                 continue;
@@ -2115,7 +2109,7 @@ impl Parser {
             // let a damaged member release the next declaration
             else if token_type == TokenType::Semicolon {
                 if previous_member_had_error
-                    && self.current_semicolon_precedes_recovery_point(token_type, recovery_point)
+                    && self.semicolon_precedes_recovery_point(recovery_point)
                 {
                     break;
                 }
@@ -2140,39 +2134,30 @@ impl Parser {
             }
 
             let error_count = self.errors.len();
-            match self.try_eat_type_member(container_kind) {
-                Ok(member_id) => {
-                    previous_member_had_error = self.errors.len() > error_count
-                        || matches!(self.tree.get(member_id), TypeMember::Error);
+            let member_id = self.eat_type_member_or_recover(container_kind);
+            previous_member_had_error = self.errors.len() > error_count
+                || matches!(self.tree.get(member_id), TypeMember::Error);
 
-                    if !pending_member_decorators.is_empty() {
-                        self.attach_decorators(
-                            member_id.id,
-                            std::mem::take(&mut pending_member_decorators),
-                        );
-                    }
-
-                    members.push(member_id);
-                }
-                Err(_) => {
-                    previous_member_had_error = true;
-                }
+            if !pending_member_decorators.is_empty() {
+                self.attach_decorators(member_id.id, mem::take(&mut pending_member_decorators));
             }
+
+            members.push(member_id);
         }
 
         Ok(members)
     }
 
-    /// Try to eat a member and recover one malformed member when possible.
-    pub fn try_eat_member(&mut self) -> ParserResult<LocalNodeId<Member>> {
+    /// Eat one member, recovering malformed input as an error node.
+    pub fn eat_member_or_recover(&mut self) -> LocalNodeId<Member> {
         match self.eat_member() {
-            Ok(member_id) => Ok(member_id),
+            Ok(member_id) => member_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::Member);
-                let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_body_from_span(span, Some(err))?;
+                let span = err.span;
+                let recovered_span = self.recover_body(span, Some(err));
 
-                Ok(self.insert_node(Member::Error, recovered_span))
+                self.insert_node(Member::Error, recovered_span)
             }
         }
     }
@@ -2213,12 +2198,12 @@ impl Parser {
             && self.current_token_is_on_new_line()
             && self.is_keyword(Keyword::Static)
         {
-            let static_span = self.peek()?.span;
+            let static_span = self.peek().span;
             let has_member_name_after =
                 self.next_token_type() == TokenType::Identifier && self.next_keyword().is_none();
             if has_member_name_after {
                 let error = ParserError::unexpected(static_span);
-                self.error(&error);
+                self.report_error(&error);
                 self.bump(); // eat static
             }
         }
@@ -2279,13 +2264,13 @@ impl Parser {
 
         // getters and setters require method form
         if matches!(role, Some(FunctionRole::Getter | FunctionRole::Setter)) && !is_method {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         if is_method {
             // associated comptime constants cannot use method form
             if associated_comptime_name.is_some() {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             // abstraction
@@ -2415,18 +2400,18 @@ impl Parser {
             if modifiers.is_none() && key.is_none() && value.is_none() && default.is_none() {
                 // not a member
                 return Err(ParserError::expected(
-                    self.peek()?.span,
+                    self.peek().span,
                     TokenType::Identifier,
                 ));
             }
             // fields without initializers must end at a statement boundary
             if value.is_none() && default.is_none() && !self.can_insert_semicolon() {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
             if associated_comptime_name.is_none()
                 && modifiers.is_some_and(|modifiers| modifiers.is_comptime || modifiers.is_virtual)
             {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
             let member = if let Some(name) = associated_comptime_name {
                 Member::AssociatedConst {
@@ -2493,8 +2478,8 @@ impl Parser {
             // stop on closing brace
             if matches!(token_type, TokenType::CloseBrace | TokenType::End) {
                 if !pending_member_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek()?);
-                    self.error(&error);
+                    let error = ParserError::unexpected(self.peek());
+                    self.report_error(&error);
                     pending_member_decorators.clear();
                 }
                 break;
@@ -2503,7 +2488,7 @@ impl Parser {
             else if Self::is_any_stop_token(token_type) {
                 // declarations that disallow comma separators
                 if !allow_comma_separators && token_type == TokenType::Comma {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
                 self.eat_any_stop()?;
                 continue;
@@ -2514,20 +2499,13 @@ impl Parser {
                 pending_member_decorators.extend(decorators);
                 continue;
             }
-            // keep eating members
+            // parse and recover one member
             else {
-                match self.try_eat_member() {
-                    Ok(member_id) => {
-                        if !pending_member_decorators.is_empty() {
-                            self.attach_decorators(
-                                member_id.id,
-                                std::mem::take(&mut pending_member_decorators),
-                            );
-                        }
-                        members.push(member_id);
-                    }
-                    Err(_) => continue, // keep eating other members
+                let member_id = self.eat_member_or_recover();
+                if !pending_member_decorators.is_empty() {
+                    self.attach_decorators(member_id.id, mem::take(&mut pending_member_decorators));
                 }
+                members.push(member_id);
             }
         }
         Ok(members)

@@ -1,7 +1,8 @@
 use destack_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
-    GenericArgument, GenericParameter, IntegerType, Key, LetKind, Name, Parameter, Pattern,
-    PatternField, PlaceModifier, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
+    GenericArgument, GenericParameter, IntegerType, Key, LetKind, Name, NodeType, Parameter,
+    Pattern, PatternField, PlaceModifier, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
+    TypeMember,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -92,7 +93,7 @@ fn test_parse_typescript_shared_const_keeps_shared_identifier() {
 
     assert_expression_path!(parser, parser.tree.get(expression_id), "shared");
 
-    let next_span = parser.peek().unwrap().span;
+    let next_span = parser.peek().span;
     assert_eq!(parser.get_span_str(next_span), "const");
     test.assert_no_errors(&parser);
 }
@@ -189,6 +190,41 @@ fn test_parse_let_recovers_missing_initializer_value() {
             assert_node!(parser.tree, value, Expression::Missing);
         });
     });
+}
+
+/// Recover malformed declarator punctuation without consuming the following statement.
+#[test]
+fn test_recover_malformed_declarator_punctuation() {
+    let cases = [
+        ("const broken junk = 1;\nconst stable = 2;", None),
+        (
+            "using broken junk = open();\nconst stable = 2;",
+            Some(TokenType::Assign),
+        ),
+        (
+            "const broken = 1 junk, sibling = 2;\nconst stable = 3;",
+            None,
+        ),
+    ];
+
+    for (source, expected) in cases {
+        let mut test = TestParser::new(source);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Error);
+        assert_node!(parser.tree, expressions[1], Expression::Let { .. });
+        test.assert_errors(
+            &parser,
+            &[(
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                expected,
+                "junk",
+            )],
+        );
+    }
 }
 
 #[test]
@@ -821,7 +857,7 @@ fn test_report_let_else_without_initializer() {
         .unwrap_err();
 
     // let x else { return }
-    assert_eq!(parser.get_span_str(error.leaf_span()), "else");
+    assert_eq!(parser.get_span_str(error.span), "else");
 }
 
 #[test]
@@ -834,7 +870,7 @@ fn test_report_let_else_without_block_branch() {
         .unwrap_err();
 
     // let x = value else return
-    assert_eq!(parser.get_span_str(error.leaf_span()), "return");
+    assert_eq!(parser.get_span_str(error.span), "return");
 }
 
 #[test]
@@ -847,13 +883,13 @@ fn test_report_indexed_declarator_target_in_untyped_source() {
         .eat_let(&start, DeclarationHeader::default())
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "[");
+    assert_eq!(parser.get_span_str(error.span), "[");
 }
 
 #[test]
 fn test_parse_let_lambda_initializer_before_next_line_expression() {
     let mut test = TestParser::new_with_language(
-        "let f1 = (/* ... */) => {}\n(function (/* ... */) {})(/* ... */)\n",
+        "let f1 = (/* ... */) => {}\n(() => {})(/* ... */)\n",
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
@@ -880,7 +916,7 @@ fn test_parse_let_lambda_initializer_before_next_line_expression() {
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
                 assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                        assert_eq!(signature.form, FunctionForm::Function);
+                        assert_eq!(signature.form, FunctionForm::Lambda);
                     });
                 });
             });

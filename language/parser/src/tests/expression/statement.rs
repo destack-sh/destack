@@ -255,7 +255,7 @@ const value =
 fn test_parse_statement_expression() {
     let mut test = TestParser::new("a;");
     let mut parser = test.prepare();
-    let expr_id = parser.try_eat_statement_expression().unwrap();
+    let expr_id = parser.eat_statement_expression_or_recover();
     // a;
     assert_expression_path!(parser, parser.tree.get(expr_id), "a");
 }
@@ -264,7 +264,7 @@ fn test_parse_statement_expression() {
 fn test_parse_new_type_arguments_with_spaces_in_statement() {
     let mut test = TestParser::new_with_language("new A < T >;", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expression_id = parser.try_eat_statement_expression().unwrap();
+    let expression_id = parser.eat_statement_expression_or_recover();
 
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {

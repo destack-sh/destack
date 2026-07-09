@@ -154,13 +154,12 @@ impl Parser {
 
         // parse one type and require it to own the whole argument
         let speculative_start = self.checkpoint();
-        let speculative_start_idx = self.tree.next_id();
         let parsed_type_expression =
             self.with_flags(context, |parser| parser.eat_type_expression());
         let prefers_type_expression =
             parsed_type_expression.is_ok() && self.generic_argument_has_boundary();
 
-        self.restore(speculative_start, speculative_start_idx);
+        self.restore(speculative_start);
 
         prefers_type_expression
     }
@@ -231,7 +230,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<GenericArgument>> {
         let is_spread = self.peek_is(TokenType::Spread);
         if is_spread && !self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
         if is_spread {
             self.eat_token(TokenType::Spread)?;
@@ -389,19 +388,15 @@ impl Parser {
     }
 
     /// Return true when one recovered argument list should stop at the current statement boundary.
-    fn should_end_recovered_argument_list_at_statement_boundary(
-        &mut self,
-        is_recovered_argument: bool,
-    ) -> bool {
-        is_recovered_argument
-            && self.flags.is_in_statement_context()
-            && self.current_token_is_on_new_line()
+    fn recovered_argument_list_ends_at_statement_boundary(&mut self) -> bool {
+        self.flags.is_in_statement_context() && self.current_token_is_on_new_line()
     }
 
     /// Return true when one parsed argument was recovered as missing or malformed.
     fn argument_has_recovered_slot(&self, argument_id: LocalNodeId<Argument>) -> bool {
         match self.tree.get(argument_id) {
             Argument::Error => true,
+            Argument::Elision => false,
 
             // missing and error values should stop newline led statement calls locally
             Argument::Named { value, .. }
@@ -568,13 +563,13 @@ impl Parser {
             if allow_variance_modifier {
                 // handle 'in' variance modifier
                 if current_keyword == Some(Keyword::In) {
-                    let span = self.peek()?.span;
+                    let span = self.peek().span;
                     self.bump(); // eat in
                     if validate_modifier_order && seen_variance_in {
-                        self.error(&ParserError::unexpected(span));
+                        self.report_error(&ParserError::unexpected(span));
                     }
                     if validate_modifier_order && seen_variance_out {
-                        self.error(&ParserError::unexpected(span));
+                        self.report_error(&ParserError::unexpected(span));
                     }
                     modifiers.variance = Some(match modifiers.variance {
                         Some(VarianceModifier::Out) => VarianceModifier::InOut,
@@ -587,10 +582,10 @@ impl Parser {
                 }
                 // handle 'out' variance modifier
                 else if is_out_variance_modifier {
-                    let span = self.peek()?.span;
+                    let span = self.peek().span;
                     self.bump(); // eat out
                     if validate_modifier_order && seen_variance_out {
-                        self.error(&ParserError::unexpected(span));
+                        self.report_error(&ParserError::unexpected(span));
                     }
                     modifiers.variance = Some(match modifiers.variance {
                         Some(VarianceModifier::In) => VarianceModifier::InOut,
@@ -608,15 +603,15 @@ impl Parser {
                 if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
-                let span = self.peek()?.span;
+                let span = self.peek().span;
                 self.bump(); // eat visibility
                 if modifiers.visibility.is_some() {
                     if validate_modifier_order {
-                        self.error(&ParserError::unexpected(span));
+                        self.report_error(&ParserError::unexpected(span));
                     }
                 } else {
                     if validate_modifier_order && (seen_static || seen_override || seen_readonly) {
-                        self.error(&ParserError::unexpected(span));
+                        self.report_error(&ParserError::unexpected(span));
                     }
                     modifiers.visibility = Some(visibility);
                 }
@@ -629,11 +624,11 @@ impl Parser {
                 if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
-                let span = self.peek()?.span;
+                let span = self.peek().span;
                 self.bump(); // eat declare
                 if modifiers.is_ambient {
                     if validate_modifier_order {
-                        self.error(&ParserError::unexpected(span));
+                        self.report_error(&ParserError::unexpected(span));
                     }
                 } else {
                     modifiers.is_ambient = true;
@@ -647,14 +642,14 @@ impl Parser {
                 if !self.next_token_starts_member_name() {
                     break;
                 }
-                let span = self.peek()?.span;
+                let span = self.peek().span;
                 self.bump(); // eat static
                 modifiers.is_static = true;
                 if validate_modifier_order && seen_override {
-                    self.error(&ParserError::unexpected(span));
+                    self.report_error(&ParserError::unexpected(span));
                 }
                 if validate_modifier_order && seen_accessor {
-                    self.error(&ParserError::unexpected(span));
+                    self.report_error(&ParserError::unexpected(span));
                 }
                 seen_static = true;
                 has_modifiers = true;
@@ -692,11 +687,11 @@ impl Parser {
                 if !self.next_same_line_token_starts_member_name() {
                     break;
                 }
-                let span = self.peek()?.span;
+                let span = self.peek().span;
                 self.bump(); // eat override
                 modifiers.is_override = true;
                 if validate_modifier_order && seen_readonly {
-                    self.error(&ParserError::unexpected(span));
+                    self.report_error(&ParserError::unexpected(span));
                 }
                 seen_override = true;
                 has_modifiers = true;
@@ -889,7 +884,7 @@ impl Parser {
         if let Some(modifier_set) = modifiers.as_ref()
             && (modifier_set.visibility.is_some() || modifier_set.is_readonly)
         {
-            self.error(&ParserError::unexpected(self.get_span_from(&start)));
+            self.report_error(&ParserError::unexpected(self.get_span_from(&start)));
         }
 
         let is_optional = modifiers.is_some_and(|modifier_set| modifier_set.is_optional);
@@ -1129,7 +1124,19 @@ impl Parser {
             // eat one parameter
             let parameter_start = self.span_start();
             let mut is_recovered_parameter = false;
-            let parameter = match self.eat_parameter().for_node_type(NodeType::Parameter) {
+            let parameter = self.eat_parameter().and_then(|parameter| {
+                let has_cast_tail = self.language.is_typescript()
+                    && matches!(
+                        self.current_keyword(),
+                        Some(Keyword::As | Keyword::Satisfies)
+                    );
+                if has_cast_tail {
+                    Err(ParserError::unexpected(self.peek()))
+                } else {
+                    Ok(parameter)
+                }
+            });
+            let parameter = match parameter.for_node_type(NodeType::Parameter) {
                 Ok(parameter) => parameter,
                 Err(error) => {
                     is_recovered_parameter = true;
@@ -1138,21 +1145,17 @@ impl Parser {
 
                     // newline led keyword statements should stay outside malformed parameter lists
                     if recover_at_statement_keyword {
-                        let error = ParserError::from_source_maybe(
-                            self.get_span_from(&parameter_start),
-                            Some(error),
-                        );
-                        self.error(&error);
+                        self.report_error(&error);
                     } else {
-                        self.try_recover_in_item_list(
-                            &parameter_start,
+                        self.recover_list_item(
+                            self.get_span_from(&parameter_start),
                             if self.flags.is_in_static() {
                                 TokenType::GreaterThan
                             } else {
                                 TokenType::CloseParenthesis
                             },
                             Some(error),
-                        )?;
+                        );
                     }
 
                     self.insert_node(Parameter::Error, self.get_span_from(&parameter_start))
@@ -1161,7 +1164,7 @@ impl Parser {
 
             // rest parameters must be terminal in untyped parameter lists
             if has_variadic_parameter && in_js {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             if matches!(
@@ -1173,35 +1176,14 @@ impl Parser {
 
             parameters.push(parameter);
 
-            // reject cast tails inside parameter heads
-            if self.language.is_typescript()
-                && matches!(
-                    self.current_keyword(),
-                    Some(Keyword::As | Keyword::Satisfies)
-                )
-            {
-                let error =
-                    ParserError::unexpected(self.peek()?).for_node_type(NodeType::Parameter);
-                self.try_recover_in_item_list(
-                    &parameter_start,
-                    if self.flags.is_in_static() {
-                        TokenType::GreaterThan
-                    } else {
-                        TokenType::CloseParenthesis
-                    },
-                    Some(error.clone()),
-                )?;
-                return Err(error);
-            }
-
             // untyped parameter lists reject trailing separators after rest parameters
             if in_js && has_variadic_parameter && self.is_item_stop() {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             // continue regular parameter lists after a real separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
 
                 if !is_recovered_parameter {
                     continue;
@@ -1211,14 +1193,11 @@ impl Parser {
                     break;
                 }
 
-                if !self.can_continue_after_recovered_item(
-                    if self.flags.is_in_static() {
-                        TokenType::GreaterThan
-                    } else {
-                        TokenType::CloseParenthesis
-                    },
-                    is_recovered_parameter,
-                ) {
+                if !self.can_continue_after_recovered_item(if self.flags.is_in_static() {
+                    TokenType::GreaterThan
+                } else {
+                    TokenType::CloseParenthesis
+                }) {
                     break;
                 }
 
@@ -1227,14 +1206,11 @@ impl Parser {
             // stop recovered lists before keyword boundaries
             let recovered_parameter_hits_boundary = is_recovered_parameter
                 && (self.current_keyword_starts_parameter_recovery_boundary()
-                    || !self.can_continue_after_recovered_item(
-                        if self.flags.is_in_static() {
-                            TokenType::GreaterThan
-                        } else {
-                            TokenType::CloseParenthesis
-                        },
-                        is_recovered_parameter,
-                    ));
+                    || !self.can_continue_after_recovered_item(if self.flags.is_in_static() {
+                        TokenType::GreaterThan
+                    } else {
+                        TokenType::CloseParenthesis
+                    }));
 
             // require a separator between adjacent parameter heads
             let adjacent_parameter_heads_without_separator = !self.current_token_is_on_new_line();
@@ -1295,7 +1271,7 @@ impl Parser {
 
         let is_variadic = self.peek_is(TokenType::Spread);
         if is_variadic && !self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
         if is_variadic {
             self.eat_token(TokenType::Spread)?;
@@ -1532,7 +1508,7 @@ impl Parser {
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::Parameter,
-        )?;
+        );
         Ok(parameters)
     }
 
@@ -1605,7 +1581,7 @@ impl Parser {
         if !self.peek_is(TokenType::At) && !self.peek_is(TokenType::Spread) {
             // recover empty arguments as list errors, not expression errors
             if Self::is_expression_slot_boundary_token(self.peek_token_type()) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let value = self.eat_expression(self.positional_argument_flags())?;
@@ -1645,8 +1621,7 @@ impl Parser {
         Ok(argument_id)
     }
 
-    /// Eat one argument.
-    /// Supports named arguments for import-like keyed argument lists.
+    /// Eat one positional, spread, or named argument.
     ///
     /// Examples:
     /// ```
@@ -1656,140 +1631,26 @@ impl Parser {
     /// ...args
     /// "Content-Type": "application/json"
     /// ```
-    #[inline]
-    pub fn eat_tree_argument(&mut self) -> ParserResult<LocalNodeId<Argument>> {
-        self.eat_tree_argument_with_follow(ContextualLexMode::Normal)
-    }
-
-    /// Eat one keyed or positional argument and advance in the requested mode after delimiters.
-    ///
-    /// Examples:
-    /// ```
-    /// x: 1
-    /// ...args
-    /// {value}
-    /// <Widget prop=value />
-    /// ```
-    pub(crate) fn eat_tree_argument_with_follow(
-        &mut self,
-        follow_mode: ContextualLexMode,
-    ) -> ParserResult<LocalNodeId<Argument>> {
+    pub fn eat_argument(&mut self) -> ParserResult<LocalNodeId<Argument>> {
         let start = self.span_start();
+
         // named argument (name: value)
         if self.peek_name_is() && self.token_type_at_offset(1) == TokenType::Colon {
             let (name, name_span) = self
                 .eat_name_with_span()
                 .for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
+
             // value
             let value = self.eat_expression(self.positional_argument_flags())?;
             let argument_id =
                 self.insert_node(Argument::Named { name, value }, self.get_span_from(&start));
             self.tree.set_main_span(argument_id, name_span);
-            Ok(argument_id)
+
+            return Ok(argument_id);
         }
-        // spread argument (...expr)
-        else if self.peek_is(TokenType::Spread) {
-            self.bump(); // eat spread
-            let value = self.eat_expression(self.positional_argument_flags())?;
-            let argument_id = self.insert_node(
-                Argument::Spread { label: None, value },
-                self.get_span_from(&start),
-            );
-            Ok(argument_id)
-        }
-        // expression container ({expr}): braces are delimiters, not part of the expression
-        else if self.peek_is(TokenType::OpenBrace) {
-            let wrapper_start = self.span_start();
-            self.bump_with_contextual_lex_mode(ContextualLexMode::Normal); // eat {
 
-            // empty container (including comment-only containers)
-            if self.peek_is(TokenType::CloseBrace) {
-                let value = self
-                    .tree
-                    .insert(Expression::Stub, self.get_span_from(&start));
-
-                self.bump_with_contextual_lex_mode(follow_mode); // eat }
-                self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
-                let argument_id =
-                    self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
-                return Ok(argument_id);
-            }
-
-            // spread child: {...expr}
-            if self.peek_is(TokenType::Spread) {
-                self.bump(); // eat spread
-                let value_ambient_context = self.flags.with_tree_literal(false);
-                let value_expression_context =
-                    self.flags.not_in_position().not_in_ternary_condition();
-                let value = self.eat_expression(
-                    self.flags
-                        .with_ambient_context(value_ambient_context)
-                        .with_expression_context(value_expression_context),
-                )?;
-
-                self.eat_tree_expression_close_brace(follow_mode, NodeType::Argument)?;
-                self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
-                let argument_id = self.insert_node(
-                    Argument::Spread { label: None, value },
-                    self.get_span_from(&start),
-                );
-                return Ok(argument_id);
-            }
-
-            let value_ambient_context = self.flags.with_tree_literal(false);
-            let value_expression_context = self.flags.not_in_position().not_in_ternary_condition();
-            let value = self.eat_expression(
-                self.flags
-                    .with_ambient_context(value_ambient_context)
-                    .with_expression_context(value_expression_context),
-            )?;
-
-            self.eat_tree_expression_close_brace(follow_mode, NodeType::Argument)?;
-            self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
-            let argument_id =
-                self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
-            Ok(argument_id)
-        }
-        // positional argument (bare expression like nested <Element />)
-        else {
-            // jsx content without braces must be text or nested tags
-            if self.language.supports_jsx() && self.flags.is_in_tree_literal() {
-                let token = self.peek()?;
-                let is_tree_text = token.token.ty() == TokenType::Literal
-                    && matches!(
-                        token.token.literal(),
-                        Some(TokenLiteral::TreeString)
-                            | Some(TokenLiteral::Character {
-                                is_html_entity: true,
-                                ..
-                            })
-                    );
-                let is_tree_literal =
-                    token.token.ty() == TokenType::LessThan && self.peek_tree_literal().is_ok();
-                if !is_tree_text && !is_tree_literal {
-                    return Err(ParserError::unexpected(token));
-                }
-
-                if is_tree_text {
-                    let value = self.eat_tree_child_scalar_expression(follow_mode)?;
-                    let argument_id = self
-                        .insert_node(Argument::Positional { value }, self.get_span_from(&start));
-                    return Ok(argument_id);
-                }
-            }
-
-            let value = if self.peek_is(TokenType::LessThan) && self.peek_tree_literal().is_ok() {
-                self.eat_tree_literal_with_follow(follow_mode)?
-            } else {
-                let value_expression_context =
-                    self.flags.not_in_position().not_in_sequence_expression();
-                self.eat_expression(value_expression_context)?
-            };
-            let argument_id =
-                self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
-            Ok(argument_id)
-        }
+        self.eat_positional_argument()
     }
 
     /// Eat one tree child and advance in the requested tree mode after delimiters.
@@ -1813,15 +1674,8 @@ impl Parser {
             self.bump_with_contextual_lex_mode(ContextualLexMode::Normal);
 
             if self.peek_is(TokenType::CloseBrace) {
-                let value = self
-                    .tree
-                    .insert(Expression::Stub, self.get_span_from(&start));
-
                 self.bump_with_contextual_lex_mode(follow_mode);
-                self.set_node_wrapper_span(value, self.get_span_from(&wrapper_start));
-                return Ok(
-                    self.insert_node(TreeChild::Expression { value }, self.get_span_from(&start))
-                );
+                return Ok(self.insert_node(TreeChild::Empty, self.get_span_from(&start)));
             }
 
             if self.peek_is(TokenType::Spread) {
@@ -1858,7 +1712,7 @@ impl Parser {
         }
 
         // text child
-        let token = self.peek()?;
+        let token = self.peek();
         let is_tree_text = token.token.ty() == TokenType::Literal
             && matches!(
                 token.token.literal(),
@@ -1884,7 +1738,7 @@ impl Parser {
 
     /// Eat one tree text child payload and advance in the requested tree mode.
     fn eat_tree_child_text(&mut self, follow_mode: ContextualLexMode) -> ParserResult<StringId> {
-        let token = self.peek()?;
+        let token = self.peek();
         let Some(body) = token.token.literal() else {
             return Err(ParserError::unexpected(token));
         };
@@ -1939,7 +1793,7 @@ impl Parser {
             let wrapper_start = self.span_start();
             self.bump_with_contextual_lex_mode(ContextualLexMode::Normal); // eat open brace
             if !self.peek_is(TokenType::Spread) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
             self.bump(); // eat spread
             let value_ambient_context = self.flags.with_tree_literal(false);
@@ -2001,7 +1855,7 @@ impl Parser {
                 }
                 // unexpected attribute value
                 else {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
             }
             // implicit boolean true
@@ -2093,11 +1947,11 @@ impl Parser {
         self.eat_generic_angle_open()?;
 
         let first_argument_boundary_start = self.prev_token_end();
-        let recovers_empty_argument = true;
+        let is_empty_argument_recoverable = true;
         let generic_arguments = self.eat_generic_arguments_after_open(
             &start,
             first_argument_boundary_start,
-            recovers_empty_argument,
+            is_empty_argument_recoverable,
             self.type_generic_argument_flags(),
         )?;
 
@@ -2116,10 +1970,7 @@ impl Parser {
 
         if self.peek_is(TokenType::ShiftLeft) {
             if !self.re_lex_generic_l_angle() {
-                return Err(ParserError::expected(
-                    self.peek()?.span,
-                    TokenType::LessThan,
-                ));
+                return Err(ParserError::expected(self.peek().span, TokenType::LessThan));
             }
 
             self.bump_with_contextual_lex_mode(ContextualLexMode::Normal);
@@ -2127,10 +1978,7 @@ impl Parser {
             return Ok(true);
         }
 
-        Err(ParserError::expected(
-            self.peek()?.span,
-            TokenType::LessThan,
-        ))
+        Err(ParserError::expected(self.peek().span, TokenType::LessThan))
     }
 
     /// Eat generic argument contents after the opening angle.
@@ -2138,10 +1986,10 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         first_argument_boundary_start: u32,
-        recovers_empty_argument: bool,
+        is_empty_argument_recoverable: bool,
         flags: ParserFlags,
     ) -> ParserResult<Vec<LocalNodeId<GenericArgument>>> {
-        let is_empty = if recovers_empty_argument {
+        let is_empty = if is_empty_argument_recoverable {
             self.peek_starts_type_angle_close()
         } else {
             self.peek_starts_expression_type_angle_close()
@@ -2152,7 +2000,7 @@ impl Parser {
             });
         }
 
-        if recovers_empty_argument {
+        if is_empty_argument_recoverable {
             Ok(vec![self.recover_empty_generic_argument(start)])
         } else {
             Err(ParserError::expected(
@@ -2195,7 +2043,7 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> LocalNodeId<GenericArgument> {
         let error = ParserError::expected(self.get_span_from(start), TokenType::Identifier);
-        self.error(&error);
+        self.report_error(&error);
 
         let argument_start = self.span_start();
 
@@ -2225,11 +2073,11 @@ impl Parser {
                 Ok(argument) => argument,
                 Err(error) => {
                     is_recovered_argument = true;
-                    self.try_recover_in_item_list(
-                        &argument_start,
+                    self.recover_list_item(
+                        self.get_span_from(&argument_start),
                         TokenType::GreaterThan,
                         Some(error),
-                    )?;
+                    );
 
                     self.insert_node(GenericArgument::Error, self.get_span_from(&argument_start))
                 }
@@ -2244,8 +2092,8 @@ impl Parser {
                 next_argument_boundary_start = self.prev_token_end();
             }
             // let recovered arguments continue across newline separators only
-            else if !self
-                .can_continue_after_recovered_item(TokenType::GreaterThan, is_recovered_argument)
+            else if !is_recovered_argument
+                || !self.can_continue_after_recovered_item(TokenType::GreaterThan)
             {
                 break;
             }
@@ -2259,20 +2107,20 @@ impl Parser {
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_generic_arguments(&mut self) -> ParserResult<Vec<LocalNodeId<GenericArgument>>> {
         let start = self.span_start();
-        let used_shift_left_start = self.eat_generic_angle_open()?;
+        let started_with_shift_left = self.eat_generic_angle_open()?;
         let first_argument_boundary_start = self.prev_token_end();
 
-        let recovers_empty_argument = self.flags.is_in_type() || self.flags.is_in_decorator();
+        let is_empty_argument_recoverable = self.flags.is_in_type() || self.flags.is_in_decorator();
         let generic_arguments = self.eat_generic_arguments_after_open(
             &start,
             first_argument_boundary_start,
-            recovers_empty_argument,
+            is_empty_argument_recoverable,
             self.mixed_generic_argument_flags(),
         )?;
 
         // type-like contexts can consume glued right-angle tails
         let allow_glued_type_close =
-            self.flags.is_in_type() || self.flags.is_in_decorator() || used_shift_left_start;
+            self.flags.is_in_type() || self.flags.is_in_decorator() || started_with_shift_left;
         let allow_missing_type_close = self.flags.is_in_type() || self.flags.is_in_decorator();
 
         if allow_glued_type_close {
@@ -2321,7 +2169,7 @@ impl Parser {
         self.eat_list_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::Expression,
-        )?;
+        );
 
         Ok(arguments)
     }
@@ -2356,7 +2204,7 @@ impl Parser {
         &mut self,
         terminator: TokenType,
     ) -> ParserResult<Vec<LocalNodeId<Argument>>> {
-        self.eat_argument_list_body(terminator, Parser::eat_tree_argument)
+        self.eat_argument_list_body(terminator, Parser::eat_argument)
     }
 
     /// Eat one argument list body with caller-selected item syntax.
@@ -2390,7 +2238,11 @@ impl Parser {
                     argument_id
                 }
                 Err(error) => {
-                    self.try_recover_in_item_list(&argument_start, terminator, Some(error))?;
+                    self.recover_list_item(
+                        self.get_span_from(&argument_start),
+                        terminator,
+                        Some(error),
+                    );
                     let argument_id =
                         self.insert_node(Argument::Error, self.get_span_from(&argument_start));
                     is_recovered_argument = true;
@@ -2402,28 +2254,26 @@ impl Parser {
 
             // continue regular lists after a real separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
 
                 if !is_recovered_argument {
                     continue;
                 }
 
-                if self
-                    .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
-                {
+                if self.recovered_argument_list_ends_at_statement_boundary() {
                     break;
                 }
 
-                if !self.can_continue_after_recovered_item(terminator, is_recovered_argument) {
+                if !self.can_continue_after_recovered_item(terminator) {
                     break;
                 }
 
                 continue;
             }
             // recovered statement calls should stop before the next newline led statement
-            else if self
-                .should_end_recovered_argument_list_at_statement_boundary(is_recovered_argument)
-                || !self.can_continue_after_recovered_item(terminator, is_recovered_argument)
+            else if !is_recovered_argument
+                || self.recovered_argument_list_ends_at_statement_boundary()
+                || !self.can_continue_after_recovered_item(terminator)
             {
                 break;
             }

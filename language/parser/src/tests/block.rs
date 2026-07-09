@@ -114,13 +114,13 @@ fn test_statement_expression_separator_with_comment_newline() {
     let mut test =
         TestParser::new_with_language("'use strict' /**/ \n nextValue", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let (directive_id, is_statement) = parser.try_eat_statement_expression_classified().unwrap();
+    let (directive_id, is_statement) = parser.eat_classified_statement_expression_or_recover();
     assert!(!is_statement);
     assert_node!(parser.tree, directive_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
         assert_string!(parser, *string_id, "use strict");
     });
 
-    let next_id = parser.try_eat_statement_expression().unwrap();
+    let next_id = parser.eat_statement_expression_or_recover();
     assert_expression_path!(parser, parser.tree.get(next_id), "nextValue");
 }
 
@@ -395,7 +395,7 @@ fn test_recover_yield_star_without_operand() {
     let yield_id = parser.eat_yield().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // yield*
     assert_node!(parser.tree, yield_id, Expression::Yield { cardinality, value } => {
@@ -435,7 +435,7 @@ fn test_yield_asi_with_newline_js_mode() {
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
     // *
-    assert_eq!(parser.get_span_str(error.leaf_span()), "*");
+    assert_eq!(parser.get_span_str(error.span), "*");
 }
 
 /// `yield/*\n*/*a` should not be parsed as `yield* a`.
@@ -454,7 +454,7 @@ fn test_yield_asi_with_block_comment_newline_js_mode() {
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
     // *
-    assert_eq!(parser.get_span_str(error.leaf_span()), "*");
+    assert_eq!(parser.get_span_str(error.span), "*");
 }
 
 #[test]
@@ -476,7 +476,7 @@ fn test_recover_throw_expression_with_block_comment_newline() {
     let throw_id = parser.eat_throw().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "e")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "e")]);
 
     // throw /*\n*/
     assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
@@ -497,7 +497,7 @@ fn test_recover_throw_expression_with_line_separator_comment() {
     let throw_id = parser.eat_throw().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "e")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "e")]);
 
     // throw /* \u{2028} */
     assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
@@ -515,7 +515,7 @@ fn test_parse_throw_without_value_recovers_missing_expression() {
     let throw_id = parser.eat_throw().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // throw
     assert_node!(parser.tree, throw_id, Expression::Throw { value } => {
@@ -535,7 +535,7 @@ next()
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "next")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
 
     // statements
     assert_eq!(expressions.len(), 2);
@@ -565,7 +565,10 @@ const value = 1
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::Expression), None, None, "const")],
+    );
 
     // statements
     assert_eq!(expressions.len(), 2);
@@ -666,8 +669,7 @@ fn test_parse_block_statement_before_close_brace_without_semicolon() {
 #[test]
 fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrappers() {
     let mut test = TestParser::new_with_language("{\n;(()=>{})()\n}", LanguageType::Destack);
-    let mut parser = test.prepare();
-    parser.apply_options(ParserOptions {
+    let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
@@ -693,15 +695,14 @@ fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrapp
 #[test]
 fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
     let mut test = TestParser::new_with_language("(() => value);", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    parser.apply_options(ParserOptions {
+    let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });
 
-    let (expression_id, is_statement) = parser.try_eat_statement_expression_classified().unwrap();
+    let (expression_id, is_statement) = parser.eat_classified_statement_expression_or_recover();
     let statement_span = parser
         .tree
         .get_side_span(
@@ -718,8 +719,7 @@ fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
 #[test]
 fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
     let mut test = TestParser::new_with_language("(() => value);", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    parser.apply_options(ParserOptions {
+    let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
@@ -742,12 +742,9 @@ fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
 /// Record root expression statement spans before skipped wrappers.
 #[test]
 fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
-    let mut test = TestParser::new_with_language(
-        "const a = 1\n\n;(function() {})()",
-        LanguageType::JavaScript,
-    );
-    let mut parser = test.prepare();
-    parser.apply_options(ParserOptions {
+    let mut test =
+        TestParser::new_with_language("const a = 1\n\n;(() => {})()", LanguageType::JavaScript);
+    let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
@@ -764,7 +761,7 @@ fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
         .expect("missing statement span");
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.get_span_str(statement_span), "(function() {})()");
+    assert_eq!(parser.get_span_str(statement_span), "(() => {})()");
 }
 
 /// Parse if-body block tails as value expressions.
@@ -1042,7 +1039,7 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
 #[test]
 fn test_parse_function_declaration_followed_by_call_without_newline() {
     let mut test = TestParser::new_with_language(
-        "function main(){return 1}main().catch((function(error){console.error(error);process.exit(1)}));",
+        "function main(){return 1}main().catch((function handle(error){console.error(error);process.exit(1)}));",
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
@@ -1212,7 +1209,7 @@ fn test_parse_new_without_receiver_as_statement_recovers_missing_constructor() {
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // top level statements
     assert_eq!(expressions.len(), 1);
@@ -1239,7 +1236,7 @@ new
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // top level statements
     assert_eq!(expressions.len(), 1);
@@ -1267,7 +1264,7 @@ next()
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "next")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "next")]);
 
     // statements
     assert_eq!(expressions.len(), 2);
@@ -1298,7 +1295,10 @@ const value = 1
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::Expression), None, None, "const")],
+    );
 
     // statements
     assert_eq!(expressions.len(), 2);

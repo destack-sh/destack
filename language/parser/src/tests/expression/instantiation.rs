@@ -18,12 +18,11 @@ fn assert_instantiation_assignment_reports_at(input: &str, expected_leaf: &str) 
     let error = parser
         .eat_expression(parser.flags)
         .expect_err("expected instantiation assignment target to fail");
-    let leaf = error.leaf_content();
-    let leaf_text = parser.get_span_str(leaf.span);
+    let error_text = parser.get_span_str(error.span);
 
-    assert_eq!(leaf.node_type, None);
-    assert_eq!(leaf.expected, None);
-    assert_eq!(leaf_text, expected_leaf);
+    assert_eq!(error.node_type, None);
+    assert_eq!(error.expected, None);
+    assert_eq!(error_text, expected_leaf);
 }
 
 #[test]
@@ -87,8 +86,7 @@ fn test_parse_instantiation_expression_parenthesized() {
 #[test]
 fn test_parse_parenthesized_instantiation_expression_statement() {
     let mut test = TestParser::new_with_language("(f<T>)<K>;", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    parser.apply_options(ParserOptions {
+    let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,

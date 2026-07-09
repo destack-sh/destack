@@ -243,7 +243,7 @@ fn test_report_destack_private_identifier() {
     let mut parser = test.prepare();
 
     let error = parser.eat_expression(parser.flags).unwrap_err();
-    assert_eq!(parser.get_span_str(error.leaf_span()), "#");
+    assert_eq!(parser.get_span_str(error.span), "#");
 }
 
 /// Parse typed object methods in decorator style call arguments.

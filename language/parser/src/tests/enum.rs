@@ -1,7 +1,7 @@
 use destack_dir::{
     CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, EnumKind,
-    Expression, GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TypeExpression,
-    WhereClause,
+    Expression, GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TokenType,
+    TypeExpression, WhereClause,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -87,12 +87,17 @@ enum A;
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[0], Expression::Error);
     assert_node!(parser.tree, expressions[1], Expression::Error);
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
         &[
-            (Some(NodeType::Expression), None, "enum"),
-            (None, None, ";"),
-            (Some(NodeType::Expression), None, ";"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                None,
+                "enum",
+            ),
+            (None, None, None, ";"),
+            (Some(NodeType::Expression), None, None, ";"),
         ],
     );
 }
@@ -305,7 +310,7 @@ enum Value {
         1,
         "expected one dangling decorator parse error"
     );
-    assert_eq!(parser.file.span_str(parser.errors[0].leaf_span()), "}");
+    assert_eq!(parser.file.span_str(parser.errors[0].span), "}");
 
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {

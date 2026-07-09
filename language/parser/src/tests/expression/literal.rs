@@ -3,7 +3,7 @@ use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, Block, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
     FunctionRole, InferForm, Key, Name, NodeType, Pattern, PostfixPosition, Property,
-    ScalarLiteral, TupleElement, TypeExpression,
+    ScalarLiteral, TokenType, TupleElement, TypeExpression,
 };
 use destack_source::LanguageType;
 
@@ -252,7 +252,7 @@ fn test_parse_fixed_array_literal_recovers_missing_value() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ";")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ";")]);
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
         assert_node!(parser.tree, *value, Expression::Missing);
         assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
@@ -266,7 +266,7 @@ fn test_parse_fixed_array_literal_recovers_missing_length() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         assert_node!(parser.tree, *length, Expression::Missing);
@@ -280,7 +280,15 @@ fn test_parse_fixed_array_literal_recovers_missing_close_bracket() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::CloseBracket),
+            "",
+        )],
+    );
     assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
         assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));

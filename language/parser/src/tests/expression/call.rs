@@ -1,6 +1,6 @@
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
-    InferForm, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TypeExpression,
+    InferForm, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TokenType, TypeExpression,
 };
 use destack_source::LanguageType;
 use std::fmt::Write;
@@ -9,7 +9,7 @@ use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path
 
 fn make_receiver(parser: &mut Parser) -> LocalNodeId<Expression> {
     let receiver_str = parser.strings.intern("receiver");
-    let span = parser.peek().unwrap().span;
+    let span = parser.peek().span;
     parser.insert_node(Expression::Identifier { name: receiver_str }, span)
 }
 
@@ -81,7 +81,7 @@ fn test_parse_member_postfix_missing_name() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.
     assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
@@ -96,7 +96,7 @@ fn test_parse_private_member_postfix_missing_name() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.#
     assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name: None } => {
@@ -111,7 +111,7 @@ fn test_parse_optional_member_postfix_missing_name() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo?.
     assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
@@ -129,7 +129,7 @@ fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() 
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
 
     // (foo.)
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
@@ -146,7 +146,15 @@ fn test_parse_call_postfix_missing_close_parenthesis() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::CloseParenthesis),
+            "",
+        )],
+    );
 
     // foo(
     assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
@@ -163,7 +171,15 @@ fn test_parse_call_postfix_missing_close_parenthesis_after_argument() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::CloseParenthesis),
+            "",
+        )],
+    );
 
     // foo(1
     assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
@@ -183,7 +199,15 @@ fn test_parse_indirect_call_postfix_missing_close_parenthesis_after_argument() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::CloseParenthesis),
+            "",
+        )],
+    );
 
     // foo.(1
     assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
@@ -203,7 +227,15 @@ fn test_parse_optional_call_postfix_missing_close_parenthesis_after_argument() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::CloseParenthesis),
+            "",
+        )],
+    );
 
     // foo?.(1
     assert_node!(parser.tree, expression_id, Expression::Call { position, left, generic_arguments: _, arguments } => {
@@ -264,7 +296,7 @@ fn test_parse_index_postfix_missing_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo[
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -281,7 +313,15 @@ fn test_parse_index_postfix_missing_close_bracket() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::CloseBracket),
+            "",
+        )],
+    );
 
     // foo[1
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -298,7 +338,7 @@ fn test_parse_indirect_index_postfix_missing_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo.[
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -315,7 +355,7 @@ fn test_parse_optional_index_postfix_missing_expression() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // foo?.[
     assert_node!(parser.tree, expression_id, Expression::Index { position, left, index: Some(index) } => {
@@ -335,7 +375,7 @@ fn test_parse_parenthesized_index_postfix_missing_expression_preserves_outer_clo
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
 
     // (foo[)
     assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
@@ -427,7 +467,7 @@ fn test_parse_new_maybe_without_receiver_recovers_missing_constructor() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     assert_node!(parser.tree, expression_id, Expression::NewMaybe { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Missing);
@@ -512,7 +552,7 @@ fn test_parse_new_without_receiver_recovers_missing_constructor() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // new
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
