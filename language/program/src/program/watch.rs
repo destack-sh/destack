@@ -78,6 +78,8 @@ pub struct MemoryStop {
 pub struct WatchSet {
     /// Active memory stops.
     memory: Vec<MemoryStop>,
+    /// Whether any memory stop needs executed byte ranges.
+    requires_memory_range: bool,
 }
 
 impl WatchpointId {
@@ -206,13 +208,24 @@ impl WatchSet {
     /// Create one watch set.
     pub fn new(mut memory: Vec<MemoryStop>) -> Self {
         memory.sort_by_key(|stop| stop.watchpoint_id.get());
+        let requires_memory_range = memory
+            .iter()
+            .any(|stop| stop.target.requires_memory_range());
 
-        Self { memory }
+        Self {
+            memory,
+            requires_memory_range,
+        }
     }
 
     /// Return whether the set has no active watchpoints.
     pub fn is_empty(&self) -> bool {
         self.memory.is_empty()
+    }
+
+    /// Return whether matching this set needs executed byte ranges.
+    pub fn requires_memory_range(&self) -> bool {
+        self.requires_memory_range
     }
 
     /// Return the first watchpoint selected by one memory site.
@@ -230,6 +243,11 @@ impl WatchSet {
 }
 
 impl MemoryTarget {
+    /// Return whether matching this target needs an executed byte range.
+    pub const fn requires_memory_range(self) -> bool {
+        matches!(self, Self::Range(_))
+    }
+
     /// Return whether this target selects one memory site.
     pub fn selects(self, site: MemorySite, range: Option<MemoryRange>) -> bool {
         match self {

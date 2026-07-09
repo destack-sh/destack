@@ -1,6 +1,8 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::CellLayout;
+
 /// Operation executed by one lowered VM instruction.
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -996,6 +998,198 @@ pub enum Op {
     TensorCast,
     /// Create a tensor view.
     TensorView,
+}
+
+impl Op {
+    /// Return the pointer cell layout for memory operations.
+    pub const fn memory_cell_layout(self) -> Option<CellLayout> {
+        match self {
+            Self::LoadHeapAggregate
+            | Self::StoreHeapAggregate
+            | Self::LoadHeapU8
+            | Self::LoadHeapI8
+            | Self::LoadHeapU16
+            | Self::LoadHeapI16
+            | Self::LoadHeapU32
+            | Self::LoadHeapI32
+            | Self::LoadHeap64
+            | Self::StoreHeap8
+            | Self::StoreHeap16
+            | Self::StoreHeap32
+            | Self::StoreHeap64 => Some(CellLayout::HeapReference),
+
+            Self::LoadSharedHeapAggregate
+            | Self::StoreSharedHeapAggregate
+            | Self::LoadSharedHeapU8
+            | Self::LoadSharedHeapI8
+            | Self::LoadSharedHeapU16
+            | Self::LoadSharedHeapI16
+            | Self::LoadSharedHeapU32
+            | Self::LoadSharedHeapI32
+            | Self::LoadSharedHeap64
+            | Self::StoreSharedHeap8
+            | Self::StoreSharedHeap16
+            | Self::StoreSharedHeap32
+            | Self::StoreSharedHeap64 => Some(CellLayout::SharedHeapReference),
+
+            Self::LoadRawAggregate
+            | Self::StoreRawAggregate
+            | Self::LoadRawU8
+            | Self::LoadRawI8
+            | Self::LoadRawU16
+            | Self::LoadRawI16
+            | Self::LoadRawU32
+            | Self::LoadRawI32
+            | Self::LoadRaw64
+            | Self::StoreRaw8
+            | Self::StoreRaw16
+            | Self::StoreRaw32
+            | Self::StoreRaw64 => Some(CellLayout::Address),
+
+            Self::LoadStackAggregate
+            | Self::StoreStackAggregate
+            | Self::LoadStackU8
+            | Self::LoadStackI8
+            | Self::LoadStackU16
+            | Self::LoadStackI16
+            | Self::LoadStackU32
+            | Self::LoadStackI32
+            | Self::LoadStack64
+            | Self::StoreStack8
+            | Self::StoreStack16
+            | Self::StoreStack32
+            | Self::StoreStack64 => Some(CellLayout::StackPointer),
+
+            Self::LoadFrameAggregate
+            | Self::StoreFrameAggregate
+            | Self::LoadFrameU8
+            | Self::LoadFrameI8
+            | Self::LoadFrameU16
+            | Self::LoadFrameI16
+            | Self::LoadFrameU32
+            | Self::LoadFrameI32
+            | Self::LoadFrame64
+            | Self::LoadFrameValueU8
+            | Self::LoadFrameValueI8
+            | Self::LoadFrameValueU16
+            | Self::LoadFrameValueI16
+            | Self::LoadFrameValueU32
+            | Self::LoadFrameValueI32
+            | Self::LoadFrameValue64
+            | Self::StoreFrame8
+            | Self::StoreFrame16
+            | Self::StoreFrame32
+            | Self::StoreFrame64
+            | Self::StoreFrameValue8
+            | Self::StoreFrameValue16
+            | Self::StoreFrameValue32
+            | Self::StoreFrameValue64 => Some(CellLayout::FramePointer),
+
+            Self::LoadStaticAggregate
+            | Self::StoreStaticAggregate
+            | Self::LoadStaticU8
+            | Self::LoadStaticI8
+            | Self::LoadStaticU16
+            | Self::LoadStaticI16
+            | Self::LoadStaticU32
+            | Self::LoadStaticI32
+            | Self::LoadStatic64
+            | Self::StoreStatic8
+            | Self::StoreStatic16
+            | Self::StoreStatic32
+            | Self::StoreStatic64 => Some(CellLayout::GlobalAddress),
+
+            _ => None,
+        }
+    }
+
+    /// Return the scalar byte width for memory operations.
+    pub const fn memory_byte_len(self) -> Option<usize> {
+        match self {
+            Self::LoadHeapU8
+            | Self::LoadHeapI8
+            | Self::LoadSharedHeapU8
+            | Self::LoadSharedHeapI8
+            | Self::LoadRawU8
+            | Self::LoadRawI8
+            | Self::LoadStackU8
+            | Self::LoadStackI8
+            | Self::LoadFrameU8
+            | Self::LoadFrameI8
+            | Self::LoadFrameValueU8
+            | Self::LoadFrameValueI8
+            | Self::LoadStaticU8
+            | Self::LoadStaticI8
+            | Self::StoreHeap8
+            | Self::StoreSharedHeap8
+            | Self::StoreRaw8
+            | Self::StoreStack8
+            | Self::StoreFrame8
+            | Self::StoreFrameValue8
+            | Self::StoreStatic8 => Some(1),
+
+            Self::LoadHeapU16
+            | Self::LoadHeapI16
+            | Self::LoadSharedHeapU16
+            | Self::LoadSharedHeapI16
+            | Self::LoadRawU16
+            | Self::LoadRawI16
+            | Self::LoadStackU16
+            | Self::LoadStackI16
+            | Self::LoadFrameU16
+            | Self::LoadFrameI16
+            | Self::LoadFrameValueU16
+            | Self::LoadFrameValueI16
+            | Self::LoadStaticU16
+            | Self::LoadStaticI16
+            | Self::StoreHeap16
+            | Self::StoreSharedHeap16
+            | Self::StoreRaw16
+            | Self::StoreStack16
+            | Self::StoreFrame16
+            | Self::StoreFrameValue16
+            | Self::StoreStatic16 => Some(2),
+
+            Self::LoadHeapU32
+            | Self::LoadHeapI32
+            | Self::LoadSharedHeapU32
+            | Self::LoadSharedHeapI32
+            | Self::LoadRawU32
+            | Self::LoadRawI32
+            | Self::LoadStackU32
+            | Self::LoadStackI32
+            | Self::LoadFrameU32
+            | Self::LoadFrameI32
+            | Self::LoadFrameValueU32
+            | Self::LoadFrameValueI32
+            | Self::LoadStaticU32
+            | Self::LoadStaticI32
+            | Self::StoreHeap32
+            | Self::StoreSharedHeap32
+            | Self::StoreRaw32
+            | Self::StoreStack32
+            | Self::StoreFrame32
+            | Self::StoreFrameValue32
+            | Self::StoreStatic32 => Some(4),
+
+            Self::LoadHeap64
+            | Self::LoadSharedHeap64
+            | Self::LoadRaw64
+            | Self::LoadStack64
+            | Self::LoadFrame64
+            | Self::LoadFrameValue64
+            | Self::LoadStatic64
+            | Self::StoreHeap64
+            | Self::StoreSharedHeap64
+            | Self::StoreRaw64
+            | Self::StoreStack64
+            | Self::StoreFrame64
+            | Self::StoreFrameValue64
+            | Self::StoreStatic64 => Some(8),
+
+            _ => None,
+        }
+    }
 }
 
 // op should fit in 2 bytes
