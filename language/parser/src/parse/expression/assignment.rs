@@ -1,9 +1,10 @@
 use crate::parse::expression::operator::ExpressionInfixOperator;
 use crate::parse::scope::ExpressionScope;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use destack_core::ensure_sufficient_stack;
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, Expression, Key, LocalNodeId,
-    Name, Property,
+    Name, Property, UnaryOperator,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -99,7 +100,7 @@ impl Parser {
 
             let left = self.assignment_pattern_from_expression(right)?;
             let Some((operator, operator_span)) = self.eat_assignment_operator(right_scope)? else {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             };
             self.require_assignable_operator(left, operator)?;
             pending.push(PendingAssignmentExpression {
@@ -219,9 +220,7 @@ impl Parser {
 
         // lower recursive destructuring under stack growth
         if is_destructuring_expression {
-            destack_core::ensure_sufficient_stack(|| {
-                self.lower_assignment_pattern_expression(expression_id)
-            })
+            ensure_sufficient_stack(|| self.lower_assignment_pattern_expression(expression_id))
         } else {
             self.lower_assignment_pattern_expression(expression_id)
         }
@@ -343,9 +342,7 @@ impl Parser {
         let span = self.tree.get_span(argument_id);
 
         let field = match argument {
-            Argument::Positional { value } if matches!(self.tree.get(value), Expression::Stub) => {
-                AssignPatternField::Elision
-            }
+            Argument::Elision => AssignPatternField::Elision,
             Argument::Positional { value } => {
                 let pattern = self.assignment_pattern_from_expression(value)?;
 
@@ -400,6 +397,7 @@ impl Parser {
             Argument::Named { .. }
             | Argument::Labeled { .. }
             | Argument::Spread { .. }
+            | Argument::Elision
             | Argument::Error => return Err(ParserError::unexpected(span)),
         };
 
@@ -507,10 +505,10 @@ impl Parser {
     /// Build one shorthand assignment place expression.
     fn shorthand_assignment_place(
         &mut self,
-        name: destack_dir::Name,
+        name: Name,
         span: Span,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let destack_dir::Name::Identifier(name) = name else {
+        let Name::Identifier(name) = name else {
             return Err(ParserError::unexpected(span));
         };
 
@@ -535,7 +533,7 @@ impl Parser {
                 self.expression_is_simple_assignment_target(*expression)
             }
             Expression::Unary {
-                operator: destack_dir::UnaryOperator::Dereference,
+                operator: UnaryOperator::Dereference,
                 right,
             } if self.language.is_destack() => self.expression_is_simple_assignment_target(*right),
             Expression::Must { left, .. } => self.expression_is_simple_assignment_target(*left),

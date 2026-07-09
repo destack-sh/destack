@@ -8,6 +8,7 @@ use destack_dir::{
     MatchSelector, NodeType, Pattern, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use std::mem;
 
 impl Parser {
     /// Eat a match statement.
@@ -150,7 +151,7 @@ impl Parser {
                     && has_default_case
                     && self.is_keyword(Keyword::Default)
                 {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
 
                 let case = self
@@ -291,17 +292,7 @@ impl Parser {
                 {
                     break;
                 }
-                let statement_start = self.span_start();
-                let expression_id = self
-                    .with_statement_recovery(
-                        &statement_start,
-                        |parser| parser.try_eat_statement_expression().map(Some),
-                        None,
-                    )
-                    .unwrap_or_else(|| {
-                        self.tree
-                            .insert(Expression::Error, self.get_span_from(&statement_start))
-                    });
+                let expression_id = self.eat_statement_expression_or_recover();
                 expressions.push(expression_id);
 
                 // consume real separators without treating eof as progress
@@ -396,7 +387,7 @@ impl Parser {
         self.record_match_case_guard_clause(match_case_id, guard_clause_span);
 
         if !pending_case_decorators.is_empty() {
-            self.attach_decorators(match_case_id.id, std::mem::take(pending_case_decorators));
+            self.attach_decorators(match_case_id.id, mem::take(pending_case_decorators));
         }
     }
 

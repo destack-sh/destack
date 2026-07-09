@@ -71,8 +71,8 @@ impl Parser {
 
             // interface keyword cannot be followed by a newline
             if self.current_token_is_on_new_line() {
-                let error = ParserError::unexpected(self.peek()?);
-                self.error(&error);
+                let error = ParserError::unexpected(self.peek());
+                self.report_error(&error);
             }
 
             // optional name / key

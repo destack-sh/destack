@@ -372,7 +372,7 @@ impl Parser {
     /// default
     /// 0
     /// ```
-    fn eat_typeof_member_name(&mut self) -> ParserResult<Option<destack_core::StringId>> {
+    fn eat_typeof_member_name(&mut self) -> ParserResult<Option<StringId>> {
         if self.peek_is(TokenType::Identifier) || self.peek_is(TokenType::Literal) {
             return self.eat_member_name_with_span().map(|(name, _)| Some(name));
         }

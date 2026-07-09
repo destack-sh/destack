@@ -79,7 +79,7 @@ impl Parser {
 
         // optional extends clause
         let unexpected_extends_span = if !is_class && self.is_keyword(Keyword::Extends) {
-            Some(self.peek()?.span)
+            Some(self.peek().span)
         } else {
             None
         };
@@ -94,7 +94,7 @@ impl Parser {
             None
         };
         if let Some(span) = unexpected_extends_span {
-            self.error(&ParserError::unexpected_for(span, NodeType::Declaration));
+            self.report_error(&ParserError::unexpected_for(span, NodeType::Declaration));
         }
 
         // optional implements types
@@ -123,7 +123,10 @@ impl Parser {
                     if let Some(extra_type) = types.get(1) {
                         let span = self.tree.get_span(*extra_type);
 
-                        self.error(&ParserError::unexpected_for(span, NodeType::Declaration));
+                        self.report_error(&ParserError::unexpected_for(
+                            span,
+                            NodeType::Declaration,
+                        ));
                     }
 
                     Some(types.remove(0))

@@ -61,7 +61,7 @@ impl Parser {
             let declarator_id = self.eat_declarator(true, false, None)?;
             declarators.push(declarator_id);
 
-            if self.peek_is(TokenType::Comma) || self.next_token_type() == TokenType::Comma {
+            if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
                 continue;
             }
@@ -162,19 +162,19 @@ impl Parser {
         // let else
         if self.is_keyword(Keyword::Else) {
             if header.export.is_some() || header.is_ambient {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let declarator = self.tree.get(first_declarator);
             if declarator.value.is_none() {
-                return Err(ParserError::expected(self.peek()?, TokenType::Assign));
+                return Err(ParserError::expected(self.peek(), TokenType::Assign));
             }
 
             let else_span = self.eat_keyword(Keyword::Else)?.span;
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let else_branch = {
@@ -208,7 +208,7 @@ impl Parser {
         // rest of declarators for regular let
         let mut declarators = vec![first_declarator];
         loop {
-            if self.peek_is(TokenType::Comma) || self.next_token_type() == TokenType::Comma {
+            if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
                 let declarator_id = self.eat_declarator(false, false, None)?;
                 declarators.push(declarator_id);
@@ -216,7 +216,7 @@ impl Parser {
             }
 
             if !self.declarator_has_statement_boundary() {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             break;
@@ -313,11 +313,10 @@ impl Parser {
             .in_before_type()
             .not_in_before_block();
 
-        // pattern
-        let pattern_id = if self.peek_is(TokenType::Identifier) {
-            // simple binding heads are decided by the next visible token
+        // recognize identifier heads that cannot continue into richer patterns
+        let parses_plain_binding = if self.peek_is(TokenType::Identifier) {
             let next_token_type = self.token_type_at_offset(1);
-            let can_use_simple_let_path = self.token_at_offset_has_leading_line_break(1)
+            let has_binding_boundary = self.token_at_offset_is_on_new_line(1)
                 || matches!(
                     next_token_type,
                     TokenType::Colon
@@ -329,52 +328,33 @@ impl Parser {
                         | TokenType::CloseBracket
                         | TokenType::End
                 );
-            if can_use_simple_let_path {
-                let keyword = self.current_keyword();
-                let is_mutability_keyword = matches!(keyword, Some(Keyword::Const | Keyword::Let))
-                    || self.language.is_destack() && keyword == Some(Keyword::Readonly);
-                let allow_underscore_binding =
-                    self.language.is_javascript() || self.language.is_typescript();
-                let is_underscore_identifier = if allow_underscore_binding {
-                    false
-                } else {
-                    self.current_identifier_str_is("_")
-                };
-                if !is_mutability_keyword && (!is_underscore_identifier || allow_underscore_binding)
-                {
-                    let (name, name_span) = self.eat_binding_identifier_with_span()?;
-                    let pattern_id = self.insert_node(
-                        Pattern::Binding {
-                            name,
-                            pattern: None,
-                        },
-                        self.get_span_from(&start),
-                    );
-                    self.tree.set_main_span(pattern_id, name_span);
-                    pattern_id
-                } else if self.flags == pattern_flags {
-                    self.eat_pattern()?
-                } else {
-                    let old_flags = self.swap_flags(pattern_flags);
-                    let pattern_result = self.eat_pattern();
-                    self.restore_flags(old_flags);
-                    pattern_result?
-                }
-            } else if self.flags == pattern_flags {
-                self.eat_pattern()?
-            } else {
-                let old_flags = self.swap_flags(pattern_flags);
-                let pattern_result = self.eat_pattern();
-                self.restore_flags(old_flags);
-                pattern_result?
-            }
-        } else if self.flags == pattern_flags {
-            self.eat_pattern()?
+
+            // reserve mutability markers and the Destack wildcard for pattern parsing
+            let keyword = self.current_keyword();
+            let is_mutability_keyword = matches!(keyword, Some(Keyword::Const | Keyword::Let))
+                || self.language.is_destack() && keyword == Some(Keyword::Readonly);
+            let is_wildcard = self.language.is_destack() && self.current_identifier_str_is("_");
+
+            has_binding_boundary && !is_mutability_keyword && !is_wildcard
         } else {
-            let old_flags = self.swap_flags(pattern_flags);
-            let pattern_result = self.eat_pattern();
-            self.restore_flags(old_flags);
-            pattern_result?
+            false
+        };
+
+        // parse the selected binding or pattern form
+        let pattern_id = if parses_plain_binding {
+            let (name, name_span) = self.eat_binding_identifier_with_span()?;
+            let pattern_id = self.insert_node(
+                Pattern::Binding {
+                    name,
+                    pattern: None,
+                },
+                self.get_span_from(&start),
+            );
+            self.tree.set_main_span(pattern_id, name_span);
+
+            pattern_id
+        } else {
+            self.with_flags(pattern_flags, |parser| parser.eat_pattern())?
         };
 
         // non Destack declaration declarators must use plain binding patterns
@@ -398,25 +378,24 @@ impl Parser {
         };
 
         // value
-        let (value, value_operator_span) =
-            if self.peek_is(TokenType::Assign) || self.next_token_type() == TokenType::Assign {
-                let operator_start = self.span_start();
-                self.bump(); // eat assign
-                let operator_span = self.get_span_from(&operator_start);
+        let (value, value_operator_span) = if self.peek_is(TokenType::Assign) {
+            let operator_start = self.span_start();
+            self.bump(); // eat assign
+            let operator_span = self.get_span_from(&operator_start);
 
-                let value_flags = self.flags.not_in_position().not_in_sequence_expression();
-                let value = if let Some(value_minimum_precedence) = value_minimum_precedence {
-                    self.eat_expression_at_precedence(value_flags, value_minimum_precedence)?
-                } else {
-                    self.eat_expression_or_recover_missing(value_flags, NodeType::Declarator)?
-                };
-
-                (Some(value), Some(operator_span))
-            } else if require_value {
-                return Err(ParserError::expected(self.peek()?, TokenType::Assign));
+            let value_flags = self.flags.not_in_position().not_in_sequence_expression();
+            let value = if let Some(value_minimum_precedence) = value_minimum_precedence {
+                self.eat_expression_at_precedence(value_flags, value_minimum_precedence)?
             } else {
-                (None, None)
+                self.eat_expression_or_recover_missing(value_flags, NodeType::Declarator)?
             };
+
+            (Some(value), Some(operator_span))
+        } else if require_value {
+            return Err(ParserError::expected(self.peek(), TokenType::Assign));
+        } else {
+            (None, None)
+        };
 
         // declarator
         let declarator_id = self.insert_node(

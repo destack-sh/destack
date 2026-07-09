@@ -67,7 +67,6 @@ impl Parser {
     ) -> ParserResult<Option<(LocalNodeId<Expression>, Span)>> {
         // save state so missing else can rewind cleanly
         let else_mark = self.checkpoint();
-        let else_tree_mark = self.tree.next_id();
 
         // semicolon statement forms consume optional separators before else
         if !self.language.is_destack() {
@@ -78,12 +77,12 @@ impl Parser {
 
         // no else: restore speculative state
         if !self.is_keyword(Keyword::Else) {
-            self.restore(else_mark, else_tree_mark);
+            self.restore(else_mark);
             return Ok(None);
         }
 
         // else keyword
-        let else_span = self.peek()?.span;
+        let else_span = self.peek().span;
         self.eat_keyword(Keyword::Else)?;
 
         // else body

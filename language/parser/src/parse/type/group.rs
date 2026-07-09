@@ -222,14 +222,13 @@ impl Parser {
 
     /// Skip a parenthesized type head and test for a function follow token.
     fn skip_parenthesized_type_head_to_function_follow(&mut self) -> bool {
-        let mut depth = DelimiterDepth::default();
+        let mut depth = DelimiterDepth::type_expression();
 
         while self.has_more_tokens() {
             let token_type = self.peek_token_type();
 
             // recover before rescanning later statements
-            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
-            {
+            if self.semicolon_precedes_recovery_point(RecoveryPoint::Statement) {
                 return false;
             }
 

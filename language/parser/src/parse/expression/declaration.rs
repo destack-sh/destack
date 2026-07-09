@@ -99,7 +99,7 @@ impl Parser {
                 self.token_type_at_offset(1),
                 TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
             ) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let declaration = self.eat_enum(start, EnumKind::Enum, header)?;
@@ -200,8 +200,8 @@ impl Parser {
             return self.eat_export().map(Some);
         }
 
-        let mut checkpoint = (!self.export_prefix_definitely_starts_declaration())
-            .then(|| (self.checkpoint(), self.tree.next_id()));
+        let mut checkpoint =
+            (!self.export_prefix_definitely_starts_declaration()).then(|| self.checkpoint());
         let mut header = DeclarationHeader::default();
 
         // export prefix
@@ -242,12 +242,12 @@ impl Parser {
 
         // invalid default enum
         if keyword == Keyword::Enum && header.export == Some(ExportKind::Default) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // placement only applies to bindings and nominal declarations
         if header.place.is_some() && !self.current_declaration_allows_place_modifier(keyword) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // ambient enum split by newline
@@ -283,13 +283,13 @@ impl Parser {
     /// Restore a speculative export prefix checkpoint.
     fn restore_export_checkpoint(
         &mut self,
-        checkpoint: Option<(ParserCheckpoint, u32)>,
+        checkpoint: Option<ParserCheckpoint>,
     ) -> ParserResult<()> {
-        let Some((checkpoint, mark)) = checkpoint else {
-            return Err(ParserError::unexpected(self.peek()?));
+        let Some(checkpoint) = checkpoint else {
+            return Err(ParserError::unexpected(self.peek()));
         };
 
-        self.restore(checkpoint, mark);
+        self.restore(checkpoint);
 
         Ok(())
     }
@@ -535,7 +535,7 @@ impl Parser {
             }
             Keyword::Local if self.language.is_destack() => {
                 if header.place.is_some() {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
 
                 self.bump();
@@ -545,7 +545,7 @@ impl Parser {
             }
             Keyword::Shared if self.language.is_destack() => {
                 if header.place.is_some() {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
 
                 self.bump();
@@ -576,7 +576,7 @@ impl Parser {
 
         // global declarations do not introduce local or shared storage
         if header.place.is_some() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         let declaration = self.eat_global(start, header)?;

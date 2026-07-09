@@ -32,18 +32,25 @@ impl Parser {
     fn eat_pattern_at_current_depth(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
         let start = self.span_start();
 
+        // preserve contextually reserved bindings for recovery while reporting them
+        self.report_forbidden_binding_identifier()?;
+
         // ------------------------------------------------------------
         // Primary patterns
         // ------------------------------------------------------------
         let mut pattern_id = {
             // startless range pattern
-            if self.language.is_destack()
-                && matches!(
-                    self.peek_token_type(),
-                    TokenType::Range | TokenType::RangeInclusive
-                )
-            {
-                self.eat_startless_range_pattern(&start)?
+            let startless_range_end = if self.language.is_destack() {
+                match self.peek_token_type() {
+                    TokenType::Range => Some(RangeEnd::Open),
+                    TokenType::RangeInclusive => Some(RangeEnd::Inclusive),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            if let Some(end_kind) = startless_range_end {
+                self.eat_startless_range_pattern(&start, end_kind)?
             }
             // wildcard
             else if self.language.is_destack() && self.peek_identifier_str_is("_") {
@@ -376,12 +383,8 @@ impl Parser {
     fn eat_startless_range_pattern(
         &mut self,
         start: &ParserSpanStart,
+        end_kind: RangeEnd,
     ) -> ParserResult<LocalNodeId<Pattern>> {
-        let end_kind = match self.peek_token_type() {
-            TokenType::Range => RangeEnd::Open,
-            TokenType::RangeInclusive => RangeEnd::Inclusive,
-            _ => unreachable!("checked range token"),
-        };
         self.bump(); // eat range operator
 
         let mut end = self.eat_range_pattern_end_maybe(end_kind)?;
@@ -440,7 +443,7 @@ impl Parser {
 
             // spread fields must be terminal in typed and untyped patterns
             if enforce_terminal_spread && has_spread_field {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             // parse one field
@@ -464,7 +467,7 @@ impl Parser {
                 let has_non_terminal_newline_after_spread =
                     self.current_token_is_on_new_line() && !self.peek_is(terminator);
                 if has_separator_after_spread || has_non_terminal_newline_after_spread {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
             }
 
@@ -606,6 +609,9 @@ impl Parser {
             return self.eat_named_colon_pattern_field(terminator, field_start);
         }
 
+        // shorthand property names also declare bindings
+        self.report_forbidden_binding_identifier()?;
+
         let (name, span) = self.eat_pattern_field_name_with_span(terminator)?;
         let shorthand_pattern = self.eat_pattern_field_shorthand_assignment_maybe(
             name,
@@ -737,10 +743,10 @@ impl Parser {
 
     // check whether next token is a boolean literal key in object patterns
     fn peek_boolean_pattern_name_head(&mut self) -> bool {
-        self.peek().is_ok_and(|token| {
-            token.token.ty() == TokenType::Literal
-                && matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
-        })
+        let token = self.peek().token;
+
+        token.ty() == TokenType::Literal
+            && matches!(token.literal(), Some(TokenLiteral::Boolean { .. }))
     }
 
     // eat a name for object pattern fields
@@ -771,7 +777,7 @@ impl Parser {
 
     // eat a boolean pattern field name as Name::Identifier
     fn eat_boolean_pattern_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
-        let token = self.peek()?;
+        let token = self.peek();
         if token.token.ty() != TokenType::Literal
             || !matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
         {

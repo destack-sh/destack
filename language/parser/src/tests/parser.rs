@@ -30,7 +30,7 @@ impl TestParser {
             "<string>".to_string(),
             Uri::from_string("<string>"),
             None,
-            FileType::Destack,
+            FileType::from(language),
             input.to_string(),
         );
         Self {
@@ -41,35 +41,44 @@ impl TestParser {
 
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser {
+        self.prepare_with_options(Self::options())
+    }
+
+    /// Get a Parser with explicit options for this test.
+    pub(crate) fn prepare_with_options(&mut self, options: ParserOptions) -> Parser {
         Parser::lex_file_with_options(
             self.file.clone(),
             self.language,
-            ParserOptions {
-                trivia_mode: ParserTriviaMode::Full,
-                preserve_parenthesized_wrappers: true,
-                token_history: ParserTokenHistory::Record,
-                ..ParserOptions::default()
-            },
+            options,
             Arc::new(StringPool::new()),
         )
     }
 
-    /// Assert the leaf parser errors by node type, expected token, and source text.
-    pub(crate) fn assert_error_leaves(
+    /// Return parser options used by parser unit tests.
+    pub(crate) fn options() -> ParserOptions {
+        ParserOptions {
+            trivia_mode: ParserTriviaMode::Full,
+            preserve_parenthesized_wrappers: true,
+            token_history: ParserTokenHistory::Record,
+            ..ParserOptions::default()
+        }
+    }
+
+    /// Assert parser errors by node type, actual token, expected token, and source text.
+    pub(crate) fn assert_errors(
         &self,
         parser: &Parser,
-        expected_errors: &[(Option<NodeType>, Option<TokenType>, &str)],
+        expected_errors: &[(Option<NodeType>, Option<TokenType>, Option<TokenType>, &str)],
     ) {
         let actual_errors: Vec<_> = parser
             .errors
             .iter()
             .map(|error| {
-                let leaf = error.leaf_content();
-
                 (
-                    leaf.node_type,
-                    leaf.expected,
-                    parser.get_span_str(leaf.span).to_owned(),
+                    error.node_type,
+                    error.actual,
+                    error.expected,
+                    parser.get_span_str(error.span).to_owned(),
                 )
             })
             .collect();
@@ -81,8 +90,8 @@ impl TestParser {
         );
 
         for (
-            (actual_node_type, actual_token, actual_text),
-            (expected_node_type, expected_token, expected_text),
+            (actual_node_type, actual_token, actual_expected, actual_text),
+            (expected_node_type, expected_token, expected_expected, expected_text),
         ) in actual_errors.iter().zip(expected_errors.iter())
         {
             assert_eq!(
@@ -91,6 +100,10 @@ impl TestParser {
             );
             assert_eq!(
                 *actual_token, *expected_token,
+                "actual parser errors: {actual_errors:#?}"
+            );
+            assert_eq!(
+                *actual_expected, *expected_expected,
                 "actual parser errors: {actual_errors:#?}"
             );
             assert_eq!(
@@ -104,6 +117,18 @@ impl TestParser {
     pub(crate) fn assert_no_errors(&self, parser: &Parser) {
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
     }
+}
+
+/// Return EOF for lookahead offsets beyond the physical end of source.
+#[test]
+fn test_lookahead_stays_at_end() {
+    let mut test = TestParser::new("value");
+    let mut parser = test.prepare();
+
+    assert_eq!(parser.token_type_at_offset(1), TokenType::End);
+    assert_eq!(parser.token_type_at_offset(2), TokenType::End);
+    assert_eq!(parser.token_type_at_offset(8), TokenType::End);
+    assert_eq!(parser.peek_token_type(), TokenType::Identifier);
 }
 
 /// Collect block expressions in source order for test assertions.

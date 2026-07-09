@@ -81,7 +81,7 @@ impl Parser {
 
         // keyword
         self.eat_keyword(Keyword::New)?;
-        let is_maybe = self.eat_token_maybe(TokenType::Maybe)?;
+        let is_maybe = self.eat_token_if(TokenType::Maybe);
 
         // constructor name
         let ty = if self.current_token_is_on_new_line() {

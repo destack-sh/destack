@@ -1,11 +1,13 @@
 use crate::parse::flags::ParserFlags;
+use crate::parse::mode::ContextualLexMode;
 use crate::parse::scan::DelimiterDepth;
 use crate::parse::{
     TypeMemberContainerKind, is_declaration_keyword, is_declaration_modifier_keyword,
 };
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
-    Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TypeExpression,
+    Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TreeAttribute, TreeChild,
+    TypeExpression,
 };
 use destack_source::Span;
 
@@ -105,12 +107,31 @@ impl RecoveryPoint {
 
 impl Parser {
     /// Return whether the current semicolon precedes one recovery point.
-    pub(crate) fn current_semicolon_precedes_recovery_point(
-        &mut self,
-        token_type: TokenType,
-        point: RecoveryPoint,
-    ) -> bool {
-        token_type == TokenType::Semicolon && self.semicolon_precedes_recovery_point(point)
+    pub(crate) fn semicolon_precedes_recovery_point(&mut self, point: RecoveryPoint) -> bool {
+        if !self.peek_is(TokenType::Semicolon) {
+            return false;
+        }
+
+        let next = self.next_token();
+        let following_token_type = self.token_type_at_offset(2);
+
+        // require the recovery point to start after a line boundary
+        if !next.is_on_new_line() {
+            return false;
+        }
+
+        // stay in the current item when the next token still binds to it
+        if Self::token_continues_current_recovery_item(following_token_type) {
+            return false;
+        }
+
+        // keep contextual recovery on a real declaration shaped head
+        if !point.accepts_following_token(following_token_type) {
+            return false;
+        }
+
+        self.keyword_at_offset(1)
+            .is_some_and(|keyword| point.accepts_keyword(keyword))
     }
 
     /// Return whether the current token starts one recovery point.
@@ -142,30 +163,6 @@ impl Parser {
         }
 
         self.modifier_precedes_recovery_keyword(point, keyword)
-    }
-
-    /// Return whether the current semicolon is followed by one recovery point.
-    fn semicolon_precedes_recovery_point(&mut self, point: RecoveryPoint) -> bool {
-        let next = self.next_token();
-        let following_token_type = self.token_type_at_offset(2);
-
-        // require the recovery point to start after a line boundary
-        if !next.is_on_new_line() {
-            return false;
-        }
-
-        // stay in the current item when the next token still binds to it
-        if Self::token_continues_current_recovery_item(following_token_type) {
-            return false;
-        }
-
-        // keep contextual recovery on a real declaration shaped head
-        if !point.accepts_following_token(following_token_type) {
-            return false;
-        }
-
-        self.keyword_at_offset(1)
-            .is_some_and(|keyword| point.accepts_keyword(keyword))
     }
 
     /// Return whether one modifier is followed by a recovery keyword.
@@ -207,19 +204,21 @@ impl Parser {
     }
 
     /// Return the best local anchor span at the current cursor position.
-    pub(crate) fn anchor_span_here(&mut self) -> Span {
-        if let Ok(token) = self.peek() {
-            token.span
-        } else {
-            self.eof_span()
-        }
+    pub(crate) fn anchor_span_here(&self) -> Span {
+        self.peek().span
     }
 
     /// Report one unexpected node at the current cursor position.
     pub(crate) fn report_unexpected_for_here(&mut self, owner: NodeType) {
         let error = ParserError::unexpected_for(self.anchor_span_here(), owner);
 
-        self.error(&error);
+        self.report_error(&error);
+    }
+
+    /// Report one expected token at the current cursor position.
+    fn report_expected_for_here(&mut self, expected: TokenType, owner: NodeType) {
+        let error = ParserError::expected_for(self.peek(), expected, owner);
+        self.report_error(&error);
     }
 
     /// Recover one missing token at the current cursor position.
@@ -233,7 +232,8 @@ impl Parser {
             return Err(ParserError::expected(self.anchor_span_here(), expected));
         }
 
-        self.report_unexpected_for_here(owner);
+        self.report_expected_for_here(expected, owner);
+
         Ok(())
     }
 
@@ -253,6 +253,139 @@ impl Parser {
     ) -> LocalNodeId<TypeExpression> {
         self.report_unexpected_for_here(owner);
         self.insert_missing_type_expression_here()
+    }
+
+    /// Recover one malformed tree attribute and preserve its list position.
+    pub(crate) fn recover_tree_attribute(
+        &mut self,
+        start: &ParserSpanStart,
+        error: ParserError,
+    ) -> LocalNodeId<TreeAttribute> {
+        self.skip_damaged_tree_attribute();
+
+        let recovered_span = self.get_span_from(start);
+        let error = error.for_node_type(NodeType::TreeAttribute);
+        self.report_error(&error);
+
+        self.insert_node(TreeAttribute::Error, recovered_span)
+    }
+
+    /// Recover one malformed tree child and preserve its list position.
+    pub(crate) fn recover_tree_child(
+        &mut self,
+        start: &ParserSpanStart,
+        error: ParserError,
+    ) -> LocalNodeId<TreeChild> {
+        self.skip_damaged_tree_child();
+
+        let recovered_span = self.get_span_from(start);
+        let error = error.for_node_type(NodeType::TreeChild);
+        self.report_error(&error);
+
+        self.insert_node(TreeChild::Error, recovered_span)
+    }
+
+    /// Skip one damaged tree attribute without consuming the next attribute.
+    fn skip_damaged_tree_attribute(&mut self) {
+        // consume a malformed spread container as one attribute
+        if self.peek_is(TokenType::OpenBrace) {
+            self.skip_damaged_tree_braces(ContextualLexMode::TreeTag);
+            return;
+        }
+
+        // consume the malformed attribute head
+        if self.peek_is(TokenType::End)
+            || self.peek_starts_tree_tag_close()
+            || self.peek_starts_tree_literal_close()
+        {
+            return;
+        }
+        self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
+
+        // leave a following attribute untouched when the value is missing
+        if !self.peek_is(TokenType::Assign) {
+            return;
+        }
+        self.bump_with_contextual_lex_mode(ContextualLexMode::TreeAttributeValue);
+        if self.peek_is(TokenType::Identifier)
+            || self.peek_is(TokenType::Divide)
+            || self.peek_starts_tree_tag_close()
+            || self.peek_is(TokenType::End)
+        {
+            self.set_tree_tag_follow();
+            return;
+        }
+
+        // consume one delimited or scalar attribute value
+        if self.peek_is(TokenType::OpenBrace) {
+            self.skip_damaged_tree_braces(ContextualLexMode::TreeTag);
+        } else {
+            self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
+        }
+    }
+
+    /// Skip one damaged tree child and resume in child mode.
+    fn skip_damaged_tree_child(&mut self) {
+        match self.peek_token_type() {
+            TokenType::OpenBrace => self.skip_damaged_tree_braces(ContextualLexMode::TreeChild),
+            TokenType::LessThan => self.skip_damaged_tree_tag(),
+            TokenType::End => {}
+            _ => self.bump_with_contextual_lex_mode(ContextualLexMode::TreeChild),
+        }
+    }
+
+    /// Skip one damaged tree expression container.
+    fn skip_damaged_tree_braces(&mut self, follow_mode: ContextualLexMode) {
+        let mut depth = 0usize;
+
+        loop {
+            let token_type = self.peek_token_type();
+
+            // leave an enclosing closing tag for the tree parser
+            if depth == 1 && self.peek_starts_tree_literal_close() {
+                return;
+            }
+
+            match token_type {
+                TokenType::OpenBrace => {
+                    depth += 1;
+                    self.bump_with_contextual_lex_mode(ContextualLexMode::Normal);
+                }
+                TokenType::CloseBrace if depth == 1 => {
+                    self.bump_with_contextual_lex_mode(follow_mode);
+                    return;
+                }
+                TokenType::CloseBrace => {
+                    depth -= 1;
+                    self.bump_with_contextual_lex_mode(ContextualLexMode::Normal);
+                }
+                TokenType::End => return,
+                _ => self.bump_with_contextual_lex_mode(ContextualLexMode::Normal),
+            }
+        }
+    }
+
+    /// Skip one damaged tree tag head and resume in child mode.
+    fn skip_damaged_tree_tag(&mut self) {
+        self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
+
+        loop {
+            // leave an ancestor closing tag for the open tree stack
+            if self.peek_starts_tree_literal_close() {
+                return;
+            }
+
+            if self.peek_starts_tree_tag_close() {
+                self.bump_with_contextual_lex_mode(ContextualLexMode::TreeChild);
+                return;
+            }
+
+            if self.peek_is(TokenType::End) {
+                return;
+            }
+
+            self.bump_with_contextual_lex_mode(ContextualLexMode::TreeTag);
+        }
     }
 
     /// Eat one type expression or recover one missing child at a type boundary.
@@ -318,14 +451,13 @@ impl Parser {
         &mut self,
         expected: TokenType,
         owner: NodeType,
-    ) -> ParserResult<()> {
+    ) {
         if self.peek_is(expected) {
             self.bump();
-            return Ok(());
+            return;
         }
 
-        self.report_unexpected_for_here(owner);
-        Ok(())
+        self.report_expected_for_here(expected, owner);
     }
 
     /// Eat one type close token or recover one missing delimiter at a type boundary.
@@ -356,7 +488,8 @@ impl Parser {
         match parse(self) {
             Ok(result) => result,
             Err(error) => {
-                let _ = self.try_recover(start, bail, Some(error));
+                let start_span = self.get_span_from(start);
+                self.recover_until(start_span, bail, Some(error));
                 default
             }
         }
@@ -372,20 +505,22 @@ impl Parser {
         match parse(self) {
             Ok(result) => result,
             Err(error) => {
-                let _ = self.try_recover_in_statement(start, Some(error));
+                let start_span = self.get_span_from(start);
+                self.recover_statement(start_span, Some(error));
                 default
             }
         }
     }
 
     /// Recover until the expected token.
-    pub fn try_recover(
+    pub fn recover_until(
         &mut self,
-        start: &ParserSpanStart,
+        start_span: Span,
         recover: TokenType,
         error: Option<ParserError>,
-    ) -> ParserResult<()> {
-        while let Ok(token) = self.peek() {
+    ) -> Span {
+        loop {
+            let token = self.peek();
             let token_type = token.token.ty();
 
             if token_type == TokenType::End {
@@ -393,30 +528,26 @@ impl Parser {
             }
 
             if token_type == recover {
-                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
+                return self.complete_recovery(start_span, error);
             }
 
             self.bump();
         }
 
-        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-
-        Err(error)
+        self.complete_recovery(start_span, error)
     }
 
     /// Recover within one list item until a separator or terminator boundary.
-    pub fn try_recover_in_item_list(
+    pub fn recover_list_item(
         &mut self,
-        start: &ParserSpanStart,
+        start_span: Span,
         terminator: TokenType,
         error: Option<ParserError>,
-    ) -> ParserResult<()> {
+    ) -> Span {
         let mut depth = DelimiterDepth::for_list_terminator(terminator);
 
-        while let Ok(token) = self.peek() {
+        loop {
+            let token = self.peek();
             let token_type = token.token.ty();
 
             // stop at end of input
@@ -425,10 +556,8 @@ impl Parser {
             }
 
             // stop before the next item or enclosing grammar boundary
-            if self.item_list_recovery_boundary(start, token, terminator, &depth) {
-                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
+            if self.item_list_recovery_boundary(start_span, token, terminator, &depth) {
+                return self.complete_recovery(start_span, error);
             }
 
             // keep scanning within nested delimiters
@@ -436,16 +565,13 @@ impl Parser {
             self.bump();
         }
 
-        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-
-        Err(error)
+        self.complete_recovery(start_span, error)
     }
 
     /// Return whether one token ends recovery for the current list item.
     fn item_list_recovery_boundary(
         &self,
-        start: &ParserSpanStart,
+        start_span: Span,
         token: TokenSpan,
         terminator: TokenType,
         depth: &DelimiterDepth,
@@ -455,7 +581,8 @@ impl Parser {
         }
 
         let token_type = token.token.ty();
-        let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
+        let is_new_line_boundary =
+            start_span.start < token.span.start && token.token.is_on_new_line();
 
         is_new_line_boundary
             || self.token_matches_terminator(token_type, terminator)
@@ -465,44 +592,9 @@ impl Parser {
     }
 
     /// Recover within one statement until a statement boundary.
-    pub fn try_recover_in_statement(
-        &mut self,
-        start: &ParserSpanStart,
-        error: Option<ParserError>,
-    ) -> ParserResult<()> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty();
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
-            let is_boundary = is_new_line_boundary
-                || Self::is_statement_stop_token(token_type)
-                || token_type == TokenType::CloseBrace;
-            if is_boundary {
-                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
-            }
-
-            self.bump();
-        }
-
-        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-
-        Ok(())
-    }
-
-    /// Recover within one statement from an existing source span.
-    pub fn try_recover_in_statement_from_span(
-        &mut self,
-        start_span: Span,
-        error: Option<ParserError>,
-    ) -> ParserResult<Span> {
-        while let Ok(token) = self.peek() {
+    pub fn recover_statement(&mut self, start_span: Span, error: Option<ParserError>) -> Span {
+        loop {
+            let token = self.peek();
             let token_type = token.token.ty();
 
             if token_type == TokenType::End {
@@ -515,32 +607,17 @@ impl Parser {
                 || Self::is_statement_stop_token(token_type)
                 || token_type == TokenType::CloseBrace;
             if is_boundary {
-                let recovered_span = self.recovered_span_from(start_span);
-                let error = ParserError::from_source_maybe(recovered_span, error);
-                self.error(&error);
-                return Ok(recovered_span);
+                return self.complete_recovery(start_span, error);
             }
 
             self.bump();
         }
 
-        let recovered_span = self.recovered_span_from(start_span);
-        let error = ParserError::from_source_maybe(recovered_span, error);
-        self.error(&error);
-
-        Ok(recovered_span)
+        self.complete_recovery(start_span, error)
     }
 
     /// Return true when a recovered list item may continue parsing another item.
-    pub(crate) fn can_continue_after_recovered_item(
-        &mut self,
-        terminator: TokenType,
-        is_recovered_item: bool,
-    ) -> bool {
-        if !is_recovered_item {
-            return false;
-        }
-
+    pub(crate) fn can_continue_after_recovered_item(&mut self, terminator: TokenType) -> bool {
         let token_type = self.peek_token_type();
         !self.token_matches_terminator(token_type, terminator)
             && !Self::is_close_delimiter_token(token_type)
@@ -559,44 +636,9 @@ impl Parser {
     }
 
     /// Recover within a property or member body until a boundary token.
-    pub fn try_recover_in_body(
-        &mut self,
-        start: &ParserSpanStart,
-        error: Option<ParserError>,
-    ) -> ParserResult<()> {
-        while let Ok(token) = self.peek() {
-            let token_type = token.token.ty();
-
-            if token_type == TokenType::End {
-                break;
-            }
-
-            let is_new_line_boundary = start.is_before(token.span) && token.token.is_on_new_line();
-            let is_boundary = is_new_line_boundary
-                || token_type == TokenType::CloseBrace
-                || Self::is_any_stop_token(token_type);
-            if is_boundary {
-                let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-                self.error(&error);
-                return Ok(());
-            }
-
-            self.bump();
-        }
-
-        let error = ParserError::from_source_maybe(self.get_span_from(start), error);
-        self.error(&error);
-
-        Err(error)
-    }
-
-    /// Recover within a property or member body from an existing source span.
-    pub fn try_recover_in_body_from_span(
-        &mut self,
-        start_span: Span,
-        error: Option<ParserError>,
-    ) -> ParserResult<Span> {
-        while let Ok(token) = self.peek() {
+    pub fn recover_body(&mut self, start_span: Span, error: Option<ParserError>) -> Span {
+        loop {
+            let token = self.peek();
             let token_type = token.token.ty();
 
             if token_type == TokenType::End {
@@ -609,23 +651,25 @@ impl Parser {
                 || token_type == TokenType::CloseBrace
                 || Self::is_any_stop_token(token_type);
             if is_boundary {
-                let recovered_span = self.recovered_span_from(start_span);
-                let error = ParserError::from_source_maybe(recovered_span, error);
-                self.error(&error);
-                return Ok(recovered_span);
+                return self.complete_recovery(start_span, error);
             }
 
             self.bump();
         }
 
-        let recovered_span = self.recovered_span_from(start_span);
-        let error = ParserError::from_source_maybe(recovered_span, error);
-        self.error(&error);
-
-        Err(error)
+        self.complete_recovery(start_span, error)
     }
 
-    /// Return a recovered span from one source span start to the previous token.
+    /// Complete one recovery and return its recovered span.
+    fn complete_recovery(&mut self, start_span: Span, error: Option<ParserError>) -> Span {
+        let recovered_span = self.recovered_span_from(start_span);
+        let error = error.unwrap_or_else(|| ParserError::unexpected(recovered_span));
+        self.report_error(&error);
+
+        recovered_span
+    }
+
+    /// Return one source span from a recovery start to the previous token.
     #[inline]
     fn recovered_span_from(&self, start_span: Span) -> Span {
         let end = self.prev_token_end().max(start_span.start);
@@ -641,17 +685,16 @@ impl Parser {
         }
 
         let start = self.span_start();
-        while let Ok(token) = self.peek()
-            && token.token.ty() != bail
-        {
-            if token.token.ty() == TokenType::End {
+        loop {
+            let token_type = self.peek_token_type();
+            if matches!(token_type, TokenType::End) || token_type == bail {
                 break;
             }
 
-            if token.token.ty() == expected {
+            if token_type == expected {
                 let error = ParserError::unexpected(self.get_span_from(&start));
                 self.bump();
-                self.error(&error);
+                self.report_error(&error);
                 return Ok(());
             }
 
@@ -659,7 +702,7 @@ impl Parser {
         }
 
         let error = ParserError::unexpected(self.get_span_from(&start));
-        self.error(&error);
+        self.report_error(&error);
 
         Err(error)
     }

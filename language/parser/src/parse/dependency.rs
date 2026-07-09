@@ -139,7 +139,7 @@ impl Parser {
 
             // reject export default enum declarations
             if self.is_keyword(Keyword::Enum) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let value =
@@ -216,7 +216,7 @@ impl Parser {
 
         // require a binding after export and optional type modifier
         if self.peek_dependency_binding().is_err() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // binding
@@ -287,20 +287,19 @@ impl Parser {
 
     /// Decode one parsed expression node into one import attribute value.
     ///
-    /// Import attribute values are plain data, not syntax nodes, so this is a
-    /// boundary decode from the richer expression tree into the static attribute model.
+    /// Import attributes store values directly rather than retaining their expression nodes.
     fn decode_import_attribute_value(
-        &mut self,
+        &self,
         expression_id: LocalNodeId<Expression>,
     ) -> ParserResult<ImportAttributeValue> {
-        let expression = self.tree.get(expression_id).clone();
+        let expression = self.tree.get(expression_id);
 
         Ok(match expression {
-            Expression::ScalarLiteral(value) => ImportAttributeValue::ScalarLiteral(value),
+            Expression::ScalarLiteral(value) => ImportAttributeValue::ScalarLiteral(*value),
             Expression::ArrayExpression { elements } => {
                 let mut values = Vec::with_capacity(elements.len());
 
-                for element_id in elements {
+                for &element_id in elements {
                     let Argument::Positional { value } = self.tree.get(element_id) else {
                         return Err(ParserError::unexpected(self.tree.get_span(element_id)));
                     };
@@ -313,17 +312,17 @@ impl Parser {
             Expression::ObjectExpression { properties } => {
                 let mut attributes = Vec::with_capacity(properties.len());
 
-                for property_id in properties {
+                for &property_id in properties {
                     let Property::Field { key, value, .. } = self.tree.get(property_id) else {
                         return Err(ParserError::unexpected(self.tree.get_span(property_id)));
                     };
 
-                    let Key::Name(key) = *key else {
+                    let Key::Name(key) = key else {
                         return Err(ParserError::unexpected(self.tree.get_span(property_id)));
                     };
                     let value = self.decode_import_attribute_value(*value)?;
 
-                    attributes.push(ImportAttribute { key, value });
+                    attributes.push(ImportAttribute { key: *key, value });
                 }
 
                 ImportAttributeValue::Object(attributes)
@@ -334,18 +333,16 @@ impl Parser {
 
     /// Decode one parsed named argument into one import attribute entry.
     fn decode_import_attribute(
-        &mut self,
+        &self,
         argument_id: LocalNodeId<Argument>,
     ) -> ParserResult<ImportAttribute> {
-        let argument = self.tree.get(argument_id).clone();
-
-        let Argument::Named { name, value } = argument else {
+        let Argument::Named { name, value } = self.tree.get(argument_id) else {
             return Err(ParserError::unexpected(self.tree.get_span(argument_id)));
         };
 
-        let value = self.decode_import_attribute_value(value)?;
+        let value = self.decode_import_attribute_value(*value)?;
 
-        Ok(ImportAttribute { key: name, value })
+        Ok(ImportAttribute { key: *name, value })
     }
 
     /// Set source spans for one parsed import attribute clause.
@@ -423,7 +420,7 @@ impl Parser {
         if self.peek_dependency_binding_is() {
             Ok(())
         } else {
-            Err(ParserError::unexpected(self.peek()?))
+            Err(ParserError::unexpected(self.peek()))
         }
     }
 
@@ -513,7 +510,7 @@ impl Parser {
 
                 // require a supported binding continuation
                 if !self.peek_is(TokenType::OpenBrace) && !self.peek_is(TokenType::Multiply) {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
             }
             let item = DependencyItem::Binding {
@@ -562,11 +559,11 @@ impl Parser {
                 {
                     Ok(item) => item,
                     Err(error) => {
-                        self.try_recover_in_item_list(
-                            &item_start,
+                        self.recover_list_item(
+                            self.get_span_from(&item_start),
                             TokenType::CloseBrace,
                             Some(error),
-                        )?;
+                        );
 
                         self.insert_node(DependencyItem::Error, self.get_span_from(&item_start))
                     }
@@ -580,7 +577,7 @@ impl Parser {
                 }
 
                 if self.peek_comma_is() {
-                    self.eat_item_stop()?;
+                    self.eat_comma()?;
 
                     // recover a missing close brace before the clause boundary
                     if self.is_keyword(Keyword::From)
@@ -597,7 +594,7 @@ impl Parser {
                     break;
                 }
 
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             self.eat_close_token_or_recover_missing_with(
@@ -629,7 +626,7 @@ impl Parser {
         // source form
         let form = if self.should_parse_dependency_type_modifier() {
             if !allow_type_modifier {
-                let span = self.peek()?.span;
+                let span = self.peek().span;
                 return Err(ParserError::unexpected(span));
             }
             self.bump(); // eat type
@@ -750,7 +747,7 @@ impl Parser {
         }
 
         Err(ParserError::expected(
-            self.peek()?.span,
+            self.peek().span,
             TokenType::Identifier,
         ))
     }
@@ -771,13 +768,12 @@ impl Parser {
         }
 
         // export specifiers also allow keyword like literal aliases: true, false
-        if allow_literal_alias
-            && self.peek().is_ok_and(|token| {
-                token.token.ty() == TokenType::Literal
-                    && matches!(token.token.literal(), Some(TokenLiteral::Boolean { .. }))
-            })
-        {
-            let span = self.peek()?.span;
+        let token = self.peek().token;
+        let has_boolean_literal_alias = allow_literal_alias
+            && token.ty() == TokenType::Literal
+            && matches!(token.literal(), Some(TokenLiteral::Boolean { .. }));
+        if has_boolean_literal_alias {
+            let span = self.peek().span;
             let alias = self.get_span_str(span).to_string();
             let alias = self.strings.intern(&alias);
             self.bump();
@@ -786,7 +782,7 @@ impl Parser {
 
         // all other forms are invalid aliases
         Err(ParserError::expected(
-            self.peek()?.span,
+            self.peek().span,
             TokenType::Identifier,
         ))
     }

@@ -120,8 +120,8 @@ impl Parser {
             self.current_keyword(),
             Some(Keyword::Extends | Keyword::Implements)
         ) {
-            let error = ParserError::expected(self.peek()?, TokenType::Colon);
-            self.error(&error);
+            let error = ParserError::expected(self.peek(), TokenType::Colon);
+            self.report_error(&error);
             self.bump(); // eat stale relation separator
             WhereRelation::Satisfies
         }

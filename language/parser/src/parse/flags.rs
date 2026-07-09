@@ -14,8 +14,7 @@ impl Default for ParserFlags {
 }
 
 impl ParserFlags {
-    const EXPRESSION_FLAG_MASK: u32 = Self::IN_PARENTHESIS_FLAG
-        | Self::IN_STATEMENT_POSITION_FLAG
+    const EXPRESSION_FLAG_MASK: u32 = Self::IN_STATEMENT_POSITION_FLAG
         | Self::IN_TERNARY_CONDITION_FLAG
         | Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG
         | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
@@ -25,36 +24,32 @@ impl ParserFlags {
     const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
 
     const IN_STATIC_FLAG: u32 = 1 << 0;
-    const IN_COMPTIME_FLAG: u32 = 1 << 1;
-    const IN_TYPE_FLAG: u32 = 1 << 2;
-    const IN_SUPER_TYPE_FLAG: u32 = 1 << 3;
-    const IN_VARIANT_FLAG: u32 = 1 << 4;
-    const IN_BEFORE_TYPE_FLAG: u32 = 1 << 5;
-    const IN_MATCH_CASE_FLAG: u32 = 1 << 6;
-    const IN_UNION_PATTERN_FLAG: u32 = 1 << 7;
-    const IN_DECLARE_CONTEXT_FLAG: u32 = 1 << 8;
-    const IN_PARENTHESIS_FLAG: u32 = 1 << 9;
-    const IN_STATEMENT_POSITION_FLAG: u32 = 1 << 10;
-    const IN_STATEMENT_CONTEXT_FLAG: u32 = 1 << 11;
-    const IN_BEFORE_BLOCK_FLAG: u32 = 1 << 12;
-    const IN_TREE_LITERAL_FLAG: u32 = 1 << 13;
-    const IN_DECORATOR_FLAG: u32 = 1 << 14;
-    const IN_TERNARY_CONDITION_FLAG: u32 = 1 << 15;
-    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u32 = 1 << 16;
-    const IN_ARROW_RETURN_TYPE_FLAG: u32 = 1 << 17;
-    const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 19;
-    const IN_FOR_EACH_FLAG: u32 = 1 << 20;
-    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 21;
-    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 22;
-    const IN_GENERATOR_FLAG: u32 = 1 << 23;
-    const FORBID_YIELD_FLAG: u32 = 1 << 24;
-    const FORBID_AWAIT_FLAG: u32 = 1 << 25;
-    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 26;
-    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 27;
-    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 28;
-    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 29;
-    const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 30;
-    const IN_DECORATOR_HEAD_FLAG: u32 = 1 << 31;
+    const IN_TYPE_FLAG: u32 = 1 << 1;
+    const IN_SUPER_TYPE_FLAG: u32 = 1 << 2;
+    const IN_VARIANT_FLAG: u32 = 1 << 3;
+    const IN_BEFORE_TYPE_FLAG: u32 = 1 << 4;
+    const IN_MATCH_CASE_FLAG: u32 = 1 << 5;
+    const IN_UNION_PATTERN_FLAG: u32 = 1 << 6;
+    const IN_STATEMENT_POSITION_FLAG: u32 = 1 << 7;
+    const IN_STATEMENT_CONTEXT_FLAG: u32 = 1 << 8;
+    const IN_BEFORE_BLOCK_FLAG: u32 = 1 << 9;
+    const IN_TREE_LITERAL_FLAG: u32 = 1 << 10;
+    const IN_DECORATOR_FLAG: u32 = 1 << 11;
+    const IN_TERNARY_CONDITION_FLAG: u32 = 1 << 12;
+    const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u32 = 1 << 13;
+    const IN_ARROW_RETURN_TYPE_FLAG: u32 = 1 << 14;
+    const IN_FOR_EACH_FLAG: u32 = 1 << 15;
+    const IN_NEW_RECEIVER_FLAG: u32 = 1 << 16;
+    const IN_TYPEOF_QUERY_FLAG: u32 = 1 << 17;
+    const IN_GENERATOR_FLAG: u32 = 1 << 18;
+    const FORBID_YIELD_FLAG: u32 = 1 << 19;
+    const FORBID_AWAIT_FLAG: u32 = 1 << 20;
+    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 21;
+    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 22;
+    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 23;
+    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 24;
+    const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 25;
+    const IN_DECORATOR_HEAD_FLAG: u32 = 1 << 26;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -83,11 +78,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) const fn is_in_static(self) -> bool {
         self.has_flag(Self::IN_STATIC_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_comptime(self) -> bool {
-        self.has_flag(Self::IN_COMPTIME_FLAG)
     }
 
     #[inline]
@@ -123,11 +113,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) const fn is_in_union_pattern(self) -> bool {
         self.has_flag(Self::IN_UNION_PATTERN_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_in_declare_context(self) -> bool {
-        self.has_flag(Self::IN_DECLARE_CONTEXT_FLAG)
     }
 
     #[inline]
@@ -250,11 +235,6 @@ impl ParserFlags {
     }
 
     #[inline]
-    pub(crate) fn set_in_comptime(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_COMPTIME_FLAG, enabled);
-    }
-
-    #[inline]
     pub(crate) fn set_in_type(&mut self, enabled: bool) {
         self.set_flag(Self::IN_TYPE_FLAG, enabled);
     }
@@ -267,11 +247,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn set_in_before_type(&mut self, enabled: bool) {
         self.set_flag(Self::IN_BEFORE_TYPE_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_declare_context(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_DECLARE_CONTEXT_FLAG, enabled);
     }
 
     #[inline]
@@ -292,11 +267,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn set_in_type_conditional_right(&mut self, enabled: bool) {
         self.set_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_in_type_mapped_constraint(&mut self, enabled: bool) {
-        self.set_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, enabled);
     }
 
     #[inline]
@@ -328,12 +298,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn with_static(self, enabled: bool) -> Self {
         self.with_flag(Self::IN_STATIC_FLAG, enabled)
-    }
-
-    /// Set `in_comptime` to the given value.
-    #[inline]
-    pub(crate) fn with_comptime(self, enabled: bool) -> Self {
-        self.with_flag(Self::IN_COMPTIME_FLAG, enabled)
     }
 
     /// Set `in_type` to the given value.
@@ -529,12 +493,6 @@ impl ParserFlags {
         self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, true)
     }
 
-    /// Set `in_type_mapped_constraint=true`.
-    #[inline]
-    pub(crate) fn in_type_mapped_constraint(self) -> Self {
-        self.with_flag(Self::IN_TYPE_MAPPED_CONSTRAINT_FLAG, true)
-    }
-
     /// Set `in_for_each=true`.
     #[inline]
     pub(crate) fn in_for_each(self) -> Self {
@@ -592,8 +550,7 @@ impl ParserFlags {
     /// Not previous position.
     #[inline]
     pub(crate) fn not_in_position(self) -> Self {
-        self.with_flag(Self::IN_PARENTHESIS_FLAG, false)
-            .with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
+        self.with_flag(Self::IN_STATEMENT_POSITION_FLAG, false)
             .with_flag(Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG, false)
             .with_flag(Self::DISALLOW_TYPE_CONDITIONAL_FLAG, false)
     }
@@ -602,14 +559,12 @@ impl ParserFlags {
     pub(crate) fn nested(self) -> Self {
         let mut flags = Self::default();
         flags.set_in_generator(self.is_in_generator());
-        flags.set_in_comptime(self.is_in_comptime());
         flags.set_forbid_yield(self.is_forbid_yield());
         flags.set_forbid_await(self.is_forbid_await());
         flags.set_allow_sequence_expression(self.allows_sequence_expression());
         flags.set_in_decorator(self.is_in_decorator());
         flags.set_in_decorator_head(false);
         flags.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
-        flags.set_in_declare_context(self.is_in_declare_context());
         flags.set_in_statement_context(self.is_in_statement_context());
         flags
     }

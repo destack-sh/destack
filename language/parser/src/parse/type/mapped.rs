@@ -4,16 +4,16 @@ use destack_dir::{
     Keyword, LocalNodeId, MappedTypeModifier, NodeType, TokenType, TypeExpression,
     TypeMappedParameter,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Parsed mapped type head.
 struct MappedTypeHead {
     /// The mapped parameter node.
     parameter: LocalNodeId<TypeMappedParameter>,
     /// The full mapped head span.
-    span: destack_source::Span,
+    span: Span,
     /// The mapped key name span.
-    name_span: destack_source::Span,
+    name_span: Span,
 }
 
 /// Parsed mapped type value.
@@ -21,7 +21,7 @@ struct MappedTypeValue {
     /// The optional mapped value type.
     value: Option<LocalNodeId<TypeExpression>>,
     /// The optional mapped value span.
-    span: Option<destack_source::Span>,
+    span: Option<Span>,
 }
 
 impl Parser {
@@ -49,7 +49,7 @@ impl Parser {
         }
 
         // mapped value trailing boundary
-        let mapped_close_start = self.peek()?.span.start;
+        let mapped_close_start = self.peek().span.start;
         if let Some(value) = value.value {
             self.set_node_trailing_span(value, mapped_close_start);
         }
@@ -123,10 +123,7 @@ impl Parser {
         let (name, name_span) = self.eat_identifier_with_span()?;
         self.eat_keyword(Keyword::In)?;
         let source_type = self.eat_type_expression_or_recover_missing(
-            self.flags
-                .not_in_position()
-                .in_type()
-                .in_type_mapped_constraint(),
+            self.flags.not_in_position().in_type(),
             NodeType::TypeExpression,
         )?;
         let key_remap = self.eat_type_mapped_key_remap(source_type)?;
