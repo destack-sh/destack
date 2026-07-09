@@ -59,7 +59,7 @@ impl Parser {
     /// Eat an arrow.
     #[inline]
     pub fn eat_arrow(&mut self) -> ParserResult<TokenSpan> {
-        let token = self.eat()?;
+        let token = self.eat();
         if token.token.ty() == TokenType::ArrowWide {
             Ok(token)
         } else {

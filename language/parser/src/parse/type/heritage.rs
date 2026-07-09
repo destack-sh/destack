@@ -38,7 +38,7 @@ impl Parser {
             // clause boundary
             if self.is_super_clause_terminator(terminators) {
                 if expects_item && !items.is_empty() {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
                 break;
             }
@@ -47,13 +47,13 @@ impl Parser {
             if self.current_token_is_on_new_line() {
                 if self.newline_before_super_clause_terminator(terminators) {
                     if expects_item && !items.is_empty() {
-                        return Err(ParserError::unexpected(self.peek()?));
+                        return Err(ParserError::unexpected(self.peek()));
                     }
                     break;
                 }
 
                 if !allow_newline_separator && !expects_item {
-                    return Err(ParserError::unexpected(self.peek()?));
+                    return Err(ParserError::unexpected(self.peek()));
                 }
                 if !expects_item {
                     expects_item = true;
@@ -62,7 +62,7 @@ impl Parser {
 
             // explicit comma separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
                 expects_item = true;
                 continue;
             }
@@ -73,14 +73,14 @@ impl Parser {
                     break;
                 }
 
-                self.eat_item_stop()?;
+                self.eat_comma()?;
                 expects_item = true;
                 continue;
             }
 
             // next heritage item
             if !expects_item {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let item_start = self.span_start();

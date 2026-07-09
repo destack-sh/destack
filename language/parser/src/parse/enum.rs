@@ -9,6 +9,7 @@ use destack_dir::{
     NodeType, TemplateLiteral, TokenLiteral, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use std::mem;
 
 impl Parser {
     /// Eat an enum declaration.
@@ -53,7 +54,7 @@ impl Parser {
         // require declaration heads on one line
         if self.current_token_is_on_new_line() && self.peek_is(TokenType::Identifier) {
             let error = ParserError::unexpected(enum_span);
-            self.error(&error);
+            self.report_error(&error);
             return Err(error);
         }
 
@@ -152,8 +153,8 @@ impl Parser {
             // stop on closing brace
             if token_type == TokenType::CloseBrace {
                 if !pending_decorators.is_empty() {
-                    let error = ParserError::unexpected(self.peek()?);
-                    self.error(&error);
+                    let error = ParserError::unexpected(self.peek());
+                    self.report_error(&error);
                     pending_decorators.clear();
                 }
 
@@ -172,16 +173,17 @@ impl Parser {
             else if self.peek_enum_field_is() {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
                 if !pending_decorators.is_empty() {
-                    self.attach_decorators(field.id, std::mem::take(&mut pending_decorators));
+                    self.attach_decorators(field.id, mem::take(&mut pending_decorators));
                 }
                 fields.push(field);
             }
             // (static) members
             else {
-                let member_id =
-                    self.with_flags(self.enum_member_flags(), |parser| parser.try_eat_member())?;
+                let member_id = self.with_flags(self.enum_member_flags(), |parser| {
+                    parser.eat_member_or_recover()
+                });
                 if !pending_decorators.is_empty() {
-                    self.attach_decorators(member_id.id, std::mem::take(&mut pending_decorators));
+                    self.attach_decorators(member_id.id, mem::take(&mut pending_decorators));
                 }
                 members.push(member_id);
             }
@@ -243,10 +245,10 @@ impl Parser {
 
             let name = if self.peek_is(TokenType::Literal)
                 && matches!(
-                    self.peek()?.token.literal(),
+                    self.peek().token.literal(),
                     Some(TokenLiteral::String { .. })
                 ) {
-                let token = self.peek()?;
+                let token = self.peek();
                 let content = self.get_string_literal_str(token).to_owned();
                 let string_id = self.strings.intern(&content);
                 self.bump();
@@ -259,11 +261,11 @@ impl Parser {
                 match template {
                     TemplateLiteral::String { string } => Name::String(string),
                     TemplateLiteral::InterpolatedString { .. } => {
-                        return Err(ParserError::unexpected(self.peek()?));
+                        return Err(ParserError::unexpected(self.peek()));
                     }
                 }
             } else {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             };
 
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;

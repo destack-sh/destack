@@ -5,7 +5,7 @@ use destack_dir::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
     TypeKind,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Parsed type keyword header.
 #[derive(Debug, Copy, Clone)]
@@ -42,7 +42,7 @@ impl Parser {
 
         // named aliases are declarations, not type operands
         if self.identifier_starts_type_alias() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         self.eat_type_keyword_body_expression(start, keyword_span, type_keyword)
@@ -179,7 +179,7 @@ impl Parser {
     fn eat_type_keyword_body_expression(
         &mut self,
         start: &ParserSpanStart,
-        keyword_span: destack_source::Span,
+        keyword_span: Span,
         type_keyword: TypeKeywordHeader,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let right = self.eat_type_keyword_body()?;
@@ -223,7 +223,7 @@ impl Parser {
     fn eat_type_alias_value(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {
         // bare intrinsic marker
         if self.peek_identifier_is() {
-            let reference = self.peek()?;
+            let reference = self.peek();
             let is_bare_intrinsic = self.get_span_str(reference.span) == "intrinsic"
                 && Self::is_type_expression_boundary_token(self.next_token_type());
 
@@ -238,7 +238,7 @@ impl Parser {
 
         // reject optional type suffixes outside tuple and parameter heads
         if self.peek_is(TokenType::Maybe) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         Ok(value)

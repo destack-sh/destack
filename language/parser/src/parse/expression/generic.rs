@@ -37,24 +37,23 @@ impl Parser {
         }
 
         let checkpoint = self.checkpoint();
-        let mark = self.tree.next_id();
         let started_with_shift_left = self.peek_is(TokenType::ShiftLeft);
 
         // parse speculative arguments
         let Ok(arguments) = self.eat_generic_arguments() else {
-            self.restore(checkpoint, mark);
+            self.restore(checkpoint);
             return None;
         };
 
         // validate shift-left generic arguments
         if started_with_shift_left && !self.shift_left_generic_arguments_are_valid(&arguments) {
-            self.restore(checkpoint, mark);
+            self.restore(checkpoint);
             return None;
         }
 
         // validate value postfix commitment
         if require_value_postfix_commit && !self.generic_arguments_can_commit_in_value_postfix() {
-            self.restore(checkpoint, mark);
+            self.restore(checkpoint);
             return None;
         }
 

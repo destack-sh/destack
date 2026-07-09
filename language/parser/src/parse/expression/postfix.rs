@@ -1,9 +1,11 @@
 use crate::parse::scope::ExpressionScope;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use destack_core::StringId;
 use destack_dir::{
-    Expression, Keyword, LocalNodeId, NodeType, Path, PostfixPosition, ScalarLiteral, TokenType,
-    TypeExpression, UnaryOperator,
+    Expression, GenericArgument, Keyword, LocalNodeId, NodeType, Path, PostfixPosition,
+    ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
 };
+use destack_source::Span;
 use smallvec::smallvec;
 
 impl Parser {
@@ -102,7 +104,7 @@ impl Parser {
         }
 
         if self.is_unparenthesized_lambda_expression(left) && !is_parenthesized {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         self.eat_call(left, Vec::new().into(), PostfixPosition::Direct)
@@ -143,7 +145,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
         position: PostfixPosition,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let operator_span = self.peek()?.span;
+        let operator_span = self.peek().span;
         self.bump();
         let expression_id = self.insert_node(
             Expression::Maybe { position, left },
@@ -168,7 +170,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
         position: PostfixPosition,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let operator_span = self.peek()?.span;
+        let operator_span = self.peek().span;
         self.bump();
         let expression_id = self.insert_node(
             Expression::Must { position, left },
@@ -271,14 +273,13 @@ impl Parser {
         }
 
         let checkpoint = self.checkpoint();
-        let mark = self.tree.next_id();
         let has_leading_gap = self.generic_arguments_have_leading_gap(left);
         let Some(generic_arguments) = self.eat_generic_arguments_if_valid(true) else {
             return Ok(None);
         };
 
         if has_leading_gap && !self.spaced_generic_arguments_have_postfix_anchor() {
-            self.restore(checkpoint, mark);
+            self.restore(checkpoint);
             return Ok(None);
         }
 
@@ -312,7 +313,7 @@ impl Parser {
                 return Ok(true);
             }
 
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         Ok(false)
@@ -543,7 +544,7 @@ impl Parser {
         &mut self,
         expression: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
-        generic_arguments: Vec<LocalNodeId<destack_dir::GenericArgument>>,
+        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
     ) -> Option<LocalNodeId<TypeExpression>> {
         let left = self.without_parentheses_expression(left);
         let ty = self.static_type_head_from_expression(left)?;
@@ -574,7 +575,7 @@ impl Parser {
     fn static_type_head_with_member(
         &self,
         ty: LocalNodeId<TypeExpression>,
-        name: destack_core::StringId,
+        name: StringId,
     ) -> TypeExpression {
         match self.tree.get(ty) {
             TypeExpression::Reference {
@@ -598,10 +599,7 @@ impl Parser {
 
     /// Return whether the current question token touches the token before it.
     fn question_is_attached_to_operand(&mut self) -> bool {
-        let question_start = match self.peek() {
-            Ok(token) => token.span.start,
-            Err(_) => return false,
-        };
+        let question_start = self.peek().span.start;
 
         self.prev()
             .is_some_and(|previous| previous.span.end == question_start)
@@ -674,7 +672,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let Some(generic_arguments) = self.eat_generic_arguments_if_valid(true) else {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         };
 
         if self.peek_is(TokenType::OpenParenthesis) {
@@ -704,10 +702,10 @@ impl Parser {
         left: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<Expression>> {
         if self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
-        let hash_span = self.peek()?.span;
+        let hash_span = self.peek().span;
         self.bump();
 
         let name = if self.peek_is(TokenType::Identifier) {
@@ -771,7 +769,7 @@ impl Parser {
     fn expression_is_decimal_integer_before_dot(
         &self,
         left: LocalNodeId<Expression>,
-        dot_span: destack_source::Span,
+        dot_span: Span,
     ) -> bool {
         if !matches!(
             self.tree.get(left),

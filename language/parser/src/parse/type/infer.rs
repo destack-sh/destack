@@ -1,6 +1,8 @@
 use crate::{Parser, ParserResult};
 
+use destack_core::StringId;
 use destack_dir::{InferForm, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_source::Span;
 
 impl Parser {
     /// Eat one `infer` type expression.
@@ -40,9 +42,7 @@ impl Parser {
     /// _
     /// Result
     /// ```
-    fn eat_infer_binding(
-        &mut self,
-    ) -> ParserResult<(Option<destack_core::StringId>, destack_source::Span)> {
+    fn eat_infer_binding(&mut self) -> ParserResult<(Option<StringId>, Span)> {
         let (name, name_span) = self.eat_identifier_with_span()?;
         if self.language.is_destack() && self.get_span_str(name_span) == "_" {
             return Ok((None, name_span));
@@ -65,12 +65,11 @@ impl Parser {
         }
 
         let checkpoint = self.checkpoint();
-        let mark = self.tree.next_id();
         self.bump();
 
         let constraint = self.eat_infer_constraint_type()?;
         if self.infer_extends_is_conditional_boundary() {
-            self.restore(checkpoint, mark);
+            self.restore(checkpoint);
             return Ok(None);
         }
 

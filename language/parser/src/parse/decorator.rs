@@ -67,7 +67,6 @@ impl Parser {
         decorator_flags.set_in_super_type(false);
         decorator_flags.set_in_before_type(false);
         decorator_flags.set_in_type_conditional_right(false);
-        decorator_flags.set_in_type_mapped_constraint(false);
 
         // parse decorator target expression
         let expression =

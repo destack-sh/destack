@@ -68,21 +68,9 @@ impl Parser {
             Asynchrony::Sync
         };
 
+        let header_scan = self.scan_parenthesized_group(TokenType::Semicolon);
+        let has_top_level_semicolon = matches!(header_scan, Some(true));
         self.eat_token(TokenType::OpenParenthesis)?;
-
-        let close_span = self.find_matching_close_after_open_maybe(
-            TokenType::OpenParenthesis,
-            TokenType::CloseParenthesis,
-        );
-        let has_top_level_semicolon = if let Some(close_span) = close_span {
-            self.has_token_before_matching_close_after_open(
-                close_span,
-                TokenType::Semicolon,
-                false,
-            )?
-        } else {
-            false
-        };
 
         // for condition loop
         if asynchrony == Asynchrony::Sync && has_top_level_semicolon {
@@ -143,10 +131,11 @@ impl Parser {
             let binding = self.eat_for_each_binding()?;
 
             // in
+            let operator_token = self.peek();
             let operator = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
                 Keyword::In => ForEachOperator::In,
                 Keyword::Of => ForEachOperator::Of,
-                _ => unreachable!(),
+                _ => return Err(ParserError::unexpected(operator_token)),
             };
 
             // reject using bindings in semicolon statement `for ... in`
@@ -155,11 +144,11 @@ impl Parser {
                 && operator == ForEachOperator::In
                 && matches!(binding, ForEachBinding::Using { .. })
             {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             // iterator
-            let iterator_flags = self.for_each_value_flags(close_span.is_some());
+            let iterator_flags = self.for_each_value_flags(header_scan.is_some());
             let iterator_id =
                 self.with_flags(iterator_flags, |parser| parser.eat_expression(parser.flags))?;
 

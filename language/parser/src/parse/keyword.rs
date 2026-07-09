@@ -101,7 +101,7 @@ impl Parser {
             Ok(keyword)
         } else {
             Err(ParserError::expected(
-                self.peek()?.span,
+                self.peek().span,
                 TokenType::Identifier,
             ))
         }

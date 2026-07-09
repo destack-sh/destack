@@ -4,6 +4,7 @@ use destack_dir::{
     Key, Keyword, Name, NodeType, ScalarLiteral, TokenLiteral, TokenSpan, TokenType,
 };
 use destack_source::Span;
+use std::str::FromStr;
 
 impl Parser {
     /// Peek an identifier.
@@ -48,7 +49,22 @@ impl Parser {
     /// Eat a binding identifier and return both the identifier and its span.
     #[inline]
     pub fn eat_binding_identifier_with_span(&mut self) -> ParserResult<(StringId, Span)> {
+        self.report_forbidden_binding_identifier()?;
+
         self.eat_identifier_with_span()
+    }
+
+    /// Report a contextually reserved binding identifier while preserving its tree shape.
+    pub(crate) fn report_forbidden_binding_identifier(&mut self) -> ParserResult<()> {
+        let keyword = self.current_keyword();
+        let is_forbidden = self.flags.is_forbid_yield() && keyword == Some(Keyword::Yield)
+            || self.flags.is_forbid_await() && keyword == Some(Keyword::Await);
+        if is_forbidden {
+            let error = ParserError::unexpected(self.peek());
+            self.report_error(&error);
+        }
+
+        Ok(())
     }
 
     /// Eat a string literal and return both the content and its span.
@@ -68,7 +84,7 @@ impl Parser {
             self.peek_token(TokenType::Identifier)
         } else {
             Err(ParserError::expected(
-                self.peek()?.span,
+                self.peek().span,
                 TokenType::Identifier,
             ))
         }
@@ -89,7 +105,7 @@ impl Parser {
         let Some(decoded) = self.decode_identifier_unicode_escapes(raw) else {
             return false;
         };
-        <Keyword as std::str::FromStr>::from_str(&decoded).is_ok()
+        Keyword::from_str(&decoded).is_ok()
     }
 
     // reject escaped identifiers that decode to disallowed code points
@@ -349,7 +365,7 @@ impl Parser {
     /// Peek a numeric literal (int or float, for object keys).
     #[inline]
     pub fn peek_numeric_literal(&mut self) -> ParserResult<TokenSpan> {
-        let token = self.peek()?;
+        let token = self.peek();
         if token.token.ty() == TokenType::Literal {
             match token.token.literal() {
                 Some(TokenLiteral::Int { .. }) | Some(TokenLiteral::Float { .. }) => Ok(token),
@@ -402,7 +418,7 @@ impl Parser {
         }
         // error
         else {
-            Err(ParserError::unexpected(self.peek()?))
+            Err(ParserError::unexpected(self.peek()))
         }
     }
 
@@ -444,14 +460,14 @@ impl Parser {
 
         // boolean identifier name key
         if self.peek_boolean_name_literal_is() {
-            let token = self.eat()?;
+            let token = self.eat();
             let raw = self.get_token_span_str(token).to_owned();
             let string_id = self.strings.intern(&raw);
             return Ok((Name::Identifier(string_id), token.span));
         }
 
         // invalid key name
-        Err(ParserError::unexpected(self.peek()?))
+        Err(ParserError::unexpected(self.peek()))
     }
 
     /// Return true when the next tokens start a private hash key.
@@ -526,7 +542,7 @@ impl Parser {
         }
         // error
         else {
-            Err(ParserError::unexpected(self.peek()?))
+            Err(ParserError::unexpected(self.peek()))
         }
     }
 

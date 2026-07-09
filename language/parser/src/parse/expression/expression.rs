@@ -4,12 +4,14 @@ use crate::parse::{
     DeclarationHeader, PendingDecorators, is_declaration_keyword, is_type_relation_keyword,
 };
 use crate::{Parser, ParserResult, ParserSpanStart};
+use destack_core::StringId;
 use destack_dir::{
     Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, ExportKind,
     Expression, Keyword, LocalNodeId, NodeType, TokenLiteral, TokenType, TypeExpression,
 };
 use destack_source::Span;
 use smallvec::SmallVec;
+use std::mem;
 
 impl Parser {
     /// Insert one explicit `Expression::Type` wrapper.
@@ -396,16 +398,14 @@ impl Parser {
     /// default
     /// true
     /// ```
-    pub(crate) fn eat_member_name_with_span(
-        &mut self,
-    ) -> ParserResult<(destack_core::StringId, Span)> {
+    pub(crate) fn eat_member_name_with_span(&mut self) -> ParserResult<(StringId, Span)> {
         if self.peek_is(TokenType::Literal)
             && matches!(
                 self.current_token().literal(),
                 Some(TokenLiteral::Boolean { .. })
             )
         {
-            let span = self.peek()?.span;
+            let span = self.peek().span;
             let name = self.strings.intern(self.get_span_str(span));
             self.bump();
             return Ok((name, span));
@@ -454,7 +454,7 @@ impl Parser {
                 Expression::Declaration(declaration_id) => declaration_id.id,
                 _ => expression_id.id,
             };
-            self.attach_decorators(owner_id, std::mem::take(decorators));
+            self.attach_decorators(owner_id, mem::take(decorators));
         }
     }
 
@@ -520,7 +520,7 @@ impl Parser {
         type_expression_id: LocalNodeId<TypeExpression>,
     ) {
         if !decorators.is_empty() {
-            self.attach_decorators(type_expression_id.id, std::mem::take(decorators));
+            self.attach_decorators(type_expression_id.id, mem::take(decorators));
         }
     }
 }

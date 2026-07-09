@@ -162,7 +162,7 @@ impl Parser {
                 return Ok(None);
             }
 
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         if is_on_new_line
@@ -635,7 +635,7 @@ impl Parser {
             && self.current_token_is_on_new_line()
             && self.can_start_tree_literal()
         {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         Ok(left)

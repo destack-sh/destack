@@ -1,6 +1,6 @@
 use crate::{Lexer, LexerState, ParserTriviaMode, is_semantic, keyword_from_identifier};
 use core::fmt;
-use destack_core::StringPool;
+use destack_core::{StringPool, ensure_sufficient_stack};
 use destack_dir::{
     BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token, TokenLiteral,
     TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
@@ -31,32 +31,8 @@ const LOOKAHEAD_CAPACITY: usize = 4;
 /// Maximum nested recursive parser descent before reporting malformed input.
 const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
 
-/// Stable parser error identity used for diagnostic deduplication.
-#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
-struct ParserErrorKey {
-    /// The leaf error span.
-    span: Span,
-    /// The leaf parser node type.
-    node_type: Option<NodeType>,
-    /// The expected token at the leaf.
-    expected: Option<TokenType>,
-}
-
-impl ParserErrorKey {
-    /// Create one deduplication key from one parser error.
-    fn from_error(error: &ParserError) -> Self {
-        let leaf = error.leaf_content();
-
-        Self {
-            span: leaf.span,
-            node_type: leaf.node_type,
-            expected: leaf.expected,
-        }
-    }
-}
-
 /// Lexer cursor state attached to a parser token boundary.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct LookaheadState {
     /// The live lexer state at this boundary.
     lexer: LexerState,
@@ -128,16 +104,10 @@ impl Lookahead {
         }
     }
 
-    /// Return the saved lexer state after the current parser token.
+    /// Return the saved cursor state after the current parser token.
     #[inline(always)]
-    fn current_state(&self) -> Option<LexerState> {
-        self.current.as_ref().map(|state| state.lexer)
-    }
-
-    /// Return the saved side-token length after the current parser token.
-    #[inline(always)]
-    fn current_side_tokens_len(&self) -> Option<usize> {
-        self.current.as_ref().map(|state| state.side_tokens_len)
+    fn current_state(&self) -> Option<LookaheadState> {
+        self.current
     }
 
     /// Push one future token.
@@ -224,8 +194,8 @@ pub struct Parser {
     pub language: LanguageType,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParserError>,
-    /// The parser error keys encountered so far.
-    error_keys: HashSet<ParserErrorKey>,
+    /// The parser errors already reported for deduplication.
+    reported_errors: HashSet<ParserError>,
 }
 
 impl Debug for Parser {
@@ -255,7 +225,7 @@ impl Parser {
 
     /// Return true when source trivia before the offset token contains a line break.
     #[inline]
-    pub(crate) fn token_at_offset_has_leading_line_break(&mut self, offset: usize) -> bool {
+    pub(crate) fn token_at_offset_is_on_new_line(&mut self, offset: usize) -> bool {
         self.token_at_offset(offset).is_on_new_line()
     }
 
@@ -305,18 +275,18 @@ impl Parser {
         parse: impl FnOnce(&mut Self) -> ParserResult<T>,
     ) -> ParserResult<T> {
         if self.recursive_descent_depth >= MAX_RECURSIVE_DESCENT_DEPTH {
-            return Err(ParserError::unexpected_for(self.peek()?, owner));
+            return Err(ParserError::unexpected_for(self.peek(), owner));
         }
 
         self.recursive_descent_depth += 1;
-        let result = destack_core::ensure_sufficient_stack(|| parse(self));
+        let result = ensure_sufficient_stack(|| parse(self));
         self.recursive_descent_depth -= 1;
 
         result
     }
 
     /// Create one parser that appends into an existing DIR tree.
-    fn parser_with_tree(
+    fn new(
         file: Arc<File>,
         language: LanguageType,
         strings: Arc<StringPool>,
@@ -344,7 +314,9 @@ impl Parser {
         // initialize source-local parser state
         let file_id = file.id;
         strings.reserve(estimated_strings);
-        Self {
+        let mut flags = ParserFlags::default();
+        flags.set_disallow_ambiguous_tree_literal(options.disallow_ambiguous_tree_literal);
+        let mut parser = Self {
             file,
             file_id,
             lexer,
@@ -365,15 +337,18 @@ impl Parser {
             has_consumed_semantic_token: false,
             last_consumed_token: Token::eof(0),
             is_finished: false,
-            flags: ParserFlags::default(),
+            flags,
             preserve_parenthesized_wrappers: options.preserve_parenthesized_wrappers,
             recursive_descent_depth: 0,
             language,
             tree,
             strings,
             errors: Vec::with_capacity(4),
-            error_keys: HashSet::with_capacity(4),
-        }
+            reported_errors: HashSet::with_capacity(4),
+        };
+        parser.read_first_token();
+
+        parser
     }
 
     /// Create a new parser from a text File and tokenize it.
@@ -445,26 +420,7 @@ impl Parser {
         strings: Arc<StringPool>,
         tree: Tree,
     ) -> Self {
-        let mut parser = Self::parser_with_tree(file, language, strings, tree, options);
-        parser.reset();
-        parser.apply_options(options);
-        parser
-    }
-
-    /// Apply externally provided parser options.
-    #[inline]
-    pub fn apply_options(&mut self, options: ParserOptions) {
-        self.flags
-            .set_disallow_ambiguous_tree_literal(options.disallow_ambiguous_tree_literal);
-        self.preserve_parenthesized_wrappers = options.preserve_parenthesized_wrappers;
-        debug_assert!(
-            self.trivia_mode == options.trivia_mode,
-            "trivia retention must be configured before lexing starts"
-        );
-        debug_assert!(
-            self.token_history == options.token_history,
-            "token retention must be configured before parsing starts"
-        );
+        Self::new(file, language, strings, tree, options)
     }
 
     /// Get the span of all side annotations.
@@ -477,33 +433,6 @@ impl Parser {
     #[inline]
     pub fn compute_side_span_from_tree(tree: &Tree) -> MultiSpan {
         MultiSpan::new(tree.get_side_decorator_spans())
-    }
-
-    /// Reset the parser.
-    pub(crate) fn reset(&mut self) {
-        debug_assert!(!self.is_finished, "parser is already finished");
-        self.previous_token_end = 0;
-        self.has_consumed_semantic_token = false;
-        self.consumed_tokens.clear();
-        self.side_tokens.clear();
-        self.comments.clear();
-        self.lookahead.clear();
-        self.lexer = Lexer::new(self.file.clone(), self.language);
-        self.lexer.set_trivia_mode(self.trivia_mode);
-        self.contextual_lex_mode = ContextualLexMode::Normal;
-        self.allow_tree_literals = self.language.supports_jsx();
-        let mut flags = ParserFlags::default();
-        flags.set_disallow_ambiguous_tree_literal(
-            self.language.supports_jsx() && self.language.is_typescript(),
-        );
-        self.flags = flags;
-        self.errors.clear();
-        self.error_keys.clear();
-
-        self.read_first_token();
-        self.previous_token_end = 0;
-        self.has_consumed_semantic_token = false;
-        self.last_consumed_token = Token::eof(0);
     }
 
     /// Swap parser flags and return the previous value.
@@ -605,10 +534,7 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_tree_opening_angle(&mut self) -> ParserResult<()> {
         if !self.peek_is(TokenType::LessThan) {
-            return Err(ParserError::expected(
-                self.peek()?.span,
-                TokenType::LessThan,
-            ));
+            return Err(ParserError::expected(self.peek().span, TokenType::LessThan));
         }
 
         self.bump_tree_opening_angle();
@@ -675,10 +601,10 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_reference_prefix_operator(&mut self) -> ParserResult<TokenSpan> {
         if !self.re_lex_reference_prefix_operator() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
-        let token = self.peek()?;
+        let token = self.peek();
         self.bump();
 
         Ok(token)
@@ -726,7 +652,7 @@ impl Parser {
                 | TokenType::ShiftRightAssign
                 | TokenType::UnsignedShiftRightAssign
         ) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         let token = self.split_current_token_prefix(TokenType::GreaterThan, 1);
@@ -859,7 +785,7 @@ impl Parser {
     #[inline]
     pub(crate) fn eat_expression_type_angle_close(&mut self) -> ParserResult<()> {
         if !Self::starts_expression_type_angle_close(self.peek_token_type()) {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         self.eat_type_angle_close()
@@ -904,6 +830,12 @@ impl Parser {
     #[inline]
     pub(crate) fn peek_starts_tree_tag_close(&mut self) -> bool {
         Self::starts_type_angle_close(self.peek_token_type())
+    }
+
+    /// Return whether the current token starts a tree literal closing tag.
+    #[inline]
+    pub(crate) fn peek_starts_tree_literal_close(&mut self) -> bool {
+        self.peek_is(TokenType::LessThan) && self.next_token_type() == TokenType::Divide
     }
 
     /// Return owned token buffers after lexing to EOF.
@@ -991,10 +923,9 @@ impl Parser {
 
     /// Drop unread tokens and restore the lexer after the current token.
     fn truncate_unread_tokens(&mut self) {
-        if let Some(lexer_state) = self.lookahead.current_state() {
-            let side_tokens_len = self.lookahead.current_side_tokens_len().unwrap_or_default();
-            self.lexer.restore_state(lexer_state);
-            self.side_tokens.truncate(side_tokens_len);
+        if let Some(state) = self.lookahead.current_state() {
+            self.lexer.restore_state(state.lexer);
+            self.side_tokens.truncate(state.side_tokens_len);
         }
 
         self.lookahead.clear();
@@ -1039,7 +970,10 @@ impl Parser {
 
         self.ensure_lookahead(offset);
 
-        self.lookahead.get(offset).unwrap_or(self.current_token)
+        self.lookahead
+            .get(offset)
+            .or_else(|| self.lookahead.last())
+            .unwrap_or(self.current_token)
     }
 
     /// Return one visible token type without moving the parser cursor.
@@ -1142,16 +1076,13 @@ impl Parser {
     /// Parse root expressions as an implicit namespace.
     fn parse_roots(&mut self, attach_comments: bool) -> Vec<LocalNodeId<Expression>> {
         let start = self.span_start();
-        let mut expressions = self.with_token_recovery(
+        let expressions = self.with_token_recovery(
             &start,
             |parser| parser.eat_block_body(BlockForm::Implicit),
             Vec::new(),
             TokenType::End,
         );
         self.drain_lexer_trivia();
-
-        // ensure one stable owner for trivia only files
-        self.ensure_trivia_anchor_maybe(&mut expressions, false);
 
         // attach comments only in the full parse pipeline
         if attach_comments {
@@ -1175,49 +1106,6 @@ impl Parser {
     /// Parse everything as an implicit namespace without attaching comments.
     pub fn parse_without_attaching_comments(&mut self) -> Vec<LocalNodeId<Expression>> {
         self.parse_roots(false)
-    }
-
-    /// Ensure one stable owner for comment trivia in comment only files.
-    fn ensure_trivia_anchor_maybe(
-        &mut self,
-        expressions: &mut Vec<LocalNodeId<Expression>>,
-        consumed_to_end: bool,
-    ) {
-        if !self.trivia_mode.keeps_comments() {
-            return;
-        }
-
-        // most files already have parsed body expressions and never need a trivia anchor
-        if !consumed_to_end && !expressions.is_empty() {
-            return;
-        }
-
-        // skip files without retained comments
-        if self.comments.is_empty() {
-            return;
-        }
-
-        let stub_span = self.eof_span();
-
-        // comment only files need one returned expression owner
-        if expressions.is_empty() {
-            let stub = self.insert_node(Expression::Stub, stub_span);
-            expressions.push(stub);
-            return;
-        }
-
-        // only directive only files need an internal trivia owner
-        if !consumed_to_end {
-            return;
-        }
-
-        // directive only files with attachable semantic tokens already have stable owners
-        if self.has_consumed_semantic_token {
-            return;
-        }
-
-        // insert one internal anchor so trivia can attach without parse errors
-        let _ = self.insert_node(Expression::Stub, stub_span);
     }
 
     /// Attach retained comments after parsing when needed.
@@ -1250,14 +1138,12 @@ impl Parser {
         self.lexer.drain_trivia_comments_into(&mut self.comments);
     }
 
-    /// Handle an error as a Diagnostic.
-    /// Errors are deduplicated by leaf content to avoid squiggly red line noise.
+    /// Report one parser error unless an identical error was already reported.
     #[cold]
     #[inline(never)]
-    pub(crate) fn error(&mut self, e: &ParserError) {
-        let key = ParserErrorKey::from_error(e);
-        if self.error_keys.insert(key) {
-            self.errors.push(e.clone());
+    pub(crate) fn report_error(&mut self, error: &ParserError) {
+        if self.reported_errors.insert(*error) {
+            self.errors.push(*error);
         }
     }
 
@@ -1297,26 +1183,11 @@ impl Parser {
     /// Create a checkpoint for speculative cursor movement without tree allocation snapshots.
     #[inline(always)]
     pub fn cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
-        self.build_cursor_checkpoint()
-    }
-
-    /// Create a checkpoint for scanner style cursor movement.
-    #[inline(always)]
-    fn scan_cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
-        self.build_cursor_checkpoint()
-    }
-
-    /// Create a parser cursor checkpoint.
-    #[inline(always)]
-    fn build_cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
-        let lexer_state = self
-            .lookahead
-            .current_state()
-            .unwrap_or_else(|| self.lexer.state());
-        let side_tokens_len = self
-            .lookahead
-            .current_side_tokens_len()
-            .unwrap_or(self.side_tokens.len());
+        let (lexer_state, side_tokens_len) = if let Some(state) = self.lookahead.current_state() {
+            (state.lexer, state.side_tokens_len)
+        } else {
+            (self.lexer.state(), self.side_tokens.len())
+        };
         ParserCursorCheckpoint {
             lexer_state,
             contextual_lex_mode: self.contextual_lex_mode,
@@ -1353,9 +1224,8 @@ impl Parser {
     }
 
     /// Restore the parser and tree to one full checkpoint.
-    pub fn restore(&mut self, checkpoint: ParserCheckpoint, source_id: u32) {
+    pub fn restore(&mut self, checkpoint: ParserCheckpoint) {
         self.rewind(checkpoint.cursor);
-        debug_assert_eq!(checkpoint.tree_mark.next_global_id(), source_id);
         self.tree.restore_to_mark(checkpoint.tree_mark);
         self.restore_errors(checkpoint.error_count);
     }
@@ -1363,14 +1233,13 @@ impl Parser {
     /// Restore parser errors to one checkpoint.
     fn restore_errors(&mut self, error_count: usize) {
         for error in self.errors.drain(error_count..) {
-            let key = ParserErrorKey::from_error(&error);
-            self.error_keys.remove(&key);
+            self.reported_errors.remove(&error);
         }
     }
 
     /// Run a closure against a speculative parser cursor.
     pub(crate) fn lookahead<T>(&mut self, func: impl FnOnce(&mut Self) -> T) -> T {
-        let checkpoint = self.scan_cursor_checkpoint();
+        let checkpoint = self.cursor_checkpoint();
         let result = func(self);
         self.rewind(checkpoint);
 
@@ -1565,21 +1434,21 @@ impl Parser {
         self.previous_token_end
     }
 
-    /// Peek the next Token or error.
+    /// Return the current token.
     #[inline]
-    pub fn peek(&mut self) -> ParserResult<TokenSpan> {
-        Ok(self.token_span(self.current_token))
+    pub fn peek(&self) -> TokenSpan {
+        self.token_span(self.current_token)
     }
 
-    /// Peek the next token type, defaulting to End at EOF.
+    /// Return the current token type.
     #[inline]
-    pub fn peek_token_type(&mut self) -> TokenType {
+    pub fn peek_token_type(&self) -> TokenType {
         self.current_token.ty()
     }
 
-    /// Return true when the next token matches the given type.
+    /// Return whether the current token matches the given type.
     #[inline]
-    pub fn peek_is(&mut self, token_type: TokenType) -> bool {
+    pub fn peek_is(&self, token_type: TokenType) -> bool {
         debug_assert!(
             is_semantic(token_type),
             "peek_is requires semantic token type"
@@ -1590,21 +1459,17 @@ impl Parser {
 
     /// Return true when more tokens remain before End.
     #[inline]
-    pub fn has_more_tokens(&mut self) -> bool {
+    pub fn has_more_tokens(&self) -> bool {
         self.peek_token_type() != TokenType::End
     }
 
-    /// Eat the next Token or error.
+    /// Eat and return the current token.
     #[inline]
-    pub fn eat(&mut self) -> ParserResult<TokenSpan> {
-        let consumed = self.current_token;
+    pub fn eat(&mut self) -> TokenSpan {
+        let token = self.token_span(self.current_token);
+        self.bump();
 
-        self.last_consumed_token = consumed;
-        self.previous_token_end = consumed.end();
-        self.record_consumed_token(consumed);
-        self.read_next_token();
-
-        Ok(self.token_span(self.last_consumed_token))
+        token
     }
 
     /// Bump the Token position.
@@ -1654,12 +1519,12 @@ impl Parser {
 
     /// Peek the next token.
     #[inline]
-    pub fn peek_token(&mut self, token_type: TokenType) -> ParserResult<TokenSpan> {
+    pub fn peek_token(&self, token_type: TokenType) -> ParserResult<TokenSpan> {
         debug_assert!(
             is_semantic(token_type),
             "peek_token requires semantic token type"
         );
-        let next = self.peek()?;
+        let next = self.peek();
         if next.token.is(token_type) {
             Ok(next)
         } else {
@@ -1669,8 +1534,8 @@ impl Parser {
 
     /// Peek the next token in a list of token types.
     #[inline]
-    pub fn peek_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenSpan> {
-        let next = self.peek()?;
+    pub fn peek_token_in(&self, token_types: &[TokenType]) -> ParserResult<TokenSpan> {
+        let next = self.peek();
         if token_types.contains(&next.token.ty()) {
             Ok(next)
         } else {
@@ -1685,7 +1550,7 @@ impl Parser {
             is_semantic(token_type),
             "eat_token requires semantic token type"
         );
-        let current = self.eat()?;
+        let current = self.eat();
         if current.token.is(token_type) {
             Ok(current)
         } else {
@@ -1693,13 +1558,15 @@ impl Parser {
         }
     }
 
-    /// Eat a token maybe.
-    pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParserResult<bool> {
+    /// Eat the current token when it has the requested type.
+    #[inline]
+    pub fn eat_token_if(&mut self, token_type: TokenType) -> bool {
         if self.peek_is(token_type) {
             self.bump();
-            Ok(true)
+
+            true
         } else {
-            Ok(false)
+            false
         }
     }
 
@@ -1715,26 +1582,11 @@ impl Parser {
     /// Eat a token in a list of tokens.
     #[inline]
     pub fn eat_token_in(&mut self, token_types: &[TokenType]) -> ParserResult<TokenType> {
-        let current = self.eat()?;
+        let current = self.eat();
         if token_types.contains(&current.token.ty()) {
             Ok(current.token.ty())
         } else {
             Err(ParserError::unexpected(current))
-        }
-    }
-
-    /// Eat a token in a list of tokens maybe.
-    #[inline]
-    pub fn eat_token_in_maybe(
-        &mut self,
-        token_types: &[TokenType],
-    ) -> ParserResult<Option<TokenType>> {
-        let token = self.peek()?;
-        if token_types.contains(&token.token.ty()) {
-            self.bump();
-            Ok(Some(token.token.ty()))
-        } else {
-            Ok(None)
         }
     }
 
@@ -1905,11 +1757,5 @@ impl ParserSpanStart {
     #[inline]
     pub(crate) fn token_end(&self) -> u32 {
         self.current_token.end()
-    }
-
-    /// Return whether this span start is before one token span.
-    #[inline]
-    pub(crate) fn is_before(&self, span: Span) -> bool {
-        self.current_token.start() < span.start
     }
 }

@@ -94,7 +94,7 @@ impl Parser {
     /// readonly [string, number]
     /// ```
     fn eat_type_tuple_readonly_modifier(&mut self) -> ParserResult<bool> {
-        let next = self.peek()?;
+        let next = self.peek();
         if !self.language.is_destack()
             && next.token.ty() == TokenType::Identifier
             && self.get_span_str(next.span) == "readonly"
@@ -266,7 +266,7 @@ impl Parser {
         // remaining elements
         let mut elements = vec![first_element];
         if self.peek_is(TokenType::Comma) {
-            self.eat_item_stop()?;
+            self.eat_comma()?;
             elements.extend(self.eat_type_tuple_elements_body(terminator)?);
         }
 
@@ -302,7 +302,11 @@ impl Parser {
                     element_id
                 }
                 Err(error) => {
-                    self.try_recover_in_item_list(&element_start, terminator, Some(error))?;
+                    self.recover_list_item(
+                        self.get_span_from(&element_start),
+                        terminator,
+                        Some(error),
+                    );
                     let element_id =
                         self.insert_node(TupleElement::Error, self.get_span_from(&element_start));
                     is_recovered_element = true;
@@ -314,10 +318,10 @@ impl Parser {
 
             // separator
             if self.peek_is(TokenType::Comma) {
-                self.eat_item_stop()?;
+                self.eat_comma()?;
             }
             // recovery boundary
-            else if !self.can_continue_after_recovered_item(terminator, is_recovered_element) {
+            else if !is_recovered_element || !self.can_continue_after_recovered_item(terminator) {
                 break;
             }
         }

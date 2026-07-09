@@ -17,9 +17,9 @@ pub(crate) struct DelimiterDepth {
     tracks_angle: bool,
 }
 
-impl Default for DelimiterDepth {
-    /// Create delimiter depth for type-like scans.
-    fn default() -> Self {
+impl DelimiterDepth {
+    /// Create delimiter depth for type expression scans.
+    pub(crate) fn type_expression() -> Self {
         Self {
             parenthesis: 0,
             bracket: 0,
@@ -28,14 +28,12 @@ impl Default for DelimiterDepth {
             tracks_angle: true,
         }
     }
-}
 
-impl DelimiterDepth {
     /// Create delimiter depth for value scans where `<` and `>` are operators.
     pub(crate) fn value() -> Self {
         Self {
             tracks_angle: false,
-            ..Self::default()
+            ..Self::type_expression()
         }
     }
 
@@ -43,7 +41,7 @@ impl DelimiterDepth {
     pub(crate) fn for_list_terminator(terminator: TokenType) -> Self {
         Self {
             tracks_angle: terminator == TokenType::GreaterThan,
-            ..Self::default()
+            ..Self::type_expression()
         }
     }
 
@@ -51,7 +49,15 @@ impl DelimiterDepth {
     pub(crate) fn from_angle_open() -> Self {
         Self {
             angle: 1,
-            ..Self::default()
+            ..Self::type_expression()
+        }
+    }
+
+    /// Create delimiter depth after one parenthesis opener has been consumed.
+    fn from_parenthesis_open() -> Self {
+        Self {
+            parenthesis: 1,
+            ..Self::value()
         }
     }
 
@@ -60,15 +66,15 @@ impl DelimiterDepth {
         match (open, close) {
             (TokenType::OpenParenthesis, TokenType::CloseParenthesis) => Some(Self {
                 parenthesis: 1,
-                ..Self::default()
+                ..Self::value()
             }),
             (TokenType::OpenBracket, TokenType::CloseBracket) => Some(Self {
                 bracket: 1,
-                ..Self::default()
+                ..Self::value()
             }),
             (TokenType::OpenBrace, TokenType::CloseBrace) => Some(Self {
                 brace: 1,
-                ..Self::default()
+                ..Self::value()
             }),
             _ => None,
         }
@@ -144,6 +150,39 @@ impl DelimiterDepth {
 }
 
 impl Parser {
+    /// Scan whether a balanced current parenthesized group contains one top-level token.
+    pub(crate) fn scan_parenthesized_group(&mut self, target: TokenType) -> Option<bool> {
+        self.lookahead(|parser| {
+            if !parser.peek_is(TokenType::OpenParenthesis) {
+                return None;
+            }
+
+            parser.bump();
+            let mut depth = DelimiterDepth::from_parenthesis_open();
+            let mut contains_target = false;
+
+            loop {
+                let token_type = parser.peek_token_type();
+                if token_type == TokenType::End {
+                    return None;
+                }
+
+                if depth.is_directly_inside(TokenType::OpenParenthesis) && token_type == target {
+                    contains_target = true;
+                }
+
+                if !depth.advance(token_type) {
+                    return None;
+                }
+                parser.bump();
+
+                if depth.is_top_level() {
+                    return Some(contains_target);
+                }
+            }
+        })
+    }
+
     /// Scan the token after a balanced parenthesized group at an offset.
     pub(crate) fn scan_parenthesized_follow_token_at_offset(
         &mut self,
@@ -213,8 +252,7 @@ impl Parser {
             let token_type = self.peek_token_type();
             let close_width = Self::angle_close_width(token_type);
 
-            if self.current_semicolon_precedes_recovery_point(token_type, RecoveryPoint::Statement)
-            {
+            if self.semicolon_precedes_recovery_point(RecoveryPoint::Statement) {
                 return None;
             }
 
@@ -297,10 +335,7 @@ impl Parser {
             if stops_at_semicolon
                 && token_type == TokenType::Semicolon
                 && (delimiter_depth.is_directly_inside(open)
-                    || self.current_semicolon_precedes_recovery_point(
-                        token_type,
-                        RecoveryPoint::Statement,
-                    ))
+                    || self.semicolon_precedes_recovery_point(RecoveryPoint::Statement))
             {
                 return None;
             }
