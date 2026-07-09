@@ -10,7 +10,6 @@ use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 
 const NATIVE_MACHINE: &str = "native";
 const VM_MACHINE: &str = "vm";
-const CONTINUATION: &str = "continuation";
 
 /// Stable identifier for one worker-owned machine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -221,6 +220,7 @@ impl Machine {
         args: &[program::Value],
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        mut profile: Option<&mut program::Profile>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         let id = self.id;
 
@@ -241,6 +241,7 @@ impl Machine {
                         context.shared_mark_worker,
                         stop_points,
                         watch_points,
+                        profile.as_deref_mut(),
                         function_id,
                         args,
                     )
@@ -249,7 +250,19 @@ impl Machine {
                 Ok(outcome_from_vm(id, outcome))
             }
             Engine::Native { vm, code } => {
+                // reject native profiling until native code emits profile hooks
+                if profile.is_some() {
+                    return Err(machine_error(
+                        NATIVE_MACHINE,
+                        MachineError::Unsupported {
+                            feature: "profile recording".to_string(),
+                        },
+                    ));
+                }
+
                 let program = vm.program();
+
+                // enter native code when no VM-only runtime hooks are active
                 if stop_points.is_none_or(program::StopSet::is_empty)
                     && watch_points.is_none_or(program::WatchSet::is_empty)
                 {
@@ -266,6 +279,7 @@ impl Machine {
                     }
                 }
 
+                // fall back to VM when stop or watch hooks are active
                 let entry = vm
                     .entry_by_name(entry.name())
                     .map_err(Box::<RuntimeError>::from)?;
@@ -281,6 +295,7 @@ impl Machine {
                         context.shared_mark_worker,
                         stop_points,
                         watch_points,
+                        profile.as_deref_mut(),
                         function_id,
                         args,
                     )
@@ -299,11 +314,12 @@ impl Machine {
         value: program::Value,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        mut profile: Option<&mut program::Profile>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         if continuation.machine() != self.id {
             return Err(machine_continuation_mismatch(
                 &machine_name(self.kind(), self.id),
-                &machine_name(CONTINUATION, continuation.machine()),
+                &machine_name("continuation", continuation.machine()),
             ));
         }
 
@@ -323,6 +339,7 @@ impl Machine {
                     context.shared_mark_worker,
                     stop_points,
                     watch_points,
+                    profile.as_deref_mut(),
                     continuation,
                     value,
                 )
@@ -331,6 +348,16 @@ impl Machine {
                 Ok(outcome_from_vm(id, outcome))
             }
             Engine::Native { code, vm } => {
+                // reject native profiling until native code emits profile hooks
+                if profile.is_some() {
+                    return Err(machine_error(
+                        NATIVE_MACHINE,
+                        MachineError::Unsupported {
+                            feature: "profile recording".to_string(),
+                        },
+                    ));
+                }
+
                 let program = vm.program();
 
                 // resume natively when a matching resume entry exists
@@ -359,6 +386,7 @@ impl Machine {
                         context.shared_mark_worker,
                         stop_points,
                         watch_points,
+                        profile.as_deref_mut(),
                         continuation,
                         value,
                     )
@@ -377,12 +405,13 @@ impl Machine {
         continuation: Continuation,
         stop_points: Option<&program::StopSet>,
         watch_points: Option<&program::WatchSet>,
+        mut profile: Option<&mut program::Profile>,
         resume_skip: Option<program::ResumeSkip>,
     ) -> RuntimeResult<Outcome<Continuation>> {
         if continuation.machine() != self.id {
             return Err(machine_continuation_mismatch(
                 &machine_name(self.kind(), self.id),
-                &machine_name(CONTINUATION, continuation.machine()),
+                &machine_name("continuation", continuation.machine()),
             ));
         }
 
@@ -392,6 +421,15 @@ impl Machine {
 
         let vm = match &mut self.engine {
             Engine::Vm(machine) => machine.as_mut(),
+            Engine::Native { .. } if profile.is_some() => {
+                // reject native profiling until native code emits profile hooks
+                return Err(machine_error(
+                    NATIVE_MACHINE,
+                    MachineError::Unsupported {
+                        feature: "profile recording".to_string(),
+                    },
+                ));
+            }
             Engine::Native { vm, .. } => vm.as_mut(),
         };
         let outcome = vm::Machine::continue_continuation(
@@ -404,6 +442,7 @@ impl Machine {
             context.shared_mark_worker,
             stop_points,
             watch_points,
+            profile.as_deref_mut(),
             resume_skip,
             continuation,
         )
@@ -721,6 +760,7 @@ fn outcome_from_native(
                 context.shared_heap,
                 context.shared_cache,
                 context.shared_mark_worker,
+                None,
                 None,
                 None,
                 None,

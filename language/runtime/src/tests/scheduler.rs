@@ -37,6 +37,36 @@ fn test_tick_executes_one_task() {
     );
 }
 
+/// Records profile counters through worker task execution.
+#[test]
+fn test_tick_records_worker_profile() {
+    let mir = r#"
+function test.entry(): void {
+b0:
+    return
+}
+
+function test.task(v0: int32): int32 {
+b0(v0: int32):
+    yield v0 => b1(v0)
+b1(v1: int32, v2: int32):
+    profile.increment counter(0)
+    return v1
+}
+"#;
+    let mut runtime = TestRuntime::build(&RuntimeOptions::default(), TestMachine::with_mir(mir));
+    runtime.start_profile(program::ProfileOptions::STANDARD);
+    runtime.enqueue_task(7, 1);
+
+    // execute one profiled task resume
+    let progressed = runtime.tick();
+    assert!(progressed, "tick should report progress");
+
+    let profile = runtime.profile().expect("worker profile should be active");
+    assert_eq!(profile.counters.len(), 1);
+    assert_eq!(profile.counters[0].count, 1);
+}
+
 /// Drains queued tasks and re-yields until idle.
 #[test]
 fn test_tick_until_idle_drains_yielded_tasks() {
