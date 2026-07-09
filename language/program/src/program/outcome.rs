@@ -39,6 +39,8 @@ pub enum StopReason {
     Breakpoint {
         /// Breakpoint that stopped execution.
         breakpoint_id: BreakpointId,
+        /// Program point that stopped execution.
+        point: ProgramPoint,
     },
     /// Runtime watchpoint.
     Watchpoint {
@@ -60,6 +62,15 @@ pub struct InstructionStop {
     /// The executable point that can stop.
     pub point: ProgramPoint,
     /// The reason execution stops at this point.
+    pub reason: StopReason,
+}
+
+/// One stop skipped once when resuming a retained continuation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ResumeSkip {
+    /// Program point that produced the retained stop.
+    pub point: ProgramPoint,
+    /// Reason that produced the retained stop.
     pub reason: StopReason,
 }
 
@@ -106,7 +117,7 @@ impl StopSet {
     pub fn reason_at(
         &self,
         point: ProgramPoint,
-        skip_breakpoint: Option<BreakpointId>,
+        resume_skip: Option<ResumeSkip>,
     ) -> Option<StopReason> {
         let mut index = self
             .instructions
@@ -117,7 +128,7 @@ impl StopSet {
             if instruction.point != point {
                 return None;
             }
-            if instruction.reason.is_breakpoint(skip_breakpoint) {
+            if resume_skip.is_some_and(|skip| skip.selects(point, instruction.reason)) {
                 index += 1;
                 continue;
             }
@@ -130,24 +141,46 @@ impl StopSet {
 }
 
 impl StopReason {
+    /// Return the executable point that produced this stop.
+    pub const fn point(self) -> ProgramPoint {
+        match self {
+            Self::Instruction { point }
+            | Self::Breakpoint { point, .. }
+            | Self::Watchpoint { point, .. } => point,
+        }
+    }
+
+    /// Return the stop skipped when resuming from this stop.
+    pub const fn resume_skip(self) -> Option<ResumeSkip> {
+        match self {
+            Self::Breakpoint { .. } => Some(ResumeSkip {
+                point: self.point(),
+                reason: self,
+            }),
+            Self::Instruction { .. } | Self::Watchpoint { .. } => None,
+        }
+    }
+
     /// Return a stable sorting key for deterministic stop selection.
     const fn sort_key(self) -> (u8, u64) {
         match self {
             Self::Instruction { .. } => (0, 0),
-            Self::Breakpoint { breakpoint_id } => (1, breakpoint_id.get()),
+            Self::Breakpoint { breakpoint_id, .. } => (1, breakpoint_id.get()),
             Self::Watchpoint { watchpoint_id, .. } => (2, watchpoint_id.get()),
         }
     }
+}
 
-    /// Return whether this reason is the breakpoint being skipped.
-    const fn is_breakpoint(self, skipped: Option<BreakpointId>) -> bool {
-        match (self, skipped) {
-            (Self::Breakpoint { breakpoint_id }, Some(skipped)) => {
-                breakpoint_id.get() == skipped.get()
-            }
-            (Self::Instruction { .. }, _)
-            | (Self::Breakpoint { .. }, None)
-            | (Self::Watchpoint { .. }, _) => false,
+impl ResumeSkip {
+    /// Return whether this skip covers one stop at one point.
+    pub fn selects(self, point: ProgramPoint, reason: StopReason) -> bool {
+        if self.point != point {
+            return false;
+        }
+
+        match self.reason {
+            StopReason::Breakpoint { .. } => matches!(reason, StopReason::Breakpoint { .. }),
+            StopReason::Instruction { .. } | StopReason::Watchpoint { .. } => false,
         }
     }
 }

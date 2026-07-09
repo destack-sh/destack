@@ -203,6 +203,14 @@ impl FunctionCode<'_> {
         Some(block.start + pc)
     }
 
+    /// Return one instruction at a VM block offset.
+    #[inline(always)]
+    pub fn instruction_at(&self, block: u32, pc: usize) -> Option<&Instruction> {
+        let operation = self.operation_at(block, pc as u32)?;
+
+        self.code.get(operation as usize)
+    }
+
     /// Return the VM block and instruction offset for one canonical operation.
     pub fn location_at(&self, operation: u32) -> Option<(u32, usize)> {
         for (index, block) in self.blocks.iter().enumerate() {
