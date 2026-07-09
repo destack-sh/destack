@@ -70,7 +70,7 @@ const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source=42 type=42
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -145,8 +145,7 @@ const value: string = 123;
 /// @type.symbol symbol=value source=value type=string
 /// @type.node source=123 type=123
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '123' is not assignable to type 'string'"

@@ -23,7 +23,10 @@ const scaled = force * 2.0;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Multiply } from "destack:ops";
 
@@ -56,6 +59,7 @@ struct Force {
 }
 
 extension of Force implements Multiply<float64> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
@@ -90,7 +94,8 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=Force
 /// @resolution.name source=force target=force
 /// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -115,7 +120,10 @@ const area = width * height;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Multiply } from "destack:ops";
 
@@ -141,6 +149,7 @@ newtype Meters = float64;
 /// @definition.newtype symbol=Meters source="newtype Meters = float64" value=float64
 
 extension of Meters implements Multiply<Meters> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Meters
 /// @definition.implements symbol=<module>#2 source=Multiply<Meters> target=ops.multiply.Multiply arguments=(Meters)
 /// @definition.associated.type symbol=Output source="type Output = float64" key=Output value=float64
@@ -177,5 +186,6 @@ const area = width * height;
 /// @resolution.name source=width target=width
 /// @resolution.call source="width * height" parameters=(Meters) arguments=(provided(height) as Meters) return=float64 kind=symbol target=multiply receiver=Meters
 /// @resolution.name source=height target=height
-"#);
+"#,
+    );
 }

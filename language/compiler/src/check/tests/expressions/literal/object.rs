@@ -143,8 +143,7 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=2 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '2' is not assignable to type 'string'"
@@ -174,7 +173,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 /// @type.node source={ reactions: [] } type={ reactions: Array<int32> }
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -226,7 +225,7 @@ const mode = config.mode;
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.mode receiver={ mode: "dev" } kind=field key=mode
 
-/// @check.stats.solve variables=0 types=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=4
+/// @check.stats.solve variables=0 types=8 constraints=0 obligations=0 solutions=0 bounds=0 decisions=4
 "#,
     );
 }
@@ -481,7 +480,7 @@ const point: Point = _ { ...base };
 /// @type.node source=base type={ x: int32; y: int32 }
 /// @resolution.name source=base target=base
 
-/// @check.stats.solve variables=0 types=8 constraints=4 obligations=2 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=8 constraints=1 obligations=2 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -558,7 +557,7 @@ const object = { ...user };
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 
-/// @check.stats.solve variables=0 types=8 constraints=2 obligations=4 solutions=0 bounds=0 decisions=6
+/// @check.stats.solve variables=0 types=8 constraints=0 obligations=4 solutions=0 bounds=0 decisions=6
 "#,
     );
 }

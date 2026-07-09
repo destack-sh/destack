@@ -10,7 +10,10 @@ const literal = 1 << 5;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 declare const flags: int32;
 const shifted: int32 = flags << 5;
@@ -28,7 +31,8 @@ const shifted = flags << 5;
 const literal = 1 << 5;
 /// @type.symbol symbol=literal source=literal type=32
 /// @resolution.call source="1 << 5" parameters=() return=32 kind=builtin builtin=binary.shift_left
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -41,7 +45,10 @@ const masked = mask & bits;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 declare const mask: int32;
 declare const bits: int32;
@@ -59,7 +66,8 @@ const masked = mask & bits;
 /// @resolution.name source=mask target=mask
 /// @resolution.call source="mask & bits" parameters=() return=int32 kind=builtin builtin=binary.elementwise_and
 /// @resolution.name source=bits target=bits
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -118,7 +126,10 @@ const both = left & right;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { And } from "destack:ops";
 
@@ -152,6 +163,7 @@ struct Flags {
 }
 
 extension of Flags implements And<Flags> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Flags
 /// @definition.implements symbol=<module>#2 source=And<Flags> target=ops.bitwise.And arguments=(Flags)
 /// @definition.associated.type symbol=Output source="type Output = Flags" key=Output value=Flags
@@ -194,5 +206,6 @@ const both = left & right;
 /// @resolution.name source=left target=left
 /// @resolution.call source="left & right" parameters=(Flags) arguments=(provided(right) as Flags) return=Flags kind=symbol target=and receiver=Flags
 /// @resolution.name source=right target=right
-"#);
+"#,
+    );
 }

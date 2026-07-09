@@ -70,7 +70,7 @@ const value: boolean = false;
 /// @type.symbol symbol=value source=value type=boolean
 /// @type.node source=false type=false
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -120,8 +120,7 @@ const value: string = true;
 /// @type.symbol symbol=value source=value type=string
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'true' is not assignable to type 'string'"
@@ -150,8 +149,7 @@ const value: number = false;
 /// @type.symbol symbol=value source=value type=float64
 /// @type.node source=false type=false
 
-/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-
+/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'false' is not assignable to type 'float64'"

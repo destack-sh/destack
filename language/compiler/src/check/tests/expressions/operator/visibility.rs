@@ -32,7 +32,10 @@ const scaled = force * 2.0;
         )
         .build();
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Force } from "./force.ds";
 
@@ -50,7 +53,8 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.name source=force target=force
 /// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=force.multiply receiver=force.Force
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -89,7 +93,10 @@ const scaled = force * 2.0;
         .build();
 
     // the extension resolves inside its own module
-    session.assert_dir_checked("force.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "force.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Multiply } from "destack:ops";
 
@@ -122,6 +129,7 @@ export struct Force {
 }
 
 extension of Force implements Multiply<float64> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=Force
@@ -156,7 +164,8 @@ export const doubled = inside * 2.0;
 /// @type.symbol symbol=doubled source=doubled type=Force
 /// @resolution.name source=inside target=inside
 /// @resolution.call source="inside * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=Force kind=symbol target=multiply receiver=Force
-"#);
+"#,
+    );
 
     // other modules never see the local extension
     session.assert_dir_checked_and_diagnostics(
@@ -218,7 +227,10 @@ const scaled = force * 2.0;
         )
         .build();
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Multiply } from "destack:ops";
 
@@ -240,6 +252,7 @@ import { Multiply } from "destack:ops";
 import { Force } from "./force.ds";
 
 extension of Force implements Multiply<float64> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=ops.multiply.Multiply arguments=(float64)
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force
@@ -274,7 +287,8 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.name source=force target=force
 /// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=multiply receiver=force.Force
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -315,7 +329,10 @@ const scaled = force * 2.0;
         )
         .build();
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Force } from "./force.ds";
 import { Scaling } from "./scaling.ds";
@@ -335,5 +352,6 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.name source=force target=force
 /// @resolution.call source="force * 2.0" parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=scaling.Scaling.multiply receiver=force.Force
-"#);
+"#,
+    );
 }

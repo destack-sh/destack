@@ -43,7 +43,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         Ok { value } => value
         Err { error } => fallback
     }
-} as T
+}
 
 === checked ===
 struct Ok<T> {

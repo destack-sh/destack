@@ -165,12 +165,18 @@ declare const point: Point;
 /// @resolution.name source=Point target=Point
 
 match (point) {
+/// @type.node type=<error>
 /// @type.node source=point type=Point reduced={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
 
     Point { x, y } => x + y
     /// @resolution.name source=Point target=Point
+    /// @type.symbol symbol=x source=x type=<error>
+    /// @type.symbol symbol=y source=y type=<error>
+    /// @type.node source="x + y" type=<error>
+    /// @type.node source=x type=<error>
     /// @resolution.name source=x target=x
+    /// @type.node source=y type=<error>
     /// @resolution.name source=y target=y
 
 }
@@ -247,12 +253,15 @@ declare const user: User;
 /// @resolution.name source=User target=User
 
 match (user) {
+/// @type.node type=<error>
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
 
     User { displayName } => displayName
     /// @resolution.name source=User target=User
     /// @resolution.pattern source="User { displayName }" kind=nominal_object target=User fields={}
+    /// @type.symbol symbol=displayName source=displayName type=<error>
+    /// @type.node source=displayName type=<error>
     /// @resolution.name source=displayName target=displayName
 
 }

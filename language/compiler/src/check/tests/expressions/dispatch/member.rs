@@ -40,7 +40,7 @@ const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
-/// @type.node source=1 type=int32
+/// @type.node source=1 type=1
 
 const x = point.x;
 /// @type.symbol symbol=x source=x type=int32
@@ -48,7 +48,6 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point kind=symbol target=Point.x
-
 "#,
     );
 }
@@ -103,7 +102,7 @@ struct Point {
         /// @type.node source=this type=Point
         /// @type.node source=this.x type=int32
         /// @resolution.member source=this.x receiver=Point kind=symbol target=Point.x
-        /// @resolution.receiver source=this kind=this owner=Point type=Point
+        /// @resolution.receiver source=this kind=this declaration=Point type=Point
 
     }
 }
@@ -112,7 +111,7 @@ const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=Point
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
-/// @type.node source=1 type=int32
+/// @type.node source=1 type=1
 
 const length = point.length();
 /// @type.symbol symbol=length source=length type=int32
@@ -122,8 +121,8 @@ const length = point.length();
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.length receiver=Point kind=symbol target=Point.length
 /// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point
-
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -165,7 +164,7 @@ const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=geometry.Point
 /// @type.node source="Point { x: 1 }" type=geometry.Point
 /// @resolution.name source=Point target=geometry.Point
-/// @type.node source=1 type=int32
+/// @type.node source=1 type=1
 
 const x = point.x;
 /// @type.symbol symbol=x source=x type=int32
@@ -224,7 +223,7 @@ values.push(1);
         r#"
 === annotated ===
 let values: int32[] = [];
-values.push(1);
+values.push<int32>(1);
 
 === checked ===
 let values: int32[] = [];
@@ -233,13 +232,17 @@ let values: int32[] = [];
 
 values.push(1);
 /// @type.node source=values type=Array<int32>
-/// @type.node source=values.push type=(this: Borrowed<Array<int32>, collections.array.push#1.L0, "exclusive">, int32) => void
+/// @type.node source=values.push type=<comptime collections.array.push#1.L0: memory.lifetime.Lifetime>(this: Borrowed<Array<int32>, collections.array.push#1.L0, "exclusive">, int32) => void | <comptime collections.array.push#2.L0: memory.lifetime.Lifetime>(this: Borrowed<Array<int32>, collections.array.push#2.L0, "exclusive">, ...int32[]) => float64
 /// @type.node source=values.push(1) type=void
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=Array<int32> kind=existential targets=[collections.array.push#1, collections.array.push#2]
-/// @resolution.call source=values.push(1) parameters=(int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32>
-/// @type.node source=1 type=int32
+/// @resolution.call source=values.push(1) parameters=(int32) arguments=(provided(1) as int32) return=void kind=symbol target=collections.array.push#1 receiver=Array<int32> adjustments=(borrow) instance=Array<int32>.<extension#6>.push#1
+/// @generic.instance source=values.push id=Array<int32>
+/// @generic.instance source=values.push(1) id=Array<int32>.<extension#6>.push#1
+/// @type.node source=1 type=1
 
+/// @generic.instance id=Array<int32> template=collections.array.Array arguments=(int32)
+/// @generic.instance id=Array<int32>.<extension#6>.push#1 template=collections.array.push#1 arguments=(int32)
 "#,
     );
 }

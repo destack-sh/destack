@@ -54,19 +54,19 @@ function use(onValue?: (arg0: unknown) => void): void {
 === checked ===
 function use(onValue?: (value: unknown) => void): void {
 /// @type.symbol symbol=use type=(Function<(unknown,), void> | undefined) => void
-/// @type.symbol symbol=onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
+/// @type.symbol symbol=use.onValue source="onValue?: (value: unknown) => void" type=Function<(unknown,), void> | undefined
 
     if (onValue !== undefined) {
     /// @type.node source="onValue !== undefined" type=boolean
     /// @type.node source=onValue type=Function<(unknown,), void> | undefined
-    /// @resolution.name source=onValue target=onValue
+    /// @resolution.name source=onValue target=use.onValue
     /// @resolution.call source="onValue !== undefined" parameters=() return=boolean kind=builtin builtin=binary.not_equal_strict
     /// @type.node source=undefined type=undefined
 
         onValue(1);
         /// @type.node source=onValue type=Function<(unknown,), void>
         /// @type.node source=onValue(1) type=void
-        /// @resolution.name source=onValue target=onValue
+        /// @resolution.name source=onValue target=use.onValue
         /// @resolution.call source=onValue(1) parameters=(unknown) arguments=(provided(1) as unknown) return=void kind=expression
         /// @type.node source=1 type=1
 
@@ -189,7 +189,10 @@ const same = left == right;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { PartialEqual } from "destack:ops";
 
@@ -221,6 +224,7 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=ops.equality.PartialEqual arguments=(Badge)
 /// @definition.method symbol=equal slot=equal type=(this: Badge, Badge) => boolean
@@ -256,5 +260,6 @@ const same = left == right;
 /// @resolution.name source=left target=left
 /// @resolution.call source="left == right" parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge
 /// @resolution.name source=right target=right
-"#);
+"#,
+    );
 }

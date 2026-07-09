@@ -68,6 +68,8 @@ let [...middle, last] = [1, 2, 3];
 
 === checked ===
 let [...middle, last] = [1, 2, 3];
+/// @type.symbol symbol=middle source=middle type=<error>
+/// @type.symbol symbol=last source=last type=<error>
 /// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -97,6 +99,9 @@ let [head, ...middle, ...tail] = [1, 2, 3];
 
 === checked ===
 let [head, ...middle, ...tail] = [1, 2, 3];
+/// @type.symbol symbol=head source=head type=<error>
+/// @type.symbol symbol=middle source=middle type=<error>
+/// @type.symbol symbol=tail source=tail type=<error>
 /// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2

@@ -119,7 +119,6 @@ let enabled = true;
 
 @if(enabled)
 const value = 1;
-
 "#,
         r#"
 /// @diagnostic.error code=EC404 message="static @if condition must be statically decidable"

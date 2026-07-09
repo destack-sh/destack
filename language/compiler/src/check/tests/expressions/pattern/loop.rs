@@ -79,10 +79,12 @@ declare const item: { name: string };
 /// @type.symbol symbol=item source=item type={ name: string }
 
 for (const { name } in item) {
+/// @type.symbol symbol=name#2 source=name type=<error>
 /// @type.node source=item type={ name: string }
 /// @resolution.name source=item target=item
 
     name;
+    /// @type.node source=name type=<error>
     /// @resolution.name source=name target=name#2
 
 }

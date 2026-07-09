@@ -2,9 +2,6 @@ use crate::tests::{DirRows, TestSession};
 
 #[test]
 fn test_sibling_static_call_with_interface_params_selects_without_cycling() {
-    // F-bounded parameters (T: Compare<T>) push recursive upper bounds
-    // onto the sibling call's carried holes; those bounds stay
-    // obligations, so the call selects instead of occurs-cycling
     let session = TestSession::single(
         r#"
 struct Pack<T> {
@@ -35,14 +32,14 @@ struct Pack<T> {
 }
 
 export extension<T: Compare<T>> of Pack<T> {
-    static from(values: T0): ^Pack<T> {
+    static from(values: Dynamic<Iterable<T>>): ^Pack<T> {
         todo("Pack.from" as string | undefined)
     }
 }
 
 export extension<T: Compare<T>> of ^Pack<T> {
-    static from(values: T0): ^Pack<T> {
-        Pack.from<T0, T>(values)
+    static from(values: Dynamic<Iterable<T>>): ^Pack<T> {
+        Pack.from<T>(values)
     }
 }
 
@@ -63,7 +60,7 @@ struct Pack<T> {
 export extension<T: Compare<T>> of Pack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2: Compare<T#2>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
-/// @definition.method symbol=from#1 slot=from static=true type=<from#1.T0: Iterable<T#2>>(from#1.T0) => Owned<Pack<T#2>>
+/// @definition.method symbol=from#1 slot=from static=true type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>>
 /// @type.symbol symbol=T#1 source="T: Compare<T>" type=T#2
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#1
@@ -71,9 +68,8 @@ export extension<T: Compare<T>> of Pack<T> {
 /// @resolution.name source=T target=T#1
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @generic.template symbol=from#1 parent=template#1 parameters=(T0: Iterable<T#2>)
-    /// @type.symbol symbol=from#1 type=<from#1.T0: Iterable<T#2>>(from#1.T0) => Owned<Pack<T#2>> reduced=<from#1.T0: Iterable<T#2>>(from#1.T0) => Pack<T#2>
-    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=from#1.T0
+    /// @type.symbol symbol=from#1 type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> reduced=(Dynamic<Iterable<T#2>>) => Pack<T#2>
+    /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Dynamic<Iterable<T#2>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=Pack target=Pack
@@ -92,7 +88,7 @@ export extension<T: Compare<T>> of Pack<T> {
 export extension<T: Compare<T>> of ^Pack<T> {
 /// @generic.template symbol=<module>#3 parameters=(T#3: Compare<T#3>)
 /// @definition.extension symbol=<module>#3 form=exported target=Owned<Pack<T#3>>
-/// @definition.method symbol=from#2 slot=from static=true type=<from#2.T0: Iterable<T#3>>(from#2.T0) => Owned<Pack<T#3>>
+/// @definition.method symbol=from#2 slot=from static=true type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>>
 /// @type.symbol symbol=T#2 source="T: Compare<T>" type=T#3
 /// @resolution.name source=Compare target=ops.comparison.Compare
 /// @resolution.name source=T target=T#2
@@ -100,9 +96,8 @@ export extension<T: Compare<T>> of ^Pack<T> {
 /// @resolution.name source=T target=T#2
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @generic.template symbol=from#2 parent=template#2 parameters=(T0: Iterable<T#3>)
-    /// @type.symbol symbol=from#2 type=<from#2.T0: Iterable<T#3>>(from#2.T0) => Owned<Pack<T#3>> reduced=<from#2.T0: Iterable<T#3>>(from#2.T0) => Pack<T#3>
-    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=from#2.T0
+    /// @type.symbol symbol=from#2 type=(Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#3>>) => Pack<T#3>
+    /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Dynamic<Iterable<T#3>>
     /// @resolution.name source=Iterable target=iter.iterator.Iterable
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=Pack target=Pack
@@ -110,24 +105,29 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
         Pack.from(values)
         /// @type.node source=Pack type=Pack
-        /// @type.node source=Pack.from type=<from#1.T0: Iterable<T#2>>(from#1.T0) => Owned<Pack<T#2>> | <from#2.T0: Iterable<T#3>>(from#2.T0) => Owned<Pack<T#3>> reduced=<from#1.T0: Iterable<T#2>>(from#1.T0) => Pack<T#2> | <from#2.T0: Iterable<T#3>>(from#2.T0) => Pack<T#3>
+        /// @type.node source=Pack.from type=(Dynamic<Iterable<T#2>>) => Owned<Pack<T#2>> | (Dynamic<Iterable<T#3>>) => Owned<Pack<T#3>> reduced=(Dynamic<Iterable<T#2>>) => Pack<T#2> | (Dynamic<Iterable<T#3>>) => Pack<T#3>
         /// @type.node source=Pack.from(values) type=Owned<Pack<T#3>> reduced=Pack<T#3>
         /// @resolution.name source=Pack target=Pack
         /// @resolution.member source=Pack.from receiver=Pack kind=existential targets=[from#1, from#2]
-        /// @resolution.call source=Pack.from(values) parameters=(from#2.T0) arguments=(provided(values) as from#2.T0) return=Owned<Pack<T#3>> kind=symbol target=from#1 receiver=Pack instance=from#1<from#2.T0>
+        /// @resolution.call source=Pack.from(values) parameters=(Dynamic<Iterable<T#3>>) arguments=(provided(values) as Dynamic<Iterable<T#3>>) return=Owned<Pack<T#3>> kind=symbol target=from#1 receiver=Pack instance=Pack<T#3>.<extension#1>.from#1
+        /// @generic.instance source=Pack.from id=Iterable<T#2>
+        /// @generic.instance source=Pack.from id=Iterable<T#3>
         /// @generic.instance source=Pack.from id=Pack<T#2>
         /// @generic.instance source=Pack.from id=Pack<T#3>
         /// @generic.instance source=Pack.from(values) id=Pack<T#3>
-        /// @generic.instance source=Pack.from(values) id=from#1<from#2.T0>
-        /// @type.node source=values type=from#2.T0
+        /// @generic.instance source=Pack.from(values) id=Pack<T#3>.<extension#1>.from#1
+        /// @type.node source=values type=Dynamic<Iterable<T#3>>
         /// @resolution.name source=values target=from.values#2
+        /// @generic.instance source=values id=Iterable<T#3>
 
     }
 }
 
+/// @generic.instance id=Iterable<T#2> template=iter.iterator.Iterable arguments=(T#2)
+/// @generic.instance id=Iterable<T#3> template=iter.iterator.Iterable arguments=(T#3)
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=from#1<from#2.T0> template=from#1 arguments=(from#2.T0)
+/// @generic.instance id=Pack<T#3>.<extension#1>.from#1 template=from#1 arguments=(T#3)
 "#,
         r#""#,
     );
@@ -135,8 +135,6 @@ export extension<T: Compare<T>> of ^Pack<T> {
 
 #[test]
 fn test_comptime_enum_arguments_prove_by_member_value() {
-    // comptime enum arguments evaluate to their member values, and a
-    // value satisfies the enum bound exactly when a member holds it
     let session = TestSession::single(
         r#"
 enum Mode {
@@ -196,7 +194,6 @@ export type ReadPort = Port<Mode.Write>;
 /// @resolution.name source=Mode.Write target=Mode
 
 /// @generic.instance id=Port<Mode.Write> template=Port arguments=(Mode.Write)
-
 "#,
         r#""#,
     );
@@ -204,9 +201,6 @@ export type ReadPort = Port<Mode.Write>;
 
 #[test]
 fn test_sibling_static_calls_instantiate_freshly() {
-    // a sibling static call names the type, not the enclosing
-    // instantiation: its parameters open at the call and bind from
-    // the arguments, so map<U> reaches ok at U
     let session = TestSession::single(
         r#"
 struct Ok<T> {
@@ -255,19 +249,19 @@ newtype Outcome<T, E> = Ok<T> | Err<E>;
 
 export extension<T, E> of Outcome<T, E> {
     static ok(value: T): Outcome<T, E> {
-        Outcome(Ok { value } as Ok<T> | Err<E>)
+        Outcome(Ok<T> { value } as Ok<T> | Err<E>)
     }
 
     static err(error: E): Outcome<T, E> {
-        Outcome(Err { error } as Ok<T> | Err<E>)
+        Outcome(Err<E> { error } as Ok<T> | Err<E>)
     }
 
     map<U>(f: (arg0: T) => U): Outcome<U, E> {
         match (this) {
             Ok { value } => Outcome.ok<U, E>(f(value))
             Err { error } => Outcome.err<U, E>(error)
-        }
-    } as Outcome<U, E>
+        } as Outcome<U, E>
+    }
 }
 
 === checked ===
@@ -385,21 +379,22 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.name source=Ok target=Ok
             /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
             /// @generic.instance source="Ok { value }" id=Ok<T#3>
-            /// @type.symbol symbol=map.value source=value type=T#3
+            /// @type.symbol symbol=map.value#2 source=value type=T#3
             /// @type.node source=Outcome type=Outcome
             /// @type.node source=Outcome.ok type=(T#3) => Outcome<T#3, E#3>
             /// @type.node source=Outcome.ok(f(value)) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.ok receiver=Outcome kind=symbol target=ok
-            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok receiver=Outcome
+            /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.ok"
             /// @generic.instance source=Outcome.ok id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>"
+            /// @generic.instance source=Outcome.ok(f(value)) id="Outcome<U, E#3>.<extension#1>.ok"
             /// @type.node source=f type=Function<(T#3,), U>
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
             /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression
             /// @type.node source=value type=T#3
-            /// @resolution.name source=value target=map.value
+            /// @resolution.name source=value target=map.value#2
 
             Err { error } => Outcome.err(error)
             /// @resolution.name source=Err target=Err
@@ -411,9 +406,10 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=Outcome.err(error) type=Outcome<U, E#3>
             /// @resolution.name source=Outcome target=Outcome
             /// @resolution.member source=Outcome.err receiver=Outcome kind=symbol target=err
-            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err receiver=Outcome
+            /// @resolution.call source=Outcome.err(error) parameters=(E#3) arguments=(provided(error) as E#3) return=Outcome<U, E#3> kind=symbol target=err receiver=Outcome instance="Outcome<U, E#3>.<extension#1>.err"
             /// @generic.instance source=Outcome.err id="Outcome<T#3, E#3>"
             /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>"
+            /// @generic.instance source=Outcome.err(error) id="Outcome<U, E#3>.<extension#1>.err"
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
 
@@ -423,9 +419,10 @@ export extension<T, E> of Outcome<T, E> {
 
 /// @generic.instance id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3)
 /// @generic.instance id="Outcome<U, E#3>" template=Outcome arguments=(U, E#3)
+/// @generic.instance id="Outcome<U, E#3>.<extension#1>.err" template=err arguments=(U, E#3)
+/// @generic.instance id="Outcome<U, E#3>.<extension#1>.ok" template=ok arguments=(U, E#3)
 /// @generic.instance id=Err<E#3> template=Err arguments=(E#3)
 /// @generic.instance id=Ok<T#3> template=Ok arguments=(T#3)
-
 "#,
         r#""#,
     );
@@ -466,7 +463,7 @@ struct Pack<T> {
 
 export extension<T> of Pack<T> {
     static of(value: T): Pack<T> {
-        Pack { value }
+        Pack<T> { value }
     }
 }
 
@@ -529,13 +526,13 @@ function wrap(): Packed<string> {
 
     Packed.of("text")
     /// @type.node source="Packed.of(\"text\")" type=Pack<string>
-    /// @type.node source=Packed type=Pack<T#3>
+    /// @type.node source=Packed type=Packed
     /// @type.node source=Packed.of type=(T#2) => Pack<T#2>
     /// @resolution.name source=Packed target=Packed
-    /// @resolution.member source=Packed.of receiver=Pack<T#3> kind=symbol target=of
-    /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of receiver=Pack<T#3>
+    /// @resolution.member source=Packed.of receiver=Packed kind=symbol target=of
+    /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of receiver=Packed instance=Pack<string>.<extension#1>.of
     /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>
-    /// @generic.instance source=Packed id=Pack<T#3>
+    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>.<extension#1>.of
     /// @generic.instance source=Packed.of id=Pack<T#2>
     /// @type.node source="\"text\"" type="text"
 
@@ -544,24 +541,22 @@ function wrap(): Packed<string> {
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
 /// @generic.instance id=Pack<string> template=Pack arguments=(string)
+/// @generic.instance id=Pack<string>.<extension#1>.of template=of arguments=(string)
 /// @generic.instance id=Packed<string> template=Packed arguments=(string)
-
 "#,
         r#""#,
     );
 }
 
 #[test]
-fn test_field_reads_through_borrows_project_the_borrow() {
-    // a field read through a readonly borrow projects the receiver's
-    // own borrow, lifetime preserved, like a rustc place projection
+fn test_field_reads_through_borrows_project_deep_readonly() {
     let session = TestSession::single(
         r#"
 struct Pack<T> {
     value: T;
 }
 
-function read<T>(pack: &readonly Pack<T>): &readonly T {
+function read<T>(pack: &readonly Pack<T>): readonly T {
     pack.value
 }
 "#,
@@ -576,9 +571,7 @@ struct Pack<T> {
     value: T;
 }
 
-function read<T, comptime L1: Lifetime>(
-    pack: Borrowed<Pack<T>, L1, "readonly">,
-): Borrowed<T, L1, "readonly"> {
+function read<T, comptime L1: Lifetime>(pack: Borrowed<Pack<T>, L1, "readonly">): readonly T {
     pack.value
 }
 
@@ -596,9 +589,9 @@ struct Pack<T> {
 
 }
 
-function read<T>(pack: &readonly Pack<T>): &readonly T {
+function read<T>(pack: &readonly Pack<T>): readonly T {
 /// @generic.template symbol=read parameters=(T#2, comptime L1: Lifetime)
-/// @type.symbol symbol=read type=<T#2, comptime read.L1: Lifetime>(Borrowed<Pack<T#2>, read.L1, "readonly">) => Borrowed<T#2, read.L1, "readonly">
+/// @type.symbol symbol=read type=<T#2, comptime read.L1: Lifetime>(Borrowed<Pack<T#2>, read.L1, "readonly">) => Readonly<T#2>
 /// @type.symbol symbol=read.T source=T type=T#2
 /// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=Borrowed<Pack<T#2>, read.L1, "readonly">
 /// @resolution.name source=Pack target=Pack
@@ -607,7 +600,7 @@ function read<T>(pack: &readonly Pack<T>): &readonly T {
 
     pack.value
     /// @type.node source=pack type=Borrowed<Pack<T#2>, read.L1, "readonly">
-    /// @type.node source=pack.value type=Borrowed<T#2, read.L1, "readonly">
+    /// @type.node source=pack.value type=Readonly<T#2>
     /// @resolution.name source=pack target=read.pack
     /// @resolution.member source=pack.value receiver=Borrowed<Pack<T#2>, read.L1, "readonly"> kind=symbol target=Pack.value
     /// @generic.instance source=pack id=Pack<T#2>
@@ -615,23 +608,20 @@ function read<T>(pack: &readonly Pack<T>): &readonly T {
 }
 
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
-
 "#,
         r#""#,
     );
 }
 
 #[test]
-fn test_borrowed_arguments_select_their_union_arm() {
-    // an argument binds against the single union arm sharing its
-    // constructor instead of demanding a copy out of the view
+fn test_view_arguments_select_their_union_arm() {
     let session = TestSession::single(
         r#"
 struct Pack<T> {
     value: T;
 }
 
-function same<T>(actual: &readonly T | T, expected: T): void {
+function same<T>(actual: readonly T | T, expected: T): void {
     todo("same")
 }
 
@@ -650,10 +640,7 @@ struct Pack<T> {
     value: T;
 }
 
-function same<T, comptime L1: Lifetime>(
-    actual: Borrowed<T, L1, "readonly"> | T,
-    expected: T,
-): void {
+function same<T>(actual: readonly T | T, expected: T): void {
     todo("same" as string | undefined);
 }
 
@@ -661,7 +648,7 @@ function check<T, comptime L1: Lifetime>(
     pack: Borrowed<Pack<T>, L1, "readonly">,
     expected: T,
 ): void {
-    same<T, L1>(pack.value as Borrowed<T, L1, "readonly"> | T, expected);
+    same<T>(pack.value as readonly T | T, expected);
 }
 
 === checked ===
@@ -678,11 +665,11 @@ struct Pack<T> {
 
 }
 
-function same<T>(actual: &readonly T | T, expected: T): void {
-/// @generic.template symbol=same parameters=(T#2, comptime L1: Lifetime)
-/// @type.symbol symbol=same type=<T#2, comptime same.L1: Lifetime>(Borrowed<T#2, same.L1, "readonly"> | T#2, T#2) => void
+function same<T>(actual: readonly T | T, expected: T): void {
+/// @generic.template symbol=same parameters=(T#2)
+/// @type.symbol symbol=same type=<T#2>(Readonly<T#2> | T#2, T#2) => void
 /// @type.symbol symbol=same.T source=T type=T#2
-/// @type.symbol symbol=same.actual source="actual: &readonly T | T" type=Borrowed<T#2, same.L1, "readonly"> | T#2
+/// @type.symbol symbol=same.actual source="actual: readonly T | T" type=Readonly<T#2> | T#2
 /// @resolution.name source=T target=same.T
 /// @resolution.name source=T target=same.T
 /// @type.symbol symbol=same.expected source="expected: T" type=T#2
@@ -709,12 +696,12 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
 
     same(pack.value, expected)
     /// @type.node source="same(pack.value, expected)" type=void
-    /// @type.node source=same type=<T#2, comptime same.L1: Lifetime>(Borrowed<T#2, same.L1, "readonly"> | T#2, T#2) => void
+    /// @type.node source=same type=(Readonly<T#3> | T#3, T#3) => void
     /// @resolution.name source=same target=same
-    /// @resolution.call source="same(pack.value, expected)" parameters=(Borrowed<T#3, check.L1, "readonly"> | T#3, T#3) arguments=(provided(pack.value) as Borrowed<T#3, check.L1, "readonly"> | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance="same<T#3, check.L1>"
-    /// @generic.instance source="same(pack.value, expected)" id="same<T#3, check.L1>"
+    /// @resolution.call source="same(pack.value, expected)" parameters=(Readonly<T#3> | T#3, T#3) arguments=(provided(pack.value) as Readonly<T#3> | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
+    /// @generic.instance source="same(pack.value, expected)" id=same<T#3>
     /// @type.node source=pack type=Borrowed<Pack<T#3>, check.L1, "readonly">
-    /// @type.node source=pack.value type=Borrowed<T#3, check.L1, "readonly">
+    /// @type.node source=pack.value type=Readonly<T#3>
     /// @resolution.name source=pack target=check.pack
     /// @resolution.member source=pack.value receiver=Borrowed<Pack<T#3>, check.L1, "readonly"> kind=symbol target=Pack.value
     /// @generic.instance source=pack id=Pack<T#3>
@@ -723,9 +710,8 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
 
 }
 
-/// @generic.instance id="same<T#3, check.L1>" template=same arguments=(T#3, check.L1)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-
+/// @generic.instance id=same<T#3> template=same arguments=(T#3)
 "#,
         r#""#,
     );

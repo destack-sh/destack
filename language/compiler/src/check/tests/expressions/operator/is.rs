@@ -260,7 +260,7 @@ function check<T>(value: unknown): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-function check<T>(value: unknown): void {
+function check<T>(value: Dynamic<unknown>): void {
     if (value is T) {
     }
 }
@@ -268,21 +268,23 @@ function check<T>(value: unknown): void {
 === checked ===
 function check<T>(value: unknown): void {
 /// @generic.template symbol=check parameters=(T)
-/// @type.symbol symbol=check type=<T>(unknown) => void
+/// @type.symbol symbol=check type=<T>(Dynamic<unknown>) => void
 /// @type.symbol symbol=check.T source=T type=T
-/// @type.symbol symbol=check.value source="value: unknown" type=unknown
+/// @type.symbol symbol=check.value source="value: unknown" type=Dynamic<unknown>
 
     if (value is T) {
     /// @type.node source="value is T" type=boolean
-    /// @type.node source=value type=unknown
+    /// @type.node source=value type=Dynamic<unknown>
     /// @resolution.name source=value target=check.value
-    /// @resolution.guard source="value is T" kind=is value=unknown target=T predicate="unknown is never"
+    /// @resolution.guard source="value is T" kind=is value=Dynamic<unknown> target=T predicate="Dynamic<unknown> is never"
     /// @resolution.name source=T target=check.T
 
     }
 }
 "#,
         r#"
+/// @diagnostic.error code=EC320 message="type 'T' cannot be tested at runtime"
+/// @diagnostic.label line=3 column=18 span="T" line_source="if (value is T) {"
 /// @diagnostic.error code=EC504 message="type 'T' is not dynamic-safe"
 /// @diagnostic.label line=3 column=18 span="T" line_source="if (value is T) {"
 "#,

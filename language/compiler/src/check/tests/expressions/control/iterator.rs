@@ -27,9 +27,9 @@ for (const value of values) {
 const values: int32[] = [1, 2, 3];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @type.node source=[1, 2, 3] type=Array<int32>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 
 for (const value of values) {
 /// @type.symbol symbol=value source=value type=int32
@@ -43,7 +43,6 @@ for (const value of values) {
     /// @resolution.name source=value target=value
 
 }
-
 "#,
     );
 }
@@ -82,7 +81,7 @@ for (const value of 1) {
 "#,
         r#"
 /// @diagnostic.error code=EC421 message="for-of source must be iterable"
-/// @diagnostic.label line=2 column=1 source="for (const value of 1) {"
+/// @diagnostic.label line=2 column=1 span="for (const value of 1) {\n    value;\n}" line_source="for (const value of 1) {"
 "#,
     );
 }
@@ -112,15 +111,15 @@ for (const key in target) {
 
 === checked ===
 const target = { a: 1, b: 2 };
-/// @type.symbol symbol=target source=target type=Managed<{ a: float64; b: float64 }>
-/// @type.node source="{ a: 1, b: 2 }" type=Managed<{ a: float64; b: float64 }>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
+/// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type=Managed<{ a: float64; b: float64 }>
+/// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
 
     key satisfies string;
@@ -129,7 +128,6 @@ for (const key in target) {
     /// @resolution.name source=key target=key
 
 }
-
 "#,
     );
 }
@@ -159,15 +157,15 @@ for (const key in target) {
 
 === checked ===
 const target = { a: 1, b: 2 };
-/// @type.symbol symbol=target source=target type=Managed<{ a: float64; b: float64 }>
-/// @type.node source="{ a: 1, b: 2 }" type=Managed<{ a: float64; b: float64 }>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
+/// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=target type=Managed<{ a: float64; b: float64 }>
+/// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
 
     key satisfies "a" | "b";
@@ -176,11 +174,10 @@ for (const key in target) {
     /// @resolution.name source=key target=key
 
 }
-
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'string' is not assignable to type '\"a\" | \"b\"'"
-/// @diagnostic.label line=5 column=5 source="key satisfies \"a\" | \"b\";"
+/// @diagnostic.label line=5 column=9 span="satisfies" line_source="key satisfies \"a\" | \"b\";"
 "#,
     );
 }
@@ -254,16 +251,16 @@ for (const key in &readonly target) {
 
 === checked ===
 const target = { a: 1, b: 2 };
-/// @type.symbol symbol=target source=target type=Managed<{ a: float64; b: float64 }>
-/// @type.node source="{ a: 1, b: 2 }" type=Managed<{ a: float64; b: float64 }>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
+/// @type.symbol symbol=target source=target type={ a: float64; b: float64 }
+/// @type.node source={ a: 1, b: 2 } type={ a: 1; b: 2 }
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 for (const key in &readonly target) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source="&readonly target" type=Borrowed<Managed<{ a: float64; b: float64 }>, memory.type.LifetimeOr<Managed<{ a: float64; b: float64 }>, "static">, "readonly">
-/// @type.node source=target type=Managed<{ a: float64; b: float64 }>
+/// @type.node source="&readonly target" type=Borrowed<{ a: float64; b: float64 }, "static", "readonly">
+/// @type.node source=target type={ a: float64; b: float64 }
 /// @resolution.name source=target target=target
 
     key satisfies string;
@@ -272,7 +269,6 @@ for (const key in &readonly target) {
     /// @resolution.name source=key target=key
 
 }
-
 "#,
     );
 }
@@ -311,7 +307,7 @@ for (const key in 1) {
 "#,
         r#"
 /// @diagnostic.error code=EC422 message="for-in source must be object-shaped"
-/// @diagnostic.label line=2 column=1 source="for (const key in 1) {"
+/// @diagnostic.label line=2 column=1 span="for (const key in 1) {\n    key;\n}" line_source="for (const key in 1) {"
 "#,
     );
 }
@@ -358,7 +354,7 @@ for (const key in target) {
 "#,
         r#"
 /// @diagnostic.error code=EC422 message="for-in source must be object-shaped"
-/// @diagnostic.label line=4 column=1 source="for (const key in target) {"
+/// @diagnostic.label line=4 column=1 span="for (const key in target) {\n    key;\n}" line_source="for (const key in target) {"
 "#,
     );
 }
@@ -386,21 +382,20 @@ for (const key in [1, 2, 3]) {
 for (const key in [1, 2, 3]) {
 /// @type.symbol symbol=key source=key type=string
 /// @resolution.pattern source=key kind=binding target=key
-/// @type.node source=[1, 2, 3] type=Array<float64>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 
     key;
     /// @type.node source=key type=string
     /// @resolution.name source=key target=key
 
 }
-
 "#,
         r#"
 /// @diagnostic.error code=EC422 message="for-in source must be object-shaped"
-/// @diagnostic.label line=2 column=1 source="for (const key in [1, 2, 3]) {"
+/// @diagnostic.label line=2 column=1 span="for (const key in [1, 2, 3]) {\n    key;\n}" line_source="for (const key in [1, 2, 3]) {"
 "#,
     );
 }
@@ -478,7 +473,7 @@ fn test_for_in_accepts_class_receiver() {
     let session = TestSession::single(
         r#"
 class User {
-    name: string;
+    name: string = "";
 }
 
 declare const user: User;
@@ -495,7 +490,7 @@ for (const key in user) {
         r#"
 === annotated ===
 class User {
-    name: string;
+    name: string = "";
 }
 
 declare const user: User;
@@ -508,10 +503,11 @@ for (const key in user) {
 class User {
 /// @type.symbol symbol=User type=User
 /// @definition.class symbol=User
-/// @definition.field symbol=User.name source="name: string" key=name type=string
+/// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
 
-    name: string;
-    /// @type.symbol symbol=User.name source="name: string" type=string
+    name: string = "";
+    /// @type.symbol symbol=User.name source="name: string = \"\"" type=string
+    /// @type.node source="\"\"" type=""
 
 }
 
@@ -563,9 +559,9 @@ for (const key in target) {
 === checked ===
 declare const token: unique symbol;
 /// @type.symbol symbol=token source=token type=unique symbol
+
 declare const target: { name: string; readonly [token]: int32 };
 /// @type.symbol symbol=target source=target type={ name: string; readonly [token]: int32 }
-/// @resolution.name source=token target=token
 
 for (const key in target) {
 /// @type.symbol symbol=key source=key type=string

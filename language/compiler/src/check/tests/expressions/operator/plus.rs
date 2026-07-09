@@ -95,6 +95,7 @@ struct Vector {
 }
 
 extension of Vector implements Add<Vector> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Vector
 /// @definition.implements symbol=<module>#2 source=Add<Vector> target=ops.plus.Add arguments=(Vector)
 /// @definition.associated.type symbol=Output source="type Output = Vector" key=Output value=Vector
@@ -161,7 +162,8 @@ const sum = left + right;
 /// @resolution.call source="left + right" parameters=(Vector) arguments=(provided(right) as Vector) return=Vector kind=symbol target=add receiver=Vector
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
-"#);
+"#,
+    );
 }
 
 #[test]
@@ -222,6 +224,7 @@ struct Score {
 }
 
 extension of Score implements Add<Score> {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=ops.plus.Add arguments=(Score)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
@@ -324,8 +327,9 @@ struct Score {
 }
 
 extension of Score implements Add {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Score
-/// @definition.implements symbol=<module>#2 source=Add target=ops.plus.Add arguments=(Score)
+/// @definition.implements symbol=<module>#2 source=Add target=ops.plus.Add arguments=(this)
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
 /// @definition.method symbol=add slot=add type=(this: Score, Score) => Score
 /// @resolution.name source=Score target=Score

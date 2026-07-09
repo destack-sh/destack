@@ -23,7 +23,10 @@ const flipped = -charge;
 "#,
     );
 
-    session.assert_dir_checked("main.ds", DirRows::checked(), r#"
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked(),
+        r#"
 === annotated ===
 import { Negate } from "destack:ops";
 
@@ -56,6 +59,7 @@ struct Charge {
 }
 
 extension of Charge implements Negate {
+/// @generic.template symbol=<module>#2 parameters=()
 /// @definition.extension symbol=<module>#2 form=local target=Charge
 /// @definition.implements symbol=<module>#2 source=Negate target=ops.negate.Negate
 /// @definition.associated.type symbol=Output source="type Output = Charge" key=Output value=Charge
@@ -88,5 +92,6 @@ const flipped = -charge;
 /// @type.symbol symbol=flipped source=flipped type=Charge
 /// @resolution.call source=-charge parameters=() return=Charge kind=symbol target=negate receiver=Charge
 /// @resolution.name source=charge target=charge
-"#);
+"#,
+    );
 }

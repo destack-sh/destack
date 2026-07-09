@@ -168,6 +168,7 @@ declare const segment: Segment;
 
 segment.wide;
 /// @type.node source=segment type=Segment
+/// @type.node source=segment.wide type=<error>
 /// @resolution.name source=segment target=segment
 "#,
         r#"
@@ -224,7 +225,7 @@ class Packet<T> {
 /// @type.symbol symbol=Packet type=Packet
 /// @definition.class symbol=Packet template=(T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
-/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=<T>(T) => Packet<T>
+/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(T) => Packet<T>
 /// @type.symbol symbol=Packet.T source=T type=T
 
     @if(T extends string)
@@ -235,8 +236,8 @@ class Packet<T> {
     /// @resolution.name source=T target=Packet.T
 
     constructor(value: T) {
-    /// @type.symbol symbol=Packet.constructor type=<T>(T) => Packet<T>
-    /// @type.symbol symbol=value source="value: T" type=T
+    /// @type.symbol symbol=Packet.constructor type=(T) => Packet<T>
+    /// @type.symbol symbol=Packet.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Packet.T
 
         this.value = value;
@@ -247,7 +248,7 @@ class Packet<T> {
         /// @resolution.pattern.assign source=this.value kind=place place=field(Packet.value) type=T
         /// @generic.instance source=this id=Packet<T>
         /// @type.node source=value type=T
-        /// @resolution.name source=value target=value
+        /// @resolution.name source=value target=Packet.constructor.value
 
     }
 }
