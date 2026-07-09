@@ -5,8 +5,10 @@ mod frame;
 mod global;
 mod heap;
 mod machine;
+mod profile;
 mod root;
 mod stack;
+mod watch;
 
 pub(crate) use activation::Activation;
 pub use destack_program::{Continuation, FrameImage, StackImage};
