@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use destack_core::Optional;
 use destack_mir as mir;
 
 use destack_program::vm::{
     Block, CallTarget, FunctionBuilder, Instruction, MoveSlot, SideTableBuilder,
 };
 use destack_program::{
-    AllocationSite, CallSite, FrameLayout, FrameLayoutId, FrameSlot, FrameStateId, MemorySite,
+    AllocationSite, CallSite, ContinuationSite, CounterSite, EdgeSite, FrameLayout, FrameLayoutId,
+    FrameSlot, FrameStateId, FunctionId, MemorySite, ProgramPoint, SampleSite,
 };
 
 use crate::{LinkError, LinkResult};
@@ -122,6 +124,8 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         let mut allocation_sites = Vec::new();
         let mut memory_sites = Vec::new();
         let mut call_sites = Vec::new();
+        let mut counter_sites = Vec::new();
+        let mut sample_sites = Vec::new();
 
         for (_, block_id) in ordered_blocks {
             let start = code.len() as u32;
@@ -133,13 +137,18 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             source_points.push(SourceBlock {
                 block: block_id,
                 start,
+                len,
                 point_by_pc: block.point_by_pc,
             });
             allocation_sites.extend(block.allocation_sites);
             memory_sites.extend(block.memory_sites);
             call_sites.extend(block.call_sites);
+            counter_sites.extend(block.counter_sites);
+            sample_sites.extend(block.sample_sites);
         }
 
+        let edge_sites = self.edge_sites(&source_points)?;
+        let continuation_sites = self.continuation_sites(&source_points)?;
         let (argument_pool, move_pool) = self.pool.finish();
         let function = FunctionBuilder {
             function: self.context.program_function(self.context.function_id),
@@ -158,6 +167,10 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             allocation_sites,
             memory_sites,
             call_sites,
+            edge_sites,
+            continuation_sites,
+            counter_sites,
+            sample_sites,
         })
     }
 
@@ -211,6 +224,174 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
         }
 
         Ok(block_parameters)
+    }
+
+    /// Build executable continuation sites after target block starts are known.
+    fn continuation_sites(
+        &self,
+        source_points: &[SourceBlock],
+    ) -> LinkResult<Vec<ContinuationSite>> {
+        let block_starts = source_points
+            .iter()
+            .map(|block| (block.block, block.start))
+            .collect::<HashMap<_, _>>();
+        let function = self.context.program_function(self.context.function_id);
+        let mut sites = Vec::new();
+
+        // scan lowered blocks for coroutine capture points
+        for block in source_points {
+            let source = self.context.tree.get(block.block);
+            let terminator = self.context.tree.get(source.terminator);
+            let mir::Terminator::Yield {
+                value,
+                resume,
+                unwind,
+            } = terminator
+            else {
+                continue;
+            };
+
+            let Some(terminator_pc) = block.len.checked_sub(1) else {
+                return Err(self.context.invalid_instruction("continuation point"));
+            };
+            let point = ProgramPoint::new(function, block.start + terminator_pc);
+            let resume = self.block_start_point(function, &block_starts, resume.block)?;
+            let unwind = unwind
+                .as_ref()
+                .map(|target| self.block_start_point(function, &block_starts, target.block))
+                .transpose()?;
+            let frame_state = self
+                .context
+                .yield_frame_states
+                .get(&block.block)
+                .copied()
+                .ok_or_else(|| self.context.invalid_instruction("yield frame state"))?;
+            let yielded_type = self
+                .context
+                .value_types
+                .get(value.0 as usize)
+                .copied()
+                .ok_or_else(|| {
+                    self.context
+                        .invalid_input(format!("type for value {value:?}"))
+                })?;
+
+            sites.push(ContinuationSite {
+                point,
+                resume,
+                unwind: Optional::from(unwind),
+                frame_state,
+                yielded_type: self.context.program.type_id(yielded_type),
+            });
+        }
+
+        Ok(sites)
+    }
+
+    /// Build executable control-flow edge sites after target block starts are known.
+    fn edge_sites(&self, source_points: &[SourceBlock]) -> LinkResult<Vec<EdgeSite>> {
+        let block_starts = source_points
+            .iter()
+            .map(|block| (block.block, block.start))
+            .collect::<HashMap<_, _>>();
+        let function = self.context.program_function(self.context.function_id);
+        let mut sites = Vec::new();
+
+        // scan lowered blocks for same-frame transfers
+        for block in source_points {
+            let source = self.context.tree.get(block.block);
+            let terminator = self.context.tree.get(source.terminator);
+            let Some(terminator_pc) = block.len.checked_sub(1) else {
+                return Err(self.context.invalid_instruction("edge point"));
+            };
+            let source = ProgramPoint::new(function, block.start + terminator_pc);
+
+            self.push_edge_sites(terminator, function, source, &block_starts, &mut sites)?;
+        }
+
+        Ok(sites)
+    }
+
+    /// Append executable edge sites for one MIR terminator.
+    fn push_edge_sites(
+        &self,
+        terminator: &mir::Terminator,
+        function: FunctionId,
+        source: ProgramPoint,
+        block_starts: &HashMap<mir::BlockId, u32>,
+        sites: &mut Vec<EdgeSite>,
+    ) -> LinkResult<()> {
+        match terminator {
+            mir::Terminator::Jump { target } => {
+                self.push_edge_site(function, source, target.block, block_starts, sites)?;
+            }
+            mir::Terminator::Branch {
+                then_target,
+                else_target,
+                ..
+            } => {
+                self.push_edge_site(function, source, then_target.block, block_starts, sites)?;
+                self.push_edge_site(function, source, else_target.block, block_starts, sites)?;
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            }
+            | mir::Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                self.push_edge_site(function, source, success.block, block_starts, sites)?;
+                self.push_edge_site(function, source, failure.block, block_starts, sites)?;
+            }
+            mir::Terminator::Switch { default, cases, .. } => {
+                self.push_edge_site(function, source, default.block, block_starts, sites)?;
+                for case in self.context.tree.get_switch_cases(*cases) {
+                    self.push_edge_site(function, source, case.target.block, block_starts, sites)?;
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Append one executable edge site.
+    fn push_edge_site(
+        &self,
+        function: FunctionId,
+        source: ProgramPoint,
+        target: mir::BlockId,
+        block_starts: &HashMap<mir::BlockId, u32>,
+        sites: &mut Vec<EdgeSite>,
+    ) -> LinkResult<()> {
+        let target = self.block_start_point(function, block_starts, target)?;
+
+        sites.push(EdgeSite { source, target });
+
+        Ok(())
+    }
+
+    /// Return the executable start point for one MIR block.
+    fn block_start_point(
+        &self,
+        function: FunctionId,
+        starts: &HashMap<mir::BlockId, u32>,
+        block: mir::BlockId,
+    ) -> LinkResult<ProgramPoint> {
+        let start = starts
+            .get(&block)
+            .copied()
+            .ok_or_else(|| self.context.invalid_instruction("block start"))?;
+
+        Ok(ProgramPoint::new(function, start))
     }
 
     /// Compute SSA value use counts across the function.
@@ -275,6 +456,14 @@ pub(crate) struct LoweredFunction {
     pub(crate) memory_sites: Vec<MemorySite>,
     /// Executable call sites.
     pub(crate) call_sites: Vec<CallSite>,
+    /// Executable control-flow edge sites.
+    pub(crate) edge_sites: Vec<EdgeSite>,
+    /// Executable continuation sites.
+    pub(crate) continuation_sites: Vec<ContinuationSite>,
+    /// Explicit counter sites.
+    pub(crate) counter_sites: Vec<CounterSite>,
+    /// Explicit sample sites.
+    pub(crate) sample_sites: Vec<SampleSite>,
 }
 
 /// Source block points in lowered VM block order.
@@ -283,6 +472,8 @@ pub(crate) struct SourceBlock {
     pub(crate) block: mir::BlockId,
     /// Function-local operation index where this block starts.
     pub(crate) start: u32,
+    /// Number of lowered instructions in this block.
+    pub(crate) len: u32,
     /// Source instruction point for each VM instruction offset.
     pub(crate) point_by_pc: Vec<u32>,
 }
@@ -299,6 +490,10 @@ struct LoweredBlock {
     memory_sites: Vec<MemorySite>,
     /// Executable call sites.
     call_sites: Vec<CallSite>,
+    /// Explicit counter sites.
+    counter_sites: Vec<CounterSite>,
+    /// Explicit sample sites.
+    sample_sites: Vec<SampleSite>,
 }
 
 /// One block-local lowerer.
@@ -326,6 +521,8 @@ impl<'a> BlockLowerer<'a> {
         let mut allocation_sites = Vec::new();
         let mut memory_sites = Vec::new();
         let mut call_sites = Vec::new();
+        let mut counter_sites = Vec::new();
+        let mut sample_sites = Vec::new();
         point_by_pc.push(0);
 
         // convert regular instructions
@@ -341,6 +538,12 @@ impl<'a> BlockLowerer<'a> {
             self.push_memory_sites_for_instruction(inst, pc, &mut memory_sites)?;
             if let Some(site) = self.call_site_for_instruction(inst, pc)? {
                 call_sites.push(site);
+            }
+            if let Some(site) = self.counter_site_for_instruction(inst, pc)? {
+                counter_sites.push(site);
+            }
+            if let Some(site) = self.sample_site_for_instruction(inst, pc)? {
+                sample_sites.push(site);
             }
 
             // lower the remaining instruction shape
@@ -387,6 +590,8 @@ impl<'a> BlockLowerer<'a> {
             allocation_sites,
             memory_sites,
             call_sites,
+            counter_sites,
+            sample_sites,
         })
     }
 

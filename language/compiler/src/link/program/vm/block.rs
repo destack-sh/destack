@@ -4,7 +4,9 @@ use destack_heap as heap;
 use destack_mir as mir;
 
 use destack_program::vm::CallTarget;
-use destack_program::{CellLayout, FrameLayout, FrameSlot, FrameStateId, FunctionId, ScalarFormat};
+use destack_program::{
+    CellLayout, CounterId, FrameLayout, FrameSlot, FrameStateId, FunctionId, ScalarFormat,
+};
 
 use crate::{LinkError, LinkResult};
 
@@ -214,6 +216,11 @@ impl<'a> FunctionContext<'a> {
     /// Return the program function id for one MIR function.
     pub(super) fn program_function(&self, function: mir::LocalNodeId<mir::Function>) -> FunctionId {
         self.program.function_id(function)
+    }
+
+    /// Return the program counter id for one function-local MIR counter.
+    pub(super) fn program_counter(&self, counter: mir::CounterId) -> LinkResult<CounterId> {
+        self.program.program().counter_id(self.function_id, counter)
     }
 
     /// Return the VM operand for one MIR type.
