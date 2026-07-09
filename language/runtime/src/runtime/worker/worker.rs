@@ -39,6 +39,8 @@ pub struct Worker {
     pub(crate) stop_points: program::StopSet,
     /// Executable watchpoints active for this worker.
     pub(crate) watch_points: program::WatchSet,
+    /// Runtime profile accumulated by this worker.
+    pub(crate) profile: Option<program::Profile>,
 
     /// External resource table.
     pub(crate) resources: ResourceTable,
@@ -100,6 +102,8 @@ pub struct WorkerImage {
     pub machine_image: Image,
     /// Captured stopped runnable state.
     pub stop: Option<StoppedRunnableImage>,
+    /// Captured runtime profile state.
+    pub profile: Option<program::Profile>,
 }
 
 /// Captured worker options with shared runtime storage when possible.
@@ -135,6 +139,7 @@ impl PartialEq for WorkerImage {
             && self.local_static == other.local_static
             && self.machine_image == other.machine_image
             && self.stop == other.stop
+            && self.profile == other.profile
     }
 }
 
@@ -317,6 +322,7 @@ impl Worker {
             debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
             watch_points: world.debugger.watch_set(runtime_id, worker_id),
+            profile: None,
             resources,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             binding_table,
@@ -353,6 +359,21 @@ impl Worker {
     /// Return whether this worker still has pending scheduler work.
     pub fn has_pending_work(&self) -> bool {
         self.stop.is_some() || self.event_loop.has_pending_work()
+    }
+
+    /// Return the accumulated runtime profile when active.
+    pub fn profile(&self) -> Option<&program::Profile> {
+        self.profile.as_ref()
+    }
+
+    /// Start runtime profiling for this worker.
+    pub fn start_profile(&mut self, options: program::ProfileOptions) {
+        self.profile = Some(program::Profile::new(self.program.as_ref(), options));
+    }
+
+    /// Stop runtime profiling and return the accumulated profile.
+    pub fn stop_profile(&mut self) -> Option<program::Profile> {
+        self.profile.take()
     }
 
     /// Return the number of stored resources for this worker.
@@ -623,6 +644,7 @@ impl Worker {
             local_static: self.local_static.clone(),
             machine_image: self.machine.image()?,
             stop: self.stop.as_ref().map(StoppedRunnableImage::capture),
+            profile: self.profile.clone(),
         })
     }
 
@@ -657,6 +679,7 @@ impl Worker {
         let machine = self.machine.fork()?;
         let event_loop = Box::new(self.event_loop.fork()?);
         let stop = self.stop.clone();
+        let profile = self.profile.clone();
 
         Ok(Some(Self {
             id: self.id,
@@ -671,6 +694,7 @@ impl Worker {
             debug_generation: self.debug_generation,
             stop_points: self.stop_points.clone(),
             watch_points: self.watch_points.clone(),
+            profile,
             shared_mark_worker,
             shared_cache,
             heap,
@@ -759,6 +783,7 @@ impl Worker {
             debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
             watch_points: world.debugger.watch_set(runtime_id, worker_id),
+            profile: image.profile.clone(),
             resources,
             diagnostics,
             binding_table,

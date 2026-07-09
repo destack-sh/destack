@@ -411,6 +411,16 @@ impl TestRuntime {
             .expect("tick until idle should complete");
     }
 
+    /// Start runtime profiling on the wrapped worker.
+    pub(crate) fn start_profile(&mut self, options: program::ProfileOptions) {
+        self.worker.start_profile(options);
+    }
+
+    /// Return the wrapped worker profile.
+    pub(crate) fn profile(&self) -> Option<&program::Profile> {
+        self.worker.profile()
+    }
+
     /// Run until one task completes or one timeout elapses.
     pub(crate) fn run_loop_until_task_complete(
         &mut self,
@@ -696,6 +706,7 @@ pub(crate) fn start_worker_continuation(
         heap: worker_heap,
         local_static,
         machine,
+        profile,
         shared_cache,
         shared_mark_worker,
         ..
@@ -714,7 +725,14 @@ pub(crate) fn start_worker_continuation(
     };
     let args = [program::Value::int32(value)];
     let outcome = machine
-        .run(context, &Entry::new(entry), &args, None, None)
+        .run(
+            context,
+            &Entry::new(entry),
+            &args,
+            None,
+            None,
+            profile.as_mut(),
+        )
         .expect("test continuation should start");
 
     match outcome {

@@ -102,6 +102,7 @@ impl Worker {
             machine,
             stop_points,
             watch_points,
+            profile,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -116,7 +117,14 @@ impl Worker {
                 constant_space,
             },
         };
-        let outcome = machine.run(context, entry, args, Some(stop_points), Some(watch_points))?;
+        let outcome = machine.run(
+            context,
+            entry,
+            args,
+            Some(stop_points),
+            Some(watch_points),
+            profile.as_mut(),
+        )?;
 
         // handle the entry outcome
         let output = match outcome {
@@ -997,6 +1005,7 @@ impl Worker {
             machine,
             stop_points,
             watch_points,
+            profile,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -1018,6 +1027,7 @@ impl Worker {
             resume_value,
             Some(stop_points),
             Some(watch_points),
+            profile.as_mut(),
         )
     }
 
@@ -1044,6 +1054,7 @@ impl Worker {
             machine,
             stop_points,
             watch_points,
+            profile,
             ..
         } = self;
         let context = program::ProgramActivation {
@@ -1066,6 +1077,7 @@ impl Worker {
             runnable,
             Some(stop_points),
             Some(watch_points),
+            profile.as_mut(),
             resume_skip,
         )
     }
