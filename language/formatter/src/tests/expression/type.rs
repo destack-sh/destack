@@ -123,6 +123,22 @@ type B = T | {};
     );
 }
 
+/// Type query instantiations should normalize generic postfix spacing.
+#[test]
+fn test_format_typeof_query_instantiation() {
+    assert_format_program!(
+        r#"type A<U> = InstanceType<typeof   Array < U >>
+type Handler = Callback<typeof   something < Type1, Type2 >>
+type Factory<U> = typeof namespace.Factory < U >
+"#,
+        r#"type A<U> = InstanceType<typeof Array<U>>;
+type Handler = Callback<typeof something<Type1, Type2>>;
+type Factory<U> = typeof namespace.Factory<U>;
+"#,
+        FileType::TypeScriptXml
+    );
+}
+
 /// Single member object intersection arms should inline from formatted width, not source width.
 #[test]
 fn test_format_type_object_intersection_ignores_source_spacing_width() {
