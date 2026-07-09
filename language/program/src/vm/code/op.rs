@@ -882,6 +882,10 @@ pub enum Op {
     Assume,
     /// Debugger breakpoint.
     Breakpoint,
+    /// Increment one explicit profile counter.
+    ProfileIncrement,
+    /// Record one explicit profile sample.
+    ProfileSample,
     /// Return one cell value from the current function.
     ReturnCell,
     /// Return one frame address from the current function.
@@ -1001,6 +1005,35 @@ pub enum Op {
 }
 
 impl Op {
+    /// Return whether this op transfers into a callee.
+    pub const fn is_call(self) -> bool {
+        matches!(
+            self,
+            Self::Call
+                | Self::CallBranch
+                | Self::CallFunctionPointer
+                | Self::CallFunction
+                | Self::CallFunctionPointerBranch
+                | Self::CallFunctionBranch
+                | Self::CallVirtualLocal
+                | Self::CallVirtualShared
+                | Self::CallVirtualLocalBranch
+                | Self::CallVirtualSharedBranch
+                | Self::CallDynamicLocal
+                | Self::CallDynamicShared
+                | Self::CallDynamicLocalBranch
+                | Self::CallDynamicSharedBranch
+                | Self::TailCall
+                | Self::TailCallSelf
+                | Self::TailCallFunctionPointer
+                | Self::TailCallFunction
+                | Self::TailCallVirtualLocal
+                | Self::TailCallVirtualShared
+                | Self::TailCallDynamicLocal
+                | Self::TailCallDynamicShared
+        )
+    }
+
     /// Return the pointer cell layout for memory operations.
     pub const fn memory_cell_layout(self) -> Option<CellLayout> {
         match self {
