@@ -1,0 +1,50 @@
+/// Profile sample value.
+export type SampleValue = boolean | number | bigint;
+
+/// Profile counter instrument.
+export newtype Counter = intrinsic;
+
+/// Profile sampler instrument.
+export newtype Sampler = intrinsic;
+
+/// Profile unit label.
+export newtype Unit = string;
+
+/// Profile instrument options.
+export struct InstrumentOptions {
+    /// Unit for recorded values.
+    unit?: Unit;
+
+    /// Human-readable instrument description.
+    description?: string;
+}
+
+/// Define one statically named profile counter.
+@intrinsic("profile.counter")
+export declare function counter(name: string, options?: InstrumentOptions): Counter;
+
+/// Define one statically named profile sampler.
+@intrinsic("profile.sampler")
+export declare function sampler(name: string, options?: InstrumentOptions): Sampler;
+
+export extension of Counter {
+    /// Increment this counter.
+    increment(&readonly this): void {
+        incrementCounter(this);
+    }
+}
+
+export extension of Sampler {
+    /// Record one sample.
+    sample(&readonly this, value: SampleValue): void {
+        sampleValue(this, value);
+    }
+}
+
+/// Increment one profile counter.
+@intrinsic("profile.increment")
+declare function incrementCounter(counter: Counter): void;
+
+/// Record one profile sample.
+@intrinsic("profile.sample")
+declare function sampleValue(sampler: Sampler, value: SampleValue): void;
