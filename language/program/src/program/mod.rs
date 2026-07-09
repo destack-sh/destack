@@ -16,6 +16,7 @@ mod stack;
 mod string;
 mod r#type;
 mod value;
+mod watch;
 
 pub use activation::*;
 pub use binding::*;
@@ -35,3 +36,4 @@ pub use stack::*;
 pub use string::*;
 pub use r#type::*;
 pub use value::*;
+pub use watch::*;

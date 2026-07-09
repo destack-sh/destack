@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::ProgramPoint;
+use super::{ProgramPoint, WatchpointId};
 
 /// Result of running program code.
 #[derive(Debug)]
@@ -39,6 +39,13 @@ pub enum StopReason {
     Breakpoint {
         /// Breakpoint that stopped execution.
         breakpoint_id: BreakpointId,
+    },
+    /// Runtime watchpoint.
+    Watchpoint {
+        /// Watchpoint that stopped execution.
+        watchpoint_id: WatchpointId,
+        /// Program point that accessed watched memory.
+        point: ProgramPoint,
     },
 }
 
@@ -128,6 +135,7 @@ impl StopReason {
         match self {
             Self::Instruction { .. } => (0, 0),
             Self::Breakpoint { breakpoint_id } => (1, breakpoint_id.get()),
+            Self::Watchpoint { watchpoint_id, .. } => (2, watchpoint_id.get()),
         }
     }
 
@@ -137,7 +145,9 @@ impl StopReason {
             (Self::Breakpoint { breakpoint_id }, Some(skipped)) => {
                 breakpoint_id.get() == skipped.get()
             }
-            (Self::Instruction { .. }, _) | (Self::Breakpoint { .. }, None) => false,
+            (Self::Instruction { .. }, _)
+            | (Self::Breakpoint { .. }, None)
+            | (Self::Watchpoint { .. }, _) => false,
         }
     }
 }
