@@ -1118,7 +1118,7 @@ fn test_report_pattern_object_readonly_modifier_with_name_in_value_block_mode() 
     let mut parser = test.prepare();
     let error = parser.eat_pattern().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "value");
+    assert_eq!(parser.get_span_str(error.span), "value");
 }
 
 #[test]

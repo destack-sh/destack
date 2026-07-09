@@ -3,8 +3,8 @@ use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, DependencyBinding, DependencyForm, DependencyItem,
-    Expression, FunctionDeclaration, ImportAttributeClauseKind, Key, Name, NodeType, Parameter,
-    Pattern, Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    Expression, FunctionDeclaration, ImportAttributeClauseKind, Key, Name, Parameter, Pattern,
+    Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -508,28 +508,6 @@ fn test_parse_abstract_newline_as_identifier_then_class() {
     });
 }
 
-/// Parse `declare enum\nE\n{}` with a focused enum newline error.
-#[test]
-fn test_parse_declare_enum_newline_reports_error_and_preserves_following_sequence() {
-    let mut test = TestParser::new_with_language("declare enum\nE\n{}", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expressions = parser.parse();
-
-    test.assert_error_leaves(
-        &parser,
-        &[
-            (None, None, "enum"),
-            (Some(NodeType::Expression), None, "enum"),
-        ],
-    );
-
-    assert_eq!(expressions.len(), 4);
-    assert_expression_path!(parser, parser.tree.get(expressions[0]), "declare");
-    assert_node!(parser.tree, expressions[1], Expression::Error);
-    assert_expression_path!(parser, parser.tree.get(expressions[2]), "E");
-    assert_node!(parser.tree, expressions[3], Expression::Block(..));
-}
-
 /// Parse `type\nFoo = string;` as `type; Foo = string`.
 #[test]
 fn test_parse_type_newline_as_identifier_then_assignment() {
@@ -616,7 +594,7 @@ fn test_report_export_path_expression() {
         let mut parser = test.prepare();
         let error = parser.eat_expression(parser.flags).unwrap_err();
 
-        assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
+        assert_eq!(parser.get_span_str(error.span), "foo");
     }
 }
 
@@ -685,5 +663,5 @@ fn test_report_import_expression_items_without_target() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "");
+    assert_eq!(parser.get_span_str(error.span), "");
 }

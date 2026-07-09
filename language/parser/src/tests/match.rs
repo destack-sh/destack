@@ -1,6 +1,6 @@
 use destack_dir::{
     BinaryOperator, Block, CommentKind, Declarator, Expression, LetKind, MatchCase, MatchForm,
-    MatchSelector, Mutability, NodeType, Pattern, PatternField, ScalarLiteral,
+    MatchSelector, Mutability, NodeType, Pattern, PatternField, ScalarLiteral, TokenType,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -598,7 +598,15 @@ fn test_parse_switch_case_body_recovers_at_eof() {
         });
     });
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::MatchCase), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::MatchCase),
+            Some(TokenType::End),
+            Some(TokenType::CloseBrace),
+            "",
+        )],
+    );
 }
 
 /// Parse minified switch cases where `continue` is followed by `}` and another `if`.

@@ -275,14 +275,13 @@ fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
 
     // speculative lookahead across the comment
     let mark = parser.checkpoint();
-    let mark_node_id = parser.tree.next_id();
     let next_span = parser.next_token().span(parser.file_id);
     assert_eq!(parser.get_span_str(next_span), "b");
 
     // restore and consume the same boundary again
-    parser.restore(mark, mark_node_id);
-    parser.eat().expect("expected first token");
-    parser.eat().expect("expected second token");
+    parser.restore(mark);
+    parser.eat();
+    parser.eat();
 
     // attach one raw comment
     parser.attach_comments();
@@ -293,17 +292,11 @@ fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
 }
 
 #[test]
-fn test_comment_only_file_gets_stub_expression_and_trivia() {
+fn test_parse_comment_only_file_without_expression() {
     let (parser, expressions) = parse_source("// only", LanguageType::TypeScript);
 
-    // stub for `// only`
-    assert_eq!(expressions.len(), 1);
-    assert_node!(parser.tree, expressions[0], Expression::Stub);
-    let expression_span = parser.tree.get_span(expressions[0]);
-    assert_eq!(expression_span.start, parser.file.len);
-    assert_eq!(expression_span.end, parser.file.len);
-    let annotations = parser.tree.get_decorators(expressions[0].id);
-    assert!(annotations.is_empty());
+    // no synthetic semantic root
+    assert!(expressions.is_empty());
 
     // `// only`
     assert_eq!(comments(&parser).len(), 1);

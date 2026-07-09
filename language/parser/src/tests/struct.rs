@@ -24,7 +24,7 @@ struct { public x: int32, readonly y: boolean }
         .eat_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "{");
+    assert_eq!(parser.get_span_str(error.span), "{");
 }
 
 #[test]
@@ -41,7 +41,7 @@ class {}
         .eat_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "{");
+    assert_eq!(parser.get_span_str(error.span), "{");
 }
 
 #[test]
@@ -59,7 +59,7 @@ class Foo { x: int32, y: int32 }
         .eat_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
+    assert_eq!(parser.get_span_str(error.span), ",");
 }
 
 #[test]
@@ -77,7 +77,7 @@ struct Foo { x: int32, y: int32 }
         .eat_struct_or_class(&start, DeclarationHeader::default(), false)
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
+    assert_eq!(parser.get_span_str(error.span), ",");
 }
 
 #[test]
@@ -167,7 +167,7 @@ struct Foo extends Bar implements Baz {
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "extends");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "extends");
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, members, .. }) => {
         assert_eq!(implements_types.len(), 1);
         assert_eq!(members.len(), 1);
@@ -189,7 +189,7 @@ class Combined extends First, Second {}
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "Second");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "Second");
     assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type: Some(extends_type), .. }) => {
         assert_string!(parser, name.expect("expected class name").string(), "Combined");
         assert_expression_path!(parser, parser.tree.get(*extends_type), "First");

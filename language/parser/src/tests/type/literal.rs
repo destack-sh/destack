@@ -2,7 +2,7 @@ use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     Declaration, Expression, GenericArgument, GenericParameter, Key, LocalNodeId,
-    MappedTypeModifier, Name, Parameter, ScalarLiteral, TypeDeclaration, TypeExpression,
+    MappedTypeModifier, Name, NodeType, Parameter, ScalarLiteral, TypeDeclaration, TypeExpression,
     TypeLiteral, TypeMember,
 };
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -578,6 +578,8 @@ fn test_parse_typeof_query_with_readonly_identifier() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
+    test.assert_no_errors(&parser);
+
     // type T = typeof readonly
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -594,6 +596,8 @@ fn test_parse_typeof_query_with_type_identifier() {
     let mut test = TestParser::new_with_language("type T = typeof type", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
 
     // type T = typeof type
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -709,8 +713,7 @@ fn test_parse_typeof_query_missing_operand() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // type T = typeof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -729,8 +732,7 @@ fn test_parse_keyof_query_missing_operand() {
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
-    assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "");
+    test.assert_errors(&parser, &[(Some(NodeType::TypeExpression), None, None, "")]);
 
     // type T = keyof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {

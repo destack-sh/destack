@@ -2,7 +2,7 @@ use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Declaration, Expression, GenericParameter, IntegerType, LocalNodeId, Mutability, NodeType,
-    PlaceModifier, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
+    PlaceModifier, ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -241,7 +241,15 @@ fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::TypeExpression),
+            Some(TokenType::End),
+            Some(TokenType::CloseParenthesis),
+            "",
+        )],
+    );
 
     // type T = (string
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

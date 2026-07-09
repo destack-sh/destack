@@ -250,7 +250,7 @@ fn test_report_destack_private_member_expression() {
     let mut parser = test.prepare();
 
     let error = parser.eat_expression(parser.flags).unwrap_err();
-    assert_eq!(parser.get_span_str(error.leaf_span()), "#");
+    assert_eq!(parser.get_span_str(error.span), "#");
 }
 
 #[test]
@@ -401,7 +401,7 @@ fn test_report_decimal_integer_member_access_without_separator() {
         let mut parser = test.prepare();
         let error = parser.eat_expression(parser.flags).unwrap_err();
 
-        assert_eq!(parser.get_span_str(error.leaf_span()), ".");
+        assert_eq!(parser.get_span_str(error.span), ".");
     }
 }
 
@@ -481,7 +481,7 @@ fn test_report_hex_integer_member_separator() {
 
     // parser should not reinterpret `..` as a decimal separator for non-decimal integers
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "0x1.");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "0x1.");
 }
 
 /// Parse this member access in variant context.

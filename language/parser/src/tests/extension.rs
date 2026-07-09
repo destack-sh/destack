@@ -48,7 +48,7 @@ extension of Foo {
         .eat_extension(&start, DeclarationHeader::default())
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
+    assert_eq!(parser.get_span_str(error.span), ",");
 }
 
 #[test]

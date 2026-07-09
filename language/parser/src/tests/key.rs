@@ -13,7 +13,7 @@ fn test_report_key_named_type_expression_with_multiline_type() {
     );
     let mut parser = test.prepare();
     let error = parser.eat_key_with_span().unwrap_err();
-    assert_eq!(parser.get_span_str(error.leaf_span()), ":");
+    assert_eq!(parser.get_span_str(error.span), ":");
 }
 
 #[test]
@@ -26,7 +26,7 @@ string
     );
     let mut parser = test.prepare();
     let error = parser.eat_key_with_span().unwrap_err();
-    assert_eq!(parser.get_span_str(error.leaf_span()), ":");
+    assert_eq!(parser.get_span_str(error.span), ":");
 }
 
 /// Report computed keys with sequence expressions in typed and untyped object forms.
@@ -38,7 +38,7 @@ fn test_report_key_computed_sequence_expression_in_typed_and_untyped_object_form
     let error = parser.eat_key_with_span().unwrap_err();
 
     // ,
-    assert_eq!(parser.get_span_str(error.leaf_span()), ",");
+    assert_eq!(parser.get_span_str(error.span), ",");
 }
 
 /// Report legacy octal numeric keys in typed and untyped object forms.
@@ -50,7 +50,7 @@ fn test_report_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
     let error = parser.eat_key_with_span().unwrap_err();
 
     // 021
-    assert_eq!(parser.get_span_str(error.leaf_span()), "021");
+    assert_eq!(parser.get_span_str(error.span), "021");
 }
 
 /// Parse finite integer property keys as static index keys.

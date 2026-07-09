@@ -32,7 +32,7 @@ fn test_parse_path_stops_before_group_brace() {
     let path = parser.eat_path().unwrap();
     assert_path!(parser, path, "ds.geometry");
     // ensure next token is the `.` for the group
-    let next = parser.peek().unwrap();
+    let next = parser.peek();
     assert_eq!(next.token.ty(), TokenType::Dot);
 }
 
@@ -43,7 +43,7 @@ fn test_parse_path_stops_before_angle_bracket() {
     let path = parser.eat_path().unwrap();
     assert_path!(parser, path, "geom.Vector");
     // ensure next token is the `<` for the generic arguments
-    let next = parser.peek().unwrap();
+    let next = parser.peek();
     assert_eq!(next.token.ty(), TokenType::LessThan);
 }
 
@@ -53,7 +53,7 @@ fn test_parse_path_stops_before_dot_with_leading_comment() {
     let mut parser = test.prepare();
     let path = parser.eat_path().unwrap();
     assert_path!(parser, path, "source");
-    let next = parser.peek().unwrap();
+    let next = parser.peek();
     assert_eq!(next.token.ty(), TokenType::Dot);
 }
 
@@ -63,6 +63,6 @@ fn test_parse_path_stops_before_identifier_with_leading_comment_after_dot() {
     let mut parser = test.prepare();
     let path = parser.eat_path().unwrap();
     assert_path!(parser, path, "source");
-    let next = parser.peek().unwrap();
+    let next = parser.peek();
     assert_eq!(next.token.ty(), TokenType::Dot);
 }

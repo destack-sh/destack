@@ -79,7 +79,7 @@ fn test_parse_parameter_missing_type_expression() {
     let parameter_id = parser.eat_parameter().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Parameter), None, "")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Parameter), None, None, "")]);
 
     // x:
     assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
@@ -502,7 +502,15 @@ fn test_parse_generic_parameters_missing_close_angle() {
     let parameters = parser.eat_generic_parameters(true).unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::GreaterThan),
+            "",
+        )],
+    );
 
     // <T
     assert_eq!(parameters.len(), 1);
@@ -520,7 +528,15 @@ fn test_parse_generic_arguments_missing_close_angle_in_type_context() {
     let arguments = parser.eat_generic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::End),
+            Some(TokenType::GreaterThan),
+            "",
+        )],
+    );
 
     // <string, number
     assert_eq!(arguments.len(), 2);
@@ -588,7 +604,7 @@ fn test_parse_generic_arguments_empty_in_type_context_recovers_error_slot() {
     let arguments = parser.eat_generic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(None, Some(TokenType::Identifier), "<")]);
+    test.assert_errors(&parser, &[(None, None, Some(TokenType::Identifier), "<")]);
 
     // <>
     assert_eq!(arguments.len(), 1);
@@ -636,7 +652,7 @@ fn test_report_generic_arguments_missing_close_angle_in_value_context() {
     let mut parser = test.prepare();
     let error = parser.eat_generic_arguments().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "");
+    assert_eq!(parser.get_span_str(error.span), "");
 }
 
 #[test]
@@ -935,7 +951,7 @@ fn test_parse_named_argument() {
     // x: 1
     let mut test = TestParser::new("x: 1");
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_argument().unwrap();
+    let argument_id = parser.eat_argument().unwrap();
     assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
         // x
         assert_string!(parser, *name, "x");
@@ -954,7 +970,7 @@ fn test_parse_named_argument() {
 fn test_parse_named_argument_string_span() {
     let mut test = TestParser::new("\"Content-Type\": 1");
     let mut parser = test.prepare();
-    let argument_id = parser.eat_tree_argument().unwrap();
+    let argument_id = parser.eat_argument().unwrap();
     assert_node!(parser.tree, argument_id, Argument::Named { name: Name::String(name), value } => {
         assert_string!(parser, *name, "Content-Type");
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -1103,7 +1119,15 @@ fn test_parse_dynamic_parameters_recover_error_slot() {
     let parameters = parser.eat_dynamic_parameters().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Parameter), None, "=")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Parameter),
+            Some(TokenType::Assign),
+            None,
+            "=",
+        )],
+    );
 
     // (x, =, y)
     assert_eq!(parameters.len(), 3);
@@ -1124,7 +1148,7 @@ fn test_parse_dynamic_arguments_recover_error_slot() {
     let arguments = parser.eat_dynamic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, ",")]);
+    test.assert_errors(&parser, &[(None, Some(TokenType::Comma), None, ",")]);
 
     // (1, , 3)
     assert_eq!(arguments.len(), 3);
@@ -1146,7 +1170,15 @@ fn test_parse_dynamic_arguments_recover_missing_close_before_next_statement() {
     let arguments = parser.eat_dynamic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::Identifier),
+            Some(TokenType::CloseParenthesis),
+            "const",
+        )],
+    );
 
     // (a,b const
     assert_eq!(arguments.len(), 2);
@@ -1176,7 +1208,10 @@ fn test_parse_dynamic_arguments_recover_trailing_spread_error_slot() {
     let arguments = parser.eat_dynamic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, ")")]);
+    test.assert_errors(
+        &parser,
+        &[(None, Some(TokenType::CloseParenthesis), None, ")")],
+    );
 
     // (a, ...)
     assert_eq!(arguments.len(), 2);
@@ -1195,7 +1230,15 @@ fn test_parse_dynamic_arguments_recover_missing_close_before_semicolon() {
     let arguments = parser.eat_dynamic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ";")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::Semicolon),
+            Some(TokenType::CloseParenthesis),
+            ";",
+        )],
+    );
 
     // (a,b;
     assert_eq!(arguments.len(), 2);
@@ -1225,7 +1268,13 @@ fn test_parse_dynamic_arguments_recover_leading_empty_slots() {
     let arguments = parser.eat_dynamic_arguments().unwrap();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, ","), (None, None, ",")]);
+    test.assert_errors(
+        &parser,
+        &[
+            (None, Some(TokenType::Comma), None, ","),
+            (None, Some(TokenType::Comma), None, ","),
+        ],
+    );
 
     // (,,b)
     assert_eq!(arguments.len(), 3);
@@ -1243,7 +1292,15 @@ fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ";")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::Expression),
+            Some(TokenType::Semicolon),
+            Some(TokenType::CloseParenthesis),
+            ";",
+        )],
+    );
 
     // foo(a,b;
     assert_eq!(expressions.len(), 1);
@@ -1260,12 +1317,22 @@ fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
         &[
-            (Some(NodeType::Expression), None, "const"),
-            (None, None, "const"),
-            (Some(NodeType::Expression), None, ";"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                Some(TokenType::CloseParenthesis),
+                "const",
+            ),
+            (None, Some(TokenType::Identifier), None, "const"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Semicolon),
+                None,
+                ";",
+            ),
         ],
     );
 
@@ -1285,7 +1352,13 @@ fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, ","), (None, None, ",")]);
+    test.assert_errors(
+        &parser,
+        &[
+            (None, Some(TokenType::Comma), None, ","),
+            (None, Some(TokenType::Comma), None, ","),
+        ],
+    );
 
     // foo (,,b);
     assert_eq!(expressions.len(), 1);
@@ -1304,7 +1377,10 @@ fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(&parser, &[(None, None, ")")]);
+    test.assert_errors(
+        &parser,
+        &[(None, Some(TokenType::CloseParenthesis), None, ")")],
+    );
 
     // foo (a, ...);
     assert_eq!(expressions.len(), 1);
@@ -1326,14 +1402,24 @@ foo (,,b);
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
         &[
-            (Some(NodeType::Expression), None, "const"),
-            (None, None, "const"),
-            (Some(NodeType::Expression), None, ";"),
-            (None, None, ","),
-            (None, None, ","),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                Some(TokenType::CloseParenthesis),
+                "const",
+            ),
+            (None, Some(TokenType::Identifier), None, "const"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Semicolon),
+                None,
+                ";",
+            ),
+            (None, Some(TokenType::Comma), None, ","),
+            (None, Some(TokenType::Comma), None, ","),
         ],
     );
 
@@ -1366,13 +1452,23 @@ foo (a, ...);
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
         &[
-            (Some(NodeType::Expression), None, "const"),
-            (None, None, "const"),
-            (Some(NodeType::Expression), None, ";"),
-            (None, None, ")"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                Some(TokenType::CloseParenthesis),
+                "const",
+            ),
+            (None, Some(TokenType::Identifier), None, "const"),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Semicolon),
+                None,
+                ";",
+            ),
+            (None, Some(TokenType::CloseParenthesis), None, ")"),
         ],
     );
 
@@ -1405,9 +1501,17 @@ bar();
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
-        &[(None, None, ","), (Some(NodeType::Expression), None, "bar")],
+        &[
+            (None, Some(TokenType::Comma), None, ","),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                Some(TokenType::CloseParenthesis),
+                "bar",
+            ),
+        ],
     );
 
     assert_eq!(expressions.len(), 2);
@@ -1437,11 +1541,16 @@ const value = 1;
     let expressions = parser.parse();
 
     // diagnostics
-    test.assert_error_leaves(
+    test.assert_errors(
         &parser,
         &[
-            (None, None, ","),
-            (Some(NodeType::Expression), None, "const"),
+            (None, Some(TokenType::Comma), None, ","),
+            (
+                Some(NodeType::Expression),
+                Some(TokenType::Identifier),
+                Some(TokenType::CloseParenthesis),
+                "const",
+            ),
         ],
     );
 

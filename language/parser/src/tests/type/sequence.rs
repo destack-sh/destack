@@ -1,8 +1,8 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
-    BinaryOperator, Declaration, Expression, InferForm, NodeType, ScalarLiteral, TupleElement,
-    TypeDeclaration, TypeExpression, TypeLiteral,
+    BinaryOperator, Declaration, Expression, InferForm, NodeType, ScalarLiteral, TokenType,
+    TupleElement, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 use destack_source::LanguageType;
 
@@ -122,7 +122,7 @@ fn test_parse_fixed_array_type_recovers_missing_length_expression() {
             });
         });
     });
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
+    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
 }
 
 #[test]
@@ -478,7 +478,15 @@ fn test_parse_tuple_type_missing_close_bracket() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::TypeExpression),
+            Some(TokenType::End),
+            Some(TokenType::CloseBracket),
+            "",
+        )],
+    );
 
     // type T = [string
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -498,7 +506,10 @@ fn test_parse_tuple_type_missing_first_element() {
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, ",")]);
+    test.assert_errors(
+        &parser,
+        &[(Some(NodeType::TypeExpression), None, None, ",")],
+    );
 
     // type T = [, string]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

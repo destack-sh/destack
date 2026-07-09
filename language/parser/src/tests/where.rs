@@ -1,5 +1,6 @@
 use destack_dir::{
-    CommentKind, IntegerType, NodeType, TypeExpression, TypeLiteral, WhereClause, WhereRelation,
+    CommentKind, IntegerType, NodeType, TokenType, TypeExpression, TypeLiteral, WhereClause,
+    WhereRelation,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -135,7 +136,15 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
     let mut parser = test.prepare();
     let clauses = parser.eat_where().unwrap();
 
-    test.assert_error_leaves(&parser, &[(Some(NodeType::WhereClause), None, "")]);
+    test.assert_errors(
+        &parser,
+        &[(
+            Some(NodeType::WhereClause),
+            Some(TokenType::End),
+            Some(TokenType::CloseParenthesis),
+            "",
+        )],
+    );
     assert_eq!(clauses.len(), 2);
 
     // T: Numeric
@@ -230,10 +239,7 @@ fn test_recover_where_implements_separator() {
     let clauses = parser.eat_where().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(
-        parser.get_span_str(parser.errors[0].leaf_span()),
-        "implements"
-    );
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "implements");
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
@@ -249,7 +255,7 @@ fn test_recover_where_extends_separator() {
     let clauses = parser.eat_where().unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "extends");
+    assert_eq!(parser.get_span_str(parser.errors[0].span), "extends");
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {

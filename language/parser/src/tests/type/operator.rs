@@ -91,7 +91,7 @@ fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
 
     assert_expression_path!(parser, parser.tree.get(type_id), "shared");
 
-    let next_span = parser.peek().unwrap().span;
+    let next_span = parser.peek().span;
     assert_eq!(parser.get_span_str(next_span), "Value");
     test.assert_no_errors(&parser);
 }
@@ -190,7 +190,7 @@ fn test_parse_typescript_type_expression_keeps_local_as_identifier() {
 
     assert_expression_path!(parser, parser.tree.get(type_id), "local");
 
-    let next_span = parser.peek().unwrap().span;
+    let next_span = parser.peek().span;
     assert_eq!(parser.get_span_str(next_span), "Value");
     test.assert_no_errors(&parser);
 }
@@ -328,11 +328,9 @@ fn test_parse_typescript_extends_type_requires_conditional_branches() {
         })
         .unwrap_err();
 
-    let leaf = error.leaf_content();
-
-    assert_eq!(leaf.node_type, None);
-    assert_eq!(leaf.expected, Some(TokenType::Maybe));
-    assert_eq!(parser.get_span_str(leaf.span), "");
+    assert_eq!(error.node_type, None);
+    assert_eq!(error.expected, Some(TokenType::Maybe));
+    assert_eq!(parser.get_span_str(error.span), "");
 }
 
 #[test]
@@ -393,7 +391,7 @@ fn test_parse_typescript_type_expression_stops_before_implements() {
 
     assert_expression_path!(parser, parser.tree.get(type_id), "Value");
 
-    let next_span = parser.peek().unwrap().span;
+    let next_span = parser.peek().span;
     assert_eq!(parser.get_span_str(next_span), "implements");
     test.assert_no_errors(&parser);
 }
@@ -410,7 +408,7 @@ fn test_parse_type_expression_stops_before_in() {
 
     assert_expression_path!(parser, parser.tree.get(type_id), "Key");
 
-    let next_span = parser.peek().unwrap().span;
+    let next_span = parser.peek().span;
     assert_eq!(parser.get_span_str(next_span), "in");
     test.assert_no_errors(&parser);
 }
@@ -432,7 +430,7 @@ fn test_parse_type_expression_stops_before_instanceof() {
     });
 
     // leftover token: instanceof
-    let next_span = parser.peek().unwrap().span;
+    let next_span = parser.peek().span;
     assert_eq!(parser.get_span_str(next_span), "instanceof");
 
     // no implicit recovery

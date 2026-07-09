@@ -1035,8 +1035,8 @@ fn test_report_export_type_without_binding() {
     let error = parser.eat_export().unwrap_err();
 
     // eof
-    assert_eq!(parser.get_span_str(error.leaf_span()), "");
-    assert_eq!(error.leaf_span().start, source.len() as u32);
+    assert_eq!(parser.get_span_str(error.span), "");
+    assert_eq!(error.span.start, source.len() as u32);
 }
 
 #[test]
@@ -1047,7 +1047,7 @@ fn test_report_export_default_enum() {
     let error = parser.eat_export().unwrap_err();
 
     // enum
-    assert_eq!(parser.get_span_str(error.leaf_span()), "enum");
+    assert_eq!(parser.get_span_str(error.span), "enum");
 }
 
 #[test]
@@ -1239,7 +1239,7 @@ fn test_report_export_function_without_name() {
     let mut parser = test.prepare();
     let error = parser.eat_export().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "function");
+    assert_eq!(parser.get_span_str(error.span), "function");
 }
 
 #[test]

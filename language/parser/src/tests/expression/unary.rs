@@ -1,8 +1,8 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path};
 use destack_dir::{
-    BinaryOperator, Expression, Mutability, ScalarLiteral, TypeExpression, UnaryOperator,
-    VarianceBound,
+    BinaryOperator, Expression, Mutability, ScalarLiteral, TokenType, TypeExpression,
+    UnaryOperator, VarianceBound,
 };
 use destack_source::LanguageType;
 
@@ -216,7 +216,7 @@ fn test_report_dereference_in_untyped_value_mode() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.leaf_span()), "*");
+    assert_eq!(parser.get_span_str(error.span), "*");
 }
 
 /// Parse a reference expression.
@@ -311,5 +311,5 @@ fn test_report_delete_expression() {
 
     parser.parse();
 
-    test.assert_error_leaves(&parser, &[(None, None, "foo")]);
+    test.assert_errors(&parser, &[(None, Some(TokenType::Identifier), None, "foo")]);
 }

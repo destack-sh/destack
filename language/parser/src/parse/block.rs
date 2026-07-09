@@ -206,7 +206,7 @@ impl Parser {
                 &pending_if.head.start,
                 if_expression,
                 Some((BlockForm::Explicit, BlockContext::Expression)),
-            )?;
+            );
             let mut statements = Vec::new();
             let mut pending_tail_expression = None;
             if is_statement {
@@ -278,14 +278,14 @@ impl Parser {
             return Ok(false);
         }
 
-        let token = match self.peek() {
-            Ok(token) if Self::is_close_delimiter_token(token.token.ty()) => token,
-            _ => return Ok(false),
-        };
+        let token = self.peek();
+        if !Self::is_close_delimiter_token(token.token.ty()) {
+            return Ok(false);
+        }
 
         // stray closers should produce one error node and advance
         let error = ParserError::unexpected_for(token, NodeType::Expression);
-        self.error(&error);
+        self.report_error(&error);
         self.bump();
 
         let error_id = self.tree.insert(Expression::Error, token.span);
@@ -784,11 +784,11 @@ impl Parser {
             // parse and recover one statement item
             let start = self.span_start();
             let (expression_id, is_statement) = self
-                .eat_statement_expression_from_token_kind_with_recovery(
+                .eat_statement_expression_from_token_kind_or_recover(
                     &start,
                     token_type,
                     Some((form, block_context)),
-                )?;
+                );
             // keep at most one tail candidate, emit statements directly
             if is_statement {
                 statements.push(expression_id);
@@ -816,49 +816,38 @@ impl Parser {
         Ok((statements, tail_expression))
     }
 
-    /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
-    /// Returns whether the expression should be treated as a statement.
-    pub fn try_eat_statement_expression_classified(
+    /// Eat and classify one statement expression, recovering malformed input locally.
+    pub fn eat_classified_statement_expression_or_recover(
         &mut self,
-    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
+    ) -> (LocalNodeId<Expression>, bool) {
         self.with_flags(self.statement_position_flags(), |parser| {
-            parser.try_eat_statement_expression_in_statement_position()
+            let start = parser.span_start();
+            let token_type = parser.peek_token_type();
+
+            parser.eat_statement_expression_from_token_kind_or_recover(&start, token_type, None)
         })
     }
 
-    /// Try to eat a statement expression while already in statement position.
-    /// Returns whether the expression should be treated as a statement.
-    #[inline]
-    fn try_eat_statement_expression_in_statement_position(
-        &mut self,
-    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
-        let start = self.span_start();
-        let token_type = self.peek_token_type();
-
-        self.eat_statement_expression_from_token_kind_with_recovery(&start, token_type, None)
-    }
-
     /// Eat one statement expression from one normalized token kind and recover local statement errors.
-    fn eat_statement_expression_from_token_kind_with_recovery(
+    fn eat_statement_expression_from_token_kind_or_recover(
         &mut self,
         start: &ParserSpanStart,
         token_type: TokenType,
         block_context: Option<(BlockForm, BlockContext)>,
-    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
-        let parsed_expression = self
-            .eat_statement_expression_from_token_kind(token_type)
-            .and_then(|expression_id| {
-                self.classify_statement_expression(start, expression_id, block_context)
-            });
+    ) -> (LocalNodeId<Expression>, bool) {
+        let expression = self.eat_statement_expression_from_token_kind(token_type);
 
-        match parsed_expression {
-            Ok(expression_id) => Ok(expression_id),
+        match expression {
+            Ok(expression_id) => {
+                self.classify_statement_expression(start, expression_id, block_context)
+            }
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
-                let span = err.leaf_span();
-                let recovered_span = self.try_recover_in_statement_from_span(span, Some(err))?;
+                let span = err.span;
+                let recovered_span = self.recover_statement(span, Some(err));
                 let error_id = self.tree.insert(Expression::Error, recovered_span);
-                Ok((error_id, true))
+
+                (error_id, true)
             }
         }
     }
@@ -870,7 +859,7 @@ impl Parser {
         start: &ParserSpanStart,
         expression_id: LocalNodeId<Expression>,
         block_context: Option<(BlockForm, BlockContext)>,
-    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
+    ) -> (LocalNodeId<Expression>, bool) {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
             self.bump(); // eat semicolon
@@ -879,7 +868,7 @@ impl Parser {
                 NodeSpanType::Region(NodeSpanRegion::Statement),
                 self.get_span_from(start),
             );
-            return Ok((expression_id, true));
+            return (expression_id, true);
         }
 
         // detect expression kinds that should stay statement-shaped
@@ -907,8 +896,8 @@ impl Parser {
         if !is_statement && !has_separator && !stops_at_block_terminator {
             // keep a plausible next statement head for the outer block loop
             if Self::token_can_start_recovered_statement_item(next_token_type) {
-                let error = ParserError::unexpected(self.peek()?);
-                self.error(&error);
+                let error = ParserError::unexpected(self.peek());
+                self.report_error(&error);
 
                 self.tree.set_side_span(
                     expression_id,
@@ -916,23 +905,23 @@ impl Parser {
                     self.get_span_from(start),
                 );
 
-                return Ok((expression_id, true));
+                return (expression_id, true);
             }
 
-            let error = ParserError::unexpected(self.peek()?);
+            let error = ParserError::unexpected(self.peek());
             let recovery_start = self.span_start();
-            self.try_recover_in_statement(&recovery_start, Some(error))?;
+            self.recover_statement(self.get_span_from(&recovery_start), Some(error));
             self.tree.set_side_span(
                 expression_id,
                 NodeSpanType::Region(NodeSpanRegion::Statement),
                 self.get_span_from(start),
             );
 
-            return Ok((expression_id, true));
+            return (expression_id, true);
         }
 
         if is_statement && keeps_value_tail && (stops_at_block_terminator || !has_separator) {
-            return Ok((expression_id, false));
+            return (expression_id, false);
         }
 
         let is_statement_position = is_statement || has_separator || stops_at_block_terminator;
@@ -944,14 +933,14 @@ impl Parser {
             );
         }
 
-        Ok((expression_id, is_statement))
+        (expression_id, is_statement)
     }
 
-    /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
-    /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
-    pub fn try_eat_statement_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let (expression_id, _is_statement) = self.try_eat_statement_expression_classified()?;
-        Ok(expression_id)
+    /// Eat one statement expression, recovering malformed input locally.
+    pub fn eat_statement_expression_or_recover(&mut self) -> LocalNodeId<Expression> {
+        let (expression_id, _is_statement) = self.eat_classified_statement_expression_or_recover();
+
+        expression_id
     }
 
     /// Return true when one token ends a bare label form.
@@ -1023,7 +1012,7 @@ impl Parser {
             }
             // labels are the only break operands in TypeScript
             else {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
         }
         // trailing value: break "done"
@@ -1033,7 +1022,7 @@ impl Parser {
         }
         // other trailing tokens are invalid operands
         else if !self.is_any_stop() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         } else {
             (None, None, None)
         };
@@ -1069,13 +1058,13 @@ impl Parser {
         } else if self.peek_is(TokenType::Identifier) {
             let next_token = self.next_token();
             if !self.token_ends_label_statement(next_token) {
-                return Err(ParserError::unexpected(self.peek()?));
+                return Err(ParserError::unexpected(self.peek()));
             }
 
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
         } else if !self.is_any_stop() {
-            return Err(ParserError::unexpected(self.peek()?));
+            return Err(ParserError::unexpected(self.peek()));
         } else {
             (None, None)
         };
@@ -1106,8 +1095,7 @@ impl Parser {
 
         // check for adjacent await? or await! markers
         let previous_end = self.prev().map(|previous| previous.span.end);
-        let current_start = self.peek().ok().map(|token| token.span.start);
-        let marker_is_adjacent = previous_end.is_some() && previous_end == current_start;
+        let marker_is_adjacent = previous_end == Some(self.peek().span.start);
         let is_maybe = marker_is_adjacent && self.peek_is(TokenType::Maybe);
         let is_must = marker_is_adjacent && self.peek_is(TokenType::Not);
         if is_maybe {
@@ -1156,22 +1144,17 @@ impl Parser {
 
         // body expression
         // parse body with comptime statement flags
-        let ambient_context = self.flags.with_comptime(true);
         let expression_context = self.flags.not_in_position().in_before_block();
         let body_id = if self.is_block_start() {
             let block_id = self.with_flags(
-                self.flags
-                    .with_ambient_context(ambient_context)
-                    .with_expression_context(expression_context),
+                self.flags.with_expression_context(expression_context),
                 |parser| parser.eat_block(BlockContext::Expression),
             )?;
             self.tree
                 .insert(Expression::Block(block_id), self.tree.get_span(block_id))
         } else {
             self.with_flags(
-                self.flags
-                    .with_ambient_context(ambient_context)
-                    .with_expression_context(expression_context),
+                self.flags.with_expression_context(expression_context),
                 |parser| parser.eat_statement_expression(),
             )?
         };
