@@ -24,11 +24,11 @@ const result = api
 
 Long generic calls break their argument list and keep the chain head intact.
 
-```ts:main.ts line-width=60
+```ds:main.ds line-width=60
 const defaultColorDecoratorsEnablement = accessor.get(IConfigurationService).getValue<"auto" | "always" | "never">("longlonglonglonglonglonglonglonglong")
 ```
 
-```ts expected
+```ds expected
 const defaultColorDecoratorsEnablement = accessor
     .get(IConfigurationService)
     .getValue<"auto" | "always" | "never">(
@@ -118,11 +118,11 @@ getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */?.();
 
 Instantiation expressions stay attached to the member expression they instantiate.
 
-```ts:main.ts
+```ds:main.ds
 const factory = api.getFactory<number>
 ```
 
-```ts expected
+```ds expected
 const factory = api.getFactory<number>;
 ```
 
@@ -130,11 +130,11 @@ const factory = api.getFactory<number>;
 
 Instantiation expressions after computed access keep type arguments attached.
 
-```ts:main.ts
+```ds:main.ds
 const factory = providers["main"]<Factory>
 ```
 
-```ts expected
+```ds expected
 const factory = providers["main"]<Factory>;
 ```
 
@@ -142,11 +142,11 @@ const factory = providers["main"]<Factory>;
 
 Member instantiation chains break at this fixture width while keeping the type arguments attached.
 
-```ts:main.ts line-width=25
+```ds:main.ds line-width=25
 const value = api.getService().getFactory<number>
 ```
 
-```ts expected
+```ds expected
 const value =
     api.getService()
         .getFactory<number>;
@@ -170,11 +170,11 @@ const value = maybe!.nested!.value;
 
 Non-null assertions inside static-member chains keep the following member path intact.
 
-```ts:main.ts
+```ds:main.ds
 compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames
 ```
 
-```ts expected
+```ds expected
 compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames;
 ```
 
@@ -218,7 +218,7 @@ wow /* do something weird here */
 
 Blank lines between chain segments are preserved.
 
-```ts:main.ts
+```ds:main.ds
 Promise.all(writeIconFiles)
   // TO DO -- END
   .then(() => writeRegistry())
@@ -234,7 +234,7 @@ Promise.all(writeIconFiles)
   .then(() => writeRegistry())
 ```
 
-```ts expected
+```ds expected
 Promise.all(writeIconFiles)
     // TO DO -- END
     .then(() => writeRegistry());

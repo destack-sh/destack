@@ -26,15 +26,15 @@ const x = { normal: 1, "needs-quotes": 2 }
 const x = { normal: 1, "needs-quotes": 2 };
 ```
 
-### TypeScript quote props as needed
+### quote properties as needed
 
-TypeScript removes quotes when they are not required.
+Quotes are removed when they are not required.
 
-```ts:main.ts
+```ds:main.ds
 const x = { "data-id": 1, "default": 2, "normal": 3 }
 ```
 
-```ts expected
+```ds expected
 const x = { "data-id": 1, default: 2, normal: 3 };
 ```
 
@@ -44,10 +44,10 @@ const x = { "data-id": 1, default: 2, normal: 3 };
 
 Unicode keys that are not identifiers stay quoted and normalize quotes.
 
-```ts:main.ts
+```ds:main.ds
 x = { 'x・': 0, 'x･': 1 }
 ```
 
-```ts expected
+```ds expected
 x = { "x・": 0, "x･": 1 };
 ```

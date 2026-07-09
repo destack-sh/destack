@@ -16,7 +16,7 @@ break;
 
 ### labeled break
 
-Break labels use TypeScript label names.
+Break labels preserve their names.
 
 ```ds
 break outer
@@ -64,7 +64,7 @@ continue;
 
 ### labeled continue
 
-Continue labels use TypeScript label names.
+Continue labels preserve their names.
 
 ```ds
 continue outer

@@ -6,21 +6,21 @@ const withNodeModules = [...alwaysIgnoredDirectories, "node_modules"];
 const cwd = process.cwd();
 
 class DirectoryIgnorer {
-    #directories;
+    private directories;
     ignorePatterns;
 
     constructor(shouldIgnoreNodeModules) {
         const directories = shouldIgnoreNodeModules ? withNodeModules : alwaysIgnoredDirectories;
         const patterns = directories.map((directory) => `**/${directory}`);
 
-        this.#directories = new Set(directories);
+        this.directories = new Set(directories);
         this.ignorePatterns = patterns;
     }
 
     /** @param {string} absolutePathOrPattern */
     shouldIgnore(absolutePathOrPattern) {
         const directoryNames = path.relative(cwd, absolutePathOrPattern).split(path.sep);
-        return directoryNames.some((directoryName) => this.#directories.has(directoryName));
+        return directoryNames.some((directoryName) => this.directories.has(directoryName));
     }
 }
 

@@ -6,13 +6,13 @@
 
 Short objects with internal comments stay inline.
 
-```ts:main.ts
+```ds:main.ds
 ({ /* key */ a: 1, /* another */ b: 2 })
 ```
 
 The formatter keeps this object inline when it fits.
 
-```ts expected
+```ds expected
 ({ /* key */ a: 1, /* another */ b: 2 });
 ```
 
@@ -20,10 +20,10 @@ The formatter keeps this object inline when it fits.
 
 Comments before computed keys stay attached to the key.
 
-```ts:main.ts
+```ds:main.ds
 ({ /* key */ [k]: value })
 ```
 
-```ts expected
+```ds expected
 ({ /* key */ [k]: value });
 ```

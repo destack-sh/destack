@@ -30,10 +30,10 @@ const f = (x: number): number => x * 2;
 
 Union types and multiple typed parameters stay in the arrow head.
 
-```ts:main.ts
+```ds:main.ds
 const f = (a: string, b: number): string | number => a || b
 ```
 
-```ts expected
+```ds expected
 const f = (a: string, b: number): string | number => a || b;
 ```

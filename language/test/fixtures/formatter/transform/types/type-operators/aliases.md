@@ -42,27 +42,27 @@ type   Foo   =   A   &   B
 type Foo = A & B;
 ```
 
-### TypeScript type literal uses semicolons
+### type literal uses semicolons
 
-TypeScript type literals use semicolons between properties.
+Type literals use semicolons between properties.
 
-```ts:main.ts
+```ds:main.ds
 type Foo = { a: string, b: number }
 ```
 
-```ts expected
+```ds expected
 type Foo = { a: string; b: number };
 ```
 
-### TypeScript type literal keeps semicolons when multiline
+### multiline type literal keeps semicolons
 
-Multiline TypeScript type literals include semicolons after each property.
+Multiline type literals include semicolons after each property.
 
-```ts:main.ts line-width=20
+```ds:main.ds line-width=20
 type Foo = { a: string, b: number, c: number }
 ```
 
-```ts expected
+```ds expected
 type Foo = {
     a: string;
     b: number;
@@ -103,15 +103,15 @@ type Combined = HasName &
     HasEmail;
 ```
 
-### long intersection breaks across lines in TypeScript
+### long intersection breaks across lines
 
-TypeScript intersections break across lines with trailing `&` when they exceed the width.
+Intersections break across lines with trailing `&` when they exceed the width.
 
-```ts:main.ts line-width=30
+```ds:main.ds line-width=30
 type Combined = HasName & HasAge & HasEmail
 ```
 
-```ts expected
+```ds expected
 type Combined = HasName &
     HasAge &
     HasEmail;

@@ -32,10 +32,10 @@ const x = { a: 1 } satisfies Record<string, number>;
 
 `as const` keeps the object literal inline when it fits.
 
-```ts:main.ts
+```ds:main.ds
 const settings = { retries: 3, verbose: false } as const
 ```
 
-```ts expected
+```ds expected
 const settings = { retries: 3, verbose: false } as const;
 ```

@@ -8,11 +8,11 @@ Comment ownership fixtures cover attachment decisions across formatter boundarie
 
 Block comments before optional calls stay attached to the callee boundary.
 
-```ts:main.ts
+```ds:main.ds
 const value = call /* keep-call */ ?.()
 ```
 
-```ts expected
+```ds expected
 const value = call /* keep-call */?.();
 ```
 
@@ -20,12 +20,12 @@ const value = call /* keep-call */?.();
 
 Line comments before optional calls stay attached to the full expression.
 
-```ts:main.ts
+```ds:main.ds
 const value = call // keep-line
 ?.()
 ```
 
-```ts expected
+```ds expected
 const value = call?.(); // keep-line
 ```
 
@@ -35,12 +35,12 @@ const value = call?.(); // keep-line
 
 Line comments after conditions stay attached to the condition line.
 
-```ts:main.ts
+```ds:main.ds
 if (ready) // keep-condition
     run()
 ```
 
-```ts expected
+```ds expected
 if (ready)
     // keep-condition
     run();
@@ -50,14 +50,14 @@ if (ready)
 
 Trailing block comments on class fields stay with the field declaration.
 
-```ts:main.ts
+```ds:main.ds
 class Box {
     value = 1 /* keep-field */
     next = 2
 }
 ```
 
-```ts expected
+```ds expected
 class Box {
     value = 1; /* keep-field */
     next = 2;
@@ -70,12 +70,12 @@ class Box {
 
 Comments between union arms are preserved between the same arms.
 
-```ts:main.ts line-width=20
+```ds:main.ds line-width=20
 type Value = string | // keep-union
     number
 ```
 
-```ts expected
+```ds expected
 type Value =
     | string // keep-union
     | number;
@@ -85,7 +85,7 @@ type Value =
 
 Leading-pipe union comments stay on the same declaration value.
 
-```ts:main.ts line-width=20
+```ds:main.ds line-width=20
 type A2 =
   | A
   | B
@@ -97,7 +97,7 @@ type A3 =
   D;
 ```
 
-```ts expected
+```ds expected
 type A2 = A | B;
 
 type A3 =
@@ -110,11 +110,11 @@ type A3 =
 
 Block comments between union arms are preserved in place.
 
-```ts:main.ts line-width=20
+```ds:main.ds line-width=20
 type Value = string /* keep-union */ | number
 ```
 
-```ts expected
+```ds expected
 type Value =
     | string /* keep-union */
     | number;
@@ -124,14 +124,14 @@ type Value =
 
 Doc block comments in union expressions are preserved on the same type side.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 export type Value = /** keep-doc
  */
 | { ok: true }
 | { ok: false; value: bigint | null };
 ```
 
-```ts expected
+```ds expected
 export type Value = /** keep-doc
  */
 { ok: true } | { ok: false; value: bigint | null };
@@ -143,13 +143,13 @@ export type Value = /** keep-doc
 
 Marker comments at declaration tails are preserved.
 
-```ts:main.ts
+```ds:main.ds
 declare const PAGE_PATH: string
   //<- keep-marker
 ;(()=>{})()
 ```
 
-```ts expected
+```ds expected
 declare const PAGE_PATH: string;
     //<- keep-marker
 (() => {})();
@@ -161,12 +161,12 @@ declare const PAGE_PATH: string;
 
 Stacked prefix comments are preserved before call expressions.
 
-```ts:main.ts
+```ds:main.ds
 /******/
 /* keep-call */ make()
 ```
 
-```ts expected
+```ds expected
 /******/
 /* keep-call */ make();
 ```
@@ -175,7 +175,7 @@ Stacked prefix comments are preserved before call expressions.
 
 Directive comments around `"use strict"` stay in place.
 
-```ts:main.ts
+```ds:main.ds
 /******/ "use strict" /**/
 /******/ a;
 
@@ -185,7 +185,7 @@ function func() {
 }
 ```
 
-```ts expected
+```ds expected
 /******/ "use strict"; /**/
 /******/ a;
 
@@ -201,14 +201,14 @@ function func() {
 
 Trailing line comments after conditional arguments stay on the same argument.
 
-```ts:main.ts
+```ds:main.ds
 cb(
   overflowing ? "absolute top-0" : "relative", // keep-conditional
   parameter
 )
 ```
 
-```ts expected
+```ds expected
 cb(
     overflowing ? "absolute top-0" : "relative", // keep-conditional
     parameter,

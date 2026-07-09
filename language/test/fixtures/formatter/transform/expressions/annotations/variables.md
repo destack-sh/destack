@@ -26,17 +26,17 @@ const buffer: @addrspace("shared") &Buffer = value
 const buffer: @addrspace("shared") &Buffer = value;
 ```
 
-### TypeScript decorator prefixed variable type stays inline
+### decorator-prefixed variable type stays inline
 
 Decorator prefixed variable types stay inline after `:` under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 {
     const buffer: @addrspace("shared") &Buffer = value;
 }
 ```
 
-```ts expected
+```ds expected
 {
   const buffer: @addrspace("shared") &Buffer = value;
 }
@@ -46,13 +46,13 @@ Decorator prefixed variable types stay inline after `:` under non-default format
 
 Trailing marker comments after typed declarations are preserved.
 
-```ts:main.ts
+```ds:main.ds
 declare const PAGE_PATH: string
   //<- marker
 ;(()=>{})()
 ```
 
-```ts expected
+```ds expected
 declare const PAGE_PATH: string;
     //<- marker
 (() => {})();

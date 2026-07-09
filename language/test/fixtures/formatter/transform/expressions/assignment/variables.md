@@ -82,11 +82,11 @@ const [a, b] = tuple;
 
 Array rest patterns keep tight brackets.
 
-```ts:main.ts
+```ds:main.ds
 const [...rest] = arr
 ```
 
-```ts expected
+```ds expected
 const [...rest] = arr;
 ```
 
@@ -312,11 +312,11 @@ let Some(value) = maybe else {
 
 Declaration files keep the `declare` keyword.
 
-```ts:main.d.ts
+```ds:main.d.ds
 declare const PAGE_PATH: string;
 ```
 
-```ts expected
+```ds expected
 declare const PAGE_PATH: string;
 ```
 
@@ -324,13 +324,13 @@ declare const PAGE_PATH: string;
 
 Comments before a declaration terminator stay after the emitted declaration semicolon.
 
-```ts:main.ts
+```ds:main.ds
 declare const PAGE_PATH: string
   // declaration tail
 ;(()=>{})()
 ```
 
-```ts expected
+```ds expected
 declare const PAGE_PATH: string;
     // declaration tail
 (() => {})();
@@ -340,7 +340,7 @@ declare const PAGE_PATH: string;
 
 Assignment comments stay attached to the initializer shell.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 let longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
 let short = /*#__PURE__*/_interopDefaultLegacy(b);
 
@@ -349,15 +349,15 @@ const jestPackageJson =
   loadPackage(jestPath);
 
 class A {
-  #testerConfig;
+  testerConfig;
   constructor() {
     let basePath: string | undefined =
-      this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+      this.testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
   }
 }
 ```
 
-```ts expected
+```ds expected
 let longlonglonglonglonglong =
     /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
 let short = /*#__PURE__*/ _interopDefaultLegacy(b);
@@ -367,10 +367,10 @@ const jestPackageJson =
     loadPackage(jestPath);
 
 class A {
-    #testerConfig;
+    testerConfig;
     constructor() {
         let basePath: string | undefined =
-            this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+            this.testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
     }
 }
 ```

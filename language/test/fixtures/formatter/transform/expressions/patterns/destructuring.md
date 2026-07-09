@@ -153,7 +153,7 @@ const { [key]: value, [prefix + suffix]: other } = obj;
 
 ### destructuring with type annotation
 
-Destructuring with TypeScript-style type annotations.
+Destructuring patterns keep type annotations.
 
 ```ds line-width=60
 const { name, age }: { name: string, age: number } = person

@@ -8,12 +8,12 @@ Directive fixtures cover directive prologues and comments around directives.
 
 Directives keep quotes, end with semicolons, and separate the prologue from following code.
 
-```ts:main.ts
+```ds:main.ds
 "use strict"
 doWork()
 ```
 
-```ts expected
+```ds expected
 "use strict";
 doWork();
 ```
@@ -22,13 +22,13 @@ doWork();
 
 Multiple directives stay grouped with one blank line before following code.
 
-```ts:main.ts
+```ds:main.ds
 "use client"
 "use strict"
 render()
 ```
 
-```ts expected
+```ds expected
 "use client";
 "use strict";
 render();
@@ -40,7 +40,7 @@ render();
 
 Recognized suppression aliases preserve ignored source and keep formatted statements stable.
 
-```ts:main.ts
+```ds:main.ds
 const keepFormatted = 1;
 
 // fmt-ignore
@@ -69,7 +69,7 @@ const rangeIgnoredB   =  {  gamma:3,  delta:4 }
 const keepFormattedToo = 2;
 ```
 
-```ts expected
+```ds expected
 const keepFormatted = 1;
 
 // fmt-ignore

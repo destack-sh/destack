@@ -36,11 +36,11 @@ for (item of items) {
 
 For-await-of loops keep the `await` keyword in the header.
 
-```ts:main.ts
+```ds:main.ds
 async function run() { for await (const item of stream) { consume(item) } }
 ```
 
-```ts expected
+```ds expected
 async function run() {
     for await (const item of stream) {
         consume(item);

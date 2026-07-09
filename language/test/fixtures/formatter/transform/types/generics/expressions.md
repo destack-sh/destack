@@ -70,11 +70,11 @@ const buffer: Buffer<...shape()> = value;
 
 Instantiation expressions should retain their type arguments without extra spacing.
 
-```ts:main.ts
+```ds:main.ds
 const factory = getFactory<number>
 ```
 
-```ts expected
+```ds expected
 const factory = getFactory<number>;
 ```
 
@@ -82,11 +82,11 @@ const factory = getFactory<number>;
 
 Multiple type arguments are separated by comma and space.
 
-```ts:main.ts
+```ds:main.ds
 const pair = makePair<string, number>
 ```
 
-```ts expected
+```ds expected
 const pair = makePair<string, number>;
 ```
 
@@ -94,11 +94,11 @@ const pair = makePair<string, number>;
 
 Comments inside instantiation type arguments are preserved.
 
-```ts:main.ts
+```ds:main.ds
 const pair = makePair</* key */ string, /* value */ number>
 ```
 
-```ts expected
+```ds expected
 const pair = makePair</* key */ string, /* value */ number>;
 ```
 
@@ -106,14 +106,14 @@ const pair = makePair</* key */ string, /* value */ number>;
 
 Comments inside multiline instantiation type arguments keep the type arguments multiline.
 
-```ts:main.ts
+```ds:main.ds
 Math.random<
   // comment
   string | number | undefined
 >
 ```
 
-```ts expected
+```ds expected
 Math.random<
     // comment
     string | number | undefined

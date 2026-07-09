@@ -1,18 +1,18 @@
 # Tree Comments
 
-TSX comment fixtures cover comment containers, dangling comments, and arrow-expression comments.
+Tree comment fixtures cover comment containers, dangling comments, and arrow-expression comments.
 
 ## Comment Containers
 
 ### comment as only child
 
-Block comments in expression containers expand the element.
+Block comments remain inside their expression containers.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{/* TODO: add content */}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div>{/* TODO: add content */}</div>;
 ```
 
@@ -20,11 +20,11 @@ const node = <div>{/* TODO: add content */}</div>;
 
 Comments between children stay on their own line.
 
-```tsx:main.tsx line-width=40
+```ds:main.ds line-width=40
 const node = <div>{/* header */}<Header /><Body /></div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {/* header */}
@@ -38,11 +38,11 @@ const node = (
 
 Comments inside expression containers are preserved.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{items /* keep */ .map((item) => <Item key={item.id} />)}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {items /* keep */
@@ -59,7 +59,7 @@ const node = (
 
 Dangling comments stay inside the expression container.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = (<>
   {
     value
@@ -68,7 +68,7 @@ const node = (<>
 </>)
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <>
         {
@@ -83,11 +83,11 @@ const node = (
 
 Simple fragment expressions stay on one line.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <>{ value }</>
 ```
 
-```tsx expected
+```ds expected
 const node = <>{value}</>;
 ```
 
@@ -95,9 +95,9 @@ const node = <>{value}</>;
 
 ### arrow expression with comment
 
-Arrow expressions inside JSX containers break with comments preserved.
+Arrow expressions inside tree containers break with comments preserved.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <>
   <div>
     {() => function A() {
@@ -107,7 +107,7 @@ const node = <>
 </>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <>
         <div>
@@ -124,14 +124,14 @@ const node = (
 
 ### ternary with trailing comment
 
-Trailing comments on JSX branches stay on the same line.
+Trailing comments on tree branches stay on the same line.
 
-```tsx:main.tsx line-width=30
+```ds:main.ds line-width=30
 const node = <div>{isVideo ? <Video /> : <Image /> // eslint-disable-line
 }</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {
@@ -145,31 +145,19 @@ const node = (
 );
 ```
 
-TSX comment boundary fixtures cover comments around children, ternaries, inline expressions, and call arguments.
+Tree comment boundaries cover children, ternaries, inline expressions, and call arguments.
 
-## Child Containers
-
-### comment as only child
-
-Comment only child containers stay on their own line.
-
-```tsx:main.tsx
-const node = <div>{/* only-child */}</div>
-```
-
-```tsx expected
-const node = <div>{/* only-child */}</div>;
-```
+## Sibling Comments
 
 ### comment between sibling children
 
 Comments between sibling children stay between the same children.
 
-```tsx:main.tsx line-width=40
+```ds:main.ds line-width=40
 const node = <div><A />{/* between */}<B /></div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         <A />
@@ -185,7 +173,7 @@ const node = (
 
 Block comments inside ternary branches are preserved.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = (
   <div>
     {isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}
@@ -193,7 +181,7 @@ const node = (
 )
 ```
 
-```tsx expected
+```ds expected
 const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}</div>;
 ```
 
@@ -201,7 +189,7 @@ const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-
 
 Trailing line comments on alternate branches stay with the alternate branch.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = (
   <>
     {x ? <A /> : // alt-line
@@ -210,7 +198,7 @@ const node = (
 )
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <>
         {x ? (
@@ -225,13 +213,13 @@ const node = (
 
 ### ternary branch inline comments
 
-Inline comments inside TSX ternary branches stay attached on both sides.
+Inline comments inside tree ternary branches stay attached on both sides.
 
-```tsx:main.tsx line-width=40
+```ds:main.ds line-width=40
 const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {isVideo ? (
@@ -245,9 +233,9 @@ const node = (
 
 ### ternary alternate block comment
 
-Block comments inside alternate TSX branches stay with the alternate branch.
+Block comments inside alternate tree branches stay with the alternate branch.
 
-```tsx:main.tsx
+```ds:main.ds
 const Component = () => (
   <div>
     {"error" ? (
@@ -260,7 +248,7 @@ const Component = () => (
 )
 ```
 
-```tsx expected
+```ds expected
 const Component = () => (
     <div>
         {"error" ? (
@@ -277,26 +265,26 @@ const Component = () => (
 
 ### map callback with inline comment
 
-Inline comments in TSX expression callbacks stay attached to the callback body.
+Inline comments in tree expression callbacks stay attached to the callback body.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{items.map((item) => item /* map-inline */)}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div>{items.map((item) => item /* map-inline */)}</div>;
 ```
 
 ### logical expression with trailing comment
 
-Trailing comments in logical TSX expressions stay on the same logical line.
+Trailing comments in logical tree expressions stay on the same logical line.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{ready && <Body /> // logical-tail
 }</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {
@@ -308,74 +296,74 @@ const node = (
 
 ## Call Arguments
 
-### jsx first argument trailing comment
+### tree first argument trailing comment
 
-Trailing comments on JSX first arguments stay attached to that argument.
+Trailing comments on tree first arguments stay attached to that argument.
 
-```tsx:main.tsx
+```ds:main.ds
 send(
-  <Card />, // jsx-first
+  <Card />, // tree-first
   options,
 )
 ```
 
-```tsx expected
+```ds expected
 send(
-    <Card />, // jsx-first
+    <Card />, // tree-first
     options,
 );
 ```
 
-### jsx generic element with trailing comment
+### tree generic element with trailing comment
 
-Trailing comments on generic JSX element heads stay attached to the same JSX argument.
+Trailing comments on generic tree element heads stay attached to the same tree argument.
 
-```tsx:main.tsx line-width=36
+```ds:main.ds line-width=36
 send(
-  <Card<T> value={value} />, // jsx-generic
+  <Card<T> value={value} />, // tree-generic
   options,
 )
 ```
 
-```tsx expected
+```ds expected
 send(
-    <Card<T> value={value} />, // jsx-generic
+    <Card<T> value={value} />, // tree-generic
     options,
 );
 ```
 
-### jsx argument followed by line comments
+### tree argument followed by line comments
 
-Line comments after a JSX argument stay in the following argument position.
+Line comments after a tree argument stay in the following argument position.
 
-```tsx:main.tsx
+```ds:main.ds
 someFunction(
   <Component
     value1={{
       foo: "bar",
     }}
   />,
-  // option stays after jsx argument
+  // option stays after tree argument
 )
 ```
 
-```tsx expected
+```ds expected
 someFunction(
     <Component
         value1={{
             foo: "bar",
         }}
     />,
-    // option stays after jsx argument
+    // option stays after tree argument
 );
 ```
 
-## JSX Comments
+## Inline Comments
 
 ### comment in expression container
 
-Comments inside JSX use expression containers.
-Block infix comments cause expansion with stable indentation.
+Comments inside tree literals use expression containers.
+Comments remain inline when the element fits.
 
 ```ds
 <Container>{/* XOXO: something something add content */}</Container>

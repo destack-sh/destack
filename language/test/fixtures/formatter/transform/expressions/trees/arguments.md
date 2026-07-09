@@ -1,10 +1,10 @@
 # Tree Arguments
 
-## JSX as Arguments
+## Calls
 
-### jsx in function call
+### tree in function call
 
-JSX can be passed as function argument.
+Tree literals can be passed as function arguments.
 
 ```ds
 render(<App />)
@@ -14,10 +14,10 @@ render(<App />)
 render(<App />);
 ```
 
-### jsx with props in function call
+### tree with props in function call
 
-JSX with attributes can appear in function arguments.
-Boolean `{true}` uses shorthand.
+Tree literals with attributes can appear in function arguments.
+Boolean expression attributes remain explicit.
 
 ```ds
 createPortal(<Modal isOpen={true} />, document.body)
@@ -27,9 +27,9 @@ createPortal(<Modal isOpen={true} />, document.body)
 createPortal(<Modal isOpen={true} />, document.body);
 ```
 
-### complex jsx in function call breaks
+### complex tree in function call breaks
 
-Complex JSX in function call breaks to new line.
+Complex tree arguments break onto a new line.
 
 ```ds line-width=40
 render(<Container><Header /><Content /></Container>)

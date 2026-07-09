@@ -1,15 +1,15 @@
-import * as _ from "../src/Codec";
+import * as codec from "../src/Codec";
 
-declare const NumberFromString: _.Codec<string, string, number>;
+declare const NumberFromString: codec.Codec<string, string, number>;
 
 //
 // fromStruct
 //
 
 // $ExpectType Codec<{ a: unknown; b: { c: string; }; }, { a: string; b: { c: string; }; }, { a: string; b: { c: number; }; }>
-_.fromStruct({
-    a: _.string,
-    b: _.fromStruct({
+codec.fromStruct({
+    a: codec.string,
+    b: codec.fromStruct({
         c: NumberFromString,
     }),
 });
@@ -19,10 +19,10 @@ _.fromStruct({
 //
 
 // $ExpectType Codec<unknown, { a: string; b: { c: number; }; }, { a: string; b: { c: number; }; }>
-_.struct({
-    a: _.string,
-    b: _.struct({
-        c: _.number,
+codec.struct({
+    a: codec.string,
+    b: codec.struct({
+        c: codec.number,
     }),
 });
 
@@ -31,9 +31,9 @@ _.struct({
 //
 
 // $ExpectType Codec<Partial<{ a: unknown; b: Partial<{ c: string; }>; }>, Partial<{ a: string; b: Partial<{ c: string; }>; }>, Partial<{ a: string; b: Partial<{ c: number; }>; }>>
-_.fromPartial({
-    a: _.string,
-    b: _.fromPartial({
+codec.fromPartial({
+    a: codec.string,
+    b: codec.fromPartial({
         c: NumberFromString,
     }),
 });
@@ -43,10 +43,10 @@ _.fromPartial({
 //
 
 // $ExpectType Codec<unknown, Partial<{ a: string; b: Partial<{ c: number; }>; }>, Partial<{ a: string; b: Partial<{ c: number; }>; }>>
-_.partial({
-    a: _.string,
-    b: _.partial({
-        c: _.number,
+codec.partial({
+    a: codec.string,
+    b: codec.partial({
+        c: codec.number,
     }),
 });
 
@@ -55,61 +55,61 @@ _.partial({
 //
 
 // $ExpectType Codec<string[], string[], number[]>
-_.fromArray(NumberFromString);
+codec.fromArray(NumberFromString);
 
 //
 // array
 //
 
 // $ExpectType Codec<unknown, string[], string[]>
-_.array(_.string);
+codec.array(codec.string);
 
 //
 // fromRecord
 //
 
 // $ExpectType Codec<Record<string, string>, Record<string, string>, Record<string, number>>
-_.fromRecord(NumberFromString);
+codec.fromRecord(NumberFromString);
 
 //
 // record
 //
 
 // $ExpectType Codec<unknown, Record<string, string>, Record<string, string>>
-_.record(_.string);
+codec.record(codec.string);
 
 //
 // fromTuple
 //
 
 // $ExpectType Codec<[unknown, string, unknown], [string, string, boolean], [string, number, boolean]>
-_.fromTuple(_.string, NumberFromString, _.boolean);
+codec.fromTuple(codec.string, NumberFromString, codec.boolean);
 
 //
 // tuple
 //
 
 // $ExpectType Codec<unknown, [string, number, boolean], [string, number, boolean]>
-_.tuple(_.string, _.number, _.boolean);
+codec.tuple(codec.string, codec.number, codec.boolean);
 
 //
 // fromSum
 //
 
 // $ExpectType Codec<{ _tag: unknown; a: unknown; } | { _tag: unknown; b: string; }, { _tag: "A"; a: string; } | { _tag: "B"; b: string; }, { _tag: "A"; a: string; } | { _tag: "B"; b: number; }>
-_.fromSum("_tag")({
-    A: _.fromStruct({ _tag: _.literal("A"), a: _.string }),
-    B: _.fromStruct({ _tag: _.literal("B"), b: NumberFromString }),
+codec.fromSum("_tag")({
+    A: codec.fromStruct({ _tag: codec.literal("A"), a: codec.string }),
+    B: codec.fromStruct({ _tag: codec.literal("B"), b: NumberFromString }),
 });
 
 //
 // sum
 //
 
-const S1 = _.struct({ _tag: _.literal("A"), a: _.string });
-const S2 = _.struct({ _tag: _.literal("B"), b: _.number });
+const S1 = codec.struct({ _tag: codec.literal("A"), a: codec.string });
+const S2 = codec.struct({ _tag: codec.literal("B"), b: codec.number });
 
 // $ExpectType Codec<unknown, { _tag: "A"; a: string; } | { _tag: "B"; b: number; }, { _tag: "A"; a: string; } | { _tag: "B"; b: number; }>
-_.sum("_tag")({ A: S1, B: S2 });
+codec.sum("_tag")({ A: S1, B: S2 });
 // // @ts-expect-error
-// _.sum('_tag')({ A: S1, B: S1 })
+// codec.sum('_tag')({ A: S1, B: S1 })

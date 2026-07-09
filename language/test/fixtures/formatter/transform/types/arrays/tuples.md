@@ -90,10 +90,10 @@ type Handles = (
 
 Nested conditional types preserve parentheses.
 
-```ts:main.ts
+```ds:main.ds
 type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
-```ts expected
+```ds expected
 type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
 ```

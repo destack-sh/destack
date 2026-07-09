@@ -76,11 +76,11 @@ const x = condition
 
 Nullish coalescing branches keep their parentheses and indentation.
 
-```ts:main.ts line-width=60
+```ds:main.ds line-width=60
 const value = options.singleRun ? "Infinity" : (options.cacheLifetime?.glob ?? DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS)
 ```
 
-```ts expected
+```ds expected
 const value = options.singleRun
     ? "Infinity"
     : (options.cacheLifetime?.glob ??
@@ -135,7 +135,7 @@ const result = valid ? process(data) : handleError(err);
 
 Chained calls in ternary branches keep their indentation.
 
-```ts:main.ts line-width=80
+```ds:main.ds line-width=80
 const result = id === null
   ? null
   : internal.getSuspenseCache(client).getFragmentRef(
@@ -148,7 +148,7 @@ const result = id === null
     )
 ```
 
-```ts expected
+```ds expected
 const result =
     id === null
         ? null

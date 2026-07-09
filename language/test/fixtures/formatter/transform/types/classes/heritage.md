@@ -9,7 +9,7 @@ Declaration heritage fixtures cover class extends, implements, generic boundarie
 Comments before `implements` stay with the heritage clause.
 Trailing line comments after the final heritage item become the first body comment.
 
-```ts:main.ts
+```ds:main.ds
 class Derived extends Base // base-tail
 implements
 // impl-head
@@ -18,7 +18,7 @@ B // impl-tail
 {}
 ```
 
-```ts expected
+```ds expected
 class Derived
     extends Base // base-tail
     // impl-head
@@ -31,14 +31,14 @@ class Derived
 
 Comments on declare class generic and implements boundaries stay attached to declarations.
 
-```ts:main.ts
+```ds:main.ds
 declare class Box // box-head
 <T> implements Item<T>, Other {
   value: T
 }
 ```
 
-```ts expected
+```ds expected
 declare class Box<T> // box-head
     implements Item<T>, Other
 {
@@ -50,13 +50,13 @@ declare class Box<T> // box-head
 
 Long implemented interface lists break before the keyword and indent each implemented type.
 
-```ts:main.ts line-width=60
+```ds:main.ds line-width=60
 class Worker implements VeryLongInterfaceNameOne, VeryLongInterfaceNameTwo, VeryLongInterfaceNameThree {
   value: string
 }
 ```
 
-```ts expected
+```ds expected
 class Worker
     implements
         VeryLongInterfaceNameOne,
@@ -73,14 +73,14 @@ class Worker
 
 Comments around superclass boundaries stay attached to class heritage heads.
 
-```ts:main.ts
+```ds:main.ds
 class Child extends Base // extends-tail
 {
   value = 1
 }
 ```
 
-```ts expected
+```ds expected
 class Child extends Base {
     // extends-tail
     value = 1;
@@ -92,7 +92,7 @@ class Child extends Base {
 Comments in implement lists stay with intermediate items.
 Trailing line comments after the final heritage item become the first body comment.
 
-```ts:main.ts
+```ds:main.ds
 class Child implements First, // impl-first
 Second // impl-second
 {
@@ -100,7 +100,7 @@ Second // impl-second
 }
 ```
 
-```ts expected
+```ds expected
 class Child
     implements
         First, // impl-first

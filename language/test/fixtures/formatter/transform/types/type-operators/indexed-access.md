@@ -6,11 +6,11 @@
 
 Bracket tuple types keep bracket syntax.
 
-```ts:main.ts
+```ds:main.ds
 type Pair = [T, boolean]
 ```
 
-```ts expected
+```ds expected
 type Pair = [T, boolean];
 ```
 
@@ -56,11 +56,11 @@ type Lane<comptime N: uint> = [byte; N * 2];
 
 Empty and singleton bracket tuple types keep bracket syntax in unions.
 
-```ts:main.ts
+```ds:main.ds
 type Next<TNext> = [] | [TNext]
 ```
 
-```ts expected
+```ds expected
 type Next<TNext> = [] | [TNext];
 ```
 
@@ -68,11 +68,11 @@ type Next<TNext> = [] | [TNext];
 
 Bracket tuple rest elements keep array suffixes on the rest type.
 
-```ts:main.ts
+```ds:main.ds
 type Requirements = [...HostAction[]]
 ```
 
-```ts expected
+```ds expected
 type Requirements = [...HostAction[]];
 ```
 
@@ -80,23 +80,23 @@ type Requirements = [...HostAction[]];
 
 Labeled tuple rest elements keep the spread marker before the label.
 
-```ts:main.ts
-type RedisArgs = [...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"]
+```ds:main.ds
+type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
 ```
 
-```ts expected
-type RedisArgs = [...keys: RedisClient.KeyLike[], withscores: "WITHSCORES"];
+```ds expected
+type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"];
 ```
 
 ### bracket tuple optional label
 
 Optional labeled tuple elements keep `?` on the label.
 
-```ts:main.ts
+```ds:main.ds
 type UpgradeOptions<WebSocketData> = [options?: {data?: undefined}, options: {data: WebSocketData}]
 ```
 
-```ts expected
+```ds expected
 type UpgradeOptions<WebSocketData> = [
     options?: { data?: undefined },
     options: { data: WebSocketData },
@@ -107,11 +107,11 @@ type UpgradeOptions<WebSocketData> = [
 
 Conditional tuple branches keep optional labels parseable after formatting.
 
-```ts:main.ts
+```ds:main.ds
 type UpgradeOptions<WebSocketData> = [WebSocketData] extends [undefined] ? [options?: {data?: undefined}] : [options: {data: WebSocketData}]
 ```
 
-```ts expected
+```ds expected
 type UpgradeOptions<WebSocketData> = [WebSocketData] extends [undefined]
     ? [options?: { data?: undefined }]
     : [options: { data: WebSocketData }];

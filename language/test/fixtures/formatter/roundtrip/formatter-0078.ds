@@ -4,12 +4,12 @@ import {
     NODE_TYPES_COUNT,
 } from "../generated/lazy/type_ids.js";
 
-// Getter for private `#visitorsArr` property of `Visitor` class. Initialized in class body below.
+// Getter for the private `visitorsArr` property of `Visitor`. Initialized in the class body below.
 let getVisitorsArrTemp;
 
 /** Visitor class, used to visit an AST. */
 export class Visitor {
-    #visitorsArr;
+    private visitorsArr;
 
     /**
      * Create `Visitor`.
@@ -35,11 +35,11 @@ export class Visitor {
      * @returns {Visitor}
      */
     constructor(visitor) {
-        this.#visitorsArr = createVisitorsArr(visitor);
+        this.visitorsArr = createVisitorsArr(visitor);
     }
 
     static {
-        getVisitorsArrTemp = (visitor) => visitor.#visitorsArr;
+        getVisitorsArrTemp = (visitor) => visitor.visitorsArr;
     }
 }
 
@@ -77,7 +77,9 @@ function createVisitorsArr(visitor) {
         }
 
         const isExit = name.endsWith(":exit");
-        if (isExit) name = name.slice(0, -5);
+        if (isExit) {
+            name = name.slice(0, -5);
+        }
 
         const typeId = NODE_TYPE_IDS_MAP.get(name);
         if (typeId === void 0) throw new Error(`Unknown node type '${name}' in \`visitor\` object`);

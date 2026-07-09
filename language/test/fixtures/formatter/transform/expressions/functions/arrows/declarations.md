@@ -41,26 +41,14 @@ const foo: (x: number) => number = (x) => x + 1
 const foo: (x: number) => number = (x) => x + 1;
 ```
 
-### module ts arrow generic keeps trailing comma in mts
+### generic arrow keeps trailing comma
 
-Single generic arrow type parameters in `.mts` keep a trailing comma.
+Single generic arrow type parameters keep the comma that disambiguates them from tree literals.
 
-```ts:main.mts
+```ds:main.ds
 const fn = <T,>() => {}
 ```
 
-```ts expected
-const fn = <T,>() => {};
-```
-
-### module ts arrow generic keeps trailing comma in cts
-
-Single generic arrow type parameters in `.cts` keep a trailing comma.
-
-```ts:main.cts
-const fn = <T,>() => {}
-```
-
-```ts expected
+```ds expected
 const fn = <T,>() => {};
 ```

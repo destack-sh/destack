@@ -6,14 +6,14 @@
 
 Type parameter modifiers keep their declaration order.
 
-```ts
+```ds
 function id< const T , U >(value: T): T { return value }
 class Box< out T , const U > {
     method< const V , in W >(value: V): V { return value }
 }
 ```
 
-```ts expected
+```ds expected
 function id<const T, U>(value: T): T {
     return value;
 }
@@ -28,30 +28,30 @@ class Box<out T, const U> {
 
 Long generic constraints and defaults break cleanly under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80
+```ds:main.ds indent-width=2 line-width=80
 export type OuterType1<
-  LongerLongerLongerLongerInnerType extends LongerLongerLongerLongerOtherType<OneMoreType>
+  LongerLongerLongerLongerInnerType: LongerLongerLongerLongerOtherType<OneMoreType>
 > = { a: 1 };
 export type OuterType12<
   LongerLongerLongerLongerInnerType = LongerLongerLongerLongerOtherType<OneMoreType>
 > = { a: 1 };
 
 export type OuterType2<
-  LongerLongerLongerLongerInnerType extends LongerLongerLongerLongerLongerLongerLongerLongerOtherType
+  LongerLongerLongerLongerInnerType: LongerLongerLongerLongerLongerLongerLongerLongerOtherType
 > = { a: 1 };
 export type OuterType22<
   LongerLongerLongerLongerInnerType = LongerLongerLongerLongerLongerLongerLongerLongerOtherType
 > = { a: 1 };
 
 export type OuterType3<
-  LongerLongerLongerLongerInnerType extends LongerLongerLongerLongerLongerLo.ngerLongerLongerOtherType
+  LongerLongerLongerLongerInnerType: LongerLongerLongerLongerLongerLo.ngerLongerLongerOtherType
 > = { a: 1 };
 export type OuterType32<
   LongerLongerLongerLongerInnerType = LongerLongerLongerLongerLongerLo.ngerLongerLongerOtherType
 > = { a: 1 };
 
 export type OuterType4<
-  LongerLongerLongerLongerInnerType extends
+  LongerLongerLongerLongerInnerType:
     | LongerLongerLongerLongerLongerLo
     | ngerLongerLongerOtherType
 > = { a: 1 };
@@ -62,9 +62,9 @@ export type OuterType42<
 > = { a: 1 };
 ```
 
-```ts expected
+```ds expected
 export type OuterType1<
-  LongerLongerLongerLongerInnerType extends
+  LongerLongerLongerLongerInnerType:
     LongerLongerLongerLongerOtherType<OneMoreType>,
 > = { a: 1 };
 export type OuterType12<
@@ -73,7 +73,7 @@ export type OuterType12<
 > = { a: 1 };
 
 export type OuterType2<
-  LongerLongerLongerLongerInnerType extends
+  LongerLongerLongerLongerInnerType:
     LongerLongerLongerLongerLongerLongerLongerLongerOtherType,
 > = { a: 1 };
 export type OuterType22<
@@ -82,7 +82,7 @@ export type OuterType22<
 > = { a: 1 };
 
 export type OuterType3<
-  LongerLongerLongerLongerInnerType extends
+  LongerLongerLongerLongerInnerType:
     LongerLongerLongerLongerLongerLo.ngerLongerLongerOtherType,
 > = { a: 1 };
 export type OuterType32<
@@ -91,7 +91,7 @@ export type OuterType32<
 > = { a: 1 };
 
 export type OuterType4<
-  LongerLongerLongerLongerInnerType extends
+  LongerLongerLongerLongerInnerType:
     | LongerLongerLongerLongerLongerLo
     | ngerLongerLongerOtherType,
 > = { a: 1 };

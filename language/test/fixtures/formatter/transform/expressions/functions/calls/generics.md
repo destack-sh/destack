@@ -18,14 +18,14 @@ foo<number>(x);
 
 Comments inside multiline call type arguments keep the type arguments multiline.
 
-```ts:main.ts
+```ds:main.ds
 Math.random<
   // comment
   string | number | undefined
 >()
 ```
 
-```ts expected
+```ds expected
 Math.random<
     // comment
     string | number | undefined

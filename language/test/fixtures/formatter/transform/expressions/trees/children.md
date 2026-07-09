@@ -1,6 +1,6 @@
 # Tree Children
 
-TSX child fixtures cover text, expression children, fragments, and multiline children.
+Tree child fixtures cover text, expressions, fragments, and multiline children.
 
 ## Text and Expressions
 
@@ -8,11 +8,11 @@ TSX child fixtures cover text, expression children, fragments, and multiline chi
 
 Text and expression children stay inline when they fit.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>Hello {name}!</div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div>Hello {name}!</div>;
 ```
 
@@ -20,11 +20,11 @@ const node = <div>Hello {name}!</div>;
 
 Expression child comments stay in source order around the expression child.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <List>{items.map((item) => <Item key={item.id}>{/* before */}{item.label}{/* after */}</Item>)}</List>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <List>
         {items.map((item) => (
@@ -42,11 +42,11 @@ const node = (
 
 Adjacent expression children break to one expression container per line.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{first}{second}{third}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {first}
@@ -60,11 +60,11 @@ const node = (
 
 Whitespace inside text nodes collapses to single spaces.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>  Hello   World </div>
 ```
 
-```tsx expected
+```ds expected
 const node = <div> Hello World </div>;
 ```
 
@@ -72,13 +72,13 @@ const node = <div> Hello World </div>;
 
 Text and expression boundaries break cleanly when they exceed line width.
 
-```tsx:main.tsx line-width=40
+```ds:main.ds line-width=40
 const node = <p>Current usage for X is ${(() => {
   // comment
 })()}.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         Current usage for X is $
@@ -93,11 +93,11 @@ const node = (
 
 Punctuation-only text after a wrapped child stays attached to the child.
 
-```tsx:main.tsx line-width=30
+```ds:main.ds line-width=30
 const node = <p>Start <b>bold</b>, then stop.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         Start <b>bold</b>,
@@ -110,11 +110,11 @@ const node = (
 
 Mixed text, expressions, and tree children wrap as inline prose.
 
-```tsx:main.tsx line-width=45
+```ds:main.ds line-width=45
 const node = <p>Hello {name}, see <Link>docs</Link> for details.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         Hello {name}, see <Link>docs</Link> for
@@ -127,11 +127,11 @@ const node = (
 
 Punctuation between expression and following text stays attached to the expression.
 
-```tsx:main.tsx line-width=35
+```ds:main.ds line-width=35
 const node = <p>Hello {name}, welcome back.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         Hello {name}, welcome back.
@@ -143,12 +143,12 @@ const node = (
 
 Punctuation with leading source newline remains its own text line.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <p>{value}
 .</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         {value}
@@ -161,23 +161,23 @@ const node = (
 
 Punctuation with leading source space remains separated from the previous expression.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <p>Hello {name} .</p>
 ```
 
-```tsx expected
+```ds expected
 const node = <p>Hello {name} .</p>;
 ```
 
 ### inline prose keeps whitespace expression before punctuation
 
-Punctuation after an explicit JSX whitespace container remains separated from the previous expression.
+Punctuation after an explicit tree whitespace container remains separated from the previous expression.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <p>Hello {name}{" "}.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = <p>Hello {name} .</p>;
 ```
 
@@ -185,11 +185,11 @@ const node = <p>Hello {name} .</p>;
 
 Punctuation runs stay attached to the previous inline expression before wrapping prose.
 
-```tsx:main.tsx line-width=30
+```ds:main.ds line-width=30
 const node = <p>Hello {name}?! Really...</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         Hello {name}?!
@@ -202,11 +202,11 @@ const node = (
 
 Punctuation after a fragment child stays attached to the fragment.
 
-```tsx:main.tsx line-width=35
+```ds:main.ds line-width=35
 const node = <p>Start <>{value}</>, done.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         Start <>{value}</>, done.
@@ -218,11 +218,11 @@ const node = (
 
 Punctuation after a multiline expression child stays attached when attributes force multiline layout.
 
-```tsx:main.tsx line-width=40
+```ds:main.ds line-width=40
 const node = <p title="Long title value" description="Long description value">{value}.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p
         title="Long title value"
@@ -235,13 +235,13 @@ const node = (
 
 ### inline prose keeps comment boundary before punctuation
 
-Punctuation after a JSX comment remains its own text child.
+Punctuation after a tree comment remains its own text child.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <p>{/* keep */}.</p>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <p>
         {/* keep */}
@@ -254,7 +254,7 @@ const node = (
 
 Template children keep multiline interpolation comments indented from the template segment.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{`
   color: ${theme?.activeColor[
     // selected mode
@@ -263,7 +263,7 @@ const node = <div>{`
 `}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>{`
   color: ${
@@ -280,11 +280,11 @@ const node = (
 
 Multiple element children break to one per line.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <section><Header /><Body /><Footer /></section>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <section>
         <Header />
@@ -296,13 +296,13 @@ const node = (
 
 ### mixed children break when tree literals appear
 
-Tree literal children force multiline formatting.
+A tree literal between expression children forces multiline formatting.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <div>{label}<Icon />{suffix}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {label}
@@ -314,17 +314,17 @@ const node = (
 
 ### mixed text with spaced expressions
 
-Whitespace expression containers become JSX text spacing in inline prose.
+Whitespace expression containers become tree text spacing in inline prose.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <T>
-  Pro tip: See more{' '}
-  <Link href="https://example.com">Docs</Link>{' '}
+  Pro tip: See more{" "}
+  <Link href="https://example.com">Docs</Link>{" "}
   for details.
 </T>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <T>
         Pro tip: See more <Link href="https://example.com">Docs</Link>
@@ -337,14 +337,14 @@ const node = (
 
 Inline elements inside text blocks use fill layout across lines.
 
-```tsx:main.tsx
+```ds:main.ds
 export default function ProTip() {
   return (
     <T>
       <X />
       Pro tip: See more <Link href="https://mui.com/getting-started/templates/">
         BREAK THIS
-      </Link>{' '}
+      </Link>{" "}
       on
       the MUI documentation.
     </T>
@@ -352,7 +352,7 @@ export default function ProTip() {
 }
 ```
 
-```tsx expected
+```ds expected
 export default function ProTip() {
     return (
         <T>
@@ -373,11 +373,11 @@ export default function ProTip() {
 
 Inline map expressions break when they exceed line width.
 
-```tsx:main.tsx line-width=50
+```ds:main.ds line-width=50
 const node = <ul>{items.map((item) => <li key={item.id}>{item.name}</li>)}</ul>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <ul>
         {items.map((item) => (
@@ -391,11 +391,11 @@ const node = (
 
 Conditional expression children break with aligned operators.
 
-```tsx:main.tsx line-width=20
+```ds:main.ds line-width=20
 const node = <div>{ready ? <Ready /> : <Pending />}</div>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <div>
         {ready ? (
@@ -571,18 +571,18 @@ const node = (
 );
 ```
 
-### logical expression with jsx child
+### logical expression with tree child
 
-Logical expressions keep JSX children grouped with comments.
+Logical expressions keep tree children grouped with comments.
 
-```tsx:main.tsx line-width=80
+```ds:main.ds line-width=80
 xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
   // test
   <div></div>
 )
 ```
 
-```tsx expected
+```ds expected
 xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
     // test
     <div></div>
@@ -595,11 +595,11 @@ xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
 
 Fragments with multiple children break across lines.
 
-```tsx:main.tsx
+```ds:main.ds
 const node = <><A /><B /><C /></>
 ```
 
-```tsx expected
+```ds expected
 const node = (
     <>
         <A />
@@ -699,9 +699,7 @@ Elements with mixed text and element children expand around fill-layout children
 ```
 
 ```ds expected
-<Paragraph>
-    Hello <Strong>World</Strong>!
-</Paragraph>;
+<Paragraph>Hello <Strong>World</Strong>!</Paragraph>;
 ```
 
 ## Child Patterns
@@ -758,12 +756,11 @@ Fragment syntax groups elements without a wrapper.
 </>;
 ```
 
-
-## Expression Children
+## Callback Children
 
 ### map expression in children
 
-JSX-returning callbacks in tree children break vertically.
+Tree-returning callbacks in tree children break vertically.
 
 ```ds line-width=50
 <List>{items.map((item) => <Item key={item.id} />)}</List>
@@ -780,7 +777,7 @@ JSX-returning callbacks in tree children break vertically.
 ### long map with block body
 
 Map with block body breaks.
-Return JSX gets parens when multi-line.
+Returned tree literals use parentheses when multiline.
 
 ```ds line-width=40
 <List>{items.map((item) => { return <Item key={item.id} name={item.name} /> })}</List>
@@ -799,9 +796,9 @@ Return JSX gets parens when multi-line.
 </List>;
 ```
 
-### conditional with jsx
+### conditional with tree
 
-Conditional expressions with JSX children.
+Conditional expressions with tree children.
 
 ```ds
 <div>{loading && <Spinner />}</div>
@@ -811,9 +808,9 @@ Conditional expressions with JSX children.
 <div>{loading && <Spinner />}</div>;
 ```
 
-### ternary with complex jsx branches
+### ternary with complex tree branches
 
-Ternary with multi-attribute JSX in branches.
+Ternary with multi-attribute tree in branches.
 
 ```ds line-width=50
 <div>{loading ? <Spinner size="large" /> : <Content data={data} />}</div>
@@ -831,7 +828,7 @@ Ternary with multi-attribute JSX in branches.
 
 ### ternary branch comments
 
-Trailing JSX branch comments format at conditional branch boundaries.
+Trailing tree branch comments format at conditional branch boundaries.
 
 ```ds line-width=40
 <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
