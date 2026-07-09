@@ -2,7 +2,7 @@ use destack_core::{
     EntryRange, EntryStore, Optional, SectionEntry, SectionImage, SectionPacker, SectionSlice,
     StringId,
 };
-use destack_mir::{Access, FloatType};
+use destack_mir::{Access, FloatType, Space};
 use destack_serde::Reflect;
 use destack_source as source;
 use serde::{Deserialize, Serialize};
@@ -670,20 +670,6 @@ pub enum MemoryLiteralTag {
     Lifetime,
 }
 
-/// Reflected storage space singleton.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum Space {
-    /// Local runtime storage.
-    Local,
-    /// Shared runtime storage.
-    Shared,
-    /// Frame-slot storage inside one activation.
-    Frame,
-    /// Static memory.
-    Static,
-}
-
 /// Reflected placement singleton.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -1161,7 +1147,6 @@ unsafe impl SectionEntry for ScalarLiteral {}
 unsafe impl SectionEntry for ScalarLiteralTag {}
 unsafe impl SectionEntry for MemoryLiteral {}
 unsafe impl SectionEntry for MemoryLiteralTag {}
-unsafe impl SectionEntry for Space {}
 unsafe impl SectionEntry for Place {}
 unsafe impl SectionEntry for PlaceTag {}
 unsafe impl SectionEntry for Lifetime {}

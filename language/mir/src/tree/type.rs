@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use destack_core::{FloatFormat, StringId};
+use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType, SignatureParameter,
@@ -93,6 +93,9 @@ impl Space {
         }
     }
 }
+
+// SAFETY: space tags are fixed-width section entries.
+unsafe impl SectionEntry for Space {}
 
 /// Kind of reference in MIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
