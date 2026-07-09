@@ -3,25 +3,25 @@ use std::ops::Range;
 use super::page::PageMap;
 use crate::MemoryResult;
 
-/// One forkable virtual address space.
+/// One forkable virtual memory mapping.
 ///
 /// Forking and dropping require external synchronization with raw writes into exposed addresses.
 #[derive(Debug)]
-pub struct AddressSpace {
+pub struct MemoryMap {
     /// The page map used by direct address access.
     map: PageMap,
 }
 
-// SAFETY: page table mutations are synchronized inside the address space
-unsafe impl Send for AddressSpace {}
+// SAFETY: page table mutations are synchronized inside the memory map
+unsafe impl Send for MemoryMap {}
 
 // SAFETY: exposed raw writes are caller synchronized via safepoints
-unsafe impl Sync for AddressSpace {}
+unsafe impl Sync for MemoryMap {}
 
 // mapped_bytes_mut hands out exclusive windows under a caller-proved contract
 #[allow(clippy::mut_from_ref)]
-impl AddressSpace {
-    /// Reserve one virtual address space.
+impl MemoryMap {
+    /// Reserve one virtual memory map.
     pub fn reserve(byte_len: usize, page_size_bytes: usize) -> MemoryResult<Self> {
         let mapping = Self {
             map: PageMap::reserve(byte_len, page_size_bytes)?,
@@ -30,7 +30,7 @@ impl AddressSpace {
         Ok(mapping)
     }
 
-    /// Fork this address space and isolate pages on first write.
+    /// Fork this memory map and isolate pages on first write.
     ///
     /// Call this only while no raw writes can race with remapping.
     pub fn fork_lazy(&self) -> MemoryResult<Self> {
@@ -41,7 +41,7 @@ impl AddressSpace {
         Ok(mapping)
     }
 
-    /// Fork this address space and eagerly isolate mapped pages in one byte range.
+    /// Fork this memory map and eagerly isolate mapped pages in one byte range.
     ///
     /// Reserved pages inside the range stay unmaterialized.
     pub fn fork_eager(&self, range: Range<usize>) -> MemoryResult<Self> {
@@ -57,17 +57,17 @@ impl AddressSpace {
         self.map.byte_len()
     }
 
-    /// Return the native page frame width used by this address space.
+    /// Return the native page frame width used by this memory map.
     pub const fn frame_size_bytes(&self) -> usize {
         self.map.frame_size_bytes()
     }
 
-    /// Return the base native address for this address space.
+    /// Return the base native address for this memory map.
     pub fn base_address(&self) -> usize {
         self.map.base_address()
     }
 
-    /// Zero one byte range inside this address space.
+    /// Zero one byte range inside this memory map.
     pub fn zero(&self, offset: usize, byte_len: usize) -> MemoryResult<()> {
         self.map.zero(offset, byte_len)
     }
@@ -77,19 +77,19 @@ impl AddressSpace {
         self.map.read_bytes_into(offset, target)
     }
 
-    /// Return one owned byte vector from this address space.
+    /// Return one owned byte vector from this memory map.
     pub fn read_bytes(&self, offset: usize, byte_len: usize) -> MemoryResult<Vec<u8>> {
         self.map.read_bytes(offset, byte_len)
     }
 
-    /// Return one checked address inside this address space.
+    /// Return one checked address inside this memory map.
     ///
     /// Writes through the returned pointer may fault once after a lazy fork to make the page private.
     pub fn address(&self, offset: usize, byte_len: usize) -> MemoryResult<*mut u8> {
         self.map.address(offset, byte_len)
     }
 
-    /// Materialize one byte range inside this address space.
+    /// Materialize one byte range inside this memory map.
     pub fn materialize(&self, offset: usize, byte_len: usize) -> MemoryResult<()> {
         self.map.materialize(offset, byte_len)
     }
@@ -99,7 +99,7 @@ impl AddressSpace {
         self.map.make_writable(offset, byte_len)
     }
 
-    /// Write caller provided bytes into this address space.
+    /// Write caller provided bytes into this memory map.
     pub fn write_bytes(&self, offset: usize, bytes: &[u8]) -> MemoryResult<()> {
         self.map.write_bytes(offset, bytes)
     }
@@ -108,7 +108,7 @@ impl AddressSpace {
     ///
     /// # Safety
     ///
-    /// The byte range must be live and fully materialized in this address space.
+    /// The byte range must be live and fully materialized in this memory map.
     #[inline(always)]
     pub unsafe fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
         // SAFETY: caller owns the mapped range invariant
@@ -119,7 +119,7 @@ impl AddressSpace {
     ///
     /// # Safety
     ///
-    /// The byte range must be live and fully materialized in this address space.
+    /// The byte range must be live and fully materialized in this memory map.
     #[inline(always)]
     pub unsafe fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
         // SAFETY: caller owns the mapped range invariant
@@ -165,25 +165,25 @@ impl AddressSpace {
 mod tests {
     use std::ptr::copy_nonoverlapping;
 
-    use super::AddressSpace;
+    use super::MemoryMap;
     use crate::platform;
 
-    /// Reserve one test address space and return it with the native frame width.
-    fn test_space(frame_count: usize) -> (AddressSpace, usize) {
+    /// Reserve one test memory map and return it with the native frame width.
+    fn test_map(frame_count: usize) -> (MemoryMap, usize) {
         let frame_size_bytes =
             platform::system_frame_size_bytes().expect("frame size should resolve");
-        let space = AddressSpace::reserve(frame_size_bytes * frame_count, frame_size_bytes)
-            .expect("address space should reserve");
+        let map = MemoryMap::reserve(frame_size_bytes * frame_count, frame_size_bytes)
+            .expect("memory map should reserve");
 
-        (space, frame_size_bytes)
+        (map, frame_size_bytes)
     }
 
     /// Reserved pages read as zeroes before materialization.
     #[test]
     fn test_read_reserved_pages_returns_zeroes() {
-        let (address_space, frame_size_bytes) = test_space(2);
+        let (memory_map, frame_size_bytes) = test_map(2);
 
-        let bytes = address_space
+        let bytes = memory_map
             .read_bytes(frame_size_bytes - 2, 4)
             .expect("bytes should read");
 
@@ -193,7 +193,7 @@ mod tests {
     /// Eager forks isolate selected mapped pages before raw pointer writes.
     #[test]
     fn test_fork_eager_isolates_selected_pages() {
-        let (parent, frame_size_bytes) = test_space(3);
+        let (parent, frame_size_bytes) = test_map(3);
         let initial = vec![1; frame_size_bytes * 3];
 
         // initialize every page before forking
@@ -227,7 +227,7 @@ mod tests {
     /// Lazy fork writes isolate multi page byte ranges.
     #[test]
     fn test_fork_lazy_write_bytes_isolates_multi_page_range() {
-        let (parent, frame_size_bytes) = test_space(3);
+        let (parent, frame_size_bytes) = test_map(3);
         let initial = vec![1; frame_size_bytes * 3];
         let replacement = vec![7; frame_size_bytes + 8];
         let write_offset = frame_size_bytes - 4;
@@ -239,7 +239,7 @@ mod tests {
 
         let child = parent
             .fork_lazy()
-            .expect("address space fork should succeed");
+            .expect("memory map fork should succeed");
 
         // write across two page boundaries in the child
         child
@@ -260,7 +260,7 @@ mod tests {
     /// Raw pointer writes after fork stay isolated from the parent mapping.
     #[test]
     fn test_fork_preserves_raw_pointer_write_isolation() {
-        let (parent, _) = test_space(1);
+        let (parent, _) = test_map(1);
 
         // initialize the parent page before forking
         parent
@@ -269,7 +269,7 @@ mod tests {
 
         let child = parent
             .fork_lazy()
-            .expect("address space fork should succeed");
+            .expect("memory map fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
         // SAFETY: child_address points at four materialized bytes in the child mapping
@@ -287,7 +287,7 @@ mod tests {
     /// Parent raw pointer writes after a lazy fork stay isolated from the child.
     #[test]
     fn test_fork_isolates_parent_raw_pointer_writes() {
-        let (parent, _) = test_space(1);
+        let (parent, _) = test_map(1);
 
         // initialize the parent page before forking
         parent
@@ -296,7 +296,7 @@ mod tests {
 
         let child = parent
             .fork_lazy()
-            .expect("address space fork should succeed");
+            .expect("memory map fork should succeed");
         let parent_address = parent.address(0, 4).expect("parent address should resolve");
 
         // SAFETY: parent_address points at four materialized bytes in the parent mapping
@@ -314,7 +314,7 @@ mod tests {
     /// Forking a modified child preserves the child's visible bytes.
     #[test]
     fn test_fork_captures_modified_child_page() {
-        let (parent, _) = test_space(1);
+        let (parent, _) = test_map(1);
 
         // initialize the parent page before forking
         parent
@@ -323,7 +323,7 @@ mod tests {
 
         let child = parent
             .fork_lazy()
-            .expect("address space fork should succeed");
+            .expect("memory map fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
         // SAFETY: child_address points at four materialized bytes in the child mapping
@@ -342,7 +342,7 @@ mod tests {
     /// Modified reforks keep later writes isolated.
     #[test]
     fn test_fork_isolates_modified_child_page() {
-        let (parent, _) = test_space(1);
+        let (parent, _) = test_map(1);
 
         // initialize the parent page before forking
         parent
@@ -351,7 +351,7 @@ mod tests {
 
         let child = parent
             .fork_lazy()
-            .expect("address space fork should succeed");
+            .expect("memory map fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
 
         // SAFETY: child_address points at four materialized bytes in the child mapping
@@ -382,7 +382,7 @@ mod tests {
     /// Forking a shared child keeps later child and grandchild writes isolated.
     #[test]
     fn test_fork_reuses_shared_child_page() {
-        let (parent, _) = test_space(1);
+        let (parent, _) = test_map(1);
 
         // initialize the parent page before forking
         parent
@@ -391,7 +391,7 @@ mod tests {
 
         let child = parent
             .fork_lazy()
-            .expect("address space fork should succeed");
+            .expect("memory map fork should succeed");
         let grandchild = child.fork_lazy().expect("child fork should succeed");
         let child_address = child.address(0, 4).expect("child address should resolve");
         let grandchild_address = grandchild
@@ -418,15 +418,15 @@ mod tests {
     /// Raw pointer writes materialize reserved pages before exposing addresses.
     #[test]
     fn test_raw_pointer_write_materializes_reserved_page() {
-        let (address_space, _) = test_space(1);
-        let address = address_space.address(0, 4).expect("address should resolve");
+        let (memory_map, _) = test_map(1);
+        let address = memory_map.address(0, 4).expect("address should resolve");
 
         // SAFETY: address points at four materialized bytes in the mapping
         unsafe {
             copy_nonoverlapping([5, 6, 7, 8].as_ptr(), address, 4);
         }
 
-        let bytes = address_space.read_bytes(0, 4).expect("bytes should read");
+        let bytes = memory_map.read_bytes(0, 4).expect("bytes should read");
 
         assert_eq!(bytes, [5, 6, 7, 8]);
     }
