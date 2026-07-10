@@ -369,8 +369,11 @@ impl Definition {
                     }
                 }
                 DefinitionMember::CallSignature(member)
-                | DefinitionMember::ConstructSignature(member)
-                | DefinitionMember::IndexSignature(member) => member.ty = map(member.ty),
+                | DefinitionMember::ConstructSignature(member) => member.ty = map(member.ty),
+                DefinitionMember::IndexSignature(member) => {
+                    member.key_type = map(member.key_type);
+                    member.value_type = map(member.value_type);
+                }
                 DefinitionMember::Field(_)
                 | DefinitionMember::Method(_)
                 | DefinitionMember::AssociatedConst(_)
@@ -701,7 +704,7 @@ pub struct NominalHeritage {
     pub arguments: Vec<GlobalTypeId>,
 }
 
-/// One checked field member.
+/// One field member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct FieldDefinition {
     /// The member space declaring the field.
@@ -760,7 +763,7 @@ pub enum MethodImplementation {
     Intrinsic,
 }
 
-/// One checked associated type.
+/// One associated type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AssociatedTypeDefinition {
     /// The associated type symbol.
@@ -775,7 +778,7 @@ pub struct AssociatedTypeDefinition {
     pub value: Option<GlobalTypeId>,
 }
 
-/// One checked associated constant.
+/// One associated constant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct AssociatedConstDefinition {
     /// The associated const symbol.
@@ -788,7 +791,7 @@ pub struct AssociatedConstDefinition {
     pub value: Option<GlobalStaticId>,
 }
 
-/// One checked enum variant.
+/// One enum variant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct VariantDefinition {
     /// The variant symbol.
@@ -801,13 +804,24 @@ pub struct VariantDefinition {
     pub value: Option<GlobalStaticId>,
 }
 
-/// One checked symbol-free signature member.
+/// One symbol-free signature member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SignatureDefinition {
     /// The source member node.
     pub source: GlobalNodeIdAny,
     /// The checked signature type.
     pub ty: GlobalTypeId,
+}
+
+/// One structural index signature member.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct IndexSignatureDefinition {
+    /// The source member node.
+    pub source: GlobalNodeIdAny,
+    /// The declared key domain.
+    pub key_type: GlobalTypeId,
+    /// The declared value type.
+    pub value_type: GlobalTypeId,
 }
 
 /// Member namespace selected by member lookup.
@@ -819,7 +833,7 @@ pub enum MemberSpace {
     Static,
 }
 
-/// One checked declaration member.
+/// One declaration member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum DefinitionMember {
     /// Field member.
@@ -837,7 +851,7 @@ pub enum DefinitionMember {
     /// Structural construct signature member.
     ConstructSignature(SignatureDefinition),
     /// Structural index signature member.
-    IndexSignature(SignatureDefinition),
+    IndexSignature(IndexSignatureDefinition),
 }
 
 impl DefinitionMember {
@@ -858,9 +872,10 @@ impl DefinitionMember {
             Self::AssociatedType(associated) => associated.source,
             Self::AssociatedConst(associated) => associated.source,
             Self::Variant(variant) => variant.source,
-            Self::CallSignature(signature)
-            | Self::ConstructSignature(signature)
-            | Self::IndexSignature(signature) => signature.source,
+            Self::CallSignature(signature) | Self::ConstructSignature(signature) => {
+                signature.source
+            }
+            Self::IndexSignature(signature) => signature.source,
         }
     }
 
@@ -918,6 +933,27 @@ impl DefinitionMember {
             Self::AssociatedConst(associated) => associated.value,
             Self::Variant(variant) => variant.value,
             _ => None,
+        }
+    }
+
+    /// Return the symbol whose checked type carries this member's value.
+    pub fn type_symbol(&self) -> Option<GlobalSymbolId> {
+        // associated types carry their value type directly
+        match self {
+            Self::AssociatedType(_) => None,
+            _ => self.symbol(),
+        }
+    }
+
+    /// Return the value type carried directly by this member.
+    pub fn value_type(&self) -> Option<GlobalTypeId> {
+        match self {
+            Self::AssociatedType(associated) => associated.value,
+            Self::CallSignature(signature) | Self::ConstructSignature(signature) => {
+                Some(signature.ty)
+            }
+            Self::IndexSignature(signature) => Some(signature.value_type),
+            Self::Field(_) | Self::Method(_) | Self::AssociatedConst(_) | Self::Variant(_) => None,
         }
     }
 }

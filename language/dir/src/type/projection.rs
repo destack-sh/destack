@@ -144,8 +144,8 @@ pub enum Projection {
     VariantPayload {
         /// The selected tagged case.
         case: VariantCase,
-        /// The selected generic argument bindings for the selected owner.
-        generic_arguments: Vec<GenericArgumentBinding>,
+        /// The selected owner arguments, absent when matched arms mix instantiations.
+        generic_arguments: Option<Vec<GenericArgumentBinding>>,
         /// The discriminant value tested at runtime.
         discriminant: ScalarLiteral,
         /// The projected payload type.
@@ -268,7 +268,7 @@ impl Projection {
                 ty,
                 ..
             } => {
-                for argument in generic_arguments {
+                for argument in generic_arguments.iter_mut().flatten() {
                     argument.map_type_ids(map);
                 }
                 *ty = map(*ty);

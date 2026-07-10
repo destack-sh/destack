@@ -284,6 +284,17 @@ impl Member {
         self.symbol_kind().map(SymbolKind::symbol_space)
     }
 
+    /// Return whether this member sees the enclosing receiver scope.
+    pub fn binds_receiver(&self) -> bool {
+        match self {
+            Self::Field { .. }
+            | Self::Method { .. }
+            | Self::AssociatedType { .. }
+            | Self::AssociatedConst { .. } => true,
+            Self::StaticBlock { .. } | Self::ComptimeBlock { .. } | Self::Error => false,
+        }
+    }
+
     /// Return the scope kind owned by this member symbol.
     pub fn symbol_scope_kind(&self) -> Option<ScopeKind> {
         match self {
