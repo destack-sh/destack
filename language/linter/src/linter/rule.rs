@@ -139,10 +139,7 @@ impl LintMeta {
 
     /// Check whether this lint should run on the given file type.
     pub fn supports_file_type(&self, file_type: FileType) -> bool {
-        let is_declaration = matches!(
-            file_type,
-            FileType::TypeScriptDeclaration | FileType::DestackDeclaration
-        );
+        let is_declaration = matches!(file_type, FileType::DestackDeclaration);
 
         match self.declarations {
             DeclarationMode::Include => true,

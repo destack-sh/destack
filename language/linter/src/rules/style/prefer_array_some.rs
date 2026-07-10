@@ -312,13 +312,8 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         // derive receiver text from member expression text
         let member_span = self.ctx.get_span(*left);
         let member_text = self.ctx.get_span_text(member_span);
-        let receiver_text = member_receiver_text(
-            self.ctx,
-            *receiver_expression_id,
-            member_text,
-            (*name)?,
-            false,
-        )?;
+        let receiver_text =
+            member_receiver_text(self.ctx, *receiver_expression_id, member_text, (*name)?)?;
 
         // preserve callback and optional this-arg source range
         let first_argument_id = *arguments.first()?;

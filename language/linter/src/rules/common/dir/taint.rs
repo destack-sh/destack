@@ -246,7 +246,7 @@ impl<'a> TaintAnalysis<'a> {
                 );
                 labels.merge(&pattern_labels);
             }
-            dir::AssignPatternField::Spread { pattern } => {
+            dir::AssignPatternField::Rest { pattern } => {
                 if let Some(pattern_id) = pattern {
                     let pattern_labels = self.assign_pattern_taint_labels_inner(
                         *pattern_id,
@@ -346,7 +346,6 @@ impl<'a> TaintAnalysis<'a> {
                 labels.merge(&right_labels);
             }
             dir::Expression::Member { left, .. }
-            | dir::Expression::PrivateMember { left, .. }
             | dir::Expression::Maybe { left, .. }
             | dir::Expression::Must { left, .. }
             | dir::Expression::Instantiation { left, .. } => {
@@ -448,14 +447,6 @@ impl<'a> TaintAnalysis<'a> {
                     let element_labels =
                         self.expression_taint_labels_inner(value, expression_stack, symbol_stack);
                     labels.merge(&element_labels);
-                }
-            }
-            dir::Expression::SequenceExpression { expressions } => {
-                // sequence expression result is the last value
-                if let Some(last) = expressions.last() {
-                    let last_labels =
-                        self.expression_taint_labels_inner(*last, expression_stack, symbol_stack);
-                    labels.merge(&last_labels);
                 }
             }
             dir::Expression::ObjectExpression { properties }

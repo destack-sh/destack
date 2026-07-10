@@ -141,11 +141,6 @@ fn expression_is_for_loop_afterthought(
             dir::Expression::Parenthesized { expression } if *expression == current_id => {
                 current_id = parent_expression_id;
             }
-            dir::Expression::SequenceExpression { expressions }
-                if expressions.contains(&current_id) =>
-            {
-                current_id = parent_expression_id;
-            }
             dir::Expression::For {
                 increment: Some(increment_id),
                 ..

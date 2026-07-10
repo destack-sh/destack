@@ -205,10 +205,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool 
         return false;
     }
 
-    matches!(
-        file_type,
-        FileType::TypeScriptDeclaration | FileType::DestackDeclaration
-    )
+    matches!(file_type, FileType::DestackDeclaration)
 }
 
 /// Return true when the module has exports in the active profile DIR.

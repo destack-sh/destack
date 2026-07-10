@@ -120,9 +120,7 @@ fn assign_pattern_is_property_assignment_target(
 
     matches!(
         expression,
-        dir::Expression::Member { .. }
-            | dir::Expression::PrivateMember { .. }
-            | dir::Expression::Index { .. }
+        dir::Expression::Member { .. } | dir::Expression::Index { .. }
     )
 }
 

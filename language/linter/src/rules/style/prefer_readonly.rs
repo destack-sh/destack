@@ -87,7 +87,6 @@ fn collect_private_mutable_field_candidates(
         for member_id in members {
             let member = ctx.dir.get(*member_id);
             let Member::Field {
-                key,
                 visibility,
                 is_readonly,
                 ..
@@ -96,7 +95,7 @@ fn collect_private_mutable_field_candidates(
                 continue;
             };
 
-            if !field_is_private(*visibility, key) {
+            if !field_is_private(*visibility) {
                 continue;
             }
             if *is_readonly {
@@ -114,11 +113,8 @@ fn collect_private_mutable_field_candidates(
 }
 
 /// Return true when one member field is private.
-fn field_is_private(visibility: Option<dir::Visibility>, key: &dir::Key) -> bool {
-    let is_private_by_modifier = visibility == Some(dir::Visibility::Private);
-    let is_private_by_key = matches!(key, dir::Key::Private(_));
-
-    is_private_by_modifier || is_private_by_key
+fn field_is_private(visibility: Option<dir::Visibility>) -> bool {
+    visibility == Some(dir::Visibility::Private)
 }
 
 /// Collect candidate field symbols that are mutated outside constructor initialization.
@@ -194,7 +190,7 @@ fn assigned_expression_is_self_field_reference(
     let assigned_expression_id = expression_unwrap_parenthesized(tree, assigned_expression_id);
     let assigned_expression = tree.get(assigned_expression_id);
     let receiver_expression_id = match assigned_expression {
-        dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => *left,
+        dir::Expression::Member { left, .. } => *left,
         _ => return false,
     };
 

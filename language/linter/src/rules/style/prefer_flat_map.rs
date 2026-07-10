@@ -257,8 +257,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         };
         let map_member_span = self.ctx.get_span(map_member_id);
         let map_member_text = self.ctx.get_span_text(map_member_span);
-        let receiver_text =
-            member_receiver_text(self.ctx, *left, map_member_text, (*name)?, false)?;
+        let receiver_text = member_receiver_text(self.ctx, *left, map_member_text, (*name)?)?;
 
         // preserve original map argument source range
         let first_span = self.ctx.get_span(first_argument_id);

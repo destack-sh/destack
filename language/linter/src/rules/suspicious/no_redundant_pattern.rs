@@ -140,7 +140,7 @@ fn field_binds_anything(
         dir::PatternField::Positional { pattern, .. } => binds_anything(ctx, *pattern),
 
         // spread binds if its nested pattern binds
-        dir::PatternField::Spread { pattern, .. } => {
+        dir::PatternField::Rest { pattern, .. } => {
             pattern.map(|p| binds_anything(ctx, p)).unwrap_or(false)
         }
 

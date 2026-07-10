@@ -147,8 +147,6 @@ enum AccessorOwner {
 enum AccessorKey {
     /// Named key identity.
     Name(dir::StringId),
-    /// Private key identity.
-    Private(dir::StringId),
     /// Computed key signature.
     Computed(Vec<u64>),
 }
@@ -239,7 +237,6 @@ impl AccessorItem for Property {
 fn accessor_key(ctx: &LintModuleContext<'_>, key: &Key) -> Option<AccessorKey> {
     match key {
         Key::Name(name) => Some(AccessorKey::Name(name.string())),
-        Key::Private(name) => Some(AccessorKey::Private(*name)),
         Key::Expression(expression_id) => Some(AccessorKey::Computed(
             expression_signature_for_tree(ctx.dir.tree(), ctx.strings, *expression_id),
         )),
@@ -333,9 +330,7 @@ fn check_ungrouped_accessors<T>(
             }
 
             let accessor_name = match key {
-                AccessorKey::Name(name) | AccessorKey::Private(name) => {
-                    ctx.strings.get(name).to_string()
-                }
+                AccessorKey::Name(name) => ctx.strings.get(name).to_string(),
                 AccessorKey::Computed(_) => "<computed>".to_string(),
             };
 

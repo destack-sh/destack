@@ -77,7 +77,7 @@ impl LintRule for NoAwaitInLoop {
                 let parent = ctx.dir.get(parent_expr_id);
 
                 // stop traversal at async loop boundaries and function declarations
-                if is_boundary(parent, current, ctx) {
+                if is_boundary(parent, ctx) {
                     break;
                 }
 
@@ -168,7 +168,7 @@ fn await_loop_candidate_message(candidate: AwaitLoopCandidate) -> (&'static str,
 }
 
 /// Return true when parent traversal should stop for this await expression.
-fn is_boundary(parent: &dir::Expression, child_node_id: u32, ctx: &LintModuleContext<'_>) -> bool {
+fn is_boundary(parent: &dir::Expression, ctx: &LintModuleContext<'_>) -> bool {
     // do not report awaits within `for await (...)` loops
     if let dir::Expression::ForEach { asynchrony, .. } = parent
         && *asynchrony == dir::Asynchrony::Async
@@ -182,15 +182,6 @@ fn is_boundary(parent: &dir::Expression, child_node_id: u32, ctx: &LintModuleCon
         if matches!(declaration, dir::Declaration::Function(_)) {
             return true;
         }
-    }
-
-    // sequence expression non-tail elements are not used per iteration
-    if let dir::Expression::SequenceExpression { expressions } = parent
-        && expressions
-            .last()
-            .is_some_and(|expression_id| expression_id.id != child_node_id)
-    {
-        return true;
     }
 
     false

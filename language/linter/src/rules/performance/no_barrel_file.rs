@@ -116,10 +116,7 @@ impl LintRule for NoBarrelFile {
 
 /// Return true when one module path points to a declaration file.
 fn module_is_declaration_file(ctx: &LintModuleContext<'_>) -> bool {
-    matches!(
-        ctx.file.ty,
-        FileType::DestackDeclaration | FileType::TypeScriptDeclaration
-    )
+    matches!(ctx.file.ty, FileType::DestackDeclaration)
 }
 
 /// Return true when one export-from clause re-exports runtime values.

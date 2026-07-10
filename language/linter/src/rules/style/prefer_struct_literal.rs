@@ -114,7 +114,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             };
             let field_name = match key {
                 dir::Key::Name(name) => name.string(),
-                dir::Key::Private(_) | dir::Key::Expression(_) => return None,
+                dir::Key::Expression(_) => return None,
             };
 
             field_names.push(field_name);

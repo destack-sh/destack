@@ -1,6 +1,6 @@
 # linter
 
-Static analysis rules for Destack (`.ds`) and TypeScript (`.ts`, `.tsx`).
+Static analysis rules for Destack (`.ds`).
 Lints run at different IR levels (AST, DIR, MIR), usually per module.
 
 ## Overview

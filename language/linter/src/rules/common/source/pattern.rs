@@ -38,7 +38,7 @@ pub fn pattern_field_default_expression_id(
         dir::PatternField::Positional { pattern } => {
             pattern_assignment_value_expression_id(tree, *pattern)
         }
-        dir::PatternField::Spread { .. } | dir::PatternField::Elision => None,
+        dir::PatternField::Rest { .. } | dir::PatternField::Elision => None,
     }
 }
 
