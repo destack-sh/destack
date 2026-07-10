@@ -1,4 +1,4 @@
-use super::{LanguageType, TokenType, assert_tokenize_eq_roundtrip, eof, lex_source_tokens, token};
+use super::{TokenType, assert_tokenize_eq_roundtrip, eof, lex_source_tokens, token};
 
 /// Line comments and doc line comments should keep their distinct token kinds.
 #[test]
@@ -30,63 +30,11 @@ fn test_lex_block_and_doc_block_comments() {
     );
 }
 
-/// Block comments should stop at the first closing delimiter in Destack mode.
+/// Block comments should stop at the first closing delimiter.
 #[test]
-fn test_lex_block_comment_no_nesting_in_value_block_mode() {
+fn test_lex_block_comment_stops_at_first_close() {
     let source = "/* a /* b */ c */ d";
-    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::Destack);
-    assert_eq!(
-        semantic_tokens,
-        vec![
-            token(TokenType::Identifier, 1, None),
-            token(TokenType::Multiply, 1, None),
-            token(TokenType::Divide, 1, None),
-            token(TokenType::Identifier, 1, None),
-            eof(),
-        ]
-    );
-    assert_eq!(
-        side_tokens,
-        vec![
-            token(TokenType::BlockComment, 12, None),
-            token(TokenType::Whitespace, 1, None),
-            token(TokenType::Whitespace, 1, None),
-            token(TokenType::Whitespace, 1, None),
-        ]
-    );
-}
-
-/// Block comments should stop at the first closing delimiter in TypeScript mode.
-#[test]
-fn test_lex_block_comment_no_nesting_in_typed_mode() {
-    let source = "/* a /* b */ c */ d";
-    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::TypeScript);
-    assert_eq!(
-        semantic_tokens,
-        vec![
-            token(TokenType::Identifier, 1, None),
-            token(TokenType::Multiply, 1, None),
-            token(TokenType::Divide, 1, None),
-            token(TokenType::Identifier, 1, None),
-            eof(),
-        ]
-    );
-    assert_eq!(
-        side_tokens,
-        vec![
-            token(TokenType::BlockComment, 12, None),
-            token(TokenType::Whitespace, 1, None),
-            token(TokenType::Whitespace, 1, None),
-            token(TokenType::Whitespace, 1, None),
-        ]
-    );
-}
-
-/// Block comments should stop at the first closing delimiter in JavaScript mode.
-#[test]
-fn test_lex_block_comment_no_nesting_in_untyped_mode() {
-    let source = "/* a /* b */ c */ d";
-    let (semantic_tokens, side_tokens) = lex_source_tokens(source, LanguageType::JavaScript);
+    let (semantic_tokens, side_tokens) = lex_source_tokens(source);
     assert_eq!(
         semantic_tokens,
         vec![

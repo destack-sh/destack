@@ -33,9 +33,8 @@ impl Parser {
         let raw = self.file.span_str(token.span);
         let has_escape = raw.as_bytes().contains(&b'\\');
 
-        // reject escaped keywords in typed and untyped identifier forms
+        // reject escaped keywords and invalid identifier escapes
         if has_escape
-            && (self.language.is_javascript() || self.language.is_typescript())
             && (self.identifier_is_escaped_keyword(raw)
                 || self.identifier_has_disallowed_escape_code_point(raw))
         {
@@ -425,8 +424,7 @@ impl Parser {
     /// Return true when the next token can start a key.
     #[inline]
     pub fn peek_key_is(&mut self) -> bool {
-        self.peek_private_hash_key_is()
-            || self.peek_key_name_is()
+        self.peek_key_name_is()
             || self.peek_is(TokenType::OpenBracket)
             || self.peek_numeric_literal_is()
     }
@@ -470,35 +468,11 @@ impl Parser {
         Err(ParserError::unexpected(self.peek()))
     }
 
-    /// Return true when the next tokens start a private hash key.
-    #[inline]
-    fn peek_private_hash_key_is(&mut self) -> bool {
-        if !self.flags.allows_private_hash_key()
-            || !(self.language.is_javascript() || self.language.is_typescript())
-            || !self.peek_is(TokenType::Hash)
-        {
-            return false;
-        }
-
-        // require the hash and identifier to be adjacent
-        let hash_span = self.current_token().span(self.file_id);
-        let token = self.next_token();
-
-        token.is(TokenType::Identifier) && hash_span.end == token.start()
-    }
-
     /// Eat a name or a dynamic key, returning both the key and its span.
     pub fn eat_key_with_span(&mut self) -> ParserResult<(Key, Span)> {
         let start = self.span_start();
-        // private hash key
-        if self.peek_private_hash_key_is() {
-            self.bump(); // eat #
-            let name = self.eat_identifier()?;
-            let span = self.get_span_from(&start);
-            Ok((Key::Private(name), span))
-        }
         // key name
-        else if self.peek_key_name_is() {
+        if self.peek_key_name_is() {
             let (name, span) = self.eat_key_name_with_span()?;
             Ok((Key::Name(name), span))
         }
@@ -524,8 +498,7 @@ impl Parser {
             }
             // expression
             else {
-                let key =
-                    self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
+                let key = self.eat_expression(self.flags.not_in_position())?;
                 self.eat_close_token_or_recover_missing_with(
                     TokenType::CloseBracket,
                     NodeType::Expression,

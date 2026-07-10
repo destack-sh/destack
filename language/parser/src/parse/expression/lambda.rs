@@ -178,7 +178,7 @@ impl Parser {
 
     /// Return whether the current token can begin a parameter list.
     fn current_token_can_start_parameter_head(&mut self) -> bool {
-        if self.language.is_destack() && self.current_token_starts_this_form_parameter() {
+        if self.current_token_starts_this_form_parameter() {
             return true;
         }
 

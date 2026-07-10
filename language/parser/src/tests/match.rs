@@ -2,7 +2,7 @@ use destack_dir::{
     BinaryOperator, Block, CommentKind, Declarator, Expression, LetKind, MatchCase, MatchForm,
     MatchSelector, Mutability, NodeType, Pattern, PatternField, ScalarLiteral, TokenType,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_node, assert_string,
@@ -467,7 +467,7 @@ switch (tag.injectTo) {
 /// Parse a switch case with an if block, following assignments, then fallthrough case.
 #[test]
 fn test_parse_switch_case_if_block_then_assignments_then_fallthrough_case() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 switch (tag) {
   case dataViewTag:
@@ -482,7 +482,6 @@ switch (tag) {
     return true;
 }
 "###,
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
 
@@ -560,10 +559,7 @@ switch (value) {
 /// Recover a switch case body that reaches EOF before the switch closes.
 #[test]
 fn test_parse_switch_case_body_recovers_at_eof() {
-    let mut test = TestParser::new_with_language(
-        "switch (cond) { case 10: let a = 20;",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("switch (cond) { case 10: let a = 20;");
     let mut parser = test.prepare();
     let roots = parser.parse();
 
@@ -612,9 +608,8 @@ fn test_parse_switch_case_body_recovers_at_eof() {
 /// Parse minified switch cases where `continue` is followed by `}` and another `if`.
 #[test]
 fn test_parse_switch_case_minified_if_continue_then_if() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
     let switch_id = parser.eat_match().unwrap();
@@ -638,7 +633,7 @@ fn test_parse_switch_case_minified_if_continue_then_if() {
 
 #[test]
 fn test_parse_switch_case_boundary_comment_ownership() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"switch (state) {
   // before-ready
   case "ready":
@@ -647,7 +642,6 @@ fn test_parse_switch_case_boundary_comment_ownership() {
   default:
     stop() // default-tail
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();

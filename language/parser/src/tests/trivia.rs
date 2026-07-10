@@ -15,8 +15,8 @@ use crate::{
 };
 
 /// Parse one whole source string and return the resulting root expressions.
-fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeId<Expression>>) {
-    let mut test = TestParser::new_with_language(source, language);
+fn parse_source(source: &str) -> (Parser, Vec<LocalNodeId<Expression>>) {
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     (parser, expressions)
@@ -25,13 +25,12 @@ fn parse_source(source: &str, language: LanguageType) -> (Parser, Vec<LocalNodeI
 /// Parse one whole source string with one trivia mode.
 fn parse_source_with_trivia_mode(
     source: &str,
-    language: LanguageType,
     trivia_mode: ParserTriviaMode,
 ) -> (Parser, Vec<LocalNodeId<Expression>>) {
-    let test = TestParser::new_with_language(source, language);
+    let test = TestParser::new(source);
     let mut parser = Parser::lex_file_with_options(
         test.file.clone(),
-        language,
+        LanguageType::Destack,
         ParserOptions {
             trivia_mode,
             ..ParserOptions::default()
@@ -44,8 +43,8 @@ fn parse_source_with_trivia_mode(
 }
 
 /// Parse one block expression source and attach comments after the direct entrypoint.
-fn parse_block_source(source: &str, language: LanguageType) -> (Parser, LocalNodeId<Block>) {
-    let mut test = TestParser::new_with_language(source, language);
+fn parse_block_source(source: &str) -> (Parser, LocalNodeId<Block>) {
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let block_id = parser
         .eat_block(BlockContext::Expression)
@@ -55,12 +54,8 @@ fn parse_block_source(source: &str, language: LanguageType) -> (Parser, LocalNod
 }
 
 /// Parse one direct property entrypoint and attach comments after parsing.
-fn parse_property_source(
-    source: &str,
-    language: LanguageType,
-    is_in_variant: bool,
-) -> (Parser, LocalNodeId<Property>) {
-    let mut test = TestParser::new_with_language(source, language);
+fn parse_property_source(source: &str, is_in_variant: bool) -> (Parser, LocalNodeId<Property>) {
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     parser.flags = parser.flags.with_variant(is_in_variant);
     let property_id = parser
@@ -132,7 +127,7 @@ fn comments(parser: &Parser) -> &[Comment] {
 
 #[test]
 fn test_parse_runs_attach_comments_for_comments() {
-    let (parser, expressions) = parse_source("// lead\nvalue", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("// lead\nvalue");
 
     // `value`
     assert_eq!(expressions.len(), 1);
@@ -152,7 +147,7 @@ fn test_parse_statement_span_stops_before_following_blank_line_comment() {
 // Call the Rust CLI first
 const mode = runCli();
 "#;
-    let (parser, expressions) = parse_source(source, LanguageType::TypeScript);
+    let (parser, expressions) = parse_source(source);
 
     assert_eq!(expressions.len(), 2);
 
@@ -167,8 +162,7 @@ const mode = runCli();
 
 #[test]
 fn test_parse_without_attaching_comments_leaves_comments_empty_until_attach() {
-    let mut test =
-        TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
+    let mut test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
     // `value`, `next`
@@ -186,8 +180,7 @@ fn test_parse_without_attaching_comments_leaves_comments_empty_until_attach() {
 #[test]
 fn test_parse_ignore_trivia_mode_drops_comments() {
     let source = "/// docs\n/*! legal */\n// raw\nvalue";
-    let (parser, expressions) =
-        parse_source_with_trivia_mode(source, LanguageType::TypeScript, ParserTriviaMode::Ignore);
+    let (parser, expressions) = parse_source_with_trivia_mode(source, ParserTriviaMode::Ignore);
 
     // `value`
     assert_eq!(expressions.len(), 1);
@@ -199,11 +192,8 @@ fn test_parse_ignore_trivia_mode_drops_comments() {
 #[test]
 fn test_parse_documentation_trivia_mode_keeps_structured_comments() {
     let source = "/// docs\n// raw\n/*! legal */\n/* ordinary */\n/** block */\nvalue";
-    let (parser, expressions) = parse_source_with_trivia_mode(
-        source,
-        LanguageType::TypeScript,
-        ParserTriviaMode::Documentation,
-    );
+    let (parser, expressions) =
+        parse_source_with_trivia_mode(source, ParserTriviaMode::Documentation);
 
     // `value`
     assert_eq!(expressions.len(), 1);
@@ -219,12 +209,8 @@ fn test_parse_documentation_trivia_mode_keeps_structured_comments() {
 
 #[test]
 fn test_lex_documentation_trivia_mode_skips_side_tokens() {
-    let test = TestParser::new_with_language("/// docs\n// raw\nvalue", LanguageType::TypeScript);
-    let result = Lexer::lex_with_options(
-        test.file.clone(),
-        LanguageType::TypeScript,
-        ParserTriviaMode::Documentation,
-    );
+    let test = TestParser::new("/// docs\n// raw\nvalue");
+    let result = Lexer::lex_with_options(test.file.clone(), ParserTriviaMode::Documentation);
 
     // comments are retained without formatter side tokens
     assert_eq!(result.comments.len(), 1);
@@ -233,8 +219,7 @@ fn test_lex_documentation_trivia_mode_skips_side_tokens() {
 
 #[test]
 fn test_attach_comments_on_direct_entrypoint_emits_output() {
-    let mut test =
-        TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
+    let mut test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
     // `value`, `next`
@@ -251,8 +236,7 @@ fn test_attach_comments_on_direct_entrypoint_emits_output() {
 
 #[test]
 fn test_attach_comments_is_idempotent() {
-    let mut test =
-        TestParser::new_with_language("// lead\nvalue\n\nnext", LanguageType::TypeScript);
+    let mut test = TestParser::new("// lead\nvalue\n\nnext");
     let mut parser = test.prepare();
 
     // `value`, `next`
@@ -270,7 +254,7 @@ fn test_attach_comments_is_idempotent() {
 
 #[test]
 fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
-    let mut test = TestParser::new_with_language("a // note\nb", LanguageType::TypeScript);
+    let mut test = TestParser::new("a // note\nb");
     let mut parser = test.prepare();
 
     // speculative lookahead across the comment
@@ -293,7 +277,7 @@ fn test_attach_comments_keeps_one_comment_after_restore_and_reparse() {
 
 #[test]
 fn test_parse_comment_only_file_without_expression() {
-    let (parser, expressions) = parse_source("// only", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("// only");
 
     // no synthetic semantic root
     assert!(expressions.is_empty());
@@ -308,7 +292,6 @@ fn test_parse_comment_only_file_without_expression() {
 fn test_comment_trivia_keeps_directive_comments_raw() {
     let (parser, expressions) = parse_source(
         "// @ts-ignore\na\n/* @__PURE__ */\nb\n// prettier-ignore\nc\n// prettier-ignore-start\nd\n// prettier-ignore-end\ne",
-        LanguageType::TypeScript,
     );
 
     // `a`, `b`, `c`, `d`, `e`
@@ -337,7 +320,6 @@ fn test_comment_trivia_keeps_empty_line_comments() {
   /******/ "use strict" //
   /******/ b;
 }"#,
-        LanguageType::TypeScript,
     );
 
     // `function func() { ... }`
@@ -352,8 +334,7 @@ fn test_comment_trivia_keeps_empty_line_comments() {
 
 #[test]
 fn test_comment_trivia_normalizes_payload_and_style() {
-    let (parser, expressions) =
-        parse_source("// line\n/* block */\nvalue", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("// line\n/* block */\nvalue");
 
     // `value`
     assert_eq!(expressions.len(), 1);
@@ -381,7 +362,7 @@ fn test_comment_trivia_classifies_annotation_content() {
 /* @vite-ignore */
 value
 "#;
-    let (parser, expressions) = parse_source(source, LanguageType::TypeScript);
+    let (parser, expressions) = parse_source(source);
 
     assert_eq!(expressions.len(), 1);
     assert_eq!(comments(&parser).len(), 6);
@@ -403,7 +384,7 @@ value
 
 #[test]
 fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
-    let (parser, expressions) = parse_source("/// docs\nfunction f() {}", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("/// docs\nfunction f() {}");
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);
@@ -426,10 +407,8 @@ fn test_doc_comments_attach_semantically_and_skip_raw_comments() {
 
 #[test]
 fn test_doc_comment_attaches_to_parameter() {
-    let (parser, expressions) = parse_source(
-        "function demo(/** parameter-doc */ value: number): void {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) =
+        parse_source("function demo(/** parameter-doc */ value: number): void {}");
 
     // `function demo(...)`
     assert_eq!(expressions.len(), 1);
@@ -460,7 +439,6 @@ fn test_doc_comment_attaches_to_parameter() {
 fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
     let (parser, expressions) = parse_source(
         "export type Value = /** keep-doc\n */\n| { ok: true }\n| { ok: false; value: bigint | null };",
-        LanguageType::TypeScript,
     );
 
     // `export type Value = ...`
@@ -495,10 +473,7 @@ fn test_doc_comment_after_type_assignment_attaches_to_type_value() {
 
 #[test]
 fn test_comment_after_type_assignment_attaches_to_type_value() {
-    let (parser, expressions) = parse_source(
-        "export type Value = /* keep */ number;",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("export type Value = /* keep */ number;");
 
     // `export type Value = ...`
     assert_eq!(expressions.len(), 1);
@@ -522,7 +497,7 @@ fn test_comment_after_type_assignment_attaches_to_type_value() {
 
 #[test]
 fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
-    let (parser, expressions) = parse_source("(/* keep */ value)", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("(/* keep */ value)");
 
     // `(/* keep */ value)`
     assert_eq!(expressions.len(), 1);
@@ -548,7 +523,7 @@ fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
 
 #[test]
 fn test_comment_before_close_parenthesis_attaches_to_inner_expression_trailing() {
-    let (parser, expressions) = parse_source("(value /* keep */)", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("(value /* keep */)");
 
     // `(value /* keep */)`
     assert_eq!(expressions.len(), 1);
@@ -571,7 +546,7 @@ fn test_comment_before_close_parenthesis_attaches_to_inner_expression_trailing()
 
 #[test]
 fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leading() {
-    let (parser, expressions) = parse_source("-// unary-line-note\n1", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("-// unary-line-note\n1");
 
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -590,10 +565,7 @@ fn test_line_comment_between_unary_prefix_and_operand_attaches_to_operand_leadin
 
 #[test]
 fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to_operand_leading() {
-    let (parser, expressions) = parse_source(
-        "const value = -// unary-line-note\n1",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("const value = -// unary-line-note\n1");
 
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -619,10 +591,7 @@ fn test_line_comment_between_unary_prefix_and_operand_in_initializer_attaches_to
 
 #[test]
 fn test_block_comments_between_ternary_branches_attach_to_separator_owners() {
-    let (parser, expressions) = parse_source(
-        "cond ? /* then */ left : /* else */ right",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("cond ? /* then */ left : /* else */ right");
 
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -643,8 +612,7 @@ fn test_block_comments_between_ternary_branches_attach_to_separator_owners() {
 
 #[test]
 fn test_doc_comment_attaches_to_call_argument() {
-    let (parser, expressions) =
-        parse_source("run(/** argument-doc */ value)", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("run(/** argument-doc */ value)");
 
     // `run(...)`
     assert_eq!(expressions.len(), 1);
@@ -678,10 +646,7 @@ fn test_doc_comment_attaches_to_call_argument() {
 
 #[test]
 fn test_comment_between_export_and_declaration_head_emits_unowned_boundary_trivia() {
-    let (parser, expressions) = parse_source(
-        "export // boundary\nasync function f() {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("export // boundary\nasync function f() {}");
 
     // `async function f() {}`
     assert_eq!(expressions.len(), 1);
@@ -701,10 +666,7 @@ fn test_comment_between_export_and_declaration_head_emits_unowned_boundary_trivi
 
 #[test]
 fn test_comment_after_satisfies_keyword_emits_unowned_boundary_trivia() {
-    let (parser, expressions) = parse_source(
-        "value satisfies // boundary\nRecord<A, B>",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("value satisfies // boundary\nRecord<A, B>");
 
     // `value satisfies Record<A, B>`
     assert_eq!(expressions.len(), 1);
@@ -724,10 +686,7 @@ fn test_comment_after_satisfies_keyword_emits_unowned_boundary_trivia() {
 
 #[test]
 fn test_comment_before_as_keyword_emits_unowned_boundary_trivia() {
-    let (parser, expressions) = parse_source(
-        "const value = source /* boundary */ as number",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("const value = source /* boundary */ as number");
 
     // `const value = source as number`
     assert_eq!(expressions.len(), 1);
@@ -747,10 +706,7 @@ fn test_comment_before_as_keyword_emits_unowned_boundary_trivia() {
 
 #[test]
 fn test_comment_after_as_keyword_emits_unowned_boundary_trivia() {
-    let (parser, expressions) = parse_source(
-        "const value = source as // boundary\nnumber",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("const value = source as // boundary\nnumber");
 
     // `const value = source as number`
     assert_eq!(expressions.len(), 1);
@@ -770,8 +726,7 @@ fn test_comment_after_as_keyword_emits_unowned_boundary_trivia() {
 
 #[test]
 fn test_multiline_block_comment_between_as_and_const_emits_unowned_boundary_trivia() {
-    let (parser, expressions) =
-        parse_source("1 as /*\nblock-comment\n*/ const", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("1 as /*\nblock-comment\n*/ const");
 
     // `1 as const`
     assert_eq!(expressions.len(), 1);
@@ -791,10 +746,8 @@ fn test_multiline_block_comment_between_as_and_const_emits_unowned_boundary_triv
 
 #[test]
 fn test_variable_trailing_marker_comment_emits_unowned_boundary_trivia() {
-    let (parser, expressions) = parse_source(
-        "declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) =
+        parse_source("declare const PAGE_PATH: string\n  //<- keep-marker\n;(()=>{})()");
 
     // `declare const PAGE_PATH: string`, `;(()=>{})()`
     assert!(
@@ -822,8 +775,7 @@ fn test_variable_trailing_marker_comment_emits_unowned_boundary_trivia() {
 
 #[test]
 fn test_comment_after_if_head_emits_unowned_boundary_trivia() {
-    let (parser, expressions) =
-        parse_source("if (ready) // if-head\nrun()", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("if (ready) // if-head\nrun()");
 
     // `if (ready) run()`
     assert_eq!(expressions.len(), 1);
@@ -843,10 +795,7 @@ fn test_comment_after_if_head_emits_unowned_boundary_trivia() {
 
 #[test]
 fn test_comment_between_ternary_then_and_colon_emits_unowned_boundary_trivia() {
-    let (parser, expressions) = parse_source(
-        "const result = cond ? left /* left-note */ : right",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("const result = cond ? left /* left-note */ : right");
 
     // `const result = cond ? left : right`
     assert_eq!(expressions.len(), 1);
@@ -866,10 +815,7 @@ fn test_comment_between_ternary_then_and_colon_emits_unowned_boundary_trivia() {
 
 #[test]
 fn test_comment_before_ternary_question_attaches_to_question_boundary() {
-    let (parser, expressions) = parse_source(
-        "const result = cond /* cond-note */ ? left : right",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("const result = cond /* cond-note */ ? left : right");
 
     // `const result = cond ? left : right`
     assert_eq!(expressions.len(), 1);
@@ -889,10 +835,7 @@ fn test_comment_before_ternary_question_attaches_to_question_boundary() {
 
 #[test]
 fn test_comment_before_less_than_comparison_attaches_to_operator_boundary() {
-    let (parser, expressions) = parse_source(
-        "const result = left /* marker */ < right",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("const result = left /* marker */ < right");
 
     // `const result = left < right`
     assert_eq!(expressions.len(), 1);
@@ -924,7 +867,6 @@ else if (cond2) {
 else {
     const Z = 3;
 }"#,
-        LanguageType::TypeScript,
     );
 
     // `if (...) { ... } else if (...) { ... } else { ... }`
@@ -960,7 +902,6 @@ else {
 fn test_multiline_trailing_block_comment_inside_block_emits_unowned_boundary_trivia() {
     let (parser, expressions) = parse_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
-        LanguageType::TypeScript,
     );
 
     // `{ const X = 1 }`
@@ -986,27 +927,6 @@ fn test_multiline_trailing_block_comment_inside_block_emits_unowned_boundary_tri
 fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_boundary_trivia() {
     let (parser, _block_id) = parse_block_source(
         "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
-        LanguageType::TypeScript,
-    );
-
-    // `/* some comment ... */`
-    assert_eq!(comments(&parser).len(), 1);
-    let trivia = comments(&parser)[0];
-    assert_comment_boundary_tokens(
-        &parser,
-        trivia,
-        Some(TokenType::Literal),
-        Some(TokenType::CloseBrace),
-    );
-    assert_comment_newline_shape(trivia, false, true);
-}
-
-#[test]
-fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_boundary_trivia_in_value_block_mode()
- {
-    let (parser, _block_id) = parse_block_source(
-        "{\n    const X = 1 /* some comment\n    * over multiple lines yo       */\n}",
-        LanguageType::Destack,
     );
 
     // `/* some comment ... */`
@@ -1023,10 +943,7 @@ fn test_multiline_trailing_block_comment_on_eat_block_entrypoint_emits_unowned_b
 
 #[test]
 fn test_comment_inside_empty_lambda_block_attaches_to_block_infix() {
-    let (parser, expressions) = parse_source(
-        "call(/* comment */\n  () => {\n    //\n  }\n)",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("call(/* comment */\n  () => {\n    //\n  }\n)");
 
     // `call(() => {})`
     assert_eq!(expressions.len(), 1);
@@ -1046,8 +963,7 @@ fn test_comment_inside_empty_lambda_block_attaches_to_block_infix() {
 
 #[test]
 fn test_line_comment_after_block_opener_stays_trailing() {
-    let (parser, expressions) =
-        parse_source("{ // block-note\n  value\n}", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("{ // block-note\n  value\n}");
 
     // `{ value }`
     assert_eq!(expressions.len(), 1);
@@ -1069,10 +985,7 @@ fn test_line_comment_after_block_opener_stays_trailing() {
 
 #[test]
 fn test_line_comment_after_object_literal_opener_stays_trailing() {
-    let (parser, expressions) = parse_source(
-        "({ // object-note\n  value: 1\n})",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("({ // object-note\n  value: 1\n})");
 
     // `({ value: 1 })`
     assert_eq!(expressions.len(), 1);
@@ -1094,10 +1007,7 @@ fn test_line_comment_after_object_literal_opener_stays_trailing() {
 
 #[test]
 fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
-    let (parser, expressions) = parse_source(
-        "/** docs */\n@memo\nfunction f() {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("/** docs */\n@memo\nfunction f() {}");
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);
@@ -1122,7 +1032,7 @@ fn test_doc_and_decorator_attach_to_function_declaration_in_source_order() {
 
 #[test]
 fn test_empty_doc_block_comment_falls_back_to_raw_comments() {
-    let (parser, expressions) = parse_source("/**/\nvalue", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("/**/\nvalue");
 
     // `value`
     assert_eq!(expressions.len(), 1);
@@ -1135,7 +1045,7 @@ fn test_empty_doc_block_comment_falls_back_to_raw_comments() {
 
 #[test]
 fn test_decorator_attaches_to_function_declaration() {
-    let (parser, expressions) = parse_source("@memo\nfunction f() {}", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("@memo\nfunction f() {}");
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);
@@ -1153,10 +1063,7 @@ fn test_decorator_attaches_to_function_declaration() {
 
 #[test]
 fn test_decorator_attaches_to_struct_declaration_inside_block() {
-    let (parser, expressions) = parse_source(
-        "{\n    @memo\n    struct Entity {}\n}",
-        LanguageType::Destack,
-    );
+    let (parser, expressions) = parse_source("{\n    @memo\n    struct Entity {}\n}");
 
     // `{ struct Entity {} }`
     assert_eq!(expressions.len(), 1);
@@ -1190,7 +1097,7 @@ fn test_decorator_attaches_to_struct_declaration_inside_block() {
 
 #[test]
 fn test_decorator_on_expression_attaches_directly_without_wrapper() {
-    let (parser, expressions) = parse_source("@memo\nrun()", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("@memo\nrun()");
 
     // `run()`
     assert_eq!(expressions.len(), 1);
@@ -1208,10 +1115,7 @@ fn test_decorator_on_expression_attaches_directly_without_wrapper() {
 
 #[test]
 fn test_decorator_attaches_to_parameter() {
-    let (parser, expressions) = parse_source(
-        "function demo(@guard value: number): void {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("function demo(@guard value: number): void {}");
 
     // `function demo(...)`
     assert_eq!(expressions.len(), 1);
@@ -1232,7 +1136,7 @@ fn test_decorator_attaches_to_parameter() {
 
 #[test]
 fn test_decorator_attaches_to_call_argument() {
-    let (parser, expressions) = parse_source("run(@memo value)", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("run(@memo value)");
 
     // `run(...)`
     assert_eq!(expressions.len(), 1);
@@ -1256,7 +1160,7 @@ fn test_decorator_attaches_to_call_argument() {
 
 #[test]
 fn test_keyword_decorator_attaches_to_call_argument() {
-    let (parser, expressions) = parse_source("run(@if(true) value)", LanguageType::Destack);
+    let (parser, expressions) = parse_source("run(@if(true) value)");
 
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -1280,7 +1184,7 @@ fn test_keyword_decorator_attaches_to_call_argument() {
 
 #[test]
 fn test_comments_and_blanks_are_not_semantic_annotations() {
-    let (parser, expressions) = parse_source("a // tail\n\nb", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("a // tail\n\nb");
 
     // `a`, `b`
     assert_eq!(expressions.len(), 2);
@@ -1297,8 +1201,7 @@ fn test_comments_and_blanks_are_not_semantic_annotations() {
 
 #[test]
 fn test_comment_inside_function_body_attaches_to_block_infix() {
-    let (parser, expressions) =
-        parse_source("function foo() { /* empty */ }", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("function foo() { /* empty */ }");
 
     // `function foo() { ... }`
     assert_eq!(expressions.len(), 1);
@@ -1318,10 +1221,7 @@ fn test_comment_inside_function_body_attaches_to_block_infix() {
 
 #[test]
 fn test_comment_between_parameter_name_and_type_attaches_to_type_boundary() {
-    let (parser, expressions) = parse_source(
-        "function f(x /* a */ : number) {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("function f(x /* a */ : number) {}");
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
@@ -1347,10 +1247,7 @@ fn test_comment_between_parameter_name_and_type_attaches_to_type_boundary() {
 
 #[test]
 fn test_comment_between_parameter_pattern_and_type_attaches_to_type_boundary() {
-    let (parser, expressions) = parse_source(
-        "function f({ value } /* a */ : Box) {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("function f({ value } /* a */ : Box) {}");
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
@@ -1376,10 +1273,7 @@ fn test_comment_between_parameter_pattern_and_type_attaches_to_type_boundary() {
 
 #[test]
 fn test_comment_after_optional_parameter_marker_attaches_to_type_boundary() {
-    let (parser, expressions) = parse_source(
-        "function f(x? /* a */ : number) {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("function f(x? /* a */ : number) {}");
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
@@ -1405,8 +1299,7 @@ fn test_comment_after_optional_parameter_marker_attaches_to_type_boundary() {
 
 #[test]
 fn test_comment_after_parameter_colon_attaches_to_type_boundary() {
-    let (parser, expressions) =
-        parse_source("function f(x: /* a */ number) {}", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("function f(x: /* a */ number) {}");
 
     // `function f(...) {}`
     assert_eq!(expressions.len(), 1);
@@ -1435,10 +1328,7 @@ fn test_comment_after_parameter_colon_attaches_to_type_boundary() {
 
 #[test]
 fn test_comment_after_type_conditional_question_attaches_to_then_separator() {
-    let (parser, expressions) = parse_source(
-        "type T = A extends B ? // then-note\nC : D",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("type T = A extends B ? // then-note\nC : D");
 
     // `type T = A extends B ? C : D`
     assert_eq!(expressions.len(), 1);
@@ -1467,10 +1357,7 @@ fn test_comment_after_type_conditional_question_attaches_to_then_separator() {
 
 #[test]
 fn test_comment_after_type_conditional_colon_attaches_to_else_separator() {
-    let (parser, expressions) = parse_source(
-        "type T = A extends B ? C : // else-note\nD",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("type T = A extends B ? C : // else-note\nD");
 
     // `type T = A extends B ? C : D`
     assert_eq!(expressions.len(), 1);
@@ -1499,8 +1386,7 @@ fn test_comment_after_type_conditional_colon_attaches_to_else_separator() {
 
 #[test]
 fn test_comment_after_function_return_type_colon_attaches_to_return_type_boundary() {
-    let (parser, expressions) =
-        parse_source("function f(): /* a */ number {}", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("function f(): /* a */ number {}");
 
     // `function f(): number {}`
     assert_eq!(expressions.len(), 1);
@@ -1527,10 +1413,7 @@ fn test_comment_after_function_return_type_colon_attaches_to_return_type_boundar
 
 #[test]
 fn test_comment_after_member_field_colon_attaches_to_field_type_boundary() {
-    let (parser, expressions) = parse_source(
-        "class Box { value: /* a */ number }",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("class Box { value: /* a */ number }");
 
     // `class Box { value: number }`
     assert_eq!(expressions.len(), 1);
@@ -1559,10 +1442,7 @@ fn test_comment_after_member_field_colon_attaches_to_field_type_boundary() {
 
 #[test]
 fn test_comment_after_optional_member_marker_attaches_to_field_type_boundary() {
-    let (parser, expressions) = parse_source(
-        "class Box { value? /* a */ : number }",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("class Box { value? /* a */ : number }");
 
     // `class Box { value?: number }`
     assert_eq!(expressions.len(), 1);
@@ -1588,10 +1468,7 @@ fn test_comment_after_optional_member_marker_attaches_to_field_type_boundary() {
 
 #[test]
 fn test_comment_after_member_return_type_colon_attaches_to_return_type_boundary() {
-    let (parser, expressions) = parse_source(
-        "class Box { method(): /* a */ number {} }",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("class Box { method(): /* a */ number {} }");
 
     // `class Box { method(): number {} }`
     assert_eq!(expressions.len(), 1);
@@ -1620,8 +1497,7 @@ fn test_comment_after_member_return_type_colon_attaches_to_return_type_boundary(
 
 #[test]
 fn test_comment_after_property_field_colon_attaches_to_field_type_boundary() {
-    let (parser, property_id) =
-        parse_property_source("value: /* a */ number", LanguageType::TypeScript, true);
+    let (parser, property_id) = parse_property_source("value: /* a */ number", true);
 
     // `value: number`
     let field_type = assert_node!(parser.tree, property_id, Property::Field { value, .. } => {
@@ -1644,8 +1520,7 @@ fn test_comment_after_property_field_colon_attaches_to_field_type_boundary() {
 
 #[test]
 fn test_comment_after_optional_property_marker_attaches_to_field_type_boundary() {
-    let (parser, property_id) =
-        parse_property_source("value? /* a */ : number", LanguageType::TypeScript, true);
+    let (parser, property_id) = parse_property_source("value? /* a */ : number", true);
 
     // `value?: number`
     let _field_type = assert_node!(parser.tree, property_id, Property::Field { value, .. } => {
@@ -1667,11 +1542,7 @@ fn test_comment_after_optional_property_marker_attaches_to_field_type_boundary()
 
 #[test]
 fn test_comment_after_property_return_type_colon_attaches_to_return_type_boundary() {
-    let (parser, property_id) = parse_property_source(
-        "method(): /* a */ number {}",
-        LanguageType::TypeScript,
-        false,
-    );
+    let (parser, property_id) = parse_property_source("method(): /* a */ number {}", false);
 
     // `method(): number {}`
     let return_type = assert_node!(parser.tree, property_id, Property::Method { signature, .. } => {
@@ -1704,7 +1575,6 @@ fn test_comments_around_member_decorator_chain_remain_raw_trivia() {
     // comment after foo
     method() {}
 }"#,
-        LanguageType::TypeScript,
     );
 
     // `class Box { ... }`
@@ -1765,7 +1635,6 @@ fn test_empty_call_boundary_line_comments_preserve_raw_call_gap_boundaries() {
 
 call // optional
 ?.()"#,
-        LanguageType::JavaScript,
     );
 
     // `call()`, `call?.()`
@@ -1800,7 +1669,6 @@ fn test_empty_call_boundary_block_comments_preserve_raw_call_gap_boundaries() {
     let (parser, expressions) = parse_source(
         r#"call/* direct */()
 call/* optional */?.()"#,
-        LanguageType::JavaScript,
     );
 
     // `call()`, `call?.()`
@@ -1832,7 +1700,7 @@ call/* optional */?.()"#,
 
 #[test]
 fn test_comment_before_optional_chain_question_attaches_forward() {
-    let (parser, expressions) = parse_source("call /* optional */ ?.()", LanguageType::JavaScript);
+    let (parser, expressions) = parse_source("call /* optional */ ?.()");
 
     // `call?.()`
     assert_eq!(expressions.len(), 1);
@@ -1852,8 +1720,7 @@ fn test_comment_before_optional_chain_question_attaches_forward() {
 
 #[test]
 fn test_comment_before_postfix_generic_arguments_attaches_forward() {
-    let (parser, expressions) =
-        parse_source("call /* marker */ <string>(1)", LanguageType::TypeScript);
+    let (parser, expressions) = parse_source("call /* marker */ <string>(1)");
 
     // `call<string>(1)`
     assert_eq!(expressions.len(), 1);
@@ -1876,7 +1743,6 @@ fn test_statement_trailing_line_comments_preserve_raw_statement_boundaries() {
     let (parser, expressions) = parse_source(
         r#"call(); // direct
 call?.(); // optional"#,
-        LanguageType::JavaScript,
     );
 
     // `call();`, `call?.();`
@@ -1902,17 +1768,15 @@ call?.(); // optional"#,
 #[test]
 fn test_if_statement_trailing_line_comments_preserve_raw_if_boundaries() {
     let (parser, expressions) = parse_source(
-        r#"if (base.endsWith(".js") || base === `/worker-entries`); // for dev
-if (base.endsWith(".js") || base === `/worker-entries`) base = ""; // for dev
+        r#"if (base.endsWith(".js") || base === `/worker-entries`) base = ""; // for dev
 if (base.endsWith(".js") || base === `/worker-entries`) a; // for dev"#,
-        LanguageType::JavaScript,
     );
 
-    // `if (...) ;`, `if (...) base = "";`, `if (...) a;`
-    assert_eq!(expressions.len(), 3);
+    // `if (...) base = "";`, `if (...) a;`
+    assert_eq!(expressions.len(), 2);
 
     // `// for dev`
-    assert_eq!(comments(&parser).len(), 3);
+    assert_eq!(comments(&parser).len(), 2);
 
     for (index, expression_id) in expressions.iter().copied().enumerate() {
         let expression_id = parser.unwrap_label_expression(expression_id);
@@ -1936,7 +1800,6 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
   // second
   2,
 ]"#,
-        LanguageType::JavaScript,
     );
 
     // `[1, 2]`
@@ -1974,7 +1837,7 @@ fn test_array_element_prefix_comments_preserve_raw_element_boundaries() {
 
 #[test]
 fn test_inline_separator_comments_preserve_raw_separator_boundaries() {
-    let (parser, expressions) = parse_source("[a, /* keep */ b]", LanguageType::JavaScript);
+    let (parser, expressions) = parse_source("[a, /* keep */ b]");
 
     // `[a, b]`
     assert_eq!(expressions.len(), 1);
@@ -2005,7 +1868,6 @@ fn test_trailing_collection_comments_before_close_remain_unowned() {
   1
   // tail
 ]"#,
-        LanguageType::JavaScript,
     );
 
     // `[1]`
@@ -2030,7 +1892,6 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
         r#"() =>
   // body
   []"#,
-        LanguageType::JavaScript,
     );
 
     // `() => []`
@@ -2057,7 +1918,7 @@ fn test_lambda_body_prefix_comments_preserve_raw_body_boundaries() {
 
 #[test]
 fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
-    let (parser, expressions) = parse_source("() => /* body */ []", LanguageType::JavaScript);
+    let (parser, expressions) = parse_source("() => /* body */ []");
 
     // `() => []`
     assert_eq!(expressions.len(), 1);
@@ -2083,10 +1944,7 @@ fn test_lambda_inline_body_comments_preserve_raw_body_boundaries() {
 
 #[test]
 fn test_doc_comment_and_decorator_emit_raw_comment_and_decorator_node() {
-    let (parser, expressions) = parse_source(
-        "/** docs */\n@memo\nfunction f() {}",
-        LanguageType::TypeScript,
-    );
+    let (parser, expressions) = parse_source("/** docs */\n@memo\nfunction f() {}");
 
     // `function f() {}`
     assert_eq!(expressions.len(), 1);

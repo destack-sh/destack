@@ -2,10 +2,9 @@ use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    GenericParameter, IfForm, NodeType, Parameter, ScalarLiteral, TreeAttribute,
+    GenericParameter, IfForm, NodeType, Parameter, Pattern, ScalarLiteral, TreeAttribute,
     TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 /// Parse a constrained generic arrow whose body is a tree literal.
 #[test]
@@ -46,10 +45,7 @@ fn test_parse_constrained_generic_arrow_before_tree() {
 
 #[test]
 fn test_parse_parenthesized_tree_callback_body() {
-    let mut test = TestParser::new_with_language(
-        "items.map((item) => (<option>{item}</option>))",
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new("items.map((item) => (<option>{item}</option>))");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
@@ -106,12 +102,30 @@ fn test_recover_generic_arrow_without_tree_disambiguator() {
     });
 }
 
+/// Recover a malformed generic constraint without losing the next declaration.
 #[test]
-fn test_parse_generic_arrow_with_trailing_comma_in_disallow_ambiguous_mode() {
-    let mut test = TestParser::new_with_language("<T,>() => 1", LanguageType::TypeScript);
+fn test_recover_generic_arrow_constraint_member() {
+    let mut test = TestParser::new(
+        "const broken = <T extends { item: ; }>(value: T) => value;\nconst recovered = 1;",
+    );
     let mut parser = test.prepare();
-    parser.flags.set_disallow_ambiguous_tree_literal(true);
+    let expressions = parser.parse();
 
+    test.assert_errors(&parser, &[(Some(NodeType::TypeMember), None, None, ";")]);
+    assert_eq!(expressions.len(), 2);
+    assert_node!(parser.tree, expressions[1], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        let declarator = parser.tree.get(declarators[0]);
+        assert_node!(parser.tree, declarator.pattern, Pattern::Binding { name, .. } => {
+            assert_string!(parser, *name, "recovered");
+        });
+    });
+}
+
+#[test]
+fn test_parse_generic_arrow_with_trailing_comma() {
+    let mut test = TestParser::new("<T,>() => 1");
+    let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -127,12 +141,9 @@ fn test_parse_generic_arrow_with_trailing_comma_in_disallow_ambiguous_mode() {
 }
 
 #[test]
-fn test_parse_generic_arrow_with_extends_in_disallow_ambiguous_mode() {
-    let mut test =
-        TestParser::new_with_language("<T extends unknown>(x) => 1", LanguageType::TypeScript);
+fn test_parse_generic_arrow_with_extends_disambiguator() {
+    let mut test = TestParser::new("<T extends unknown>(x) => 1");
     let mut parser = test.prepare();
-    parser.flags.set_disallow_ambiguous_tree_literal(true);
-
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -151,12 +162,9 @@ fn test_parse_generic_arrow_with_extends_in_disallow_ambiguous_mode() {
 }
 
 #[test]
-fn test_parse_generic_arrow_with_default_in_disallow_ambiguous_mode() {
-    let mut test =
-        TestParser::new_with_language("<T = unknown,>(x) => 1", LanguageType::TypeScript);
+fn test_parse_generic_arrow_with_default_disambiguator() {
+    let mut test = TestParser::new("<T = unknown,>(x) => 1");
     let mut parser = test.prepare();
-    parser.flags.set_disallow_ambiguous_tree_literal(true);
-
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
@@ -211,11 +219,10 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
 
 #[test]
 fn test_parse_ternary_typed_arrow_function_before_tree() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"Math.random() > 0.5
     ? (): void => foo()
     : (): void => bar()"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -247,11 +254,10 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
 
 #[test]
 fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"Math.random() > 0.5
     ? ((): void => foo())
     : ((): void => bar())"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -287,9 +293,8 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
 
 #[test]
 fn test_parse_tree_attribute_typed_arrow_value() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -365,9 +370,8 @@ fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_lengt
 
 #[test]
 fn test_parse_ternary_tree_attribute_typed_arrow() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -399,10 +403,7 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
 
 #[test]
 fn test_parse_tree_attribute_nested_tree_expression_value() {
-    let mut test = TestParser::new_with_language(
-        "<Foo prop={<Bar><Baz /></Bar>} />;",
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new("<Foo prop={<Bar><Baz /></Bar>} />;");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -436,7 +437,7 @@ fn test_parse_tree_attribute_nested_tree_expression_value() {
 
 #[test]
 fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
-    let mut test = TestParser::new_with_language("<a></a // line\n>;", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<a></a // line\n>;");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -448,9 +449,8 @@ fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
 
 #[test]
 fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tree() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -490,13 +490,12 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
 
 #[test]
 fn test_parse_tree_text_after_comment_expression_container() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<test>
     {/* comment */}
      some
      text
 </test>"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();

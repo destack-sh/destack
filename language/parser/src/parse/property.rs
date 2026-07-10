@@ -4,7 +4,7 @@ use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorType, Expression,
     FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionTypeExpression, Key,
     Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
-    TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember, Visibility,
+    TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -267,19 +267,6 @@ impl Parser {
         modifiers: Option<&BindingModifiers>,
         is_async: bool,
     ) -> ParserResult<()> {
-        // private keys do not take explicit visibility modifiers
-        // typed member forms allow `private accessor #name`
-        let allow_private_accessor_visibility = matches!(key, Some(Key::Private(_)))
-            && modifiers.is_some_and(|modifiers| {
-                modifiers.visibility == Some(Visibility::Private) && modifiers.is_accessor
-            });
-        if matches!(key, Some(Key::Private(_)))
-            && modifiers.is_some_and(|modifiers| modifiers.visibility.is_some())
-            && !allow_private_accessor_visibility
-        {
-            return Err(ParserError::unexpected(self.peek()));
-        }
-
         // reject impossible optional and definite fields
         if modifiers.is_some_and(|modifiers| modifiers.is_optional && modifiers.is_definite) {
             let error_span = self
@@ -337,7 +324,7 @@ impl Parser {
     #[inline]
     fn eat_property_value_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         let ambient_context = self.flags;
-        let expression_context = self.flags.not_in_position().not_in_sequence_expression();
+        let expression_context = self.flags.not_in_position();
         self.eat_expression(
             self.flags
                 .with_ambient_context(ambient_context)
@@ -468,7 +455,7 @@ impl Parser {
         if !self.peek_is(TokenType::OpenBrace) {
             ambient_context = ambient_context.with_before_block(true);
         }
-        let expression_context = self.flags.nested().not_in_sequence_expression();
+        let expression_context = self.flags.nested();
         self.eat_type_expression_or_recover_missing(
             self.flags
                 .with_ambient_context(ambient_context)
@@ -488,12 +475,11 @@ impl Parser {
                 .flags
                 .with_generator(is_generator)
                 .with_decorator(false);
-            let mut flags = self
+            let flags = self
                 .flags
                 .with_ambient_context(ambient_context)
                 .in_before_block()
                 .in_statement_position();
-            flags.set_allow_sequence_expression(true);
             let block =
                 self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
 
@@ -504,11 +490,7 @@ impl Parser {
             .flags
             .with_generator(is_generator)
             .with_decorator(false);
-        let expression_context = self
-            .flags
-            .not_in_position()
-            .with_statement_position(true)
-            .with_sequence_expression(true);
+        let expression_context = self.flags.not_in_position().with_statement_position(true);
         self.eat_expression(
             self.flags
                 .with_ambient_context(ambient_context)
@@ -532,7 +514,7 @@ impl Parser {
 
         // generator and key
         let is_generator = self.eat_token_if(TokenType::Multiply);
-        let (key, key_span) = if let Some((key, span)) = self.eat_property_key_with_span()? {
+        let (key, key_span) = if let Some((key, span)) = self.eat_key_maybe_with_span()? {
             (Some(key), Some(span))
         } else {
             (None, None)
@@ -623,11 +605,7 @@ impl Parser {
         };
 
         // where clauses
-        let where_clauses = if self.language.is_destack() {
-            self.eat_where_maybe()?.unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+        let where_clauses = self.eat_where_maybe()?.unwrap_or_default();
 
         // body
         let body = if allows_body && self.peek_is(TokenType::OpenBrace) {
@@ -697,15 +675,6 @@ impl Parser {
         )
     }
 
-    /// Eat a key with private hash parsing enabled.
-    #[inline]
-    fn eat_property_key_with_span(&mut self) -> ParserResult<Option<(Key, Span)>> {
-        let ambient_context = self.flags.with_allow_private_hash_key(true);
-        self.with_flags(self.flags.with_ambient_context(ambient_context), |parser| {
-            parser.eat_key_maybe_with_span()
-        })
-    }
-
     /// Try to eat one associated type member.
     ///
     /// Examples:
@@ -720,10 +689,7 @@ impl Parser {
         start: &ParserSpanStart,
         modifiers: Option<BindingModifiers>,
     ) -> ParserResult<Option<LocalNodeId<Member>>> {
-        if !self.language.is_destack()
-            || !self.is_keyword(Keyword::Type)
-            || self.next_token_type() != TokenType::Identifier
-        {
+        if !self.is_keyword(Keyword::Type) || self.next_token_type() != TokenType::Identifier {
             return Ok(None);
         }
 
@@ -799,10 +765,7 @@ impl Parser {
         start: &ParserSpanStart,
         modifiers: Option<&BindingModifiers>,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
-        if !self.language.is_destack()
-            || !self.is_keyword(Keyword::Type)
-            || self.next_token_type() != TokenType::Identifier
-        {
+        if !self.is_keyword(Keyword::Type) || self.next_token_type() != TokenType::Identifier {
             return Ok(None);
         }
 
@@ -871,10 +834,7 @@ impl Parser {
         start: &ParserSpanStart,
         modifiers: Option<&BindingModifiers>,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
-        if !self.language.is_destack()
-            || !self.is_keyword(Keyword::Comptime)
-            || self.next_keyword() != Some(Keyword::Const)
-        {
+        if !self.is_keyword(Keyword::Comptime) || self.next_keyword() != Some(Keyword::Const) {
             return Ok(None);
         }
 
@@ -908,11 +868,7 @@ impl Parser {
             let value = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
                 self.recover_missing_expression_here(NodeType::TypeMember)
             } else {
-                let expression_flags = self
-                    .flags
-                    .not_in_type()
-                    .not_in_position()
-                    .not_in_sequence_expression();
+                let expression_flags = self.flags.not_in_type().not_in_position();
                 self.eat_expression(expression_flags)?
             };
 
@@ -1235,7 +1191,7 @@ impl Parser {
         }
 
         let ambient_context = self.flags.nested();
-        let expression_context = self.flags.not_in_position().not_in_sequence_expression();
+        let expression_context = self.flags.not_in_position();
         let flags = self
             .flags
             .with_ambient_context(ambient_context)
@@ -1448,8 +1404,7 @@ impl Parser {
                             self.insert_type_expression_value(type_expression)
                         } else {
                             let ambient_context = self.flags.nested();
-                            let expression_context =
-                                self.flags.not_in_position().not_in_sequence_expression();
+                            let expression_context = self.flags.not_in_position();
 
                             self.eat_expression(
                                 self.flags
@@ -1481,8 +1436,7 @@ impl Parser {
                     } else {
                         self.flags
                     };
-                    let expression_context =
-                        self.flags.not_in_position().not_in_sequence_expression();
+                    let expression_context = self.flags.not_in_position();
                     self.eat_expression(
                         self.flags
                             .with_ambient_context(ambient_context)
@@ -1761,10 +1715,7 @@ impl Parser {
             self.eat_token(TokenType::Colon)?;
 
             let key_type = self.eat_type_expression_or_recover_missing(
-                self.flags
-                    .not_in_position()
-                    .not_in_sequence_expression()
-                    .in_type(),
+                self.flags.not_in_position().in_type(),
                 NodeType::TypeMember,
             )?;
 
@@ -1824,7 +1775,7 @@ impl Parser {
         let (key, key_span) = if matches!(role, Some(FunctionRole::Constructor | FunctionRole::New))
         {
             (None, None)
-        } else if let Some((key, span)) = self.eat_property_key_with_span()? {
+        } else if let Some((key, span)) = self.eat_key_maybe_with_span()? {
             (Some(key), Some(span))
         } else {
             (None, None)
@@ -1875,7 +1826,7 @@ impl Parser {
                 false,
                 is_abstract,
                 false,
-                container_kind.allows_body() && self.language.is_destack(),
+                container_kind.allows_body(),
             )?;
 
             let member = match (key, role) {
@@ -2389,7 +2340,7 @@ impl Parser {
                 let default = if self.peek_is(TokenType::CloseBrace) || self.is_any_stop() {
                     self.recover_missing_expression_here(NodeType::Member)
                 } else {
-                    self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?
+                    self.eat_expression(self.flags.not_in_position())?
                 };
                 Some(default)
             } else {

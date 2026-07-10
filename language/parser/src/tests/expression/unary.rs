@@ -4,7 +4,6 @@ use destack_dir::{
     BinaryOperator, Expression, Mutability, ScalarLiteral, TokenType, TypeExpression,
     UnaryOperator, VarianceBound,
 };
-use destack_source::LanguageType;
 
 /// Unary operator spans point at the operator token.
 #[test]
@@ -72,7 +71,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
 (~3) ** 2;
 (!true) ** 2;
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -91,7 +90,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
 
 #[test]
 fn test_parse_unary_negate_allows_newline_before_operand() {
-    let mut test = TestParser::new_with_language("-\n1", LanguageType::JavaScript);
+    let mut test = TestParser::new("-\n1");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -103,7 +102,7 @@ fn test_parse_unary_negate_allows_newline_before_operand() {
 
 #[test]
 fn test_parse_unary_negate_allows_line_comment_before_operand() {
-    let mut test = TestParser::new_with_language("-// comment\n1", LanguageType::JavaScript);
+    let mut test = TestParser::new("-// comment\n1");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -116,7 +115,7 @@ fn test_parse_unary_negate_allows_line_comment_before_operand() {
 /// Parse a unary operand with an explicit parenthesized comment wrapper.
 #[test]
 fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
-    let mut test = TestParser::new_with_language("-(/* comment */ 1)", LanguageType::JavaScript);
+    let mut test = TestParser::new("-(/* comment */ 1)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -135,10 +134,8 @@ fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
 /// Parse await parenthesized `new` with generic receiver and `void` type argument.
 #[test]
 fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
-    let mut test = TestParser::new_with_language(
-        "await (new Promise<void>(resolve => setTimeout(() => resolve(), delay)))",
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new("await (new Promise<void>(resolve => setTimeout(() => resolve(), delay)))");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -207,19 +204,6 @@ fn test_parse_dereference_variable() {
         assert_expression_path!(parser, parser.tree.get(*right), "x");
     });
 }
-
-/// Report dereference in untyped value mode.
-#[test]
-fn test_report_dereference_in_untyped_value_mode() {
-    let language = LanguageType::JavaScript;
-    let mut test = TestParser::new_with_language("*x", language);
-    let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
-
-    assert_eq!(parser.get_span_str(error.span), "*");
-}
-
-/// Parse a reference expression.
 #[test]
 fn test_parse_reference_variable() {
     let mut test = TestParser::new("&x");

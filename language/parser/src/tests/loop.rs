@@ -3,7 +3,6 @@ use destack_dir::{
     ForEachBinding, ForEachOperator, GenericArgument, Key, Keyword, Name, Pattern, PatternField,
     ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember, UnaryOperator, WhileForm,
 };
-use destack_source::LanguageType;
 
 use crate::{
     TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
@@ -70,7 +69,7 @@ fn test_parse_for_loop_with_missing_close_parenthesis() {
 
 #[test]
 fn test_parse_for_loop_with_line_comment_after_keyword() {
-    let mut test = TestParser::new_with_language("for // comment\n(;;);", LanguageType::JavaScript);
+    let mut test = TestParser::new("for // comment\n(;;);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -87,8 +86,7 @@ fn test_parse_for_loop_with_line_comment_after_keyword() {
 
 #[test]
 fn test_parse_for_loop_with_block_comment_after_keyword() {
-    let mut test =
-        TestParser::new_with_language("for /* comment */(;;);", LanguageType::JavaScript);
+    let mut test = TestParser::new("for /* comment */(;;);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -155,7 +153,7 @@ for await (const item of items) {
 /// Parse for of headers with multiline destructured bindings.
 #[test]
 fn test_parse_for_of_multiline_destructured_binding() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 for (
   const {
@@ -164,7 +162,6 @@ for (
   of selectedRelations
 ) {}
 "###,
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
 
@@ -196,11 +193,10 @@ for (
 
 #[test]
 fn test_parse_for_of_await_generic_call_with_object_type_argument() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 for (const { item } of await fetchList<{ item: string }>(values)) {}
 "###,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -254,11 +250,10 @@ for (const { item } of await fetchList<{ item: string }>(values)) {}
 
 #[test]
 fn test_parse_for_each_binding_const_object_stops_before_of() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 for (const { item } of fetchList<{ item: string }>(values)) {}
 "###,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -397,65 +392,8 @@ for (using item of items) {
 }
 
 #[test]
-fn test_parse_for_loop_with_using_identifier_member_binding_in() {
-    let mut test =
-        TestParser::new_with_language("for (using().foo in items);", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-
-    let for_id = parser.eat_for().unwrap();
-    assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding, iterator, .. } => {
-        assert_eq!(*operator, ForEachOperator::In);
-
-        assert_node!(binding, ForEachBinding::Pattern { pattern, keyword } => {
-            assert!(keyword.is_none());
-            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
-                    assert_string!(parser, *name, "foo");
-                    assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
-                        assert!(arguments.is_empty());
-                        assert_expression_path!(parser, parser.tree.get(*left), "using");
-                    });
-                });
-            });
-        });
-
-        assert_expression_path!(parser, parser.tree.get(*iterator), "items");
-    });
-}
-
-#[test]
-fn test_parse_for_loop_with_using_identifier_member_binding_of() {
-    let mut test =
-        TestParser::new_with_language("for (using().foo of items);", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-
-    let for_id = parser.eat_for().unwrap();
-    assert_node!(parser.tree, for_id, Expression::ForEach { operator, binding, iterator, .. } => {
-        assert_eq!(*operator, ForEachOperator::Of);
-
-        assert_node!(binding, ForEachBinding::Pattern { pattern, keyword } => {
-            assert!(keyword.is_none());
-            assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-                assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
-                    assert_string!(parser, *name, "foo");
-                    assert_node!(parser.tree, *left, Expression::Call { left, arguments, .. } => {
-                        assert!(arguments.is_empty());
-                        assert_expression_path!(parser, parser.tree.get(*left), "using");
-                    });
-                });
-            });
-        });
-
-        assert_expression_path!(parser, parser.tree.get(*iterator), "items");
-    });
-}
-
-#[test]
 fn test_parse_for_loop_with_await_using_of_binding() {
-    let mut test = TestParser::new_with_language(
-        "for await (await using of of items);",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("for await (await using of of items);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -477,7 +415,7 @@ fn test_parse_for_loop_with_await_using_of_binding() {
 #[test]
 fn test_parse_for_in_with_member_expression_binding() {
     // for (a[b in c] in d);
-    let mut test = TestParser::new_with_language("for (a[b in c] in d);", LanguageType::JavaScript);
+    let mut test = TestParser::new("for (a[b in c] in d);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -494,8 +432,7 @@ fn test_parse_for_in_with_member_expression_binding() {
 #[test]
 fn test_parse_for_in_with_call_expression_binding() {
     // for (a(b in c)[1] in d);
-    let mut test =
-        TestParser::new_with_language("for (a(b in c)[1] in d);", LanguageType::JavaScript);
+    let mut test = TestParser::new("for (a(b in c)[1] in d);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -512,10 +449,8 @@ fn test_parse_for_in_with_call_expression_binding() {
 #[test]
 fn test_parse_for_in_with_array_expression_binding() {
     // for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);
-    let mut test = TestParser::new_with_language(
-        "for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);",
-        LanguageType::JavaScript,
-    );
+    let mut test =
+        TestParser::new("for ([a, b[a], {c, d = e, [f]: [g, h().a, (1).i, ...j[2]]}] in 3);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -532,7 +467,7 @@ fn test_parse_for_in_with_array_expression_binding() {
 #[test]
 fn test_parse_for_in_with_unary_binding_expression() {
     // source: for (+i in {});
-    let mut test = TestParser::new_with_language("for (+i in {});", LanguageType::JavaScript);
+    let mut test = TestParser::new("for (+i in {});");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -549,7 +484,7 @@ fn test_parse_for_in_with_unary_binding_expression() {
 #[test]
 fn test_parse_for_in_with_binary_binding_expression() {
     // source: for (i + 1 in {});
-    let mut test = TestParser::new_with_language("for (i + 1 in {});", LanguageType::JavaScript);
+    let mut test = TestParser::new("for (i + 1 in {});");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -566,8 +501,7 @@ fn test_parse_for_in_with_binary_binding_expression() {
 #[test]
 fn test_parse_for_in_with_parenthesized_binary_binding_expression() {
     // source: for((1 + 1) in list) process(x);
-    let mut test =
-        TestParser::new_with_language("for((1 + 1) in list) process(x);", LanguageType::JavaScript);
+    let mut test = TestParser::new("for((1 + 1) in list) process(x);");
     let mut parser = test.prepare();
 
     let for_id = parser.eat_for().unwrap();
@@ -646,69 +580,12 @@ for (let x = 0; x < 10; x++) {
         });
     });
 }
-
-/// Parse multiline C style for loop headers in JavaScript.
-#[test]
-fn test_parse_for_loop_condition_multiline_header() {
-    let mut test = TestParser::new_with_language(
-        r###"
-for (
-  start = 0, end = Math.min(len, newLen);
-  start < end && items[start] === newItems[start];
-  start++
-) {
-  work();
-}
-"###,
-        LanguageType::JavaScript,
-    );
-    let mut parser = test.prepare();
-
-    let for_id = parser.eat_for().unwrap();
-    assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, body } => {
-        assert!(initialization.is_some());
-        assert!(condition.is_some());
-        assert!(increment.is_some());
-        assert_node!(parser.tree, *body, Block { .. } => {
-            let expressions = block_expression_ids(parser.tree.get(*body));
-            assert_eq!(expressions.len(), 1);
-        });
-    });
-}
-
-/// Parse C style for headers with comma operator in init and increment.
-#[test]
-fn test_parse_for_loop_condition_with_sequence_clauses() {
-    let mut test = TestParser::new_with_language(
-        r###"
-for (start = 0, end = 10; start < end; start++, end--) {}
-"###,
-        LanguageType::JavaScript,
-    );
-    let mut parser = test.prepare();
-
-    let for_id = parser.eat_for().unwrap();
-    assert_node!(parser.tree, for_id, Expression::For { initialization, condition, increment, .. } => {
-        assert_node!(parser.tree, initialization.expect("expected initialization"), Expression::SequenceExpression { expressions } => {
-            assert_eq!(expressions.len(), 2);
-        });
-        assert_node!(parser.tree, condition.expect("expected condition"), Expression::Binary { operator, .. } => {
-            assert_eq!(*operator, BinaryOperator::LessThan);
-        });
-        assert_node!(parser.tree, increment.expect("expected increment"), Expression::SequenceExpression { expressions } => {
-            assert_eq!(expressions.len(), 2);
-        });
-    });
-}
-
-/// Parse JavaScript for of loops with `type` as an identifier binding.
 #[test]
 fn test_parse_for_of_with_type_identifier_binding() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 for (type of values) {}
 "###,
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
 
@@ -846,7 +723,7 @@ fn test_parse_do_while_parenthesized_condition_keeps_inner_span() {
     });
 }
 
-/// JavaScript allows single statement body without braces.
+/// Parse a single statement loop body without braces.
 #[test]
 fn test_parse_do_while_single_statement() {
     let mut test = TestParser::new("do x; while (true)");

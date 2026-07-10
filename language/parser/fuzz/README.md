@@ -10,7 +10,7 @@ The parser fuzz package has these targets:
 | Target | Purpose |
 |--------|---------|
 | `lexer` | Lex arbitrary UTF-8 as `.ds` |
-| `parser` | Parse arbitrary UTF-8 and generated stress cases across `.ds`, `.d.ds`, `.ts`, `.tsx`, and `.d.ts` |
+| `parser` | Parse arbitrary UTF-8 and generated stress cases as `.ds` and `.d.ds` |
 
 ## Usage
 

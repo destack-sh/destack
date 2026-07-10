@@ -4,7 +4,6 @@ use destack_dir::{
     Argument, BinaryOperator, Declaration, Declarator, Expression, FunctionDeclaration, IfForm,
     LocalNodeId, Parameter, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 /// Assert one direct maybe expression wrapping a call.
 fn assert_direct_maybe_call(
@@ -25,7 +24,7 @@ fn assert_direct_maybe_call(
 #[test]
 fn test_parse_optional_chain_after_comment_newlines() {
     let input = "promise\n  .then(noop)\n  // comment\n  // comment\n  ?.catch(noop)";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -52,7 +51,7 @@ fn test_parse_optional_chain_after_comment_newlines() {
 /// Parse direct `?` before arithmetic continuation.
 #[test]
 fn test_parse_direct_maybe_before_arithmetic() {
-    let mut test = TestParser::new_with_language("encode()? + 1", LanguageType::Destack);
+    let mut test = TestParser::new("encode()? + 1");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -67,7 +66,7 @@ fn test_parse_direct_maybe_before_arithmetic() {
 /// Parse direct `?` before logical continuation.
 #[test]
 fn test_parse_direct_maybe_before_logical() {
-    let mut test = TestParser::new_with_language("encode()? && ready", LanguageType::Destack);
+    let mut test = TestParser::new("encode()? && ready");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -82,7 +81,7 @@ fn test_parse_direct_maybe_before_logical() {
 /// Parse direct `?` before an `as` assertion continuation.
 #[test]
 fn test_parse_direct_maybe_before_as() {
-    let mut test = TestParser::new_with_language("encode()? as string", LanguageType::Destack);
+    let mut test = TestParser::new("encode()? as string");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -98,8 +97,7 @@ fn test_parse_direct_maybe_before_as() {
 /// Parse direct `?` before a type assertion continuation.
 #[test]
 fn test_parse_direct_maybe_before_satisfies() {
-    let mut test =
-        TestParser::new_with_language("encode(value)? satisfies string", LanguageType::Destack);
+    let mut test = TestParser::new("encode(value)? satisfies string");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -118,7 +116,7 @@ fn test_parse_direct_maybe_before_satisfies() {
 /// Parse direct `?` before member continuation.
 #[test]
 fn test_parse_direct_maybe_before_member() {
-    let mut test = TestParser::new_with_language("encode()?.field", LanguageType::Destack);
+    let mut test = TestParser::new("encode()?.field");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -132,7 +130,7 @@ fn test_parse_direct_maybe_before_member() {
 /// Parse direct `?` before index continuation.
 #[test]
 fn test_parse_direct_maybe_before_index() {
-    let mut test = TestParser::new_with_language("encode()?[0]", LanguageType::Destack);
+    let mut test = TestParser::new("encode()?[0]");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -147,7 +145,7 @@ fn test_parse_direct_maybe_before_index() {
 /// Parse a detached question mark after an identifier condition as a ternary.
 #[test]
 fn test_parse_identifier_question_expression_as_ternary() {
-    let mut test = TestParser::new_with_language("a ? b : c", LanguageType::Destack);
+    let mut test = TestParser::new("a ? b : c");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -164,9 +162,8 @@ fn test_parse_identifier_question_expression_as_ternary() {
 /// Parse direct `?` after a generic call with an escaped string argument.
 #[test]
 fn test_parse_direct_maybe_after_generic_call_with_escaped_string() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"const config = decode<ServerConfig>("{\"host\":\"127.0.0.1\",\"port\":8080,\"secure\":true}")?;"#,
-        LanguageType::Destack,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -186,11 +183,10 @@ fn test_parse_direct_maybe_after_generic_call_with_escaped_string() {
 /// Parse direct `?` after a multiline generic call.
 #[test]
 fn test_parse_direct_maybe_after_multiline_generic_call() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"const config = decode<AppConfig>(
     "{\"database\":{\"url\":\"postgres://local\"}",
 )?;"#,
-        LanguageType::Destack,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -210,7 +206,7 @@ fn test_parse_direct_maybe_after_multiline_generic_call() {
 /// Parse direct `?` after a qualified method call.
 #[test]
 fn test_parse_direct_maybe_after_qualified_call() {
-    let mut test = TestParser::new_with_language("JSON.parse(text)?;", LanguageType::Destack);
+    let mut test = TestParser::new("JSON.parse(text)?;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -225,10 +221,7 @@ fn test_parse_direct_maybe_after_qualified_call() {
 /// Parse direct `?` after a qualified method call before a type assertion.
 #[test]
 fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
-    let mut test = TestParser::new_with_language(
-        "JSON.stringify(value)? satisfies string;",
-        LanguageType::Destack,
-    );
+    let mut test = TestParser::new("JSON.stringify(value)? satisfies string;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -249,7 +242,7 @@ fn test_parse_direct_maybe_after_qualified_call_before_satisfies() {
 #[test]
 fn test_parse_optional_call_after_question_dot_line_comment_newline() {
     let input = "call?.// comment\n()";
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -268,7 +261,7 @@ fn test_parse_optional_call_after_question_dot_line_comment_newline() {
 #[test]
 fn test_parse_optional_chain_member_after_question_dot_newline() {
     let input = "items?.\nmap(noop)";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -294,7 +287,7 @@ fn test_parse_optional_chain_member_after_question_dot_newline() {
 #[test]
 fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
     let input = "permissions?.\nconcat(first).\nconcat(second)";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -328,10 +321,7 @@ fn test_parse_optional_chain_chained_members_after_question_dot_newline() {
 /// Parse an arrow function parameter named `accessor`.
 #[test]
 fn test_parse_arrow_parameter_accessor_name() {
-    let mut test = TestParser::new_with_language(
-        "(accessor: ServicesAccessor) => accessor.get()",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("(accessor: ServicesAccessor) => accessor.get()");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -348,10 +338,7 @@ fn test_parse_arrow_parameter_accessor_name() {
 /// Parse newline-separated parenthesized assertion starters as a continued call.
 #[test]
 fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() {
-    let mut test = TestParser::new_with_language(
-        "(foo.bar as Baz)\n(foo.bar as any)",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("(foo.bar as Baz)\n(foo.bar as any)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 

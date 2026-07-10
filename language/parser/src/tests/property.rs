@@ -6,69 +6,12 @@ use destack_dir::{
     NodeType, Parameter, Property, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
     TypeMember, Visibility,
 };
-use destack_source::LanguageType;
 
 use crate::parse::TypeMemberContainerKind;
 use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
 
 #[test]
-fn test_parse_member_with_private_hash_name() {
-    let mut test = TestParser::new_with_language(r#"#name: string"#, LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    let member = parser.eat_member().unwrap();
-    assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(ty), default: None, .. } => {
-        assert_string!(parser, *name, "name");
-        assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-            assert_eq!(*value, TypeLiteral::String);
-        });
-    });
-}
-
-#[test]
-fn test_report_destack_member_private_hash_name() {
-    let mut test = TestParser::new("#name: string");
-    let mut parser = test.prepare();
-
-    let error = parser.eat_member().unwrap_err();
-    assert_eq!(parser.get_span_str(error.span), "#");
-}
-
-#[test]
-fn test_parse_typescript_member_definite_field() {
-    let mut test = TestParser::new_with_language("prop!: Foo", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    let member = parser.eat_member().unwrap();
-    test.assert_no_errors(&parser);
-
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_definite, .. } => {
-        assert_string!(parser, *name, "prop");
-        assert!(*is_definite);
-        assert_expression_path!(parser, parser.tree.get(*value), "Foo");
-    });
-}
-
-#[test]
-fn test_parse_typescript_member_definite_accessor() {
-    let mut test = TestParser::new_with_language("accessor a!: any", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    let member = parser.eat_member().unwrap();
-    test.assert_no_errors(&parser);
-
-    assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, is_definite, .. } => {
-        assert_string!(parser, *name, "a");
-        assert!(*is_accessor);
-        assert!(*is_definite);
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-            assert_eq!(*value, TypeLiteral::Any);
-        });
-    });
-}
-
-#[test]
-fn test_parse_destack_member_definite_field() {
+fn test_parse_member_definite_field() {
     let mut test = TestParser::new("prop!: Foo");
     let mut parser = test.prepare();
 
@@ -83,7 +26,7 @@ fn test_parse_destack_member_definite_field() {
 }
 
 #[test]
-fn test_parse_destack_member_definite_accessor() {
+fn test_parse_member_definite_accessor() {
     let mut test = TestParser::new("accessor a!: any");
     let mut parser = test.prepare();
 
@@ -101,28 +44,8 @@ fn test_parse_destack_member_definite_accessor() {
 }
 
 #[test]
-fn test_parse_member_declare_accessor_private_hash() {
-    let mut test = TestParser::new_with_language(
-        "private declare accessor #value: string",
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-
-    let member = parser.eat_member().unwrap();
-    assert_node!(parser.tree, member, Member::Field { key: Key::Private(name), declared_type: Some(value), visibility, is_ambient, is_accessor, .. } => {
-        assert_string!(parser, *name, "value");
-        assert_eq!(*visibility, Some(Visibility::Private));
-        assert!(*is_ambient);
-        assert!(*is_accessor);
-        assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-            assert_eq!(*value, TypeLiteral::String);
-        });
-    });
-}
-
-#[test]
 fn test_report_member_optional_definite_assignment_combo() {
-    let mut test = TestParser::new_with_language("prop!?: Foo", LanguageType::TypeScript);
+    let mut test = TestParser::new("prop!?: Foo");
     let mut parser = test.prepare();
 
     let error = parser.eat_member().unwrap_err();
@@ -131,7 +54,7 @@ fn test_report_member_optional_definite_assignment_combo() {
 
 #[test]
 fn test_parse_member_override_field() {
-    let mut test = TestParser::new_with_language("override foo: int32", LanguageType::TypeScript);
+    let mut test = TestParser::new("override foo: int32");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -152,7 +75,7 @@ fn test_parse_member_override_field() {
 
 #[test]
 fn test_parse_member_default_object_arrow_with_this_member_call_argument() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r"
 port2 = {
   postMessage: () => {
@@ -160,7 +83,6 @@ port2 = {
   }
 }
 ",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     parser.flags = parser.flags.in_variant();
@@ -203,8 +125,7 @@ port2 = {
 
 #[test]
 fn test_parse_member_abstract_override_method() {
-    let mut test =
-        TestParser::new_with_language("abstract override foo(): void", LanguageType::TypeScript);
+    let mut test = TestParser::new("abstract override foo(): void");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -232,10 +153,7 @@ fn test_parse_member_virtual_method() {
 
 #[test]
 fn test_parse_member_async_override_method() {
-    let mut test = TestParser::new_with_language(
-        "public async override foo(): void",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("public async override foo(): void");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -249,9 +167,8 @@ fn test_parse_member_async_override_method() {
 
 #[test]
 fn test_parse_member_method_parameter_type_then_default_value() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {}",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -287,10 +204,7 @@ fn test_parse_member_method_parameter_type_then_default_value() {
 
 #[test]
 fn test_parse_member_method_generic_with_newline_before_parameters() {
-    let mut test = TestParser::new_with_language(
-        "private method<T>\n(value: T): T { return value }",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("private method<T>\n(value: T): T { return value }");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -320,10 +234,7 @@ fn test_parse_member_method_generic_with_newline_before_parameters() {
 
 #[test]
 fn test_parse_member_method_with_newline_before_return_type() {
-    let mut test = TestParser::new_with_language(
-        "method(value: string)\n: string { return value }",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("method(value: string)\n: string { return value }");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -351,10 +262,8 @@ fn test_parse_member_method_with_newline_before_return_type() {
 
 #[test]
 fn test_parse_member_method_object_union_return_type() {
-    let mut test = TestParser::new_with_language(
-        "overlaps(): { overlaps: false } | { overlaps: true; reason: string }",
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new("overlaps(): { overlaps: false } | { overlaps: true; reason: string }");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -376,10 +285,7 @@ fn test_parse_member_method_object_union_return_type() {
 
 #[test]
 fn test_parse_member_method_body_boundary_comment_on_return_type() {
-    let mut test = TestParser::new_with_language(
-        "method(): number // method-body\n{ return 1 }",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("method(): number // method-body\n{ return 1 }");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -404,10 +310,8 @@ fn test_parse_member_method_body_boundary_comment_on_return_type() {
 
 #[test]
 fn test_parse_member_async_string_literal_name() {
-    let mut test = TestParser::new_with_language(
-        r#"async 'delete'(name: string): Promise<boolean> { return true }"#,
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new(r#"async 'delete'(name: string): Promise<boolean> { return true }"#);
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -441,7 +345,7 @@ fn test_parse_member_async_string_literal_name() {
 
 #[test]
 fn test_parse_member_method_named_public() {
-    let mut test = TestParser::new_with_language("public() {}", LanguageType::JavaScript);
+    let mut test = TestParser::new("public() {}");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -453,7 +357,7 @@ fn test_parse_member_method_named_public() {
 
 #[test]
 fn test_parse_member_static_method_named_protected() {
-    let mut test = TestParser::new_with_language("static protected() {}", LanguageType::JavaScript);
+    let mut test = TestParser::new("static protected() {}");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -465,7 +369,7 @@ fn test_parse_member_static_method_named_protected() {
 
 #[test]
 fn test_parse_member_field_named_static() {
-    let mut test = TestParser::new_with_language("static", LanguageType::JavaScript);
+    let mut test = TestParser::new("static");
     let mut parser = test.prepare();
 
     let member = parser.eat_member().unwrap();
@@ -539,7 +443,7 @@ fn test_recover_members_embedded_type() {
 
 #[test]
 fn test_report_member_method_signature_without_separator() {
-    let mut test = TestParser::new_with_language("method() method2()", LanguageType::TypeScript);
+    let mut test = TestParser::new("method() method2()");
     let mut parser = test.prepare();
     let error = parser.eat_member().unwrap_err();
 
@@ -548,14 +452,13 @@ fn test_report_member_method_signature_without_separator() {
 
 #[test]
 fn test_parse_interface_get_set_with_newlines() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"interface Foo {
   get
   foo(): string;
   set
   bar(v);
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -584,10 +487,9 @@ fn test_parse_interface_get_set_with_newlines() {
 
 #[test]
 fn test_parse_member_get_set_newline_only() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"get
 foo(): string;"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let member = parser.with_flags(parser.flags.in_variant(), |parser| parser.eat_member());
@@ -653,8 +555,7 @@ fn test_parse_property_missing_value_expression() {
 
 #[test]
 fn test_parse_property_with_typed_arrow_value() {
-    let mut test =
-        TestParser::new_with_language("reproFunc: (_: any): any => { }", LanguageType::TypeScript);
+    let mut test = TestParser::new("reproFunc: (_: any): any => { }");
     let mut parser = test.prepare();
     let property = parser.eat_property().unwrap();
     assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
@@ -669,8 +570,8 @@ fn test_parse_property_with_typed_arrow_value() {
 }
 
 #[test]
-fn test_parse_typescript_member_type_keyword_as_field_key() {
-    let mut test = TestParser::new_with_language("type: string", LanguageType::TypeScript);
+fn test_parse_member_type_keyword_as_field_key() {
+    let mut test = TestParser::new("type: string");
     let mut parser = test.prepare();
     let member_id = parser.eat_member().unwrap();
 
@@ -683,11 +584,10 @@ fn test_parse_typescript_member_type_keyword_as_field_key() {
 }
 
 #[test]
-fn test_parse_typescript_type_member_keyword_keys_as_fields() {
-    let mut test = TestParser::new_with_language(
+fn test_parse_type_member_keyword_keys_as_fields() {
+    let mut test = TestParser::new(
         r#"type: string;
 comptime: number"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let members = parser
@@ -787,7 +687,7 @@ fn test_parse_property_with_value_and_default_value() {
 
 #[test]
 fn test_parse_property_diagnoses_definite_assignment() {
-    let mut test = TestParser::new_with_language("prop!: LongType[]", LanguageType::TypeScript);
+    let mut test = TestParser::new("prop!: LongType[]");
     let mut parser = test.prepare();
 
     let error = parser.eat_property().unwrap_err();
@@ -873,7 +773,7 @@ fn test_parse_properties_recover_unkeyed_default_field() {
 
 #[test]
 fn test_report_property_optional_definite_assignment_combo() {
-    let mut test = TestParser::new_with_language("prop!?: LongType[]", LanguageType::TypeScript);
+    let mut test = TestParser::new("prop!?: LongType[]");
     let mut parser = test.prepare();
     let error = parser.eat_property().unwrap_err();
 
@@ -947,10 +847,8 @@ fn test_parse_object_property_constructor_method_as_key() {
 
 #[test]
 fn test_parse_member_computed_optional_method() {
-    let mut test = TestParser::new_with_language(
-        "[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test =
+        TestParser::declaration("[EventEmitter.captureRejectionSymbol]?<K>(error: Error): void");
     let mut parser = test.prepare();
     parser.flags = parser.flags.in_variant();
 
@@ -967,12 +865,11 @@ fn test_parse_member_computed_optional_method() {
 
 #[test]
 fn test_parse_decorated_computed_class_field() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"class Test {
 @test
-['a']: string;
+["a"]: string;
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -1180,7 +1077,7 @@ fn test_parse_member_type_with_abstraction_modifiers() {
 
 #[test]
 fn test_parse_member_type_with_generic_parameters() {
-    let mut test = TestParser::new("type View<U> = [Item, U]");
+    let mut test = TestParser::new("type View<U> = (Item, U)");
     let mut parser = test.prepare();
     let member_id = parser.eat_member().unwrap();
     assert_node!(parser.tree, member_id, Member::AssociatedType { name, generic_parameters, where_clauses, constraint: None, value: Some(_), .. } => {
@@ -1331,12 +1228,11 @@ fn test_parse_member_comptime_block_after_line_break() {
 
 #[test]
 fn test_parse_member_method_with_multiline_return_type() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"Type(object: unknown):
-    | 'Undefined'
-    | 'Boolean'
-    | 'String'"#,
-        LanguageType::TypeScriptDeclaration,
+    | "Undefined"
+    | "Boolean"
+    | "String""#,
     );
     let mut parser = test.prepare();
     parser.flags = parser.flags.in_variant();
@@ -1352,12 +1248,11 @@ fn test_parse_member_method_with_multiline_return_type() {
 
 #[test]
 fn test_parse_class_member_trailing_comments_stay_on_member_owner() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"class Box {
   first = 1 // first-tail
   second = 2 // second-tail
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();

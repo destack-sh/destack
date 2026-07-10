@@ -1,5 +1,4 @@
 use destack_dir::{Declaration, Expression, GlobalDeclaration};
-use destack_source::LanguageType;
 
 use crate::{TestParser, assert_node};
 
@@ -27,13 +26,12 @@ declare global {
 
 #[test]
 fn test_parse_global_block_without_declare() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r###"
 global {
     interface Foo { }
 }
 "###,
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
 

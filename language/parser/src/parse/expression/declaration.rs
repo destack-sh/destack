@@ -43,9 +43,13 @@ impl Parser {
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
         let is_declaration_prefix = matches!(
             keyword,
-            Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Final
-        ) || self.language.is_destack()
-            && matches!(keyword, Keyword::Local | Keyword::Shared);
+            Keyword::Export
+                | Keyword::Declare
+                | Keyword::Abstract
+                | Keyword::Final
+                | Keyword::Local
+                | Keyword::Shared
+        );
         if !is_declaration_prefix {
             return Ok(None);
         }
@@ -169,8 +173,7 @@ impl Parser {
             self.eat_using(start, header, Asynchrony::Sync).map(Some)
         }
         // async and comptime function declarations
-        else if (keyword == Keyword::Async
-            || keyword == Keyword::Comptime && self.language.is_destack())
+        else if (keyword == Keyword::Async || keyword == Keyword::Comptime)
             && self.next_keyword() == Some(Keyword::Function)
             && !self.next_token().is_on_new_line()
         {
@@ -260,7 +263,7 @@ impl Parser {
         }
 
         // keyword declaration
-        let expression = self.eat_keyword_expression_with_header(start, keyword, header)?;
+        let expression = self.eat_keyword_expression(start, keyword, header)?;
         if let Some(expression_id) = expression {
             self.attach_pending_decorators_to_expression(&mut decorators, expression_id);
 
@@ -390,7 +393,6 @@ impl Parser {
             if declaration
                 .keyword()
                 .is_some_and(Self::is_place_modifier_keyword)
-                && self.language.is_destack()
             {
                 return self
                     .token_at_offset(3)
@@ -407,7 +409,7 @@ impl Parser {
             return self.token_at_offset(2).keyword() == Some(Keyword::Function);
         }
 
-        if next_keyword.is_some_and(Self::is_place_modifier_keyword) && self.language.is_destack() {
+        if next_keyword.is_some_and(Self::is_place_modifier_keyword) {
             return self
                 .token_at_offset(2)
                 .keyword()
@@ -462,11 +464,9 @@ impl Parser {
         let starts_async_function = (keyword == Some(Keyword::Async)
             || self.current_identifier_str_is("async"))
             && self.next_keyword() == Some(Keyword::Function);
-        let starts_comptime_function = self.language.is_destack()
-            && keyword == Some(Keyword::Comptime)
-            && self.next_keyword() == Some(Keyword::Function);
-        let starts_placed_declaration = self.language.is_destack()
-            && keyword.is_some_and(Self::is_place_modifier_keyword)
+        let starts_comptime_function =
+            keyword == Some(Keyword::Comptime) && self.next_keyword() == Some(Keyword::Function);
+        let starts_placed_declaration = keyword.is_some_and(Self::is_place_modifier_keyword)
             && self
                 .token_at_offset(1)
                 .keyword()
@@ -527,13 +527,13 @@ impl Parser {
 
                 Ok(true)
             }
-            Keyword::Final if self.language.is_destack() => {
+            Keyword::Final => {
                 self.bump();
                 header.is_final = true;
 
                 Ok(true)
             }
-            Keyword::Local if self.language.is_destack() => {
+            Keyword::Local => {
                 if header.place.is_some() {
                     return Err(ParserError::unexpected(self.peek()));
                 }
@@ -543,7 +543,7 @@ impl Parser {
 
                 Ok(true)
             }
-            Keyword::Shared if self.language.is_destack() => {
+            Keyword::Shared => {
                 if header.place.is_some() {
                     return Err(ParserError::unexpected(self.peek()));
                 }

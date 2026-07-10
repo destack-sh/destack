@@ -31,10 +31,6 @@ impl Parser {
         // inner expression
         let inner = self.eat_expression(self.flags.nested().not_in_position())?;
         if self.peek_is(TokenType::Comma) {
-            if self.language_uses_sequence_parentheses() {
-                return self.eat_sequence_parenthesized_value(start, inner);
-            }
-
             return self.eat_tuple_parenthesized_value(start, inner);
         }
 
@@ -65,88 +61,6 @@ impl Parser {
             },
             self.get_span_from(start),
         )
-    }
-
-    /// Return whether the language uses comma sequences in parentheses.
-    fn language_uses_sequence_parentheses(&self) -> bool {
-        self.language.is_javascript() || self.language.is_typescript()
-    }
-
-    /// Parse a parenthesized sequence expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// (first, second)
-    /// (first, second, third)
-    /// (first, call(second))
-    /// ```
-    fn eat_sequence_parenthesized_value(
-        &mut self,
-        start: &ParserSpanStart,
-        first: LocalNodeId<Expression>,
-    ) -> ParserResult<(LocalNodeId<Expression>, bool)> {
-        let expressions = self.eat_parenthesized_sequence_values(first)?;
-        self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
-
-        let sequence = self.insert_node(
-            Expression::SequenceExpression { expressions },
-            self.get_span_from(start),
-        );
-
-        let expression = self.wrap_sequence_parenthesized_value(start, sequence);
-
-        Ok((expression, true))
-    }
-
-    /// Parse sequence values after the first expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// , second
-    /// , second, third
-    /// , call(second)
-    /// ```
-    fn eat_parenthesized_sequence_values(
-        &mut self,
-        first: LocalNodeId<Expression>,
-    ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
-        let mut expressions = vec![first];
-        while self.peek_is(TokenType::Comma) {
-            self.bump();
-            let value = self.eat_expression(
-                self.flags
-                    .nested()
-                    .not_in_position()
-                    .not_in_sequence_expression(),
-            )?;
-            expressions.push(value);
-        }
-
-        Ok(expressions)
-    }
-
-    /// Wrap a sequence expression with explicit parenthesis ownership.
-    fn wrap_sequence_parenthesized_value(
-        &mut self,
-        start: &ParserSpanStart,
-        sequence: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        if !self.preserves_parenthesized_wrappers() {
-            self.set_node_wrapper_span(sequence, self.get_span_from(start));
-
-            return sequence;
-        }
-
-        let expression = self.insert_node(
-            Expression::Parenthesized {
-                expression: sequence,
-            },
-            self.get_span_from(start),
-        );
-        self.tree
-            .set_head_span(expression, self.expression_head_span(sequence));
-
-        expression
     }
 
     /// Parse a parenthesized tuple expression.
@@ -262,12 +176,8 @@ impl Parser {
             left = self.eat_parenthesized_chain_continuation(start, left)?;
 
             if self.peek_is(TokenType::Comma) {
-                let (sequence, _) = if self.language_uses_sequence_parentheses() {
-                    self.eat_sequence_parenthesized_value(&wrapper_start, left)?
-                } else {
-                    self.eat_tuple_parenthesized_value(&wrapper_start, left)?
-                };
-                left = sequence;
+                let (tuple, _) = self.eat_tuple_parenthesized_value(&wrapper_start, left)?;
+                left = tuple;
             } else {
                 self.eat_close_token_or_recover_missing(
                     TokenType::CloseParenthesis,
@@ -304,11 +214,7 @@ impl Parser {
         // sequence or tuple innermost group
         let inner = self.eat_expression(self.flags.nested().not_in_position())?;
         if self.peek_is(TokenType::Comma) {
-            let (inner, _) = if self.language_uses_sequence_parentheses() {
-                self.eat_sequence_parenthesized_value(&wrapper_start, inner)?
-            } else {
-                self.eat_tuple_parenthesized_value(&wrapper_start, inner)?
-            };
+            let (inner, _) = self.eat_tuple_parenthesized_value(&wrapper_start, inner)?;
 
             return Ok(inner);
         }
@@ -332,11 +238,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let flags = self
-            .flags
-            .nested()
-            .not_in_position()
-            .not_in_sequence_expression();
+        let flags = self.flags.nested().not_in_position();
         let scope = ExpressionScope::from_flags(flags);
 
         let (left, _) = self.eat_postfix(start, left, true, scope)?;

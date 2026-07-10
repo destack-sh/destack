@@ -17,13 +17,18 @@ pub(crate) struct TestParser {
 }
 
 impl TestParser {
-    /// Create a new TestParser with the default language.
+    /// Create a parser test for `.ds` source.
     pub(crate) fn new(input: &str) -> Self {
-        Self::new_with_language(input, LanguageType::default())
+        Self::with_language(input, LanguageType::Destack)
     }
 
-    /// Create a new TestParser with a custom language.
-    pub(crate) fn new_with_language(input: &str, language: LanguageType) -> Self {
+    /// Create a parser test for `.d.ds` source.
+    pub(crate) fn declaration(input: &str) -> Self {
+        Self::with_language(input, LanguageType::DestackDeclaration)
+    }
+
+    /// Create a parser test for one source form.
+    fn with_language(input: &str, language: LanguageType) -> Self {
         let file_id = FileId::new(0);
         let file = File::from_text(
             file_id,

@@ -36,9 +36,6 @@ impl Parser {
             TokenType::ElementwiseOr => {
                 self.eat_type_leading_binary_list(start, BinaryOperator::ElementwiseOr)
             }
-            TokenType::ElementwiseAnd if !self.language.is_destack() => {
-                self.eat_type_leading_binary_list(start, BinaryOperator::ElementwiseAnd)
-            }
             TokenType::TemplateString | TokenType::TemplateStringStart
                 if self.is_template_literal_start() =>
             {
@@ -53,12 +50,8 @@ impl Parser {
                     self.get_span_from(start),
                 ))
             }
-            TokenType::Range | TokenType::RangeInclusive if self.language.is_destack() => {
-                self.eat_type_startless_range(start)
-            }
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
-                if self.language.is_destack() =>
-            {
+            TokenType::Range | TokenType::RangeInclusive => self.eat_type_startless_range(start),
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd => {
                 self.eat_type_reference_operator(start)
             }
             TokenType::Multiply => self.eat_type_pointer_prefix(start),

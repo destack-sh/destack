@@ -4,7 +4,6 @@ use destack_dir::{
     CommentKind, Declaration, Declarator, Expression, GenericArgument, InferForm, IntegerType,
     ScalarLiteral, TupleElement, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 /// Parse conditional types with infer constraints.
 #[test]
@@ -58,10 +57,7 @@ fn test_parse_type_conditional_tuple_then_branch() {
 /// Parse conditional types where infer-extends is a constraint inside parentheses.
 #[test]
 fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
-    let mut test = TestParser::new_with_language(
-        "type X = T extends (infer U extends number) ? 1 : 0",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("type X = T extends (infer U extends number) ? 1 : 0");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -92,10 +88,7 @@ fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
 /// Parse conditional types where infer-extends starts a nested conditional.
 #[test]
 fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
-    let mut test = TestParser::new_with_language(
-        "type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -135,10 +128,8 @@ fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
 /// Parse parenthesized nested conditional types in conditional branches.
 #[test]
 fn test_parse_type_conditional_with_parenthesized_nested_branch() {
-    let mut test = TestParser::new_with_language(
-        "type Nested<T> = T extends string ? (T extends \"a\" ? 1 : 2) : 3",
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new("type Nested<T> = T extends string ? (T extends \"a\" ? 1 : 2) : 3");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -549,15 +540,15 @@ fn test_parse_type_intersection_with_inline_object() {
 }
 
 #[test]
-fn test_parse_array_tuple_type() {
-    let mut test = TestParser::new("type T = [string, number]");
+fn test_parse_tuple_type() {
+    let mut test = TestParser::new("type T = (string, number)");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    // type T = [string, number]
+    // type T = (string, number)
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+            assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                 assert_eq!(elements.len(), 2);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
                     assert!(label.is_none());
@@ -654,24 +645,6 @@ fn test_parse_type_infer_anonymous_constraint() {
 }
 
 #[test]
-fn test_parse_typescript_infer_underscore_binding() {
-    let mut test = TestParser::new_with_language("type T = infer _", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    // type T = infer _
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Infer { form, name, constraint } => {
-                assert_eq!(*form, InferForm::Infer);
-                assert_string!(parser, name.expect("expected infer name"), "_");
-                assert!(constraint.is_none());
-            });
-        });
-    });
-}
-
-#[test]
 fn test_parse_type_infer_hole() {
     let mut test = TestParser::new("type T = _");
     let mut parser = test.prepare();
@@ -734,9 +707,8 @@ fn test_parse_type_infer_hole_as_declarator_type() {
 /// Parse constrained infer operands in unions and intersections without absorbing the operator into the constraint.
 #[test]
 fn test_parse_type_conditional_with_parenthesized_constrained_infer_binary_operand() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type X<T> = T extends (infer U extends number) | { a: infer U extends number } ? U : never"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -765,9 +737,8 @@ fn test_parse_type_conditional_with_parenthesized_constrained_infer_binary_opera
 /// Parse constrained infer operands in intersections without absorbing the operator into the constraint.
 #[test]
 fn test_parse_type_conditional_with_parenthesized_constrained_infer_intersection_operand() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type Y<T> = T extends (infer U extends number) & { a: infer U extends number } ? U : never"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();

@@ -5,7 +5,7 @@ use destack_dir::{
     ExportKind, Expression, GenericArgument, Pattern, ScalarLiteral, TypeDeclaration,
     TypeExpression, TypeLiteral,
 };
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
+use destack_source::{NodeSpanBoundary, NodeSpanType};
 
 /// Parse labeled statements when the target statement starts on a new line.
 #[test]
@@ -23,9 +23,8 @@ fn test_parse_labeled_statement_with_newline_before_target() {
 /// Parse newline guarded parenthesized statements after continue as separate statements.
 #[test]
 fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_separate() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "for (;;) {\n  if (condition) continue\n\n  // breaking comment\n  (possibleArray || []).sort()\n}",
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -34,10 +33,9 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
     assert_node!(parser.tree, expressions[0], Expression::For { body, .. } => {
         assert_node!(parser.tree, *body, Block { leading_expressions, tail_expression, .. } => {
             assert!(tail_expression.is_none());
-            let expressions = leading_expressions;
-            assert_eq!(expressions.len(), 2);
+            assert_eq!(leading_expressions.len(), 2);
 
-            assert_node!(parser.tree, expressions[0], Expression::If { then_expression, .. } => {
+            assert_node!(parser.tree, leading_expressions[0], Expression::If { then_expression, .. } => {
                 assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
                     assert_node!(parser.tree, *block_id, Block { leading_expressions, tail_expression, .. } => {
                         assert!(tail_expression.is_none());
@@ -46,32 +44,11 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
                     });
                 });
             });
+
+            assert_node!(parser.tree, leading_expressions[1], Expression::Call { .. });
         });
     });
 }
-
-/// Report labeled lexical declarations.
-#[test]
-fn test_report_labeled_lexical_declaration() {
-    // source: a: let a
-    let mut test = TestParser::new_with_language("a: let a", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let _ = parser.parse();
-    let diagnostic = parser
-        .diagnostics()
-        .to_vec()
-        .into_iter()
-        .find(|diagnostic| diagnostic.code.starts_with("EP"))
-        .expect("expected parse diagnostic");
-
-    // let a
-    assert_eq!(
-        parser.get_span_str(diagnostic.primary_label().span),
-        "let a"
-    );
-}
-
-/// Parse a leading elementwise operator in a type expression.
 #[test]
 fn test_parse_elementwise_leading_type_expression() {
     let mut test = TestParser::new(
@@ -262,7 +239,7 @@ fn test_parse_statement_expression() {
 
 #[test]
 fn test_parse_new_type_arguments_with_spaces_in_statement() {
-    let mut test = TestParser::new_with_language("new A < T >;", LanguageType::TypeScript);
+    let mut test = TestParser::new("new A < T >;");
     let mut parser = test.prepare();
     let expression_id = parser.eat_statement_expression_or_recover();
 
@@ -282,9 +259,7 @@ fn test_parse_new_type_arguments_with_spaces_in_statement() {
 /// Parse multiline logical chains with comment-only lines between operators.
 #[test]
 fn test_parse_multiline_logical_chain_after_comment_lines() {
-    let language = LanguageType::TypeScript;
-    let mut test =
-        TestParser::new_with_language("a == 1\n// keep chaining\n&& b == 0\n&& c == 1", language);
+    let mut test = TestParser::new("a == 1\n// keep chaining\n&& b == 0\n&& c == 1");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -308,8 +283,7 @@ fn test_parse_multiline_logical_chain_after_comment_lines() {
 
 #[test]
 fn test_parse_export_const_type_identifier_with_struct_value() {
-    let language = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_language("export const type = struct", language);
+    let mut test = TestParser::new("export const type = struct");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -354,7 +328,7 @@ fn test_parse_const_enum() {
 #[test]
 fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
     let source = "for (a of b) foo\n\n// 11\n;[]\n\nfor (a of b) foo\n\n// 21\n;foo\n\n// prettier-ignore\nfor (   a of   b)   foo (   )\n\n;[]\n\nfor (a of b) foo; /* comment */\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n\n;[]\n";
-    let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let _ = parser.parse();
     parser.attach_comments();

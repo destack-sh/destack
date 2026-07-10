@@ -36,9 +36,7 @@ impl Parser {
         )?;
 
         // tuple tail
-        if self.peek_is(TokenType::Comma)
-            || self.current_type_tuple_element_is_optional(TokenType::CloseParenthesis)
-        {
+        if self.peek_is(TokenType::Comma) || self.current_type_tuple_element_is_optional() {
             return self.eat_parenthesized_tuple_tail_type(start, inner);
         }
 
@@ -85,7 +83,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.eat_type_tuple_elements_body(TokenType::CloseParenthesis)?;
+        let elements = self.eat_type_tuple_elements_body()?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
@@ -110,7 +108,7 @@ impl Parser {
         start: &ParserSpanStart,
         first: LocalNodeId<TypeExpression>,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.eat_type_tuple_tail(start, TokenType::CloseParenthesis, first)?;
+        let elements = self.eat_type_tuple_tail(start, first)?;
         self.eat_close_token_or_recover_missing(
             TokenType::CloseParenthesis,
             NodeType::TypeExpression,
@@ -252,11 +250,11 @@ impl Parser {
 
     /// Skip the first token shape of a signature parameter.
     fn skip_type_function_parameter_start(&mut self) -> bool {
-        if self.language.is_destack() && self.skip_type_function_receiver_start() {
+        if self.skip_type_function_receiver_start() {
             return true;
         }
 
-        if self.language.is_destack() && self.is_keyword(Keyword::Comptime) {
+        if self.is_keyword(Keyword::Comptime) {
             self.bump();
             return self.skip_type_function_parameter_start();
         }
@@ -322,9 +320,9 @@ impl Parser {
     ///
     /// Examples:
     /// ```ds
-    /// [string, number]
+    /// [string]
     /// [string; 4]
-    /// [readonly name: string, ...rest: number[]]
+    /// [readonly string]
     /// ```
     pub(super) fn eat_bracket_type(
         &mut self,
@@ -332,17 +330,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
 
-        // empty tuple
-        if self.peek_is(TokenType::CloseBracket) {
-            return Ok(self.eat_empty_array_tuple_type(start));
-        }
-
-        // tuple with explicit tuple element syntax
-        if self.starts_type_tuple_head() {
-            return self.eat_array_tuple_type(start);
-        }
-
-        // head element
+        // element type
         let element = self.eat_type_expression_or_recover_missing(
             self.flags.nested().in_type(),
             NodeType::TypeExpression,
@@ -353,70 +341,10 @@ impl Parser {
             return self.eat_fixed_array_type(start, element);
         }
 
-        // direct close: Destack uses slice syntax, TS keeps tuple syntax
-        if self.peek_is(TokenType::CloseBracket) {
-            self.bump();
-
-            return self.eat_closed_single_bracket_type(start, element);
-        }
-
-        // missing close without tuple tail: recover to the boundary
-        if !(self.peek_is(TokenType::Comma)
-            || self.current_type_tuple_element_is_optional(TokenType::CloseBracket))
-        {
-            self.eat_close_token_or_recover_missing(
-                TokenType::CloseBracket,
-                NodeType::TypeExpression,
-            )?;
-
-            return self.eat_closed_single_bracket_type(start, element);
-        }
-
-        // tuple tail
-        self.eat_array_tuple_tail_type(start, element)
-    }
-
-    /// Eat an empty array tuple type.
-    ///
-    /// Examples:
-    /// ```ds
-    /// []
-    /// Array<[]>
-    /// readonly []
-    /// ```
-    fn eat_empty_array_tuple_type(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> LocalNodeId<TypeExpression> {
-        self.bump();
-
-        self.insert_node(
-            TypeExpression::ArrayTuple {
-                elements: Vec::new(),
-            },
-            self.get_span_from(start),
-        )
-    }
-
-    /// Eat an array tuple type with an explicit tuple head.
-    ///
-    /// Examples:
-    /// ```ds
-    /// [name: string]
-    /// [readonly name: string, age?: number]
-    /// [...rest: string[]]
-    /// ```
-    fn eat_array_tuple_type(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.eat_type_tuple_elements_body(TokenType::CloseBracket)?;
+        // slice close
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
-        Ok(self.insert_node(
-            TypeExpression::ArrayTuple { elements },
-            self.get_span_from(start),
-        ))
+        Ok(self.insert_node(TypeExpression::Slice { element }, self.get_span_from(start)))
     }
 
     /// Eat a fixed array type.
@@ -433,7 +361,7 @@ impl Parser {
         element: LocalNodeId<TypeExpression>,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.bump();
-        let length = if self.language.is_destack() && self.current_identifier_str_is("_") {
+        let length = if self.current_identifier_str_is("_") {
             let length_start = self.span_start();
             let ty = self.eat_type_infer_hole(&length_start);
 
@@ -451,55 +379,6 @@ impl Parser {
 
         Ok(self.insert_node(
             TypeExpression::FixedArray { element, length },
-            self.get_span_from(start),
-        ))
-    }
-
-    /// Eat a slice or single element array tuple after `]`.
-    ///
-    /// Examples:
-    /// ```ds
-    /// [T]
-    /// [readonly T]
-    /// [namespace.Value]
-    /// ```
-    fn eat_closed_single_bracket_type(
-        &mut self,
-        start: &ParserSpanStart,
-        element: LocalNodeId<TypeExpression>,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        if self.language.is_destack() {
-            return Ok(
-                self.insert_node(TypeExpression::Slice { element }, self.get_span_from(start))
-            );
-        }
-
-        let elements = self.eat_type_tuple_tail(start, TokenType::CloseBracket, element)?;
-
-        Ok(self.insert_node(
-            TypeExpression::ArrayTuple { elements },
-            self.get_span_from(start),
-        ))
-    }
-
-    /// Eat an array tuple type after the first element.
-    ///
-    /// Examples:
-    /// ```ds
-    /// [string,]
-    /// [string, number]
-    /// [string, ...boolean[]]
-    /// ```
-    fn eat_array_tuple_tail_type(
-        &mut self,
-        start: &ParserSpanStart,
-        first: LocalNodeId<TypeExpression>,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let elements = self.eat_type_tuple_tail(start, TokenType::CloseBracket, first)?;
-        self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
-
-        Ok(self.insert_node(
-            TypeExpression::ArrayTuple { elements },
             self.get_span_from(start),
         ))
     }

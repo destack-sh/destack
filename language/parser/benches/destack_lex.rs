@@ -1,5 +1,5 @@
 use destack_parser::Lexer;
-use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
+use destack_source::{File, FileId, FileType, Uri, glob};
 
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
@@ -15,8 +15,6 @@ use std::{env, fs};
 struct SourceFile {
     /// The source file used by the lexer.
     file: Arc<File>,
-    /// The file type.
-    file_type: FileType,
 }
 
 /// Pprof profiler for Criterion benches.
@@ -117,7 +115,6 @@ fn bench_lex(criterion: &mut Criterion) {
         );
         sources.push(SourceFile {
             file: Arc::new(file),
-            file_type,
         });
     }
 
@@ -131,9 +128,7 @@ fn bench_lex(criterion: &mut Criterion) {
             bencher.iter(|| {
                 // lex each file
                 for source in source_files {
-                    let language_type = LanguageType::try_from(source.file_type)
-                        .expect("file type has no parser language");
-                    let (tokens, side_tokens, _) = Lexer::lex(source.file.clone(), language_type);
+                    let (tokens, side_tokens, _) = Lexer::lex(source.file.clone());
                     black_box((tokens, side_tokens));
                 }
             });

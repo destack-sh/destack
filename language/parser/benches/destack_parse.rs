@@ -81,21 +81,12 @@ impl ParserBenchStageStats {
 
 /// Return whether a file type is supported by the parser bench.
 fn is_parser_source_file_type(file_type: FileType) -> bool {
-    matches!(
-        file_type,
-        FileType::Destack
-            | FileType::DestackDeclaration
-            | FileType::JavaScript
-            | FileType::JavaScriptXml
-            | FileType::TypeScript
-            | FileType::TypeScriptXml
-            | FileType::TypeScriptDeclaration
-    )
+    matches!(file_type, FileType::Destack | FileType::DestackDeclaration)
 }
 
 /// Return source extensions covered by corpus collection.
 fn parser_source_extensions() -> &'static [&'static str] {
-    &["ds", "d.ds", "ts", "tsx", "d.ts"]
+    &["ds", "d.ds"]
 }
 
 /// Return the parser bench worker count.
@@ -542,31 +533,31 @@ fn collect_default_corpora(workspace_root: &Path) -> Vec<ParserBenchCorpus> {
         ));
     }
 
-    if should_run_corpus("generated_app_tsx", filter) {
+    if should_run_corpus("generated_app_tree", filter) {
         corpora.push(generated_corpus(
-            "generated_app_tsx",
-            FileType::TypeScriptXml,
-            "tsx",
+            "generated_app_tree",
+            FileType::Destack,
+            "ds",
             GENERATED_APP_FILE_COUNT,
             |index| generate_app_source(index, GENERATED_APP_ITEM_COUNT, true),
         ));
     }
 
-    if should_run_corpus("generated_types_dts", filter) {
+    if should_run_corpus("generated_types_declaration", filter) {
         corpora.push(generated_corpus(
-            "generated_types_dts",
-            FileType::TypeScriptDeclaration,
-            "d.ts",
+            "generated_types_declaration",
+            FileType::DestackDeclaration,
+            "d.ds",
             GENERATED_TYPE_FILE_COUNT,
             |index| generate_type_source(index, GENERATED_TYPE_ITEM_COUNT),
         ));
     }
 
-    if should_run_corpus("generated_recovery_ts", filter) {
+    if should_run_corpus("generated_recovery", filter) {
         corpora.push(generated_corpus(
-            "generated_recovery_ts",
-            FileType::TypeScript,
-            "ts",
+            "generated_recovery",
+            FileType::Destack,
+            "ds",
             GENERATED_RECOVERY_FILE_COUNT,
             |index| generate_recovery_source(index, GENERATED_RECOVERY_ITEM_COUNT),
         ));
@@ -763,53 +754,6 @@ fn bench_parse_single(criterion: &mut Criterion) {
     // oxc style: parallel parse throughput
     group.bench_with_input(
         BenchmarkId::new(format!("parse_{trivia_mode_name}"), "parallel"),
-        &file,
-        |bencher, file| {
-            bencher.iter(|| {
-                (0..worker_count).into_par_iter().for_each(|_| {
-                    let parser = parse_file(file.clone(), trivia_mode);
-                    black_box(parser);
-                });
-            });
-        },
-    );
-
-    // keep compatibility alias for existing profile commands
-    group.bench_with_input(
-        BenchmarkId::new("parse", "single"),
-        &file,
-        |bencher, file| {
-            bencher.iter(|| {
-                let parser = parse_file(file.clone(), trivia_mode);
-                black_box(parser);
-            });
-        },
-    );
-
-    // parse main alias: kept for historical benchmark compatibility
-    group.bench_with_input(
-        BenchmarkId::new("main", "single-thread"),
-        &file,
-        |bencher, file| {
-            bencher.iter(|| {
-                let parser = parse_file(file.clone(), trivia_mode);
-                black_box(parser);
-            });
-        },
-    );
-
-    // parse main alias: no drop
-    group.bench_with_input(
-        BenchmarkId::new("main", "no-drop"),
-        &file,
-        |bencher, file| {
-            bencher.iter_with_large_drop(|| parse_file(file.clone(), trivia_mode));
-        },
-    );
-
-    // parse main alias: parallel throughput
-    group.bench_with_input(
-        BenchmarkId::new("main", "parallel"),
         &file,
         |bencher, file| {
             bencher.iter(|| {

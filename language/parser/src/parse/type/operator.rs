@@ -74,8 +74,8 @@ impl Parser {
             TokenType::Identifier => match self.current_keyword()? {
                 Keyword::Keyof => Some(TypeUnaryOperator::Keyof),
                 Keyword::Readonly => Some(TypeUnaryOperator::Readonly),
-                Keyword::Local if self.language.is_destack() => Some(TypeUnaryOperator::Local),
-                Keyword::Shared if self.language.is_destack() => Some(TypeUnaryOperator::Shared),
+                Keyword::Local => Some(TypeUnaryOperator::Local),
+                Keyword::Shared => Some(TypeUnaryOperator::Shared),
                 _ => None,
             },
             _ => None,

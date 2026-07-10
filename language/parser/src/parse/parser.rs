@@ -163,8 +163,6 @@ pub struct Parser {
     comments: Vec<Comment>,
     /// The parser trivia retention mode.
     trivia_mode: ParserTriviaMode,
-    /// Whether tree literal token interpretation is enabled.
-    allow_tree_literals: bool,
     /// The lexing mode for the next token read.
     contextual_lex_mode: ContextualLexMode,
 
@@ -190,8 +188,8 @@ pub struct Parser {
     /// The shared string pool.
     pub strings: Arc<StringPool>,
 
-    /// The language type for parsing behavior.
-    pub language: LanguageType,
+    /// Whether the source is an ambient declaration file.
+    pub(crate) is_ambient: bool,
     /// The errors encountered so far (for deduplication).
     pub errors: Vec<ParserError>,
     /// The parser errors already reported for deduplication.
@@ -308,14 +306,13 @@ impl Parser {
         let estimated_strings = estimated_tokens / ESTIMATED_STRING_TOKEN_DIVISOR;
 
         // create the live lexer cursor
-        let mut lexer = Lexer::new(file.clone(), language);
+        let mut lexer = Lexer::new(file.clone());
         lexer.set_trivia_mode(options.trivia_mode);
 
         // initialize source-local parser state
         let file_id = file.id;
         strings.reserve(estimated_strings);
-        let mut flags = ParserFlags::default();
-        flags.set_disallow_ambiguous_tree_literal(options.disallow_ambiguous_tree_literal);
+        let flags = ParserFlags::default();
         let mut parser = Self {
             file,
             file_id,
@@ -330,7 +327,6 @@ impl Parser {
             side_tokens: Vec::with_capacity(estimated_side_tokens),
             comments: Vec::with_capacity(estimated_comments),
             trivia_mode: options.trivia_mode,
-            allow_tree_literals: language.supports_jsx(),
             contextual_lex_mode: ContextualLexMode::Normal,
             current_token: Token::eof(0),
             previous_token_end: 0,
@@ -340,7 +336,7 @@ impl Parser {
             flags,
             preserve_parenthesized_wrappers: options.preserve_parenthesized_wrappers,
             recursive_descent_depth: 0,
-            language,
+            is_ambient: language.is_declaration(),
             tree,
             strings,
             errors: Vec::with_capacity(4),
@@ -486,7 +482,7 @@ impl Parser {
     /// Lex this file into semantic token spans for parser tests.
     #[cfg(test)]
     fn lexed_token_spans(&self) -> Vec<TokenSpan> {
-        let result = Lexer::lex_with_options(self.file.clone(), self.language, self.trivia_mode);
+        let result = Lexer::lex_with_options(self.file.clone(), self.trivia_mode);
         let mut tokens = result.tokens;
         tokens.push(result.eof_token);
 
@@ -495,7 +491,7 @@ impl Parser {
 
     /// Lex this file into compact tokens for non-hot token inspection.
     fn lexed_tokens(&self) -> (Vec<Token>, Vec<Token>) {
-        let mut lexer = Lexer::new(self.file.clone(), self.language);
+        let mut lexer = Lexer::new(self.file.clone());
         lexer.set_trivia_mode(self.trivia_mode);
 
         let eof_token = lexer.eof_token();
@@ -516,18 +512,6 @@ impl Parser {
         }
 
         expression_id
-    }
-
-    /// Return true when tree literal lexing is enabled.
-    #[inline]
-    pub(crate) fn allow_tree_literals(&self) -> bool {
-        self.allow_tree_literals
-    }
-
-    /// Set whether tree literal lexing is enabled.
-    #[inline]
-    pub(crate) fn set_allow_tree_literals(&mut self, allow: bool) {
-        self.allow_tree_literals = allow;
     }
 
     /// Eat a tree opening `<`.
@@ -1411,7 +1395,7 @@ impl Parser {
     /// Return true when the current identifier is `module`.
     #[inline]
     pub(crate) fn is_module_identifier(&self) -> bool {
-        self.language.supports_module_declaration() && self.current_identifier_str_is("module")
+        self.current_identifier_str_is("module")
     }
 
     /// Get the previous Token.

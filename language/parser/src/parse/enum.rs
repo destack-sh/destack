@@ -220,7 +220,7 @@ impl Parser {
         let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
             let value = self.eat_expression_or_recover_missing(
-                self.flags.not_in_position().not_in_sequence_expression(),
+                self.flags.not_in_position(),
                 NodeType::EnumField,
             )?;
             Some(value)

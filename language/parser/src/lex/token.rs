@@ -150,11 +150,7 @@ impl Lexer {
 
                 self.finish_source_token(start, first_byte, token_type, literal)
             }
-            b'#' => {
-                let (token_type, literal) = self.read_hash_token();
-
-                self.finish_source_token(start, first_byte, token_type, literal)
-            }
+            b'#' => self.finish_source_token(start, first_byte, TokenType::Hash, None),
             b'?' => {
                 let (token_type, literal) = self.read_question_token();
 
@@ -327,7 +323,7 @@ impl Lexer {
             return (TokenType::Spread, None);
         }
 
-        if self.language.is_destack() && self.scanner.byte() == b'.' {
+        if self.scanner.byte() == b'.' {
             self.scanner.advance_ascii_byte();
 
             if self.scanner.byte() == b'=' {
@@ -346,22 +342,6 @@ impl Lexer {
         }
 
         (TokenType::Dot, None)
-    }
-
-    /// Parse one hash token or hashbang comment.
-    fn read_hash_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        let is_hashbang = self.position() == 1
-            && self.scanner.byte() == b'!'
-            && (self.language.is_javascript() || self.language.is_typescript());
-        if !is_hashbang {
-            return (TokenType::Hash, None);
-        }
-
-        self.scanner.advance_ascii_byte();
-        self.eat_until(b'\n');
-        self.last_side_token_had_line_terminator = true;
-
-        (TokenType::LineComment, None)
     }
 
     /// Parse one question token.

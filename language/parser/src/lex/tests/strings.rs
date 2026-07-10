@@ -1,6 +1,6 @@
 use super::{
-    LanguageType, TokenLiteral, TokenType, assert_legacy_string_escape_is_invalid_across_languages,
-    assert_tokenize_eq_roundtrip, eof, lex_source_tokens, token,
+    TokenLiteral, TokenType, assert_legacy_string_escape_is_invalid, assert_tokenize_eq_roundtrip,
+    eof, lex_source_tokens, token,
 };
 
 /// Single-quoted one-character strings should lex as terminated string literals.
@@ -206,7 +206,7 @@ fn test_lex_tagged_template_strings_with_interpolation_nested() {
 /// Unterminated single-quoted strings at EOF should lex without hanging.
 #[test]
 fn test_lex_unterminated_single_quote_eof() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens("'");
 
     assert_eq!(
         semantic_tokens,
@@ -229,7 +229,7 @@ fn test_lex_unterminated_single_quote_eof() {
 /// Unterminated single-quoted strings ending in an escape should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_with_escape_eof() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\x", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\x");
 
     assert_eq!(
         semantic_tokens,
@@ -252,7 +252,7 @@ fn test_lex_unterminated_single_quote_with_escape_eof() {
 /// Unterminated single-quoted strings ending in a backslash should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'\\", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens("'\\");
 
     assert_eq!(
         semantic_tokens,
@@ -275,7 +275,7 @@ fn test_lex_unterminated_single_quote_with_trailing_slash_eof() {
 /// Unterminated single-quoted strings with partial hex escapes should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_hex_escape() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\x1", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\x1");
 
     assert_eq!(
         semantic_tokens,
@@ -298,7 +298,7 @@ fn test_lex_unterminated_single_quote_hex_escape() {
 /// Unterminated single-quoted strings with octal escapes should mark the escape invalid.
 #[test]
 fn test_lex_unterminated_single_quote_octal_escape() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\03", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens(r"'\03");
 
     assert_eq!(
         semantic_tokens,
@@ -321,7 +321,7 @@ fn test_lex_unterminated_single_quote_octal_escape() {
 /// Single-quoted strings should terminate lexing before raw newlines.
 #[test]
 fn test_lex_single_quote_before_newline_is_unterminated() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'\n", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens("'\n");
 
     assert_eq!(
         semantic_tokens,
@@ -344,8 +344,7 @@ fn test_lex_single_quote_before_newline_is_unterminated() {
 /// Double-quoted strings should terminate lexing before raw newlines.
 #[test]
 fn test_lex_double_quote_with_newline_is_unterminated() {
-    let (semantic_tokens, side_tokens) =
-        lex_source_tokens("\"hello\nworld\"", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens("\"hello\nworld\"");
 
     assert_eq!(
         semantic_tokens,
@@ -374,22 +373,22 @@ fn test_lex_double_quote_with_newline_is_unterminated() {
     assert_eq!(side_tokens, vec![token(TokenType::Newline, 1, None)]);
 }
 
-/// Legacy escaped digit sequences should be invalid across language modes.
+/// Legacy escaped digit sequences should be invalid.
 #[test]
-fn test_lex_string_with_legacy_escaped_digit_is_invalid_across_languages() {
-    assert_legacy_string_escape_is_invalid_across_languages("\"+4\\9 99 999 99\"");
+fn test_lex_string_with_legacy_escaped_digit_is_invalid() {
+    assert_legacy_string_escape_is_invalid("\"+4\\9 99 999 99\"");
 }
 
-/// Legacy octal escape sequences should be invalid across language modes.
+/// Legacy octal escape sequences should be invalid.
 #[test]
-fn test_lex_string_with_legacy_octal_escape_is_invalid_across_languages() {
-    assert_legacy_string_escape_is_invalid_across_languages("\"+5\\5 (99) 99999-9999\"");
+fn test_lex_string_with_legacy_octal_escape_is_invalid() {
+    assert_legacy_string_escape_is_invalid("\"+5\\5 (99) 99999-9999\"");
 }
 
 /// Unterminated single-quoted strings inside parentheses should lex without hanging.
 #[test]
 fn test_lex_unterminated_single_quote_inside_parentheses() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("(')", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens("(')");
 
     assert_eq!(
         semantic_tokens,
@@ -413,7 +412,7 @@ fn test_lex_unterminated_single_quote_inside_parentheses() {
 /// Unterminated single-quoted strings should be marked as unterminated.
 #[test]
 fn test_lex_unterminated_single_quote_is_marked() {
-    let (semantic_tokens, side_tokens) = lex_source_tokens("'abc", LanguageType::default());
+    let (semantic_tokens, side_tokens) = lex_source_tokens("'abc");
 
     assert_eq!(
         semantic_tokens,

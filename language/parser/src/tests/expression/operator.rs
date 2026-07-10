@@ -4,7 +4,6 @@ use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
     IfForm, LocalNodeId, ScalarLiteral, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 /// Assert one assign pattern is an expression path.
 fn assert_assign_pattern_path(
@@ -88,7 +87,7 @@ foo -= bar;
 ({ bar, baz } = {});
 ({ bar: [baz = "baz"], foo = "foo", ...rest } = {});
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -127,7 +126,7 @@ a.call().chain().member = x;
 ++count === 3
 a['b'] = c[d] = "test"
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -554,53 +553,49 @@ fn test_parse_precedence_is_before_logical_and() {
 /// Runtime `instanceof` guards bind before logical and.
 #[test]
 fn test_parse_precedence_instanceof_before_logical_and() {
-    for language in [LanguageType::TypeScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_language("value instanceof Box && ready", language);
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let mut test = TestParser::new("value instanceof Box && ready");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-        // value instanceof Box && ready
-        assert_node!(
-            parser.tree,
-            expr_id,
-            Expression::Binary { left, operator, right, .. } => {
-                assert_eq!(*operator, BinaryOperator::And);
+    // value instanceof Box && ready
+    assert_node!(
+        parser.tree,
+        expr_id,
+        Expression::Binary { left, operator, right, .. } => {
+            assert_eq!(*operator, BinaryOperator::And);
 
-                // value instanceof Box
-                assert_node!(parser.tree, *left, Expression::InstanceOf { value, target } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "value");
-                    assert_expression_path!(parser, parser.tree.get(*target), "Box");
-                });
+            // value instanceof Box
+            assert_node!(parser.tree, *left, Expression::InstanceOf { value, target } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+                assert_expression_path!(parser, parser.tree.get(*target), "Box");
+            });
 
-                // ready
-                assert_expression_path!(parser, parser.tree.get(*right), "ready");
-            }
-        );
+            // ready
+            assert_expression_path!(parser, parser.tree.get(*right), "ready");
+        }
+    );
 
-        test.assert_no_errors(&parser);
-    }
+    test.assert_no_errors(&parser);
 }
 
 /// Parse multiline `instanceof` guards in expression position.
 #[test]
 fn test_parse_newline_before_instanceof_in_expression_position() {
-    for language in [LanguageType::TypeScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_language("call(value\ninstanceof Box)", language);
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let mut test = TestParser::new("call(value\ninstanceof Box)");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-        assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
-            assert_eq!(arguments.len(), 1);
-            assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
-                assert_node!(parser.tree, *value, Expression::InstanceOf { value, target } => {
-                    assert_expression_path!(parser, parser.tree.get(*value), "value");
-                    assert_expression_path!(parser, parser.tree.get(*target), "Box");
-                });
+    assert_node!(parser.tree, expr_id, Expression::Call { arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::InstanceOf { value, target } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "value");
+                assert_expression_path!(parser, parser.tree.get(*target), "Box");
             });
         });
+    });
 
-        test.assert_no_errors(&parser);
-    }
+    test.assert_no_errors(&parser);
 }
 
 /// Unary prefix has higher precedence than multiplication.
@@ -760,7 +755,7 @@ fn test_parse_object_destructuring_assignment_defaults() {
                     assert_assign_pattern_path(&parser, *pattern, "target");
                 });
 
-                assert_node!(parser.tree, fields[3], AssignPatternField::Spread { pattern } => {
+                assert_node!(parser.tree, fields[3], AssignPatternField::Rest { pattern } => {
                     assert_assign_pattern_path(&parser, pattern.expect("expected rest target"), "rest");
                 });
             });
@@ -793,7 +788,7 @@ fn test_parse_array_destructuring_assignment_defaults() {
                 assert_defaulted_assign_pattern(&parser, *pattern, "second", "fallback");
             });
 
-            assert_node!(parser.tree, fields[3], AssignPatternField::Spread { pattern } => {
+            assert_node!(parser.tree, fields[3], AssignPatternField::Rest { pattern } => {
                 assert_assign_pattern_path(&parser, pattern.expect("expected rest target"), "rest");
             });
         });
@@ -966,10 +961,8 @@ fn test_parse_precedence_assignment_right_associative() {
 /// Conditional expressions bind tighter than assignment.
 #[test]
 fn test_parse_precedence_assignment_rhs_conditional() {
-    let mut test = TestParser::new_with_language(
-        "files = commit.files ? commit.files.map((file) => file.name) : []",
-        LanguageType::JavaScript,
-    );
+    let mut test =
+        TestParser::new("files = commit.files ? commit.files.map((file) => file.name) : []");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 

@@ -125,9 +125,7 @@ impl Parser {
     /// Return the common flags for non-sequence argument values.
     #[inline]
     fn argument_value_flags(&self) -> ParserFlags {
-        self.flags
-            .not_in_sequence_expression()
-            .not_in_arrow_return_type()
+        self.flags.not_in_arrow_return_type()
     }
 
     /// Return whether the current token ends one generic argument.
@@ -168,11 +166,6 @@ impl Parser {
     fn generic_argument_starts_unambiguous_type(&mut self) -> bool {
         if !self.flags.is_in_type() {
             return false;
-        }
-
-        // typescript has no value generic arguments
-        if !self.language.is_destack() {
-            return true;
         }
 
         // destack `type T` is an explicit marker, not a direct reference
@@ -229,9 +222,6 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<GenericArgument>> {
         let is_spread = self.peek_is(TokenType::Spread);
-        if is_spread && !self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()));
-        }
         if is_spread {
             self.eat_token(TokenType::Spread)?;
         }
@@ -539,11 +529,8 @@ impl Parser {
                         | Keyword::Const
                         | Keyword::Accessor
                 );
-                let is_virtual_modifier = allow_virtual_modifier
-                    && self.language.is_destack()
-                    && keyword == Keyword::Virtual;
-                let is_comptime_modifier =
-                    self.language.is_destack() && keyword == Keyword::Comptime;
+                let is_virtual_modifier = allow_virtual_modifier && keyword == Keyword::Virtual;
+                let is_comptime_modifier = keyword == Keyword::Comptime;
 
                 is_standard_modifier || is_virtual_modifier || is_comptime_modifier
             }) || is_out_variance_modifier;
@@ -669,7 +656,6 @@ impl Parser {
 
             // abstraction modifiers (virtual)
             if allow_virtual_modifier
-                && self.language.is_destack()
                 && self.is_keyword(Keyword::Virtual)
                 && abstraction_is_modifier
             {
@@ -747,10 +733,7 @@ impl Parser {
             }
 
             // timing modifiers (comptime)
-            if self.language.is_destack()
-                && !modifiers.is_comptime
-                && self.is_keyword(Keyword::Comptime)
-            {
+            if !modifiers.is_comptime && self.is_keyword(Keyword::Comptime) {
                 let next_token = self.next_token();
                 let target_starts_after_comptime = next_token.ty() == TokenType::OpenBrace
                     || !next_token.is_on_new_line() && self.token_starts_member_name(next_token);
@@ -1009,7 +992,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParserResult<Option<LocalNodeId<Parameter>>> {
-        if !self.language.is_destack() || !self.current_token_starts_this_form_parameter() {
+        if !self.current_token_starts_this_form_parameter() {
             return Ok(None);
         }
 
@@ -1079,7 +1062,7 @@ impl Parser {
         if matches!(
             self.peek_token_type(),
             TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::OpenBrace
-        ) || self.language.is_destack() && self.peek_identifier_str_is("_")
+        ) || self.peek_identifier_str_is("_")
         {
             let ambient_context = self.flags.with_before_type(true);
             let expression_context = self.flags;
@@ -1109,8 +1092,6 @@ impl Parser {
     /// ```
     pub fn eat_parameters_body(&mut self) -> ParserResult<Vec<LocalNodeId<Parameter>>> {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
-        let in_js = self.language.is_javascript();
-        let mut has_variadic_parameter = false;
         while self.has_more_tokens() {
             if self.peek_is(TokenType::CloseParenthesis) || self.peek_starts_type_angle_close() {
                 break;
@@ -1125,11 +1106,10 @@ impl Parser {
             let parameter_start = self.span_start();
             let mut is_recovered_parameter = false;
             let parameter = self.eat_parameter().and_then(|parameter| {
-                let has_cast_tail = self.language.is_typescript()
-                    && matches!(
-                        self.current_keyword(),
-                        Some(Keyword::As | Keyword::Satisfies)
-                    );
+                let has_cast_tail = matches!(
+                    self.current_keyword(),
+                    Some(Keyword::As | Keyword::Satisfies)
+                );
                 if has_cast_tail {
                     Err(ParserError::unexpected(self.peek()))
                 } else {
@@ -1162,24 +1142,7 @@ impl Parser {
                 }
             };
 
-            // rest parameters must be terminal in untyped parameter lists
-            if has_variadic_parameter && in_js {
-                return Err(ParserError::unexpected(self.peek()));
-            }
-
-            if matches!(
-                self.tree.get(parameter),
-                Parameter::VariadicNamed { .. } | Parameter::VariadicPattern { .. }
-            ) {
-                has_variadic_parameter = true;
-            }
-
             parameters.push(parameter);
-
-            // untyped parameter lists reject trailing separators after rest parameters
-            if in_js && has_variadic_parameter && self.is_item_stop() {
-                return Err(ParserError::unexpected(self.peek()));
-            }
 
             // continue regular parameter lists after a real separator
             if self.peek_is(TokenType::Comma) {
@@ -1260,7 +1223,7 @@ impl Parser {
                 continue;
             }
 
-            if self.language.is_destack() && self.is_keyword(Keyword::Comptime) {
+            if self.is_keyword(Keyword::Comptime) {
                 self.bump(); // eat comptime
                 is_comptime = true;
                 continue;
@@ -1270,9 +1233,6 @@ impl Parser {
         }
 
         let is_variadic = self.peek_is(TokenType::Spread);
-        if is_variadic && !self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()));
-        }
         if is_variadic {
             self.eat_token(TokenType::Spread)?;
         }
@@ -1424,8 +1384,7 @@ impl Parser {
 
         // regular generic parameters
         let mut ambient_context = self.flags.nested().with_static(true);
-        if self.flags.is_in_type() || self.flags.is_in_decorator() || self.language.is_typescript()
-        {
+        if self.flags.is_in_type() || self.flags.is_in_decorator() {
             ambient_context = ambient_context.with_type(true);
         }
         let expression_context = self.flags.nested();
@@ -1797,11 +1756,7 @@ impl Parser {
             }
             self.bump(); // eat spread
             let value_ambient_context = self.flags.with_tree_literal(false);
-            let value_expression_context = self
-                .flags
-                .not_in_position()
-                .not_in_ternary_condition()
-                .not_in_sequence_expression();
+            let value_expression_context = self.flags.not_in_position().not_in_ternary_condition();
             let value = self.eat_expression(
                 self.flags
                     .with_ambient_context(value_ambient_context)
@@ -1887,7 +1842,7 @@ impl Parser {
         let token = self.peek_string_literal()?;
         let content = self.get_string_literal_str(token);
 
-        // match JSX transforms by decoding attribute entities
+        // decode tree attribute entities before scalar parsing
         let string_id = if let Some(decoded) = decode_html_entities(content) {
             self.strings.intern(&decoded)
         } else {
@@ -2022,14 +1977,7 @@ impl Parser {
 
     /// Return the flags for generic arguments that may be types or values.
     fn mixed_generic_argument_flags(&self) -> ParserFlags {
-        let mut ambient_context = self.flags.nested().with_static(true);
-        if self.flags.is_in_type()
-            || self.flags.is_in_decorator()
-            || self.language.is_destack()
-            || self.language.is_typescript()
-        {
-            ambient_context = ambient_context.with_type(true);
-        }
+        let ambient_context = self.flags.nested().with_static(true).with_type(true);
         let expression_context = self.flags.nested();
 
         self.flags

@@ -16,8 +16,17 @@ impl Parser {
     /// where BaseOf<Foo>: Copy
     /// ```
     pub fn eat_where_maybe(&mut self) -> ParserResult<Option<Vec<LocalNodeId<WhereClause>>>> {
-        // where clauses start at the current token
         if !self.is_keyword(Keyword::Where) {
+            return Ok(None);
+        }
+
+        // keep property names distinct from constraint clauses
+        let next_token = self.token_at_offset(1);
+        let is_property = matches!(next_token.ty(), TokenType::Maybe | TokenType::Colon)
+            || next_token.is(TokenType::LessThan)
+            || next_token.is(TokenType::OpenParenthesis)
+                && self.peek().span.end == next_token.start();
+        if is_property {
             return Ok(None);
         }
 

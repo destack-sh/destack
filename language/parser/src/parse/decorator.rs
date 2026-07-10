@@ -29,8 +29,6 @@ impl Parser {
             if let Some(decorator_id) = decorator {
                 decorators.push(PendingDecorator { decorator_id });
             }
-
-            // consume trailing newlines between decorator entries
         }
 
         Ok(decorators)
@@ -59,7 +57,6 @@ impl Parser {
         let mut decorator_flags = self
             .flags
             .not_in_position()
-            .not_in_sequence_expression()
             .in_decorator()
             .in_decorator_head();
         decorator_flags.set_in_type(false);

@@ -1,6 +1,6 @@
 use crate::parse::scope::TypeScope;
 use crate::parse::r#type::operator::{TypeBinaryOperator, TypeInfixOperator};
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 
 use destack_dir::{
     BinaryOperator, Keyword, LocalNodeId, NodeType, OperatorPrecedence, RangeEnd, TokenType,
@@ -110,12 +110,8 @@ impl Parser {
             TokenType::ElementwiseAnd => {
                 Some(TypeInfixOperator::Binary(BinaryOperator::ElementwiseAnd))
             }
-            TokenType::Range if self.language.is_destack() => {
-                Some(TypeInfixOperator::Range(RangeEnd::Open))
-            }
-            TokenType::RangeInclusive if self.language.is_destack() => {
-                Some(TypeInfixOperator::Range(RangeEnd::Inclusive))
-            }
+            TokenType::Range => Some(TypeInfixOperator::Range(RangeEnd::Open)),
+            TokenType::RangeInclusive => Some(TypeInfixOperator::Range(RangeEnd::Inclusive)),
             TokenType::Identifier => self.type_infix_operator_from_keyword(),
             _ => None,
         }
@@ -161,7 +157,7 @@ impl Parser {
         }
 
         // heritage boundary
-        if (self.language.is_typescript() || scope.stops_before_implements)
+        if scope.stops_before_implements
             && operator == TypeInfixOperator::Relation(TypeBinaryOperator::Implements)
         {
             return true;
@@ -376,13 +372,6 @@ impl Parser {
         left: LocalNodeId<TypeExpression>,
         extends_type: LocalNodeId<TypeExpression>,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        if self.language.is_typescript() {
-            return Err(ParserError::expected(
-                self.anchor_span_here(),
-                TokenType::Maybe,
-            ));
-        }
-
         Ok(self.insert_node(
             TypeExpression::Extends {
                 left,

@@ -535,11 +535,7 @@ impl Parser {
 
         let return_type =
             self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
-        let where_clauses = if self.language.is_destack() {
-            self.eat_where_maybe()?
-        } else {
-            None
-        };
+        let where_clauses = self.eat_where_maybe()?;
 
         Ok(ParsedFunctionReturn {
             return_type: Some(return_type),
@@ -563,11 +559,7 @@ impl Parser {
             (None, None)
         };
 
-        let where_clauses = if self.language.is_destack() {
-            self.eat_where_maybe()?
-        } else {
-            None
-        };
+        let where_clauses = self.eat_where_maybe()?;
 
         Ok(ParsedFunctionReturn {
             return_type,
@@ -638,7 +630,6 @@ impl Parser {
                 .in_before_block()
                 .not_in_decorator()
                 .with_generator(head.is_generator);
-            flags.set_allow_sequence_expression(false);
             flags.set_forbid_await(flags.is_forbid_await() && !head.is_async);
 
             self.eat_expression(flags)?
@@ -659,7 +650,6 @@ impl Parser {
             .in_before_block()
             .not_in_decorator()
             .with_generator(head.is_generator);
-        flags.set_allow_sequence_expression(true);
         flags.set_forbid_await(flags.is_forbid_await() && !head.is_async);
 
         flags

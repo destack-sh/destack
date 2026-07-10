@@ -1,6 +1,5 @@
 use crate::tests::TestParser;
 use destack_dir::{Expression, IfForm, Key, Name, ScalarLiteral};
-use destack_source::LanguageType;
 
 use crate::{assert_expression_path, assert_node, assert_string};
 
@@ -29,11 +28,11 @@ string
     assert_eq!(parser.get_span_str(error.span), ":");
 }
 
-/// Report computed keys with sequence expressions in typed and untyped object forms.
+/// Report computed keys with comma expressions.
 #[test]
-fn test_report_key_computed_sequence_expression_in_typed_and_untyped_object_forms() {
+fn test_report_key_computed_comma_expression() {
     // source: [a,b]
-    let mut test = TestParser::new_with_language("[a,b]", LanguageType::JavaScript);
+    let mut test = TestParser::new("[a,b]");
     let mut parser = test.prepare();
     let error = parser.eat_key_with_span().unwrap_err();
 
@@ -41,11 +40,11 @@ fn test_report_key_computed_sequence_expression_in_typed_and_untyped_object_form
     assert_eq!(parser.get_span_str(error.span), ",");
 }
 
-/// Report legacy octal numeric keys in typed and untyped object forms.
+/// Report legacy octal numeric keys.
 #[test]
-fn test_report_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
+fn test_report_legacy_octal_numeric_key() {
     // source: 021
-    let mut test = TestParser::new_with_language("021", LanguageType::JavaScript);
+    let mut test = TestParser::new("021");
     let mut parser = test.prepare();
     let error = parser.eat_key_with_span().unwrap_err();
 
@@ -56,7 +55,7 @@ fn test_report_legacy_octal_numeric_key_in_typed_and_untyped_object_forms() {
 /// Parse finite integer property keys as static index keys.
 #[test]
 fn test_parse_key_integer_index() {
-    let mut test = TestParser::new_with_language("2", LanguageType::JavaScript);
+    let mut test = TestParser::new("2");
     let mut parser = test.prepare();
     let (key, _span) = parser.eat_key_with_span().unwrap();
 
@@ -67,10 +66,7 @@ fn test_parse_key_integer_index() {
 /// Parse computed keys with ternaries.
 #[test]
 fn test_parse_key_computed_ternary() {
-    let mut test = TestParser::new_with_language(
-        "[hasCjsFormat ? 'module' : 'import']",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new(r#"[hasCjsFormat ? "module" : "import"]"#);
     let mut parser = test.prepare();
 
     let (key, _span) = parser.eat_key_with_span().unwrap();

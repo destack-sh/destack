@@ -3,9 +3,9 @@ use destack_dir::{
     Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
     FunctionRole, GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter,
     Pattern, PatternField, ScalarLiteral, ThisForm, TokenType, TypeDeclaration, TypeExpression,
-    TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
+    TypeLiteral, UnaryOperator, VarianceModifier, WhereClause, YieldCardinality,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
@@ -51,7 +51,7 @@ fn test_parse_function_lambda_with_newlines() {
 
 #[test]
 fn test_parse_optional_arrow_parameter_without_type() {
-    let mut test = TestParser::new_with_language("(value?) => value", LanguageType::TypeScript);
+    let mut test = TestParser::new("(value?) => value");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -88,7 +88,7 @@ fn test_parse_arrow_parameter_defaults_with_angle_operators() {
     ];
 
     for (source, expected_operator) in cases {
-        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -109,10 +109,7 @@ fn test_parse_arrow_parameter_defaults_with_angle_operators() {
 /// Parse a generic type annotation followed by an arrow parameter default.
 #[test]
 fn test_parse_typed_arrow_parameter_default() {
-    let mut test = TestParser::new_with_language(
-        "(value: Box<Item> = input) => value",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("(value: Box<Item> = input) => value");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -132,7 +129,7 @@ fn test_parse_typed_arrow_parameter_default() {
 
 #[test]
 fn test_parse_parenthesized_optional_arrow_parameter_without_type_call() {
-    let mut test = TestParser::new_with_language("((value?) => value)()", LanguageType::TypeScript);
+    let mut test = TestParser::new("((value?) => value)()");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -155,12 +152,11 @@ fn test_parse_parenthesized_optional_arrow_parameter_without_type_call() {
 
 #[test]
 fn test_parse_function_missing_close_paren_keeps_following_declaration() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 export function broken( {}
 export function stableLater(): void {}
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -237,12 +233,11 @@ fn test_parse_comptime_arrow_parameter() {
 
 #[test]
 fn test_parse_function_missing_close_paren_before_following_function_keeps_declaration() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 function broken(
 function stableLater(): void {}
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -271,12 +266,11 @@ function stableLater(): void {}
 
 #[test]
 fn test_parse_function_missing_close_paren_before_following_const_keeps_statement() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 function broken(
 const value = 1
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -308,13 +302,12 @@ const value = 1
 
 #[test]
 fn test_parse_function_parameter_named_type_after_newline() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 function configure(
     type: string,
 ): void {}
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -580,7 +573,7 @@ fn test_parse_function_type_with_readonly_this_parameter() {
 /// Parse an arrow function with an explicit this parameter.
 #[test]
 fn test_parse_arrow_function_with_this_parameter() {
-    let mut test = TestParser::new_with_language("(this: string) => {}", LanguageType::TypeScript);
+    let mut test = TestParser::new("(this: string) => {}");
     let mut parser = test.prepare();
     let start = parser.span_start();
     let function_id = parser
@@ -667,7 +660,7 @@ fn test_parse_function_lambda_with_explicit_return_type() {
 /// Parse parenthesized void return types in arrow functions.
 #[test]
 fn test_parse_function_parenthesized_void_return_type() {
-    let mut test = TestParser::new_with_language("(): (void) => {}", LanguageType::TypeScript);
+    let mut test = TestParser::new("(): (void) => {}");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
@@ -686,10 +679,8 @@ fn test_parse_function_parenthesized_void_return_type() {
 /// Parse default parameters followed by required parameters.
 #[test]
 fn test_parse_function_default_parameter_followed_by_required() {
-    let mut test = TestParser::new_with_language(
-        r#"function func(greeting: string = "Hello", target: string) {}"#,
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new(r#"function func(greeting: string = "Hello", target: string) {}"#);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -746,7 +737,7 @@ fn test_recover_reserved_formal_parameter_bindings() {
     ];
 
     for (source, binding, is_pattern) in cases {
-        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let expressions = parser
             .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
@@ -794,7 +785,7 @@ fn test_recover_forbidden_formal_parameter_default_expressions() {
     ];
 
     for (source, error_text) in cases {
-        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let expressions = parser
             .eat_block_body_in_context(BlockForm::Implicit, BlockContext::Statement)
@@ -1041,12 +1032,11 @@ function h<T>
 
 #[test]
 fn test_parse_function_with_newline_before_return_type_colon() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"function f<T>(value: T)
   : T {
   return value as never
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let start = parser.span_start();
@@ -1214,8 +1204,7 @@ async function* foo() => int32 {
 #[test]
 fn test_parse_function_generator_call_argument_with_bare_yield() {
     // source: function* a() { b.c(yield); }
-    let mut test =
-        TestParser::new_with_language("function* a() { b.c(yield); }", LanguageType::JavaScript);
+    let mut test = TestParser::new("function* a() { b.c(yield); }");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1249,10 +1238,7 @@ fn test_parse_function_generator_call_argument_with_bare_yield() {
 /// Parse named function expression container spans.
 #[test]
 fn test_parse_function_expression_container_spans() {
-    let mut test = TestParser::new_with_language(
-        "bar(...items, function callback() { return 1; });",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("bar(...items, function callback() { return 1; });");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1352,8 +1338,7 @@ function main() {
 #[test]
 fn test_parse_function_generator_nested_yield() {
     // source: function *a() { yield yield }
-    let mut test =
-        TestParser::new_with_language("function *a() { yield yield }", LanguageType::JavaScript);
+    let mut test = TestParser::new("function *a() { yield yield }");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1385,8 +1370,7 @@ fn test_parse_function_generator_nested_yield() {
 #[test]
 fn test_parse_function_generator_delegate_yield() {
     // source: function *a() { yield *a }
-    let mut test =
-        TestParser::new_with_language("function *a() { yield *a }", LanguageType::JavaScript);
+    let mut test = TestParser::new("function *a() { yield *a }");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1414,8 +1398,7 @@ fn test_parse_function_generator_delegate_yield() {
 #[test]
 fn test_parse_function_generator_delegate_nested_yield() {
     // source: function *a() { yield *yield }
-    let mut test =
-        TestParser::new_with_language("function *a() { yield *yield }", LanguageType::JavaScript);
+    let mut test = TestParser::new("function *a() { yield *yield }");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1443,13 +1426,12 @@ fn test_parse_function_generator_delegate_nested_yield() {
     });
 }
 
-/// Recover delegated generator yield when a line terminator appears before `*`.
+/// Parse scalar yield followed by a dereference on the next line.
 #[test]
-fn test_recover_function_generator_delegate_after_newline() {
+fn test_parse_function_generator_yield_before_dereference() {
     // source: function *a(){yield
     // *a}
-    let mut test =
-        TestParser::new_with_language("function *a(){yield\n*a}", LanguageType::JavaScript);
+    let mut test = TestParser::new("function *a(){yield\n*a}");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1462,8 +1444,7 @@ fn test_recover_function_generator_delegate_after_newline() {
             // { yield \n *a }
             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
-                assert_eq!(block.leading_expressions.len(), 2);
-                assert!(block.tail_expression.is_none());
+                assert_eq!(block.leading_expressions.len(), 1);
 
                 // yield
                 assert_node!(parser.tree, block.leading_expressions[0], Expression::Yield { cardinality, value } => {
@@ -1472,7 +1453,11 @@ fn test_recover_function_generator_delegate_after_newline() {
                 });
 
                 // *a
-                assert_node!(parser.tree, block.leading_expressions[1], Expression::Error);
+                let tail_expression = block.tail_expression.expect("expected dereference tail");
+                assert_node!(parser.tree, tail_expression, Expression::Unary { operator, right } => {
+                    assert_eq!(*operator, UnaryOperator::Dereference);
+                    assert_expression_path!(parser, parser.tree.get(*right), "a");
+                });
             });
         });
     });
@@ -1483,10 +1468,7 @@ fn test_recover_function_generator_delegate_after_newline() {
 fn test_recover_function_generator_delegate_before_following_const() {
     // source: function *a(){yield*
     // const value = 1}
-    let mut test = TestParser::new_with_language(
-        "function *a(){yield*\nconst value = 1}",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("function *a(){yield*\nconst value = 1}");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1527,10 +1509,7 @@ fn test_recover_function_generator_delegate_before_following_const() {
 #[test]
 fn test_parse_function_generator_yield_in_computed_keys() {
     // source: function* a(){(class {[yield](){}})};
-    let mut test = TestParser::new_with_language(
-        "function* a(){(class {[yield](){}})};",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("function* a(){(class {[yield](){}})};");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1538,16 +1517,15 @@ fn test_parse_function_generator_yield_in_computed_keys() {
             assert!(signature.is_generator);
             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
-                assert_eq!(block.leading_expressions.len(), 1);
-                assert!(block.tail_expression.is_none());
-                assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
+                assert!(block.leading_expressions.is_empty());
+                let tail_expression = block.tail_expression.expect("expected class expression tail");
+                assert_node!(parser.tree, tail_expression, Expression::Parenthesized { .. });
             });
         });
     });
 
     // source: function* a(){({[yield]:a}=1)}
-    let mut test =
-        TestParser::new_with_language("function* a(){({[yield]:a}=1)}", LanguageType::JavaScript);
+    let mut test = TestParser::new("function* a(){({[yield]:a}=1)}");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1555,9 +1533,9 @@ fn test_parse_function_generator_yield_in_computed_keys() {
             assert!(signature.is_generator);
             assert_node!(parser.tree, *body, Expression::Block(block_id) => {
                 let block = parser.tree.get(*block_id);
-                assert_eq!(block.leading_expressions.len(), 1);
-                assert!(block.tail_expression.is_none());
-                assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { .. });
+                assert!(block.leading_expressions.is_empty());
+                let tail_expression = block.tail_expression.expect("expected assignment tail");
+                assert_node!(parser.tree, tail_expression, Expression::Parenthesized { .. });
             });
         });
     });
@@ -1618,9 +1596,8 @@ function onResolve(
 
 #[test]
 fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "(runtime, effect, options: Runtime.RunCallbackOptions<any, any> = {}): (fiberId?: FiberId.FiberId, options?: Runtime.RunCallbackOptions<any, any> | undefined) => void => 0",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -1662,8 +1639,7 @@ fn test_parse_lambda_return_type_with_optional_parameter_function_type() {
 
 #[test]
 fn test_parse_lambda_head_boundary_comment_on_function_owner() {
-    let mut test =
-        TestParser::new_with_language("(x) /* lambda-head */ => x", LanguageType::TypeScript);
+    let mut test = TestParser::new("(x) /* lambda-head */ => x");
     let mut parser = test.prepare();
 
     let start = parser.span_start();
@@ -1681,8 +1657,7 @@ fn test_parse_lambda_head_boundary_comment_on_function_owner() {
 
 #[test]
 fn test_parse_lambda_body_boundary_comment_on_body_owner() {
-    let mut test =
-        TestParser::new_with_language("(x) =>\n// lambda-body\nx", LanguageType::TypeScript);
+    let mut test = TestParser::new("(x) =>\n// lambda-body\nx");
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -1702,7 +1677,7 @@ fn test_parse_lambda_body_boundary_comment_on_body_owner() {
 /// Parse empty parenthesized lambda heads that only contain comments.
 #[test]
 fn test_parse_empty_parenthesized_lambda_with_comment() {
-    let mut test = TestParser::new_with_language("(/* empty */) => {}", LanguageType::TypeScript);
+    let mut test = TestParser::new("(/* empty */) => {}");
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -1720,7 +1695,7 @@ fn test_parse_empty_parenthesized_lambda_with_comment() {
 
 #[test]
 fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
-    let mut test = TestParser::new_with_language("() => {\n  // code\n}", LanguageType::TypeScript);
+    let mut test = TestParser::new("() => {\n  // code\n}");
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -1743,8 +1718,7 @@ fn test_parse_lambda_comment_only_block_body_attaches_inside_block() {
 
 #[test]
 fn test_parse_function_body_boundary_line_comment_stays_trailing() {
-    let mut test =
-        TestParser::new_with_language("function f(): void // body\n{}", LanguageType::TypeScript);
+    let mut test = TestParser::new("function f(): void // body\n{}");
     let mut parser = test.prepare();
 
     let start = parser.span_start();
@@ -1770,7 +1744,7 @@ fn test_parse_function_body_boundary_line_comment_stays_trailing() {
 #[test]
 fn test_report_unparenthesized_arrow_call() {
     // source: () => {}()
-    let mut test = TestParser::new_with_language("() => {}()", LanguageType::Destack);
+    let mut test = TestParser::new("() => {}()");
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
@@ -1778,7 +1752,7 @@ fn test_report_unparenthesized_arrow_call() {
     assert_eq!(parser.get_span_str(error.span), "(");
 
     // source: a => {}()
-    let mut test = TestParser::new_with_language("a => {}()", LanguageType::Destack);
+    let mut test = TestParser::new("a => {}()");
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
@@ -1790,7 +1764,7 @@ fn test_report_unparenthesized_arrow_call() {
 #[test]
 fn test_parse_parenthesized_arrow_call() {
     // source: (() => {})()
-    let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
+    let mut test = TestParser::new("(() => {})()");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1810,7 +1784,7 @@ fn test_parse_parenthesized_arrow_call() {
 #[test]
 fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     // source: (() => {})()
-    let mut test = TestParser::new_with_language("(() => {})()", LanguageType::Destack);
+    let mut test = TestParser::new("(() => {})()");
     let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
         token_history: ParserTokenHistory::Record,

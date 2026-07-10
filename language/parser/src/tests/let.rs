@@ -4,7 +4,7 @@ use destack_dir::{
     Pattern, PatternField, PlaceModifier, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
     TypeMember,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -85,28 +85,13 @@ shared const registry: Registry = new Registry();
 }
 
 #[test]
-fn test_parse_typescript_shared_const_keeps_shared_identifier() {
-    let mut test =
-        TestParser::new_with_language("shared const value = 1", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_expression_path!(parser, parser.tree.get(expression_id), "shared");
-
-    let next_span = parser.peek().span;
-    assert_eq!(parser.get_span_str(next_span), "const");
-    test.assert_no_errors(&parser);
-}
-
-#[test]
 fn test_parse_let_type_annotation_newline() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r###"
 const constants:
     & typeof Foo
     & typeof Bar
 "###,
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
 
@@ -256,10 +241,7 @@ using x = open()
 
 #[test]
 fn test_parse_let_generic_arrow_initializer() {
-    let mut test = TestParser::new_with_language(
-        "const foo: Tmp = <T,>(str: T): T => { return str; }",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("const foo: Tmp = <T,>(str: T): T => { return str; }");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -299,10 +281,7 @@ fn test_parse_let_generic_arrow_initializer() {
 
 #[test]
 fn test_parse_let_readonly_identifier_with_type_annotation() {
-    let mut test = TestParser::new_with_language(
-        "const readonly: <A>(value: A) => Readonly<A> = identity",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("const readonly: <A>(value: A) => Readonly<A> = identity");
     let mut parser = test.prepare();
 
     let start = parser.span_start();
@@ -327,10 +306,7 @@ fn test_parse_let_readonly_identifier_with_type_annotation() {
 
 #[test]
 fn test_parse_let_array_pattern_readonly_identifier() {
-    let mut test = TestParser::new_with_language(
-        "const [readonly, setReadonly] = useState(false)",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("const [readonly, setReadonly] = useState(false)");
     let mut parser = test.prepare();
 
     let start = parser.span_start();
@@ -484,7 +460,7 @@ const (x, y) = foo()
 
 #[test]
 fn test_parse_let_definite_assignment_pattern() {
-    let mut test = TestParser::new_with_language("let {}! = {}", LanguageType::TypeScript);
+    let mut test = TestParser::new("let {}! = {}");
     let mut parser = test.prepare();
     let start = parser.span_start();
     let let_id = parser
@@ -650,10 +626,9 @@ fn test_parse_let_multiple_declarators() {
 
 #[test]
 fn test_parse_let_declarators_with_leading_comma_newline() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"let args = new Array(arguments.length - 1)
   , callbacks = this._callbacks['$' + event]"#,
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
     let start = parser.span_start();
@@ -683,11 +658,10 @@ fn test_parse_let_declarators_with_leading_comma_newline() {
 
 #[test]
 fn test_parse_const_declarators_with_newline_after_keyword() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"const
   first = 1,
   second = 2"#,
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
     let start = parser.span_start();
@@ -718,10 +692,9 @@ fn test_parse_const_declarators_with_newline_after_keyword() {
 
 #[test]
 fn test_parse_const_declarator_boundary_with_line_terminator_trivia() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"const result = CreateRecord(IntegerKey, value) /*
 */ return result as never"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let start = parser.span_start();
@@ -874,9 +847,9 @@ fn test_report_let_else_without_block_branch() {
 }
 
 #[test]
-fn test_report_indexed_declarator_target_in_untyped_source() {
+fn test_report_indexed_declarator_target() {
     // let a[0] = 0
-    let mut test = TestParser::new_with_language("let a[0]=0;", LanguageType::JavaScript);
+    let mut test = TestParser::new("let a[0]=0;");
     let mut parser = test.prepare();
     let start = parser.span_start();
     let error = parser
@@ -888,10 +861,7 @@ fn test_report_indexed_declarator_target_in_untyped_source() {
 
 #[test]
 fn test_parse_let_lambda_initializer_before_next_line_expression() {
-    let mut test = TestParser::new_with_language(
-        "let f1 = (/* ... */) => {}\n(() => {})(/* ... */)\n",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("let f1 = (/* ... */) => {}\n(() => {})(/* ... */)\n");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 

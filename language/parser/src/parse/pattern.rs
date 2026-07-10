@@ -40,20 +40,16 @@ impl Parser {
         // ------------------------------------------------------------
         let mut pattern_id = {
             // startless range pattern
-            let startless_range_end = if self.language.is_destack() {
-                match self.peek_token_type() {
-                    TokenType::Range => Some(RangeEnd::Open),
-                    TokenType::RangeInclusive => Some(RangeEnd::Inclusive),
-                    _ => None,
-                }
-            } else {
-                None
+            let startless_range_end = match self.peek_token_type() {
+                TokenType::Range => Some(RangeEnd::Open),
+                TokenType::RangeInclusive => Some(RangeEnd::Inclusive),
+                _ => None,
             };
             if let Some(end_kind) = startless_range_end {
                 self.eat_startless_range_pattern(&start, end_kind)?
             }
             // wildcard
-            else if self.language.is_destack() && self.peek_identifier_str_is("_") {
+            else if self.peek_identifier_str_is("_") {
                 self.bump(); // eat wildcard
                 self.tree
                     .insert(Pattern::Wildcard, self.get_span_from(&start))
@@ -88,7 +84,7 @@ impl Parser {
                 )
             }
             // dereference
-            else if self.language.is_destack() && self.peek_is(TokenType::Multiply) {
+            else if self.peek_is(TokenType::Multiply) {
                 self.bump(); // eat *
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.insert_node(
@@ -313,7 +309,7 @@ impl Parser {
 
     /// Return the range end kind when the next token continues a pattern range.
     fn peek_range_pattern_end_kind(&mut self) -> Option<RangeEnd> {
-        if !self.language.is_destack() || self.current_token_is_on_new_line() {
+        if self.current_token_is_on_new_line() {
             return None;
         }
 
@@ -431,19 +427,12 @@ impl Parser {
     ) -> ParserResult<Vec<LocalNodeId<PatternField>>> {
         let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
         let is_object_pattern = terminator == TokenType::CloseBrace;
-        let enforce_terminal_spread =
-            self.language.is_javascript() || self.language.is_typescript();
-        let mut has_spread_field = false;
+        let mut has_rest_field = false;
 
         while self.has_more_tokens() {
             // stop at the pattern terminator
             if self.peek_token_type() == terminator {
                 break;
-            }
-
-            // spread fields must be terminal in typed and untyped patterns
-            if enforce_terminal_spread && has_spread_field {
-                return Err(ParserError::unexpected(self.peek()));
             }
 
             // parse one field
@@ -458,15 +447,19 @@ impl Parser {
             }
             fields.push(pattern_field_id);
 
-            // typed and untyped object patterns require spread fields to terminate the list
-            if enforce_terminal_spread
-                && matches!(self.tree.get(pattern_field_id), PatternField::Spread { .. })
-            {
-                has_spread_field = true;
-                let has_separator_after_spread = self.peek_token_type() == separator;
-                let has_non_terminal_newline_after_spread =
+            // permit one rest field, with bound rest fields terminating the pattern
+            if let PatternField::Rest { pattern } = self.tree.get(pattern_field_id) {
+                if has_rest_field {
+                    return Err(ParserError::unexpected(self.peek()));
+                }
+                has_rest_field = true;
+
+                let has_separator_after_rest = self.peek_token_type() == separator;
+                let has_non_terminal_newline_after_rest =
                     self.current_token_is_on_new_line() && !self.peek_is(terminator);
-                if has_separator_after_spread || has_non_terminal_newline_after_spread {
+                if pattern.is_some()
+                    && (has_separator_after_rest || has_non_terminal_newline_after_rest)
+                {
                     return Err(ParserError::unexpected(self.peek()));
                 }
             }
@@ -525,7 +518,7 @@ impl Parser {
             || self.peek_name_is()
             || self.peek_object_pattern_alias_head()
         {
-            return self.eat_named_or_spread_pattern_field(separator, terminator, field_start);
+            return self.eat_named_or_rest_pattern_field(separator, terminator, field_start);
         }
 
         // non property patterns are retained for TS++ object patterns
@@ -546,9 +539,9 @@ impl Parser {
             return Ok((pattern_field, None));
         }
 
-        // spread fields belong to the list element grammar
+        // rest fields belong to the list element grammar
         if self.peek_is(TokenType::Spread) {
-            let pattern_field = self.eat_spread_pattern_field(separator, terminator)?;
+            let pattern_field = self.eat_rest_pattern_field(separator, terminator)?;
             return Ok((pattern_field, None));
         }
 
@@ -564,7 +557,7 @@ impl Parser {
         field_start: ParserSpanStart,
     ) -> ParserResult<PatternField> {
         self.eat_token(TokenType::OpenBracket)?;
-        let key = self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
+        let key = self.eat_expression(self.flags.not_in_position())?;
         self.eat_close_token_or_recover_missing_with(
             TokenType::CloseBracket,
             NodeType::PatternField,
@@ -582,14 +575,14 @@ impl Parser {
     }
 
     /// Eat either a named object property or an object rest property.
-    fn eat_named_or_spread_pattern_field(
+    fn eat_named_or_rest_pattern_field(
         &mut self,
         separator: TokenType,
         terminator: TokenType,
         field_start: ParserSpanStart,
     ) -> ParserResult<(PatternField, Option<Span>)> {
         if self.peek_is(TokenType::Spread) {
-            let pattern_field = self.eat_spread_pattern_field(separator, terminator)?;
+            let pattern_field = self.eat_rest_pattern_field(separator, terminator)?;
             return Ok((pattern_field, None));
         }
 
@@ -648,13 +641,13 @@ impl Parser {
         Ok((pattern_field, None))
     }
 
-    /// Eat a spread pattern field with an optional target.
-    fn eat_spread_pattern_field(
+    /// Eat a rest pattern field with an optional target.
+    fn eat_rest_pattern_field(
         &mut self,
         separator: TokenType,
         terminator: TokenType,
     ) -> ParserResult<PatternField> {
-        self.bump(); // eat spread
+        self.bump(); // eat ellipsis
 
         // omitted targets are allowed before separators and terminators
         let has_omitted_target = self.peek_token_type() == separator || self.peek_is(terminator);
@@ -669,7 +662,7 @@ impl Parser {
             Some(pattern)
         };
 
-        Ok(PatternField::Spread { pattern })
+        Ok(PatternField::Rest { pattern })
     }
 
     // eat a positional pattern field with an optional default
@@ -694,8 +687,7 @@ impl Parser {
         }
 
         self.bump(); // eat assign
-        let value =
-            self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
+        let value = self.eat_expression(self.flags.not_in_position())?;
         let pattern = Pattern::Default {
             pattern: pattern_id,
             value,

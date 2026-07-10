@@ -47,7 +47,7 @@ impl Parser {
         let index = if is_missing_index {
             self.recover_missing_expression_here(NodeType::Expression)
         } else {
-            self.eat_expression(self.flags.nested().with_sequence_expression(true))?
+            self.eat_expression(self.flags.nested())?
         };
 
         // close bracket
@@ -91,7 +91,7 @@ impl Parser {
             self.eat_type_expression_or_recover_missing(ty_flags, NodeType::Expression)?
         };
 
-        // call arguments: untyped value mode accepts `new Foo` without parentheses
+        // constructor arguments are optional
         let arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call

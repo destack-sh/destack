@@ -7,6 +7,7 @@ use destack_dir::{
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use super::r#if::IfHead;
+use crate::parse::DeclarationHeader;
 use crate::parse::flags::ParserFlags;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
@@ -58,9 +59,7 @@ impl Parser {
     #[inline]
     pub(crate) fn is_block_start(&mut self) -> bool {
         self.peek_is(TokenType::OpenBrace)
-            || self.language.is_destack()
-                && self.is_keyword(Keyword::Do)
-                && self.next_token_type() == TokenType::OpenBrace
+            || self.is_keyword(Keyword::Do) && self.next_token_type() == TokenType::OpenBrace
     }
 
     /// Eat one control body as a block-like expression.
@@ -76,26 +75,9 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
-        // semicolon statement forms allow empty branches
-        if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
-            self.bump();
-            return Ok(self.insert_block_expression(
-                &start,
-                BlockContext::Statement,
-                BlockForm::Implicit,
-                vec![],
-                None,
-            ));
-        }
-
         // parse one statement expression in statement mode
         let flags = self.statement_position_flags().in_before_block();
         let expression_id = self.with_flags(flags, |parser| parser.eat_statement_expression())?;
-
-        // semicolon statement forms reject declarations in single statement contexts
-        if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
-        }
 
         // keep existing block-like expressions
         if matches!(
@@ -105,24 +87,25 @@ impl Parser {
             return Ok(expression_id);
         }
 
-        // block-value mode keeps branch values as tail expressions
-        if self.language.is_destack() {
+        // statement forms do not become value-producing branch tails
+        let is_statement = self.tree.get(expression_id).is_statement_boundary()
+            || self.peek_is(TokenType::Semicolon);
+        if is_statement {
             return Ok(self.insert_block_expression(
                 &start,
-                BlockContext::Expression,
+                BlockContext::Statement,
                 BlockForm::Implicit,
-                vec![],
-                Some(expression_id),
+                vec![expression_id],
+                None,
             ));
         }
 
-        // semicolon statement forms keep branch statements in implicit blocks
         Ok(self.insert_block_expression(
             &start,
-            BlockContext::Statement,
+            BlockContext::Expression,
             BlockForm::Implicit,
-            vec![expression_id],
-            None,
+            vec![],
+            Some(expression_id),
         ))
     }
 
@@ -329,10 +312,6 @@ impl Parser {
         // labeled blocks are only allowed in statement position
         let is_label_block = label_target_type == TokenType::OpenBrace;
         let is_in_statement_position = self.flags.is_in_statement_position();
-        if is_in_statement_position && !self.language.is_destack() {
-            return true;
-        }
-
         is_label_expression || (is_in_statement_position && is_label_block)
     }
 
@@ -362,11 +341,6 @@ impl Parser {
         } else {
             self.eat_expression(self.flags)?
         };
-
-        // semicolon statement forms reject labeled declarations
-        if !self.language.is_destack() && self.is_single_statement_declaration(body) {
-            return Err(ParserError::unexpected(self.tree.get_span(body)));
-        }
 
         Ok((label, label_span, body))
     }
@@ -403,7 +377,9 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.current_keyword() {
-            if let Some(expression_id) = self.eat_keyword_expression(start, keyword)? {
+            if let Some(expression_id) =
+                self.eat_keyword_expression(start, keyword, DeclarationHeader::default())?
+            {
                 let expression = self.tree.get(expression_id);
                 let is_terminal_statement = expression.is_statement_boundary();
                 if is_terminal_statement
@@ -591,11 +567,6 @@ impl Parser {
             parser.eat_statement_expression()
         })?;
 
-        // reject declaration statements in single statement contexts
-        if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
-            return Err(ParserError::unexpected(self.tree.get_span(expression_id)));
-        }
-
         // consume trailing semicolon if present (e.g., `do x; while (true)`)
         if self.peek_is(TokenType::Semicolon) {
             self.bump();
@@ -612,30 +583,6 @@ impl Parser {
             self.get_span_from(&start),
         );
         Ok(block_id)
-    }
-
-    /// Check whether a statement expression is a declaration in a single statement context.
-    pub(crate) fn is_single_statement_declaration(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        // unwrap statement and label layers
-        let current = self.unwrap_label_expression(expression_id);
-
-        // detect declaration expressions that are invalid in single statement contexts
-        match self.tree.get(current) {
-            Expression::Declaration(declaration_id) => !matches!(
-                self.tree.get(*declaration_id),
-                Declaration::Function(FunctionDeclaration { signature, .. })
-                    if signature.form == FunctionForm::Lambda
-            ),
-            Expression::LetElse { .. }
-            | Expression::Using { .. }
-            | Expression::Import { .. }
-            | Expression::Export { .. } => true,
-            Expression::Let { .. } => true,
-            _ => false,
-        }
     }
 
     /// Eat a block (including the label, `{`, and `}`). Optional `do` prefix for disambiguation.
@@ -659,7 +606,7 @@ impl Parser {
         let start = self.span_start();
 
         // `do` prefix
-        let has_do_prefix = self.language.is_destack() && self.is_keyword(Keyword::Do);
+        let has_do_prefix = self.is_keyword(Keyword::Do);
         if has_do_prefix {
             self.bump(); // eat keyword
         }
@@ -800,10 +747,7 @@ impl Parser {
         // finalize the remaining tail expression
         let tail_expression = if let Some(expression_id) = pending_tail_expression {
             // explicit expression blocks can preserve one trailing value
-            if form.is_explicit()
-                && self.language.is_destack()
-                && block_context == BlockContext::Expression
-            {
+            if form.is_explicit() && block_context == BlockContext::Expression {
                 Some(expression_id)
             } else {
                 statements.push(expression_id);
@@ -881,10 +825,7 @@ impl Parser {
 
         // explicit expression blocks can keep value-capable control tails
         let keeps_value_tail = block_context.is_some_and(|(form, block_context)| {
-            form.is_explicit()
-                && block_context == BlockContext::Expression
-                && self.language.is_destack()
-                && preserves_value_tail
+            form.is_explicit() && block_context == BlockContext::Expression && preserves_value_tail
         });
         let stops_at_block_terminator = block_context
             .is_some_and(|(form, _)| self.is_block_body_terminator_token(next_token_type, form));
@@ -991,10 +932,7 @@ impl Parser {
             let next_token = self.next_token();
 
             // labeled value: break label: value
-            if self.language.is_destack()
-                && !next_token.is_on_new_line()
-                && next_token.ty() == TokenType::Colon
-            {
+            if !next_token.is_on_new_line() && next_token.ty() == TokenType::Colon {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.bump(); // eat colon
                 let value_id = self.eat_expression(self.flags.not_in_position())?;
@@ -1006,23 +944,15 @@ impl Parser {
                 (Some(label), Some(label_span), None)
             }
             // identifier-headed value: break value * 2
-            else if self.language.is_destack() {
+            else {
                 let value_id = self.eat_expression(self.flags.not_in_position())?;
                 (None, None, Some(value_id))
             }
-            // labels are the only break operands in TypeScript
-            else {
-                return Err(ParserError::unexpected(self.peek()));
-            }
         }
         // trailing value: break "done"
-        else if self.language.is_destack() && !self.is_any_stop() {
+        else if !self.is_any_stop() {
             let value_id = self.eat_expression(self.flags.not_in_position())?;
             (None, None, Some(value_id))
-        }
-        // other trailing tokens are invalid operands
-        else if !self.is_any_stop() {
-            return Err(ParserError::unexpected(self.peek()));
         } else {
             (None, None, None)
         };
