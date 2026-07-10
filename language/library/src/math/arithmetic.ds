@@ -65,62 +65,62 @@ export extension Arithmetic<T: Integer> of T {
     }
 
     /// Return wrapped `this + other` with an overflow flag.
-    overflowingAdd(other: T): [T, boolean] {
+    overflowingAdd(other: T): (T, boolean) {
         overflowingAdd(this, other)
     }
 
     /// Return wrapped `this - other` with an overflow flag.
-    overflowingSubtract(other: T): [T, boolean] {
+    overflowingSubtract(other: T): (T, boolean) {
         overflowingSubtract(this, other)
     }
 
     /// Return wrapped `this * other` with an overflow flag.
-    overflowingMultiply(other: T): [T, boolean] {
+    overflowingMultiply(other: T): (T, boolean) {
         overflowingMultiply(this, other)
     }
 
     /// Return wrapped `this / other` with an overflow flag.
-    overflowingDivide(other: T): [T, boolean] {
+    overflowingDivide(other: T): (T, boolean) {
         overflowingDivide(this, other)
     }
 
     /// Return wrapped `this % other` with an overflow flag.
-    overflowingRemainder(other: T): [T, boolean] {
+    overflowingRemainder(other: T): (T, boolean) {
         overflowingRemainder(this, other)
     }
 
     /// Return the wrapped Euclidean quotient with an overflow flag.
-    overflowingDivideEuclidean(other: T): [T, boolean] {
+    overflowingDivideEuclidean(other: T): (T, boolean) {
         overflowingDivideEuclidean(this, other)
     }
 
     /// Return the wrapped Euclidean remainder with an overflow flag.
-    overflowingRemainderEuclidean(other: T): [T, boolean] {
+    overflowingRemainderEuclidean(other: T): (T, boolean) {
         overflowingRemainderEuclidean(this, other)
     }
 
     /// Return wrapped `-this` with an overflow flag.
-    overflowingNegate(): [T, boolean] {
+    overflowingNegate(): (T, boolean) {
         overflowingNegate(this)
     }
 
     /// Return the wrapped absolute value with an overflow flag.
-    overflowingAbs(): [T, boolean] {
+    overflowingAbs(): (T, boolean) {
         overflowingAbs(this)
     }
 
     /// Return wrapped `this ** exponent` with an overflow flag.
-    overflowingPower(exponent: uint32): [T, boolean] {
+    overflowingPower(exponent: uint32): (T, boolean) {
         overflowingPower(this, exponent)
     }
 
     /// Shift left with an out-of-range flag.
-    overflowingShiftLeft(amount: uint32): [T, boolean] {
+    overflowingShiftLeft(amount: uint32): (T, boolean) {
         overflowingShiftLeft(this, amount)
     }
 
     /// Shift right with an out-of-range flag.
-    overflowingShiftRight(amount: uint32): [T, boolean] {
+    overflowingShiftRight(amount: uint32): (T, boolean) {
         overflowingShiftRight(this, amount)
     }
 
@@ -295,58 +295,58 @@ export function checkedShiftRight<T: Integer>(value: T, amount: uint32): T | und
 
 /// Add and report whether overflow occurred.
 @intrinsic("math.arithmetic.overflowing.add")
-export declare function overflowingAdd<T: Integer>(a: T, b: T): [T, boolean];
+export declare function overflowingAdd<T: Integer>(a: T, b: T): (T, boolean);
 
 /// Subtract and report whether overflow occurred.
 @intrinsic("math.arithmetic.overflowing.subtract")
-export declare function overflowingSubtract<T: Integer>(a: T, b: T): [T, boolean];
+export declare function overflowingSubtract<T: Integer>(a: T, b: T): (T, boolean);
 
 /// Multiply and report whether overflow occurred.
 @intrinsic("math.arithmetic.overflowing.multiply")
-export declare function overflowingMultiply<T: Integer>(a: T, b: T): [T, boolean];
+export declare function overflowingMultiply<T: Integer>(a: T, b: T): (T, boolean);
 
 /// Divide and report whether overflow occurred.
-export function overflowingDivide<T: Integer>(a: T, b: T): [T, boolean] {
+export function overflowingDivide<T: Integer>(a: T, b: T): (T, boolean) {
     todo("overflowingDivide")
 }
 
 /// Return remainder and report whether overflow occurred.
-export function overflowingRemainder<T: Integer>(a: T, b: T): [T, boolean] {
+export function overflowingRemainder<T: Integer>(a: T, b: T): (T, boolean) {
     todo("overflowingRemainder")
 }
 
 /// Divide using Euclidean rules and report whether overflow occurred.
-export function overflowingDivideEuclidean<T: Integer>(a: T, b: T): [T, boolean] {
+export function overflowingDivideEuclidean<T: Integer>(a: T, b: T): (T, boolean) {
     todo("overflowingDivideEuclidean")
 }
 
 /// Return Euclidean remainder and report whether overflow occurred.
-export function overflowingRemainderEuclidean<T: Integer>(a: T, b: T): [T, boolean] {
+export function overflowingRemainderEuclidean<T: Integer>(a: T, b: T): (T, boolean) {
     todo("overflowingRemainderEuclidean")
 }
 
 /// Negate and report whether overflow occurred.
-export function overflowingNegate<T: Integer>(value: T): [T, boolean] {
+export function overflowingNegate<T: Integer>(value: T): (T, boolean) {
     todo("overflowingNegate")
 }
 
 /// Return absolute value and report whether overflow occurred.
-export function overflowingAbs<T: Integer>(value: T): [T, boolean] {
+export function overflowingAbs<T: Integer>(value: T): (T, boolean) {
     todo("overflowingAbs")
 }
 
 /// Raise to `exponent` and report whether overflow occurred.
-export function overflowingPower<T: Integer>(base: T, exponent: uint32): [T, boolean] {
+export function overflowingPower<T: Integer>(base: T, exponent: uint32): (T, boolean) {
     todo("overflowingPower")
 }
 
 /// Shift left and report whether the shift was invalid.
-export function overflowingShiftLeft<T: Integer>(value: T, amount: uint32): [T, boolean] {
+export function overflowingShiftLeft<T: Integer>(value: T, amount: uint32): (T, boolean) {
     todo("overflowingShiftLeft")
 }
 
 /// Shift right and report whether the shift was invalid.
-export function overflowingShiftRight<T: Integer>(value: T, amount: uint32): [T, boolean] {
+export function overflowingShiftRight<T: Integer>(value: T, amount: uint32): (T, boolean) {
     todo("overflowingShiftRight")
 }
 

@@ -93,7 +93,7 @@ export function cholesky<T: Float>(
 export function qr<T: Float>(
     matrix: Tensor<T, 2>,
     options?: FactorizationOptions<T, 2>,
-): [Tensor<T, 2>, Tensor<T, 2>] {
+): (Tensor<T, 2>, Tensor<T, 2>) {
     todo("tensor.qr")
 }
 
@@ -101,7 +101,7 @@ export function qr<T: Float>(
 export function svd<T: Float>(
     matrix: Tensor<T, 2>,
     options?: FactorizationOptions<T, 2>,
-): [Tensor<T, 2>, Tensor<T, 1>, Tensor<T, 2>] {
+): (Tensor<T, 2>, Tensor<T, 1>, Tensor<T, 2>) {
     todo("tensor.svd")
 }
 
