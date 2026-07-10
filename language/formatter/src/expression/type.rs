@@ -16,7 +16,7 @@ use crate::declaration::signature::{
 use crate::expression::format_type_template_literal;
 use crate::file::{
     ignore_ranges_for_nodes, node_has_ignore_directive, node_has_trailing_line_ignore_directive,
-    write_ignored_node, write_ignored_span,
+    write_ignored_node, write_source_span,
 };
 use crate::operator::{
     format_generic_argument_list, write_colon_prefixed_type_annotation, write_range_operator,
@@ -2743,7 +2743,7 @@ pub(crate) fn format_type_member_block_list<'ast>(
                 write!(f, [FormatLeadingComments::Comments(comments)])?;
             }
 
-            write_ignored_span(f, *range_span)?;
+            write_source_span(f, *range_span)?;
             skip_until = Some(range_span.end);
             continue;
         }

@@ -1,10 +1,9 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
+use super::source::{line_prefix_text, write_source_span};
 use destack_dir::{LocalNodeId, Node, TokenSpan, Tree, TreeStore};
-use destack_fir::format::{FormatResult, text};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use destack_fir::format::FormatResult;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{DestackFormatContext, DestackFormatter};
@@ -141,15 +140,6 @@ fn line_distance_between_offsets(
     let (end_line, _) = ctx.file.get_position(end_offset)?;
 
     end_line.checked_sub(start_line)
-}
-
-/// Return the raw line prefix before one byte offset.
-fn line_prefix_text<'a>(ctx: &'a DestackFormatContext<'a>, offset: u32) -> Option<&'a str> {
-    let (line_index, column) = ctx.file.get_position(offset)?;
-    let line_span = ctx.file.get_line_span(line_index)?;
-    let line_text = ctx.span_str(line_span);
-
-    line_text.get(..column as usize)
 }
 
 /// Return whether one comment token starts at the first non-whitespace position on its line.
@@ -398,84 +388,6 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
     )
 }
 
-/// Extract the source for an ignored span.
-pub fn ignored_span_source(ctx: &DestackFormatContext<'_>, span: Span) -> String {
-    let source = ctx.span_str(span);
-    if ctx.file.get_position(span.start).is_none() {
-        return source.to_owned();
-    }
-    let Some(prefix) = line_prefix_text(ctx, span.start) else {
-        return source.to_owned();
-    };
-    if prefix.is_empty() || !prefix.trim().is_empty() {
-        return source.to_owned();
-    }
-
-    source
-        .split('\n')
-        .map(|line| line.strip_prefix(prefix).unwrap_or(line).to_owned())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-/// Write one ignored span with formatter-managed indentation.
-pub fn write_ignored_span<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    span: Span,
-) -> FormatResult<()> {
-    // ignored spans already contain their own comments
-    f.context_mut()
-        .comments_mut()
-        .skip_comments_before(span.end);
-
-    let source = ignored_span_source(f.context(), span);
-    let source = if !f.context().span_starts_on_own_line(span) {
-        dedent_common_leading_whitespace_after_first_line(source.as_str())
-    } else {
-        dedent_common_leading_whitespace(source.as_str())
-    };
-    let source = if source.trim().is_empty() {
-        source
-            .chars()
-            .filter(|character| *character == '\n')
-            .collect::<String>()
-    } else {
-        source
-    };
-
-    let mut segment_start = 0usize;
-    while segment_start < source.len() {
-        let Some(relative_newline_index) = source[segment_start..].find('\n') else {
-            write!(f, [text(&source[segment_start..])])?;
-            break;
-        };
-
-        let newline_index = segment_start + relative_newline_index;
-        if segment_start < newline_index {
-            write!(f, [text(&source[segment_start..newline_index])])?;
-        }
-
-        let mut newline_run_end = newline_index;
-        let bytes = source.as_bytes();
-        while newline_run_end < bytes.len() && bytes[newline_run_end] == b'\n' {
-            newline_run_end += 1;
-        }
-
-        let mut newline_count = newline_run_end - newline_index;
-        while newline_count >= 2 {
-            write!(f, [empty_line()])?;
-            newline_count -= 2;
-        }
-        if newline_count == 1 {
-            write!(f, [hard_line_break()])?;
-        }
-
-        segment_start = newline_run_end;
-    }
-
-    Ok(())
-}
-
 /// Write one ignored node source range with formatter-managed indentation.
 pub fn write_ignored_node<'ast, T: Node + Clone>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -485,126 +397,7 @@ where
     Tree: TreeStore<T>,
 {
     let span = ignored_node_span(f.context(), node_id);
-    write_ignored_span(f, span)
-}
-
-/// Remove shared leading indentation from non-empty lines.
-fn dedent_common_leading_whitespace(raw: &str) -> String {
-    // collect all non-empty lines that contribute indentation
-    let lines = raw.lines().collect::<Vec<_>>();
-    let mut common_prefix: Option<&str> = None;
-    for line in &lines {
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let prefix_end = line
-            .char_indices()
-            .find_map(|(index, character)| {
-                if character == ' ' || character == '\t' {
-                    None
-                } else {
-                    Some(index)
-                }
-            })
-            .unwrap_or(line.len());
-        let prefix = &line[..prefix_end];
-
-        match common_prefix {
-            None => common_prefix = Some(prefix),
-            Some(current_prefix) => {
-                let mut shared_len = 0usize;
-                let current_iter = current_prefix.chars();
-                let mut next_iter = prefix.chars();
-                for current_character in current_iter {
-                    let Some(next_character) = next_iter.next() else {
-                        break;
-                    };
-                    if current_character != next_character {
-                        break;
-                    }
-                    shared_len += current_character.len_utf8();
-                }
-                common_prefix = Some(&current_prefix[..shared_len]);
-            }
-        }
-    }
-
-    let Some(common_prefix) = common_prefix else {
-        return raw.to_owned();
-    };
-    if common_prefix.is_empty() {
-        return raw.to_owned();
-    }
-
-    lines
-        .into_iter()
-        .map(|line| line.strip_prefix(common_prefix).unwrap_or(line).to_owned())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-/// Remove shared leading indentation from non-empty lines after the first line.
-fn dedent_common_leading_whitespace_after_first_line(raw: &str) -> String {
-    let lines = raw.lines().collect::<Vec<_>>();
-    if lines.len() <= 1 {
-        return raw.to_owned();
-    }
-
-    let mut common_prefix: Option<&str> = None;
-    for line in lines.iter().skip(1) {
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let prefix_end = line
-            .char_indices()
-            .find_map(|(index, character)| {
-                if character == ' ' || character == '\t' {
-                    None
-                } else {
-                    Some(index)
-                }
-            })
-            .unwrap_or(line.len());
-        let prefix = &line[..prefix_end];
-
-        match common_prefix {
-            None => common_prefix = Some(prefix),
-            Some(current_prefix) => {
-                let mut shared_len = 0usize;
-                let current_iter = current_prefix.chars();
-                let mut next_iter = prefix.chars();
-                for current_character in current_iter {
-                    let Some(next_character) = next_iter.next() else {
-                        break;
-                    };
-                    if current_character != next_character {
-                        break;
-                    }
-                    shared_len += current_character.len_utf8();
-                }
-                common_prefix = Some(&current_prefix[..shared_len]);
-            }
-        }
-    }
-
-    let Some(common_prefix) = common_prefix else {
-        return raw.to_owned();
-    };
-    if common_prefix.is_empty() {
-        return raw.to_owned();
-    }
-
-    let mut normalized_lines = Vec::with_capacity(lines.len());
-    normalized_lines.push(lines[0].to_owned());
-    normalized_lines.extend(
-        lines
-            .iter()
-            .skip(1)
-            .map(|line| line.strip_prefix(common_prefix).unwrap_or(line).to_owned()),
-    );
-    normalized_lines.join("\n")
+    write_source_span(f, span)
 }
 
 /// Find the matching ignore range end comment following a start offset.
