@@ -324,7 +324,7 @@ impl<K: Reflect, V: Reflect> Reflect for OrdMap<K, V> {
     }
 }
 
-impl<K: Reflect, V: Reflect> Reflect for IndexMap<K, V> {
+impl<K: Reflect, V: Reflect, S> Reflect for IndexMap<K, V, S> {
     fn reflect(registry: &mut SchemaRegistry) -> SchemaRef {
         SchemaRef::Map {
             key: Box::new(K::reflect(registry)),
