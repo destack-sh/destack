@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
+    ComponentGraph, DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed,
+    GlobalEnvironment,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -75,6 +76,11 @@ impl LintSession {
         self.artifact_reader()
             .dir_bound(module_id, self.profile_id)
             .ok()
+    }
+
+    /// Return the checked component partition for this pass's profile.
+    pub fn component_graph(&self) -> Option<Arc<ComponentGraph>> {
+        self.artifact_reader().component_graph(self.profile_id).ok()
     }
 
     /// Return one imported DIR artifact for one revision-scoped module.

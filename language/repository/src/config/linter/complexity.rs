@@ -15,6 +15,8 @@ pub struct LinterComplexityOptions {
     pub max_branching_factor: usize,
     /// Maximum cognitive complexity.
     pub max_cognitive_complexity: usize,
+    /// Maximum modules in one dependency-cycle component.
+    pub max_component_size: usize,
     /// Maximum cyclomatic complexity.
     pub max_cyclomatic_complexity: usize,
     /// Switch counting variant for `cyclomatic-complexity`.
@@ -87,6 +89,7 @@ impl Default for LinterComplexityOptions {
             max_booleans: 3,
             max_branching_factor: 10,
             max_cognitive_complexity: 30,
+            max_component_size: 12,
             max_cyclomatic_complexity: 40,
             cyclomatic_complexity_variant: CyclomaticComplexityVariant::default(),
             max_depth: 4,

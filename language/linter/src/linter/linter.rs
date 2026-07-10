@@ -348,6 +348,7 @@ impl Linter {
                 .map_err(provider_error)?
             {
                 dependencies.require(ArtifactKey::global_environment(profile_id));
+                dependencies.require(ArtifactKey::component_graph(profile_id));
 
                 for module_id in self
                     .package_code_module_ids(revision, package_id, profile_id)

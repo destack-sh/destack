@@ -1,6 +1,7 @@
 mod cognitive_complexity;
 mod cyclomatic_complexity;
 mod max_branching_factor;
+mod max_component_size;
 mod max_depth;
 mod max_generic_params;
 mod max_lines;
@@ -30,6 +31,7 @@ use crate::{BoxedLintRule, boxed};
 pub use cognitive_complexity::*;
 pub use cyclomatic_complexity::*;
 pub use max_branching_factor::*;
+pub use max_component_size::*;
 pub use max_depth::*;
 pub use max_generic_params::*;
 pub use max_lines::*;
@@ -60,6 +62,7 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(CognitiveComplexity),
         boxed(CyclomaticComplexity),
         boxed(MaxBranchingFactor),
+        boxed(MaxComponentSize),
         boxed(MaxDepth),
         boxed(MaxLines),
         boxed(MaxLinesPerFunction),
