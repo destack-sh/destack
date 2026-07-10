@@ -1,4 +1,4 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_program};
+use crate::{DestackFormatOptions, assert_format, assert_format_program, assert_format_roundtrip};
 use destack_source::FileType;
 
 /// Simple named call arguments should stay stable.
@@ -7,8 +7,19 @@ fn test_format_argument_named() {
     assert_format!(
         r#"x: 1"#,
         r#"x: 1"#,
-        |p| p.eat_tree_argument(),
+        |p| p.eat_argument(),
         DestackFormatOptions::default()
+    );
+}
+
+/// Malformed call argument slots should preserve their authored source.
+#[test]
+fn test_format_recovered_call_argument() {
+    assert_format_roundtrip!(
+        "consume(1, , 3)",
+        "consume(1, , 3)",
+        FileType::Destack,
+        crate::parse_first_expression,
     );
 }
 

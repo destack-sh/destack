@@ -13,7 +13,7 @@ use crate::declaration::signature::{
 };
 use crate::declaration::statement::write_block_body;
 use crate::expression::write_expression_without_prefix_annotations;
-use crate::file::{node_has_ignore_directive, write_ignored_node};
+use crate::file::{node_has_ignore_directive, write_ignored_node, write_source_span};
 use crate::operator::{
     is_poorly_breakable_member_or_call_chain, write_colon_prefixed_type_annotation,
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
@@ -1040,7 +1040,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
                 Property::Method { .. } => {}
                 Property::Error => {
-                    write!(f, [token("/* ERROR */")])?;
+                    write_source_span(f, f.context().span(node_id))?;
                 }
             }
 

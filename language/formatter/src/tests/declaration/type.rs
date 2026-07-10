@@ -14,6 +14,31 @@ fn test_format_enum_empty() {
     );
 }
 
+/// Malformed generic argument slots should preserve their authored source.
+#[test]
+fn test_format_recovered_generic_argument() {
+    assert_format!(
+        "type Value=Container<>",
+        "type Value = Container<>;",
+        crate::parse_first_expression,
+        DestackFormatOptions::default()
+    );
+}
+
+/// Malformed type members should preserve their authored source.
+#[test]
+fn test_format_recovered_type_member() {
+    assert_format!(
+        "+\ny: int32",
+        "+",
+        |parser| {
+            let members = parser.eat_members(false)?;
+            Ok(members[0])
+        },
+        DestackFormatOptions::default()
+    );
+}
+
 #[test]
 fn test_format_placed_nominal_declarations() {
     assert_format_program!(

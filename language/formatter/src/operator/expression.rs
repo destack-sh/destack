@@ -12,6 +12,7 @@ use crate::expression::{
     ExpressionLeftSide, expression_needs_parentheses_in_parent, format_index_expression,
     format_member_expression,
 };
+use crate::file::write_source_span;
 use crate::operator::assign::format_assign_expression;
 use crate::operator::binary::format_binary_expression;
 use crate::operator::r#type::{
@@ -481,7 +482,7 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // error
         Expression::Error => {
-            write!(f, [token("/* ERROR */")])?;
+            write_source_span(f, f.context().span(node_id))?;
         }
         _ => return Ok(false),
     }

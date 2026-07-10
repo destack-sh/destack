@@ -14,6 +14,20 @@ fn test_format_parameter() {
     );
 }
 
+/// Malformed parameters should preserve their authored source.
+#[test]
+fn test_format_recovered_parameter() {
+    assert_format!(
+        "(x, =, y)",
+        "=",
+        |parser| {
+            let parameters = parser.eat_dynamic_parameters()?;
+            Ok(parameters[1])
+        },
+        DestackFormatOptions::default()
+    );
+}
+
 #[test]
 fn test_format_float_parameter_types() {
     assert_format_program_roundtrip_with_file_type(
