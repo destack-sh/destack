@@ -182,8 +182,8 @@ impl<'context, 'query> MemberIndexer<'context, 'query> {
         match member {
             dir::DefinitionMember::AssociatedType(member) => member.value.or(member.constraint),
             dir::DefinitionMember::CallSignature(member)
-            | dir::DefinitionMember::ConstructSignature(member)
-            | dir::DefinitionMember::IndexSignature(member) => Some(member.ty),
+            | dir::DefinitionMember::ConstructSignature(member) => Some(member.ty),
+            dir::DefinitionMember::IndexSignature(member) => Some(member.value_type),
             dir::DefinitionMember::Field(_)
             | dir::DefinitionMember::Method(_)
             | dir::DefinitionMember::AssociatedConst(_)

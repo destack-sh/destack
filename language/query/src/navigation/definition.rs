@@ -297,8 +297,9 @@ impl ModuleQueryContext<'_> {
             dir::Type::Instance(reference) => Some(reference.symbol),
             dir::Type::Form(value) => self.resolve_nominal_type_symbol(value.value),
             dir::Type::Dynamic(dynamic) => self.resolve_nominal_type_symbol(dynamic.constraint),
-            dir::Type::Operation(operation) => self
-                .resolve_nominal_type_symbol_from_operation(type_module.types().operation(*operation)),
+            dir::Type::Operation(operation) => self.resolve_nominal_type_symbol_from_operation(
+                type_module.types().operation(*operation),
+            ),
             dir::Type::Union(union) => {
                 for element in type_module.types().type_ids(union.elements) {
                     if let Some(symbol_id) = self.resolve_nominal_type_symbol(*element) {
