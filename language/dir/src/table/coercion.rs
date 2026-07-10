@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{CastOrigin, GlobalNodeIdAny, GlobalTypeId, SegmentView};
+use crate::{CastOrigin, Form, GlobalNodeIdAny, GlobalTypeId, SegmentView, Type};
 
 /// Cumulative checked coercions for one DIR module.
 #[derive(Debug, Clone)]
@@ -95,6 +95,24 @@ impl<'a> CoercionTable<'a> {
     }
 }
 
+/// One representation change performed by a coercion.
+///
+/// A coercion is required exactly when a value cannot widen naturally:
+/// literals store directly in their base scalars and classes upcast freely,
+/// while entering a union, an existential, another scalar carrier, or another
+/// value carrier converts the stored representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum CoercionKind {
+    /// Tag the value into or out of a union carrier.
+    Union,
+    /// Box the value into or out of an existential carrier, like `Dynamic<T>`.
+    Existential,
+    /// Convert between scalar carriers, like `int32` into `float64`.
+    Scalar,
+    /// Change the value carrier, like `^T` into `&T` or `T[]` into `[T]`.
+    Carrier,
+}
+
 /// One type coercion attached to a value node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Coercion {
@@ -102,19 +120,128 @@ pub struct Coercion {
     pub source: GlobalTypeId,
     /// The target type after coercion.
     pub target: GlobalTypeId,
+    /// The representation change performed.
+    pub kind: CoercionKind,
     /// How the coercion entered DIR.
     pub origin: CastOrigin,
 }
 
 impl Coercion {
     /// Create one coercion.
-    pub fn new(source: GlobalTypeId, target: GlobalTypeId, origin: CastOrigin) -> Self {
+    pub fn new(
+        source: GlobalTypeId,
+        target: GlobalTypeId,
+        kind: CoercionKind,
+        origin: CastOrigin,
+    ) -> Self {
         Self {
             source,
             target,
+            kind,
             origin,
         }
     }
+    /// Classify the representation change between two settled, distinct type
+    /// heads, or nothing when the value stores directly.
+    pub fn classify(source: &Type, target: &Type) -> Option<CoercionKind> {
+        // unreachable sources store nothing
+        if matches!(source, Type::Never) {
+            return None;
+        }
+
+        // union carriers tag their values on entry and exit
+        if matches!(source, Type::Union(_)) || matches!(target, Type::Union(_)) {
+            return Some(CoercionKind::Union);
+        }
+
+        // existential carriers box their values on entry and exit
+        let existential = |ty: &Type| {
+            matches!(
+                ty,
+                Type::Any | Type::Unknown | Type::Object | Type::Dynamic(_)
+            )
+        };
+        if existential(source) || existential(target) {
+            return Some(CoercionKind::Existential);
+        }
+
+        // memory forms convert when their runtime carriers differ
+        if let (Type::Form(source), Type::Form(target)) = (source, target) {
+            return match Self::carriers_differ(source.form, target.form) {
+                true => Some(CoercionKind::Carrier),
+                false => None,
+            };
+        }
+        // placement and readonly views store as their payloads
+        if let Type::Form(form) = source
+            && matches!(
+                form.form,
+                Form::Placed { .. } | Form::Readonly | Form::Managed
+            )
+        {
+            return None;
+        }
+        if let Type::Form(form) = target
+            && matches!(
+                form.form,
+                Form::Placed { .. } | Form::Readonly | Form::Managed
+            )
+        {
+            return None;
+        }
+        // owned, borrowed, and raw values convert against bare payloads
+        if matches!(source, Type::Form(_)) || matches!(target, Type::Form(_)) {
+            return Some(CoercionKind::Carrier);
+        }
+
+        // sized sequences and thin pointers convert into their fat carriers
+        if matches!(
+            (source, target),
+            (Type::Array(_), Type::Slice(_))
+                | (Type::FixedArray(_), Type::Slice(_))
+                | (Type::FunctionPointer(_), Type::Function(_))
+        ) {
+            return Some(CoercionKind::Carrier);
+        }
+
+        // scalar singletons widen naturally into their base scalars
+        let stores_directly = match source {
+            Type::Literal(literal) => literal.widens_to(target),
+            Type::Range(range) => range.widens_to(target),
+            _ => false,
+        };
+        if stores_directly {
+            return None;
+        }
+
+        // distinct scalar carriers convert their stored values
+        if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
+            && source.widens_to(*target)
+        {
+            return Some(CoercionKind::Scalar);
+        }
+
+        None
+    }
+
+    /// Return whether two memory form constructors store different carriers.
+    fn carriers_differ(source: Form, target: Form) -> bool {
+        match (source, target) {
+            // placement, readonly, and managed are static or transparent
+            (Form::Placed { .. } | Form::Readonly | Form::Managed, _)
+            | (_, Form::Placed { .. } | Form::Readonly | Form::Managed) => false,
+
+            // static borrow parameters share the pointer carrier
+            (Form::Borrowed(_), Form::Borrowed(_)) => false,
+
+            // equal runtime carriers store directly
+            (Form::Owned, Form::Owned) | (Form::Raw, Form::Raw) => false,
+
+            // different runtime carriers convert
+            _ => true,
+        }
+    }
+
 }
 
 /// Coercions added by one DIR phase.

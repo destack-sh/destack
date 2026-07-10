@@ -38,6 +38,23 @@ impl ReferenceTable {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
+
+    /// Return modules that own resolved reference targets.
+    pub fn target_modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.entries.values().flat_map(|reference| {
+            let mut modules: SmallVec<[ModuleId; 2]> = SmallVec::new();
+            match reference {
+                Reference::Bound(symbols) | Reference::Ambiguous(symbols) => {
+                    modules.extend(symbols.iter().map(|symbol| symbol.module_id));
+                }
+                Reference::Namespace(module) => modules.push(*module),
+                Reference::Projected { base, .. } => modules.push(base.module_id),
+                Reference::Missing => {}
+            }
+
+            modules
+        })
+    }
 }
 
 /// How one source reference resolves by name, before types and conditions apply.

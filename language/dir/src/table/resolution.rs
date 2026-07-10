@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use destack_source::ModuleId;
 use indexmap::IndexMap;
+use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -203,7 +204,7 @@ impl<'a> ResolutionTable<'a> {
     fn lookup<T>(
         &self,
         node_id: GlobalNodeIdAny,
-        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T>,
+        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T, FxBuildHasher>,
     ) -> Option<&T> {
         for segment in self.segments.iter().rev() {
             if let Some(resolution) = column(segment).get(&node_id) {
@@ -217,7 +218,7 @@ impl<'a> ResolutionTable<'a> {
     /// Iterate the visible entries in one resolution column.
     fn visible_entries<'b, T: 'b>(
         &'b self,
-        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T> + Copy + 'b,
+        column: impl Fn(&ResolutionSegment) -> &IndexMap<GlobalNodeIdAny, T, FxBuildHasher> + Copy + 'b,
     ) -> impl Iterator<Item = (GlobalNodeIdAny, &'b T)> + 'b {
         self.segments
             .iter()
@@ -244,27 +245,80 @@ pub struct ResolutionSegment {
     /// The module id of the resolution segment.
     pub module_id: ModuleId,
     /// Checked lexical or path resolutions keyed by DIR node.
-    pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution>,
+    pub(crate) names: IndexMap<GlobalNodeIdAny, NameResolution, FxBuildHasher>,
     /// Checked generic instantiations keyed by DIR node.
-    pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution>,
+    pub(crate) instantiations: IndexMap<GlobalNodeIdAny, InstantiationResolution, FxBuildHasher>,
     /// Checked label resolutions keyed by DIR node.
-    pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution>,
+    pub(crate) labels: IndexMap<GlobalNodeIdAny, LabelResolution, FxBuildHasher>,
     /// Checked receiver resolutions keyed by DIR node.
-    pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution>,
+    pub(crate) receivers: IndexMap<GlobalNodeIdAny, ReceiverResolution, FxBuildHasher>,
     /// Checked member resolutions keyed by DIR node.
-    pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution>,
+    pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution, FxBuildHasher>,
     /// Checked call resolutions keyed by DIR node.
-    pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
+    pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution, FxBuildHasher>,
     /// Checked place resolutions keyed by DIR node.
-    pub(crate) places: IndexMap<GlobalNodeIdAny, PlaceResolution>,
+    pub(crate) places: IndexMap<GlobalNodeIdAny, PlaceResolution, FxBuildHasher>,
     /// Checked guard resolutions keyed by DIR node.
-    pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution>,
+    pub(crate) guards: IndexMap<GlobalNodeIdAny, GuardResolution, FxBuildHasher>,
     /// Checked construct resolutions keyed by DIR node.
-    pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
+    pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution, FxBuildHasher>,
     /// Checked pattern resolutions keyed by DIR node.
-    pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution>,
+    pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution, FxBuildHasher>,
     /// Checked assignment pattern resolutions keyed by DIR node.
-    pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution>,
+    pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution, FxBuildHasher>,
+}
+
+
+/// Per-kind resolution counts marking one segment position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResolutionMark {
+    /// The per-kind map lengths at the mark.
+    lengths: [usize; 11],
+}
+
+impl ResolutionSegment {
+    /// Mark the current segment position for later truncation.
+    pub fn mark(&self) -> ResolutionMark {
+        ResolutionMark {
+            lengths: [
+                self.names.len(),
+                self.instantiations.len(),
+                self.labels.len(),
+                self.receivers.len(),
+                self.members.len(),
+                self.calls.len(),
+                self.places.len(),
+                self.guards.len(),
+                self.constructs.len(),
+                self.patterns.len(),
+                self.assign_patterns.len(),
+            ],
+        }
+    }
+
+    /// Truncate resolutions back to one mark, newest first.
+    pub fn truncate_to(&mut self, mark: ResolutionMark) {
+        let [names, instantiations, labels, receivers, members, calls, places, guards, constructs, patterns, assign_patterns] =
+            mark.lengths;
+        Self::truncate_map(&mut self.names, names);
+        Self::truncate_map(&mut self.instantiations, instantiations);
+        Self::truncate_map(&mut self.labels, labels);
+        Self::truncate_map(&mut self.receivers, receivers);
+        Self::truncate_map(&mut self.members, members);
+        Self::truncate_map(&mut self.calls, calls);
+        Self::truncate_map(&mut self.places, places);
+        Self::truncate_map(&mut self.guards, guards);
+        Self::truncate_map(&mut self.constructs, constructs);
+        Self::truncate_map(&mut self.patterns, patterns);
+        Self::truncate_map(&mut self.assign_patterns, assign_patterns);
+    }
+
+    /// Drop map entries added past one length.
+    fn truncate_map<T>(map: &mut IndexMap<GlobalNodeIdAny, T, FxBuildHasher>, length: usize) {
+        while map.len() > length {
+            map.pop();
+        }
+    }
 }
 
 impl ResolutionSegment {
@@ -272,17 +326,17 @@ impl ResolutionSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            names: IndexMap::new(),
-            instantiations: IndexMap::new(),
-            labels: IndexMap::new(),
-            receivers: IndexMap::new(),
-            members: IndexMap::new(),
-            calls: IndexMap::new(),
-            places: IndexMap::new(),
-            guards: IndexMap::new(),
-            constructs: IndexMap::new(),
-            patterns: IndexMap::new(),
-            assign_patterns: IndexMap::new(),
+            names: IndexMap::default(),
+            instantiations: IndexMap::default(),
+            labels: IndexMap::default(),
+            receivers: IndexMap::default(),
+            members: IndexMap::default(),
+            calls: IndexMap::default(),
+            places: IndexMap::default(),
+            guards: IndexMap::default(),
+            constructs: IndexMap::default(),
+            patterns: IndexMap::default(),
+            assign_patterns: IndexMap::default(),
         }
     }
 
