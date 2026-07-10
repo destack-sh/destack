@@ -2,8 +2,9 @@ import { A } from "@solidjs/router";
 
 /// The primary public navigation destinations.
 const links = [
-    ["design", "https://github.com/destack-sh/destack/blob/main/language/DESIGN.md"],
     ["blog", "/blog/"],
+    ["discord", "https://discord.gg/xUFQ45TWYd"],
+    ["x", "https://x.com/destack"],
     ["github", "https://github.com/destack-sh/destack"],
 ] as const;
 

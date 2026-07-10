@@ -1,5 +1,0 @@
-newtype Celsius = float64;
-
-function fahrenheit(value: Celsius): float64 {
-    return value as float64 * 1.8 + 32.0;
-}
