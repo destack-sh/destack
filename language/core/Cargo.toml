@@ -17,6 +17,7 @@ destack_serde = { workspace = true }
 parking_lot = { workspace = true }
 indexmap = { workspace = true }
 rustc-hash = { workspace = true }
+smallvec = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 xxhash-rust = { workspace = true, features = ["xxh3"] }
 
