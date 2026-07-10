@@ -84,7 +84,6 @@ impl DispatchTable {
 
             virtual_table_entries.push(VirtualTable {
                 ty: virtual_table.ty,
-                destructor: virtual_table.destructor.into(),
                 methods,
             });
         }
@@ -239,8 +238,6 @@ impl DispatchTable {
 pub struct VirtualTable {
     /// Concrete type owning this table.
     pub ty: TypeId,
-    /// Drop glue function when one exists.
-    pub destructor: Optional<FunctionId>,
     /// Method implementations in runtime slot order.
     pub methods: EntryRange<FunctionId>,
 }
@@ -272,8 +269,6 @@ pub struct DynamicShape {
 pub struct VirtualTableBuilder {
     /// Concrete type owning this table.
     pub ty: TypeId,
-    /// Drop glue function when one exists.
-    pub destructor: Option<FunctionId>,
     /// Method implementations in runtime slot order.
     pub methods: Vec<FunctionId>,
 }

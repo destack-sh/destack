@@ -242,17 +242,19 @@ pub struct Call {
     pub moves: MoveRange,
 }
 
-/// Function call terminator with an explicit continuation.
+/// Direct function invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CallBranch {
+pub struct Invoke {
     /// The callee function index.
     pub function: u32,
     /// The resolved call target.
     pub target: CallTarget,
     /// The pooled argument range.
     pub arguments: ArgumentRange,
-    /// The continuation frame state.
-    pub target_state: FrameStateId,
+    /// The normal continuation frame state.
+    pub normal_state: FrameStateId,
+    /// The unwind continuation frame state.
+    pub unwind_state: FrameStateId,
 }
 
 /// Class method call.
@@ -268,9 +270,9 @@ pub struct CallVirtual {
     pub arguments: ArgumentRange,
 }
 
-/// Class method call terminator with an explicit continuation.
+/// Virtual method invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CallVirtualBranch {
+pub struct InvokeVirtual {
     /// The receiver cell offset.
     pub receiver_offset: u32,
     /// The dispatch table field projection.
@@ -279,8 +281,10 @@ pub struct CallVirtualBranch {
     pub slot: u32,
     /// The pooled argument range.
     pub arguments: ArgumentRange,
-    /// The continuation frame state.
-    pub target_state: FrameStateId,
+    /// The normal continuation frame state.
+    pub normal_state: FrameStateId,
+    /// The unwind continuation frame state.
+    pub unwind_state: FrameStateId,
 }
 
 /// Dynamic method call.
@@ -296,9 +300,9 @@ pub struct CallDynamic {
     pub arguments: ArgumentRange,
 }
 
-/// Dynamic method call terminator with an explicit continuation.
+/// Dynamic method invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CallDynamicBranch {
+pub struct InvokeDynamic {
     /// The receiver cell offset.
     pub receiver_offset: u32,
     /// The dynamic table field projection.
@@ -307,8 +311,10 @@ pub struct CallDynamicBranch {
     pub slot: u32,
     /// The pooled argument range.
     pub arguments: ArgumentRange,
-    /// The continuation frame state.
-    pub target_state: FrameStateId,
+    /// The normal continuation frame state.
+    pub normal_state: FrameStateId,
+    /// The unwind continuation frame state.
+    pub unwind_state: FrameStateId,
 }
 
 /// Indirect function call.
@@ -322,17 +328,19 @@ pub struct IndirectCall {
     pub arguments: ArgumentRange,
 }
 
-/// Indirect call terminator with an explicit continuation.
+/// Indirect function invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct IndirectCallBranch {
+pub struct InvokeIndirect {
     /// The callee cell offset.
     pub callee_offset: u32,
     /// The expected function signature.
     pub signature: SignatureId,
     /// The pooled argument range.
     pub arguments: ArgumentRange,
-    /// The continuation frame state.
-    pub target_state: FrameStateId,
+    /// The normal continuation frame state.
+    pub normal_state: FrameStateId,
+    /// The unwind continuation frame state.
+    pub unwind_state: FrameStateId,
 }
 
 /// Load a tensor element from a view.

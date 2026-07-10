@@ -738,32 +738,32 @@ pub enum Op {
     // ============================================================================
     /// Call a known function.
     Call,
-    /// Call a known function with an explicit continuation.
-    CallBranch,
+    /// Invoke a known function with normal and unwind continuations.
+    Invoke,
     /// Call a function pointer.
     CallFunctionPointer,
     /// Call a function value.
     CallFunction,
-    /// Call a function pointer with an explicit continuation.
-    CallFunctionPointerBranch,
-    /// Call a function value with an explicit continuation.
-    CallFunctionBranch,
+    /// Invoke a function pointer with normal and unwind continuations.
+    InvokeFunctionPointer,
+    /// Invoke a function value with normal and unwind continuations.
+    InvokeFunction,
     /// Call a virtual method through a local receiver.
     CallVirtualLocal,
     /// Call a virtual method through a shared receiver.
     CallVirtualShared,
-    /// Call a virtual method through a local receiver with an explicit continuation.
-    CallVirtualLocalBranch,
-    /// Call a virtual method through a shared receiver with an explicit continuation.
-    CallVirtualSharedBranch,
+    /// Invoke a virtual method through a local receiver.
+    InvokeVirtualLocal,
+    /// Invoke a virtual method through a shared receiver.
+    InvokeVirtualShared,
     /// Call a dynamic function through a local receiver.
     CallDynamicLocal,
     /// Call a dynamic function through a shared receiver.
     CallDynamicShared,
-    /// Call a dynamic function through a local receiver with an explicit continuation.
-    CallDynamicLocalBranch,
-    /// Call a dynamic function through a shared receiver with an explicit continuation.
-    CallDynamicSharedBranch,
+    /// Invoke a dynamic function through a local receiver.
+    InvokeDynamicLocal,
+    /// Invoke a dynamic function through a shared receiver.
+    InvokeDynamicShared,
     /// Tail call a known function.
     TailCall,
     /// Tail call the current function.
@@ -1010,19 +1010,19 @@ impl Op {
         matches!(
             self,
             Self::Call
-                | Self::CallBranch
+                | Self::Invoke
                 | Self::CallFunctionPointer
                 | Self::CallFunction
-                | Self::CallFunctionPointerBranch
-                | Self::CallFunctionBranch
+                | Self::InvokeFunctionPointer
+                | Self::InvokeFunction
                 | Self::CallVirtualLocal
                 | Self::CallVirtualShared
-                | Self::CallVirtualLocalBranch
-                | Self::CallVirtualSharedBranch
+                | Self::InvokeVirtualLocal
+                | Self::InvokeVirtualShared
                 | Self::CallDynamicLocal
                 | Self::CallDynamicShared
-                | Self::CallDynamicLocalBranch
-                | Self::CallDynamicSharedBranch
+                | Self::InvokeDynamicLocal
+                | Self::InvokeDynamicShared
                 | Self::TailCall
                 | Self::TailCallSelf
                 | Self::TailCallFunctionPointer
