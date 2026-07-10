@@ -104,7 +104,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
             self.record_instruction(caller, instruction_id, instruction);
         }
 
-        // record call terminators
+        // record the block terminator
         let terminator = self.tree.get(block.terminator);
         self.record_terminator(caller, block_id, terminator);
     }
@@ -117,44 +117,14 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
         instruction: &mir::Instruction,
     ) {
         let callsite = mir::CallSite::Instruction(instruction_id);
-        match instruction {
-            mir::Instruction::Call { function, .. } => self.analysis.resolve(callsite, *function),
-            mir::Instruction::CallIndirect { .. } => {
-                self.record_open_callsite(caller, callsite, mir::CallDispatchKind::Indirect);
-            }
-            mir::Instruction::CallVirtual {
-                receiver,
-                class,
-                slot,
-                ..
-            } => {
-                let target = self.virtual_target(*receiver, *class, *slot);
-                self.record_target_or_open(
-                    caller,
-                    callsite,
-                    mir::CallDispatchKind::Virtual { slot: *slot },
-                    target,
-                );
-            }
-            mir::Instruction::CallDynamic {
-                receiver,
-                constraint,
-                slot,
-                ..
-            } => {
-                let target = self.dynamic_target(*receiver, *constraint, *slot);
-                self.record_target_or_open(
-                    caller,
-                    callsite,
-                    mir::CallDispatchKind::Dynamic { slot: *slot },
-                    target,
-                );
-            }
-            _ => {}
-        }
+        let mir::Instruction::Call { call, .. } = instruction else {
+            return;
+        };
+
+        self.record_call(caller, callsite, call);
     }
 
-    /// Record one call terminator.
+    /// Record one terminator call.
     fn record_terminator(
         &mut self,
         caller: mir::FunctionId,
@@ -162,54 +132,47 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
         terminator: &mir::Terminator,
     ) {
         let callsite = mir::CallSite::Terminator(block_id);
-        match terminator {
-            mir::Terminator::Call { function, .. } | mir::Terminator::TailCall { function, .. } => {
-                self.analysis.resolve(callsite, *function);
+        let call = match terminator {
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => call,
+            _ => return,
+        };
+
+        self.record_call(caller, callsite, call);
+    }
+
+    /// Record one call operation.
+    fn record_call(&mut self, caller: mir::FunctionId, callsite: mir::CallSite, call: &mir::Call) {
+        match &call.callee {
+            mir::Callee::Direct { function } => self.analysis.resolve(callsite, *function),
+            mir::Callee::Indirect { .. } => {
+                self.record_open_callsite(caller, callsite, mir::CallDispatch::Indirect);
             }
-            mir::Terminator::CallIndirect { .. } | mir::Terminator::TailCallIndirect { .. } => {
-                self.record_open_callsite(caller, callsite, mir::CallDispatchKind::Indirect);
-            }
-            mir::Terminator::CallVirtual {
+            mir::Callee::Virtual {
                 receiver,
                 class,
                 slot,
-                ..
-            }
-            | mir::Terminator::TailCallVirtual {
-                receiver,
-                class,
-                slot,
-                ..
             } => {
                 let target = self.virtual_target(*receiver, *class, *slot);
                 self.record_target_or_open(
                     caller,
                     callsite,
-                    mir::CallDispatchKind::Virtual { slot: *slot },
+                    mir::CallDispatch::Virtual { slot: *slot },
                     target,
                 );
             }
-            mir::Terminator::CallDynamic {
+            mir::Callee::Dynamic {
                 receiver,
                 constraint,
                 slot,
-                ..
-            }
-            | mir::Terminator::TailCallDynamic {
-                receiver,
-                constraint,
-                slot,
-                ..
             } => {
                 let target = self.dynamic_target(*receiver, *constraint, *slot);
                 self.record_target_or_open(
                     caller,
                     callsite,
-                    mir::CallDispatchKind::Dynamic { slot: *slot },
+                    mir::CallDispatch::Dynamic { slot: *slot },
                     target,
                 );
             }
-            _ => {}
         }
     }
 
@@ -218,7 +181,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
         &mut self,
         caller: mir::FunctionId,
         callsite: mir::CallSite,
-        dispatch: mir::CallDispatchKind,
+        dispatch: mir::CallDispatch,
         target: Option<mir::FunctionId>,
     ) {
         if let Some(target) = target {
@@ -233,7 +196,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
         &mut self,
         caller: mir::FunctionId,
         callsite: mir::CallSite,
-        dispatch: mir::CallDispatchKind,
+        dispatch: mir::CallDispatch,
     ) {
         self.analysis.record_open_callsite(OpenCallSite {
             caller,
@@ -325,7 +288,6 @@ entry(v0: int32):
         // attach the exact virtual table needed by the callsite
         program.dispatch.insert_virtual_table(mir::VirtualTable {
             ty: class,
-            destructor: None,
             methods: vec![callee],
         });
 
@@ -361,7 +323,6 @@ entry(v0: int32):
         // attach one method while the call targets another slot
         program.dispatch.insert_virtual_table(mir::VirtualTable {
             ty: class,
-            destructor: None,
             methods: vec![callee],
         });
 
@@ -473,8 +434,14 @@ entry(v0: int32):
         for &block_id in function.blocks() {
             let block = program.tree.get(block_id);
             for &instruction_id in &block.instructions {
-                if let mir::Instruction::CallVirtual { class, .. } =
-                    program.tree.get(instruction_id)
+                if let mir::Instruction::Call {
+                    call:
+                        mir::Call {
+                            callee: mir::Callee::Virtual { class, .. },
+                            ..
+                        },
+                    ..
+                } = program.tree.get(instruction_id)
                 {
                     return (mir::CallSite::Instruction(instruction_id), *class);
                 }
@@ -495,9 +462,17 @@ entry(v0: int32):
         for &block_id in function.blocks() {
             let block = program.tree.get(block_id);
             for &instruction_id in &block.instructions {
-                if let mir::Instruction::CallDynamic {
-                    receiver,
-                    constraint,
+                if let mir::Instruction::Call {
+                    call:
+                        mir::Call {
+                            callee:
+                                mir::Callee::Dynamic {
+                                    receiver,
+                                    constraint,
+                                    ..
+                                },
+                            ..
+                        },
                     ..
                 } = program.tree.get(instruction_id)
                 {

@@ -148,9 +148,7 @@ impl PureExpression {
             // side effects and unstable reads are not pure expressions
             mir::Instruction::Const { .. }
             | mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
-            | mir::Instruction::CallDynamic { .. }
-            | mir::Instruction::CallIndirect { .. }
+            | mir::Instruction::Drop { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::Load { .. }
             | mir::Instruction::Store { .. }

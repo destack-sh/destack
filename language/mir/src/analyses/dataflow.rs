@@ -216,9 +216,6 @@ where
                     | mir::Terminator::Panic { .. }
                     | mir::Terminator::Unreachable
                     | mir::Terminator::TailCall { .. }
-                    | mir::Terminator::TailCallVirtual { .. }
-                    | mir::Terminator::TailCallDynamic { .. }
-                    | mir::Terminator::TailCallIndirect { .. }
             ) {
                 result.set_exit(block_id, exit_state.clone());
             }

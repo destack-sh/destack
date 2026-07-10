@@ -56,7 +56,7 @@ entry(v0: int32):
     yield v1 => b1(v0) | b2
 
 b1(v2: int32, v3: int32):
-    call callee(v3) => b3 | b2
+    invoke callee(v3) => b3 | b2
 
 b2:
     unwind.resume
@@ -68,19 +68,85 @@ b3(v4: int32):
     );
 }
 
-/// Formats call terminators canonically.
+/// Formats invokes canonically.
 #[test]
-fn test_format_call_terminator() {
+fn test_format_invoke() {
     assert_format(
         r#"
 external function callee(int32): int32
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | b2
 
 b1(v1: int32):
     return v1
+
+b2:
+    unwind.resume
+}
+"#,
+    );
+}
+
+/// Formats every open invoke and tail-call dispatch canonically.
+#[test]
+fn test_format_open_invoke_and_tail_call_families() {
+    assert_format(
+        r#"
+external function callee(int32): int32
+
+function invokeIndirect(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    invoke.indirect v0(v1): (int32) => int32 => b1 | b2
+
+b1(v2: int32):
+    return v2
+
+b2:
+    unwind.resume
+}
+
+function invokeVirtual(v0: int32): int32 {
+entry(v0: int32):
+    invoke.virtual v0, int32, 0(v0): (int32) => int32 => b1 | b2
+
+b1(v1: int32):
+    return v1
+
+b2:
+    unwind.resume
+}
+
+function invokeDynamic(v0: int32): int32 {
+entry(v0: int32):
+    invoke.dynamic v0, int32, 0(v0): (int32) => int32 => b1 | b2
+
+b1(v1: int32):
+    return v1
+
+b2:
+    unwind.resume
+}
+
+function tailDirect(v0: int32): int32 {
+entry(v0: int32):
+    tail.call callee(v0)
+}
+
+function tailIndirect(v0: fn(int32) => int32, v1: int32): int32 {
+entry(v0: fn(int32) => int32, v1: int32):
+    tail.call.indirect v0(v1): (int32) => int32
+}
+
+function tailVirtual(v0: int32): int32 {
+entry(v0: int32):
+    tail.call.virtual v0, int32, 0(v0): (int32) => int32
+}
+
+function tailDynamic(v0: int32): int32 {
+entry(v0: int32):
+    tail.call.dynamic v0, int32, 0(v0): (int32) => int32
 }
 "#,
     );

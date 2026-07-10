@@ -15,14 +15,14 @@ pub struct CallEdge {
     pub callee: mir::LocalNodeId<mir::Function>,
     /// The callsite that performs the call.
     pub callsite: mir::CallSite,
-    /// The dispatch kind for this callsite.
-    pub dispatch: mir::CallDispatchKind,
+    /// The dispatch for this callsite.
+    pub dispatch: mir::CallDispatch,
 }
 
 impl CallEdge {
     /// Return true when this edge is a direct call.
     pub fn is_direct(&self) -> bool {
-        matches!(self.dispatch, mir::CallDispatchKind::Direct)
+        matches!(self.dispatch, mir::CallDispatch::Direct)
     }
 }
 
@@ -33,8 +33,8 @@ pub struct OpenCallSite {
     pub caller: mir::LocalNodeId<mir::Function>,
     /// The callsite that performs the call.
     pub callsite: mir::CallSite,
-    /// The dispatch kind for this callsite.
-    pub dispatch: mir::CallDispatchKind,
+    /// The dispatch for this callsite.
+    pub dispatch: mir::CallDispatch,
     /// The known target when one has been resolved.
     pub known_target: Option<mir::LocalNodeId<mir::Function>>,
 }
@@ -276,8 +276,8 @@ struct ScannedCallSite {
     caller: mir::LocalNodeId<mir::Function>,
     /// The callsite identity.
     callsite: mir::CallSite,
-    /// Dispatch kind for the callsite.
-    dispatch: mir::CallDispatchKind,
+    /// Dispatch for the callsite.
+    dispatch: mir::CallDispatch,
     /// Resolved target when known.
     known_target: Option<mir::LocalNodeId<mir::Function>>,
     /// True when the dispatch target set is closed.
@@ -292,9 +292,9 @@ impl ScannedCallSite {
         instruction: &mir::Instruction,
         effects: &mir::EffectTable,
     ) -> Option<Self> {
-        let dispatch = instruction.call_dispatch_kind()?;
+        let dispatch = instruction.call_dispatch()?;
         let known_target = Self::instruction_target(instruction_id, instruction, effects);
-        let is_closed = matches!(dispatch, mir::CallDispatchKind::Direct);
+        let is_closed = matches!(dispatch, mir::CallDispatch::Direct);
 
         Some(Self {
             caller,
@@ -314,65 +314,21 @@ impl ScannedCallSite {
     ) -> Option<Self> {
         let callsite = mir::CallSite::Terminator(block_id);
 
-        match terminator {
-            mir::Terminator::Call { function, .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Direct,
-                known_target: Some(*function),
-                is_closed: true,
-            }),
-            mir::Terminator::CallIndirect { .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Indirect,
-                known_target: None,
-                is_closed: false,
-            }),
-            mir::Terminator::CallVirtual { slot, .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, effects),
-                is_closed: false,
-            }),
-            mir::Terminator::CallDynamic { slot, .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, effects),
-                is_closed: false,
-            }),
-            mir::Terminator::TailCall { function, .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Direct,
-                known_target: Some(*function),
-                is_closed: true,
-            }),
-            mir::Terminator::TailCallIndirect { .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Indirect,
-                known_target: None,
-                is_closed: false,
-            }),
-            mir::Terminator::TailCallVirtual { slot, .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, effects),
-                is_closed: false,
-            }),
-            mir::Terminator::TailCallDynamic { slot, .. } => Some(Self {
-                caller,
-                callsite,
-                dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
-                known_target: Self::terminator_target(block_id, terminator, effects),
-                is_closed: false,
-            }),
-            _ => None,
-        }
+        let call = match terminator {
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => call,
+            _ => return None,
+        };
+        let dispatch = call.callee.dispatch();
+        let known_target = Self::terminator_target(block_id, terminator, effects);
+        let is_closed = matches!(dispatch, mir::CallDispatch::Direct);
+
+        Some(Self {
+            caller,
+            callsite,
+            dispatch,
+            known_target,
+            is_closed,
+        })
     }
 
     /// Return the resolved function target for an instruction callsite.
@@ -509,7 +465,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         assert_eq!(callgraph.open_callsites(test_id).len(), 1);
         assert_eq!(
             callgraph.open_callsites(test_id)[0].dispatch,
-            mir::CallDispatchKind::Indirect
+            mir::CallDispatch::Indirect
         );
     }
 
@@ -561,7 +517,7 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let open_callsite = callgraph.open_callsites(test_id);
         assert_eq!(open_callsite.len(), 1);
-        assert_eq!(open_callsite[0].dispatch, mir::CallDispatchKind::Indirect);
+        assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
         assert!(matches!(
             open_callsite[0].callsite,
             mir::CallSite::Terminator(_)
@@ -593,12 +549,12 @@ entry(v0: fn(int32) => int32, v1: int32):
 
         let open_callsite = callgraph.open_callsites(test_id);
         assert_eq!(open_callsite.len(), 1);
-        assert_eq!(open_callsite[0].dispatch, mir::CallDispatchKind::Indirect);
+        assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
     }
 
-    /// Direct call terminators produce precise call edges.
+    /// Direct invokes produce precise call edges.
     #[test]
-    fn test_call_graph_call_terminator_direct() {
+    fn test_call_graph_invoke_direct() {
         let test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -608,13 +564,13 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | b2
 
 b1(v1: int32):
     return v1
 
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
+b2:
+    unwind.resume
 }
 "#,
         );
@@ -628,7 +584,7 @@ b2(v2: ref<int32, managed, readonly>):
         let outgoing = callgraph.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
-        assert_eq!(outgoing[0].dispatch, mir::CallDispatchKind::Direct);
+        assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
         assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
         assert!(callgraph.open_callsites(test_id).is_empty());
     }
@@ -661,7 +617,13 @@ entry(v0: int32):
             for &instruction_id in &block.instructions {
                 if matches!(
                     test.tree.get(instruction_id),
-                    mir::Instruction::CallVirtual { .. }
+                    mir::Instruction::Call {
+                        call: mir::Call {
+                            callee: mir::Callee::Virtual { .. },
+                            ..
+                        },
+                        ..
+                    }
                 ) {
                     call_id = Some(instruction_id);
                     break;
@@ -684,7 +646,7 @@ entry(v0: int32):
         assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
-            mir::CallDispatchKind::Virtual {
+            mir::CallDispatch::Virtual {
                 slot: mir::DispatchSlot::new(0),
             }
         );
@@ -695,9 +657,9 @@ entry(v0: int32):
         );
     }
 
-    /// Class call terminators keep the known target and open callsite.
+    /// Virtual invokes keep the known target and open callsite.
     #[test]
-    fn test_call_graph_call_virtual_terminator_is_partial() {
+    fn test_call_graph_invoke_virtual_is_partial() {
         let mut test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -707,13 +669,13 @@ entry(v0: int32):
 
 function test(v0: int32): int32 {
 entry(v0: int32):
-    call.virtual v0, int32, 0(v0): (int32) => int32 => b1
+    invoke.virtual v0, int32, 0(v0): (int32) => int32 => b1 | b2
 
 b1(v1: int32):
     return v1
 
-b2(v2: ref<int32, managed, readonly>):
-    panic v2
+b2:
+    unwind.resume
 }
 "#,
         );
@@ -735,7 +697,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(
             outgoing[0].dispatch,
-            mir::CallDispatchKind::Virtual {
+            mir::CallDispatch::Virtual {
                 slot: mir::DispatchSlot::new(0),
             }
         );

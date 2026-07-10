@@ -4,13 +4,13 @@ use std::str::FromStr;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator, CompareExchangeAccess,
-    CounterId, DispatchSlot, ExecutionScope, FenceAccess, FunctionId, Instruction, LocalNodeId,
-    MemoryOrdering, StorageSet, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
-    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, UnaryOperator, Value,
-    ValueSlice, VectorConvertMode, VectorReduceOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
+    CompareExchangeAccess, CounterId, DispatchSlot, ExecutionScope, FenceAccess, FunctionId,
+    Instruction, LocalNodeId, MemoryOrdering, StorageSet, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId,
+    UnaryOperator, Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -95,6 +95,7 @@ impl Parser {
                     | "tensor.store"
                     | "tensor.fill"
                     | "tensor.copy"
+                    | "drop"
                     | "free"
                     | "unpin"
                     | "barrier.write"
@@ -165,43 +166,56 @@ impl Parser {
 
                 Instruction::Call {
                     destination,
-                    function,
-                    call: Call::new(arguments, signature),
+                    call: Call::new(Callee::Direct { function }, arguments, signature),
                 }
             }
             "call.virtual" => {
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_values(&arguments);
-                Instruction::CallVirtual {
+                Instruction::Call {
                     destination,
-                    receiver,
-                    class,
-                    slot,
-                    call: Call::new(arguments, signature),
+                    call: Call::new(
+                        Callee::Virtual {
+                            receiver,
+                            class,
+                            slot,
+                        },
+                        arguments,
+                        signature,
+                    ),
                 }
             }
             "call.dynamic" => {
                 let (receiver, constraint, slot, arguments, signature) =
                     self.parse_dynamic_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_values(&arguments);
-                Instruction::CallDynamic {
+                Instruction::Call {
                     destination,
-                    receiver,
-                    constraint,
-                    slot,
-                    call: Call::new(arguments, signature),
+                    call: Call::new(
+                        Callee::Dynamic {
+                            receiver,
+                            constraint,
+                            slot,
+                        },
+                        arguments,
+                        signature,
+                    ),
                 }
             }
             "call.indirect" => {
                 let (callee, arguments, signature) =
                     self.parse_indirect_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_values(&arguments);
-                Instruction::CallIndirect {
+                Instruction::Call {
                     destination,
-                    callee,
-                    call: Call::new(arguments, signature),
+                    call: Call::new(Callee::Indirect { value: callee }, arguments, signature),
                 }
+            }
+            "drop" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+
+                Instruction::Drop { value }
             }
 
             // allocation and frame protocol

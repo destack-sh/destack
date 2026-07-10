@@ -152,6 +152,7 @@ function cleanup(v0: ref<int32, managed, mutable>): void {
 entry(v0: ref<int32, managed, mutable>):
     v1: ref<int32, managed, mutable> = pin v0
     unpin v1
+    drop v0
     return
 }
 "#,

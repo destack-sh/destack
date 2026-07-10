@@ -64,10 +64,7 @@ impl ValueDefinitions {
                 // read the instruction
                 let instruction = tree.get(instruction_id);
                 match instruction {
-                    mir::Instruction::Call { .. }
-                    | mir::Instruction::CallVirtual { .. }
-                    | mir::Instruction::CallDynamic { .. }
-                    | mir::Instruction::CallIndirect { .. } => {
+                    mir::Instruction::Call { .. } => {
                         // capture call effects for escape checks
                         let argument_effects = effects
                             .call(mir::CallSite::Instruction(instruction_id))
@@ -201,62 +198,20 @@ impl ValueDefinitions {
                         }
                     }
                 }
-                mir::Terminator::Call { call, target, .. } => {
-                    for arg in tree
-                        .get_values(call.arguments)
-                        .iter()
-                        .chain(target.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::CallIndirect {
-                    callee,
+                mir::Terminator::Invoke {
                     call,
                     target,
-                    ..
+                    unwind,
                 } => {
-                    record_stack_escape(*callee, self, tree, &frame_allocs, &mut escaping);
-                    for arg in tree
-                        .get_values(call.arguments)
-                        .iter()
-                        .chain(target.arguments(tree).iter())
-                        .copied()
+                    for argument in call
+                        .callee
+                        .uses()
+                        .into_iter()
+                        .chain(tree.get_values(call.arguments).iter().copied())
+                        .chain(target.arguments(tree).iter().copied())
+                        .chain(unwind.arguments(tree).iter().copied())
                     {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::CallVirtual {
-                    receiver,
-                    call,
-                    target,
-                    ..
-                } => {
-                    record_stack_escape(*receiver, self, tree, &frame_allocs, &mut escaping);
-                    for arg in tree
-                        .get_values(call.arguments)
-                        .iter()
-                        .chain(target.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::CallDynamic {
-                    receiver,
-                    call,
-                    target,
-                    ..
-                } => {
-                    record_stack_escape(*receiver, self, tree, &frame_allocs, &mut escaping);
-                    for arg in tree
-                        .get_values(call.arguments)
-                        .iter()
-                        .chain(target.arguments(tree).iter())
-                        .copied()
-                    {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
+                        record_stack_escape(argument, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Trap { .. } => {}
@@ -266,17 +221,14 @@ impl ValueDefinitions {
                     }
                 }
                 mir::Terminator::UnwindResume => {}
-                mir::Terminator::TailCall { call, .. }
-                | mir::Terminator::TailCallVirtual { call, .. }
-                | mir::Terminator::TailCallDynamic { call, .. } => {
-                    for arg in tree.get_values(call.arguments).iter().copied() {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
-                    }
-                }
-                mir::Terminator::TailCallIndirect { callee, call, .. } => {
-                    record_stack_escape(*callee, self, tree, &frame_allocs, &mut escaping);
-                    for arg in tree.get_values(call.arguments).iter().copied() {
-                        record_stack_escape(arg, self, tree, &frame_allocs, &mut escaping);
+                mir::Terminator::TailCall { call } => {
+                    for argument in call
+                        .callee
+                        .uses()
+                        .into_iter()
+                        .chain(tree.get_values(call.arguments).iter().copied())
+                    {
+                        record_stack_escape(argument, self, tree, &frame_allocs, &mut escaping);
                     }
                 }
                 mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
@@ -369,7 +321,7 @@ impl ReferenceLocation {
     pub fn with_type(reference: mir::Value, access_type: TypeKey) -> Self {
         let (reference_kind, reference_space) = match &access_type {
             TypeKey::Reference { kind, space, .. } | TypeKey::TensorView { kind, space, .. } => {
-                (Some(*kind), Some(space.clone()))
+                (Some(*kind), Some(*space))
             }
             _ => (None, None),
         };
@@ -906,7 +858,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Static {
                     global: global_id,
-                    space: global.space.clone(),
+                    space: global.space,
                 }))
             }
             mir::Instruction::LocalAddr {
@@ -992,7 +944,7 @@ impl<'a> MemoryRegionBuilder<'a> {
                 ..
             } => MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
                 index: index as u32,
-                space: space.clone(),
+                space: *space,
                 kind: *kind,
                 access: *access,
             })),
@@ -1015,7 +967,7 @@ impl<'a> MemoryRegionBuilder<'a> {
             | mir::Type::TensorView { kind, space, .. } => {
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
                     instruction,
-                    space: space.clone(),
+                    space: *space,
                     kind: *kind,
                 }))
             }
@@ -1031,7 +983,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         match ty {
             mir::Type::Reference { space, .. }
             | mir::Type::Slice { space, .. }
-            | mir::Type::TensorView { space, .. } => MemoryRegion::any_space(space.clone()),
+            | mir::Type::TensorView { space, .. } => MemoryRegion::any_space(*space),
             _ => MemoryRegion::any(),
         }
     }

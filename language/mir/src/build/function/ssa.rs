@@ -316,12 +316,13 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 *cases = self.tree.add_switch_cases(&new_cases);
             }
-            Terminator::Call { target, .. }
-            | Terminator::CallIndirect { target, .. }
-            | Terminator::CallVirtual { target, .. }
-            | Terminator::CallDynamic { target, .. } => {
+            Terminator::Invoke { target, unwind, .. } => {
                 if target.block == to_block {
                     self.append_target_argument(target, value);
+                    is_edge_found = true;
+                }
+                if unwind.block == to_block {
+                    self.append_target_argument(unwind, value);
                     is_edge_found = true;
                 }
             }

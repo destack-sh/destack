@@ -94,7 +94,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Load one global value through its address.
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
         let global_ty = self.tree.get(global).ty;
-        let global_space = self.tree.get(global).space.clone();
+        let global_space = self.tree.get(global).space;
         let global_pointer = self.reference_type(
             ReferenceKind::Raw,
             global_ty,
@@ -253,33 +253,6 @@ impl<'a> FunctionBuilder<'a> {
         })
     }
 
-    /// Resolve the return type for a function signature.
-    pub(super) fn signature_result_type(
-        &self,
-        signature_type_id: LocalNodeId<Type>,
-    ) -> BuildResult<LocalNodeId<Type>> {
-        let signature_type = self.tree.get(signature_type_id);
-        match signature_type {
-            Type::FunctionSignature { result, .. } => Ok(*result),
-            Type::FunctionPointer { .. } | Type::Function { .. } => {
-                let Some(signature_id) = signature_type.callable_signature() else {
-                    return Err(BuildError::MissingFunctionSignature {
-                        ty: signature_type_id,
-                    });
-                };
-                let signature_type = self.tree.get(signature_id);
-                let Some((_, _, result)) = signature_type.function_signature_parts() else {
-                    return Err(BuildError::MissingFunctionSignature { ty: signature_id });
-                };
-
-                Ok(result)
-            }
-            _ => Err(BuildError::MissingFunctionSignature {
-                ty: signature_type_id,
-            }),
-        }
-    }
-
     /// Create a linear uninitialized allocation token type.
     pub fn type_uninit(&mut self, value: LocalNodeId<Type>) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Uninit { value })
@@ -363,6 +336,11 @@ impl<'a> FunctionBuilder<'a> {
         });
         self.define_value(destination, result_type);
         destination
+    }
+
+    /// Drop one value through its concrete runtime type descriptor.
+    pub fn drop_value(&mut self, value: Value) {
+        self.insert_instruction(Instruction::Drop { value });
     }
 
     /// Free unique heap storage after drop elaboration.

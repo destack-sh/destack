@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Block,
-    BlockParameter, BlockTarget, Call, CheckConstraint, Function, FunctionBody,
+    BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function, FunctionBody,
     FunctionHeaderSpans, FunctionParameter, Instruction, Linkage, Local, LocalNodeId, Mutability,
     SwitchCase, Terminator, TrapKind, TypeId, TypedValueSpan, Value,
 };
@@ -650,26 +650,10 @@ impl Parser {
             && !self.peek_token(TokenType::End)
         {
             // terminators
-            if self.peek_token(TokenType::Return)
-                || self.peek_token(TokenType::Jump)
-                || self.peek_token(TokenType::Branch)
-                || self.peek_token(TokenType::Check)
-                || self.peek_token(TokenType::Switch)
-                || self.peek_token(TokenType::Yield)
-                || self.peek_token(TokenType::Panic)
-                || self.peek_token(TokenType::UnwindResume)
-                || self.peek_token(TokenType::Trap)
-                || self.peek_token(TokenType::Unreachable)
-                || self.peek_token(TokenType::TailCall)
-                || self.peek_token(TokenType::TailCallIndirect)
-                || self.peek_token(TokenType::TailCallVirtual)
-                || self.peek_token(TokenType::TailCallDynamic)
+            if self
+                .peek()
+                .is_some_and(|token| self.token_type(token).is_terminator())
                 || self.is_allocation_try_terminator_line()
-                || (self.is_call_terminator_line()
-                    && (self.peek_token(TokenType::Call)
-                        || self.peek_token(TokenType::CallIndirect)
-                        || self.peek_token(TokenType::CallVirtual)
-                        || self.peek_token(TokenType::CallDynamic)))
             {
                 let recovery_pos = self.pos();
                 let main_token = self.peek().cloned();
@@ -956,50 +940,6 @@ impl Parser {
         }
     }
 
-    /// Return whether the current line contains a call terminator continuation.
-    fn is_call_terminator_line(&self) -> bool {
-        let mut token_index = self.pos;
-        let tokens = self.tree.tokens();
-
-        while let Some(token) = tokens.get(token_index) {
-            if self.token_type(token) == TokenType::Newline
-                || self.token_type(token) == TokenType::End
-            {
-                break;
-            }
-
-            if self.token_type(token) == TokenType::FatArrow {
-                let next_token = tokens
-                    .iter()
-                    .skip(token_index + 1)
-                    .take_while(|next_token| {
-                        self.token_type(next_token) != TokenType::Newline
-                            && self.token_type(next_token) != TokenType::End
-                    })
-                    .find(|next_token| !next_token.is_trivia());
-
-                if next_token.is_some_and(|next_token| self.is_block_reference_token(next_token)) {
-                    return true;
-                }
-            }
-
-            token_index += 1;
-        }
-
-        false
-    }
-
-    /// Return whether a token can start a block reference in this function.
-    fn is_block_reference_token(&self, token: &Token) -> bool {
-        match self.token_type(token) {
-            TokenType::Identifier => {
-                let name = self.tree.source_text(token.span);
-                self.block_name_map.contains_key(name)
-            }
-            _ => false,
-        }
-    }
-
     /// Parse a block terminator.
     pub(super) fn parse_terminator(&mut self) -> ParseResult<Terminator> {
         let token = self
@@ -1018,14 +958,12 @@ impl Parser {
                 };
                 Ok(Terminator::Return { value })
             }
-            TokenType::Call => {
-                self.bump();
-                let (function, arguments, signature) = self.parse_direct_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                let (target, unwind) = self.parse_continuation()?;
-                Ok(Terminator::Call {
-                    function,
-                    call: Call::new(arguments, signature),
+            token_type if token_type.is_invoke() => {
+                let call = self.parse_terminator_call(&token)?;
+                let (target, unwind) = self.parse_invoke_continuation()?;
+
+                Ok(Terminator::Invoke {
+                    call,
                     target,
                     unwind,
                 })
@@ -1133,89 +1071,10 @@ impl Parser {
                 self.bump();
                 Ok(Terminator::Unreachable)
             }
-            TokenType::TailCall => {
-                self.bump();
-                let (function, arguments, signature) = self.parse_direct_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                Ok(Terminator::TailCall {
-                    function,
-                    call: Call::new(arguments, signature),
-                })
-            }
-            TokenType::TailCallIndirect => {
-                self.bump();
-                let (callee, arguments, signature) = self.parse_indirect_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                Ok(Terminator::TailCallIndirect {
-                    callee,
-                    call: Call::new(arguments, signature),
-                })
-            }
-            TokenType::CallIndirect => {
-                self.bump();
-                let (callee, arguments, signature) = self.parse_indirect_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                let (target, unwind) = self.parse_continuation()?;
-                Ok(Terminator::CallIndirect {
-                    callee,
-                    call: Call::new(arguments, signature),
-                    target,
-                    unwind,
-                })
-            }
-            TokenType::TailCallVirtual => {
-                self.bump();
-                let (receiver, class, slot, arguments, signature) =
-                    self.parse_class_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                Ok(Terminator::TailCallVirtual {
-                    receiver,
-                    class,
-                    slot,
-                    call: Call::new(arguments, signature),
-                })
-            }
-            TokenType::CallVirtual => {
-                self.bump();
-                let (receiver, class, slot, arguments, signature) =
-                    self.parse_class_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                let (target, unwind) = self.parse_continuation()?;
-                Ok(Terminator::CallVirtual {
-                    receiver,
-                    class,
-                    slot,
-                    call: Call::new(arguments, signature),
-                    target,
-                    unwind,
-                })
-            }
-            TokenType::TailCallDynamic => {
-                self.bump();
-                let (receiver, constraint, slot, arguments, signature) =
-                    self.parse_dynamic_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                Ok(Terminator::TailCallDynamic {
-                    receiver,
-                    constraint,
-                    slot,
-                    call: Call::new(arguments, signature),
-                })
-            }
-            TokenType::CallDynamic => {
-                self.bump();
-                let (receiver, constraint, slot, arguments, signature) =
-                    self.parse_dynamic_call_target()?;
-                let arguments = self.tree.add_values(&arguments);
-                let (target, unwind) = self.parse_continuation()?;
-                Ok(Terminator::CallDynamic {
-                    receiver,
-                    constraint,
-                    slot,
-                    call: Call::new(arguments, signature),
-                    target,
-                    unwind,
-                })
+            token_type if token_type.is_tail_call() => {
+                let call = self.parse_terminator_call(&token)?;
+
+                Ok(Terminator::TailCall { call })
             }
             TokenType::Identifier => self.parse_allocation_try_terminator(&token),
             _ => Err(ParseError::unexpected(
@@ -1224,6 +1083,58 @@ impl Parser {
                 token.start,
             )),
         }
+    }
+
+    /// Parse one call shared by invoke and tail-call terminators.
+    fn parse_terminator_call(&mut self, token: &Token) -> ParseResult<Call> {
+        let token_type = self.token_type(token);
+        self.bump();
+
+        // parse the dispatch-specific callable target
+        let (callee, arguments, signature) = match token_type {
+            TokenType::Invoke | TokenType::TailCall => {
+                let (function, arguments, signature) = self.parse_direct_call_target()?;
+
+                (Callee::Direct { function }, arguments, signature)
+            }
+            TokenType::InvokeIndirect | TokenType::TailCallIndirect => {
+                let (value, arguments, signature) = self.parse_indirect_call_target()?;
+
+                (Callee::Indirect { value }, arguments, signature)
+            }
+            TokenType::InvokeVirtual | TokenType::TailCallVirtual => {
+                let (receiver, class, slot, arguments, signature) =
+                    self.parse_class_call_target()?;
+                let callee = Callee::Virtual {
+                    receiver,
+                    class,
+                    slot,
+                };
+
+                (callee, arguments, signature)
+            }
+            TokenType::InvokeDynamic | TokenType::TailCallDynamic => {
+                let (receiver, constraint, slot, arguments, signature) =
+                    self.parse_dynamic_call_target()?;
+                let callee = Callee::Dynamic {
+                    receiver,
+                    constraint,
+                    slot,
+                };
+
+                (callee, arguments, signature)
+            }
+            _ => {
+                return Err(ParseError::unexpected(
+                    "invoke or tail call",
+                    token_type,
+                    token.start,
+                ));
+            }
+        };
+        let arguments = self.tree.add_values(&arguments);
+
+        Ok(Call::new(callee, arguments, signature))
     }
 
     /// Return whether the current line starts a fallible allocation terminator.
@@ -1570,6 +1481,16 @@ impl Parser {
         let unwind = self.parse_block_target()?;
 
         Ok((target, Some(unwind)))
+    }
+
+    /// Parse mandatory normal and unwind continuations for one invoke.
+    fn parse_invoke_continuation(&mut self) -> ParseResult<(BlockTarget, BlockTarget)> {
+        self.eat_token(TokenType::FatArrow)?;
+        let target = self.parse_block_target()?;
+        self.eat_token(TokenType::Pipe)?;
+        let unwind = self.parse_block_target()?;
+
+        Ok((target, unwind))
     }
 
     /// Collect and predeclare blocks before parsing the function body.

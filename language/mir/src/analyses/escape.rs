@@ -296,15 +296,7 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
         match instruction {
             mir::Instruction::Store { value, .. } => self.mark_value(*value),
             mir::Instruction::Call { call, .. } => {
-                self.mark_values(self.tree.get_values(call.arguments))
-            }
-            mir::Instruction::CallIndirect { callee, call, .. } => {
-                self.mark_value(*callee);
-                self.mark_values(self.tree.get_values(call.arguments));
-            }
-            mir::Instruction::CallVirtual { receiver, call, .. }
-            | mir::Instruction::CallDynamic { receiver, call, .. } => {
-                self.mark_value(*receiver);
+                self.mark_values(&call.callee.uses());
                 self.mark_values(self.tree.get_values(call.arguments));
             }
             mir::Instruction::Intrinsic { arguments, .. } => {
@@ -318,19 +310,8 @@ impl<'a, 'b> EscapeMarker<'a, 'b> {
     fn mark_terminator(&mut self, terminator: &mir::Terminator) {
         match terminator {
             mir::Terminator::Return { value: Some(value) } => self.mark_value(*value),
-            mir::Terminator::Call { call, .. } | mir::Terminator::TailCall { call, .. } => {
-                self.mark_values(self.tree.get_values(call.arguments));
-            }
-            mir::Terminator::CallIndirect { callee, call, .. }
-            | mir::Terminator::TailCallIndirect { callee, call, .. } => {
-                self.mark_value(*callee);
-                self.mark_values(self.tree.get_values(call.arguments));
-            }
-            mir::Terminator::CallVirtual { receiver, call, .. }
-            | mir::Terminator::CallDynamic { receiver, call, .. }
-            | mir::Terminator::TailCallVirtual { receiver, call, .. }
-            | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
-                self.mark_value(*receiver);
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
+                self.mark_values(&call.callee.uses());
                 self.mark_values(self.tree.get_values(call.arguments));
             }
             _ => {}

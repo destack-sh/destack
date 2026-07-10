@@ -3,14 +3,6 @@ use std::collections::{HashMap, HashSet};
 use crate as mir;
 use crate::{MemoryNode, MemorySSA, terminator_substitute_uses};
 
-/// Clone one call payload with remapped arguments.
-fn clone_call_with_arguments<A: Clone>(call: &mir::Call<A>, arguments: A) -> mir::Call<A> {
-    mir::Call {
-        arguments,
-        ..call.clone()
-    }
-}
-
 /// Check if an instruction is pure (result depends only on operands).
 ///
 /// A pure instruction has no side effects AND does not read mutable state.
@@ -113,10 +105,7 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => false,
 
         // calls may have side effects
-        mir::Instruction::Call { .. }
-        | mir::Instruction::CallVirtual { .. }
-        | mir::Instruction::CallDynamic { .. }
-        | mir::Instruction::CallIndirect { .. } => false,
+        mir::Instruction::Call { .. } | mir::Instruction::Drop { .. } => false,
 
         // allocations have side effects
         mir::Instruction::NewZeroed { .. }
@@ -284,10 +273,7 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => true,
 
         // calls may have side effects
-        mir::Instruction::Call { .. }
-        | mir::Instruction::CallVirtual { .. }
-        | mir::Instruction::CallDynamic { .. }
-        | mir::Instruction::CallIndirect { .. } => true,
+        mir::Instruction::Call { .. } | mir::Instruction::Drop { .. } => true,
 
         // allocations have side effects (memory allocation)
         mir::Instruction::NewZeroed { .. }
@@ -347,9 +333,7 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::TensorFill { .. }
             | mir::Instruction::TensorCopy { .. }
             | mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
-            | mir::Instruction::CallDynamic { .. }
-            | mir::Instruction::CallIndirect { .. }
+            | mir::Instruction::Drop { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Intrinsic { .. }
@@ -411,13 +395,7 @@ pub fn instruction_allows_read_only_motion(
     effects: &mir::EffectTable,
 ) -> bool {
     // accept non call instructions
-    let is_call = matches!(
-        instruction,
-        mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
-            | mir::Instruction::CallDynamic { .. }
-            | mir::Instruction::CallIndirect { .. }
-    );
+    let is_call = matches!(instruction, mir::Instruction::Call { .. });
     if !is_call {
         return true;
     }
@@ -1067,40 +1045,15 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Assume { condition } => mir::Instruction::Assume {
             condition: substitute(condition),
         },
-        mir::Instruction::CallVirtual {
-            destination,
-            receiver,
-            call,
-            class,
-            slot,
-        } => mir::Instruction::CallVirtual {
+        mir::Instruction::Call { destination, call } => mir::Instruction::Call {
             destination: *destination,
-            receiver: substitute(receiver),
-            call: call.clone(),
-            class: *class,
-            slot: *slot,
+            call: call.remap(
+                call.callee.map_values(|value| substitute(&value)),
+                call.arguments,
+            ),
         },
-        mir::Instruction::CallDynamic {
-            destination,
-            receiver,
-            call,
-            constraint,
-            slot,
-        } => mir::Instruction::CallDynamic {
-            destination: *destination,
-            receiver: substitute(receiver),
-            call: call.clone(),
-            constraint: *constraint,
-            slot: *slot,
-        },
-        mir::Instruction::CallIndirect {
-            destination,
-            callee,
-            call,
-        } => mir::Instruction::CallIndirect {
-            destination: *destination,
-            callee: substitute(callee),
-            call: call.clone(),
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: substitute(value),
         },
         mir::Instruction::NewSliceZeroed {
             destination,
@@ -1146,7 +1099,6 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
-        | mir::Instruction::Call { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
@@ -1533,49 +1485,15 @@ pub fn instruction_substitute_uses_in_tree(
             mode: *mode,
             tensor: substitute(*tensor),
         },
-        mir::Instruction::Call {
-            destination,
-            function,
-            call,
-        } => mir::Instruction::Call {
+        mir::Instruction::Call { destination, call } => mir::Instruction::Call {
             destination: *destination,
-            function: *function,
-            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
+            call: call.remap(
+                call.callee.map_values(substitute),
+                substitute_arguments(call.arguments),
+            ),
         },
-        mir::Instruction::CallVirtual {
-            destination,
-            receiver,
-            call,
-            class,
-            slot,
-        } => mir::Instruction::CallVirtual {
-            destination: *destination,
-            receiver: substitute(*receiver),
-            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            class: *class,
-            slot: *slot,
-        },
-        mir::Instruction::CallDynamic {
-            destination,
-            receiver,
-            call,
-            constraint,
-            slot,
-        } => mir::Instruction::CallDynamic {
-            destination: *destination,
-            receiver: substitute(*receiver),
-            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            constraint: *constraint,
-            slot: *slot,
-        },
-        mir::Instruction::CallIndirect {
-            destination,
-            callee,
-            call,
-        } => mir::Instruction::CallIndirect {
-            destination: *destination,
-            callee: substitute(*callee),
-            call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: substitute(*value),
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -2564,49 +2482,15 @@ pub fn instruction_map(
             mode: *mode,
             tensor: remap(*tensor),
         },
-        mir::Instruction::Call {
-            destination,
-            function,
-            call,
-        } => mir::Instruction::Call {
+        mir::Instruction::Call { destination, call } => mir::Instruction::Call {
             destination: destination.map(remap),
-            function: *function,
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
+            call: call.remap(
+                call.callee.map_values(remap),
+                remap_arguments(call.arguments),
+            ),
         },
-        mir::Instruction::CallVirtual {
-            destination,
-            receiver,
-            call,
-            class,
-            slot,
-        } => mir::Instruction::CallVirtual {
-            destination: destination.map(remap),
-            receiver: remap(*receiver),
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            class: *class,
-            slot: *slot,
-        },
-        mir::Instruction::CallDynamic {
-            destination,
-            receiver,
-            call,
-            constraint,
-            slot,
-        } => mir::Instruction::CallDynamic {
-            destination: destination.map(remap),
-            receiver: remap(*receiver),
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            constraint: *constraint,
-            slot: *slot,
-        },
-        mir::Instruction::CallIndirect {
-            destination,
-            callee,
-            call,
-        } => mir::Instruction::CallIndirect {
-            destination: destination.map(remap),
-            callee: remap(*callee),
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: remap(*value),
         },
         mir::Instruction::NewZeroed {
             destination,
@@ -3415,49 +3299,15 @@ pub fn instruction_map_with_locals(
             layout: *layout,
             result_type: *result_type,
         },
-        mir::Instruction::Call {
-            destination,
-            function,
-            call,
-        } => mir::Instruction::Call {
+        mir::Instruction::Call { destination, call } => mir::Instruction::Call {
             destination: destination.map(remap),
-            function: *function,
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
+            call: call.remap(
+                call.callee.map_values(remap),
+                remap_arguments(call.arguments),
+            ),
         },
-        mir::Instruction::CallVirtual {
-            destination,
-            receiver,
-            call,
-            class,
-            slot,
-        } => mir::Instruction::CallVirtual {
-            destination: destination.map(remap),
-            receiver: remap(*receiver),
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            class: *class,
-            slot: *slot,
-        },
-        mir::Instruction::CallDynamic {
-            destination,
-            receiver,
-            call,
-            constraint,
-            slot,
-        } => mir::Instruction::CallDynamic {
-            destination: destination.map(remap),
-            receiver: remap(*receiver),
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            constraint: *constraint,
-            slot: *slot,
-        },
-        mir::Instruction::CallIndirect {
-            destination,
-            callee,
-            call,
-        } => mir::Instruction::CallIndirect {
-            destination: destination.map(remap),
-            callee: remap(*callee),
-            call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
+        mir::Instruction::Drop { value } => mir::Instruction::Drop {
+            value: remap(*value),
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -3695,67 +3545,19 @@ pub fn terminator_remap(
                 unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
             }
         }
-        mir::Terminator::Call {
+        mir::Terminator::Invoke {
             call,
             target,
             unwind,
-            ..
         } => {
+            call.callee = call
+                .callee
+                .map_values(|value| value_map.get(&value).copied().unwrap_or(value));
             call.arguments = remap_value_slice(tree, call.arguments, value_map);
             remap_target(target);
             target.arguments = remap_value_slice(tree, target.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
-        }
-        mir::Terminator::CallIndirect {
-            callee,
-            call,
-            target,
-            unwind,
-            ..
-        } => {
-            remap_value(callee);
-            call.arguments = remap_value_slice(tree, call.arguments, value_map);
-            remap_target(target);
-            target.arguments = remap_value_slice(tree, target.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
-        }
-        mir::Terminator::CallVirtual {
-            receiver,
-            call,
-            target,
-            unwind,
-            ..
-        } => {
-            remap_value(receiver);
-            call.arguments = remap_value_slice(tree, call.arguments, value_map);
-            remap_target(target);
-            target.arguments = remap_value_slice(tree, target.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
-        }
-        mir::Terminator::CallDynamic {
-            receiver,
-            call,
-            target,
-            unwind,
-            ..
-        } => {
-            remap_value(receiver);
-            call.arguments = remap_value_slice(tree, call.arguments, value_map);
-            remap_target(target);
-            target.arguments = remap_value_slice(tree, target.arguments, value_map);
-            if let Some(unwind) = unwind {
-                remap_target(unwind);
-                unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
-            }
+            remap_target(unwind);
+            unwind.arguments = remap_value_slice(tree, unwind.arguments, value_map);
         }
         mir::Terminator::Panic { payload } => {
             if let Some(payload) = payload {
@@ -3765,18 +3567,10 @@ pub fn terminator_remap(
         mir::Terminator::UnwindResume => {}
         mir::Terminator::Trap { .. } => {}
         mir::Terminator::Unreachable => {}
-        mir::Terminator::TailCall {
-            function: _, call, ..
-        } => {
-            call.arguments = remap_value_slice(tree, call.arguments, value_map);
-        }
-        mir::Terminator::TailCallVirtual { receiver, call, .. }
-        | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
-            remap_value(receiver);
-            call.arguments = remap_value_slice(tree, call.arguments, value_map);
-        }
-        mir::Terminator::TailCallIndirect { callee, call, .. } => {
-            remap_value(callee);
+        mir::Terminator::TailCall { call } => {
+            call.callee = call
+                .callee
+                .map_values(|value| value_map.get(&value).copied().unwrap_or(value));
             call.arguments = remap_value_slice(tree, call.arguments, value_map);
         }
     }

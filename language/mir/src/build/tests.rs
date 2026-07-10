@@ -1,7 +1,8 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Copy, ExecutionScope, FenceAccess, Lifetime, MemoryOrdering, MirFormatOptions,
-    Mutability, Nullability, ReferenceKind, Space, StorageSet, TargetLayout, Type, format_mir,
+    Access, Callee, Copy, ExecutionScope, FenceAccess, Lifetime, MemoryOrdering, MirFormatOptions,
+    Mutability, Nullability, ReferenceKind, Space, StorageSet, TargetLayout, Type, TypeId,
+    format_mir,
 };
 
 /// Format one test MIR tree.
@@ -182,9 +183,9 @@ b3:
     assert_eq!(output, expected);
 }
 
-/// Call terminators carry an explicit continuation.
+/// Invokes carry explicit normal and unwind continuations.
 #[test]
-fn test_build_function_with_call_terminator() {
+fn test_build_function_with_invoke() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -203,18 +204,32 @@ fn test_build_function_with_call_terminator() {
     let mut builder = module.function(header);
     let entry_block = builder.block();
     let target_block = builder.block();
+    let unwind_block = builder.block();
 
     // entry: branch through the call
     builder.switch_to_block(entry_block);
     let argument = builder.function_parameter(0);
     let result = builder.add_block_parameter(target_block, i32_type);
-    builder.call_branch(callee, signature, vec![argument], target_block, Vec::new());
+    builder.invoke(
+        Callee::Direct { function: callee },
+        TypeId::from(signature),
+        vec![argument],
+        target_block,
+        Vec::new(),
+        unwind_block,
+        Vec::new(),
+    );
     builder.seal_block(entry_block);
 
     // continuation
     builder.switch_to_block(target_block);
     builder.return_(Some(result));
     builder.seal_block(target_block);
+
+    // unwind continuation
+    builder.switch_to_block(unwind_block);
+    builder.resume_unwind();
+    builder.seal_block(unwind_block);
     builder.finish().unwrap();
 
     // verify output
@@ -225,9 +240,75 @@ external function callee(int32): int32
 
 function caller(v0: int32): int32 {
 entry(v0: int32):
-    call callee(v0) => b1
+    invoke callee(v0) => b1 | b2
 
 b1(v1: int32):
+    return v1
+
+b2:
+    unwind.resume
+}";
+    assert_eq!(output, expected);
+}
+
+/// Calls derive SSA destinations from their signature result.
+#[test]
+fn test_build_calls_from_callee_and_signature() {
+    // setup callable declarations
+    let mut module = ModuleBuilder::new();
+    let void_type = module.type_void();
+    let i32_type = module.type_i32();
+    let identity_signature = module.type_function_signature(vec![i32_type], i32_type);
+    let sink_signature = module.type_function_signature(vec![i32_type], void_type);
+    let identity_header = module
+        .function_header("identity")
+        .parameters([i32_type])
+        .result(i32_type);
+    let sink_header = module
+        .function_header("sink")
+        .parameters([i32_type])
+        .result(void_type);
+    let identity = module.external_function(identity_header);
+    let sink = module.external_function(sink_header);
+
+    // build value and void calls through the same operation
+    let header = module
+        .function_header("caller")
+        .parameters([i32_type])
+        .result(i32_type);
+    let mut builder = module.function(header);
+    let entry_block = builder.block();
+    builder.switch_to_block(entry_block);
+    let argument = builder.function_parameter(0);
+    let result = builder
+        .call(
+            Callee::Direct { function: identity },
+            TypeId::from(identity_signature),
+            vec![argument],
+        )
+        .expect("identity returns a value");
+    let void_result = builder.call(
+        Callee::Direct { function: sink },
+        TypeId::from(sink_signature),
+        vec![result],
+    );
+    assert_eq!(void_result, None);
+    builder.return_(Some(result));
+    builder.seal_block(entry_block);
+    builder.finish().unwrap();
+
+    // verify the complete MIR
+    let (tree, strings) = module.finish_tree();
+    let output = format_test_mir(&tree, &strings);
+    let expected = "\
+external function identity(int32): int32
+
+external function sink(int32): void
+
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call identity(v0)
+    call sink(v1)
     return v1
 }";
     assert_eq!(output, expected);

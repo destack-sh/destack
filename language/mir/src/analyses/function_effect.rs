@@ -175,24 +175,12 @@ impl<'a> FunctionEffectBuilder<'a> {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) -> Option<mir::FunctionEffect> {
-        instruction.call_dispatch_kind()?;
+        instruction.call_dispatch()?;
 
-        // seed effects from explicit call tables
         let callsite = mir::CallSite::Instruction(instruction_id);
-        let tables = self.effect_table.call(callsite);
-        let memory = tables
-            .filter(|tables| tables.memory != mir::MemoryEffect::unknown())
-            .map(|tables| tables.memory.clone());
-        let behavior = tables
-            .filter(|tables| tables.behavior != mir::FunctionBehavior::unknown())
-            .map(|tables| tables.behavior.clone());
+        let callee = instruction.call_direct_target();
 
-        // fill missing effects from the best known direct target
-        let callee = instruction
-            .call_direct_target()
-            .or_else(|| tables.and_then(|tables| tables.target));
-
-        Some(self.call_effect(callee, memory, behavior))
+        Some(self.callsite_effect(callsite, callee))
     }
 
     /// Build an effect for one non-call instruction.
@@ -241,6 +229,10 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::write_only(self.space_set_for_value(*value)),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
+            mir::Instruction::Drop { .. } => mir::FunctionEffect {
+                memory: mir::MemoryEffect::unknown(),
+                behavior: mir::FunctionBehavior::none().with_frees(),
+            },
             mir::Instruction::FrameAllocZeroed { .. }
             | mir::Instruction::FrameAllocUninit { .. } => {
                 mir::FunctionEffect::memory(mir::MemoryEffect::write_only(mir::StorageSet::FRAME))
@@ -269,20 +261,9 @@ impl<'a> FunctionEffectBuilder<'a> {
                 self.has_return = true;
                 mir::FunctionEffect::none()
             }
-            mir::Terminator::Call { function, .. } | mir::Terminator::TailCall { function, .. } => {
-                let effect = self.call_effect(Some(*function), None, None);
-                if !effect.behavior.return_behavior.is_no_return() {
-                    self.has_return = true;
-                }
-                effect
-            }
-            mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallVirtual { .. }
-            | mir::Terminator::CallDynamic { .. }
-            | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallVirtual { .. }
-            | mir::Terminator::TailCallDynamic { .. } => {
-                let effect = self.dynamic_terminator_effect(block_id, terminator);
+            mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => {
+                let callsite = mir::CallSite::Terminator(block_id);
+                let effect = self.callsite_effect(callsite, terminator.call_direct_target());
                 if !effect.behavior.return_behavior.is_no_return() {
                     self.has_return = true;
                 }
@@ -300,14 +281,13 @@ impl<'a> FunctionEffectBuilder<'a> {
         }
     }
 
-    /// Build an effect for one dynamic call terminator.
-    fn dynamic_terminator_effect(
+    /// Build an effect for one callsite.
+    fn callsite_effect(
         &self,
-        block_id: mir::BlockId,
-        terminator: &mir::Terminator,
+        callsite: mir::CallSite,
+        callee: Option<mir::FunctionId>,
     ) -> mir::FunctionEffect {
         // seed effects from explicit call tables
-        let callsite = mir::CallSite::Terminator(block_id);
         let tables = self.effect_table.call(callsite);
         let memory = tables
             .filter(|tables| tables.memory != mir::MemoryEffect::unknown())
@@ -317,9 +297,7 @@ impl<'a> FunctionEffectBuilder<'a> {
             .map(|tables| tables.behavior.clone());
 
         // fill missing effects from the best known direct target
-        let callee = terminator
-            .call_direct_target()
-            .or_else(|| tables.and_then(|tables| tables.target));
+        let callee = callee.or_else(|| tables.and_then(|tables| tables.target));
 
         self.call_effect(callee, memory, behavior)
     }

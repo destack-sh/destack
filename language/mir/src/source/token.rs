@@ -149,6 +149,14 @@ pub enum TokenType {
     CallDynamic,
     /// `tail.call.dynamic`
     TailCallDynamic,
+    /// `invoke`
+    Invoke,
+    /// `invoke.indirect`
+    InvokeIndirect,
+    /// `invoke.virtual`
+    InvokeVirtual,
+    /// `invoke.dynamic`
+    InvokeDynamic,
     /// `void`
     Void,
     /// `boolean`
@@ -180,6 +188,40 @@ pub enum TokenType {
 }
 
 impl TokenType {
+    /// Return whether this token begins an invoke terminator.
+    pub(crate) const fn is_invoke(self) -> bool {
+        matches!(
+            self,
+            Self::Invoke | Self::InvokeIndirect | Self::InvokeVirtual | Self::InvokeDynamic
+        )
+    }
+
+    /// Return whether this token begins a tail-call terminator.
+    pub(crate) const fn is_tail_call(self) -> bool {
+        matches!(
+            self,
+            Self::TailCall | Self::TailCallIndirect | Self::TailCallVirtual | Self::TailCallDynamic
+        )
+    }
+
+    /// Return whether this token begins a block terminator.
+    pub(crate) const fn is_terminator(self) -> bool {
+        matches!(
+            self,
+            Self::Return
+                | Self::Jump
+                | Self::Branch
+                | Self::Check
+                | Self::Switch
+                | Self::Yield
+                | Self::Panic
+                | Self::UnwindResume
+                | Self::Trap
+                | Self::Unreachable
+        ) || self.is_invoke()
+            || self.is_tail_call()
+    }
+
     /// Return the MIR token type for one identifier.
     pub(crate) fn from_identifier(text: &str) -> Self {
         match text {
@@ -208,6 +250,10 @@ impl TokenType {
             "tail.call.virtual" => Self::TailCallVirtual,
             "call.dynamic" => Self::CallDynamic,
             "tail.call.dynamic" => Self::TailCallDynamic,
+            "invoke" => Self::Invoke,
+            "invoke.indirect" => Self::InvokeIndirect,
+            "invoke.virtual" => Self::InvokeVirtual,
+            "invoke.dynamic" => Self::InvokeDynamic,
             "void" => Self::Void,
             "boolean" => Self::Boolean,
             "ref" => Self::Ref,

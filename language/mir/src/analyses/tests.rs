@@ -220,7 +220,12 @@ impl TestProgram {
 
         // read the callee from the call instruction
         let mir::Instruction::Call {
-            function: callee, ..
+            call:
+                mir::Call {
+                    callee: mir::Callee::Direct { function: callee },
+                    ..
+                },
+            ..
         } = self.tree.get(call_inst)
         else {
             panic!("expected call instruction");

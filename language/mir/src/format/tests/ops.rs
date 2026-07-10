@@ -68,7 +68,7 @@ b2:
     );
 }
 
-/// Formats direct and indirect calls canonically.
+/// Formats every instruction call dispatch canonically.
 #[test]
 fn test_format_calls() {
     assert_format(
@@ -82,7 +82,9 @@ entry:
     v2: int32 = call callee(v0, v1)
     v3: fn(int32, int32) => int32 = function.address callee
     v4: int32 = call.indirect v3(v0, v1): (int32, int32) => int32
-    return v4
+    v5: int32 = call.virtual v0, int32, 0(v0, v1): (int32, int32) => int32
+    v6: int32 = call.dynamic v0, int32, 0(v0, v1): (int32, int32) => int32
+    return v6
 }
 "#,
     );

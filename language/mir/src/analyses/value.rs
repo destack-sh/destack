@@ -546,9 +546,9 @@ impl ValueTypes {
     ) -> Option<mir::Space> {
         let type_id = self.expect_value_type(reference);
         match tree.get(type_id) {
-            mir::Type::Reference { space, .. } => Some(space.clone()),
-            mir::Type::Slice { space, .. } => Some(space.clone()),
-            mir::Type::TensorView { space, .. } => Some(space.clone()),
+            mir::Type::Reference { space, .. } => Some(*space),
+            mir::Type::Slice { space, .. } => Some(*space),
+            mir::Type::TensorView { space, .. } => Some(*space),
             _ => None,
         }
     }

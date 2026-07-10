@@ -2,7 +2,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#type::format_function_signature;
+use super::call::format_call;
 use super::value::{
     format_constant_for_type, format_function_id, format_global_id, format_type_id,
 };
@@ -10,7 +10,7 @@ use super::value::{
 use crate::{
     AtomicAccess, CompareExchangeAccess, ExecutionScope, FenceAccess, FormatMirNode, FunctionId,
     GlobalId, Instruction, LocalNodeId, MirFormatter, StorageSet, TensorImmediate,
-    TensorImmediateId, TypeId, Value,
+    TensorImmediateId, Value,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -1343,98 +1343,21 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Call {
-                destination,
-                function,
-                call,
-                ..
-            } => {
+            Instruction::Call { destination, call } => {
                 if let Some(dst) = destination {
                     format_typed_destination(*dst, f)?;
                     write!(f, [space(), token("="), space()])?;
                 }
-                write!(f, [token("call"), space()])?;
-                format_function_reference(*function, f)?;
-                let args = f.context().tree.get_values(call.arguments);
-                format_value_list(args, f)
-            }
 
-            Instruction::CallVirtual {
-                destination,
-                receiver,
-                call,
-                class,
-                slot,
-                ..
-            } => {
-                if let Some(dst) = destination {
-                    format_typed_destination(*dst, f)?;
-                    write!(f, [space(), token("="), space()])?;
-                }
-                write!(
+                format_call(
+                    call,
+                    ["call", "call.indirect", "call.virtual", "call.dynamic"],
                     f,
-                    [
-                        token("call.virtual"),
-                        space(),
-                        receiver,
-                        token(","),
-                        space(),
-                        class,
-                        token(","),
-                        space(),
-                        copied_text(&slot.0.to_string())
-                    ]
-                )?;
-                let args = f.context().tree.get_values(call.arguments);
-                format_value_list(args, f)?;
-                format_call_signature_suffix(&call.signature, f)
+                )
             }
 
-            Instruction::CallDynamic {
-                destination,
-                receiver,
-                call,
-                constraint,
-                slot,
-                ..
-            } => {
-                if let Some(dst) = destination {
-                    format_typed_destination(*dst, f)?;
-                    write!(f, [space(), token("="), space()])?;
-                }
-                write!(
-                    f,
-                    [
-                        token("call.dynamic"),
-                        space(),
-                        receiver,
-                        token(","),
-                        space(),
-                        constraint,
-                        token(","),
-                        space(),
-                        copied_text(&slot.0.to_string())
-                    ]
-                )?;
-                let args = f.context().tree.get_values(call.arguments);
-                format_value_list(args, f)?;
-                format_call_signature_suffix(&call.signature, f)
-            }
-
-            Instruction::CallIndirect {
-                destination,
-                callee,
-                call,
-                ..
-            } => {
-                if let Some(dst) = destination {
-                    format_typed_destination(*dst, f)?;
-                    write!(f, [space(), token("="), space()])?;
-                }
-                write!(f, [token("call.indirect"), space(), callee])?;
-                let args = f.context().tree.get_values(call.arguments);
-                format_value_list(args, f)?;
-                format_call_signature_suffix(&call.signature, f)
+            Instruction::Drop { value } => {
+                write!(f, [token("drop"), space(), value])
             }
 
             Instruction::NewZeroed {
@@ -1808,25 +1731,6 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
         write!(f, [val])?;
     }
     write!(f, [token(")")])
-}
-
-/// Format a required call signature suffix.
-fn format_call_signature_suffix<'a>(
-    signature: &TypeId,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [token(":"), space()])?;
-
-    if let crate::Type::FunctionSignature {
-        lifetimes,
-        parameters,
-        result,
-    } = f.context().tree.get(*signature)
-    {
-        format_function_signature(lifetimes, parameters, *result, f)
-    } else {
-        format_type_id(*signature, f)
-    }
 }
 
 /// Format a bracketed, comma-separated list of values.

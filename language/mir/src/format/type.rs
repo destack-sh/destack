@@ -287,7 +287,7 @@ fn format_type_inner<'a>(
             format_view_header(
                 *kind,
                 lifetime,
-                memory_space.clone(),
+                *memory_space,
                 *access,
                 *nullability,
                 pointee,
@@ -322,7 +322,7 @@ fn format_type_inner<'a>(
         } => {
             write!(f, [token("slice"), token("<")])?;
             format_type_id(*element, f)?;
-            format_reference_qualifiers(*kind, lifetime, space.clone(), *access, *nullability, f)?;
+            format_reference_qualifiers(*kind, lifetime, *space, *access, *nullability, f)?;
             write!(f, [token(">")])
         }
         Type::Tuple { elements, copy: _ } => {
@@ -467,7 +467,7 @@ fn format_type_inner<'a>(
             format_view_header(
                 *kind,
                 lifetime,
-                memory_space.clone(),
+                *memory_space,
                 *access,
                 *nullability,
                 element,

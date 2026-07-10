@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatchKind, Constant, DispatchSlot,
-    Edge, FunctionId, LocalNodeId, Node, NodeType, Successor, Tree, TypeId, Value, ValueSlice,
+    BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Constant, Edge, FunctionId,
+    LocalNodeId, Node, NodeType, Successor, Tree, TypeId, Value, ValueSlice,
 };
 
 /// One control-flow edge target.
@@ -259,57 +259,14 @@ pub enum Terminator {
         unwind: Option<BlockTarget>,
     },
 
-    /// Direct call with an explicit continuation.
-    Call {
-        /// The direct callee function.
-        function: FunctionId,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-        /// The continuation block.
+    /// Invoke one callable target with normal and unwind continuations.
+    Invoke {
+        /// The call operation.
+        call: Call,
+        /// The normal continuation block.
         target: BlockTarget,
-        /// The cleanup block when this call panics.
-        unwind: Option<BlockTarget>,
-    },
-    /// Indirect call with an explicit continuation.
-    CallIndirect {
-        /// The function pointer or function value to call.
-        callee: Value,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-        /// The continuation block.
-        target: BlockTarget,
-        /// The cleanup block when this call panics.
-        unwind: Option<BlockTarget>,
-    },
-    /// Class call with an explicit continuation.
-    CallVirtual {
-        /// The receiver value for dispatch.
-        receiver: Value,
-        /// The class type declaring this dispatch slot.
-        class: TypeId,
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-        /// The continuation block.
-        target: BlockTarget,
-        /// The cleanup block when this call panics.
-        unwind: Option<BlockTarget>,
-    },
-    /// Dynamic call with an explicit continuation.
-    CallDynamic {
-        /// The receiver value for dispatch.
-        receiver: Value,
-        /// The dynamic constraint type declaring this dispatch slot.
-        constraint: TypeId,
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-        /// The continuation block.
-        target: BlockTarget,
-        /// The cleanup block when this call panics.
-        unwind: Option<BlockTarget>,
+        /// The local unwind continuation block.
+        unwind: BlockTarget,
     },
 
     /// Fallible zeroed typed heap allocation.
@@ -359,7 +316,6 @@ pub enum Terminator {
         payload: Option<Value>,
     },
     /// Continue the active unwind after a cleanup block.
-    // TODO #Incomplete: a panic during cleanup must abort, nothing enforces that yet
     UnwindResume,
     /// Unrecoverable runtime termination.
     Trap {
@@ -371,43 +327,10 @@ pub enum Terminator {
     /// Unreachable code.
     Unreachable,
 
-    /// Tail call to a function.
-    // TODO #Incomplete: verify that no cleanup is live at tail calls, the frame the
-    // cleanup lives in is thrown away (applies to all tail call variants)
+    /// Tail call one callable target.
     TailCall {
-        /// The function to tail call.
-        function: FunctionId,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-    },
-    /// Tail call through a function pointer.
-    TailCallIndirect {
-        /// The function pointer or function value to tail call.
-        callee: Value,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-    },
-    /// Tail call through a virtual dispatch slot.
-    TailCallVirtual {
-        /// The receiver value for dispatch.
-        receiver: Value,
-        /// The class type declaring this dispatch slot.
-        class: TypeId,
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-    },
-    /// Tail call through a dynamic dispatch slot.
-    TailCallDynamic {
-        /// The receiver value for dispatch.
-        receiver: Value,
-        /// The dynamic constraint type declaring this dispatch slot.
-        constraint: TypeId,
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
+        /// The call operation.
+        call: Call,
     },
 }
 
@@ -499,19 +422,14 @@ impl Terminator {
 
                 edges
             }
-            Terminator::Call { target, unwind, .. }
-            | Terminator::CallIndirect { target, unwind, .. }
-            | Terminator::CallVirtual { target, unwind, .. }
-            | Terminator::CallDynamic { target, unwind, .. } => {
+            Terminator::Invoke { target, unwind, .. } => {
                 let mut edges = Vec::with_capacity(2);
 
                 // add the normal return edge
-                edges.extend(block_edge(source, Successor::CallReturn, target));
+                edges.extend(block_edge(source, Successor::InvokeNormal, target));
 
-                // add the optional unwind edge
-                if let Some(unwind) = unwind {
-                    edges.extend(block_edge(source, Successor::CallUnwind, unwind));
-                }
+                // add the local unwind edge
+                edges.extend(block_edge(source, Successor::InvokeUnwind, unwind));
 
                 edges
             }
@@ -520,10 +438,7 @@ impl Terminator {
             | Terminator::UnwindResume
             | Terminator::Trap { .. }
             | Terminator::Unreachable
-            | Terminator::TailCall { .. }
-            | Terminator::TailCallVirtual { .. }
-            | Terminator::TailCallDynamic { .. }
-            | Terminator::TailCallIndirect { .. } => Vec::new(),
+            | Terminator::TailCall { .. } => Vec::new(),
         }
     }
 
@@ -559,16 +474,8 @@ impl Terminator {
 
                 successors
             }
-            Terminator::Call { target, unwind, .. }
-            | Terminator::CallIndirect { target, unwind, .. }
-            | Terminator::CallVirtual { target, unwind, .. }
-            | Terminator::CallDynamic { target, unwind, .. } => {
-                let mut successors = smallvec![target.block];
-                if let Some(unwind) = unwind {
-                    successors.push(unwind.block);
-                }
-
-                successors
+            Terminator::Invoke { target, unwind, .. } => {
+                smallvec![target.block, unwind.block]
             }
             Terminator::NewZeroedTry {
                 success, failure, ..
@@ -587,9 +494,6 @@ impl Terminator {
             Terminator::Trap { .. } => smallvec![],
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
-            Terminator::TailCallIndirect { .. } => smallvec![],
-            Terminator::TailCallVirtual { .. } => smallvec![],
-            Terminator::TailCallDynamic { .. } => smallvec![],
         }
     }
 
@@ -652,60 +556,14 @@ impl Terminator {
 
                 uses
             }
-            Terminator::Call {
+            Terminator::Invoke {
                 call,
                 target,
                 unwind,
-                ..
             } => {
-                let mut uses = tree
-                    .get_values(call.arguments)
-                    .iter()
-                    .copied()
-                    .collect::<SmallVec<[Value; 8]>>();
+                let mut uses = call.uses(tree);
                 uses.extend(target.arguments(tree).iter().copied());
-                if let Some(unwind) = unwind {
-                    uses.extend(unwind.arguments(tree).iter().copied());
-                }
-
-                uses
-            }
-            Terminator::CallIndirect {
-                callee,
-                call,
-                target,
-                unwind,
-                ..
-            } => {
-                let mut uses = smallvec![*callee];
-                uses.extend(tree.get_values(call.arguments).iter().copied());
-                uses.extend(target.arguments(tree).iter().copied());
-                if let Some(unwind) = unwind {
-                    uses.extend(unwind.arguments(tree).iter().copied());
-                }
-
-                uses
-            }
-            Terminator::CallVirtual {
-                receiver,
-                call,
-                target,
-                unwind,
-                ..
-            }
-            | Terminator::CallDynamic {
-                receiver,
-                call,
-                target,
-                unwind,
-                ..
-            } => {
-                let mut uses = smallvec![*receiver];
-                uses.extend(tree.get_values(call.arguments).iter().copied());
-                uses.extend(target.arguments(tree).iter().copied());
-                if let Some(unwind) = unwind {
-                    uses.extend(unwind.arguments(tree).iter().copied());
-                }
+                uses.extend(unwind.arguments(tree).iter().copied());
 
                 uses
             }
@@ -743,22 +601,7 @@ impl Terminator {
             Terminator::UnwindResume => smallvec![],
             Terminator::Trap { payload, .. } => payload.iter().copied().collect(),
             Terminator::Unreachable => smallvec![],
-            Terminator::TailCall { call, .. } => {
-                tree.get_values(call.arguments).iter().copied().collect()
-            }
-            Terminator::TailCallIndirect { callee, call, .. } => {
-                let mut uses = smallvec![*callee];
-                uses.extend(tree.get_values(call.arguments).iter().copied());
-
-                uses
-            }
-            Terminator::TailCallVirtual { receiver, call, .. }
-            | Terminator::TailCallDynamic { receiver, call, .. } => {
-                let mut uses = smallvec![*receiver];
-                uses.extend(tree.get_values(call.arguments).iter().copied());
-
-                uses
-            }
+            Terminator::TailCall { call } => call.uses(tree),
         }
     }
 
@@ -768,25 +611,7 @@ impl Terminator {
             Terminator::Return { value: Some(value) } | Terminator::Yield { value, .. } => {
                 smallvec![*value]
             }
-            Terminator::Call { call, .. } | Terminator::TailCall { call, .. } => {
-                tree.get_values(call.arguments).iter().copied().collect()
-            }
-            Terminator::CallIndirect { callee, call, .. }
-            | Terminator::TailCallIndirect { callee, call, .. } => {
-                let mut values = smallvec![*callee];
-                values.extend(tree.get_values(call.arguments).iter().copied());
-
-                values
-            }
-            Terminator::CallVirtual { receiver, call, .. }
-            | Terminator::CallDynamic { receiver, call, .. }
-            | Terminator::TailCallVirtual { receiver, call, .. }
-            | Terminator::TailCallDynamic { receiver, call, .. } => {
-                let mut values = smallvec![*receiver];
-                values.extend(tree.get_values(call.arguments).iter().copied());
-
-                values
-            }
+            Terminator::Invoke { call, .. } | Terminator::TailCall { call } => call.uses(tree),
             _ => smallvec![],
         }
     }
@@ -872,15 +697,10 @@ impl Terminator {
                     &[]
                 }
             }
-            Terminator::Call { target, unwind, .. }
-            | Terminator::CallIndirect { target, unwind, .. }
-            | Terminator::CallVirtual { target, unwind, .. }
-            | Terminator::CallDynamic { target, unwind, .. } => {
+            Terminator::Invoke { target, unwind, .. } => {
                 if Some(target.block) == Some(successor) {
                     target.arguments(tree)
-                } else if let Some(unwind) = unwind
-                    && Some(unwind.block) == Some(successor)
-                {
+                } else if Some(unwind.block) == Some(successor) {
                     unwind.arguments(tree)
                 } else {
                     &[]
@@ -945,14 +765,9 @@ impl Terminator {
                     arguments.merge_target(unwind, successor, tree);
                 }
             }
-            Terminator::Call { target, unwind, .. }
-            | Terminator::CallIndirect { target, unwind, .. }
-            | Terminator::CallVirtual { target, unwind, .. }
-            | Terminator::CallDynamic { target, unwind, .. } => {
+            Terminator::Invoke { target, unwind, .. } => {
                 arguments.merge_target(target, successor, tree);
-                if let Some(unwind) = unwind {
-                    arguments.merge_target(unwind, successor, tree);
-                }
+                arguments.merge_target(unwind, successor, tree);
             }
             _ => {}
         }
@@ -982,10 +797,7 @@ impl Terminator {
     pub fn has_successor_result(&self, successor: LocalNodeId<Block>) -> bool {
         match self {
             Terminator::Yield { resume, .. } => Some(resume.block) == Some(successor),
-            Terminator::Call { target, .. }
-            | Terminator::CallIndirect { target, .. }
-            | Terminator::CallVirtual { target, .. }
-            | Terminator::CallDynamic { target, .. } => Some(target.block) == Some(successor),
+            Terminator::Invoke { target, .. } => Some(target.block) == Some(successor),
             Terminator::NewZeroedTry { success, .. }
             | Terminator::NewUninitTry { success, .. }
             | Terminator::NewSliceZeroedTry { success, .. }
@@ -996,19 +808,11 @@ impl Terminator {
         }
     }
 
-    /// Return the dispatch kind when this terminator performs a call.
-    pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
+    /// Return the dispatch when this terminator performs a call.
+    pub fn call_dispatch(&self) -> Option<CallDispatch> {
         match self {
-            Terminator::Error => None,
-            Terminator::Call { .. } | Terminator::TailCall { .. } => Some(CallDispatchKind::Direct),
-            Terminator::CallIndirect { .. } | Terminator::TailCallIndirect { .. } => {
-                Some(CallDispatchKind::Indirect)
-            }
-            Terminator::CallVirtual { slot, .. } | Terminator::TailCallVirtual { slot, .. } => {
-                Some(CallDispatchKind::Virtual { slot: *slot })
-            }
-            Terminator::CallDynamic { slot, .. } | Terminator::TailCallDynamic { slot, .. } => {
-                Some(CallDispatchKind::Dynamic { slot: *slot })
+            Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
+                Some(call.callee.dispatch())
             }
             _ => None,
         }
@@ -1017,15 +821,7 @@ impl Terminator {
     /// Return the call signature when this terminator performs a call.
     pub fn call_signature(&self) -> Option<TypeId> {
         match self {
-            Terminator::Error => None,
-            Terminator::Call { call, .. }
-            | Terminator::CallIndirect { call, .. }
-            | Terminator::CallVirtual { call, .. }
-            | Terminator::CallDynamic { call, .. }
-            | Terminator::TailCall { call, .. }
-            | Terminator::TailCallIndirect { call, .. }
-            | Terminator::TailCallVirtual { call, .. }
-            | Terminator::TailCallDynamic { call, .. } => Some(call.signature),
+            Terminator::Invoke { call, .. } | Terminator::TailCall { call } => Some(call.signature),
             _ => None,
         }
     }
@@ -1033,9 +829,8 @@ impl Terminator {
     /// Return the direct target when this terminator performs a call.
     pub fn call_direct_target(&self) -> Option<FunctionId> {
         match self {
-            Terminator::Error => None,
-            Terminator::Call { function, .. } | Terminator::TailCall { function, .. } => {
-                Some(*function)
+            Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
+                call.callee.function()
             }
             _ => None,
         }

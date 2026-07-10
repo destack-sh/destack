@@ -132,8 +132,6 @@ impl DispatchTable {
 pub struct VirtualTable {
     /// The class type owning this table.
     pub ty: LocalNodeId<Type>,
-    /// The drop glue function when one exists.
-    pub destructor: Option<LocalNodeId<Function>>,
     /// Method implementations in declaration order.
     pub methods: Vec<LocalNodeId<Function>>,
 }

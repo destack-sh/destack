@@ -204,7 +204,7 @@ impl TypeKey {
             } => TypeKey::Reference {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                space: space.clone(),
+                space: *space,
                 access: *access,
                 pointee: Box::new(Self::from_type_id(pointee, tree)),
                 nullability: *nullability,
@@ -230,7 +230,7 @@ impl TypeKey {
                 kind: *kind,
                 lifetime: lifetime.clone(),
                 element: Box::new(Self::from_type_id(element, tree)),
-                space: space.clone(),
+                space: *space,
                 access: *access,
                 nullability: *nullability,
             },
@@ -323,7 +323,7 @@ impl TypeKey {
             } => TypeKey::TensorView {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                space: space.clone(),
+                space: *space,
                 access: *access,
                 element: Box::new(Self::from_type_id(element, tree)),
                 shape: shape.clone(),

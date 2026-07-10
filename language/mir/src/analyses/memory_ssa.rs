@@ -1275,13 +1275,9 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.apply_local_region(&mut effect);
                 Self::single_effect(effect)
             }
-            mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
-            | mir::Instruction::CallDynamic { .. } => {
-                self.call_effects(instruction_id, instruction)
-            }
-            mir::Instruction::CallIndirect { .. } => self.call_effects(instruction_id, instruction),
+            mir::Instruction::Call { .. } => self.call_effects(instruction_id, instruction),
             mir::Instruction::Free { .. }
+            | mir::Instruction::Drop { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::NewZeroed { .. }
@@ -1311,17 +1307,11 @@ impl<'a> MemoryAccessCollector<'a> {
         terminator: &mir::Terminator,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         match terminator {
-            mir::Terminator::Call { .. }
-            | mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallVirtual { .. }
-            | mir::Terminator::CallDynamic { .. }
-            | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallVirtual { .. }
-            | mir::Terminator::TailCallDynamic { .. } => self.callsite_effects(
-                mir::CallSite::Terminator(block_id),
-                terminator.call_direct_target(),
-            ),
+            mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => self
+                .callsite_effects(
+                    mir::CallSite::Terminator(block_id),
+                    terminator.call_direct_target(),
+                ),
 
             mir::Terminator::NewZeroedTry { .. }
             | mir::Terminator::NewUninitTry { .. }
@@ -2649,20 +2639,23 @@ entry(v0: ref<int32, raw, mutable>):
         assert!(matches!(call_effect.region, MemoryRegion::Any { .. }));
     }
 
-    /// Continuation loads see memory effects from call terminators.
+    /// Continuation loads see memory effects from invokes.
     #[test]
-    fn test_memory_ssa_call_terminator_clobbers_continuation() {
+    fn test_memory_ssa_invoke_clobbers_continuation() {
         let test = TestProgram::new(
             r#"
 external function imported(ref<int32, raw, mutable>): void
 
 function test(v0: ref<int32, raw, mutable>): int32 {
 entry(v0: ref<int32, raw, mutable>):
-    call imported(v0) => b1
+    invoke imported(v0) => b1 | b2
 
 b1:
     v1: int32 = load v0
     return v1
+
+b2:
+    unwind.resume
 }
 "#,
         );
@@ -2673,7 +2666,7 @@ b1:
         let memory_ssa = analyses.get::<MemorySSA>(function, &test.tree);
         let memory_ssa = memory_ssa.as_ref();
 
-        // locate the call terminator and continuation load
+        // locate the invoke and continuation load
         let entry = function.block(0);
         let continuation = function.block(1);
         let load = test.tree.get(continuation).instructions[0];
@@ -2683,7 +2676,7 @@ b1:
             .instruction_access(load)
             .expect("missing load access");
 
-        // require the call terminator to define the continuation memory state
+        // require the invoke to define the continuation memory state
         assert_eq!(call_accesses.len(), 1);
         assert_eq!(
             memory_ssa.defining_access(load_access),

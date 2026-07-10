@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatchKind, CompareExchangeAccess,
-    Constant, CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic,
-    LocalId, Node, NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator,
-    TensorIndexTieBreak, TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator,
-    Value, ValueSlice, VectorConvertMode, VectorReduceOperator,
+    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
+    Constant, CounterId, FenceAccess, FunctionId, GlobalId, IndexSlice, Intrinsic, LocalId, Node,
+    NodeType, TensorConvertMode, TensorImmediateId, TensorIndexReduceOperator, TensorIndexTieBreak,
+    TensorReduceOperator, TensorScatterMode, Tree, TypeId, UnaryOperator, Value, ValueSlice,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 /// Instructions produce SSA values and perform "operations".
@@ -644,50 +644,18 @@ pub enum Instruction {
         tensor: Value,
     },
 
-    // function calls (call, call.virtual, call.dynamic, call.indirect)
-    /// Call a function directly.
+    // function calls
+    /// Call one callable target without a local unwind continuation.
     Call {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
-        /// The function to call.
-        function: FunctionId,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
+        /// The call operation.
+        call: Call,
     },
-    /// Call a virtual method through a virtual dispatch slot.
-    CallVirtual {
-        /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
-        /// The receiver value for dispatch.
-        receiver: Value,
-        /// The class type declaring this dispatch slot.
-        class: TypeId,
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-    },
-    /// Call through a dynamic dispatch table slot.
-    CallDynamic {
-        /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
-        /// The receiver value for dispatch.
-        receiver: Value,
-        /// The dynamic constraint type declaring this dispatch slot.
-        constraint: TypeId,
-        /// The dispatch slot for the method.
-        slot: DispatchSlot,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
-    },
-    /// Call through a function pointer (call.indirect).
-    CallIndirect {
-        /// The SSA value to define with the return value, if any.
-        destination: Option<Value>,
-        /// The function pointer or function value to call.
-        callee: Value,
-        /// The shared call payload.
-        call: Call<ValueSlice>,
+    /// Drop one value through its concrete runtime type descriptor.
+    Drop {
+        /// The runtime-erased value to drop.
+        value: Value,
     },
 
     // heap allocation
@@ -970,9 +938,7 @@ impl Instruction {
             Instruction::TensorScatter { destination, .. } => Some(*destination),
             Instruction::TensorConvert { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
-            Instruction::CallVirtual { destination, .. } => *destination,
-            Instruction::CallDynamic { destination, .. } => *destination,
-            Instruction::CallIndirect { destination, .. } => *destination,
+            Instruction::Drop { .. } => None,
             Instruction::NewZeroed { destination, .. }
             | Instruction::NewUninit { destination, .. }
             | Instruction::NewComplete { destination, .. }
@@ -999,8 +965,7 @@ impl Instruction {
 
     /// Get inline values used by this instruction (excludes externalized arguments).
     ///
-    /// For Call, CallVirtual, CallDynamic, CallIndirect, and Intrinsic, the arguments are stored externally
-    /// in Tree's argument buffer and must be fetched via `Tree::get_values()`.
+    /// Call and intrinsic arguments are stored externally in the tree's value buffer.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Error => smallvec![],
@@ -1105,10 +1070,8 @@ impl Instruction {
                 ..
             } => smallvec![*operand, *indices, *updates],
             Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
-            Instruction::Call { .. } => smallvec![],
-            Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
-            Instruction::CallDynamic { receiver, .. } => smallvec![*receiver],
-            Instruction::CallIndirect { callee, .. } => smallvec![*callee],
+            Instruction::Call { call, .. } => call.callee.uses().into_iter().collect(),
+            Instruction::Drop { value } => smallvec![*value],
             Instruction::NewZeroed { .. } | Instruction::NewUninit { .. } => smallvec![],
             Instruction::NewComplete { value, .. } => smallvec![*value],
             Instruction::NewSliceZeroed { length, .. }
@@ -1216,24 +1179,17 @@ impl Instruction {
             | Instruction::Tuple { .. }
             | Instruction::Array { .. }
             | Instruction::TensorConcat { .. } => self.argument_slice_values(tree),
-            Instruction::Call { call, .. } => tree
-                .get_values(call.arguments)
-                .iter()
-                .copied()
-                .collect::<SmallVec<[Value; 8]>>(),
-            Instruction::CallVirtual { receiver, call, .. }
-            | Instruction::CallDynamic { receiver, call, .. } => {
-                let mut values = smallvec![*receiver];
+            Instruction::Call { call, .. } => {
+                let mut values = call
+                    .callee
+                    .uses()
+                    .into_iter()
+                    .collect::<SmallVec<[Value; 8]>>();
                 values.extend(tree.get_values(call.arguments).iter().copied());
 
                 values
             }
-            Instruction::CallIndirect { callee, call, .. } => {
-                let mut values = smallvec![*callee];
-                values.extend(tree.get_values(call.arguments).iter().copied());
-
-                values
-            }
+            Instruction::Drop { value } => smallvec![*value],
             Instruction::Intrinsic {
                 intrinsic,
                 arguments,
@@ -1267,8 +1223,7 @@ impl Instruction {
 
     /// Get the argument slice for instructions that have externalized arguments.
     ///
-    /// Returns `Some(ValueSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallDynamic,
-    /// CallIndirect, Intrinsic, and tensor instructions that externalize value lists.
+    /// Returns `Some(ValueSlice)` for instructions that externalize value lists.
     /// Returns `None` for all other instructions.
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
@@ -1284,25 +1239,15 @@ impl Instruction {
             Instruction::TensorPad { arguments, .. } => Some(*arguments),
             Instruction::TensorConcat { tensors, .. } => Some(*tensors),
             Instruction::Call { call, .. } => Some(call.arguments),
-            Instruction::CallVirtual { call, .. } => Some(call.arguments),
-            Instruction::CallDynamic { call, .. } => Some(call.arguments),
-            Instruction::CallIndirect { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
             _ => None,
         }
     }
 
-    /// Return the dispatch kind for call instructions.
-    pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
+    /// Return the dispatch for a call instruction.
+    pub fn call_dispatch(&self) -> Option<CallDispatch> {
         match self {
-            Instruction::Call { .. } => Some(CallDispatchKind::Direct),
-            Instruction::CallVirtual { slot, .. } => {
-                Some(CallDispatchKind::Virtual { slot: *slot })
-            }
-            Instruction::CallDynamic { slot, .. } => {
-                Some(CallDispatchKind::Dynamic { slot: *slot })
-            }
-            Instruction::CallIndirect { .. } => Some(CallDispatchKind::Indirect),
+            Instruction::Call { call, .. } => Some(call.callee.dispatch()),
             _ => None,
         }
     }
@@ -1310,10 +1255,7 @@ impl Instruction {
     /// Return the signature type for call instructions.
     pub fn call_signature(&self) -> Option<TypeId> {
         match self {
-            Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
-            | Instruction::CallDynamic { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(call.signature),
+            Instruction::Call { call, .. } => Some(call.signature),
             _ => None,
         }
     }
@@ -1321,7 +1263,7 @@ impl Instruction {
     /// Return the direct target for call instructions.
     pub fn call_direct_target(&self) -> Option<FunctionId> {
         match self {
-            Instruction::Call { function, .. } => Some(*function),
+            Instruction::Call { call, .. } => call.callee.function(),
             _ => None,
         }
     }

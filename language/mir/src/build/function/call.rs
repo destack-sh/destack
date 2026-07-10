@@ -1,141 +1,38 @@
 use crate::build::{BuildError, FunctionBuilder};
-use crate::{
-    Call, CallSite, DispatchSlot, Function, Instruction, LocalNodeId, Type, TypeId, Value,
-};
+use crate::{Call, Callee, Function, Instruction, LocalNodeId, Type, TypeId, Value};
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
-    /// Call a function.
+    /// Call one callable target.
     pub fn call(
         &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
+        callee: Callee,
+        signature: TypeId,
         argument_values: Vec<Value>,
     ) -> Option<Value> {
-        let destination = self.allocate_value();
+        // resolve the call result
         let result_type = self.signature_result_type(signature);
         let result_type = self.expect_build(result_type);
+
+        // omit SSA storage for void calls
+        let destination = if matches!(self.tree.get(result_type), Type::Void) {
+            None
+        } else {
+            Some(self.allocate_value())
+        };
+
+        // insert the unified call operation
         let arguments = self.tree.add_values(&argument_values);
         self.insert_instruction(Instruction::Call {
-            destination: Some(destination),
-            function,
-            call: Call::new(arguments, TypeId::from(signature)),
+            destination,
+            call: Call::new(callee, arguments, signature),
         });
-        self.define_value(destination, result_type);
-        Some(destination)
-    }
 
-    /// Call a function with no return value.
-    pub fn call_void(
-        &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
-        let arguments = self.tree.add_values(&argument_values);
-        self.insert_instruction(Instruction::Call {
-            destination: None,
-            function,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
-    }
-
-    /// Call a virtual method through a virtual dispatch slot.
-    pub fn call_virtual(
-        &mut self,
-        receiver: Value,
-        class: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        target: Option<LocalNodeId<Function>>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) -> Option<Value> {
-        let destination = self.allocate_value();
-        let result_type = self.signature_result_type(signature);
-        let result_type = self.expect_build(result_type);
-        let arguments = self.tree.add_values(&argument_values);
-        let instruction = self.insert_instruction(Instruction::CallVirtual {
-            destination: Some(destination),
-            receiver,
-            class,
-            slot,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
-        if let Some(target) = target {
-            self.effects
-                .call_mut(CallSite::Instruction(instruction))
-                .target = Some(target);
+        // record the result type when the call returns a value
+        if let Some(destination) = destination {
+            self.define_value(destination, result_type);
         }
-        self.define_value(destination, result_type);
-        Some(destination)
-    }
 
-    /// Call a virtual method with no return value.
-    pub fn call_virtual_void(
-        &mut self,
-        receiver: Value,
-        class: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        target: Option<LocalNodeId<Function>>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
-        let arguments = self.tree.add_values(&argument_values);
-        let instruction = self.insert_instruction(Instruction::CallVirtual {
-            destination: None,
-            receiver,
-            class,
-            slot,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
-        if let Some(target) = target {
-            self.effects
-                .call_mut(CallSite::Instruction(instruction))
-                .target = Some(target);
-        }
-    }
-
-    /// Call a dynamic function through a dynamic table slot.
-    pub fn call_dynamic(
-        &mut self,
-        receiver: Value,
-        constraint: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) -> Option<Value> {
-        let destination = self.allocate_value();
-        let result_type = self.signature_result_type(signature);
-        let result_type = self.expect_build(result_type);
-        let arguments = self.tree.add_values(&argument_values);
-        self.insert_instruction(Instruction::CallDynamic {
-            destination: Some(destination),
-            receiver,
-            constraint,
-            slot,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
-        self.define_value(destination, result_type);
-        Some(destination)
-    }
-
-    /// Call a dynamic function with no return value.
-    pub fn call_dynamic_void(
-        &mut self,
-        receiver: Value,
-        constraint: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
-        let arguments = self.tree.add_values(&argument_values);
-        self.insert_instruction(Instruction::CallDynamic {
-            destination: None,
-            receiver,
-            constraint,
-            slot,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
+        destination
     }
 
     /// Load a function pointer value for a function.
@@ -224,38 +121,23 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Call through a function pointer with an explicit signature type.
-    pub fn call_indirect(
-        &mut self,
-        callee: Value,
-        signature: LocalNodeId<Type>,
-        args: Vec<Value>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        let result_type = self.signature_result_type(signature);
-        let result_type = self.expect_build(result_type);
-        let arguments = self.tree.add_values(&args);
-        self.insert_instruction(Instruction::CallIndirect {
-            destination: Some(destination),
-            callee,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
-        self.define_value(destination, result_type);
-        destination
-    }
+    /// Resolve the return type for one callable signature.
+    fn signature_result_type(&self, signature: TypeId) -> Result<TypeId, BuildError> {
+        let signature_type = self.tree.get(signature);
+        match signature_type {
+            Type::FunctionSignature { result, .. } => Ok(*result),
+            Type::FunctionPointer { .. } | Type::Function { .. } => {
+                let Some(signature) = signature_type.callable_signature() else {
+                    return Err(BuildError::MissingFunctionSignature { ty: signature });
+                };
+                let signature_type = self.tree.get(signature);
+                let Some((_, _, result)) = signature_type.function_signature_parts() else {
+                    return Err(BuildError::MissingFunctionSignature { ty: signature });
+                };
 
-    /// Call through a function pointer with no return value.
-    pub fn call_indirect_void(
-        &mut self,
-        callee: Value,
-        signature: LocalNodeId<Type>,
-        args: Vec<Value>,
-    ) {
-        let arguments = self.tree.add_values(&args);
-        self.insert_instruction(Instruction::CallIndirect {
-            destination: None,
-            callee,
-            call: Call::new(arguments, TypeId::from(signature)),
-        });
+                Ok(result)
+            }
+            _ => Err(BuildError::MissingFunctionSignature { ty: signature }),
+        }
     }
 }

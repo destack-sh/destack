@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    Block, BlockTarget, Call, CallSite, CheckConstraint, DispatchSlot, Function, LocalNodeId,
-    SwitchCase, Terminator, TrapKind, Type, Value,
+    Block, BlockTarget, Call, Callee, CheckConstraint, LocalNodeId, SwitchCase, Terminator,
+    TrapKind, TypeId, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -141,211 +141,42 @@ impl<'a> FunctionBuilder<'a> {
         *terminator = Terminator::UnwindResume;
     }
 
-    /// Call a function with an explicit continuation.
-    pub fn call_branch(
+    /// Invoke one call with normal and unwind continuations.
+    pub fn invoke(
         &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
+        callee: Callee,
+        signature: TypeId,
+        arguments: Vec<Value>,
         target_block: LocalNodeId<Block>,
         target_arguments: Vec<Value>,
+        unwind_block: LocalNodeId<Block>,
+        unwind_arguments: Vec<Value>,
     ) {
         let block_id = self.current_block();
         self.add_predecessor(block_id, target_block);
-        let arguments = self.tree.add_values(&argument_values);
+        self.add_predecessor(block_id, unwind_block);
+        let arguments = self.tree.add_values(&arguments);
         let target_arguments = self.tree.add_values(&target_arguments);
+        let unwind_arguments = self.tree.add_values(&unwind_arguments);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Call {
-            function,
-            call: Call::new(arguments, signature),
+        *terminator = Terminator::Invoke {
+            call: Call::new(callee, arguments, signature),
             target: BlockTarget::new(target_block, target_arguments),
-            unwind: None,
+            unwind: BlockTarget::new(unwind_block, unwind_arguments),
         };
     }
 
-    /// Call through a function pointer with an explicit continuation.
-    pub fn call_indirect_branch(
-        &mut self,
-        callee: Value,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-        target_block: LocalNodeId<Block>,
-        target_arguments: Vec<Value>,
-    ) {
-        let block_id = self.current_block();
-        self.add_predecessor(block_id, target_block);
-        let arguments = self.tree.add_values(&argument_values);
-        let target_arguments = self.tree.add_values(&target_arguments);
-
-        let terminator_id = self.tree.get(block_id).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::CallIndirect {
-            callee,
-            call: Call::new(arguments, signature),
-            target: BlockTarget::new(target_block, target_arguments),
-            unwind: None,
-        };
-    }
-
-    /// Call a virtual method with an explicit continuation.
-    pub fn call_virtual_branch(
-        &mut self,
-        receiver: Value,
-        class: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        target: Option<LocalNodeId<Function>>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-        target_block: LocalNodeId<Block>,
-        target_arguments: Vec<Value>,
-    ) {
-        let block_id = self.current_block();
-        self.add_predecessor(block_id, target_block);
-        let arguments = self.tree.add_values(&argument_values);
-        let target_arguments = self.tree.add_values(&target_arguments);
-
-        let terminator_id = self.tree.get(block_id).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::CallVirtual {
-            receiver,
-            class,
-            slot,
-            call: Call::new(arguments, signature),
-            target: BlockTarget::new(target_block, target_arguments),
-            unwind: None,
-        };
-        if let Some(target) = target {
-            self.effects.call_mut(CallSite::Terminator(block_id)).target = Some(target);
-        }
-    }
-
-    /// Call a dynamic function with an explicit continuation.
-    pub fn call_dynamic_branch(
-        &mut self,
-        receiver: Value,
-        constraint: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-        target_block: LocalNodeId<Block>,
-        target_arguments: Vec<Value>,
-    ) {
-        let block_id = self.current_block();
-        self.add_predecessor(block_id, target_block);
-        let arguments = self.tree.add_values(&argument_values);
-        let target_arguments = self.tree.add_values(&target_arguments);
-
-        let terminator_id = self.tree.get(block_id).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::CallDynamic {
-            receiver,
-            constraint,
-            slot,
-            call: Call::new(arguments, signature),
-            target: BlockTarget::new(target_block, target_arguments),
-            unwind: None,
-        };
-    }
-
-    /// Tail call to a function (does not return to this function).
-    ///
-    /// The callee's return value becomes this function's return value.
-    pub fn tail_call(
-        &mut self,
-        function: LocalNodeId<Function>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
-        let block_id = self.current_block();
-        let arguments = self.tree.add_values(&argument_values);
-
-        let terminator_id = self.tree.get(block_id).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::TailCall {
-            function,
-            call: Call::new(arguments, signature),
-        };
-    }
-
-    /// Tail call through a virtual dispatch slot.
-    ///
-    /// The callee's return value becomes this function's return value.
-    pub fn tail_call_virtual(
-        &mut self,
-        receiver: Value,
-        class: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        target: Option<LocalNodeId<Function>>,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
-        let block_id = self.current_block();
-        let arguments = self.tree.add_values(&argument_values);
-
-        let terminator_id = self.tree.get(block_id).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::TailCallVirtual {
-            receiver,
-            class,
-            slot,
-            call: Call::new(arguments, signature),
-        };
-        if let Some(target) = target {
-            self.effects.call_mut(CallSite::Terminator(block_id)).target = Some(target);
-        }
-    }
-
-    /// Tail call through a dynamic dispatch slot.
-    ///
-    /// The callee's return value becomes this function's return value.
-    pub fn tail_call_dynamic(
-        &mut self,
-        receiver: Value,
-        constraint: LocalNodeId<Type>,
-        slot: DispatchSlot,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
-        let block_id = self.current_block();
-        let arguments = self.tree.add_values(&argument_values);
-
-        let terminator_id = self.tree.get(block_id).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::TailCallDynamic {
-            receiver,
-            constraint,
-            slot,
-            call: Call::new(arguments, signature),
-        };
-    }
-
-    /// Tail call through a function pointer (does not return to this function).
-    ///
-    /// The callee's return value becomes this function's return value.
-    pub fn tail_call_indirect(
-        &mut self,
-        callee: Value,
-        signature: LocalNodeId<Type>,
-        argument_values: Vec<Value>,
-    ) {
+    /// Tail call one callable target.
+    pub fn tail_call(&mut self, callee: Callee, signature: TypeId, arguments: Vec<Value>) {
         let block = self.current_block();
-        let arguments = self.tree.add_values(&argument_values);
-
         let terminator_id = self.tree.get(block).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
+        let arguments = self.tree.add_values(&arguments);
 
-        *terminator = Terminator::TailCallIndirect {
-            callee,
-            call: Call::new(arguments, signature),
+        *self.tree.get_mut(terminator_id) = Terminator::TailCall {
+            call: Call::new(callee, arguments, signature),
         };
     }
 }

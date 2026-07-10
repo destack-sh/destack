@@ -153,8 +153,10 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(offset, from, to);
                     Self::replace_value_in_slot(byte_len, from, to);
                 }
-                Instruction::CallIndirect { callee, .. } => {
-                    Self::replace_value_in_slot(callee, from, to);
+                Instruction::Call { call, .. } => {
+                    call.callee = call
+                        .callee
+                        .map_values(|value| if value == from { to } else { value });
                 }
                 Instruction::VectorExtract { vector, index, .. } => {
                     Self::replace_value_in_slot(vector, from, to);
@@ -257,10 +259,6 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(then_value, from, to);
                     Self::replace_value_in_slot(else_value, from, to);
                 }
-                Instruction::CallVirtual { receiver, .. }
-                | Instruction::CallDynamic { receiver, .. } => {
-                    Self::replace_value_in_slot(receiver, from, to);
-                }
                 Instruction::Select {
                     condition,
                     then_value,
@@ -306,6 +304,9 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::NewComplete { value, .. } => {
                     Self::replace_value_in_slot(value, from, to);
                 }
+                Instruction::Drop { value } => {
+                    Self::replace_value_in_slot(value, from, to);
+                }
                 Instruction::NewSliceZeroed { length, .. }
                 | Instruction::NewSliceUninit { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
@@ -342,7 +343,6 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::Struct { .. }
                 | Instruction::Tuple { .. }
                 | Instruction::Array { .. }
-                | Instruction::Call { .. }
                 | Instruction::TensorConcat { .. }
                 | Instruction::Intrinsic { .. } => {}
             }

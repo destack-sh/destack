@@ -8,10 +8,10 @@ use crate::{Block, LocalNodeId};
 pub enum Successor {
     /// The target of an unconditional jump.
     Jump,
-    /// The return continuation of a call terminator.
-    CallReturn,
-    /// The unwind continuation of a call terminator.
-    CallUnwind,
+    /// The normal continuation of an invoke.
+    InvokeNormal,
+    /// The unwind continuation of an invoke.
+    InvokeUnwind,
     /// The then target of a branch terminator.
     BranchThen,
     /// The else target of a branch terminator.

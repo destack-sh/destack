@@ -2,13 +2,13 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#type::format_function_signature;
-use super::value::{format_block_id, format_function_id, format_type_id};
+use super::call::format_call;
+use super::value::format_block_id;
 
 use crate::{
     Block, BlockTarget, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext,
-    MirFormatter, Terminator, TrapKind, TypeId, Value, write_comments_after,
-    write_inline_comment_after, write_node_leading_comments,
+    MirFormatter, Terminator, TrapKind, Value, write_comments_after, write_inline_comment_after,
+    write_node_leading_comments,
 };
 
 impl<'a> FormatMirNode<'a, Block> for Block {
@@ -186,85 +186,22 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_continuation(resume, unwind.as_ref(), f)
         }
 
-        Terminator::Call {
-            function,
+        Terminator::Invoke {
             call,
             target,
             unwind,
         } => {
-            write!(f, [token("call"), space()])?;
-            format_function_id(*function, f)?;
-            format_value_slice(call.arguments, f)?;
-            format_continuation(target, unwind.as_ref(), f)
-        }
-
-        Terminator::CallIndirect {
-            callee,
-            call,
-            target,
-            unwind,
-            ..
-        } => {
-            write!(f, [token("call.indirect"), space(), callee])?;
-            format_value_slice(call.arguments, f)?;
-            format_call_signature_suffix(&call.signature, f)?;
-            format_continuation(target, unwind.as_ref(), f)
-        }
-
-        Terminator::CallVirtual {
-            receiver,
-            call,
-            class,
-            slot,
-            target,
-            unwind,
-            ..
-        } => {
-            write!(
-                f,
+            format_call(
+                call,
                 [
-                    token("call.virtual"),
-                    space(),
-                    receiver,
-                    token(","),
-                    space(),
-                    class,
-                    token(","),
-                    space(),
-                    copied_text(&slot.0.to_string())
-                ]
-            )?;
-            format_value_slice(call.arguments, f)?;
-            format_call_signature_suffix(&call.signature, f)?;
-            format_continuation(target, unwind.as_ref(), f)
-        }
-
-        Terminator::CallDynamic {
-            receiver,
-            call,
-            constraint,
-            slot,
-            target,
-            unwind,
-            ..
-        } => {
-            write!(
+                    "invoke",
+                    "invoke.indirect",
+                    "invoke.virtual",
+                    "invoke.dynamic",
+                ],
                 f,
-                [
-                    token("call.dynamic"),
-                    space(),
-                    receiver,
-                    token(","),
-                    space(),
-                    constraint,
-                    token(","),
-                    space(),
-                    copied_text(&slot.0.to_string())
-                ]
             )?;
-            format_value_slice(call.arguments, f)?;
-            format_call_signature_suffix(&call.signature, f)?;
-            format_continuation(target, unwind.as_ref(), f)
+            format_invoke_continuation(target, unwind, f)
         }
 
         Terminator::NewZeroedTry {
@@ -351,69 +288,29 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
-        Terminator::TailCall { function, call } => {
-            write!(f, [token("tail.call"), space()])?;
-            format_function_id(*function, f)?;
-            format_value_slice(call.arguments, f)?;
-            Ok(())
-        }
-
-        Terminator::TailCallIndirect { callee, call, .. } => {
-            write!(f, [token("tail.call.indirect"), space(), callee])?;
-            format_value_slice(call.arguments, f)?;
-            format_call_signature_suffix(&call.signature, f)
-        }
-
-        Terminator::TailCallVirtual {
-            receiver,
+        Terminator::TailCall { call } => format_call(
             call,
-            class,
-            slot,
-            ..
-        } => {
-            write!(
-                f,
-                [
-                    token("tail.call.virtual"),
-                    space(),
-                    receiver,
-                    token(","),
-                    space(),
-                    class,
-                    token(","),
-                    space(),
-                    copied_text(&slot.0.to_string())
-                ]
-            )?;
-            format_value_slice(call.arguments, f)?;
-            format_call_signature_suffix(&call.signature, f)
-        }
-
-        Terminator::TailCallDynamic {
-            receiver,
-            call,
-            constraint,
-            slot,
-            ..
-        } => {
-            write!(
-                f,
-                [
-                    token("tail.call.dynamic"),
-                    space(),
-                    receiver,
-                    token(","),
-                    space(),
-                    constraint,
-                    token(","),
-                    space(),
-                    copied_text(&slot.0.to_string())
-                ]
-            )?;
-            format_value_slice(call.arguments, f)?;
-            format_call_signature_suffix(&call.signature, f)
-        }
+            [
+                "tail.call",
+                "tail.call.indirect",
+                "tail.call.virtual",
+                "tail.call.dynamic",
+            ],
+            f,
+        ),
     }
+}
+
+/// Format normal and unwind continuations for one invoke.
+fn format_invoke_continuation<'a>(
+    target: &BlockTarget,
+    unwind: &BlockTarget,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [space(), token("=>"), space()])?;
+    format_block_target(target, f)?;
+    write!(f, [space(), token("|"), space()])?;
+    format_block_target(unwind, f)
 }
 
 /// Format one continuation: the normal target, then the unwind alternative.
@@ -621,24 +518,6 @@ fn format_value_slice<'a>(
     let values = f.context().tree.get_values(values);
 
     format_value_list(values, f)
-}
-
-fn format_call_signature_suffix<'a>(
-    signature: &TypeId,
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
-    write!(f, [token(":"), space()])?;
-
-    if let crate::Type::FunctionSignature {
-        lifetimes,
-        parameters,
-        result,
-    } = f.context().tree.get(*signature)
-    {
-        format_function_signature(lifetimes, parameters, *result, f)
-    } else {
-        format_type_id(*signature, f)
-    }
 }
 
 fn format_block_target<'a>(target: &BlockTarget, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {

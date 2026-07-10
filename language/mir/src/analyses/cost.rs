@@ -28,6 +28,8 @@ pub struct OperationCost {
     pub allocate: usize,
     /// Explicit unique-storage release operations.
     pub release: usize,
+    /// Runtime-erased drop operations.
+    pub drop: usize,
     /// Collector write-barrier operations.
     pub write_barrier: usize,
     /// Direct calls.
@@ -77,6 +79,7 @@ impl OperationCost {
         self.atomic += other.atomic;
         self.allocate += other.allocate;
         self.release += other.release;
+        self.drop += other.drop;
         self.write_barrier += other.write_barrier;
         self.direct_call += other.direct_call;
         self.indirect_call += other.indirect_call;
@@ -85,6 +88,16 @@ impl OperationCost {
         self.intrinsic_call += other.intrinsic_call;
         self.branch += other.branch;
         self.score = self.score.saturating_add(other.score);
+    }
+
+    /// Add the dispatch cost for one call.
+    fn add_call(&mut self, call: &mir::Call) {
+        match call.callee.dispatch() {
+            mir::CallDispatch::Direct => self.direct_call += 1,
+            mir::CallDispatch::Indirect => self.indirect_call += 1,
+            mir::CallDispatch::Virtual { .. } => self.virtual_call += 1,
+            mir::CallDispatch::Dynamic { .. } => self.dynamic_call += 1,
+        }
     }
 
     /// Score this operation inventory with the given weights.
@@ -105,6 +118,7 @@ impl OperationCost {
         score = score.saturating_add(weights.atomic.saturating_mul(self.atomic as u64));
         score = score.saturating_add(weights.allocate.saturating_mul(self.allocate as u64));
         score = score.saturating_add(weights.release.saturating_mul(self.release as u64));
+        score = score.saturating_add(weights.drop.saturating_mul(self.drop as u64));
         score = score.saturating_add(
             weights
                 .write_barrier
@@ -165,6 +179,8 @@ pub struct CostWeights {
     pub allocate: u64,
     /// Cost of one explicit release operation.
     pub release: u64,
+    /// Cost of one runtime-erased drop operation.
+    pub drop: u64,
     /// Cost of one collector write barrier.
     pub write_barrier: u64,
     /// Cost of one direct call.
@@ -195,6 +211,7 @@ impl Default for CostWeights {
             atomic: 20,
             allocate: 25,
             release: 10,
+            drop: 35,
             write_barrier: 8,
             direct_call: 25,
             indirect_call: 40,
@@ -373,10 +390,8 @@ impl CostModel {
             | mir::Instruction::Unpin { .. } => cost.allocate += 1,
             mir::Instruction::Free { .. } => cost.release += 1,
             mir::Instruction::BarrierWrite { .. } => cost.write_barrier += 1,
-            mir::Instruction::Call { .. } => cost.direct_call += 1,
-            mir::Instruction::CallIndirect { .. } => cost.indirect_call += 1,
-            mir::Instruction::CallVirtual { .. } => cost.virtual_call += 1,
-            mir::Instruction::CallDynamic { .. } => cost.dynamic_call += 1,
+            mir::Instruction::Call { call, .. } => cost.add_call(call),
+            mir::Instruction::Drop { .. } => cost.drop += 1,
             mir::Instruction::Intrinsic { .. } => cost.intrinsic_call += 1,
         }
 
@@ -402,17 +417,8 @@ impl CostModel {
             | mir::Terminator::Check { .. }
             | mir::Terminator::Switch { .. }
             | mir::Terminator::Yield { .. } => cost.branch += 1,
-            mir::Terminator::Call { .. } | mir::Terminator::TailCall { .. } => {
-                cost.direct_call += 1;
-            }
-            mir::Terminator::CallIndirect { .. } | mir::Terminator::TailCallIndirect { .. } => {
-                cost.indirect_call += 1;
-            }
-            mir::Terminator::CallVirtual { .. } | mir::Terminator::TailCallVirtual { .. } => {
-                cost.virtual_call += 1;
-            }
-            mir::Terminator::CallDynamic { .. } | mir::Terminator::TailCallDynamic { .. } => {
-                cost.dynamic_call += 1;
+            mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
+                cost.add_call(call);
             }
             mir::Terminator::NewZeroedTry { .. }
             | mir::Terminator::NewUninitTry { .. }
@@ -514,14 +520,15 @@ entry(v0: int32):
     fn test_cost_model_counts_memory_protocols() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>): void {
-entry(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>):
-    v2: int32 = load v0
-    store v0, v2
-    v3: ref<int32, unique, mutable> = new.zeroed int32
-    barrier.write v3, v2, v2
-    free v3
-    atomic.store v1, v2, sequentiallyConsistent
+function test(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>, v2: ref<int32, managed, mutable>): void {
+entry(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>, v2: ref<int32, managed, mutable>):
+    v3: int32 = load v0
+    store v0, v3
+    v4: ref<int32, unique, mutable> = new.zeroed int32
+    barrier.write v4, v3, v3
+    free v4
+    drop v2
+    atomic.store v1, v3, sequentiallyConsistent
     return
 }
 "#,
@@ -537,6 +544,7 @@ entry(v0: ref<int32, raw, mutable>, v1: ref<atomic<int32>, raw, mutable>):
         assert_eq!(cost.function().allocate, 1);
         assert_eq!(cost.function().write_barrier, 1);
         assert_eq!(cost.function().release, 1);
+        assert_eq!(cost.function().drop, 1);
         assert_eq!(cost.function().atomic, 1);
     }
 
@@ -565,6 +573,7 @@ entry(v0: ref<int32, raw, mutable>):
             atomic: 19,
             allocate: 29,
             release: 31,
+            drop: 33,
             write_barrier: 37,
             direct_call: 41,
             indirect_call: 43,
