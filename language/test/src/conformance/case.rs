@@ -62,10 +62,10 @@ pub enum ExpectedOutput {
 
 impl Case {
     /// Create a source case that should parse without diagnostics.
-    pub fn valid(name: impl Into<String>, file_type: FileType) -> Self {
+    pub fn valid(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            file_type,
+            file_type: FileType::Destack,
             source_validity: SourceValidity::Valid,
             expected_output: ExpectedOutput::None,
             check_idempotence: true,
@@ -73,14 +73,21 @@ impl Case {
     }
 
     /// Create a source case that should be rejected by parser diagnostics.
-    pub fn invalid(name: impl Into<String>, file_type: FileType) -> Self {
+    pub fn invalid(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            file_type,
+            file_type: FileType::Destack,
             source_validity: SourceValidity::Invalid,
             expected_output: ExpectedOutput::None,
             check_idempotence: true,
         }
+    }
+
+    /// Parse this case as a `.d.ds` declaration source.
+    pub fn declaration(mut self) -> Self {
+        self.file_type = FileType::DestackDeclaration;
+
+        self
     }
 
     /// Attach expected output metadata to this case.
@@ -93,18 +100,5 @@ impl Case {
     pub fn without_idempotence(mut self) -> Self {
         self.check_idempotence = false;
         self
-    }
-
-    /// Infer the file type from one case name.
-    pub fn file_type_from_name(name: &str) -> FileType {
-        if name.ends_with(".tsx") {
-            FileType::TypeScriptXml
-        } else if name.ends_with(".ts") {
-            FileType::TypeScript
-        } else if name.ends_with(".jsx") {
-            FileType::JavaScriptXml
-        } else {
-            FileType::JavaScript
-        }
     }
 }

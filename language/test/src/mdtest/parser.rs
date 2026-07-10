@@ -169,10 +169,7 @@ fn split_test_options(
 /// Check if a language tag is a supported source code language.
 fn is_code_language(language: &str) -> bool {
     let lower = language.to_lowercase();
-    matches!(
-        lower.as_str(),
-        "ts" | "tsx" | "typescript" | "js" | "jsx" | "javascript" | "ds" | "destack"
-    )
+    matches!(lower.as_str(), "ds" | "destack")
 }
 
 /// Check if a language tag is a data/text file type that can be imported.
@@ -617,9 +614,9 @@ const f: Foo = Foo {}
         assert_eq!(tag.filename, Some("main.ds"));
         assert!(tag.markers.is_empty());
 
-        let tag = parse_language_tag("typescript:utils.ts");
-        assert_eq!(tag.base, "typescript");
-        assert_eq!(tag.filename, Some("utils.ts"));
+        let tag = parse_language_tag("destack:utils.ds");
+        assert_eq!(tag.base, "destack");
+        assert_eq!(tag.filename, Some("utils.ds"));
 
         let tag = parse_language_tag("ds expected");
         assert_eq!(tag.base, "ds");

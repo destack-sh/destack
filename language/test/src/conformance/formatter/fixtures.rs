@@ -1,17 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use destack_source::FileType;
+/// Return whether a path belongs to the formatter conformance corpus.
+pub(super) fn is_formattable_path(path: &Path) -> bool {
+    let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
+        return false;
+    };
 
-/// Return whether a file type is in formatter conformance scope.
-pub(super) fn is_formattable_file_type(file_type: FileType) -> bool {
-    matches!(
-        file_type,
-        FileType::JavaScript
-            | FileType::JavaScriptXml
-            | FileType::TypeScript
-            | FileType::TypeScriptXml
-            | FileType::TypeScriptDeclaration
-    )
+    matches!(extension, "js" | "jsx" | "ts" | "tsx")
 }
 
 /// Return whether a directory is outside fixture discovery.

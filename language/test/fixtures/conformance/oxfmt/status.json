@@ -11,15 +11,10 @@
     },
     {
       "patterns": [
-        "js/arguments/empty-lines.js"
-      ],
-      "status": "known-fail-idempotence",
-      "reason": "idempotence",
-      "note": "source fixture is non-idempotent"
-    },
-    {
-      "patterns": [
-        "js/comments/logical.js"
+        "js/arguments/empty-lines.js",
+        "js/comments/logical.js",
+        "ts/comments/union.ts",
+        "ts/variable-declarations/issue-16193.ts"
       ],
       "status": "known-fail-idempotence",
       "reason": "idempotence",
@@ -137,6 +132,7 @@
     },
     {
       "patterns": [
+        "ts/semicolons/assignment.ts",
         "ts/static-members/non-null-expression.ts"
       ],
       "status": "excluded",
@@ -162,35 +158,12 @@
     },
     {
       "patterns": [
-        "ts/parenthesis/type-assertion.ts"
+        "ts/parenthesis/type-assertion.ts",
+        "ts/union/issue-16902.ts"
       ],
       "status": "excluded",
       "reason": "type-assertion",
       "note": "legacy angle-bracket type assertions are out of scope"
-    },
-    {
-      "patterns": [
-        "ts/semicolons/assignment.ts"
-      ],
-      "status": "excluded",
-      "reason": "type-assertion",
-      "note": "mixed fixture contains legacy angle-bracket type assertions"
-    },
-    {
-      "patterns": [
-        "ts/comments/union.ts"
-      ],
-      "status": "known-fail-idempotence",
-      "reason": "idempotence",
-      "note": "source fixture is non-idempotent"
-    },
-    {
-      "patterns": [
-        "ts/variable-declarations/issue-16193.ts"
-      ],
-      "status": "known-fail-idempotence",
-      "reason": "idempotence",
-      "note": "source fixture is non-idempotent"
     },
     {
       "patterns": [
@@ -202,11 +175,109 @@
     },
     {
       "patterns": [
-        "ts/union/issue-16902.ts"
+        "js/assignments/issue-16704.js",
+        "js/calls/react-hooks/issue-16427.js",
+        "js/calls/test.js",
+        "js/comments/calls/optional-chaining.js",
+        "js/comments/if.js",
+        "js/conditional/argument.js",
+        "js/function-compositions/call.js",
+        "js/ignore/issue-18595.js",
+        "js/jsx/issue-16199.jsx",
+        "js/literal/labeled-string.js",
+        "js/logicals/**",
+        "js/member-chains/arrow.js",
+        "js/unicode/katakana-middle-dot.js",
+        "ts/arrow-function/issue-16178.ts",
+        "ts/arrow-function/object-method.ts",
+        "ts/assignments/type.ts",
+        "ts/ignore/trailing-comment.ts",
+        "ts/member-chains/expanded.ts",
+        "ts/member-chains/issue-16177.ts",
+        "ts/template-literal-type/issue-16136.ts",
+        "ts/union/issue-16196.ts"
       ],
       "status": "excluded",
-      "reason": "type-assertion",
-      "note": "legacy angle-bracket type assertions are out of scope"
+      "reason": "character-literal",
+      "note": "`.ds` treats single-quoted literals as characters rather than JavaScript strings"
+    },
+    {
+      "patterns": [
+        "js/await-expression/private-field-access.js",
+        "js/private-fields/parenthesis.js",
+        "ts/parenthesis/as-private-field.ts",
+        "ts/private-field-call-args.ts"
+      ],
+      "status": "excluded",
+      "reason": "private-identifier",
+      "note": "hash-prefixed private identifiers are out of scope"
+    },
+    {
+      "patterns": [
+        "js/call-expression/spread-with-callback.js",
+        "js/semicolons/empty-line.js",
+        "ts/arguments/no-group-same-types.ts"
+      ],
+      "status": "excluded",
+      "reason": "anonymous-function-expression",
+      "note": "anonymous `function` expressions are out of scope; use arrows"
+    },
+    {
+      "patterns": [
+        "js/class/accessor-property.js"
+      ],
+      "status": "excluded",
+      "reason": "auto-accessor",
+      "note": "JavaScript auto-accessor fields are out of scope"
+    },
+    {
+      "patterns": [
+        "ts/assignments/type-alias.ts"
+      ],
+      "status": "excluded",
+      "reason": "generic-constraint",
+      "note": "`.ds` generic constraints use colon bounds rather than `extends`"
+    },
+    {
+      "patterns": [
+        "js/jsdoc/example-tabs-preservation.js",
+        "js/jsdoc/structured-content.js"
+      ],
+      "status": "excluded",
+      "reason": "embedded-script",
+      "note": "`.ds` formats `ds` and `d.ds` fences; JavaScript and TypeScript fences remain opaque"
+    },
+    {
+      "patterns": [
+        "js/quote-props/classes.js"
+      ],
+      "status": "excluded",
+      "reason": "quoted-class-key",
+      "note": "`.ds` preserves explicitly quoted class member names"
+    },
+    {
+      "patterns": [
+        "js/quote-props/with-clause.js"
+      ],
+      "status": "excluded",
+      "reason": "import-organization",
+      "note": "the `.ds` formatter organizes dependencies rather than preserving source blank groups"
+    },
+    {
+      "patterns": [
+        "js/sequence-expression/nested-sequence.js"
+      ],
+      "status": "excluded",
+      "reason": "sequence-expression",
+      "note": "`.ds` parses parenthesized comma lists as tuples and has no sequence expressions"
+    },
+    {
+      "patterns": [
+        "ts/union-type/single-member.ts"
+      ],
+      "status": "excluded",
+      "reason": "borrowed-reference",
+      "note": "prefix `&` denotes a borrowed reference rather than a degenerate TypeScript intersection"
     }
   ]
 }

@@ -1,5 +1,4 @@
 {
-  "$schema": "../schema/status.schema.json",
   "entries": [
     {
       "patterns": [
@@ -18,7 +17,7 @@
       ],
       "status": "excluded",
       "reason": "new-expression",
-            "note": "`new.target` and `new` generic ambiguity fixtures are out of scope"
+      "note": "`new.target` and `new` generic ambiguity fixtures are out of scope"
     },
     {
       "patterns": [
@@ -116,10 +115,10 @@
     },
     {
       "patterns": [
+        "js/issue-11214/input.js",
         "typescript/instantiation-expr/base/input.ts",
         "typescript/issue-11124/input.ts",
-        "typescript/issue-3862/index.ts",
-        "js/issue-11214/input.js"
+        "typescript/issue-3862/index.ts"
       ],
       "status": "excluded",
       "reason": "legacy-var",
@@ -194,8 +193,8 @@
     {
       "patterns": [
         "typescript/export/nested-same-name/input.ts",
-        "typescript/module-namespace/**/input.ts",
-        "typescript/issue-1653/input.ts"
+        "typescript/issue-1653/input.ts",
+        "typescript/module-namespace/**/input.ts"
       ],
       "status": "excluded",
       "reason": "namespace-module",
@@ -227,8 +226,8 @@
     },
     {
       "patterns": [
-        "typescript/issue-947/input.ts",
-        "js/issue-10558/1/index.js"
+        "js/issue-10558/1/index.js",
+        "typescript/issue-947/input.ts"
       ],
       "status": "excluded",
       "reason": "syntax",
@@ -286,10 +285,10 @@
     },
     {
       "patterns": [
-        "js/import-attributes/dynamic-import-with-valid-syntax/input.js",
-        "js/import-attributes/trailing-comma-dynamic/input.js",
         "js/import-assertions-with-keyword/dynamic-import-with-valid-syntax/input.js",
-        "js/import-assertions-with-keyword/trailing-comma-dynamic/input.js"
+        "js/import-assertions-with-keyword/trailing-comma-dynamic/input.js",
+        "js/import-attributes/dynamic-import-with-valid-syntax/input.js",
+        "js/import-attributes/trailing-comma-dynamic/input.js"
       ],
       "status": "excluded",
       "reason": "import-attributes",
@@ -297,12 +296,63 @@
     },
     {
       "patterns": [
-        "js/source-phase-imports/**",
-        "js/deferred-import-evaluation/**"
+        "js/deferred-import-evaluation/**",
+        "js/source-phase-imports/**"
       ],
       "status": "excluded",
       "reason": "import-phase",
       "note": "source phase and deferred imports are out of scope"
+    },
+    {
+      "patterns": [
+        "js/explicit-resource-management/valid-using-as-identifier-callee/input.js",
+        "js/issue-4176/1/input.js",
+        "js/issue-8482/input.js",
+        "jsx/basic/fragment-6/input.js",
+        "typescript/amaro-194/input.ts",
+        "typescript/arrow-function/async-await-null/input.ts",
+        "typescript/arrow-function/async-generic/input.ts",
+        "typescript/arrow-function/generic-tsx/input.ts",
+        "typescript/arrow-function/generic/input.ts",
+        "typescript/class/property-private/input.ts",
+        "typescript/custom/issue-259/input.ts",
+        "typescript/custom/issue-410-1/input.ts",
+        "typescript/custom/issue-410-2/input.ts",
+        "typescript/custom/issue-716/input.ts",
+        "typescript/es2019/from-entries/input.ts",
+        "typescript/function/anonymous/input.ts",
+        "typescript/function/export-default/input.ts",
+        "typescript/instantiation-expr/more-exprs/input.ts",
+        "typescript/issue-1299/**",
+        "typescript/issue-1526/case1/input.tsx",
+        "typescript/issue-1526/case3/input.tsx",
+        "typescript/issue-1526/case4/input.ts",
+        "typescript/issue-1708/case1/input.ts",
+        "typescript/issue-2160/case3/input.ts",
+        "typescript/issue-2896/input.tsx",
+        "typescript/issue-3241/2/input.tsx",
+        "typescript/issue-4911/1/input.ts",
+        "typescript/issue-6601/index.tsx",
+        "typescript/issue-7042/**",
+        "typescript/issue-8526/input.ts",
+        "typescript/issue-8581/input.ts",
+        "typescript/issue-9914/**",
+        "typescript/optional-chaining/conditional-decimal/input.ts",
+        "typescript/regression/member-expr-assign/input.ts",
+        "typescript/stack-size/input.ts",
+        "typescript/types/conditional-infer-extends/basic/input.ts",
+        "typescript/types/tuple-empty/input.ts",
+        "typescript/types/tuple-optional/input.ts",
+        "typescript/types/tuple-rest-after-optional/input.ts",
+        "typescript/types/tuple-rest/input.ts",
+        "typescript/types/tuple/input.ts",
+        "typescript/v4/issue-864/input.ts",
+        "typescript/v4/issue-865/input.ts",
+        "typescript/v4/optional-tuple-element/input.ts"
+      ],
+      "status": "excluded",
+      "reason": "javascript-typescript",
+      "note": "fixtures rely on compatibility syntax absent from .ds: single-quoted strings, comma expressions, private names, anonymous function expressions, compact generic arrows, unsupported constructor forms, or bracket tuples"
     }
   ]
 }

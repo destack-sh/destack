@@ -1,15 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir::{NodeParentIndex, TokenSpan};
-use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
-use destack_repository::{FormatterOptions, OrganizeImports};
+use destack_formatter::format_source;
+use destack_parser::source_colorizer;
+use destack_repository::FormatterOptions;
 use destack_source::{
-    DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
-    print_diff,
+    DiagnosticSeverity, DiffOptions, File, FileId, FileType, PrintOptions, Uri, print_diff,
 };
 
 use crate::core::format_diagnostics;
@@ -134,46 +130,25 @@ fn format_once(
         }
     };
 
-    // parse source and fail on syntax errors
-    let language_type =
-        LanguageType::try_from(file_type).expect("file type has no parser language");
-    let mut parser = Parser::lex_file_with_options(
-        file.clone(),
-        language_type,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
-        },
-        Arc::new(StringPool::new()),
-    );
-    let expressions = parser.parse();
-    let diagnostics = parser.diagnostics();
+    // exercise the production whole-file formatter path
+    let formatted = format_source(&file, source, formatter_options).map_err(|_| ())?;
 
-    let has_errors = diagnostics
+    // fail on parser diagnostics
+    let has_errors = formatted
+        .diagnostics
         .to_vec()
         .into_iter()
         .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error);
     if has_errors {
         if show_diff {
             let options = PrintOptions::new().with_colorizer(source_colorizer());
-            let rendered = format_diagnostics(&file_for_id, &diagnostics, options);
+            let rendered = format_diagnostics(&file_for_id, &formatted.diagnostics, options);
             println!("parse diagnostics for {}:\n{rendered}", path.display());
         }
         return Err(());
     }
 
-    // format parsed expressions
-    let (tokens, side_tokens) = parser.take_token_spans();
-    Ok(format_expressions(
-        &parser,
-        &tokens,
-        &side_tokens,
-        &expressions,
-        &file,
-        language_type,
-        formatter_options,
-    ))
+    Ok(formatted.text)
 }
 
 /// Build formatter options for JS/TS conformance baselines.
@@ -181,52 +156,6 @@ pub(super) fn default_conformance_formatter_options() -> FormatterOptions {
     FormatterOptions::default()
         .with_indent_width(2)
         .with_line_width(80)
-}
-
-/// Format parsed expressions into source output.
-fn format_expressions(
-    parser: &Parser,
-    tokens: &[TokenSpan],
-    side_tokens: &[TokenSpan],
-    expressions: &[destack_dir::LocalNodeId<destack_dir::Expression>],
-    file: &File,
-    language_type: LanguageType,
-    formatter: FormatterOptions,
-) -> String {
-    // build formatter context
-    let side_span = parser.compute_side_span();
-    let strings = parser.strings.as_ref();
-    let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
-    let mut format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
-
-    // compare source formatting without whole file import rewrites
-    format_options.organize_imports = OrganizeImports::Off;
-    let context = DestackFormatContext::new(
-        format_options,
-        file,
-        &parser.tree,
-        tokens,
-        side_tokens,
-        &side_span,
-        strings,
-        &parents,
-    );
-
-    // format statements
-    let mut result = if expressions.is_empty() {
-        String::new()
-    } else {
-        let formatted = fir_format!(context, [statement_list(expressions)]).unwrap();
-        let printed = formatted.print().unwrap();
-        printed.as_str().to_string()
-    };
-
-    // normalize missing final newline
-    if !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
-    }
-
-    result
 }
 
 /// Normalize output before comparisons.
