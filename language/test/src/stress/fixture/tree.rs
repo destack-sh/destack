@@ -1,14 +1,7 @@
-use super::StressMode;
-
-/// Generate nested TSX trees.
-pub(super) fn nested_tsx(mode: StressMode, scale: usize, _width: usize) -> String {
+/// Generate nested trees.
+pub(super) fn nested_tree(scale: usize, _width: usize) -> String {
     let mut source = String::new();
-
-    if mode == StressMode::Destack {
-        source.push_str("const nestedTree = ");
-    } else {
-        source.push_str("export const nestedTree = ");
-    }
+    source.push_str("const nestedTree = ");
 
     source.push_str("<Panel title=\"stress\">\n");
 
@@ -23,8 +16,8 @@ pub(super) fn nested_tsx(mode: StressMode, scale: usize, _width: usize) -> Strin
     source
 }
 
-/// Generate ambiguous TSX expression boundaries.
-pub(super) fn ambiguous_tsx(_mode: StressMode, scale: usize, _width: usize) -> String {
+/// Generate ambiguous tree expression boundaries.
+pub(super) fn ambiguous_tree(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("const ambiguousTree = <Container>\n");
 
@@ -39,8 +32,8 @@ pub(super) fn ambiguous_tsx(_mode: StressMode, scale: usize, _width: usize) -> S
     source
 }
 
-/// Generate damaged TSX with a later recovered declaration.
-pub(super) fn damaged_tsx(_mode: StressMode, scale: usize, _width: usize) -> String {
+/// Generate a damaged tree with a later recovered declaration.
+pub(super) fn damaged_tree(scale: usize, _width: usize) -> String {
     let mut source = String::new();
 
     for index in 0..scale {
@@ -54,8 +47,8 @@ pub(super) fn damaged_tsx(_mode: StressMode, scale: usize, _width: usize) -> Str
     source
 }
 
-/// Generate damaged TSX nesting with a later recovered declaration.
-pub(super) fn damaged_tree_nesting(_mode: StressMode, scale: usize, _width: usize) -> String {
+/// Generate damaged tree nesting with a later recovered declaration.
+pub(super) fn damaged_tree_nesting(scale: usize, _width: usize) -> String {
     let mut source = String::new();
 
     for index in 0..scale {

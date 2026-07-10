@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate module metadata, globals, and import attributes.
-pub(super) fn module_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn module_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 256);
 
     for index in 0..scale {
@@ -30,7 +28,7 @@ pub(super) fn module_forms(_mode: StressMode, scale: usize, _width: usize) -> St
 
     source.push_str("}\n\n");
     source.push_str("import.meta.product satisfies \"stress\";\n");
-    source.push_str("import.meta.labels.feature satisfies readonly [\"parser\", \"formatter\"];\n");
+    source.push_str("import.meta.labels.feature satisfies readonly string[];\n");
 
     source
 }

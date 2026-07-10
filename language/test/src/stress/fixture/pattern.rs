@@ -1,7 +1,5 @@
-use super::StressMode;
-
 /// Generate nested match cases.
-pub(super) fn nested_match(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn nested_match(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("function nestedMatch(value: Result<number, Error>): number {\n");
     source.push_str("    return match (value) {\n");
@@ -18,7 +16,7 @@ pub(super) fn nested_match(_mode: StressMode, scale: usize, _width: usize) -> St
 }
 
 /// Generate many complex Destack patterns.
-pub(super) fn convoluted_patterns(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn convoluted_patterns(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("function convolutedPatterns(result: Result<Point, Error>): number {\n");
     source.push_str("    return match (result) {\n");
@@ -35,7 +33,7 @@ pub(super) fn convoluted_patterns(_mode: StressMode, scale: usize, _width: usize
 }
 
 /// Generate a damaged type pattern area with a later recovered declaration.
-pub(super) fn damaged_type(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_type(scale: usize, _width: usize) -> String {
     let mut source = String::new();
 
     for index in 0..scale {

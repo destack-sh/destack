@@ -32,5 +32,4 @@ mod ty;
 mod using;
 mod weave;
 
-pub(crate) use registry::StressMode;
 pub use registry::*;

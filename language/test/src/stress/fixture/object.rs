@@ -1,12 +1,7 @@
-use super::StressMode;
-
 /// Generate object literal ambiguity cases.
-pub(super) fn ambiguous_objects(mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn ambiguous_objects(scale: usize, _width: usize) -> String {
     let mut source = String::new();
-
-    if mode.is_destack() {
-        source.push_str("struct StressObject {\n    value: number;\n}\n\n");
-    }
+    source.push_str("struct StressObject {\n    value: number;\n}\n\n");
 
     source.push_str("const ambiguousObject = {\n");
 
@@ -22,7 +17,7 @@ pub(super) fn ambiguous_objects(mode: StressMode, scale: usize, _width: usize) -
 }
 
 /// Generate a very large object literal.
-pub(super) fn large_object(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn large_object(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("const largeObject = {\n");
 

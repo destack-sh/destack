@@ -1,13 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate damaged import and export forms that should recover at later declarations.
-pub(super) fn damaged_dependency_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_dependency_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 256);
 
     for index in 0..scale {
@@ -44,11 +38,7 @@ pub(super) fn damaged_dependency_boundaries(
 }
 
 /// Generate damaged dependency item clauses with a clean following declaration.
-pub(super) fn damaged_dependency_item_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_dependency_item_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 160);
 
     for index in 0..scale {
@@ -69,11 +59,7 @@ pub(super) fn damaged_dependency_item_boundaries(
 }
 
 /// Generate damaged dependency target clauses with a clean following declaration.
-pub(super) fn damaged_dependency_target_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_dependency_target_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 144);
 
     for index in 0..scale {
@@ -92,11 +78,7 @@ pub(super) fn damaged_dependency_target_boundaries(
 }
 
 /// Generate import clauses with missing targets and clean following declarations.
-pub(super) fn damaged_import_target_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_import_target_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 96);
 
     for index in 0..scale {
@@ -110,11 +92,7 @@ pub(super) fn damaged_import_target_boundaries(
 }
 
 /// Generate export clauses with missing targets and clean following declarations.
-pub(super) fn damaged_export_target_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_export_target_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 112);
 
     for index in 0..scale {
@@ -128,11 +106,7 @@ pub(super) fn damaged_export_target_boundaries(
 }
 
 /// Generate export clauses with only missing targets and clean following declarations.
-pub(super) fn damaged_export_target_only_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_export_target_only_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 112);
 
     for index in 0..scale {
@@ -149,11 +123,7 @@ pub(super) fn damaged_export_target_only_boundaries(
 }
 
 /// Generate damaged dependency attribute clauses with a clean following declaration.
-pub(super) fn damaged_dependency_attribute_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_dependency_attribute_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 160);
 
     for index in 0..scale {
@@ -174,11 +144,7 @@ pub(super) fn damaged_dependency_attribute_boundaries(
 }
 
 /// Generate damaged namespace export clauses with a clean following declaration.
-pub(super) fn damaged_dependency_namespace_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_dependency_namespace_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 144);
 
     for index in 0..scale {
@@ -196,7 +162,7 @@ pub(super) fn damaged_dependency_namespace_boundaries(
 }
 
 /// Generate damaged binding patterns that should recover at later statements.
-pub(super) fn damaged_pattern_boundaries(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_pattern_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 256);
 
     for index in 0..scale {
@@ -242,7 +208,7 @@ pub(super) fn damaged_pattern_boundaries(_mode: StressMode, scale: usize, _width
 }
 
 /// Generate damaged class and interface members that should recover at later members.
-pub(super) fn damaged_member_boundaries(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_member_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 256);
     source.push_str("export interface DamagedMemberBoundary {\n");
 
@@ -271,11 +237,7 @@ pub(super) fn damaged_member_boundaries(_mode: StressMode, scale: usize, _width:
 }
 
 /// Generate damaged template expressions that should recover at later statements.
-pub(super) fn damaged_template_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_template_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 256);
 
     for index in 0..scale {
@@ -318,11 +280,7 @@ pub(super) fn damaged_template_boundaries(
 }
 
 /// Generate damaged statement expression slots with clean following statements.
-pub(super) fn damaged_statement_slot_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_statement_slot_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 176);
 
     for index in 0..scale {
@@ -338,11 +296,7 @@ pub(super) fn damaged_statement_slot_boundaries(
 }
 
 /// Generate damaged statement call heads with clean following loops.
-pub(super) fn damaged_statement_call_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_statement_call_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 160);
 
     for index in 0..scale {
@@ -359,11 +313,7 @@ pub(super) fn damaged_statement_call_boundaries(
 }
 
 /// Generate damaged statement object heads with clean following try statements.
-pub(super) fn damaged_statement_object_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_statement_object_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 176);
 
     for index in 0..scale {
@@ -380,11 +330,7 @@ pub(super) fn damaged_statement_object_boundaries(
 }
 
 /// Generate damaged statements immediately before likely recovery boundaries.
-pub(super) fn damaged_statement_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_statement_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 288);
 
     for index in 0..scale {
@@ -428,7 +374,7 @@ pub(super) fn damaged_statement_boundaries(
 }
 
 /// Generate alternating delimiter damage that should recover at later roots.
-pub(super) fn damaged_delimiter_storms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_delimiter_storms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 192);
 
     for index in 0..scale {
@@ -459,11 +405,7 @@ pub(super) fn damaged_delimiter_storms(_mode: StressMode, scale: usize, _width: 
 }
 
 /// Generate damaged syntax near documentation comments.
-pub(super) fn damaged_documentation_boundaries(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_documentation_boundaries(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 288);
 
     for index in 0..scale {

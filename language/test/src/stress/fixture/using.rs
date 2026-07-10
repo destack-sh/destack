@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate explicit resource management surfaces.
-pub(super) fn using_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn using_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 520);
     source.push_str("declare function openFile(path: string): Result<File, IOError>;\n");
     source.push_str("declare const pool: ConnectionPool;\n");

@@ -1,15 +1,11 @@
 use std::fmt;
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Shared source generator for stress fixtures.
 #[derive(Debug)]
 pub(super) struct Generator {
     /// The generated source text.
     source: String,
-    /// The generated file mode.
-    mode: StressMode,
     /// The requested fixture scale.
     scale: usize,
     /// The requested line width.
@@ -18,18 +14,12 @@ pub(super) struct Generator {
 
 impl Generator {
     /// Create a source generator for one stress fixture variant.
-    pub(super) fn new(mode: StressMode, scale: usize, width: usize, capacity: usize) -> Self {
+    pub(super) fn new(scale: usize, width: usize, capacity: usize) -> Self {
         Self {
             source: String::with_capacity(capacity),
-            mode,
             scale,
             width,
         }
-    }
-
-    /// Return the generated file mode.
-    pub(super) fn mode(&self) -> StressMode {
-        self.mode
     }
 
     /// Return the requested fixture scale.

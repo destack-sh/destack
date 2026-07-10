@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate range type, expression, subscript, and pattern surfaces.
-pub(super) fn range_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn range_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 560);
     source.push_str("type Digit = 0..=9;\n");
     source.push_str("type LowerAscii = 'a'..='z';\n");

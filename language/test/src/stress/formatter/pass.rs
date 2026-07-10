@@ -39,7 +39,7 @@ pub(super) fn format_pass(
 
     // parse source
     let parse_start = Instant::now();
-    let file = Arc::new(stress_file(fixture, source));
+    let file = Arc::new(stress_file(fixture, source)?);
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
@@ -174,16 +174,16 @@ fn format_parse_error(diagnostics: &DiagnosticCollection) -> String {
 }
 
 /// Create the source file used for one formatter stress pass.
-fn stress_file(fixture: &StressFixture, source: &str) -> File {
-    let file_name = fixture.file_name();
+fn stress_file(fixture: &StressFixture, source: &str) -> Result<File, String> {
+    let file_name = fixture.file_name()?;
     let file_id = FileId::from_logical_path(&fixture.logical_path());
 
-    File::from_text(
+    Ok(File::from_text(
         file_id,
         file_name.clone(),
         Uri::from_string(&file_name),
         None,
         fixture.file_type,
         source.to_string(),
-    )
+    ))
 }

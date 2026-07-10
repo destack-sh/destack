@@ -1,26 +1,9 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate a multi-megabyte declaration and expression file.
-pub(super) fn massive_file(mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn massive_file(scale: usize, _width: usize) -> String {
     let item_count = scale;
     let mut source = String::with_capacity(item_count * 128);
-
-    if mode.is_declaration() {
-        source.push_str("export interface MassiveShape {\n");
-
-        for index in 0..item_count {
-            let _ = writeln!(
-                source,
-                "    readonly item{index}: {{ readonly id: number; readonly name: string; readonly next?: MassiveShape }};"
-            );
-        }
-
-        source.push_str("}\n");
-
-        return source;
-    }
 
     source.push_str("const massiveSeed = 1;\n");
     source.push_str("export const massiveFile = {\n");
@@ -37,8 +20,25 @@ pub(super) fn massive_file(mode: StressMode, scale: usize, _width: usize) -> Str
     source
 }
 
+/// Generate a multi-megabyte ambient declaration file.
+pub(super) fn massive_ambient_file(scale: usize, _width: usize) -> String {
+    let mut source = String::with_capacity(scale * 128);
+    source.push_str("export interface MassiveShape {\n");
+
+    for index in 0..scale {
+        let _ = writeln!(
+            source,
+            "    readonly item{index}: {{ readonly id: number; readonly name: string; readonly next?: MassiveShape }};"
+        );
+    }
+
+    source.push_str("}\n");
+
+    source
+}
+
 /// Generate a deeply parenthesized expression.
-pub(super) fn deep_parentheses(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn deep_parentheses(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 2 + 64);
     source.push_str("const deepParentheses = ");
 
@@ -58,7 +58,7 @@ pub(super) fn deep_parentheses(_mode: StressMode, scale: usize, _width: usize) -
 }
 
 /// Generate deeply nested statement blocks.
-pub(super) fn deep_block(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn deep_block(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 48);
     source.push_str("export function deepBlock(value: number): number {\n");
 
@@ -77,15 +77,10 @@ pub(super) fn deep_block(_mode: StressMode, scale: usize, _width: usize) -> Stri
     source
 }
 
-/// Generate deeply nested TSX elements.
-pub(super) fn deep_tree(mode: StressMode, scale: usize, _width: usize) -> String {
+/// Generate deeply nested tree elements.
+pub(super) fn deep_tree(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 32);
-
-    if mode == StressMode::Destack {
-        source.push_str("const deepTree = ");
-    } else {
-        source.push_str("export const deepTree = ");
-    }
+    source.push_str("const deepTree = ");
 
     for index in 0..scale {
         let _ = write!(source, "<Node{index} value={{items[{index}]}}>");
@@ -103,7 +98,7 @@ pub(super) fn deep_tree(mode: StressMode, scale: usize, _width: usize) -> String
 }
 
 /// Generate a very wide call expression.
-pub(super) fn wide_call(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn wide_call(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 16 + 64);
     source.push_str("const wideCall = invoke(\n");
 
@@ -117,7 +112,7 @@ pub(super) fn wide_call(_mode: StressMode, scale: usize, _width: usize) -> Strin
 }
 
 /// Generate damaged argument lists that should recover at later statements.
-pub(super) fn damaged_argument_lists(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_argument_lists(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 128);
 
     for index in 0..scale {
@@ -137,7 +132,7 @@ pub(super) fn damaged_argument_lists(_mode: StressMode, scale: usize, _width: us
 }
 
 /// Generate damaged type member bodies that should recover at a later root.
-pub(super) fn damaged_type_member_bodies(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_type_member_bodies(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 96);
     source.push_str("export interface DamagedTypeMemberBodies {\n");
 
@@ -152,7 +147,7 @@ pub(super) fn damaged_type_member_bodies(_mode: StressMode, scale: usize, _width
 }
 
 /// Generate repeated delimiter damage with a later recovered declaration.
-pub(super) fn damaged_delimiters(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_delimiters(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 64);
 
     for index in 0..scale {
@@ -168,7 +163,7 @@ pub(super) fn damaged_delimiters(_mode: StressMode, scale: usize, _width: usize)
 }
 
 /// Generate damaged nested blocks that should recover at a later root.
-pub(super) fn damaged_nested_blocks(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_nested_blocks(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 72);
     source.push_str("export function damagedNestedBlocks(value: number): number {\n");
 
@@ -189,11 +184,7 @@ pub(super) fn damaged_nested_blocks(_mode: StressMode, scale: usize, _width: usi
 }
 
 /// Generate damaged parenthesized heads that should recover at later statements.
-pub(super) fn damaged_parenthesized_heads(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_parenthesized_heads(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 96);
 
     for index in 0..scale {
@@ -210,13 +201,13 @@ pub(super) fn damaged_parenthesized_heads(
 }
 
 /// Generate damaged generic heads that should recover at later statements.
-pub(super) fn damaged_generic_heads(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_generic_heads(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 112);
 
     for index in 0..scale {
         let _ = writeln!(
             source,
-            "const brokenGeneric{index} = <T{index} extends {{ item: ;"
+            "const brokenGeneric{index} = <T{index} extends {{ item: ; }}>(value: T{index}) => value;"
         );
         let _ = writeln!(source, "const recoveredGeneric{index} = value{index};");
     }
@@ -227,7 +218,7 @@ pub(super) fn damaged_generic_heads(_mode: StressMode, scale: usize, _width: usi
 }
 
 /// Generate damaged arrow return types that should recover at later statements.
-pub(super) fn damaged_arrow_return_heads(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_arrow_return_heads(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 120);
 
     for index in 0..scale {
@@ -244,11 +235,7 @@ pub(super) fn damaged_arrow_return_heads(_mode: StressMode, scale: usize, _width
 }
 
 /// Generate damaged function type heads that should recover at later statements.
-pub(super) fn damaged_function_type_heads(
-    _mode: StressMode,
-    scale: usize,
-    _width: usize,
-) -> String {
+pub(super) fn damaged_function_type_heads(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 128);
 
     for index in 0..scale {
@@ -265,7 +252,7 @@ pub(super) fn damaged_function_type_heads(
 }
 
 /// Generate damaged infix chains that should recover at later statements.
-pub(super) fn damaged_infix_chains(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_infix_chains(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 128);
 
     for index in 0..scale {
@@ -282,7 +269,7 @@ pub(super) fn damaged_infix_chains(_mode: StressMode, scale: usize, _width: usiz
 }
 
 /// Generate a large file dominated by trivia.
-pub(super) fn trivia_flood(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn trivia_flood(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 96);
     source.push_str("/** massive trivia prelude */\n");
 

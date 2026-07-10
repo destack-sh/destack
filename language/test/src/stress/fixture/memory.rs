@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate ownership, borrow, move, and dereference surfaces.
-pub(super) fn memory_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn memory_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 520);
     source.push_str("struct Cell<T> { value: T; }\n");
     source.push_str("declare function useReadonly<T>(value: &readonly T): void;\n");

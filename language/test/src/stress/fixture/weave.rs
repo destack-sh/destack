@@ -1,9 +1,8 @@
-use super::StressMode;
 use super::generator::{Generator, emit};
 
-/// Generate interwoven TypeScript-shaped source.
-pub(super) fn woven_source_forms(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 780);
+/// Generate interwoven TypeScript-shaped `.ds` source.
+pub(super) fn woven_typescript_forms(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 780);
     generator.emit("export interface WovenInput<T> {\n");
     generator.emit("    readonly items: readonly T[];\n");
     generator.emit("    select(index: number): T | undefined;\n");
@@ -29,8 +28,8 @@ pub(super) fn woven_source_forms(mode: StressMode, scale: usize, width: usize) -
 }
 
 /// Generate interwoven Destack source.
-pub(super) fn woven_destack_forms(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 1_200);
+pub(super) fn woven_destack_forms(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 1_200);
     generator.emit("import config from \"./stress.toml\" with { type: \"json\" };\n\n");
     generator.emit("@noHeap\nmodule {\n");
     generator.emit("    const product = \"stress\";\n");
@@ -50,20 +49,15 @@ pub(super) fn woven_destack_forms(mode: StressMode, scale: usize, width: usize) 
     generator.finish()
 }
 
-/// Generate interwoven TSX source.
-pub(super) fn woven_tsx_forms(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 780);
-
-    if generator.mode() == StressMode::Destack {
-        generator.emit("const WovenTree = ");
-    } else {
-        generator.emit("export const WovenTree = ");
-    }
+/// Generate interwoven tree source.
+pub(super) fn woven_tree_forms(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 780);
+    generator.emit("const WovenTree = ");
 
     generator.emit("<Panel title=\"stress\">\n");
 
     for index in 0..generator.scale() {
-        emit_tsx_section(&mut generator, index);
+        emit_tree_section(&mut generator, index);
     }
 
     generator.emit("</Panel>;\n\n");
@@ -137,8 +131,8 @@ fn emit_destack_function(generator: &mut Generator, index: usize) {
     generator.emit("}\n\n");
 }
 
-/// Write one TSX tree branch.
-fn emit_tsx_section(generator: &mut Generator, index: usize) {
+/// Write one tree branch.
+fn emit_tree_section(generator: &mut Generator, index: usize) {
     emit!(
         generator,
         "    <Section key={{items[{index}].id}} active={{items[{index}] satisfies Item}}>\n"

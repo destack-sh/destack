@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate comptime expressions and static generic forms.
-pub(super) fn comptime_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn comptime_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 620);
     source.push_str("declare function compute(value: int32): int32;\n\n");
 
@@ -13,7 +11,7 @@ pub(super) fn comptime_forms(_mode: StressMode, scale: usize, _width: usize) -> 
         source.push_str("    comptime {\n");
         source.push_str("        assert(Size > 0 && Size <= 65536);\n");
         source.push_str("    }\n");
-        source.push_str("    tag: Size == 4 ? \"small\" : \"large\";\n");
+        source.push_str("    tag: Size extends 4 ? \"small\" : \"large\";\n");
         source.push_str("    data: [uint8; Size];\n");
         source.push_str("}\n\n");
 

@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate a broad valid expression syntax matrix.
-pub(super) fn expression_matrix(mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn expression_matrix(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 320);
     source.push_str("const matrixSeed = 1;\n");
 
@@ -45,7 +43,7 @@ pub(super) fn expression_matrix(mode: StressMode, scale: usize, _width: usize) -
                     "const matrixLambda{index} = (value{index}: Item{index}) => value{index} satisfies Item{index};"
                 );
             }
-            6 if mode.is_tsx() => {
+            6 => {
                 let _ = writeln!(
                     source,
                     "const matrixTree{index} = <Panel key={{key{index}}}><Item value={{value{index}}} /></Panel>;"
@@ -66,7 +64,7 @@ pub(super) fn expression_matrix(mode: StressMode, scale: usize, _width: usize) -
             9 => {
                 let _ = writeln!(
                     source,
-                    "const matrixSequence{index} = (prepare{index}(), read{index}(key{index}), finish{index});"
+                    "const matrixTuple{index} = (prepare{index}(), read{index}(key{index}), finish{index});"
                 );
             }
             10 => {
@@ -100,77 +98,82 @@ pub(super) fn expression_matrix(mode: StressMode, scale: usize, _width: usize) -
 }
 
 /// Generate a broad valid type syntax matrix.
-pub(super) fn type_matrix(mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn type_matrix(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 360);
 
     for index in 0..scale {
         match index % 12 {
             0 => {
-                let ty = type_wrap(
-                    mode,
-                    &format!(
-                        "{{ readonly key{index}: T; readonly nested?: MatrixType{index}<T> }}"
-                    ),
+                let _ = writeln!(
+                    source,
+                    "type MatrixObject{index}<T> = ({{ readonly key{index}: T; readonly nested?: MatrixType{index}<T> }});"
                 );
-                let _ = writeln!(source, "type MatrixObject{index}<T> = {ty};");
             }
             1 => {
-                let ty = type_wrap(mode, "readonly [head: T, ...tail: T[]]");
-                let _ = writeln!(source, "type MatrixTuple{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixTuple{index}<T> = (readonly (head: T, ...tail: T[]));"
+                );
             }
             2 => {
-                let ty = type_wrap(
-                    mode,
-                    &format!(
-                        "T extends {{ readonly tag: \"case{index}\" }} ? Value{index}<T> : never"
-                    ),
+                let _ = writeln!(
+                    source,
+                    "type MatrixConditional{index}<T> = (T extends {{ readonly tag: \"case{index}\" }} ? Value{index}<T> : never);"
                 );
-                let _ = writeln!(source, "type MatrixConditional{index}<T> = {ty};");
             }
             3 => {
-                let ty = type_wrap(mode, "{ [Key in keyof T as `key${Key}`]: T[Key] }");
-                let _ = writeln!(source, "type MatrixMapped{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixMapped{index}<T> = ({{ [Key in keyof T as `key${{Key}}`]: T[Key] }});"
+                );
             }
             4 => {
-                let ty = type_wrap(
-                    mode,
-                    &format!("MatrixObject{index}<T>[keyof MatrixObject{index}<T>]"),
+                let _ = writeln!(
+                    source,
+                    "type MatrixIndex{index}<T> = (MatrixObject{index}<T>[keyof MatrixObject{index}<T>]);"
                 );
-                let _ = writeln!(source, "type MatrixIndex{index}<T> = {ty};");
             }
             5 => {
-                let ty = type_wrap(
-                    mode,
-                    &format!("new <Value extends T>(value: Value) => MatrixObject{index}<Value>"),
+                let _ = writeln!(
+                    source,
+                    "type MatrixConstructor{index}<T> = (new <Value extends T>(value: Value) => MatrixObject{index}<Value>);"
                 );
-                let _ = writeln!(source, "type MatrixConstructor{index}<T> = {ty};");
             }
             6 => {
-                let ty = type_wrap(
-                    mode,
-                    &format!("(value: T, ...items: T[]) => MatrixObject{index}<T>"),
+                let _ = writeln!(
+                    source,
+                    "type MatrixFunction{index}<T> = ((value: T, ...items: T[]) => MatrixObject{index}<T>);"
                 );
-                let _ = writeln!(source, "type MatrixFunction{index}<T> = {ty};");
             }
             7 => {
-                let ty = type_wrap(mode, "keyof T | keyof readonly T[]");
-                let _ = writeln!(source, "type MatrixKeyof{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixKeyof{index}<T> = (keyof T | keyof readonly T[]);"
+                );
             }
             8 => {
-                let ty = type_wrap(mode, "T extends infer Value ? Value : never");
-                let _ = writeln!(source, "type MatrixInfer{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixInfer{index}<T> = (T extends infer Value ? Value : never);"
+                );
             }
             9 => {
-                let ty = type_wrap(mode, "`matrix${string}` | `case${number}`");
-                let _ = writeln!(source, "type MatrixTemplate{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixTemplate{index}<T> = (`matrix${{string}}` | `case${{number}}`);"
+                );
             }
             10 => {
-                let ty = type_wrap(mode, "{ new(value: T): MatrixObject0<T>; prototype: T }");
-                let _ = writeln!(source, "type MatrixConstructMember{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixConstructMember{index}<T> = ({{ new(value: T): MatrixObject0<T>; prototype: T }});"
+                );
             }
             _ => {
-                let ty = type_wrap(mode, "readonly (T | null | undefined)[]");
-                let _ = writeln!(source, "type MatrixArray{index}<T> = {ty};");
+                let _ = writeln!(
+                    source,
+                    "type MatrixArray{index}<T> = (readonly (T | null | undefined)[]);"
+                );
             }
         }
     }
@@ -179,7 +182,7 @@ pub(super) fn type_matrix(mode: StressMode, scale: usize, _width: usize) -> Stri
 }
 
 /// Generate a broad damaged expression recovery matrix.
-pub(super) fn damaged_expression_matrix(mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_expression_matrix(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 320);
 
     for index in 0..scale {
@@ -220,7 +223,7 @@ pub(super) fn damaged_expression_matrix(mode: StressMode, scale: usize, _width: 
                     "const brokenGenericCall{index} = call{index}<T{index}, , U{index}>(value{index});"
                 );
             }
-            6 if mode.is_tsx() => {
+            6 => {
                 let _ = writeln!(
                     source,
                     "const brokenTreeExpr{index} = <Panel><Item value={{,}} /></Panel>;"
@@ -282,7 +285,7 @@ pub(super) fn damaged_expression_matrix(mode: StressMode, scale: usize, _width: 
 }
 
 /// Generate a broad damaged type recovery matrix.
-pub(super) fn damaged_type_matrix(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_type_matrix(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 280);
 
     for index in 0..scale {
@@ -346,7 +349,7 @@ pub(super) fn damaged_type_matrix(_mode: StressMode, scale: usize, _width: usize
 }
 
 /// Generate a broad damaged declaration recovery matrix.
-pub(super) fn damaged_declaration_matrix(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_declaration_matrix(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 360);
 
     for index in 0..scale {
@@ -420,7 +423,7 @@ pub(super) fn damaged_declaration_matrix(_mode: StressMode, scale: usize, _width
 }
 
 /// Generate a broad damaged tree recovery matrix.
-pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_tree_matrix(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 320);
 
     for index in 0..scale {
@@ -453,7 +456,10 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
                 );
             }
             5 => {
-                let _ = writeln!(source, "const brokenTreeOpen{index} = <Panel><Item>");
+                let _ = writeln!(
+                    source,
+                    "const brokenTreeOpen{index} = <Panel><Item><Child /></Panel>;"
+                );
             }
             6 => {
                 let _ = writeln!(
@@ -476,7 +482,7 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
             9 => {
                 let _ = writeln!(
                     source,
-                    "const brokenTreeAttributeString{index} = <Item label=\"unterminated />;"
+                    "const brokenTreeAttributeValue{index} = <Item label=\"closed\" missing= />;"
                 );
             }
             _ => {
@@ -496,12 +502,4 @@ pub(super) fn damaged_tree_matrix(_mode: StressMode, scale: usize, _width: usize
     source.push_str("\nconst stressRecovered = <Recovered />;\n");
 
     source
-}
-
-fn type_wrap(mode: StressMode, ty: &str) -> String {
-    if mode.is_destack() {
-        format!("({ty})")
-    } else {
-        ty.to_string()
-    }
 }
