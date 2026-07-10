@@ -114,12 +114,34 @@ impl<'a> CommandContext<'a> {
         let report = trace.snapshot(
             view,
             |key| {
-                key.module_id().and_then(|module| {
+                let display = key.module_id().and_then(|module| {
                     self.repository
                         .module_display(revision, module)
                         .ok()
                         .flatten()
-                })
+                });
+
+                // count members on multi-module component artifacts
+                if let ArtifactKey::DirCheckedComponent {
+                    component, profile, ..
+                } = key
+                {
+                    let members = self
+                        .session
+                        .require(revision, ArtifactKey::component_graph(*profile))
+                        .ok()
+                        .and_then(|version| {
+                            self.repository.artifact_table().component_graph(&version)
+                        })
+                        .map(|graph| graph.members(*component).len());
+                    if let (Some(display), Some(members)) = (&display, members)
+                        && members > 1
+                    {
+                        return Some(format!("{display} (+{} modules)", members - 1));
+                    }
+                }
+
+                display
             },
             |target| {
                 self.repository
