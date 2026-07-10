@@ -1,5 +1,5 @@
 use crate::Compiler;
-use destack_artifact::{BuildManifestFileType, BuildManifestLoader, BundleFile};
+use destack_artifact::{BuildManifestFileType, BuildManifestLoader, BundleFile, BundleSection};
 use destack_source::FileType;
 
 use super::layout::{OutputLocation, TargetLocation};
@@ -18,21 +18,31 @@ impl Compiler {
 
     /// Return the manifest file type for one emitted file.
     pub(crate) fn build_manifest_file_type(&self, file: &BundleFile) -> BuildManifestFileType {
-        match file.file_type {
-            FileType::JavaScript | FileType::TypeScript => BuildManifestFileType::Chunk,
-            FileType::Object | FileType::Wasm => BuildManifestFileType::Binary,
+        match file.section {
+            BundleSection::Entry | BundleSection::Module => BuildManifestFileType::Chunk,
+            _ if matches!(file.file_type, FileType::Object | FileType::Wasm) => {
+                BuildManifestFileType::Binary
+            }
             _ => BuildManifestFileType::Asset,
         }
     }
 
     /// Return the manifest loader string for one emitted file.
     pub(crate) fn build_manifest_loader(&self, file: &BundleFile) -> BuildManifestLoader {
+        if file.section == BundleSection::Declaration {
+            return BuildManifestLoader::Dts;
+        }
+
+        let is_typescript = file
+            .uri
+            .last_segment()
+            .is_some_and(|name| name.ends_with(".ts"));
+
         match file.file_type {
-            FileType::JavaScript => BuildManifestLoader::Js,
-            FileType::TypeScript => BuildManifestLoader::Ts,
+            FileType::Script if is_typescript => BuildManifestLoader::Ts,
+            FileType::Script => BuildManifestLoader::Js,
             FileType::SourceMap => BuildManifestLoader::Map,
             FileType::Json => BuildManifestLoader::Json,
-            FileType::TypeScriptDeclaration => BuildManifestLoader::Dts,
             FileType::Wasm => BuildManifestLoader::Wasm,
             FileType::Object => BuildManifestLoader::Object,
             _ => BuildManifestLoader::Asset,

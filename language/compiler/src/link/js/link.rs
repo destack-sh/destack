@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
-use destack_artifact::{Bundle, BundleFile, BundleSection};
+use destack_artifact::{Bundle, BundleFile};
 use destack_repository::JsOutputFormat;
-use destack_source::{FileType, ModuleId};
+use destack_source::ModuleId;
 
 use super::JsLinker;
 
@@ -77,24 +77,5 @@ impl<'a> JsLinker<'a> {
             Compiler::package_assembly(self.target.js.mode),
             files,
         )
-    }
-
-    /// Return the bundle section for one emitted file.
-    pub(crate) fn bundle_section_for_file(&self, file_type: FileType) -> BundleSection {
-        match file_type {
-            FileType::TypeScriptDeclaration => BundleSection::Declaration,
-            FileType::SourceMap => BundleSection::SourceMap,
-
-            // single-file JS targets publish an entry file
-            FileType::JavaScript | FileType::TypeScript => {
-                if self.target.is_single_file() {
-                    BundleSection::Entry
-                } else {
-                    BundleSection::Module
-                }
-            }
-
-            _ => BundleSection::Asset,
-        }
     }
 }

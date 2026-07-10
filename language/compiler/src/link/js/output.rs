@@ -1,15 +1,15 @@
 use std::path::{Component, Path, PathBuf};
 
 use crate::emit::js::{
-    JsFormatOptions, Module as ScriptModule, PrintedJsModule,
+    JsFormatOptions, Module as ScriptModule, PrintedJsModule, ScriptFormat,
     print_js_module as print_codegen_script_module,
 };
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{Compiler, CompilerError, CompilerResult, JsLinker};
 use base64::Engine as _;
-use destack_artifact::{BundleFile, BundleSection, EmitFormat, Script, SourceMap};
+use destack_artifact::{BundleFile, BundleSection, Script, SourceMap};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
-use destack_source::{Content, FileType, ModuleId, Uri};
+use destack_source::{FileType, ModuleId, Uri};
 
 /// One final JS text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]
@@ -24,22 +24,8 @@ impl<'a> JsTextOutputPolicy<'a> {
         Self { target }
     }
 
-    /// Build one final JavaScript or TypeScript content payload.
-    fn js_content(self, file_type: FileType, code: String) -> Result<Content, String> {
-        match file_type {
-            FileType::JavaScript | FileType::TypeScript => {
-                Ok(crate::Compiler::text_output_content(code))
-            }
-            other => Err(format!("unsupported JS text output: {other:?}")),
-        }
-    }
-
     /// Apply the target output policy before source map annotation.
-    fn shape_js_text(self, mut code: String, file_type: FileType) -> Result<String, String> {
-        if !matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
-            return Ok(code);
-        }
-
+    fn shape_script_text(self, mut code: String) -> String {
         // final JS shaping
         code = self.apply_js_banner_and_footer(code);
 
@@ -47,7 +33,7 @@ impl<'a> JsTextOutputPolicy<'a> {
             // TODO #Incomplete: final JS minification is not implemented yet
         }
 
-        Ok(code)
+        code
     }
 
     /// Append one source map reference when the target wants one.
@@ -169,7 +155,7 @@ impl JsLinker<'_> {
         &self,
         module_id: ModuleId,
         target: &Target,
-        file_type: FileType,
+        format: ScriptFormat,
         module: &ScriptModule,
         context: &dyn ProviderContext,
     ) -> CompilerResult<PrintedJsModule> {
@@ -189,7 +175,7 @@ impl JsLinker<'_> {
         } else {
             JsFormatOptions::pretty()
         }
-        .with_file_type(file_type);
+        .with_format(format);
 
         print_codegen_script_module(options, &parsed, source_file.as_ref(), module).map_err(
             |error| CompilerError::Internal {
@@ -220,71 +206,6 @@ impl JsLinker<'_> {
         Ok(SourceMapBuilder::new(vec![source_path], markers))
     }
 
-    /// Link one printed JavaScript or TypeScript module into output files.
-    fn link_printed_script_text_files(
-        &self,
-        target: &Target,
-        package_dir: &Path,
-        module: &Module,
-        file_type: FileType,
-        output_path: &Path,
-        printed: PrintedJsModule,
-        map_path: Option<&Path>,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<BundleFile>> {
-        // source map
-        let map = self.script_module_map(package_dir, module, &printed, context)?;
-
-        self.link_script_text_files(
-            target,
-            file_type,
-            output_path,
-            printed.code,
-            Some(map),
-            map_path,
-        )
-        .map_err(|message| CompilerError::Internal { message })
-    }
-
-    /// Link one printed JS module for one concrete output file type.
-    fn link_printed_script_files(
-        &self,
-        module: &Module,
-        artifact: &Script,
-        target: &Target,
-        package_dir: &Path,
-        file_type: FileType,
-        output_path: &Path,
-        map_path: Option<&Path>,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<BundleFile>> {
-        // print once
-        let Some(script) = artifact.ecmascript_module() else {
-            return Err(CompilerError::Internal {
-                message: format!("expected ECMAScript script for module {:?}", module.id),
-            });
-        };
-        let printed = self.print_js_module(module.id, target, file_type, script, context)?;
-
-        // JS text
-        if matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
-            return self.link_printed_script_text_files(
-                target,
-                package_dir,
-                module,
-                file_type,
-                output_path,
-                printed,
-                map_path,
-                context,
-            );
-        }
-
-        Err(CompilerError::Internal {
-            message: format!("unsupported file type: {file_type:?}"),
-        })
-    }
-
     /// Link one declaration output file when the target requests one.
     fn link_script_declaration_file(
         &self,
@@ -299,7 +220,7 @@ impl JsLinker<'_> {
             root_dir,
             target,
             module,
-            FileType::TypeScriptDeclaration,
+            ScriptFormat::Declaration.extension(),
         )?;
 
         let content = Compiler::text_output_content(declaration_text.to_string());
@@ -308,7 +229,7 @@ impl JsLinker<'_> {
             .intern_output_file(
                 BundleSection::Declaration,
                 Uri::from_path(&output_path),
-                FileType::TypeScriptDeclaration,
+                FileType::Script,
                 content,
                 None,
             )
@@ -325,53 +246,44 @@ impl JsLinker<'_> {
         root_dir: Option<&Path>,
         context: &dyn ProviderContext,
     ) -> CompilerResult<Vec<BundleFile>> {
-        let mut entries = Vec::new();
-        let file_types = linked_script_file_types(target)
-            .map_err(|message| CompilerError::Internal { message })?;
-        let map_path = file_types
-            .contains(&FileType::SourceMap)
-            .then(|| {
-                OutputLayout::module_output_path(
-                    package_dir,
-                    root_dir,
-                    target,
-                    module,
-                    FileType::SourceMap,
-                )
-            })
+        let format = self.js_output_format().map_err(CompilerError::from)?;
+        let map_path = target
+            .emits_source_map_output()
+            .then(|| OutputLayout::module_output_path(package_dir, root_dir, target, module, "map"))
             .transpose()
             .map_err(|message| CompilerError::Internal { message })?;
+        let output_path = OutputLayout::module_output_path(
+            package_dir,
+            root_dir,
+            target,
+            module,
+            format.extension(),
+        )
+        .map_err(|message| CompilerError::Internal { message })?;
 
-        // code files
-        for file_type in &file_types {
-            if *file_type == FileType::TypeScriptDeclaration {
-                continue;
-            }
+        // print the script and build its source map
+        let Some(script) = artifact.ecmascript_module() else {
+            return Err(CompilerError::Internal {
+                message: format!("expected ECMAScript script for module {:?}", module.id),
+            });
+        };
+        let printed = self.print_js_module(module.id, target, format, script, context)?;
+        let map = self.script_module_map(package_dir, module, &printed, context)?;
 
-            let output_path =
-                OutputLayout::module_output_path(package_dir, root_dir, target, module, *file_type)
-                    .map_err(|message| CompilerError::Internal { message })?;
-            if *file_type == FileType::SourceMap {
-                continue;
-            }
-
-            let files = self.link_printed_script_files(
-                module,
-                artifact,
+        // link the script and optional source map file
+        let mut entries = self
+            .link_script_text_files(
                 target,
-                package_dir,
-                *file_type,
                 &output_path,
+                printed.code,
+                Some(map),
                 map_path.as_deref(),
-                context,
-            )?;
-
-            entries.extend(files);
-        }
+            )
+            .map_err(|message| CompilerError::Internal { message })?;
 
         // declarations
         if let Some(declaration) = &artifact.declaration
-            && file_types.contains(&FileType::TypeScriptDeclaration)
+            && target.output.declaration
         {
             let declaration = self
                 .link_script_declaration_file(
@@ -393,7 +305,6 @@ impl JsLinker<'_> {
     pub(crate) fn link_script_text_files(
         &self,
         target: &Target,
-        file_type: FileType,
         output_path: &Path,
         code: String,
         map: Option<SourceMapBuilder>,
@@ -401,7 +312,7 @@ impl JsLinker<'_> {
     ) -> Result<Vec<BundleFile>, String> {
         let output_policy = JsTextOutputPolicy::new(target);
         let map_reference = map_path.map(|path| relative_map_reference(output_path, path));
-        let shaped_code = output_policy.shape_js_text(code, file_type)?;
+        let shaped_code = output_policy.shape_script_text(code);
         let mut map = map;
         let has_map = map.is_some();
 
@@ -418,14 +329,18 @@ impl JsLinker<'_> {
 
         let code =
             output_policy.annotate_js_text_with_map(shaped_code, map.as_ref(), map_reference)?;
-        let content = output_policy.js_content(file_type, code)?;
-        let section = self.bundle_section_for_file(file_type);
+        let content = Compiler::text_output_content(code);
+        let section = if self.target.is_single_file() {
+            BundleSection::Entry
+        } else {
+            BundleSection::Module
+        };
         let mut files = vec![
             self.compiler
                 .intern_output_file(
                     section,
                     Uri::from_path(output_path),
-                    file_type,
+                    FileType::Script,
                     content,
                     None,
                 )
@@ -500,30 +415,4 @@ fn relative_path_between(from_output_path: &Path, to_output_path: &Path) -> Path
     }
 
     relative_path
-}
-
-/// Choose the linked file types for one JS target.
-fn linked_script_file_types(target: &Target) -> Result<Vec<FileType>, String> {
-    match target.emit {
-        EmitFormat::Js => {
-            let mut file_types = vec![FileType::JavaScript];
-            if target.output.declaration {
-                file_types.push(FileType::TypeScriptDeclaration);
-            }
-            if target.emits_source_map_output() {
-                file_types.push(FileType::SourceMap);
-            }
-
-            Ok(file_types)
-        }
-        EmitFormat::Ts => {
-            let mut file_types = vec![FileType::TypeScript];
-            if target.emits_source_map_output() {
-                file_types.push(FileType::SourceMap);
-            }
-
-            Ok(file_types)
-        }
-        other => Err(format!("expected JS or TS output, got {other:?}")),
-    }
 }

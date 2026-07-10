@@ -2,10 +2,11 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
+use crate::emit::js::ScriptFormat;
 use crate::{LinkError, LinkResult};
 use destack_core::{StableHasher, stable_hash_bytes};
 use destack_repository::{JsOutputFormat, JsOutputMode, Module, Target};
-use destack_source::{Content, FileType, ModuleId};
+use destack_source::{Content, ModuleId};
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
 
@@ -52,12 +53,9 @@ impl OutputLayout {
         root_dir: Option<&Path>,
         target: &Target,
         module: &Module,
-        file_type: FileType,
+        extension: &str,
     ) -> Result<PathBuf, String> {
         let module_path = module_source_path(module)?;
-        let extension = file_type
-            .extension()
-            .ok_or_else(|| format!("file type has no known extension: {file_type:?}"))?;
 
         Ok(target.resolve_out_file(package_dir, root_dir, &module_path, extension))
     }
@@ -68,10 +66,10 @@ impl OutputLayout {
         root_dir: Option<&Path>,
         target: &Target,
         module: &Module,
-        file_type: FileType,
+        format: ScriptFormat,
     ) -> Result<OutputLocation, String> {
         let output_path =
-            Self::module_output_path(package_dir, root_dir, target, module, file_type)?;
+            Self::module_output_path(package_dir, root_dir, target, module, format.extension())?;
 
         Ok(OutputLocation::new(output_path))
     }
@@ -283,13 +281,13 @@ impl<'a> JsLinker<'a> {
                         .to_string(),
                 });
             };
-            let file_type = JsLinker::js_output_file_type(self)?;
+            let format = JsLinker::js_output_format(self)?;
             let output_location = OutputLayout::module_output_location(
                 self.package_dir,
                 self.root_dir,
                 self.target,
                 self.module(module_id)?.as_ref(),
-                file_type,
+                format,
             )
             .map_err(|message| LinkError::Internal {
                 anchor: (self.package_id).into(),
@@ -418,8 +416,9 @@ impl<'a> JsLinker<'a> {
 mod tests {
     use std::path::{Path, PathBuf};
 
+    use crate::emit::js::ScriptFormat;
     use destack_repository::{Module, Target};
-    use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
+    use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 
     use crate::link::{OutputLayout, TargetLocation};
 
@@ -497,7 +496,7 @@ mod tests {
             Some(Path::new("/workspace/pkg/src")),
             &target,
             &module,
-            FileType::JavaScript,
+            ScriptFormat::JavaScript.extension(),
         )
         .unwrap();
 

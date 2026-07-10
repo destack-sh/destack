@@ -126,11 +126,6 @@ fn explicit_media_type(file_type: FileType) -> Option<&'static str> {
         FileType::Html => Some("text/html"),
         FileType::Css => Some("text/css"),
         FileType::Svg => Some("image/svg+xml"),
-        FileType::JavaScript => Some("text/javascript"),
-        FileType::JavaScriptXml => Some("text/javascript"),
-        FileType::TypeScript => Some("text/plain"),
-        FileType::TypeScriptXml => Some("text/plain"),
-        FileType::TypeScriptDeclaration => Some("text/plain"),
         FileType::Json => Some("application/json"),
         FileType::Toml => Some("application/toml"),
         FileType::Yaml => Some("application/yaml"),
@@ -155,11 +150,7 @@ fn uses_utf8_charset(file_type: FileType) -> bool {
             | FileType::Markdown
             | FileType::Css
             | FileType::Svg
-            | FileType::JavaScript
-            | FileType::JavaScriptXml
-            | FileType::TypeScript
-            | FileType::TypeScriptXml
-            | FileType::TypeScriptDeclaration
+            | FileType::Script
             | FileType::SourceMap
     )
 }
