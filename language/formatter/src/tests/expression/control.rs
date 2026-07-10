@@ -27,7 +27,7 @@ fn test_format_yield_member_separator_comment() {
     .run();
 }
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -58,7 +58,7 @@ fn test_format_for_assignment_slots() {
         r#"for (i = 0; foo = bar; i += 1) {}"#,
         r#"for (i = 0; (foo = bar); i += 1) {}
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -164,7 +164,7 @@ else if (false) {}
 
 else {}
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -205,12 +205,12 @@ fn test_format_if_else_block_boundary_comment() {
         r#"if (ready) { run() } /* keep-boundary */ else { stop() }
 "#,
         r#"if (ready) {
-    run();
+    run()
 } /* keep-boundary */ else {
-    stop();
+    stop()
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -223,29 +223,61 @@ fn test_format_if_else_line_boundary_comment() {
 else { stop() }
 "#,
         r#"if (ready) {
-    run();
+    run()
 } // keep-boundary
 else {
-    stop();
+    stop()
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
 
-/// Non-block consequent comments should follow Prettier-style branch layout.
+/// Trailing comments should not expand brace-free branches.
 #[test]
 fn test_format_if_else_statement_boundary_comment() {
     assert_format_program_roundtrip_with_file_type(
         r#"if (ready) run() // keep-run
 else stop()
 "#,
-        r#"if (ready)
-    run(); // keep-run
+        r#"if (ready) run(); // keep-run
 else stop();
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Block comments before `else` should not expand a brace-free alternate body.
+#[test]
+fn test_format_if_else_statement_block_boundary_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"if (ready) run()
+/* keep-boundary */
+else stop()
+"#,
+        r#"if (ready) run();
+/* keep-boundary */ else stop();
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
+
+/// Line comments before `else` should not expand a brace-free alternate body.
+#[test]
+fn test_format_if_else_statement_line_boundary_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"if (ready) run()
+// keep-boundary
+else stop()
+"#,
+        r#"if (ready) run();
+// keep-boundary
+else stop();
+"#,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -322,7 +354,7 @@ function *t11() {
     ) + 1;
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,

@@ -37,9 +37,9 @@ pub struct DestackFormatOptions {
     pub quote_props: QuoteProperty = QuoteProperty::AsNeeded,
 
     // tree forms
-    /// Put `>` of multi-line tree/JSX on same line as last attribute.
+    /// Put `>` of multi-line tree on same line as last attribute.
     pub bracket_same_line: bool = false,
-    /// Force each tree/JSX attribute onto its own line.
+    /// Force each tree attribute onto its own line.
     pub single_attribute_per_line: bool = false,
 
     // imports

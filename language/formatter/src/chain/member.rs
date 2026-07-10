@@ -10,7 +10,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_core::StringId;
 use destack_dir::{
     Argument, Declarator, Expression, GenericArgument, IfForm, LocalNodeId, NodeType,
-    PostfixPosition, ScalarLiteral, TokenType, Tree,
+    PostfixPosition, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::token;
@@ -134,7 +134,6 @@ pub(crate) fn chain_node_left_id(
 ) -> Option<LocalNodeId<Expression>> {
     match tree.get(node_id) {
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
         | Expression::Instantiation { left, .. }
@@ -224,10 +223,7 @@ pub(super) fn build_member_chain_parts(
             && chain_tail.peek().is_some_and(|next_id| {
                 matches!(
                     tree.get(*next_id),
-                    Expression::Member { .. }
-                        | Expression::PrivateMember { .. }
-                        | Expression::Call { .. }
-                        | Expression::Index { .. }
+                    Expression::Member { .. } | Expression::Call { .. } | Expression::Index { .. }
                 )
             })
         {
@@ -295,7 +291,7 @@ pub(crate) fn expression_trivia_anchor_end(
     // member like nodes often include trailing separator comments in their full spans
     // so anchor at the property token to inspect the comment gap before parent operators
     match expression {
-        Expression::Member { .. } | Expression::PrivateMember { .. } => context
+        Expression::Member { .. } => context
             .tree
             .get_main_span(expression_id)
             .map_or(span.end, |member_span| member_span.end),
@@ -327,9 +323,7 @@ pub(crate) fn member_has_intervening_comment(
     };
 
     let receiver_end = match context.tree.get(node_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            context.span(*left).end
-        }
+        Expression::Member { left, .. } => context.span(*left).end,
         _ => return false,
     };
 
@@ -339,26 +333,6 @@ pub(crate) fn member_has_intervening_comment(
         || context
             .comments()
             .has_end_of_line_comment_after(context.span(node_id).end)
-}
-
-/// Check whether a member access uses a private hash (`.#name`).
-pub(crate) fn member_is_private_hash(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    if matches!(context.tree.get(node_id), Expression::PrivateMember { .. }) {
-        return true;
-    }
-
-    let Some(property_span) = context.tree.get_main_span(node_id) else {
-        return false;
-    };
-
-    let Some(prev_token) = context.token_before_token_start(property_span.start) else {
-        return false;
-    };
-
-    prev_token.token.ty() == TokenType::Hash
 }
 
 /// Convert one chain expression node into a chain operation.
@@ -371,21 +345,6 @@ pub(crate) fn chain_member_from_node(
             let Some(name) = *name else {
                 return Err(FormatError::SyntaxError {
                     message: "missing member name in chain expression",
-                });
-            };
-            ChainMember::Member {
-                node_id: expression_id,
-                optional_position: maybe_position_for_left(tree, *left),
-                segment: name,
-                generic_arguments: vec![],
-                emit_prefix_annotations: false,
-                emit_postfix_annotations: true,
-            }
-        }
-        Expression::PrivateMember { left, name, .. } => {
-            let Some(name) = *name else {
-                return Err(FormatError::SyntaxError {
-                    message: "missing private member name in chain expression",
                 });
             };
             ChainMember::Member {

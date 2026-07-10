@@ -354,14 +354,6 @@ fn lambda_declaration_tree_node_span(
     }
 }
 
-/// Return whether one lambda declaration sits inside a tree expression container.
-fn lambda_declaration_is_tree_node(
-    context: &DestackFormatContext<'_>,
-    declaration_id: LocalNodeId<Declaration>,
-) -> bool {
-    lambda_declaration_tree_node_span(context, declaration_id).is_some()
-}
-
 /// Return whether one tree expression-container lambda should add a soft closing line.
 fn lambda_declaration_tree_node_should_add_soft_line(
     context: &DestackFormatContext<'_>,
@@ -480,7 +472,6 @@ fn lambda_chain_tail_body_is_separate_line(
             | Expression::ObjectExpression { .. }
             | Expression::StructExpression { .. }
             | Expression::ArrayExpression { .. }
-            | Expression::SequenceExpression { .. }
             | Expression::TreeExpression { .. }
     )
 }
@@ -642,7 +633,7 @@ fn write_lambda_chain_layout<'ast>(
     let tail_body = tail_function.body;
     let is_grouped_call_argument = chain.options.call_argument_layout.is_some();
     let is_callee = lambda_declaration_is_call_like_callee(f.context(), chain.head);
-    let is_tree_node = lambda_declaration_is_tree_node(f.context(), chain.head);
+    let is_tree_node = lambda_declaration_tree_node_span(f.context(), chain.head).is_some();
     let body_on_separate_line = lambda_chain_tail_body_is_separate_line(f.context(), chain.tail);
     let break_signatures = (is_callee && body_on_separate_line)
         || matches!(

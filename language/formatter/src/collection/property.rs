@@ -70,10 +70,6 @@ pub(crate) fn format_key_with_quotes<'ast>(
         Key::Name(name) => {
             format_name_with_quotes(f, name, force_quote_keys)?;
         }
-        Key::Private(name) => {
-            write!(f, [token("#")])?;
-            write!(f, [name])?;
-        }
         Key::Expression(expression) => {
             write!(f, [token("[")])?;
             write!(f, [expression])?;
@@ -100,19 +96,6 @@ pub(crate) fn format_name_with_quotes<'ast>(
 
     match name {
         Name::Identifier(string_id) => {
-            let content = context.strings.get(string_id);
-            if content.starts_with('#')
-                && context.options.language_type.supports_private_identifiers()
-            {
-                let name = content.strip_prefix('#').unwrap_or(content);
-                if name.is_empty() {
-                    write!(f, [token("#")])?;
-                } else {
-                    write!(f, [token("#"), text(name)])?;
-                }
-                return Ok(());
-            }
-
             let should_quote = quote_props == QuoteProperty::Consistent && force_quote_keys;
             if should_quote {
                 format_quoted_name(f, string_id)?;
@@ -221,10 +204,6 @@ fn field_like_layout<'ast>(
 ) -> FormatResult<FieldLikeLayout> {
     let right_id = transparent_inner_expression(f.context(), right);
     let right_expression = f.context().tree.get(right_id);
-
-    if matches!(right_expression, Expression::SequenceExpression { .. }) {
-        return Ok(FieldLikeLayout::BreakAfterOperator);
-    }
 
     if let Expression::Binary {
         operator, right, ..
@@ -572,11 +551,6 @@ where
         return false;
     }
 
-    if !context.options.language_type.is_destack() && !context.options.language_type.is_typescript()
-    {
-        return false;
-    }
-
     let Some((_, parent_type)) = context.parent(node_id) else {
         return false;
     };
@@ -761,7 +735,7 @@ where
 
     // body
     if let Some(body) = body {
-        write_method_signature_and_body(f, node_id, signature, body)?;
+        write_method_body(f, body, false, signature.return_type)?;
     }
 
     Ok(())
@@ -843,20 +817,6 @@ where
     });
 
     write!(f, [group(&format_parameters_and_return_type)])
-}
-
-/// Write one method body after the signature.
-fn write_method_signature_and_body<'ast, N>(
-    f: &mut DestackFormatter<'ast, '_>,
-    _node_id: LocalNodeId<N>,
-    signature: &FunctionSignature,
-    body: LocalNodeId<Expression>,
-) -> FormatResult<()>
-where
-    N: Node + Clone + 'ast,
-    Tree: TreeStore<N>,
-{
-    write_method_body(f, body, false, signature.return_type)
 }
 
 /// Return comments between one method signature and its body.

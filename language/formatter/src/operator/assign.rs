@@ -213,7 +213,6 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
 
             // member
             Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. } => {
@@ -313,15 +312,6 @@ pub(crate) fn assignment_rhs_has_inline_operator_prefix_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    assignment_rhs_has_inline_operator_prefix_annotation_style(context, expression_id, |_| true)
-}
-
-/// Return whether one expression has an inline prefix assignment-operator annotation matching one filter.
-fn assignment_rhs_has_inline_operator_prefix_annotation_style(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-    mut style_filter: impl FnMut(bool) -> bool,
-) -> bool {
     let mut left_side = Some(ExpressionLeftSide::new(transparent_inner_expression(
         context,
         expression_id,
@@ -351,12 +341,7 @@ fn assignment_rhs_has_inline_operator_prefix_annotation_style(
                         return false;
                     }
 
-                    let is_slash_style = comment.is_line();
-                    if !style_filter(is_slash_style) {
-                        return false;
-                    }
-
-                    if is_slash_style {
+                    if comment.is_line() {
                         return true;
                     }
 
@@ -519,8 +504,8 @@ fn assign_pattern_field_contains_expression(
             assign_pattern_contains_expression(context, *pattern, expression_id)
         }
 
-        // spread fields
-        AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+        // rest fields
+        AssignPatternField::Rest { pattern } => pattern.is_some_and(|pattern_id| {
             assign_pattern_contains_expression(context, pattern_id, expression_id)
         }),
 
@@ -696,8 +681,8 @@ fn declarator_pattern_field_has_default_assignment(
             declarator_pattern_has_default_assignment(context, *pattern)
         }
 
-        // spread field
-        PatternField::Spread { pattern, .. } => pattern.as_ref().is_some_and(|pattern_id| {
+        // rest field
+        PatternField::Rest { pattern, .. } => pattern.as_ref().is_some_and(|pattern_id| {
             declarator_pattern_has_default_assignment(context, *pattern_id)
         }),
 
@@ -760,7 +745,7 @@ fn declarator_pattern_field_is_complex_destructuring(
         PatternField::Computed { .. } => true,
 
         // flat fields stay compact
-        PatternField::Positional { .. } | PatternField::Spread { .. } | PatternField::Elision => {
+        PatternField::Positional { .. } | PatternField::Rest { .. } | PatternField::Elision => {
             false
         }
     }
@@ -1643,7 +1628,7 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
         ),
 
         // binary-like rhs values first break after `=`
-        Expression::Binary { .. } | Expression::SequenceExpression { .. } => true,
+        Expression::Binary { .. } => true,
 
         // ternary rhs values only break after `=` when the test is binary-like
         Expression::If {
@@ -1771,7 +1756,7 @@ fn assignment_target_is_complex_destructuring(
 
             // flat fields
             AssignPatternField::Positional { .. }
-            | AssignPatternField::Spread { .. }
+            | AssignPatternField::Rest { .. }
             | AssignPatternField::Elision => false,
         })
 }

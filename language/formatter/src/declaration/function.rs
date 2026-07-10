@@ -239,11 +239,7 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
         return false;
     }
 
-    if f.context().options.language_type.supports_jsx() {
-        return true;
-    }
-
-    false
+    true
 }
 
 /// Write one function generic parameter list.

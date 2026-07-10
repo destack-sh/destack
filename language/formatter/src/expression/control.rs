@@ -1,16 +1,12 @@
 use super::declarator::format_declarator;
 use super::dispatch::format_expression;
-use super::{
-    format_expanded_ternary_expression, write_expression_without_prefix_annotations,
-    write_expression_without_trailing_comments,
-};
+use super::{format_expanded_ternary_expression, write_expression_without_trailing_comments};
 use crate::annotation::{
     DanglingIndentMode, FormatDanglingComments, FormatLeadingComments, FormatTrailingComments,
     block_infix_annotations, format_leading_comments, infix_or_postfix_annotations,
     postfix_annotations, prefix_annotations, prefix_comment_nodes, write_annotation_sequence,
     write_comment_slice,
 };
-use crate::chain::transparent_inner_expression;
 use crate::declaration::sequence::block_statement_sequence;
 use crate::declaration::signature::expression_body_requires_head_space;
 use crate::declaration::statement::{format_block, format_block_wide};
@@ -19,7 +15,7 @@ use crate::declaration::{
     write_statement_terminator, write_statement_terminator_after_anchor,
 };
 use crate::expression::ExpressionLeftSide;
-use crate::file::{node_has_ignore_directive, node_has_trailing_line_ignore_directive};
+use crate::file::node_has_ignore_directive;
 use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, ensure_sufficient_stack};
@@ -34,7 +30,7 @@ use destack_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, hard_line_break,
     line_suffix_boundary, soft_block_indent, soft_line_indent_or_space, space, token,
 };
-use destack_fir::{format_args, write};
+use destack_fir::{best_fitting, format_args, write};
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Write one `if` or `while` test expression before the closing `)`.
@@ -93,19 +89,10 @@ fn write_comments_for_empty_statement_body<'ast>(
     write_comment_slice(f, &comments)
 }
 
-/// Format one statement-body expression with statement-separator semantics.
+/// Format one control-flow body expression with statement-separator semantics.
 fn format_statement_body_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    format_statement_body_expression_with_semicolon(f, expression_id, true)
-}
-
-/// Format one control-flow body expression with configurable semicolon handling.
-fn format_statement_body_expression_with_semicolon<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    expression_id: LocalNodeId<Expression>,
-    has_trailing_semicolon: bool,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
     let is_ignored = node_has_ignore_directive(f.context(), expression_id);
@@ -118,7 +105,7 @@ fn format_statement_body_expression_with_semicolon<'ast>(
     write!(f, [prefix_annotations(f.context(), expression_id)])?;
     format_expression(f, expression_id, expression, is_ignored)?;
 
-    if has_trailing_semicolon && statement_wrapper_needs_semicolon(f.context(), expression_id) {
+    if statement_wrapper_needs_semicolon(f.context(), expression_id) {
         write_statement_terminator(f, expression_id)?;
     }
 
@@ -286,12 +273,7 @@ fn format_statement_body_block_after_head_inner<'ast>(
 
     if block.len() == 1 {
         let expression_id = block.first_expression().expect("single-expression block");
-        let has_leading_comments = {
-            let comments = f.context().comments();
-            !comments
-                .comments_before(f.context().span(expression_id).start)
-                .is_empty()
-        };
+        let has_leading_comments = control_body_has_leading_comments(f.context(), expression_id);
         let body = format_with(|f| format_statement_body_expression(f, expression_id));
 
         if expression_has_block_prefix_annotation(f.context(), expression_id)
@@ -305,6 +287,21 @@ fn format_statement_body_block_after_head_inner<'ast>(
     }
 
     write!(f, [space(), block_id])
+}
+
+/// Return whether comments occur between a control head and its body.
+fn control_body_has_leading_comments(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression_span = context.span(expression_id);
+    let head_end = context
+        .previous_non_trivia_token_before_span(expression_span)
+        .map_or(expression_span.start, |token| token.span.end);
+
+    context
+        .comments()
+        .has_comment_in_range(head_end, expression_span.start)
 }
 
 /// Return true when this block originated from a statement wrapper instead of braces.
@@ -417,63 +414,14 @@ fn format_empty_statement_body_after_head<'ast>(
     write_statement_terminator_after_anchor(f, f.context().span(block_id).start)
 }
 
-/// Return whether one expression is the consequent of an if with an alternate.
-fn expression_is_if_consequent_with_alternate(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((block_id, NodeType::Block)) = context.parent(expression_id) else {
-        return false;
-    };
-    let block_id = LocalNodeId::<Block>::new(block_id);
-
-    let Some((block_expression_id, NodeType::Expression)) = context.parent(block_id) else {
-        return false;
-    };
-    let block_expression_id = LocalNodeId::<Expression>::new(block_expression_id);
-
-    let Some((if_expression_id, NodeType::Expression)) = context.parent(block_expression_id) else {
-        return false;
-    };
-    let if_expression_id = LocalNodeId::<Expression>::new(if_expression_id);
-
-    matches!(
-        context.tree.get(if_expression_id),
-        Expression::If {
-            then_expression,
-            else_expression: Some(_),
-            ..
-        } if *then_expression == block_expression_id
-    )
-}
-
 /// Format one non-block statement body after a control-flow head.
 fn format_statement_body_expression_after_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     force_expanded_body: bool,
 ) -> FormatResult<()> {
-    let has_leading_comments = {
-        let comments = f.context().comments();
-        !comments
-            .comments_before(f.context().span(expression_id).start)
-            .is_empty()
-    };
+    let has_leading_comments = control_body_has_leading_comments(f.context(), expression_id);
     let body = format_with(|f| format_statement_body_expression(f, expression_id));
-
-    let is_if_consequent_with_alternate =
-        expression_is_if_consequent_with_alternate(f.context(), expression_id);
-    let has_end_of_line_comment = f
-        .context()
-        .comments()
-        .has_end_of_line_comment_after(f.context().span(expression_id).end);
-    let has_trailing_ignore_directive =
-        node_has_trailing_line_ignore_directive(f.context(), expression_id);
-    if is_if_consequent_with_alternate && (has_end_of_line_comment || has_trailing_ignore_directive)
-    {
-        write!(f, [hard_line_break(), group(&block_indent(&body))])?;
-        return Ok(());
-    }
 
     if expression_has_block_prefix_annotation(f.context(), expression_id)
         || has_leading_comments
@@ -483,7 +431,15 @@ fn format_statement_body_expression_after_head<'ast>(
         return Ok(());
     }
 
-    write!(f, [soft_line_indent_or_space(&body)])
+    let flat_body = format_with(|f| write!(f, [space(), &body]));
+    let expanded_body = format_with(|f| {
+        write!(
+            f,
+            [group(&soft_line_indent_or_space(&body)).should_expand(true)]
+        )
+    });
+
+    write!(f, [best_fitting![flat_body, expanded_body]])
 }
 
 /// Return whether one adjacent argument is nested directly inside `yield`.
@@ -507,7 +463,7 @@ fn adjacent_statement_member_gap_has_comments(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let (left, property_start) = match ctx.tree.get(expression_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+        Expression::Member { left, .. } => {
             let Some(property_span) = ctx.tree.get_main_span(expression_id) else {
                 return false;
             };
@@ -640,87 +596,16 @@ fn write_expanded_adjacent_statement_value<'ast>(
     )
 }
 
-/// Return one adjacent statement sequence expression after transparent wrappers.
-fn adjacent_statement_sequence_value(
-    context: &DestackFormatContext<'_>,
-    value_id: LocalNodeId<Expression>,
-    value_check_id: LocalNodeId<Expression>,
-) -> Option<LocalNodeId<Expression>> {
-    match context.tree.get(value_check_id) {
-        Expression::SequenceExpression { .. } => Some(value_check_id),
-        _ => match context.tree.get(value_id) {
-            Expression::SequenceExpression { .. } => Some(value_id),
-            _ => None,
-        },
-    }
-}
-
-/// Format one sequence adjacent argument with explicit wrapping.
-fn format_sequence_adjacent_statement_argument<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    value_id: LocalNodeId<Expression>,
-    sequence_value_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    let prefix_annotation_source_id = if f.context().has_prefix_annotation(value_id) {
-        Some(value_id)
-    } else if f.context().has_prefix_annotation(sequence_value_id) {
-        Some(sequence_value_id)
-    } else {
-        None
-    };
-    let grouped_sequence = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        if let Some(prefix_annotation_source_id) = prefix_annotation_source_id {
-            write!(
-                f,
-                [prefix_annotations(f.context(), prefix_annotation_source_id)]
-            )?;
-        }
-
-        write!(f, [token("(")])?;
-        write_expression_without_prefix_annotations(f, sequence_value_id)?;
-        write!(f, [token(")")])
-    });
-
-    write!(
-        f,
-        [
-            space(),
-            token("("),
-            block_indent(&grouped_sequence),
-            hard_line_break(),
-            token(")")
-        ]
-    )
-}
-
 /// Format one adjacent return, throw, or yield argument.
 pub(crate) fn format_adjacent_statement_argument<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let value_check_id = transparent_inner_expression(f.context(), value_id);
-    let value_expression = f.context().tree.get(value_check_id);
-    let sequence_value_id =
-        adjacent_statement_sequence_value(f.context(), value_id, value_check_id);
     let value_has_leading_comments =
         adjacent_statement_argument_has_leading_comments(f.context(), value_id);
 
     if value_has_leading_comments {
-        if let Some(sequence_value_id) = sequence_value_id {
-            return format_sequence_adjacent_statement_argument(f, value_id, sequence_value_id);
-        }
-
         return write_wrapped_adjacent_statement_expression(f, value_id);
-    }
-
-    let value_is_unwrapped_sequence =
-        matches!(value_expression, Expression::SequenceExpression { .. });
-    let should_wrap_value = value_is_unwrapped_sequence;
-
-    if should_wrap_value {
-        let wrapped_value =
-            format_with(|f| write_expanded_adjacent_statement_value(f, value_check_id));
-        return write_wrapped_adjacent_statement_value(f, &wrapped_value);
     }
 
     write!(f, [space(), value_id])?;
@@ -1028,32 +913,23 @@ fn format_if_else_alternate<'ast>(
                     write!(f, [space()])?;
                 }
                 format_empty_statement_body_after_head(f, empty_block_id)?;
-            } else if let Some(inner_expression_id) =
-                transparent_control_body_expression(f.context(), else_expression_id)
-            {
-                let body = format_with(|f| {
-                    format_statement_body_expression_after_head(
-                        f,
-                        inner_expression_id,
-                        expand_branch_bodies,
-                    )
-                });
-                write!(f, [group(&body)])?;
+            } else {
+                write_control_branch_after_head_expanding_body(
+                    f,
+                    else_expression_id,
+                    expand_branch_bodies,
+                )?;
             }
 
             Ok(None)
         }
         _ => {
             write!(f, [Keyword::Else])?;
-
-            let body = format_with(|f| {
-                format_statement_body_expression_after_head(
-                    f,
-                    else_expression_id,
-                    expand_branch_bodies,
-                )
-            });
-            write!(f, [group(&body)])?;
+            write_control_branch_after_head_expanding_body(
+                f,
+                else_expression_id,
+                expand_branch_bodies,
+            )?;
             Ok(None)
         }
     }

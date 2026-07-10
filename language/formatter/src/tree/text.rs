@@ -1,6 +1,6 @@
 use super::node::write_tree_child;
 use super::whitespace::{
-    is_jsx_whitespace_char, tree_child_is_jsx_space_expression, tree_text_child_text,
+    is_tree_whitespace_char, tree_child_is_space_expression, tree_text_child_text,
     tree_text_is_whitespace_only,
 };
 use crate::{DestackFormatContext, DestackFormatter};
@@ -40,7 +40,7 @@ enum TreeInlineItem {
     Word(String),
     /// One punctuation run.
     Punctuation(String),
-    /// One JSX whitespace separator.
+    /// One tree whitespace separator.
     Whitespace,
     /// One source newline separator.
     Newline,
@@ -55,7 +55,7 @@ enum TreeInlineItem {
 enum TreeInlineSeparator {
     /// No separator.
     None,
-    /// JSX whitespace.
+    /// Tree whitespace.
     Whitespace,
     /// Soft word separator.
     SoftOrSpace,
@@ -67,14 +67,14 @@ enum TreeInlineSeparator {
     Empty,
 }
 
-/// Split one text child into JSX text chunks.
+/// Split one text child into tree text chunks.
 fn tree_text_chunks(text: &str) -> Vec<TreeTextChunk<'_>> {
     let mut chunks = Vec::new();
     let mut chunk_start = 0usize;
     let mut chunk_is_whitespace = None::<bool>;
 
     for (index, character) in text.char_indices() {
-        let is_whitespace = is_jsx_whitespace_char(character);
+        let is_whitespace = is_tree_whitespace_char(character);
         let Some(previous_is_whitespace) = chunk_is_whitespace else {
             chunk_is_whitespace = Some(is_whitespace);
             continue;
@@ -248,7 +248,7 @@ fn push_tree_inline_item(items: &mut Vec<TreeInlineItem>, item: TreeInlineItem) 
     }
 }
 
-/// Push one text word with JSX inline text rules.
+/// Push one text word with tree inline text rules.
 fn push_tree_inline_word(items: &mut Vec<TreeInlineItem>, word: &str) {
     let item = if tree_text_word_is_inline_punctuation(word) {
         TreeInlineItem::Punctuation(word.to_string())
@@ -267,7 +267,7 @@ fn tree_inline_items(
     let mut items = Vec::new();
 
     for child_id in children {
-        if tree_child_is_jsx_space_expression(context, *child_id) {
+        if tree_child_is_space_expression(context, *child_id) {
             push_tree_inline_item(&mut items, TreeInlineItem::Whitespace);
             continue;
         }
@@ -389,7 +389,7 @@ fn write_tree_inline_separator<'ast>(
 ) -> FormatResult<()> {
     match separator {
         TreeInlineSeparator::None => {}
-        TreeInlineSeparator::Whitespace => write_tree_jsx_whitespace_separator(f)?,
+        TreeInlineSeparator::Whitespace => write_tree_whitespace_separator(f)?,
         TreeInlineSeparator::SoftOrSpace => write!(f, [soft_line_break_or_space()])?,
         TreeInlineSeparator::Soft => write!(f, [soft_line_break()])?,
         TreeInlineSeparator::Hard => write!(f, [hard_line_break()])?,
@@ -399,23 +399,21 @@ fn write_tree_inline_separator<'ast>(
     Ok(())
 }
 
-/// Return one JSX space token that matches the configured quote style.
-fn tree_jsx_space_token(context: &DestackFormatContext<'_>) -> &'static str {
+/// Return one tree space token that matches the configured quote style.
+fn tree_space_token(context: &DestackFormatContext<'_>) -> &'static str {
     match context.options.quote_style {
         QuoteStyle::Single => "{' '}",
         QuoteStyle::Double | QuoteStyle::Semantic => "{\" \"}",
     }
 }
 
-/// Emit one JSX whitespace separator that stays inline in flat mode.
-fn write_tree_jsx_whitespace_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-) -> FormatResult<()> {
-    let jsx_space = token(tree_jsx_space_token(f.context()));
+/// Emit one tree whitespace separator that stays inline in flat mode.
+fn write_tree_whitespace_separator<'ast>(f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    let tree_space = token(tree_space_token(f.context()));
     write!(
         f,
         [
-            if_group_breaks(&format_args![jsx_space, soft_line_break()]),
+            if_group_breaks(&format_args![tree_space, soft_line_break()]),
             if_group_fits_on_line(&space())
         ]
     )
@@ -447,7 +445,7 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
         if has_newline_spacing {
             write!(f, [hard_line_break()])?;
         } else if has_inline_spacing {
-            write_tree_jsx_whitespace_separator(f)?;
+            write_tree_whitespace_separator(f)?;
         }
 
         return Ok(());
@@ -468,7 +466,7 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
                 let separator =
                     tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
                 let separator = format_with(|f| write_tree_inline_separator(f, separator));
-                let whitespace = format_with(write_tree_jsx_whitespace_separator);
+                let whitespace = format_with(write_tree_whitespace_separator);
                 fill.entry(&separator, &whitespace);
                 previous_visible = Some(item.clone());
                 pending_separator = TreeInlineSeparator::None;

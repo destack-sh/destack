@@ -30,7 +30,6 @@ pub(crate) use self::primary::{
 };
 pub(crate) use self::shape::{
     ExpressionLeftSide, array_elements_are_fill_candidates, array_has_only_outer_comments,
-    sequence_expression_needs_parens,
 };
 pub use self::shape::{
     is_expression_breakable, is_pattern_breakable, is_trivial_argument, is_trivial_expression,
@@ -40,8 +39,8 @@ pub(crate) use self::statement::{
     format_statement_expression, write_statement_expression_trailing_annotations,
 };
 pub(crate) use self::ternary::{
-    argument_value, format_expanded_ternary_expression, jsx_chain_ternary_needs_expanded_branches,
-    ternary_branch_trailing_comments,
+    argument_value, format_expanded_ternary_expression, ternary_branch_trailing_comments,
+    tree_chain_ternary_needs_expanded_branches,
 };
 pub(crate) use self::r#type::{
     TypeExpressionLayout, format_type_member_block_list, write_type_expression_node,

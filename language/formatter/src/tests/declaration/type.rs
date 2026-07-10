@@ -135,7 +135,7 @@ fn test_format_enum_member_blank_lines() {
     u8 = 2,
 }
 "#,
-        FileType::TypeScriptDeclaration,
+        FileType::DestackDeclaration,
     );
 }
 
@@ -159,7 +159,7 @@ fn test_format_class_extends_member_comments() {
     closed: boolean;
 }
 "#,
-        FileType::TypeScriptDeclaration,
+        FileType::DestackDeclaration,
     );
 }
 
@@ -181,7 +181,7 @@ fn test_format_ignored_member_leading_doc_comment() {
     hgetex(key: KeyLike, fieldsKeyword: "FIELDS", numfields: number, ...fields: KeyLike[]): Promise<Array<string | null>>;
 }
 "#,
-        FileType::TypeScriptDeclaration,
+        FileType::DestackDeclaration,
     );
 }
 
@@ -241,7 +241,7 @@ letlonglongRunningProvider4 = class
   implements languages.SignatureHelpProvider<Hello>
 {};
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -466,7 +466,7 @@ fn test_format_class_decorator_layout() {
     onContextMenu() {}
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
     );
 }
 
@@ -484,7 +484,7 @@ fn test_format_member_decorator_comment_layout() {
   method() {}
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,

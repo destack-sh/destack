@@ -35,9 +35,9 @@ fn test_format_decorated_call_argument() {
     );
 }
 
-/// Multiline JSX arguments should force expanded multi-argument call layout.
+/// Multiline tree arguments should force expanded multi-argument call layout.
 #[test]
-fn test_format_multiline_jsx_argument_forces_expanded_call_layout() {
+fn test_format_multiline_tree_argument_forces_expanded_call_layout() {
     assert_format_program!(
         r#"const view = fn(bar, <div>
   <span />
@@ -50,7 +50,7 @@ fn test_format_multiline_jsx_argument_forces_expanded_call_layout() {
   </div>,
 );
 "#,
-        FileType::JavaScriptXml,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -63,7 +63,7 @@ fn test_format_tree_preserves_generic_tag_arguments() {
 "#,
         r#"const view = fn(<Foo<Bar> />);
 "#,
-        FileType::TypeScriptXml,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }

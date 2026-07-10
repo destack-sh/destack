@@ -244,7 +244,6 @@ fn is_callee_or_object_context(
 
     match context.tree.get(parent_id) {
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. } => *left == node_id,
         _ => false,

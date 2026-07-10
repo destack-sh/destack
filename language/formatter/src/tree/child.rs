@@ -99,7 +99,6 @@ pub(crate) fn tree_expression_contains_callback_break(
             })
         }
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => tree_expression_contains_callback_break(context, *left),
@@ -165,7 +164,6 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::AwaitMust { .. }
         | Expression::Binary { .. }
         | Expression::Member { .. }
-        | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. } => !expression_chain_has_separator_comment(context, value_id),
@@ -177,9 +175,9 @@ pub(crate) fn tree_child_should_inline_braced_expression(
             ..
         } => {
             let has_branch_prefix_star_comment =
-                expression_chain_has_prefix_star_comment(context, *then_expression)
+                expression_has_prefix_star_comment(context, *then_expression)
                     || else_expression.is_some_and(|else_id| {
-                        expression_chain_has_prefix_star_comment(context, else_id)
+                        expression_has_prefix_star_comment(context, else_id)
                     });
             if has_branch_prefix_star_comment {
                 return false;
@@ -246,14 +244,6 @@ fn expression_has_prefix_star_comment(
                 TokenType::BlockComment | TokenType::DocBlockComment
             )
         })
-}
-
-/// Return whether one expression or its parenthesized inner chain has one prefix block-star comment.
-fn expression_chain_has_prefix_star_comment(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    expression_has_prefix_star_comment(context, expression_id)
 }
 
 /// Check whether a tree child forces the element to break.
@@ -326,7 +316,7 @@ pub(crate) fn tree_child_breaks_element(
     }
 }
 
-/// Return whether one tree child control value should expand like JSX branch expressions.
+/// Return whether one tree child control value should expand like tree branch expressions.
 pub(crate) fn tree_control_child_should_expand(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,

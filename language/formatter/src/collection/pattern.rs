@@ -60,7 +60,7 @@ fn pattern_fields_disallow_trailing_separator(
     fields.last().is_some_and(|field_id| {
         matches!(
             tree.get(*field_id),
-            PatternField::Spread { .. } | PatternField::Elision
+            PatternField::Rest { .. } | PatternField::Elision
         )
     })
 }
@@ -262,7 +262,7 @@ fn assign_pattern_fields_disallow_trailing_separator(
     fields.last().is_some_and(|field_id| {
         matches!(
             tree.get(*field_id),
-            AssignPatternField::Spread { .. } | AssignPatternField::Elision
+            AssignPatternField::Rest { .. } | AssignPatternField::Elision
         )
     })
 }
@@ -426,7 +426,7 @@ fn object_pattern_field_has_direct_nested_pattern(
 
         // flat field
         PatternField::Named { pattern: None, .. }
-        | PatternField::Spread { .. }
+        | PatternField::Rest { .. }
         | PatternField::Elision => false,
     }
 }
@@ -648,7 +648,7 @@ fn object_assign_pattern_field_has_direct_nested_pattern(
         } => assign_pattern_is_direct_object_or_array_like(tree, *pattern_id),
 
         // flat field
-        AssignPatternField::Spread { .. } | AssignPatternField::Elision => false,
+        AssignPatternField::Rest { .. } | AssignPatternField::Elision => false,
     }
 }
 
@@ -989,8 +989,8 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 write!(f, [pattern])?;
             }
 
-            PatternField::Spread { pattern } => {
-                // spread value
+            PatternField::Rest { pattern } => {
+                // rest pattern
                 write!(f, [token("...")])?;
 
                 if let Some(pattern) = pattern {
@@ -1091,8 +1091,8 @@ impl<'ast> FormatNode<'ast, AssignPatternField> for AssignPatternField {
                 write!(f, [pattern])?;
             }
 
-            AssignPatternField::Spread { pattern } => {
-                // spread value
+            AssignPatternField::Rest { pattern } => {
+                // rest pattern
                 write!(f, [token("...")])?;
 
                 if let Some(pattern) = pattern {

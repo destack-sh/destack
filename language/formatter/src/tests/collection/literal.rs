@@ -5,25 +5,25 @@ use crate::{
 use destack_repository::TrailingComma;
 use destack_source::FileType;
 
-/// Multi-char strings should normalize to double quotes in semantic mode.
+/// Character literals should keep their single-quoted spelling.
 #[test]
-fn test_format_string_literal_multi_char() {
+fn test_format_character_literal_keeps_single_quotes() {
     assert_format_roundtrip_with_file_type(
-        r#"'hello'"#,
-        r#""hello""#,
-        FileType::TypeScript,
+        r#"'a'"#,
+        r#"'a'"#,
+        FileType::Destack,
         crate::parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
 
-/// Embedded target quotes should stay escaped once.
+/// Embedded double quotes should stay escaped once.
 #[test]
 fn test_format_string_literal_escapes_embedded_target_quote() {
     assert_format_roundtrip_with_file_type(
-        r#"'\"1\"'"#,
-        r#"'"1"'"#,
-        FileType::TypeScript,
+        r#""\"1\"""#,
+        r#""\"1\"""#,
+        FileType::Destack,
         crate::parse_first_expression,
         DestackFormatOptions::default(),
     );
@@ -57,7 +57,7 @@ fn test_format_template_literal_ternary_interpolation_stays_inline_roundtrip() {
     assert_format_roundtrip!(
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
-        FileType::JavaScript,
+        FileType::Destack,
         crate::parse_first_expression,
     );
 }

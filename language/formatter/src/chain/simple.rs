@@ -32,11 +32,6 @@ impl SimpleArgument {
         context: &DestackFormatContext<'_>,
         depth: u8,
     ) -> bool {
-        self.is_simple_impl(context, depth)
-    }
-
-    /// Return whether the candidate is simple at one recursion depth.
-    fn is_simple_impl(&self, context: &DestackFormatContext<'_>, depth: u8) -> bool {
         // recursion limit
         if depth >= MAX_SIMPLE_ARGUMENT_DEPTH {
             return false;
@@ -109,7 +104,6 @@ fn expression_is_simple(
         }
         Expression::ScalarLiteral(_)
         | Expression::Identifier { .. }
-        | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
         | Expression::ImportSource
         | Expression::This
@@ -146,7 +140,7 @@ fn expression_is_simple(
         }
 
         // member and call like expressions
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+        Expression::Member { left, .. } => {
             SimpleArgument::from(*left).is_simple_with_depth(context, depth)
         }
         Expression::Index { left, index, .. } => {
@@ -294,7 +288,7 @@ fn property_is_simple(
 
 /// Return whether one property key is simple.
 fn key_is_simple(key: &Key) -> bool {
-    matches!(key, Key::Name(_) | Key::Private(_))
+    matches!(key, Key::Name(_))
 }
 
 /// Return whether one array expression is simple at one recursion depth.

@@ -61,14 +61,6 @@ enum StaticMemberLayout {
     BreakAfterObject,
 }
 
-/// Format one member receiver.
-fn format_member_receiver<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    receiver_id: LocalNodeId<Expression>,
-) -> FormatResult<()> {
-    write_postfix_base_expression(f, receiver_id)
-}
-
 /// Return one receiver after absorbing an optional-chain marker into the member operator.
 fn optional_member_receiver(
     context: &DestackFormatContext<'_>,
@@ -102,7 +94,6 @@ fn postfix_separator_comments(
 ) -> Vec<Comment> {
     let receiver_id = match context.tree.get(node_id) {
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. } => *left,
         _ => return Vec::new(),
@@ -118,10 +109,7 @@ fn expression_is_member_chain_receiver(
 ) -> bool {
     matches!(
         context.tree.get(expression_id),
-        Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. }
-            | Expression::Maybe { .. }
+        Expression::Member { .. } | Expression::Index { .. } | Expression::Maybe { .. }
     )
 }
 
@@ -142,7 +130,6 @@ fn first_non_memberish_parent(
         if matches!(
             context.tree.get(parent_id),
             Expression::Member { .. }
-                | Expression::PrivateMember { .. }
                 | Expression::Index { .. }
                 | Expression::Maybe { .. }
                 | Expression::Must { .. }
@@ -202,9 +189,7 @@ fn static_member_layout(
                     let _ = left;
                     false
                 }
-                Expression::Member { .. }
-                | Expression::PrivateMember { .. }
-                | Expression::Index { .. } => true,
+                Expression::Member { .. } | Expression::Index { .. } => true,
                 _ => false,
             }
         }
@@ -264,21 +249,6 @@ fn write_static_member_continuation<'ast>(
     Ok(())
 }
 
-/// Write one private member continuation.
-fn write_private_member_continuation<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    name: Option<StringId>,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
-) -> FormatResult<()> {
-    write!(f, [token("."), token("#"), name])?;
-
-    if !generic_arguments.is_empty() {
-        format_generic_argument_list(f, generic_arguments)?;
-    }
-
-    Ok(())
-}
-
 /// Write one static member expression.
 fn write_static_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -293,7 +263,7 @@ fn write_static_member_expression<'ast>(
 
     match static_member_layout(f.context(), node_id, receiver_id) {
         StaticMemberLayout::NoBreak => {
-            format_member_receiver(f, receiver_id)?;
+            write_postfix_base_expression(f, receiver_id)?;
 
             let separator_comments = postfix_separator_comments(f.context(), node_id);
             if !separator_comments.is_empty() {
@@ -303,7 +273,7 @@ fn write_static_member_expression<'ast>(
             write_static_member_continuation(f, optional_position, name, generic_arguments)
         }
         StaticMemberLayout::BreakAfterObject => {
-            format_member_receiver(f, receiver_id)?;
+            write_postfix_base_expression(f, receiver_id)?;
 
             let separator_comments = postfix_separator_comments(f.context(), node_id);
             if !separator_comments.is_empty() {
@@ -341,24 +311,6 @@ fn write_static_member_expression<'ast>(
     }
 }
 
-/// Write one private member expression.
-fn write_private_member_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    receiver_id: LocalNodeId<Expression>,
-    name: Option<StringId>,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
-) -> FormatResult<()> {
-    format_member_receiver(f, receiver_id)?;
-
-    let separator_comments = postfix_separator_comments(f.context(), node_id);
-    if !separator_comments.is_empty() {
-        write!(f, [FormatTrailingComments::Comments(&separator_comments)])?;
-    }
-
-    write_private_member_continuation(f, name, generic_arguments)
-}
-
 /// Format a member expression.
 pub(crate) fn format_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -367,9 +319,6 @@ pub(crate) fn format_member_expression<'ast>(
     match f.context().tree.get(node_id) {
         Expression::Member { left, name } => {
             write_static_member_expression(f, node_id, *left, *name, &[])?
-        }
-        Expression::PrivateMember { left, name } => {
-            write_private_member_expression(f, node_id, *left, *name, &[])?
         }
         _ => {
             return Err(FormatError::SyntaxError {

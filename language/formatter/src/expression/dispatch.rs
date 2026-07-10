@@ -55,7 +55,6 @@ fn write_expression_trailing_annotations<'ast>(
             write_statement_expression_trailing_annotations(f, expression_id, expression)
         }
         Expression::Identifier { .. }
-        | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
         | Expression::ImportSource
         | Expression::This
@@ -67,7 +66,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::ArrayExpression { .. }
         | Expression::FixedArrayExpression { .. }
         | Expression::TupleExpression { .. }
-        | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::StructExpression { .. }
         | Expression::TreeExpression { .. }
@@ -86,7 +84,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::AwaitMust { .. }
         | Expression::Comptime { .. }
         | Expression::Member { .. }
-        | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
@@ -229,7 +226,6 @@ fn format_expression_body_inner<'ast>(
             debug_assert!(is_formatted);
         }
         Expression::Identifier { .. }
-        | Expression::PrivateIdentifier { .. }
         | Expression::ImportMeta
         | Expression::ImportSource
         | Expression::This
@@ -241,7 +237,6 @@ fn format_expression_body_inner<'ast>(
         | Expression::ArrayExpression { .. }
         | Expression::FixedArrayExpression { .. }
         | Expression::TupleExpression { .. }
-        | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::StructExpression { .. }
         | Expression::TreeExpression { .. }
@@ -261,7 +256,6 @@ fn format_expression_body_inner<'ast>(
         | Expression::AwaitMust { .. }
         | Expression::Comptime { .. }
         | Expression::Member { .. }
-        | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Instantiation { .. }
         | Expression::Call { .. }

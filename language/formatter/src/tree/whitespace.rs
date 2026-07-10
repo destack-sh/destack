@@ -18,7 +18,7 @@ pub(crate) fn tree_text_is_whitespace_only(
             let content = strings.get(*value);
             let has_non_whitespace = content
                 .chars()
-                .any(|character| !is_jsx_whitespace_char(character));
+                .any(|character| !is_tree_whitespace_char(character));
             if has_non_whitespace {
                 return Some((false, false));
             }
@@ -37,7 +37,7 @@ pub(crate) fn tree_text_is_whitespace_only(
                 let content = strings.get(*string_id);
                 let has_non_whitespace = content
                     .chars()
-                    .any(|character| !is_jsx_whitespace_char(character));
+                    .any(|character| !is_tree_whitespace_char(character));
                 if has_non_whitespace {
                     return Some((false, false));
                 }
@@ -46,7 +46,7 @@ pub(crate) fn tree_text_is_whitespace_only(
                 Some((true, has_newline))
             }
             Expression::ScalarLiteral(ScalarLiteral::Character(value)) => {
-                if !is_jsx_whitespace_char(*value) {
+                if !is_tree_whitespace_char(*value) {
                     return Some((false, false));
                 }
 
@@ -74,7 +74,7 @@ pub(crate) fn tree_text_child_text<'context>(
 }
 
 /// Return whether one child is a braced string-space expression.
-pub(crate) fn tree_child_is_jsx_space_expression(
+pub(crate) fn tree_child_is_space_expression(
     context: &DestackFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
@@ -111,8 +111,8 @@ pub(crate) fn tree_children_have_blank_line_between(
     context.has_blank_line(between_span)
 }
 
-/// Return whether one character is JSX whitespace.
+/// Return whether one character is tree whitespace.
 #[inline]
-pub(crate) fn is_jsx_whitespace_char(character: char) -> bool {
+pub(crate) fn is_tree_whitespace_char(character: char) -> bool {
     matches!(character, ' ' | '\n' | '\r' | '\t')
 }

@@ -11,7 +11,7 @@ use crate::annotation::{
 use crate::chain::transparent_inner_expression;
 use crate::collection::literal::format_scalar_literal;
 use crate::context::with_expanded_tree_callback_bodies;
-use crate::expression::{argument_value, jsx_chain_ternary_needs_expanded_branches};
+use crate::expression::{argument_value, tree_chain_ternary_needs_expanded_branches};
 use crate::file::write_source_span;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
@@ -27,8 +27,8 @@ use destack_fir::prelude::{
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
-/// Return whether JSX argument formatting should force multiline mode.
-pub(crate) fn has_multiline_jsx_argument(
+/// Return whether tree argument formatting should force multiline mode.
+pub(crate) fn has_multiline_tree_argument(
     context: &DestackFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -158,7 +158,7 @@ fn write_tree_expression_child<'ast>(
             Expression::If {
                 form: IfForm::Ternary,
                 ..
-            } if jsx_chain_ternary_needs_expanded_branches(f.context(), value)
+            } if tree_chain_ternary_needs_expanded_branches(f.context(), value)
         )
         || matches!(
             f.context().tree.get(value),

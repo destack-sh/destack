@@ -191,7 +191,6 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         // postfix operators
         Expression::Call { .. }
         | Expression::Member { .. }
-        | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Instantiation { .. }
         | Expression::Maybe { .. }
@@ -693,7 +692,6 @@ fn binary_expression_is_inside_parenthesis_context(
     match context.tree.get(parent_id) {
         Expression::Unary { right, .. } => *right == expression_id,
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. }
         | Expression::Instantiation { left, .. }

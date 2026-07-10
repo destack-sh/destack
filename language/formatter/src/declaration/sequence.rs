@@ -140,7 +140,6 @@ fn expression_prefix_start(
 
     let semantic_head_start = match context.tree.get(expression_id) {
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Call { left, .. }
@@ -1210,42 +1209,12 @@ pub(crate) fn expression_is_in_statement_context(
 
             let should_inherit_parent_position = match parent_expression {
                 Expression::Parenthesized { expression } => expression.id == expression_id.id,
-                Expression::If {
-                    then_expression,
-                    else_expression,
-                    ..
-                } => {
-                    if !control_branch_inherits_statement_context(context) {
-                        return false;
-                    }
-
-                    then_expression.id == expression_id.id
-                        || else_expression
-                            .as_ref()
-                            .is_some_and(|else_expression| else_expression.id == expression_id.id)
-                }
+                Expression::If { .. } => false,
                 Expression::While { body, .. }
                 | Expression::ForEach { body, .. }
                 | Expression::For { body, .. }
                 | Expression::Loop { body } => body.id == expression_id.id,
-                Expression::Try {
-                    body,
-                    catch,
-                    finally,
-                    ..
-                } => {
-                    if !control_branch_inherits_statement_context(context) {
-                        return false;
-                    }
-
-                    body.id == expression_id.id
-                        || catch.as_ref().is_some_and(|catch| {
-                            context.tree.get(*catch).body.id == expression_id.id
-                        })
-                        || finally
-                            .as_ref()
-                            .is_some_and(|finally| finally.id == expression_id.id)
-                }
+                Expression::Try { .. } => false,
                 Expression::Label { body, .. } => body.id == expression_id.id,
                 _ => false,
             };
@@ -1275,11 +1244,6 @@ pub(crate) fn expression_is_in_statement_context(
         ),
         _ => false,
     }
-}
-
-/// Return true when value-capable control branches inherit statement context.
-fn control_branch_inherits_statement_context(context: &DestackFormatContext<'_>) -> bool {
-    !context.options.language_type.is_destack()
 }
 
 /// Return true when one block child is formatted in a statement context.

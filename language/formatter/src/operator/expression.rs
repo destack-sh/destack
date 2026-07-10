@@ -41,9 +41,7 @@ fn expression_is_await_callee_or_object_context(
 
     let parent_id = LocalNodeId::<Expression>::new(parent_id);
     match context.tree.get(parent_id) {
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            *left == node_id
-        }
+        Expression::Member { left, .. } => *left == node_id,
         Expression::Index { left, .. } | Expression::Call { left, .. } => *left == node_id,
         _ => false,
     }
@@ -380,13 +378,13 @@ pub(crate) fn format_operator_expression<'ast>(
         }
 
         // member
-        Expression::Member { .. } | Expression::PrivateMember { .. } => {
+        Expression::Member { .. } => {
             format_member_expression(f, node_id)?;
         }
 
         // index
         Expression::Index { left, .. } => {
-            if postfix_expression_should_route_to_chain(f.context(), *left) {
+            if chain_has_call_like_expression(f.context(), *left) {
                 format_expression_chain(f, node_id)?;
             } else {
                 format_index_expression(f, node_id)?;
@@ -529,12 +527,4 @@ fn format_must_expression<'ast>(
     write!(f, [token("!")])?;
 
     Ok(())
-}
-
-/// Return whether one postfix expression should route to the chain owner.
-fn postfix_expression_should_route_to_chain(
-    context: &DestackFormatContext<'_>,
-    left_id: LocalNodeId<Expression>,
-) -> bool {
-    chain_has_call_like_expression(context, left_id)
 }

@@ -18,7 +18,7 @@ fn test_format_react_hook_separator_comment_cluster_is_idempotent() {
   // eslint-disable line react-hooks/exhaustive-deps
   []
 )"#,
-        FileType::JavaScriptXml,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -34,7 +34,7 @@ export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
 const r = /* THIS */ f<Type>()
 const s = /* comment */ foo<A | B | C>()
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -69,7 +69,7 @@ fn test_format_hook_dependency_array_layout() {
   onClose();
 }, [onSubmit, onClose]);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -104,7 +104,7 @@ fn test_format_optional_call_separator_line_comment() {
         r#"const value = target // opt-call
 ?.()
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -126,7 +126,7 @@ fn test_format_optional_call_separator_block_comment() {
     assert_format_program_reference_widths(
         r#"alert /* comment */?.("value")
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -148,7 +148,7 @@ fn test_format_optional_call_empty_argument_comment() {
     assert_format_program_reference_widths(
         r#"const value = call?.(/* argument comment */)
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -172,7 +172,7 @@ fn test_format_empty_call_line_comment_argument() {
   // argument line comment
 )
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -198,7 +198,7 @@ fn test_format_call_callee_separator_comment_before_parentheses() {
     assert_format_program_reference_widths(
         r#"const value = run /* callee-note */ (first, second)
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -220,7 +220,7 @@ fn test_format_member_hop_inline_comments() {
     assert_format_program_reference_widths(
         r#"const value = source /* hop-a */ .first() /* hop-b */ .second()
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -246,7 +246,7 @@ fn test_format_static_member_breaks_after_receiver() {
     assert_format_program_reference_widths(
         r#"expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -271,7 +271,7 @@ fn test_format_inline_snapshot_matcher_call_width_behavior() {
   .toMatchInlineSnapshot(`
   `)
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,

@@ -1,8 +1,8 @@
 use crate::DestackFormatContext;
 use crate::operator::assign_pattern_target_expression;
 use destack_dir::{
-    Argument, Expression, IfForm, LocalNodeId, NodeType, Pattern, Property, ScalarLiteral,
-    TokenType, Tree, TypeExpression, UnaryOperator,
+    Argument, Expression, IfForm, LocalNodeId, Pattern, Property, ScalarLiteral, TokenType, Tree,
+    TypeExpression, UnaryOperator,
 };
 use destack_source::Span;
 
@@ -30,9 +30,7 @@ impl ExpressionLeftSide {
     pub(crate) fn left(self, context: &DestackFormatContext<'_>) -> Option<Self> {
         let expression_id = match context.tree.get(self.expression_id) {
             Expression::Parenthesized { expression } => Some(*expression),
-            Expression::SequenceExpression { expressions } => expressions.first().copied(),
             Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. }
             | Expression::Call { left, .. }
             | Expression::Instantiation { left, .. }
@@ -85,8 +83,7 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
         | Expression::ImportMeta
         | Expression::ImportSource
         | Expression::This
-        | Expression::Super
-        | Expression::PrivateIdentifier { .. } => true,
+        | Expression::Super => true,
         Expression::Type { value } => is_trivial_type_expression(tree, *value),
         Expression::ObjectExpression { properties } => {
             properties.len() <= 5
@@ -101,9 +98,7 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
                 is_trivial_expression(tree, tree.get(*index_id))
             }),
         Expression::BorrowOf { right, .. } => is_trivial_expression(tree, tree.get(*right)),
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            is_trivial_expression(tree, tree.get(*left))
-        }
+        Expression::Member { left, .. } => is_trivial_expression(tree, tree.get(*left)),
         Expression::As {
             expression: left,
             target_type: right,
@@ -146,7 +141,6 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
     match expression {
         Expression::ArrayExpression { elements, .. } => !elements.is_empty(),
         Expression::TupleExpression { elements, .. } => !elements.is_empty(),
-        Expression::SequenceExpression { expressions, .. } => !expressions.is_empty(),
         Expression::ObjectExpression { properties } => !properties.is_empty(),
         Expression::StructExpression { ty, properties } => {
             is_type_expression_breakable(tree, *ty) || !properties.is_empty()
@@ -189,9 +183,7 @@ pub fn is_expression_breakable(tree: &Tree, expression: &Expression) -> bool {
 /// Return whether a type expression can break across multiple lines.
 fn is_type_expression_breakable(tree: &Tree, expression_id: LocalNodeId<TypeExpression>) -> bool {
     match tree.get(expression_id) {
-        TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
-            !elements.is_empty()
-        }
+        TypeExpression::Tuple { elements } => !elements.is_empty(),
         TypeExpression::Slice { .. } => true,
         TypeExpression::Object { members } => !members.is_empty(),
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
@@ -290,35 +282,5 @@ fn array_element_is_fill_candidate(tree: &Tree, element_id: LocalNodeId<Argument
                 )
         }
         _ => false,
-    }
-}
-
-/// Return whether a sequence expression needs parentheses in its parent context.
-pub(crate) fn sequence_expression_needs_parens(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> bool {
-    let Some((parent_id, parent_type)) = context.parent(node_id) else {
-        return true;
-    };
-
-    if parent_type != NodeType::Expression {
-        return true;
-    }
-
-    let parent_id = LocalNodeId::<Expression>::new(parent_id);
-    match context.tree.get(parent_id) {
-        Expression::Return { value } => value.is_some_and(|value_id| value_id != node_id),
-        Expression::Throw { value } => *value != node_id,
-        Expression::For {
-            initialization,
-            increment,
-            ..
-        } => {
-            !initialization.is_some_and(|value_id| value_id == node_id)
-                && !increment.is_some_and(|value_id| value_id == node_id)
-        }
-        Expression::SequenceExpression { .. } => true,
-        _ => true,
     }
 }

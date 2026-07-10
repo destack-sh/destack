@@ -13,7 +13,7 @@ fn test_format_computed_member_separator_comments() {
 "#,
         r#"const value = source /* before-index */[key];
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -26,7 +26,7 @@ fn test_format_template_member_separator_comments() {
 "#,
         r#"const value = `${source /* member-note */.name}`;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -39,7 +39,7 @@ fn test_format_unary_negative_separator_block_comments() {
 "#,
         r#"const value = -(/* unary-note */ 1);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -52,7 +52,7 @@ fn test_unary_negative_separator_comment_attaches_before_operand_token() {
     let comment_end = comment_start + "/* unary-note */".len() as u32;
     let literal_start = input.find('1').unwrap() as u32;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
             crate::parse_first_expression(parser)
         })
         .unwrap();
@@ -80,7 +80,7 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
     let comment_end = comment_start + "/* unary-note */".len() as u32;
     let literal_start = input.rfind('1').unwrap() as u32;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
             crate::parse_first_expression(parser)
         })
         .unwrap();
@@ -110,7 +110,7 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
 fn test_format_unary_negative_expression_separator_block_comments() {
     let (test, expression_id) = TestFormatter::parse_with_file_type(
         "-/* unary-note */ 1",
-        FileType::TypeScript,
+        FileType::Destack,
         crate::parse_first_expression,
     )
     .unwrap();
@@ -131,7 +131,7 @@ fn test_format_parenthesized_scalar_separator_block_comments() {
 "#,
         r#"const value = -(/* unary-note */ 1);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -150,7 +150,7 @@ fn test_format_parenthesized_scalar_separator_line_comments() {
     1
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -166,7 +166,7 @@ fn test_format_parenthesized_scalar_separator_mixed_comments() {
     /* keep */ // comment
     (a as any) + 1;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -182,7 +182,7 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     let line_end = 22;
     let inner_start = 27;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
             crate::parse_first_expression(parser)
         })
         .unwrap();
@@ -231,7 +231,7 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
     let input = r#"(/* keep */ // comment
     a as any) + 1"#;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
             crate::parse_first_expression(parser)
         })
         .unwrap();
@@ -266,7 +266,7 @@ fn test_format_unary_negative_separator_line_comments() {
     1
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -285,7 +285,7 @@ start: while (true) {
     break start;
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -298,7 +298,7 @@ fn test_format_ternary_alternate_block_separator_comments() {
 "#,
         r#"const x = condition ? /* then */ valueA : /* else */ valueB;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -315,7 +315,7 @@ valueB
     : // else-note
       valueB;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -328,7 +328,7 @@ fn test_format_tagged_template_expression_preserves_generic_arguments() {
 "#,
         r#"const value = sql<Type>`select * from t`;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -341,7 +341,7 @@ fn test_format_type_template_remap_comment_stays_on_remap_boundary() {
     `get${Capitalize<K & string>}`]: () => T[K]
 }"#;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::TypeScript, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
             crate::parse_first_expression(parser)
         })
         .unwrap();

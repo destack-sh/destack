@@ -15,7 +15,7 @@ use crate::annotation::{
 };
 use crate::expression::write_expression_without_trailing_comments;
 use crate::file::write_source_span;
-use crate::tree::has_multiline_jsx_argument;
+use crate::tree::has_multiline_tree_argument;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
@@ -250,15 +250,6 @@ pub(crate) fn with_argument_following_span_start<'ast>(
     result
 }
 
-/// Format one argument while exposing one following sibling start to trailing comment logic.
-pub(crate) fn write_argument_with_following_span_start<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    argument_id: LocalNodeId<Argument>,
-    following_span_start: u32,
-) -> FormatResult<()> {
-    with_argument_following_span_start(f, following_span_start, |f| write!(f, [argument_id]))
-}
-
 /// Write one argument node without list-level trailing comment handling.
 pub(crate) fn write_call_argument_node_body<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -331,16 +322,6 @@ pub(crate) fn format_call_arguments<'ast>(
     call_node_id: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
-    format_call_arguments_impl(f, call_node_id, arguments, true)
-}
-
-/// Format call arguments with explicit long-curried-call handling control.
-fn format_call_arguments_impl<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    call_node_id: LocalNodeId<Expression>,
-    arguments: &[LocalNodeId<Argument>],
-    allow_long_curried_layout: bool,
-) -> FormatResult<()> {
     let group_id = f.group_id("call_args");
     let call_span = f.context().span(call_node_id);
     let left = match f.context().tree.get(call_node_id) {
@@ -382,14 +363,12 @@ fn format_call_arguments_impl<'ast>(
         write_grouped_arguments(f, arguments, layout, group_id, disallow_trailing_separator)
     }
     // long curried calls
-    else if allow_long_curried_layout
-        && expression_is_long_curried_call(f.context(), call_node_id)
-    {
+    else if expression_is_long_curried_call(f.context(), call_node_id) {
         format_long_curried_call_arguments(f, call_span, arguments)
     }
     // default layout
     else {
-        let force_expand = has_multiline_jsx_argument(f.context(), arguments);
+        let force_expand = has_multiline_tree_argument(f.context(), arguments);
         format_default_call_argument_list(
             f,
             call_span,
