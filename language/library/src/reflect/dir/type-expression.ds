@@ -228,7 +228,6 @@ export type TypeExpression =
     | LiteralTypeExpression
     | IntrinsicTypeExpression
     | TupleTypeExpression
-    | ArrayTupleTypeExpression
     | ArrayTypeExpression
     | ObjectTypeExpression
     | FunctionExpression
@@ -304,16 +303,6 @@ export interface TupleTypeExpression extends Node {
     nodeKind: "typeExpression";
     /// The type-expression kind.
     kind: "tuple";
-    /// The tuple elements.
-    elements: readonly TupleElement[];
-}
-
-/// Bracket tuple type syntax.
-export interface ArrayTupleTypeExpression extends Node {
-    /// The node kind.
-    nodeKind: "typeExpression";
-    /// The type-expression kind.
-    kind: "arrayTuple";
     /// The tuple elements.
     elements: readonly TupleElement[];
 }

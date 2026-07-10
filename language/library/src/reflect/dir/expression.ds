@@ -257,21 +257,17 @@ export type Expression =
     | AssignExpression
     | AssignBinaryExpression
     | MemberExpression
-    | PrivateMemberExpression
     | CallExpression
     | IndexExpression
     | InstantiationExpression
     | MaybeExpression
     | MustExpression
     | NewExpression
-    | DeleteExpression
     | UnresolvedPathExpression
     | LocalReferenceExpression
     | ModuleReferenceExpression
     | GlobalReferenceExpression
-    | PrivateIdentifierExpression
     | ImportMetaExpression
-    | NewTargetExpression
     | ThisExpression
     | SuperExpression
     | ScalarLiteralExpression
@@ -281,7 +277,6 @@ export type Expression =
     | TaggedTemplateExpressionNode
     | ArrayExpressionNode
     | TupleExpressionNode
-    | SequenceExpression
     | ObjectExpression
     | TreeExpression
     | TaggedScalarExpression
@@ -661,18 +656,6 @@ export interface MemberExpression extends Node {
     name?: string;
 }
 
-/// Private member access.
-export interface PrivateMemberExpression extends Node {
-    /// The node kind.
-    nodeKind: "expression";
-    /// The expression kind.
-    kind: "privateMember";
-    /// The left expression.
-    left: Expression;
-    /// The member name when present.
-    name?: string;
-}
-
 /// Function call.
 export interface CallExpression extends Node {
     /// The node kind.
@@ -745,16 +728,6 @@ export interface NewExpression extends Node {
     arguments: readonly Argument[];
 }
 
-/// Delete expression.
-export interface DeleteExpression extends Node {
-    /// The node kind.
-    nodeKind: "expression";
-    /// The expression kind.
-    kind: "delete";
-    /// The deleted value.
-    value: Expression;
-}
-
 /// Unresolved path expression.
 export interface UnresolvedPathExpression extends Node {
     /// The node kind.
@@ -811,30 +784,12 @@ export interface GlobalReferenceExpression extends Node {
     targetSymbol: Symbol;
 }
 
-/// Private identifier.
-export interface PrivateIdentifierExpression extends Node {
-    /// The node kind.
-    nodeKind: "expression";
-    /// The expression kind.
-    kind: "privateIdentifier";
-    /// The private name.
-    name: string;
-}
-
 /// Import meta intrinsic value.
 export interface ImportMetaExpression extends Node {
     /// The node kind.
     nodeKind: "expression";
     /// The expression kind.
     kind: "importMeta";
-}
-
-/// New target intrinsic value.
-export interface NewTargetExpression extends Node {
-    /// The node kind.
-    nodeKind: "expression";
-    /// The expression kind.
-    kind: "newTarget";
 }
 
 /// This intrinsic value.
@@ -927,16 +882,6 @@ export interface TupleExpressionNode extends Node {
     kind: "tupleExpression";
     /// The elements.
     elements: readonly Argument[];
-}
-
-/// Sequence expression.
-export interface SequenceExpression extends Node {
-    /// The node kind.
-    nodeKind: "expression";
-    /// The expression kind.
-    kind: "sequenceExpression";
-    /// The expressions in order.
-    expressions: readonly Expression[];
 }
 
 /// Object expression.

@@ -29,7 +29,7 @@ export interface IndexName {
 }
 
 /// A value or type property key.
-export type Key = NameKey | PrivateKey | ExpressionKey;
+export type Key = NameKey | ExpressionKey;
 
 /// A named property key.
 export interface NameKey {
@@ -37,14 +37,6 @@ export interface NameKey {
     kind: "name";
     /// The property name.
     name: Name;
-}
-
-/// A private property key.
-export interface PrivateKey {
-    /// The key kind.
-    kind: "private";
-    /// The private name without `#`.
-    name: string;
 }
 
 /// A computed value-space key.
