@@ -10,10 +10,6 @@ use crate::FileType;
 pub enum Loader {
     /// Destack code.
     Destack,
-    /// TypeScript code.
-    TypeScript,
-    /// JavaScript code.
-    JavaScript,
     /// JSON data.
     Json,
     /// TOML data.
@@ -30,25 +26,24 @@ pub enum Loader {
     Base64,
 }
 
-impl From<FileType> for Loader {
-    /// Convert one file type into its default loader.
-    fn from(file_type: FileType) -> Self {
+impl TryFrom<FileType> for Loader {
+    /// The output-only or unsupported file type.
+    type Error = FileType;
+
+    /// Try to convert one input file type into its default loader.
+    fn try_from(file_type: FileType) -> Result<Self, Self::Error> {
         match file_type {
-            FileType::Destack | FileType::DestackDeclaration => Self::Destack,
-            FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration => {
-                Self::TypeScript
-            }
-            FileType::JavaScript | FileType::JavaScriptXml => Self::JavaScript,
-            FileType::Json => Self::Json,
-            FileType::Toml => Self::Toml,
-            FileType::Yaml => Self::Yaml,
-            FileType::Env => Self::Text,
+            FileType::Destack | FileType::DestackDeclaration => Ok(Self::Destack),
+            FileType::Json => Ok(Self::Json),
+            FileType::Toml => Ok(Self::Toml),
+            FileType::Yaml => Ok(Self::Yaml),
+            FileType::Env => Ok(Self::Text),
             FileType::Text
             | FileType::Markdown
             | FileType::Html
             | FileType::Css
             | FileType::Svg
-            | FileType::SourceMap => Self::Text,
+            | FileType::SourceMap => Ok(Self::Text),
             FileType::Wasm
             | FileType::Node
             | FileType::Object
@@ -60,7 +55,8 @@ impl From<FileType> for Loader {
             | FileType::Neural
             | FileType::Document
             | FileType::Binary
-            | FileType::Unknown => Self::Binary,
+            | FileType::Unknown => Ok(Self::Binary),
+            FileType::Script => Err(file_type),
         }
     }
 }
@@ -68,7 +64,7 @@ impl From<FileType> for Loader {
 impl Loader {
     /// Return whether this loader produces code modules.
     pub fn is_code(self) -> bool {
-        matches!(self, Self::Destack | Self::TypeScript | Self::JavaScript)
+        matches!(self, Self::Destack)
     }
 
     /// Return whether this loader produces data modules.
@@ -109,8 +105,6 @@ impl Loader {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Destack => "destack",
-            Self::TypeScript => "typescript",
-            Self::JavaScript => "javascript",
             Self::Json => "json",
             Self::Toml => "toml",
             Self::Yaml => "yaml",
@@ -123,8 +117,8 @@ impl Loader {
 
     /// Return the module key salt when this loader differs from the file default.
     pub fn key_for_file_type(self, file_type: FileType) -> Option<&'static str> {
-        let default = Self::from(file_type);
-        if self == default {
+        let default = Self::try_from(file_type).ok();
+        if default == Some(self) {
             return None;
         }
 
@@ -135,8 +129,6 @@ impl Loader {
     pub fn extension(self) -> Option<&'static str> {
         match self {
             Self::Destack => Some("ds"),
-            Self::TypeScript => Some("ts"),
-            Self::JavaScript => Some("js"),
             Self::Json => Some("json"),
             Self::Toml => Some("toml"),
             Self::Yaml => Some("yaml"),

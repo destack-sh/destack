@@ -3,24 +3,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::FileType;
 
-/// The source language type determines parsing and compatibility behavior.
+/// The Destack source form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum LanguageType {
-    /// Full Destack language (`.ds`) with all features enabled.
+    /// Destack implementation source (`.ds`).
     #[default]
     Destack,
-    /// Destack declaration file (`.d.ds`).
+    /// Destack declaration source (`.d.ds`).
     DestackDeclaration,
-    /// JavaScript (`.js`) compatibility mode.
-    JavaScript,
-    /// JavaScript with JSX (`.jsx`) compatibility mode.
-    JavaScriptXml,
-    /// TypeScript (`.ts`) compatibility mode.
-    TypeScript,
-    /// TypeScript declaration (`.d.ts`) compatibility mode.
-    TypeScriptDeclaration,
-    /// TypeScript with JSX (`.tsx`) compatibility mode.
-    TypeScriptXml,
 }
 
 impl TryFrom<FileType> for LanguageType {
@@ -32,11 +22,6 @@ impl TryFrom<FileType> for LanguageType {
         match file_type {
             FileType::Destack => Ok(Self::Destack),
             FileType::DestackDeclaration => Ok(Self::DestackDeclaration),
-            FileType::JavaScript => Ok(Self::JavaScript),
-            FileType::JavaScriptXml => Ok(Self::JavaScriptXml),
-            FileType::TypeScript => Ok(Self::TypeScript),
-            FileType::TypeScriptDeclaration => Ok(Self::TypeScriptDeclaration),
-            FileType::TypeScriptXml => Ok(Self::TypeScriptXml),
             _ => Err(file_type),
         }
     }
@@ -48,11 +33,6 @@ impl From<LanguageType> for FileType {
         match language {
             LanguageType::Destack => Self::Destack,
             LanguageType::DestackDeclaration => Self::DestackDeclaration,
-            LanguageType::JavaScript => Self::JavaScript,
-            LanguageType::JavaScriptXml => Self::JavaScriptXml,
-            LanguageType::TypeScript => Self::TypeScript,
-            LanguageType::TypeScriptDeclaration => Self::TypeScriptDeclaration,
-            LanguageType::TypeScriptXml => Self::TypeScriptXml,
         }
     }
 }
@@ -61,67 +41,6 @@ impl LanguageType {
     /// Whether this is a declaration file.
     #[inline]
     pub fn is_declaration(&self) -> bool {
-        matches!(self, Self::DestackDeclaration | Self::TypeScriptDeclaration)
-    }
-
-    /// Whether this is a Destack language type (not compatibility mode).
-    #[inline]
-    pub fn is_destack(&self) -> bool {
-        matches!(self, Self::Destack | Self::DestackDeclaration)
-    }
-
-    /// Whether this is JavaScript (JS or JSX).
-    #[inline]
-    pub fn is_javascript(&self) -> bool {
-        matches!(self, Self::JavaScript | Self::JavaScriptXml)
-    }
-
-    /// Whether this is TypeScript (TS or TSX).
-    #[inline]
-    pub fn is_typescript(&self) -> bool {
-        matches!(
-            self,
-            Self::TypeScript | Self::TypeScriptDeclaration | Self::TypeScriptXml
-        )
-    }
-
-    /// Whether this language type supports JSX/tree literal syntax.
-    #[inline]
-    pub fn supports_jsx(&self) -> bool {
-        matches!(
-            self,
-            Self::Destack | Self::DestackDeclaration | Self::JavaScriptXml | Self::TypeScriptXml
-        )
-    }
-
-    /// Whether this language type supports private identifiers.
-    #[inline]
-    pub fn supports_private_identifiers(&self) -> bool {
-        !self.is_destack()
-    }
-
-    /// Whether this language type supports declaration merging.
-    #[inline]
-    pub fn supports_declaration_merging(&self) -> bool {
-        matches!(
-            self,
-            Self::DestackDeclaration
-                | Self::TypeScript
-                | Self::TypeScriptDeclaration
-                | Self::TypeScriptXml
-        )
-    }
-
-    /// Whether this language type supports module declarations.
-    #[inline]
-    pub fn supports_module_declaration(&self) -> bool {
-        matches!(
-            self,
-            Self::Destack
-                | Self::DestackDeclaration
-                | Self::TypeScript
-                | Self::TypeScriptDeclaration
-                | Self::TypeScriptXml
-        )
+        matches!(self, Self::DestackDeclaration)
     }
 }
