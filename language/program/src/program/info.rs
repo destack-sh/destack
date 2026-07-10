@@ -331,9 +331,9 @@ impl ModuleInfo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct ModuleId {
     /// Stable source package id.
-    pub package: u128,
+    pub package: u64,
     /// Stable source module key.
-    pub module: u128,
+    pub module: u64,
 }
 
 impl From<source::ModuleId> for ModuleId {
