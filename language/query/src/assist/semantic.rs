@@ -337,7 +337,7 @@ impl<'owner, 'module> SemanticTokens<'owner, 'module> {
         // collect named and spread destructuring bindings
         for (field_id, field) in view.iter_nodes_of_type::<dir::PatternField>() {
             let token_type = match field {
-                dir::PatternField::Named { .. } | dir::PatternField::Spread { .. } => {
+                dir::PatternField::Named { .. } | dir::PatternField::Rest { .. } => {
                     SemanticTokenType::Variable
                 }
                 dir::PatternField::Positional { .. }

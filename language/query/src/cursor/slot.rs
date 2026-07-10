@@ -164,13 +164,6 @@ impl ExpressionSlotPosition {
 
                 None
             }
-            dir::Expression::SequenceExpression { expressions } => {
-                if expressions.contains(&expr_id) {
-                    return Some(Self::Value);
-                }
-
-                None
-            }
             dir::Expression::Binary { left, right, .. } => {
                 if *left == expr_id || *right == expr_id {
                     return Some(Self::Value);
@@ -209,7 +202,6 @@ impl ExpressionSlotPosition {
                 None
             }
             dir::Expression::Member { left, .. }
-            | dir::Expression::PrivateMember { left, .. }
             | dir::Expression::Instantiation { left, .. }
             | dir::Expression::Call { left, .. } => {
                 if *left == expr_id {
@@ -283,7 +275,7 @@ fn assign_pattern_field_contains_expression(
         dir::AssignPatternField::Positional { pattern } => {
             assign_pattern_contains_expression(tree, *pattern, expression_id)
         }
-        dir::AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+        dir::AssignPatternField::Rest { pattern } => pattern.is_some_and(|pattern_id| {
             assign_pattern_contains_expression(tree, pattern_id, expression_id)
         }),
         dir::AssignPatternField::Elision => false,
@@ -610,7 +602,7 @@ fn collect_pattern_binding_names(
                     dir::PatternField::Positional { pattern, .. } => {
                         collect_pattern_binding_names(parsed_tree, *pattern, names);
                     }
-                    dir::PatternField::Spread { pattern, .. } => {
+                    dir::PatternField::Rest { pattern, .. } => {
                         let Some(pattern) = pattern else {
                             continue;
                         };

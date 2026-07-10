@@ -956,7 +956,7 @@ impl ModuleQueryContext<'_> {
             dir::PatternField::Computed { pattern, .. } => {
                 self.pattern_symbol_at_offset(view, *pattern, offset)
             }
-            dir::PatternField::Spread { pattern, .. } => {
+            dir::PatternField::Rest { pattern, .. } => {
                 let pattern = *pattern.as_ref()?;
                 self.pattern_symbol_at_offset(view, pattern, offset)
             }

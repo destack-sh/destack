@@ -613,7 +613,7 @@ impl ModuleQueryContext<'_> {
                             .as_contextual(),
                     )
                 } else if let Some(file_type) = FileType::from_path(entry) {
-                    let loader = Loader::from(file_type);
+                    let loader = Loader::try_from(file_type).ok()?;
                     if !loader.is_code() {
                         return None;
                     }

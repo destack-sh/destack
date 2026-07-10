@@ -16,10 +16,6 @@ impl MemberKeyName for dir::Key {
     fn member_name(&self, strings: &StringPool) -> Option<String> {
         match self {
             dir::Key::Name(name) => Some(strings.get(name.string()).to_string()),
-            dir::Key::Private(name) => {
-                let name = strings.get(*name).to_string();
-                Some(format!("#{name}"))
-            }
             dir::Key::Expression(_) => None,
         }
     }
