@@ -39,11 +39,11 @@ type Unpacked<T> = T extends (infer U)[] ? U : T;
 Constrained `infer` clauses stay attached to the `extends` boundary under non-default formatter options.
 
 ```ds:main.ds indent-width=2 line-width=80
-type X3<T> = T extends [infer U extends number] ? MustBeNumber<U> : never;
-type X4<T> = T extends [infer U extends number, infer U extends number] ? MustBeNumber<U> : never;
-type X5<T> = T extends [infer U extends number, infer U] ? MustBeNumber<U> : never;
-type X6<T> = T extends [infer U, infer U extends number] ? MustBeNumber<U> : never;
-type X7<T> = T extends [infer U extends string, infer U extends number] ? U : never;
+type X3<T> = T extends (infer U extends number,) ? MustBeNumber<U> : never;
+type X4<T> = T extends (infer U extends number, infer U extends number) ? MustBeNumber<U> : never;
+type X5<T> = T extends (infer U extends number, infer U) ? MustBeNumber<U> : never;
+type X6<T> = T extends (infer U, infer U extends number) ? MustBeNumber<U> : never;
+type X7<T> = T extends (infer U extends string, infer U extends number) ? U : never;
 type X8<U, T> = T extends infer U extends number ? U : T;
 type X9<U, T> = T extends (infer U extends number ? U : T) ? U : T;
 type X10<T> = T extends (infer U extends number) | { a: infer U extends number } ? U : never
@@ -51,17 +51,17 @@ type X11<T> = T extends (infer U extends number) & { a: infer U extends number }
 ```
 
 ```ds expected
-type X3<T> = T extends [infer U extends number] ? MustBeNumber<U> : never;
-type X4<T> = T extends [infer U extends number, infer U extends number]
+type X3<T> = T extends (infer U extends number,) ? MustBeNumber<U> : never;
+type X4<T> = T extends (infer U extends number, infer U extends number)
   ? MustBeNumber<U>
   : never;
-type X5<T> = T extends [infer U extends number, infer U]
+type X5<T> = T extends (infer U extends number, infer U)
   ? MustBeNumber<U>
   : never;
-type X6<T> = T extends [infer U, infer U extends number]
+type X6<T> = T extends (infer U, infer U extends number)
   ? MustBeNumber<U>
   : never;
-type X7<T> = T extends [infer U extends string, infer U extends number]
+type X7<T> = T extends (infer U extends string, infer U extends number)
   ? U
   : never;
 type X8<U, T> = T extends infer U extends number ? U : T;

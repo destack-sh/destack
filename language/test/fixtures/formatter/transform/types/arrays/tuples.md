@@ -40,18 +40,18 @@ function point(): (x: int32, y: int32) {
 }
 ```
 
-### tuple and array tuple stay distinct
+### tuple and slice stay distinct
 
-Parenthesized tuples and bracket tuples preserve their spelling.
+Parenthesized tuples and bracketed slices preserve their spelling.
 
 ```ds
 type Pair = (left: string, right: string)
-type Args = [left: string, right: string]
+type Values = [string]
 ```
 
 ```ds expected
 type Pair = (left: string, right: string);
-type Args = [left: string, right: string];
+type Values = [string];
 ```
 
 ### references in interface members

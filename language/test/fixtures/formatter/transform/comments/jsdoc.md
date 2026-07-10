@@ -526,13 +526,18 @@ function describe() {}
 
 ### jsdoc example fenced code
 
-Example code blocks are formatted as embedded code.
+Non-Destack code blocks remain opaque.
 
 ```ds:main.ds line-width=80
 /**
  * @example
  * ```ts
  * const result=call( 1,2 )
+ * const config = {
+ *     nested: {
+ *         value: true,
+ *     },
+ * }
  * ```
  */
 function example() {}
@@ -542,7 +547,12 @@ function example() {}
 /**
  * @example
  *     ```ts
- *     const result = call(1, 2);
+ *     const result=call( 1,2 )
+ *     const config = {
+ *         nested: {
+ *             value: true,
+ *         },
+ *     }
  *     ```
  */
 function example() {}

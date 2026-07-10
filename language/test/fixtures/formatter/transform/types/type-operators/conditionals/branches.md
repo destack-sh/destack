@@ -39,11 +39,11 @@ type Result<T> = T extends string // test-line
 Tuple inference and function types compose inside conditional branches.
 
 ```ds line-width=80
-type ExtractRoute<T> = T extends [infer Head, ...infer Tail] ? (value: Head) => Tail[number] : never
+type ExtractRoute<T> = T extends (infer Head, ...infer Tail) ? (value: Head) => Tail[number] : never
 ```
 
 ```ds expected
-type ExtractRoute<T> = T extends [infer Head, ...infer Tail]
+type ExtractRoute<T> = T extends (infer Head, ...infer Tail)
     ? (value: Head) => Tail[number]
     : never;
 ```
@@ -53,12 +53,12 @@ type ExtractRoute<T> = T extends [infer Head, ...infer Tail]
 Ownership references inside tuple branches keep their operator grouping.
 
 ```ds line-width=80
-type BorrowedPair<T> = T extends [infer Left, infer Right] ? [&Left, &readonly Right] : never
+type BorrowedPair<T> = T extends (infer Left, infer Right) ? (&Left, &readonly Right) : never
 ```
 
 ```ds expected
-type BorrowedPair<T> = T extends [infer Left, infer Right]
-    ? [&Left, &readonly Right]
+type BorrowedPair<T> = T extends (infer Left, infer Right)
+    ? (&Left, &readonly Right)
     : never;
 ```
 
@@ -67,11 +67,11 @@ type BorrowedPair<T> = T extends [infer Left, infer Right]
 Comments inside ownership-heavy conditional branches stay attached to their branch operands.
 
 ```ds line-width=80
-type BorrowedPair<T> = T extends [infer Left, infer Right] ? [& /* left */ Left, &readonly /* right */ Right] : ^ /* moved */ T
+type BorrowedPair<T> = T extends (infer Left, infer Right) ? (& /* left */ Left, &readonly /* right */ Right) : ^ /* moved */ T
 ```
 
 ```ds expected
-type BorrowedPair<T> = T extends [infer Left, infer Right]
-    ? [&(/* left */ Left), &readonly (/* right */ Right)]
+type BorrowedPair<T> = T extends (infer Left, infer Right)
+    ? (&(/* left */ Left), &readonly (/* right */ Right))
     : ^(/* moved */ T);
 ```

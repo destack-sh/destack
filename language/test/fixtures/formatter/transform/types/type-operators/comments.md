@@ -423,17 +423,17 @@ type Value = Left & // inter-note
 Dangling comments in tuple type members stay attached to the same tuple position.
 
 ```ds:main.ds
-type Pair = [
+type Pair = (
   string, // first-tail
   number // second-tail
-]
+)
 ```
 
 ```ds expected
-type Pair = [
+type Pair = (
     string, // first-tail
     number, // second-tail
-];
+);
 ```
 
 ## Union Arm Comments
