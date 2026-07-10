@@ -196,7 +196,7 @@ struct SymbolOrder {
     /// The case-folded display name.
     name: String,
     /// The file id.
-    file_id: u128,
+    file_id: u64,
     /// The source start offset.
     start: u32,
     /// The source end offset.

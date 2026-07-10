@@ -443,7 +443,7 @@ fn file_patch_key(file_id: FileId, patches: &[Patch]) -> String {
 }
 
 /// Build a stable key for a single edit.
-fn patch_key(edit: &Patch) -> (u32, u32, u128, String) {
+fn patch_key(edit: &Patch) -> (u32, u32, u64, String) {
     // extract span coordinates and replacement text
     let file = edit.span.file.0;
     let start = edit.span.start;

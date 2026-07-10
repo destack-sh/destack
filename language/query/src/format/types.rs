@@ -41,8 +41,9 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
             dir::Type::Instance(instance) => return self.instance(*instance),
             dir::Type::Parameter(parameter) => return self.generic_parameter(*parameter),
             dir::Type::Erased(_) => "*".to_string(),
-            dir::Type::Member(member) => return self.member(*member),
+            dir::Type::Member(member) => return self.member(*self.module.types().member(*member)),
             dir::Type::Refined(refined) => {
+                let refined = *self.module.types().refined(*refined);
                 let base = self.global(refined.base)?;
                 let key = self.static_key(refined.key)?;
                 let value = self.global(refined.value)?;
@@ -63,7 +64,9 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
             dir::Type::Slice(slice) => format!("[{}]", self.global(slice.element)?),
             dir::Type::Tuple(tuple) => return self.tuple(*tuple),
             dir::Type::Shape(shape) => return self.shape(*shape),
-            dir::Type::FunctionSignature(function) => return self.function(function),
+            dir::Type::FunctionSignature(function) => {
+                return self.function(self.module.types().signature(*function));
+            }
             dir::Type::Function(function) => return self.global(function.signature),
             dir::Type::FunctionPointer(function) => return self.global(function.signature),
             dir::Type::Union(union) => return self.type_list(union.elements, " | "),
@@ -71,7 +74,9 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
                 return self.type_list(intersection.elements, " & ");
             }
             dir::Type::This => "this".to_string(),
-            dir::Type::Operation(operation) => return self.operation(operation),
+            dir::Type::Operation(operation) => {
+                return self.operation(self.module.types().operation(*operation));
+            }
             dir::Type::Key(key) => return self.static_key(*key),
             dir::Type::Variable(_)
             | dir::Type::Memory(_)
@@ -190,7 +195,7 @@ impl<'module, 'query> TypeFormatter<'module, 'query> {
         let text = match form.form {
             dir::Form::Managed => value,
             dir::Form::Owned => format!("^{value}"),
-            dir::Form::Borrowed { .. } => format!("&{value}"),
+            dir::Form::Borrowed(_) => format!("&{value}"),
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Placed { .. } => format!("placed {value}"),
             dir::Form::Readonly => format!("readonly {value}"),
