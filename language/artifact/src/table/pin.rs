@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -40,7 +41,7 @@ pub struct ArtifactPinSet {
     /// The shared artifact table that owns these pins.
     table: Arc<ArtifactTable>,
     /// The retained exact versions for one execution scope.
-    pins: Mutex<HashMap<ArtifactVersion, ArtifactPin>>,
+    pins: Mutex<FxHashMap<ArtifactVersion, ArtifactPin>>,
 }
 
 impl ArtifactPinSet {
@@ -48,7 +49,7 @@ impl ArtifactPinSet {
     pub fn new(table: Arc<ArtifactTable>) -> Self {
         Self {
             table,
-            pins: Mutex::new(HashMap::new()),
+            pins: Mutex::new(HashMap::default()),
         }
     }
 

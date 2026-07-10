@@ -1,4 +1,5 @@
 use destack_serde::Reflect;
+use siphasher::sip128::Hasher128;
 use std::hash::Hash;
 
 use destack_core::StableHasher;
@@ -44,13 +45,13 @@ impl ArtifactProjectionFingerprint {
 
     /// Build one artifact projection fingerprint from a serialized artifact payload value.
     pub fn from_serialized_payload<T: Serialize>(value: &T) -> Result<Self, destack_serde::Error> {
-        let bytes = destack_serde::to_vec(value)?;
-        let mut hasher = StableHasher::new();
+        // stream the canonical encoding straight into the hasher
+        let mut hasher = siphasher::sip128::SipHasher13::new();
+        std::hash::Hasher::write(&mut hasher, b"destack.artifact.projection.payload.v2");
+        destack_serde::hash_into(value, &mut hasher)?;
+        let hash = hasher.finish128();
 
-        hasher.update_len_prefixed(b"destack.artifact.projection.payload.v1");
-        hasher.update_len_prefixed(&bytes);
-
-        Ok(Self(hasher.finish_u128()))
+        Ok(Self(hash.as_u128()))
     }
 }
 

@@ -5,6 +5,7 @@ use dashmap::DashMap;
 use destack_core::StringPool;
 use destack_program::Program;
 use destack_source::{ContentId, DiagnosticCollection, FileId};
+use rustc_hash::FxBuildHasher;
 
 use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
 use super::pin::ArtifactPin;
@@ -33,9 +34,9 @@ macro_rules! artifact_getter {
 #[derive(Debug, Default)]
 pub struct ArtifactTable {
     /// The exact artifact version entries.
-    entries: DashMap<ArtifactVersion, ArtifactEntry>,
+    entries: DashMap<ArtifactVersion, ArtifactEntry, FxBuildHasher>,
     /// The live retain count for each exact artifact version.
-    retained_versions: DashMap<ArtifactVersion, usize>,
+    retained_versions: DashMap<ArtifactVersion, usize, FxBuildHasher>,
 }
 
 impl ArtifactTable {

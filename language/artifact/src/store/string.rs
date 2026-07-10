@@ -22,7 +22,7 @@ pub(super) fn collect_string_ids<T: Serialize>(
 struct StringIdCollector {
     /// Collected string ids.
     strings: Vec<StringId>,
-    /// Whether the next `u128` belongs to a `StringId` newtype.
+    /// Whether the next `u64` belongs to a `StringId` newtype.
     is_string_id: bool,
 }
 
@@ -79,7 +79,11 @@ impl<'a> ser::Serializer for &'a mut StringIdCollector {
         Ok(())
     }
 
-    fn serialize_u64(self, _value: u64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u64(self, value: u64) -> Result<Self::Ok, Self::Error> {
+        if self.is_string_id {
+            self.strings.push(StringId(value));
+        }
+
         Ok(())
     }
 
@@ -103,11 +107,7 @@ impl<'a> ser::Serializer for &'a mut StringIdCollector {
         Ok(())
     }
 
-    fn serialize_u128(self, value: u128) -> Result<Self::Ok, Self::Error> {
-        if self.is_string_id {
-            self.strings.push(StringId(value));
-        }
-
+    fn serialize_u128(self, _value: u128) -> Result<Self::Ok, Self::Error> {
         Ok(())
     }
 
@@ -150,7 +150,7 @@ impl<'a> ser::Serializer for &'a mut StringIdCollector {
 
         if name == "StringId" && self.strings.len() == string_count {
             return Err(ArtifactStoreError::Corrupt(
-                "StringId did not serialize as u128",
+                "StringId did not serialize as u64",
             ));
         }
 
