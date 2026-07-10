@@ -88,7 +88,8 @@ struct Event {
 }
 ```
 
-For genuinely heterogeneous storage, `Dynamic<unknown>` serves as the erased universal value: a fat pointer carrying the value and its runtime descriptor, introspectable via [reflection](#reflection) and narrowable (for runtime-discernible forms) via `is`.
+For genuinely heterogeneous storage, `Dynamic<unknown>` is our "erased universal value": a fat pointer carrying the value and its runtime descriptor, introspectable via [reflection](#reflection) and narrowable (for runtime-discernible forms) via `is`.
+By default, `Dynamic<T>` is a managed reference type (like a class), so it can be passed around, aliased, and mutated freely.
 
 ### String
 
@@ -597,7 +598,7 @@ const empty: () = ();
 ### Readonly
 
 TypeScript's `readonly` is shallow, while in `.ds`, `readonly T` is always a _deep_ read-only view of `T`.
-That is, `readonly T` forbids _any_ mutation through its `T`, and `readonly T` cannot be assigned to `T`, including via nested members.
+That is, `readonly T` forbids _any_ mutation through its `T`, including via nested members, and reads through a readonly view never _widen_.
 
 ```ds
 struct Profile {
