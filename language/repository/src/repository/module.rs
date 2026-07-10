@@ -87,7 +87,7 @@ impl Repository {
         }
 
         // build modules from base files only
-        let mut modules = OrdMap::new();
+        let mut modules = OrdMap::<ModuleId, Arc<Module>>::new();
         for (base_path, base) in base_files {
             let mut module = self.module_from_candidate(base);
             if let Some(mut files) = condition_files.remove(&base_path) {
@@ -102,6 +102,17 @@ impl Repository {
                 for file in files {
                     module.push_condition_file(Self::module_file_from_candidate(file));
                 }
+            }
+
+            // narrowed content ids must never collide across distinct modules
+            if let Some(previous) = modules.get(&module.id)
+                && previous.uri != module.uri
+            {
+                return Err(RepositoryError::ModuleIdCollision {
+                    id: module.id,
+                    left: previous.uri.to_string(),
+                    right: module.uri.to_string(),
+                });
             }
 
             modules.insert(module.id, Arc::new(module));
