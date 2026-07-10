@@ -660,14 +660,13 @@ Type inference (including generics) works across modules, even when modules circ
 
 ### Variance
 
-Variance describes how typing and subtyping relations work for generic types, including for all the types that managed language users may not even usually think of as generic (like `Array`).
-Mutable covariance - the fact that we can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun.
-Because Destack needs to be actually sound, we only support this sort of widening when it is unambiguously safe:
+Variance describes how typing and subtyping relations work for generic types, including for all the types that managed language users may not even usually think of as being "generic" (like `Array` or `Record`).
+Mutable covariance - the fact that we can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun, so we only support this sort of widening when it is unambiguously safe:
 
 | Position | Variance | Example |
 | --- | --- | --- |
 | Readonly positions | covariant | `readonly Circle[]` is assignable to `readonly Shape[]` |
-| Mutable storage positions | invariant | `Circle[]` is _not_ assignable to `Shape[]` |
+| Mutable positions | invariant | `Circle[]` is _not_ assignable to `Shape[]` |
 | Function parameters | contravariant | `(shape: Shape) => void` is assignable to `(circle: Circle) => void` |
 | Function returns | covariant | `() => Circle` is assignable to `() => Shape` |
 
