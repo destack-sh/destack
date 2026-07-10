@@ -35,8 +35,6 @@ impl Compiler {
         // read only edges whose source module changed
         if let Some(base) = base {
             for module in base.delta.edge_modules() {
-                dependencies.require(ArtifactKey::dir_imported(module, profile));
-                dependencies.require(ArtifactKey::dir_expanded(module, profile));
                 dependencies.require(ArtifactKey::dir_resolved(module, profile));
             }
         } else {
@@ -49,8 +47,6 @@ impl Compiler {
                 })?;
 
             for module in modules {
-                dependencies.require(ArtifactKey::dir_imported(module, profile));
-                dependencies.require(ArtifactKey::dir_expanded(module, profile));
                 dependencies.require(ArtifactKey::dir_resolved(module, profile));
             }
         }
@@ -197,19 +193,13 @@ impl Compiler {
         let resolved = artifacts
             .dir_resolved(module, profile)
             .map_err(CompilerError::from)?;
-        let imported = artifacts
-            .dir_imported(module, profile)
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .dir_expanded(module, profile)
-            .map_err(CompilerError::from)?;
-        let modules = expanded.module_table(&imported);
 
-        // collect explicit source modules and resolved target modules
+        // collect the defining modules of resolved imports and references
         let mut edges = IndexSet::new();
-        let targets = modules
+        let targets = resolved
+            .imports
             .target_modules()
-            .chain(resolved.imports.target_modules());
+            .chain(resolved.references.target_modules());
         for target in targets {
             if target != module {
                 edges.insert(target);
