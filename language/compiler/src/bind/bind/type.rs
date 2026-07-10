@@ -256,14 +256,23 @@ impl Compiler {
         if let Some(name) = name {
             let key = Some(dir::StaticKey::Name(name));
             let symbol_id = match state.infer_scope() {
-                Some(scope_id) => state.insert_symbol_in_scope(
-                    scope_id,
-                    dir::SymbolRole::Local,
-                    dir::SymbolKind::TypeAlias,
-                    key,
-                    None,
-                    dir::SymbolVisibility::Forward,
-                ),
+                // repeated binders of one name share one inferred parameter
+                Some(scope_id) if let Some(&shared) = state.infer_symbols.get(&(scope_id, name)) => {
+                    shared
+                }
+                Some(scope_id) => {
+                    let symbol_id = state.insert_symbol_in_scope(
+                        scope_id,
+                        dir::SymbolRole::Local,
+                        dir::SymbolKind::TypeAlias,
+                        key,
+                        None,
+                        dir::SymbolVisibility::Forward,
+                    );
+                    state.infer_symbols.insert((scope_id, name), symbol_id);
+
+                    symbol_id
+                }
                 None => state.insert_symbol(
                     dir::SymbolRole::Local,
                     dir::SymbolKind::TypeAlias,

@@ -75,3 +75,36 @@ type Anonymous<T> = T extends infer _ ? true : false;
 "#,
     );
 }
+
+#[test]
+fn test_bind_shares_repeated_infer_binders() {
+    let compiler = TestSession::builder()
+        .module(
+            "main.ds",
+            r#"
+type Repeat<T> = T extends [infer A, infer A] ? A : never;
+"#,
+        )
+        .build();
+
+    // both binders of one name bind one shared symbol in the conditional scope
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding().with_summaries(),
+        r#"
+type Repeat<T> = T extends [infer A, infer A] ? A : never;
+/// @binding.symbol symbol=Repeat role=item kind=type_alias scope=<module>@1
+/// @binding.scope scope=Repeat kind=type parent=<module>@2 owner=Repeat
+/// @binding.owner_scope owner=Repeat scope=Repeat
+/// @binding.symbol symbol=T role=local kind=generic_type_parameter scope=Repeat@0
+/// @binding.scope scope=scope3 kind=type_conditional parent=Repeat@1
+/// @binding.symbol symbol=A role=local kind=type_alias scope=scope3@0
+
+/// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
+/// @binding.scope scope=<module> kind=module owner=<module>
+/// @binding.scope scope=scope1 kind=global
+
+/// @binding.summary symbols=4 scopes=4 declarations=4 node_scopes=12 owner_scopes=1
+"#,
+    );
+}
