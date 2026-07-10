@@ -305,6 +305,9 @@ impl<'a> TypeTable<'a> {
                     if let Some(key_remap) = mapped.parameter.key_remap {
                         visit(key_remap);
                     }
+                    if let Some(modifiers_type) = mapped.parameter.modifiers_type {
+                        visit(modifiers_type);
+                    }
                     visit(mapped.value);
                 }
                 TypeOperation::Index(index) => {
