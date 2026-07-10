@@ -263,14 +263,12 @@ impl<'a> InlineExpressionText<'a> {
         matches!(
             expression,
             dir::Expression::Member { .. }
-                | dir::Expression::PrivateMember { .. }
                 | dir::Expression::Index { .. }
                 | dir::Expression::Call { .. }
                 | dir::Expression::New { .. }
                 | dir::Expression::ScalarLiteral { .. }
                 | dir::Expression::ImportMeta
                 | dir::Expression::This
-                | dir::Expression::PrivateIdentifier { .. }
         )
     }
 }
@@ -789,7 +787,7 @@ impl ModuleQueryContext<'_> {
             dir::PatternField::Computed { pattern, .. } => {
                 self.collect_pattern_bindings(view, *pattern, bindings);
             }
-            dir::PatternField::Spread { pattern, .. } => {
+            dir::PatternField::Rest { pattern, .. } => {
                 if let Some(pattern) = pattern {
                     self.collect_pattern_bindings(view, *pattern, bindings);
                 }
@@ -891,7 +889,7 @@ impl ModuleQueryContext<'_> {
                     }
                 }
                 dir::PatternField::Computed { .. }
-                | dir::PatternField::Spread { .. }
+                | dir::PatternField::Rest { .. }
                 | dir::PatternField::Elision => {}
             }
         }
@@ -915,7 +913,7 @@ impl ModuleQueryContext<'_> {
                 dir::PatternField::Elision => {
                     index += 1;
                 }
-                dir::PatternField::Spread { .. } => {
+                dir::PatternField::Rest { .. } => {
                     return None;
                 }
                 dir::PatternField::Positional { pattern, .. } => {
