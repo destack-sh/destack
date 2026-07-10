@@ -130,6 +130,22 @@ pub fn run(args: &CheckArgs) -> i32 {
 
 /// Check source files with a custom command label.
 pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
+    // a directory argument selects the package or workspace root
+    let mut args = args.clone();
+    match args.input.take_directory_root() {
+        Ok(Some(root)) => match &args.program.workspace {
+            Some(workspace) if *workspace != root => {
+                let message =
+                    format!("directory argument {root:?} conflicts with --workspace {workspace:?}");
+                return report_error(command_name, &args.report, &message);
+            }
+            _ => args.program.workspace = Some(root),
+        },
+        Ok(None) => {}
+        Err(error) => return report_error(command_name, &args.report, &error.to_string()),
+    }
+    let args = &args;
+
     if let Some(code) = validate_check_args(args, command_name) {
         return code;
     }

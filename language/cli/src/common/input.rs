@@ -89,6 +89,25 @@ impl InputArgs {
         !self.files.is_empty() || !self.eval.is_empty() || !self.module.is_empty() || self.stdin
     }
 
+    /// Split one directory positional out as the workspace root.
+    ///
+    /// A directory argument means "run against this package or workspace",
+    /// so it selects the root while remaining paths stay module files.
+    pub fn take_directory_root(&mut self) -> ConsoleResult<Option<PathBuf>> {
+        let (directories, files): (Vec<_>, Vec<_>) =
+            self.files.drain(..).partition(|path| path.is_dir());
+        self.files = files;
+
+        match directories.as_slice() {
+            [] => Ok(None),
+            [directory] => Ok(Some(directory.clone())),
+            _ => Err(ConsoleError::message(format!(
+                "expected at most one directory argument, got {}",
+                directories.len()
+            ))),
+        }
+    }
+
     /// Convert arguments to input sources.
     pub fn to_sources(&self) -> ConsoleResult<Vec<InputSource>> {
         let mut sources = Vec::new();
