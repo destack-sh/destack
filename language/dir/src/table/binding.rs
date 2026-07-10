@@ -108,8 +108,12 @@ impl<'a> BindingTable<'a> {
 
     /// Return one visible symbol.
     pub fn get_symbol(&self, symbol_id: LocalSymbolId) -> &Symbol {
-        self.get_symbol_maybe(symbol_id)
-            .unwrap_or_else(|| panic!("DIR symbol {symbol_id:?} is not visible"))
+        self.get_symbol_maybe(symbol_id).unwrap_or_else(|| {
+            panic!(
+                "DIR symbol {symbol_id:?} is not visible in module {:?}",
+                self.module_id
+            )
+        })
     }
 
     /// Return one visible symbol when present.
