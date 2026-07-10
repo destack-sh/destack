@@ -1289,13 +1289,6 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
-            dir::Expression::Stub => {
-                let expression = js::Expression::Stub;
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
-
             dir::Expression::Error => {
                 let expression = js::Expression::Error;
                 self.tree
@@ -1359,6 +1352,7 @@ impl ModuleLowerer<'_> {
 
                 js::ArrayElement::Spread { value }
             }
+            dir::Argument::Elision => js::ArrayElement::Elision,
             dir::Argument::Error => {
                 return Err(self.unsupported_construct(
                     expression_id.into_global_any(self.module.id),

@@ -19,7 +19,7 @@ impl CheckState<'_> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let mut values =
-            SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 8]>::new();
+            SmallVec::<[(dir::LocalNodeId<dir::Argument>, dir::GlobalTypeId); 8]>::new();
         let mut spreads =
             SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 2]>::new();
 
@@ -39,7 +39,11 @@ impl CheckState<'_> {
                     let value_site = self.node_site(value.into_global_any(module))?;
                     answer!(self.infer_expression(value_site, PlaceUse::Read, mode)?);
                     let ty = answer!(self.node_type_at(value_site)?);
-                    values.push((value, ty));
+                    values.push((*argument, ty));
+                }
+                dir::Argument::Elision => {
+                    let undefined = self.intern_type(module, dir::Type::Undefined)?;
+                    values.push((*argument, undefined));
                 }
                 dir::Argument::Error => {}
             }
@@ -154,6 +158,17 @@ impl CheckState<'_> {
                 dir::Argument::Named { value, .. } => (None, Some(*value), false),
                 dir::Argument::Labeled { label, value } => (Some(*label), Some(*value), false),
                 dir::Argument::Spread { value, .. } => (None, Some(*value), true),
+                dir::Argument::Elision => {
+                    let ty = self.intern_type(module, dir::Type::Undefined)?;
+                    fields.push(dir::TypeElement {
+                        label: None,
+                        ty,
+                        is_optional: false,
+                        is_readonly: false,
+                        is_rest: false,
+                    });
+                    continue;
+                }
                 dir::Argument::Error => (None, None, false),
             };
             let Some(value) = value else {

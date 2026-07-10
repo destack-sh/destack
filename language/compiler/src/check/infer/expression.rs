@@ -240,7 +240,6 @@ impl CheckState<'_> {
             dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::Debugger
             | dir::Expression::Missing
-            | dir::Expression::Stub
             | dir::Expression::Error => {
                 self.commit_error_node(node.into_any())?;
 

@@ -321,11 +321,10 @@ impl WalkState<'_, '_> {
                 let source = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, source)?;
             }
-            // #name, debugger, missing, stub, damaged nodes
+            // #name, debugger, missing, and damaged nodes
             dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::Debugger
             | dir::Expression::Missing
-            | dir::Expression::Stub
             | dir::Expression::Error => {}
             // start..end
             dir::Expression::RangeExpression {
