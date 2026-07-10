@@ -1,103 +1,72 @@
 import { A } from "@solidjs/router";
-import { createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 
 import { type Post, type TableOfContentsEntry } from "../generated/posts";
 
 type BlogArticleProps = {
-    children?: JSX.Element;
+    /// The current post.
     post: Post;
+
+    /// Every post in reverse chronological order.
     posts: readonly Post[];
 };
 
+/// Render a blog post and its navigation.
 export function BlogArticle(props: BlogArticleProps) {
     return (
-        <div class="mx-auto grid w-full max-w-[96rem] grid-cols-[minmax(0,56rem)] justify-center gap-6 px-4 py-8 md:px-10 md:py-12 2xl:grid-cols-[18rem_minmax(0,56rem)_18rem] 2xl:items-start">
+        <div class="blog-layout">
             <TableOfContents entries={props.post.tableOfContents} />
 
-            <div class="relative isolate min-w-0 pr-2 pb-2">
-                <div
-                    aria-hidden="true"
-                    class="pointer-events-none absolute top-3 right-0 bottom-0 left-3 z-0 bg-size-[3px_3px] bg-[radial-gradient(circle,var(--color-destack-ink)_0_1.15px,transparent_1.3px)]"
-                />
-
-                <article class="relative z-10 grid w-full gap-10 border-2 border-destack-frame bg-destack-panel px-4 py-6 md:px-8 md:py-8">
-                    <BlogArticleHeader post={props.post} />
-
-                    <div class="grid w-full">
-                        <div class="blog-prose min-w-0" innerHTML={props.post.html} />
-                    </div>
-
-                    <div class="w-full">
-                        <PostNavigation post={props.post} posts={props.posts} />
-                    </div>
-
-                    {props.children}
-                </article>
-            </div>
-
-            <div aria-hidden="true" class="hidden 2xl:block" />
+            <article class="blog-article">
+                <BlogArticleHeader post={props.post} />
+                <div class="blog-prose" innerHTML={props.post.html} />
+                <PostNavigation post={props.post} posts={props.posts} />
+            </article>
         </div>
     );
 }
 
 type BlogArticleHeaderProps = {
+    /// The current post.
     post: Post;
 };
 
+/// Render the post title and metadata.
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
-        <header class="grid w-full gap-5">
-            <A
-                class="w-max border-b-4 border-destack-line text-sm font-extrabold lowercase hover:border-destack-accent"
-                href="/blog/"
-            >
-                blog
-            </A>
-
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-extrabold text-destack-soft lowercase">
-                <time>{props.post.date}</time>
-                <span>·</span>
-                <span>{props.post.author}</span>
+        <header class="blog-article__header">
+            <div class="blog-article__eyebrow">
+                <A href="/blog/">[blog]</A>
+                <span>
+                    <time>{props.post.date}</time> / {props.post.author}
+                </span>
             </div>
 
-            <h1 class="page-title mb-1">{props.post.title}</h1>
-            <p class="text-xl leading-8 font-black text-destack-soft">{props.post.subtitle}</p>
+            <h1>{props.post.title}</h1>
+            <p>{props.post.subtitle}</p>
         </header>
     );
 }
 
 type TableOfContentsProps = {
+    /// The post headings.
     entries: readonly TableOfContentsEntry[];
 };
 
+/// Render the active post outline on wide screens.
 function TableOfContents(props: TableOfContentsProps) {
     const activeId = activeHeading(props.entries);
 
     return (
         <Show when={props.entries.length > 0}>
-            <nav
-                aria-label="contents"
-                class="sticky top-20 hidden max-h-[calc(100svh-8rem)] overflow-auto pr-3 2xl:block"
-            >
-                <p class="mb-3 text-xs font-black tracking-normal text-destack-soft lowercase">
-                    contents
-                </p>
-                <ol class="grid gap-2 border-l-2 border-destack-line pl-3 text-xs leading-5 font-extrabold lowercase">
+            <nav aria-label="contents" class="blog-contents">
+                <p>[contents]</p>
+                <ol>
                     <For each={props.entries}>
                         {(entry) => (
-                            <li
-                                classList={{
-                                    "pl-3": entry.depth > 2,
-                                }}
-                            >
+                            <li classList={{ "blog-contents__nested": entry.depth > 2 }}>
                                 <a
-                                    class="block border-l-4 py-0.5 pl-2 underline decoration-2 underline-offset-4"
-                                    classList={{
-                                        "border-destack-accent text-destack-text decoration-destack-accent":
-                                            activeId() === entry.id,
-                                        "border-transparent text-destack-soft decoration-destack-line hover:text-destack-accent hover:decoration-destack-accent":
-                                            activeId() !== entry.id,
-                                    }}
+                                    classList={{ "blog-contents__active": activeId() === entry.id }}
                                     href={`#${entry.id}`}
                                 >
                                     {entry.text}
@@ -111,16 +80,17 @@ function TableOfContents(props: TableOfContentsProps) {
     );
 }
 
+/// Track the last heading above the reading position.
 function activeHeading(entries: readonly TableOfContentsEntry[]) {
     const [activeId, setActiveId] = createSignal(entries[0]?.id ?? "");
 
     onMount(() => {
         let frame = 0;
 
+        // update at most once per rendered frame
         const update = () => {
             frame = 0;
-            const current = visibleHeading(entries);
-            setActiveId(current);
+            setActiveId(visibleHeading(entries));
         };
 
         const schedule = () => {
@@ -146,6 +116,7 @@ function activeHeading(entries: readonly TableOfContentsEntry[]) {
     return activeId;
 }
 
+/// Find the last heading above the top navigation.
 function visibleHeading(entries: readonly TableOfContentsEntry[]) {
     const offset = 96;
     let current = entries[0]?.id ?? "";
@@ -167,17 +138,21 @@ function visibleHeading(entries: readonly TableOfContentsEntry[]) {
 }
 
 type PostNavigationProps = {
+    /// The current post.
     post: Post;
+
+    /// Every post in reverse chronological order.
     posts: readonly Post[];
 };
 
+/// Render adjacent posts when they exist.
 function PostNavigation(props: PostNavigationProps) {
     const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
     const newer = () => props.posts[index() - 1];
     const older = () => props.posts[index() + 1];
 
     return (
-        <nav class="grid gap-3 border-t-2 border-destack-frame pt-5 md:grid-cols-2">
+        <nav aria-label="post navigation" class="blog-post-navigation">
             <Show when={newer()}>
                 {(post) => <PostNavigationLink label="newer" post={post()} />}
             </Show>
@@ -190,18 +165,18 @@ function PostNavigation(props: PostNavigationProps) {
 }
 
 type PostNavigationLinkProps = {
+    /// The link label.
     label: string;
+
+    /// The adjacent post.
     post: Post;
 };
 
+/// Render one adjacent post link.
 function PostNavigationLink(props: PostNavigationLinkProps) {
     return (
-        <A
-            class="grid gap-1 border-2 border-destack-frame bg-destack-panel p-4 hover:bg-destack-page"
-            href={props.post.route}
-        >
-            <span class="text-sm font-extrabold text-destack-soft lowercase">{props.label}</span>
-            <span class="text-base font-black">{props.post.title}</span>
+        <A href={props.post.route}>
+            [{props.label}] {props.post.title}
         </A>
     );
 }

@@ -142,19 +142,21 @@ export function HomePage() {
             <article class="home-page">
                 {/* Main pitch */}
                 <section class="home-hero">
+                    <div class="home-hero__heading">
+                        <p class="home-hero__label">
+                            <SweepText
+                                column={sweepColumn()}
+                                firstColumn={0}
+                                text="[destack]"
+                            />
+                        </p>
+                        <p class="home-hero__statement">
+                            a system for understanding systems.
+                        </p>
+                    </div>
+
                     <div class="home-hero__body">
                         <div class="home-hero__copy">
-                            <p class="home-hero__label">
-                                <SweepText
-                                    column={sweepColumn()}
-                                    firstColumn={0}
-                                    text="[destack]"
-                                />
-                            </p>
-                            <p class="home-hero__statement">
-                                a system for understanding systems.
-                            </p>
-
                             <ul class="home-points">
                                 {points.map((point) => (
                                     <li>{point}</li>
@@ -169,8 +171,8 @@ export function HomePage() {
                                         column={sweepColumn()}
                                         firstColumn={lastSweepColumn - 5}
                                         text="$"
-                                    />{" "}
-                                    {installCommand}
+                                    />
+                                    <span>{installCommand}</span>
                                 </code>
                             </div>
                         </div>
