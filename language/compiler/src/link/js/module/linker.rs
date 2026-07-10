@@ -5,7 +5,7 @@ use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::{EmitFormat, Script};
 use destack_repository::{JsOutputFormat, JsOutputMode, Target};
-use destack_source::{FileType, ModuleId, PackageId};
+use destack_source::{ModuleId, PackageId};
 
 use super::super::{JsDependencyTarget, JsLinker, ModuleSet, OutputGraph, OutputId, OutputLayout};
 use crate::link::TargetLocation;
@@ -197,11 +197,11 @@ impl<'a> JsLinker<'a> {
         Ok(script.as_ref().clone())
     }
 
-    /// Return the emitted file type for one linked JS target.
-    pub(crate) fn js_output_file_type(&self) -> LinkResult<FileType> {
+    /// Return the script format for one linked JS target.
+    pub(crate) fn js_output_format(&self) -> LinkResult<js::ScriptFormat> {
         match self.target.emit {
-            EmitFormat::Js => Ok(FileType::JavaScript),
-            EmitFormat::Ts => Ok(FileType::TypeScript),
+            EmitFormat::Js => Ok(js::ScriptFormat::JavaScript),
+            EmitFormat::Ts => Ok(js::ScriptFormat::TypeScript),
             other => Err(LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

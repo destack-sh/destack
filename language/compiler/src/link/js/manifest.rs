@@ -2,10 +2,9 @@ use crate::link::{OutputLocation, TargetLocation};
 use crate::{LinkError, LinkResult};
 use destack_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, Bundle,
-    BundleFile,
+    BundleFile, BundleSection,
 };
 use destack_repository::JsOutputMode;
-use destack_source::FileType;
 
 use super::JsLinker;
 use super::plan::{Output, OutputId, Plan};
@@ -105,7 +104,7 @@ impl<'a> JsLinker<'a> {
             });
         let chunk = self.build_js_manifest_output_metadata(
             target_layout,
-            file.file_type,
+            file.section,
             output_location.as_ref(),
             plan,
         )?;
@@ -123,11 +122,11 @@ impl<'a> JsLinker<'a> {
     fn build_js_manifest_output_metadata(
         &self,
         target_layout: &TargetLocation<'_>,
-        file_type: FileType,
+        section: BundleSection,
         output_location: Option<&OutputLocation>,
         plan: &Plan,
     ) -> LinkResult<Option<ManifestChunkMetadata>> {
-        if !matches!(file_type, FileType::JavaScript | FileType::TypeScript) {
+        if !matches!(section, BundleSection::Entry | BundleSection::Module) {
             return Ok(None);
         }
 

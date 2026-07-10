@@ -2,7 +2,7 @@ use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::BundleFile;
 use destack_repository::JsOutputMode;
-use destack_source::{FileType, ModuleId};
+use destack_source::ModuleId;
 
 use super::super::plan::Plan;
 use super::super::{JsLinker, OutputId};
@@ -16,7 +16,7 @@ impl<'a> JsLinker<'a> {
         &self,
         output_id: OutputId,
         plan: &Plan,
-        file_type: FileType,
+        format: js::ScriptFormat,
     ) -> LinkResult<Vec<(ModuleId, js::PrintedJsModule)>> {
         let output = plan
             .output_graph()
@@ -61,7 +61,7 @@ impl<'a> JsLinker<'a> {
         // print each rewritten module after output-level rewrites and minification
         for (module_id, module) in modules {
             let printed = self
-                .print_js_module(module_id, self.target, file_type, &module, self.context)
+                .print_js_module(module_id, self.target, format, &module, self.context)
                 .map_err(|error| Compiler::link_error(self.package_id, error))?;
 
             segments.push((module_id, printed));
@@ -147,7 +147,7 @@ impl<'a> JsLinker<'a> {
 
     /// Link graph-based outputs for this target.
     fn link_output_graph(&self, plan: &Plan) -> LinkResult<Vec<BundleFile>> {
-        let file_type = self.js_output_file_type()?;
+        let format = self.js_output_format()?;
         let target_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
         let mut output_files = Vec::new();
 
@@ -165,7 +165,7 @@ impl<'a> JsLinker<'a> {
                             output_id.0
                         ),
                     })?;
-            let parts = self.render_js_output_parts(output_id, plan, file_type)?;
+            let parts = self.render_js_output_parts(output_id, plan, format)?;
             let code = self.compose_script_text(
                 parts
                     .iter()
@@ -193,7 +193,6 @@ impl<'a> JsLinker<'a> {
             let files = self
                 .link_script_text_files(
                     self.target,
-                    file_type,
                     output_location.path(),
                     code,
                     Some(source_map),

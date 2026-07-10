@@ -36,7 +36,7 @@ pub(crate) fn print_js_module_minified(
 ) -> Result<PrintedJsModule, EmitError> {
     let source_map = SourceMap { parsed };
     let printed = js::print_roots_minified_with_source_map(
-        options.file_type,
+        options.format,
         &module.tree,
         &module.roots,
         &module.strings,
