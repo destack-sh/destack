@@ -507,7 +507,7 @@ impl<'a> CommandContext<'a> {
         }
 
         // infer a default target when no explicit configuration exists
-        let target_name = if module.is_destack() { "native" } else { "js" };
+        let target_name = if module.is_code() { "native" } else { "js" };
 
         self.resolve_named_target_for_module(revision, module_id, target_name, overrides)
     }
@@ -738,11 +738,7 @@ fn collect_sources_from_destack_config(
     // fall back to include patterns
     if paths.is_empty() {
         let patterns = if includes.is_empty() {
-            vec![
-                "**/*.ds".to_string(),
-                "**/*.ts".to_string(),
-                "**/*.tsx".to_string(),
-            ]
+            vec!["**/*.ds".to_string()]
         } else {
             includes
         };
