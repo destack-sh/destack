@@ -21,8 +21,8 @@ use destack_repository::{
 };
 use destack_source::{
     ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, File,
-    FileId, FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, PackageId,
-    Patch, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri, print_diagnostics, print_diff,
+    FileId, FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, Patch,
+    PhysicalFileSystem, PrintOptions, Span, TargetId, Uri, print_diagnostics, print_diff,
 };
 use parking_lot::Mutex;
 
@@ -174,11 +174,11 @@ fn provide_dir_parsed(
         .unwrap_or_else(|| panic!("missing source module for {module_id:?}"));
     let file = source_file(compiler, context.revision(), module.file_id);
     let dir = match module.loader {
-        Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
+        Loader::Destack => {
             if matches!(file.ty, FileType::Html | FileType::Css) {
                 anchor_dir_parsed(module_id, file.as_ref())
             } else {
-                parse_code_dir(compiler, file.clone(), module.package_id, context)
+                parse_code_dir(compiler, file.clone(), context)
             }
         }
         Loader::Json
@@ -223,10 +223,10 @@ fn anchor_dir_parsed(module_id: ModuleId, file: &File) -> DirParsed {
 fn parse_code_dir(
     compiler: &Compiler,
     file: Arc<File>,
-    package_id: PackageId,
     context: &TestProviderContext,
 ) -> DirParsed {
-    let language_type = language_type_for_code_file(compiler, file.ty, package_id, context);
+    let language_type = LanguageType::try_from(file.ty)
+        .unwrap_or_else(|file_type| panic!("non-code file reached parser: {file_type:?}"));
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language_type,
@@ -259,35 +259,6 @@ fn insert_anchor_expression(tree: &mut Tree, file_id: FileId) -> LocalNodeId<Exp
         Expression::ScalarLiteral(ScalarLiteral::Boolean(false)),
         span,
     )
-}
-
-/// Resolve parser language type for one code file.
-fn language_type_for_code_file(
-    compiler: &Compiler,
-    file_type: FileType,
-    package_id: PackageId,
-    context: &TestProviderContext,
-) -> LanguageType {
-    assert!(
-        file_type.is_code(),
-        "non-code file type reached code parser: {file_type:?}",
-    );
-
-    if file_type != FileType::JavaScript {
-        return LanguageType::try_from(file_type)
-            .unwrap_or_else(|_| panic!("code file type has no parser language: {file_type:?}"));
-    }
-
-    let Some(package) = compiler
-        .repository
-        .package(context.revision(), package_id)
-        .unwrap_or_else(|error| panic!("failed to load source package: {error}"))
-    else {
-        return LanguageType::JavaScript;
-    };
-    let _ = package.destack_file_id;
-
-    LanguageType::JavaScript
 }
 
 impl DiagnosticContext for TestProviderContext {
@@ -1601,15 +1572,14 @@ impl<'a> LintResult<'a> {
             &side_tokens,
             &side_span,
             strings,
-            parents,
+            &parents,
         );
 
         // format
         let mut result = if expressions.is_empty() {
             String::new()
         } else {
-            let formatted =
-                destack_fir::format!(context.clone(), [statement_list(&expressions)]).unwrap();
+            let formatted = destack_fir::format!(context, [statement_list(&expressions)]).unwrap();
             let printed = formatted.print().unwrap();
             printed.as_str().to_string()
         };

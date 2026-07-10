@@ -176,7 +176,7 @@ fn method_key_is_constructor(
     };
 
     match key {
-        Key::Name(Name::Identifier(name)) | Key::Name(Name::String(name)) | Key::Private(name) => {
+        Key::Name(Name::Identifier(name)) | Key::Name(Name::String(name)) => {
             *name == constructor_name
         }
         Key::Name(Name::Index(_)) => false,

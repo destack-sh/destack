@@ -987,10 +987,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool 
         return false;
     }
 
-    matches!(
-        file_type,
-        FileType::TypeScriptDeclaration | FileType::DestackDeclaration
-    )
+    matches!(file_type, FileType::DestackDeclaration)
 }
 
 /// Return line count for a span.
@@ -1193,10 +1190,6 @@ impl<'a> DuplicateSignatureCollector<'a> {
                 self.push_same("key_kind", "name");
                 self.push_name("key_name", name);
             }
-            dir::Key::Private(name) => {
-                self.push_same("key_kind", "private");
-                self.push_identifier_id("key_name", name);
-            }
             dir::Key::Expression(_) => {
                 self.push_same("key_kind", "expr");
             }
@@ -1385,9 +1378,6 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
             dir::Expression::Identifier { name } => {
                 self.push_identifier_id("expr_identifier", *name);
             }
-            dir::Expression::PrivateIdentifier { name } => {
-                self.push_identifier_id("expr_private_identifier", *name);
-            }
             dir::Expression::ScalarLiteral(literal) => {
                 self.push_scalar_literal(literal);
             }
@@ -1424,13 +1414,6 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
                     self.push_identifier_id("expr_member_name", name);
                 } else {
                     self.push_same("expr_member_name", "None");
-                }
-            }
-            dir::Expression::PrivateMember { name, .. } => {
-                if let Some(name) = *name {
-                    self.push_identifier_id("expr_private_member_name", name);
-                } else {
-                    self.push_same("expr_private_member_name", "None");
                 }
             }
             dir::Expression::Index { position, .. } => {
@@ -1674,7 +1657,7 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
             }
             dir::PatternField::Computed { .. } => {}
             dir::PatternField::Positional { .. } | dir::PatternField::Elision => {}
-            dir::PatternField::Spread { .. } => {}
+            dir::PatternField::Rest { .. } => {}
         }
 
         dir::walk_pattern_field(self, tree, id, pattern_field);

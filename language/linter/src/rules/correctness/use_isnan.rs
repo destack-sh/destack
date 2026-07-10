@@ -250,11 +250,6 @@ fn is_nan_identifier(
         // unwrap parenthesized expressions before matching
         Expression::Parenthesized { expression } => is_nan_identifier(ctx, *expression),
 
-        // handle sequence expressions by checking the last evaluated value
-        Expression::SequenceExpression { expressions } => expressions
-            .last()
-            .is_some_and(|expression_id| is_nan_identifier(ctx, *expression_id)),
-
         // check reference forms: NaN or Number.NaN
         Expression::Identifier { .. } | Expression::Member { .. } => {
             let Some(segments) = expression_path_segments(ctx.dir.tree(), expr_id) else {

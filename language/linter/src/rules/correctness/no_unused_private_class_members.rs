@@ -191,22 +191,11 @@ fn candidate_member_symbol(
     }
 }
 
-/// Return true when a class member is private by modifier or key kind.
+/// Return true when a class member has private visibility.
 fn member_is_private(member: &dir::Member) -> bool {
     match member {
-        dir::Member::Field {
-            visibility, key, ..
-        } => {
-            let is_private_by_modifier = *visibility == Some(dir::Visibility::Private);
-            let is_private_by_key = matches!(key, dir::Key::Private(_));
-            is_private_by_modifier || is_private_by_key
-        }
-        dir::Member::Method {
-            visibility, key, ..
-        } => {
-            let is_private_by_modifier = *visibility == Some(dir::Visibility::Private);
-            let is_private_by_key = matches!(key, Some(dir::Key::Private(_)));
-            is_private_by_modifier || is_private_by_key
+        dir::Member::Field { visibility, .. } | dir::Member::Method { visibility, .. } => {
+            *visibility == Some(dir::Visibility::Private)
         }
         _ => false,
     }
@@ -232,8 +221,6 @@ enum AccessorKey {
     Name(StringId),
     /// Positional index key.
     Index(usize),
-    /// Private key.
-    Private(StringId),
 }
 
 /// Return one normalized private accessor key for getter/setter grouping.
@@ -247,7 +234,6 @@ fn member_private_accessor_key(member: &dir::Member) -> Option<AccessorKey> {
             Some(AccessorKey::Name(*name))
         }
         dir::Key::Name(dir::Name::Index(index)) => Some(AccessorKey::Index(*index)),
-        dir::Key::Private(name) => Some(AccessorKey::Private(*name)),
         dir::Key::Expression(_) => None,
     }
 }

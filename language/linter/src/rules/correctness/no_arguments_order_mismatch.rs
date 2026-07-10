@@ -235,7 +235,7 @@ fn expression_name_hint(
     let expression = tree.get(expression_id);
     match expression {
         dir::Expression::Identifier { name } => Some(*name),
-        dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
+        dir::Expression::Member { name, .. } => *name,
         dir::Expression::As {
             expression: value,
             target_type: _,

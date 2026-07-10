@@ -127,7 +127,6 @@ fn type_expression_complexity_inner(
             | TypeExpression::Index { .. }
             | TypeExpression::TemplateLiteral { .. }
             | TypeExpression::Tuple { .. }
-            | TypeExpression::ArrayTuple { .. }
             | TypeExpression::Object { .. }
             | TypeExpression::Array { .. }
             | TypeExpression::Slice { .. }
@@ -377,7 +376,7 @@ fn type_expression_complexity_inner(
                 ));
             }
         }
-        TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
+        TypeExpression::Tuple { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 match element {

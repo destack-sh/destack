@@ -202,10 +202,10 @@ pub fn assign_pattern_fields_are_equal(
             },
         ) => assign_patterns_are_equal(ctx, *left_pattern, *right_pattern),
         (
-            dir::AssignPatternField::Spread {
+            dir::AssignPatternField::Rest {
                 pattern: left_pattern,
             },
-            dir::AssignPatternField::Spread {
+            dir::AssignPatternField::Rest {
                 pattern: right_pattern,
             },
         ) => match (left_pattern, right_pattern) {
@@ -2005,7 +2005,7 @@ pub fn expression_has_side_effects(
     let expr = ctx.dir.get(expr_id);
     match expr {
         // pure: literals
-        dir::Expression::ScalarLiteral(_) | dir::Expression::PrivateIdentifier { .. } => false,
+        dir::Expression::ScalarLiteral(_) => false,
         dir::Expression::Type { value } => type_expression_has_side_effects(ctx, *value),
 
         // pure: references
@@ -2033,9 +2033,7 @@ pub fn expression_has_side_effects(
         }
 
         // pure: member access (if object is pure)
-        dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
-            expression_has_side_effects(ctx, *left)
-        }
+        dir::Expression::Member { left, .. } => expression_has_side_effects(ctx, *left),
 
         // pure: instantiation (if target is pure)
         dir::Expression::Instantiation { left, .. } => expression_has_side_effects(ctx, *left),
@@ -2134,8 +2132,7 @@ pub fn expression_has_side_effects(
         // object expressions: check properties for side effects
         dir::Expression::ObjectExpression { .. }
         | dir::Expression::StructExpression { .. }
-        | dir::Expression::TreeExpression { .. }
-        | dir::Expression::SequenceExpression { .. } => true,
+        | dir::Expression::TreeExpression { .. } => true,
 
         // comptime: check if body has side effects
         dir::Expression::Comptime { body } => expression_has_side_effects(ctx, *body),
@@ -2194,7 +2191,6 @@ pub fn type_expression_has_side_effects(
 
         // mostly pure type forms
         dir::TypeExpression::Tuple { .. }
-        | dir::TypeExpression::ArrayTuple { .. }
         | dir::TypeExpression::Array { .. }
         | dir::TypeExpression::Slice { .. }
         | dir::TypeExpression::FixedArray { .. }
@@ -2540,9 +2536,6 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
             dir::Expression::Identifier { name } => {
                 self.push_string_id("expression_identifier", *name);
             }
-            dir::Expression::PrivateIdentifier { name } => {
-                self.push_string_id("expression_private_identifier", *name);
-            }
             dir::Expression::ScalarLiteral(literal) => {
                 self.push_debug("expression_scalar_literal", literal);
             }
@@ -2572,7 +2565,7 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("expression_referenceof_mutability", *mutability);
                 self.push_debug("expression_referenceof_variance", *variance);
             }
-            dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => {
+            dir::Expression::Member { name, .. } => {
                 if let Some(name) = name {
                     self.push_string_id("expression_member", *name);
                 }

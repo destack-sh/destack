@@ -320,11 +320,6 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
                     return self.expression_is_in_flagged_context_inner(parent_id, true);
                 }
             }
-            dir::Expression::SequenceExpression { expressions } => {
-                if expressions.last().copied() == Some(expression_id) {
-                    return self.expression_is_in_flagged_context_inner(parent_id, true);
-                }
-            }
             _ => {}
         }
 
@@ -422,18 +417,7 @@ fn replacement_needs_parentheses(
                     form: dir::IfForm::Ternary,
                     ..
                 }
-                | dir::Expression::SequenceExpression { .. }
         ),
-        dir::Expression::Call { arguments, .. } | dir::Expression::New { arguments, .. }
-            if arguments.first().is_some_and(|argument_id| {
-                tree.get(*argument_id).value() == Some(expression_id)
-            }) =>
-        {
-            matches!(
-                replacement_expression,
-                dir::Expression::SequenceExpression { .. }
-            )
-        }
         _ => false,
     }
 }

@@ -291,10 +291,6 @@ fn invalid_ancestor_expression_id(
         let parent_expression = tree.get(parent_expression_id);
 
         // allow non-tail sequence operands
-        if is_non_tail_sequence_parent(parent_expression, current_expression_id) {
-            return None;
-        }
-
         // recurse through short-circuiting wrappers
         if is_short_circuiting_parent(parent_expression, current_expression_id) {
             current_expression_id =
@@ -304,20 +300,6 @@ fn invalid_ancestor_expression_id(
 
         return Some(parent_expression_id);
     }
-}
-
-/// Return true when the parent is a non-tail sequence wrapper.
-fn is_non_tail_sequence_parent(
-    parent_expression: &dir::Expression,
-    child_expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let dir::Expression::SequenceExpression { expressions } = parent_expression else {
-        return false;
-    };
-
-    expressions
-        .last()
-        .is_some_and(|last_expression_id| *last_expression_id != child_expression_id)
 }
 
 /// Return true when the parent is a short-circuit wrapper around the child.

@@ -199,10 +199,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintPackageContext) -> bool {
         return false;
     }
 
-    matches!(
-        file_type,
-        FileType::TypeScriptDeclaration | FileType::DestackDeclaration
-    )
+    matches!(file_type, FileType::DestackDeclaration)
 }
 
 /// Build a dependency adjacency filtered to eligible modules.

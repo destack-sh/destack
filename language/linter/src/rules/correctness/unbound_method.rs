@@ -143,7 +143,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<LintFix> {
         let expression = self.ctx.dir.get(expression_id);
-        let (left_expression_id, method_name, is_private, method_text_span) = match expression {
+        let (left_expression_id, method_name, method_text_span) = match expression {
             dir::Expression::Member { left, name, .. } => {
                 // skip helper names: this expression is itself not a method reference target
                 if *name == Some(self.bind_name)
@@ -153,18 +153,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                     return None;
                 }
 
-                (*left, *name, false, self.ctx.get_span(expression_id))
-            }
-            dir::Expression::PrivateMember { left, name, .. } => {
-                // skip helper names: this expression is itself not a method reference target
-                if *name == Some(self.bind_name)
-                    || *name == Some(self.call_name)
-                    || *name == Some(self.apply_name)
-                {
-                    return None;
-                }
-
-                (*left, *name, true, self.ctx.get_span(expression_id))
+                (*left, *name, self.ctx.get_span(expression_id))
             }
             _ => return None,
         };
@@ -182,13 +171,8 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // keep direct expression text for robust source preserving rewrites
         let method_text = self.ctx.get_span_text(method_text_span).to_string();
-        let left_text = member_receiver_text(
-            self.ctx,
-            left_expression_id,
-            &method_text,
-            method_name?,
-            is_private,
-        )?;
+        let left_text =
+            member_receiver_text(self.ctx, left_expression_id, &method_text, method_name?)?;
         if method_text.is_empty() || left_text.is_empty() {
             return None;
         }
@@ -331,17 +315,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
                     return true;
                 }
-                dir::Expression::PrivateMember { left, name, .. } if *left == current_id => {
-                    if *name == Some(self.bind_name)
-                        || *name == Some(self.call_name)
-                        || *name == Some(self.apply_name)
-                    {
-                        current_id = parent_id;
-                        continue;
-                    }
-
-                    return true;
-                }
                 _ => return false,
             }
         }
@@ -422,10 +395,7 @@ impl NodeVisitor for UnboundMethodVisitor<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if matches!(
-            expression,
-            dir::Expression::Member { .. } | dir::Expression::PrivateMember { .. }
-        ) {
+        if matches!(expression, dir::Expression::Member { .. }) {
             self.check_method_reference(id);
         }
 

@@ -89,7 +89,7 @@ pub fn assign_pattern_field_contains_expression(
         dir::AssignPatternField::Positional { pattern } => {
             assign_pattern_contains_expression(tree, *pattern, expression_id)
         }
-        dir::AssignPatternField::Spread { pattern } => pattern.is_some_and(|pattern_id| {
+        dir::AssignPatternField::Rest { pattern } => pattern.is_some_and(|pattern_id| {
             assign_pattern_contains_expression(tree, pattern_id, expression_id)
         }),
         dir::AssignPatternField::Elision => false,
@@ -908,7 +908,7 @@ fn expression_contains_reference_segment(
             type_expression_contains_reference_segment(tree, *value, target_segment)
         }
 
-        dir::Expression::Member { left, name } | dir::Expression::PrivateMember { left, name } => {
+        dir::Expression::Member { left, name } => {
             *name == Some(target_segment)
                 || expression_contains_reference_segment(tree, *left, target_segment)
         }

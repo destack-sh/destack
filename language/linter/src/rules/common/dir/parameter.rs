@@ -175,7 +175,7 @@ pub fn collect_pattern_field_value_binding_symbols(
 
     // recurse into nested field patterns
     match field {
-        dir::PatternField::Named { pattern, .. } | dir::PatternField::Spread { pattern, .. } => {
+        dir::PatternField::Named { pattern, .. } | dir::PatternField::Rest { pattern, .. } => {
             if let Some(pattern_id) = pattern {
                 collect_pattern_value_binding_symbols(tree, symbols, *pattern_id, bindings);
             }

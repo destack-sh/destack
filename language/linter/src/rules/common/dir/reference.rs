@@ -304,14 +304,9 @@ pub fn member_receiver_text(
     left_expression_id: dir::LocalNodeId<dir::Expression>,
     member_text: &str,
     member_name: StringId,
-    is_private: bool,
 ) -> Option<String> {
     let member_name = ctx.strings.get(member_name);
-    let suffix = if is_private {
-        format!(".#{member_name}")
-    } else {
-        format!(".{member_name}")
-    };
+    let suffix = format!(".{member_name}");
 
     // prefer parsing from full member text for best source fidelity
     if let Some(receiver) = member_text.strip_suffix(&suffix) {
@@ -351,14 +346,7 @@ pub fn parent_is_receiver_helper(
     let parent_expression = tree.get(parent_id);
     matches!(
         parent_expression,
-        dir::Expression::Member {
-            left,
-            name,
-        }
-            | dir::Expression::PrivateMember {
-                left,
-                name,
-            }
+        dir::Expression::Member { left, name }
             if *left == expression_id
                 && (*name == Some(bind_name)
                     || *name == Some(call_name)
@@ -386,14 +374,7 @@ pub fn call_like_invocation_is_receiver_bound(
     let callee = tree.get(callee_id);
     let uses_receiver_helper = matches!(
         callee,
-        dir::Expression::Member {
-            left: _,
-            name,
-        }
-            | dir::Expression::PrivateMember {
-                left: _,
-                name,
-            }
+        dir::Expression::Member { left: _, name }
             if *name == Some(bind_name)
                 || *name == Some(call_name)
                 || *name == Some(apply_name)
