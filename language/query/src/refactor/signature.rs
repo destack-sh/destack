@@ -662,9 +662,7 @@ impl ModuleQueryContext<'_> {
                     positional_args.push(value_text);
                 }
                 dir::Argument::Spread { .. } => positional_args.push(arg_text),
-                dir::Argument::Error => {
-                    panic!("error argument reached signature refactor")
-                }
+                dir::Argument::Elision | dir::Argument::Error => return None,
             }
         }
 
