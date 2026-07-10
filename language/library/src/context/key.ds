@@ -1,6 +1,6 @@
 /// Typed key for userland context values.
 @languageItem("context.ContextKey")
-export class ContextKey<T> {
+export class ContextKey<in out T> {
     /// Human-readable key name.
     readonly name: string;
 

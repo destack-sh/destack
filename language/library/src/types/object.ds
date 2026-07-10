@@ -61,4 +61,4 @@ export type NonNullable<T> = Exclude<T, null | undefined>;
 
 /// Marker for contextual object `this` typing.
 @languageItem("types.ThisType")
-export newtype interface ThisType<T> {}
+export newtype interface ThisType<in out T> {}
