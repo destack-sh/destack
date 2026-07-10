@@ -64,7 +64,7 @@ impl ExpressionSlotPosition {
 
                 None
             }
-            dir::Argument::Error => panic!("error argument reached expression slot query"),
+            dir::Argument::Elision | dir::Argument::Error => None,
         }
     }
 
