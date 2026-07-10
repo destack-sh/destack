@@ -64,15 +64,15 @@ type Handles = (&readonly (/* borrowed */ Buffer), *readonly (/* pointer */ Raw)
 
 ### nested ownership tuple type
 
-Ownership operators stay tight inside nested tuple and array type positions.
+Ownership operators stay tight inside nested tuple positions.
 
 ```ds line-width=80
-type Handles = ([&Buffer, ^Result], (&readonly Buffer, *readonly Raw), local ^Buffer)
+type Handles = ((&Buffer, ^Result), (&readonly Buffer, *readonly Raw), local ^Buffer)
 ```
 
 ```ds expected
 type Handles = (
-    [&Buffer, ^Result],
+    (&Buffer, ^Result),
     (&readonly Buffer, *readonly Raw),
     local ^Buffer,
 );

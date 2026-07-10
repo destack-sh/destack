@@ -2,16 +2,16 @@
 
 ## Indexed Access and Queries
 
-### bracket tuple type
+### tuple type
 
-Bracket tuple types keep bracket syntax.
+Tuple types use parentheses.
 
 ```ds:main.ds
-type Pair = [T, boolean]
+type Pair = (T, boolean)
 ```
 
 ```ds expected
-type Pair = [T, boolean];
+type Pair = (T, boolean);
 ```
 
 ### slice type
@@ -52,69 +52,69 @@ type Bytes = [byte; 32];
 type Lane<comptime N: uint> = [byte; N * 2];
 ```
 
-### bracket tuple union
+### tuple union
 
-Empty and singleton bracket tuple types keep bracket syntax in unions.
+Empty and singleton tuple types keep their required punctuation in unions.
 
 ```ds:main.ds
-type Next<TNext> = [] | [TNext]
+type Next<TNext> = () | (TNext,)
 ```
 
 ```ds expected
-type Next<TNext> = [] | [TNext];
+type Next<TNext> = () | (TNext,);
 ```
 
-### bracket tuple rest element
+### tuple rest element
 
-Bracket tuple rest elements keep array suffixes on the rest type.
+Tuple rest elements keep array suffixes on the rest type.
 
 ```ds:main.ds
-type Requirements = [...HostAction[]]
+type Requirements = (...HostAction[])
 ```
 
 ```ds expected
-type Requirements = [...HostAction[]];
+type Requirements = (...HostAction[],);
 ```
 
-### bracket tuple labeled rest payload
+### tuple labeled rest payload
 
-Labeled tuple rest elements keep the spread marker before the label.
+Labeled tuple rest elements keep the spread marker after the label.
 
 ```ds:main.ds
-type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"]
+type RedisArgs = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES")
 ```
 
 ```ds expected
-type RedisArgs = [keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES"];
+type RedisArgs = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES");
 ```
 
-### bracket tuple optional label
+### tuple optional label
 
 Optional labeled tuple elements keep `?` on the label.
 
 ```ds:main.ds
-type UpgradeOptions<WebSocketData> = [options?: {data?: undefined}, options: {data: WebSocketData}]
+type UpgradeOptions<WebSocketData> = (options?: {data?: undefined}, options: {data: WebSocketData})
 ```
 
 ```ds expected
-type UpgradeOptions<WebSocketData> = [
+type UpgradeOptions<WebSocketData> = (
     options?: { data?: undefined },
     options: { data: WebSocketData },
-];
+);
 ```
 
-### conditional bracket tuple optional label
+### conditional tuple optional label
 
 Conditional tuple branches keep optional labels parseable after formatting.
 
 ```ds:main.ds
-type UpgradeOptions<WebSocketData> = [WebSocketData] extends [undefined] ? [options?: {data?: undefined}] : [options: {data: WebSocketData}]
+type UpgradeOptions<WebSocketData> = (WebSocketData,) extends (undefined,) ? (options?: {data?: undefined},) : (options: {data: WebSocketData},)
 ```
 
 ```ds expected
-type UpgradeOptions<WebSocketData> = [WebSocketData] extends [undefined]
-    ? [options?: { data?: undefined }]
-    : [options: { data: WebSocketData }];
+type UpgradeOptions<WebSocketData> = (WebSocketData,) extends (undefined,)
+    ? (options?: { data?: undefined },)
+    : (options: { data: WebSocketData },);
 ```
 
 ### indexed access type
