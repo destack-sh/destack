@@ -465,7 +465,7 @@ fn test_format_program_preserves_blank_line_before_parenthesized_iife() {
     assert_format_program_reference_widths(
         r#"const a = 1
 
-;(function() {
+;(() => {
   const b = 2;
 })()
 
@@ -482,7 +482,7 @@ baz();
             80,
             r#"const a = 1;
 
-(function () {
+(() => {
   const b = 2;
 })();
 

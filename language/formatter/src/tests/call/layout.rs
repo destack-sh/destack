@@ -80,8 +80,8 @@ call(x satisfies Foo, y satisfies Bar);
 // Don't group when both arguments are arrow functions
 call(() => foo, () => bar);
 
-// Don't group when both arguments are function expressions
-call(function() { return foo; }, function() { return bar; });
+// Don't group when both arguments are block arrow functions
+call(() => { return foo; }, () => { return bar; });
 
 // DO group when arguments are different types - object and array
 call({ a: 1, b: 2, c: 3 }, [1, 2, 3, 4, 5, 6]);
@@ -117,12 +117,12 @@ call(
   () => bar,
 );
 
-// Don't group when both arguments are function expressions
+// Don't group when both arguments are block arrow functions
 call(
-  function () {
+  () => {
     return foo;
   },
-  function () {
+  () => {
     return bar;
   },
 );
@@ -167,12 +167,12 @@ call(
   () => bar,
 );
 
-// Don't group when both arguments are function expressions
+// Don't group when both arguments are block arrow functions
 call(
-  function () {
+  () => {
     return foo;
   },
-  function () {
+  () => {
     return bar;
   },
 );
@@ -333,24 +333,24 @@ const arrayTail = call((alpha: AlphaType, beta: BetaType): Result => {
     );
 }
 
-/// Function expressions should group as the first argument when the tail is short.
+/// Block arrow functions should group as the first argument when the tail is short.
 #[test]
-fn test_format_grouped_first_function_expression_argument_layout() {
+fn test_format_grouped_first_block_arrow_argument_layout() {
     assert_format_program_reference_widths(
-        r#"const value = call(function() { return foo; }, bar);
+        r#"const value = call(() => { return foo; }, bar);
 "#,
         FileType::JavaScript,
         &[
             (
                 80,
-                r#"const value = call(function () {
+                r#"const value = call(() => {
   return foo;
 }, bar);
 "#,
             ),
             (
                 100,
-                r#"const value = call(function () {
+                r#"const value = call(() => {
   return foo;
 }, bar);
 "#,
@@ -465,13 +465,13 @@ fn test_format_two_argument_test_call_keeps_expression_body_callback() {
     );
 }
 
-/// Two-argument test calls should keep function-expression callbacks in the direct layout.
+/// Two-argument test calls should keep block arrow callbacks in the direct layout.
 #[test]
-fn test_format_two_argument_test_call_keeps_function_expression_callback() {
+fn test_format_two_argument_test_call_keeps_block_arrow_callback() {
     assert_format_program!(
-        r#"it("name", function (first, second) { return first + second; });
+        r#"it("name", (first, second) => { return first + second; });
 "#,
-        r#"it("name", function (first, second) {
+        r#"it("name", (first, second) => {
   return first + second;
 });
 "#,
@@ -661,33 +661,15 @@ fn test_format_private_field_call_arguments_stay_grouped() {
     );
 }
 
-/// Function-expression callbacks should still group a short dependency array tail.
+/// Block arrow callbacks after spread arguments preserve their function head.
 #[test]
-fn test_format_function_callback_with_short_array_tail() {
+fn test_format_spread_with_block_arrow_callback_argument() {
     assert_format_program!(
-        r#"const value = call(function () { return foo; }, [1, 2, 3]);
-"#,
-        r#"const value = call(
-  function () {
-    return foo;
-  },
-  [1, 2, 3],
-);
-"#,
-        FileType::JavaScript,
-        DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
-    );
-}
-
-/// Function callbacks after spread arguments keep their own function head.
-#[test]
-fn test_format_spread_with_function_callback_argument() {
-    assert_format_program!(
-        r#"bar(...items, function() {
+        r#"bar(...items, () => {
   return 1;
 });
 "#,
-        r#"bar(...items, function () {
+        r#"bar(...items, () => {
   return 1;
 });
 "#,
