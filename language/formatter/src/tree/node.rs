@@ -1,12 +1,12 @@
 use super::child::{
-    expression_chain_has_separator_comment, format_inline_stub_comments,
-    format_multiline_stub_comment_nodes, node_has_line_comment, tree_child_has_outer_line_comment,
-    tree_child_should_inline_braced_expression, tree_control_child_should_expand,
-    tree_expression_contains_callback_break,
+    expression_chain_has_separator_comment, node_has_line_comment,
+    tree_child_has_outer_line_comment, tree_child_should_inline_braced_expression,
+    tree_control_child_should_expand, tree_expression_contains_callback_break,
 };
 use crate::annotation::{
     FormatTrailingComments, format_trailing_comments, infix_or_postfix_annotations,
     prefix_annotations, prefix_annotations_after_offset, prefix_annotations_before_offset,
+    write_comment_sequence,
 };
 use crate::chain::transparent_inner_expression;
 use crate::collection::literal::format_scalar_literal;
@@ -16,7 +16,7 @@ use crate::file::write_source_span;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
-    Argument, Comment, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, TreeAttribute,
+    Argument, Expression, IfForm, LocalNodeId, NodeType, ScalarLiteral, TreeAttribute,
     TreeAttributeValue, TreeChild,
 };
 use destack_fir::format::{Buffer, FormatResult};
@@ -64,70 +64,38 @@ fn tree_node_enclosing_span(
     }
 }
 
-/// Return stub comment nodes attached to the value span or child span.
-fn stub_child_comment_nodes(
-    context: &DestackFormatContext<'_>,
-    child_id: LocalNodeId<TreeChild>,
-    value_id: LocalNodeId<Expression>,
-) -> (Vec<Comment>, bool) {
-    let expression_comment_nodes = {
-        let comments = context.comments();
-        comments
-            .comments_in_range(context.span(value_id).start, context.span(value_id).end)
-            .to_vec()
-    };
-    if !expression_comment_nodes.is_empty() {
-        return (expression_comment_nodes, false);
-    }
-
-    let child_comment_nodes = {
-        let comments = context.comments();
-        comments
-            .comments_in_range(context.span(child_id).start, context.span(child_id).end)
-            .to_vec()
-    };
-    let rendered_inline_from_child = !child_comment_nodes.is_empty();
-
-    (child_comment_nodes, rendered_inline_from_child)
-}
-
-/// Write one stub tree child inside `{ ... }`.
-fn write_stub_tree_child<'ast>(
+/// Write one empty tree expression container.
+fn write_empty_tree_child<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
-    value_id: LocalNodeId<Expression>,
-) -> FormatResult<bool> {
-    let (comment_nodes, rendered_inline_from_child) =
-        stub_child_comment_nodes(f.context(), child_id, value_id);
+) -> FormatResult<()> {
+    let child_span = f.context().span(child_id);
+    let comments = f
+        .context()
+        .comments()
+        .comments_in_range(child_span.start, child_span.end)
+        .to_vec();
 
-    if comment_nodes
-        .iter()
-        .copied()
-        .any(|comment| comment.is_line())
-    {
+    // line comments require a multiline expression container
+    if comments.iter().copied().any(|comment| comment.is_line()) {
         write!(
             f,
             [group(&format_args![
                 token("{"),
-                block_indent(&format_with(|f| {
-                    format_multiline_stub_comment_nodes(f, &comment_nodes)
-                })),
+                block_indent(&format_with(|f| { write_comment_sequence(f, &comments) })),
                 hard_line_break(),
                 token("}")
             ])]
         )?;
-    } else {
-        write!(f, [token("{")])?;
-        let mut wrote_stub_comment = format_inline_stub_comments(f, f.context().span(value_id))?;
-        if !wrote_stub_comment {
-            wrote_stub_comment = format_inline_stub_comments(f, f.context().span(child_id))?;
-        }
-        write!(f, [token("}")])?;
-
-        return Ok(rendered_inline_from_child && wrote_stub_comment);
+        return Ok(());
     }
 
-    Ok(rendered_inline_from_child)
+    // block comments remain inline inside the braces
+    write!(f, [token("{")])?;
+    write_comment_sequence(f, &comments)?;
+    write!(f, [token("}")])?;
+
+    Ok(())
 }
 
 /// Write one tree expression container child.
@@ -135,8 +103,7 @@ fn write_tree_expression_child<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
     value: LocalNodeId<Expression>,
-) -> FormatResult<bool> {
-    let value_expr = f.context().tree.get(value);
+) -> FormatResult<()> {
     let child_span = f.context().span(child_id);
     let value_end = f.context().tree.get_source_extent(value).end;
     let has_callback_break = tree_expression_contains_callback_break(f.context(), value);
@@ -152,10 +119,6 @@ fn write_tree_expression_child<'ast>(
     };
     let force_multiline_braced_expression =
         tree_child_has_outer_line_comment(f.context(), child_id, value);
-
-    if matches!(value_expr, Expression::Stub) {
-        return write_stub_tree_child(f, child_id, value);
-    }
 
     // preserve outer line comments
     if force_multiline_braced_expression {
@@ -246,7 +209,7 @@ fn write_tree_expression_child<'ast>(
         )?;
     }
 
-    Ok(false)
+    Ok(())
 }
 
 /// Write one tree expression container value.
@@ -464,13 +427,15 @@ fn write_tree_child_inner<'ast>(
     child_id: LocalNodeId<TreeChild>,
     following_span_start: Option<u32>,
 ) -> FormatResult<()> {
-    let mut child_annotations_rendered_inline = false;
     match f.context().tree.get(child_id) {
         TreeChild::Text { value } => {
             write!(f, [text(f.context().strings.get(*value))])?;
         }
+        TreeChild::Empty => {
+            write_empty_tree_child(f, child_id)?;
+        }
         TreeChild::Expression { value } => {
-            child_annotations_rendered_inline = write_tree_expression_child(f, child_id, *value)?;
+            write_tree_expression_child(f, child_id, *value)?;
         }
         TreeChild::Spread { value } => {
             write_tree_spread_child(f, child_id, *value)?;
@@ -499,9 +464,7 @@ fn write_tree_child_inner<'ast>(
         )?;
     }
 
-    if !child_annotations_rendered_inline {
-        write!(f, [infix_or_postfix_annotations(f.context(), child_id)])?;
-    }
+    write!(f, [infix_or_postfix_annotations(f.context(), child_id)])?;
 
     Ok(())
 }

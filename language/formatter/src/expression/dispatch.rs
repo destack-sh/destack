@@ -99,7 +99,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Assign { .. }
         | Expression::Debugger
         | Expression::Missing
-        | Expression::Stub
         | Expression::Error => {
             write_operator_expression_trailing_annotations(f, expression_id, expression)
         }
@@ -275,7 +274,6 @@ fn format_expression_body_inner<'ast>(
         | Expression::Assign { .. }
         | Expression::Debugger
         | Expression::Missing
-        | Expression::Stub
         | Expression::Error => {
             let is_formatted = format_operator_expression(f, node_id, expression)?;
             debug_assert!(is_formatted);

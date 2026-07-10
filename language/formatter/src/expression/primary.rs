@@ -8,7 +8,6 @@ use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, format_dangling_comments,
     infix_or_postfix_annotations, postfix_annotations, write_comment_slice,
 };
-use crate::chain::transparent_inner_expression;
 use crate::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::{FormatNodeWithoutTrailingComments, with_following_span_start};
@@ -22,7 +21,7 @@ use destack_dir::{
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, indent, line_suffix_boundary,
-    soft_block_indent, soft_line_break_or_space, space, token,
+    soft_block_indent, soft_line_break_or_space, token,
 };
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
@@ -204,38 +203,6 @@ pub(crate) fn format_primary_array_expression<'ast>(
         return Ok(());
     }
 
-    if array_has_sparse_holes(f.context(), elements_ids) {
-        let span = f.context().span(node_id);
-        let has_newline_in_source = f.context().has_newline(span);
-        let has_sparse_annotations = f.context().has_infix_annotation(node_id)
-            || arguments_have_annotations(f.context(), elements_ids);
-
-        if has_newline_in_source || has_sparse_annotations {
-            let trailing_separator = match f.context().options.trailing_comma {
-                TrailingComma::None => TrailingSeparator::Omit,
-                TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
-            };
-            write!(
-                f,
-                [group(&format_args![
-                    token("["),
-                    soft_block_indent(&separated_entries(
-                        ",",
-                        elements_ids,
-                        trailing_separator,
-                        None,
-                    )),
-                    token("]")
-                ])
-                .should_expand(has_newline_in_source)]
-            )?;
-        } else {
-            format_sparse_array_literal(f, elements_ids)?;
-        }
-
-        return Ok(());
-    }
-
     let span = f.context().span(node_id);
     let has_newline_in_source = f.context().has_newline(span);
     let has_annotations = f.context().has_infix_annotation(node_id)
@@ -286,9 +253,17 @@ pub(crate) fn format_primary_array_expression<'ast>(
     } else if should_use_fill_layout {
         format_fill_array(f, elements_ids)?;
     } else {
-        let trailing_separator = match f.context().options.trailing_comma {
-            TrailingComma::None => TrailingSeparator::Omit,
-            TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
+        // closing elisions need their comma in every layout
+        let trailing_separator = if elements_ids
+            .last()
+            .is_some_and(|element_id| matches!(tree.get(*element_id), Argument::Elision))
+        {
+            TrailingSeparator::Mandatory
+        } else {
+            match f.context().options.trailing_comma {
+                TrailingComma::None => TrailingSeparator::Omit,
+                TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
+            }
         };
         write!(
             f,
@@ -457,67 +432,6 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
         )?;
     }
 
-    Ok(())
-}
-
-/// Return whether an array literal contains sparse elision slots.
-fn array_has_sparse_holes(
-    context: &DestackFormatContext<'_>,
-    elements: &[LocalNodeId<Argument>],
-) -> bool {
-    elements
-        .iter()
-        .copied()
-        .any(|argument_id| argument_is_sparse_hole(context, argument_id))
-}
-
-/// Return whether an array element argument is a sparse hole.
-fn argument_is_sparse_hole(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    let Argument::Positional { value, .. } = context.tree.get(argument_id) else {
-        return false;
-    };
-    let value_id = transparent_inner_expression(context, *value);
-    matches!(context.tree.get(value_id), Expression::Stub)
-}
-
-/// Format sparse arrays while preserving elision comma count.
-fn format_sparse_array_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    elements: &[LocalNodeId<Argument>],
-) -> FormatResult<()> {
-    write!(f, [token("[")])?;
-
-    let mut expects_element = true;
-    for (index, argument_id) in elements.iter().copied().enumerate() {
-        let is_hole = argument_is_sparse_hole(f.context(), argument_id);
-
-        if !expects_element {
-            write!(f, [token(",")])?;
-            if !is_hole {
-                write!(f, [space()])?;
-            }
-            expects_element = true;
-        }
-
-        if is_hole {
-            write!(f, [token(",")])?;
-            let next_is_non_hole = elements
-                .get(index + 1)
-                .is_some_and(|next_id| !argument_is_sparse_hole(f.context(), *next_id));
-            if next_is_non_hole {
-                write!(f, [space()])?;
-            }
-            continue;
-        }
-
-        write!(f, [argument_id])?;
-        expects_element = false;
-    }
-
-    write!(f, [token("]")])?;
     Ok(())
 }
 

@@ -73,6 +73,7 @@ pub(crate) fn write_plain_call_argument<'ast>(
             write!(f, [token("...")])?;
             write_expression_without_trailing_comments(f, *value)?;
         }
+        Argument::Elision => {}
         Argument::Error => {
             write_source_span(f, f.context().span(argument_id))?;
         }
@@ -315,6 +316,7 @@ fn write_call_argument_payload<'ast>(
                 write_expression_without_trailing_comments(f, *value)?;
             }
         }
+        Argument::Elision => {}
         Argument::Error => {
             write_source_span(f, f.context().span(argument_id))?;
         }

@@ -11,7 +11,7 @@ pub(crate) fn argument_value_id_if_present(
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => Some(*value),
-        Argument::Error => None,
+        Argument::Elision | Argument::Error => None,
     }
 }
 

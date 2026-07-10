@@ -382,7 +382,7 @@ fn template_argument_expression_id(
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
-        Argument::Error => return None,
+        Argument::Elision | Argument::Error => return None,
     };
     Some(unwrap_template_expression(context, value))
 }

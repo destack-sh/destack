@@ -393,8 +393,7 @@ pub(crate) fn expression_needs_statement_terminator(
         return true;
     }
 
-    !matches!(expression, Expression::Stub | Expression::Error)
-        && !expression.ends_statement_on_newline()
+    !matches!(expression, Expression::Error) && !expression.ends_statement_on_newline()
 }
 
 /// Return whether one statement wrapper should keep its trailing semicolon.
@@ -433,7 +432,7 @@ pub(crate) fn statement_wrapper_needs_semicolon(
         return false;
     }
 
-    if matches!(expression, Expression::Stub | Expression::Error) {
+    if matches!(expression, Expression::Error) {
         return false;
     }
 

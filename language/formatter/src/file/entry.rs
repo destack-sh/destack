@@ -406,6 +406,28 @@ mod tests {
         );
     }
 
+    /// Source formatting should preserve spacing in files containing only comments.
+    #[test]
+    fn test_format_file_source_preserves_comment_only_file_spacing() {
+        let file = File::from_text(
+            FileId::new(1),
+            "main.ds".to_string(),
+            Uri::from_string("test:///main.ds"),
+            None,
+            FileType::Destack,
+            String::new(),
+        );
+
+        let formatted = format_file_source(
+            &file,
+            "// first\n\n/* second */\n/** third */\n",
+            FormatterOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(formatted, "// first\n\n/* second */\n/** third */\n");
+    }
+
     /// Range formatting should replace the selected source root.
     #[test]
     fn test_format_source_range_replaces_selected_root() {

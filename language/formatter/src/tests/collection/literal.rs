@@ -2,6 +2,7 @@ use crate::{
     DestackFormatOptions, assert_format, assert_format_program, assert_format_roundtrip,
     assert_format_roundtrip_with_file_type,
 };
+use destack_repository::TrailingComma;
 use destack_source::FileType;
 
 /// Multi-char strings should normalize to double quotes in semantic mode.
@@ -90,6 +91,79 @@ fn test_format_singleton_tuple_literal() {
         r#"const value = (1,)
 "#,
         r#"const value = (1,);
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Sparse arrays should preserve every elided element.
+#[test]
+fn test_format_sparse_array_elisions() {
+    assert_format_program!(
+        r#"const leading=[,value]
+const repeated=[,,value]
+const middle=[first,,third]
+const trailing=[first,,]
+"#,
+        r#"const leading = [, value];
+const repeated = [, , value];
+const middle = [first, , third];
+const trailing = [first, ,];
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Closing elisions should retain their comma when optional trailing commas are disabled.
+#[test]
+fn test_format_sparse_array_requires_closing_elision_comma() {
+    assert_format_program!(
+        "const values=[first,,]\n",
+        "const values = [first, ,];\n",
+        FileType::Destack,
+        DestackFormatOptions {
+            trailing_comma: TrailingComma::None,
+            ..DestackFormatOptions::default()
+        },
+    );
+}
+
+/// Multiline sparse arrays should keep elisions as empty entries.
+#[test]
+fn test_format_multiline_sparse_array() {
+    assert_format_program!(
+        r#"const values = [
+  first,
+  ,
+  third
+]
+"#,
+        r#"const values = [
+    first,
+    ,
+    third,
+];
+"#,
+        FileType::Destack,
+    );
+}
+
+/// Sparse array comments should remain stable around elision separators.
+#[test]
+fn test_format_sparse_array_comment_separator() {
+    assert_format_program!(
+        r#"const inline=[first,/* unavailable */,third]
+const multiline=[first,
+// unavailable
+,third]
+"#,
+        r#"const inline = [first, , /* unavailable */ third];
+const multiline = [
+    first,
+    ,
+    // unavailable
+    third,
+];
 "#,
         FileType::Destack,
     );

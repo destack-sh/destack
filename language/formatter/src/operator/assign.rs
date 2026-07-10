@@ -40,7 +40,7 @@ fn is_short_argument(
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => *value,
-        Argument::Error => return false,
+        Argument::Elision | Argument::Error => return false,
     };
 
     is_short_expression(context, argument_expression_id, threshold)
