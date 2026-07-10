@@ -96,7 +96,7 @@ fn add_type_alias_row(
             "template",
             definition
                 .template
-                .map(|template| template_label(builder, symbol, template)),
+                .and_then(|template| template_label(builder, symbol, template)),
         )
         .type_field("value", builder.global_type_label(definition.value))
         .optional_type_field("reduced", builder.reduced_type_label(definition.value));
@@ -118,7 +118,7 @@ fn add_newtype_row(
             "template",
             definition
                 .template
-                .map(|template| template_label(builder, symbol, template)),
+                .and_then(|template| template_label(builder, symbol, template)),
         )
         .type_field("value", builder.global_type_label(definition.value));
 
@@ -138,7 +138,7 @@ fn declaration_row(
         .optional_field("source", builder.node_source(source))
         .optional_field(
             "template",
-            template.map(|template| template_label(builder, symbol, template)),
+            template.and_then(|template| template_label(builder, symbol, template)),
         )
 }
 
@@ -224,18 +224,20 @@ fn add_extension_row(
     builder.push(row);
 }
 
-/// Render one declaration template's parameter list.
+/// Render one declaration template's parameter list, omitting empty carriers.
 fn template_label(
     builder: &DirSnapshotBuilder<'_>,
     owner: dir::GlobalSymbolId,
     template: dir::LocalGenericTemplateId,
-) -> String {
+) -> Option<String> {
     let Some(generics) = builder.generic_table(owner.module_id) else {
-        return format!("{template:?}");
+        return Some(format!("{template:?}"));
     };
-    let parameters = generics
-        .get_template(template)
-        .parameters
+    let parameters = generics.get_template(template).parameters.as_slice();
+    if parameters.is_empty() {
+        return None;
+    }
+    let parameters = parameters
         .iter()
         .map(|parameter| {
             generic_template_parameter_label(generics.get_parameter(*parameter), builder)
@@ -243,7 +245,7 @@ fn template_label(
         .collect::<Vec<_>>()
         .join(", ");
 
-    format!("({parameters})")
+    Some(format!("({parameters})"))
 }
 
 /// Add where predicate rows from one declaration's template.

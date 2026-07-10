@@ -17,8 +17,12 @@ pub(super) struct GenericInstanceSnapshot {
 
 impl SnapshotTable for dir::GenericSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        // render generic templates with their parameter signatures
+        // render generic templates with their parameter signatures,
+        // omitting parameterless hypothesis carriers
         for (_, template) in self.iter_templates() {
+            if template.parameters.is_empty() {
+                continue;
+            }
             let anchor = builder.anchor_node(template.source);
             let row = SnapshotRow::new(anchor, "generic", "template")
                 .optional_field(

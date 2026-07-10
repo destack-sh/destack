@@ -431,6 +431,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => {
                 self.collect_expression_source_path_segments(*left, segments);
                 segments.push(*name);
@@ -908,10 +909,14 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Return whether one expression type row is structural noise.
     fn expression_has_boring_type_node(&self, expression: &dir::Expression) -> bool {
+        // do blocks are value expressions and keep their rows
+        if let dir::Expression::Block(block) = expression {
+            return self.tree.get(*block).form != dir::BlockForm::Do;
+        }
+
         matches!(
             expression,
-            dir::Expression::Block(_)
-                | dir::Expression::Import { .. }
+            dir::Expression::Import { .. }
                 | dir::Expression::Export { .. }
                 | dir::Expression::Let { .. }
                 | dir::Expression::LetElse { .. }

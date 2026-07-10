@@ -39,7 +39,7 @@ import { HostError } from "destack:error/host";
         "main.ds",
         r#"
 /// @diagnostic.error code=EI204 message="unsupported module specifier 'destack:error/host'"
-/// @diagnostic.label line=2 column=1 source="import { HostError } from \"destack:error/host\";"
+/// @diagnostic.label line=2 column=1 span="import { HostError } from \"destack:error/host\"" line_source="import { HostError } from \"destack:error/host\";"
 "#,
     );
 }
@@ -59,7 +59,7 @@ import { value } from "#internal";
         "main.ds",
         r##"
 /// @diagnostic.error code=EI204 message="unsupported module specifier '#internal'"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"#internal\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"#internal\"" line_source="import { value } from \"#internal\";"
 "##,
     );
 }
@@ -85,7 +85,7 @@ export let value = 1;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI204 message="unsupported module specifier '/dep.ds'"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"/dep.ds\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"/dep.ds\"" line_source="import { value } from \"/dep.ds\";"
 "#,
     );
 }
@@ -105,7 +105,7 @@ import { value } from "host:runtime";
         "main.ds",
         r#"
 /// @diagnostic.error code=EI204 message="unsupported module specifier 'host:runtime'"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"host:runtime\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"host:runtime\"" line_source="import { value } from \"host:runtime\";"
 "#,
     );
 }
@@ -131,7 +131,7 @@ export let value = 1;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI204 message="unsupported module specifier './dep.ds?raw'"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"./dep.ds?raw\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"./dep.ds?raw\"" line_source="import { value } from \"./dep.ds?raw\";"
 "#,
     );
 }
@@ -175,7 +175,7 @@ export let preview = true;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI204 message="unsupported module specifier './user.preview.ds'"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"./user.preview.ds\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"./user.preview.ds\"" line_source="import { value } from \"./user.preview.ds\";"
 "#,
     );
 }

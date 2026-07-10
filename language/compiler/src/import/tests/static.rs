@@ -687,7 +687,7 @@ export type Foo = string;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI212 message="`@if` import guard requires a condition"
-/// @diagnostic.label line=2 column=1 source="@if"
+/// @diagnostic.label line=2 column=1 span="@if" line_source="@if"
 "#,
     );
 }
@@ -714,7 +714,7 @@ export type Foo = string;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI213 message="`@if` import guard requires exactly one condition"
-/// @diagnostic.label line=2 column=1 source="@if(true, false)"
+/// @diagnostic.label line=2 column=1 span="@if(true, false)" line_source="@if(true, false)"
 "#,
     );
 }
@@ -741,7 +741,7 @@ export type Foo = string;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI214 message="`@if` import guard condition must be boolean"
-/// @diagnostic.label line=2 column=5 source="@if(1)"
+/// @diagnostic.label line=2 column=5 span="1" line_source="@if(1)"
 "#,
     );
 }
@@ -770,7 +770,7 @@ export type Foo = string;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI215 message="`@if` import guard condition is not static"
-/// @diagnostic.label line=4 column=5 source="@if(enabled)"
+/// @diagnostic.label line=4 column=5 span="enabled" line_source="@if(enabled)"
 "#,
     );
 }
