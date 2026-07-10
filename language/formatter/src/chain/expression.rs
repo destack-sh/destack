@@ -6,7 +6,7 @@ use super::{
     ChainMember, ChainRoot, TailChainGroups, assignment_like_parent, chain_member_is_call_like,
     chain_member_is_index, chain_member_node_id, expression_has_ternary_ancestor,
     expression_trivia_anchor_end, first_tail_group_member, is_lambda_expression,
-    is_nested_lambda_expression, member_is_private_hash, transparent_inner_expression,
+    is_nested_lambda_expression, transparent_inner_expression,
 };
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, format_leading_comments,
@@ -1225,11 +1225,7 @@ fn write_chain_operation<'ast>(
         } => {
             write_chain_operation_optional_marker(f, *node_id, *optional_position)?;
 
-            let is_private_hash = member_is_private_hash(f.context(), *node_id);
             write!(f, [token(".")])?;
-            if is_private_hash {
-                write!(f, [token("#")])?;
-            }
             write!(f, [*segment])?;
             if !generic_arguments.is_empty() {
                 if next_operation.is_some_and(chain_member_is_index) {

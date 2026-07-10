@@ -87,8 +87,8 @@ fn ternary_chain_has_tree_branch(
         .is_some_and(|_| ternary_chain_has_tree_branch(context, else_expression))
 }
 
-/// Return whether one JSX ternary chain must expand to preserve branch ownership.
-pub(crate) fn jsx_chain_ternary_needs_expanded_branches(
+/// Return whether one tree ternary chain must expand to preserve branch ownership.
+pub(crate) fn tree_chain_ternary_needs_expanded_branches(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -240,8 +240,8 @@ fn ternary_layout(
     ConditionalLayout::Root
 }
 
-/// Return whether one JSX-chain branch expression can stay unwrapped.
-fn expression_is_jsx_chain_bare_branch(
+/// Return whether one tree-chain branch expression can stay unwrapped.
+fn expression_is_tree_chain_bare_branch(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     is_alternate: bool,
@@ -332,15 +332,15 @@ fn ternary_branch_has_breaking_trailing_comments(
     })
 }
 
-/// Format one branch in a jsx ternary chain.
-fn format_jsx_chain_branch<'ast>(
+/// Format one branch in a tree ternary chain.
+fn format_tree_chain_branch<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     is_alternate: bool,
 ) -> FormatResult<()> {
     let branch_expression_id = transparent_inner_expression(f.context(), expression_id);
     let no_wrap =
-        expression_is_jsx_chain_bare_branch(f.context(), branch_expression_id, is_alternate);
+        expression_is_tree_chain_bare_branch(f.context(), branch_expression_id, is_alternate);
     let branch_comments: SmallVec<[Comment; 2]> =
         ternary_branch_trailing_comments(f.context(), expression_id)
             .map(|(_, comments)| comments)
@@ -557,8 +557,8 @@ pub(crate) fn format_expanded_ternary_expression<'ast>(
     format_standard_ternary(f, node_id, true)
 }
 
-/// Format one jsx ternary chain expression.
-fn format_jsx_chain_ternary<'ast>(
+/// Format one tree ternary chain expression.
+fn format_tree_chain_ternary<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -572,18 +572,18 @@ fn format_jsx_chain_ternary<'ast>(
     let format_inner = format_with(|f| {
         write_standard_ternary_test(f, layout, condition, then_expression)?;
         write!(f, [space(), token("?"), space()])?;
-        format_jsx_chain_branch(f, then_expression, false)?;
+        format_tree_chain_branch(f, then_expression, false)?;
 
         write!(f, [space(), token(":"), space()])?;
         if let Some(else_expression) = else_expression {
-            format_jsx_chain_branch(f, else_expression, true)?;
+            format_tree_chain_branch(f, else_expression, true)?;
         }
 
         Ok(())
     });
 
     if layout.groups_at_root() {
-        let should_expand = jsx_chain_ternary_needs_expanded_branches(f.context(), node_id);
+        let should_expand = tree_chain_ternary_needs_expanded_branches(f.context(), node_id);
 
         write!(f, [group(&format_inner).should_expand(should_expand)])?;
     } else {
@@ -600,7 +600,7 @@ pub(crate) fn format_ternary(
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if ternary_chain_has_tree_branch(f.context(), node_id) {
-        format_jsx_chain_ternary(f, node_id)?;
+        format_tree_chain_ternary(f, node_id)?;
     } else {
         format_standard_ternary(f, node_id, false)?;
     }

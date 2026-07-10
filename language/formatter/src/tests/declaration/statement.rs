@@ -387,7 +387,7 @@ const mode = runCli();
 // Call the Rust CLI first
 const mode = runCli();
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
     );
 }
 
@@ -423,7 +423,7 @@ declare let sessionStorage: Storage;
 /** Provides access to the Cache API. */
 declare let caches: CacheStorage;
 "#,
-        FileType::TypeScriptDeclaration,
+        FileType::DestackDeclaration,
     );
 }
 
@@ -439,7 +439,7 @@ declare const second: string
 /** Doc */
 declare const second: string;
 "#,
-        FileType::TypeScriptDeclaration,
+        FileType::DestackDeclaration,
     );
 }
 
@@ -455,7 +455,7 @@ fn test_format_global_preserves_declare_spelling() {
     let Buffer: BufferConstructor;
 }
 "#,
-        FileType::TypeScriptDeclaration,
+        FileType::DestackDeclaration,
     );
 }
 
@@ -477,7 +477,7 @@ bar();
 
 baz();
 [7,8,9]"#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[(
             80,
             r#"const a = 1;
@@ -544,7 +544,7 @@ import rel from "./rel";
 #[test]
 fn test_format_decorator_comments() {
     assert_format_program_reference_widths(
-        r#"// test.ts
+        r#"// test.ds
 import { Component } from "@angular/core";
 
 @Component({
@@ -557,11 +557,11 @@ export class AppMyComponent {}
 })
 export default class AppMyComponent {}
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
-                r#"// test.ts
+                r#"// test.ds
 import { Component } from "@angular/core";
 
 @Component({
@@ -577,7 +577,7 @@ export default class AppMyComponent {}
             ),
             (
                 100,
-                r#"// test.ts
+                r#"// test.ds
 import { Component } from "@angular/core";
 
 @Component({
@@ -604,7 +604,7 @@ export /* keep */ default class B {}
 export /* keep */ function c() {}
 export /* keep */ type T = string
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -684,7 +684,7 @@ const rangeIgnoredB   =  {  gamma:3,  delta:4 }
 
 const keepFormattedToo = 2;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -701,7 +701,7 @@ const formatted =  1
 run(  alpha,  beta  );
 const formatted = 1;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -720,7 +720,7 @@ run(  alpha,  beta  )
 ;
 const formatted = 1;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -735,7 +735,7 @@ const formatted =  1
         r#"run(  alpha  ); // format-ignore
 const formatted = 1;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -750,7 +750,7 @@ const raw   =  [  1,2,3 ]
         r#"// format-ignore-file
 const raw   =  [  1,2,3 ]
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 
@@ -763,7 +763,7 @@ const alsoFormatted =  [  1,2,3 ]
 // format-ignore-file
 const alsoFormatted = [1, 2, 3];
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }

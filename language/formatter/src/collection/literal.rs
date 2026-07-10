@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::template::{
     TemplateInterpolationIndentation, write_template_interpolation_with_indentation,
 };
-use crate::tree::is_jsx_whitespace_char;
+use crate::tree::is_tree_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_core::StringId;
@@ -16,7 +16,6 @@ use destack_fir::format::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_repository::QuoteStyle;
 use destack_source::Span;
 
 /// Format a path with dot separated segments.
@@ -92,25 +91,6 @@ fn escape_string_literal_content(content: &str, quote_char: char) -> String {
     escaped
 }
 
-/// Return the quote that minimizes escaped quote characters.
-fn minimized_quote_char(content: &str, preferred_quote: char) -> char {
-    let alternate_quote = if preferred_quote == '"' { '\'' } else { '"' };
-    let preferred_count = content
-        .chars()
-        .filter(|character| *character == preferred_quote)
-        .count();
-    let alternate_count = content
-        .chars()
-        .filter(|character| *character == alternate_quote)
-        .count();
-
-    if preferred_count > alternate_count {
-        alternate_quote
-    } else {
-        preferred_quote
-    }
-}
-
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
 pub(crate) fn format_scalar_literal<'ast>(
@@ -156,31 +136,22 @@ pub(crate) fn format_scalar_literal<'ast>(
             write!(f, [token("'"), text(escaped_content.as_str()), token("'")])?;
         }
         ScalarLiteral::String(string_id) => {
-            let mut quote_style = f.context().options.quote_style;
-            if quote_style == QuoteStyle::Semantic {
-                quote_style = QuoteStyle::Double;
-            }
             let content = f.context().strings.get(*string_id);
-            let preferred_quote = quote_style.char_for(content);
-            let quote_char = if f.context().options.language_type.is_destack() {
-                '"'
-            } else {
-                minimized_quote_char(content, preferred_quote)
-            };
+            let quote_char = '"';
             let escaped_content = escape_string_literal_content(content, quote_char);
 
             if is_tree_text {
-                // jsx text content: normalize whitespace based on parsed tree text payload
+                // tree text content: normalize whitespace based on parsed tree text payload
                 let has_newline = content.contains(['\n', '\r']);
                 let has_non_whitespace = content
                     .chars()
-                    .any(|character| !is_jsx_whitespace_char(character));
+                    .any(|character| !is_tree_whitespace_char(character));
                 if !has_non_whitespace {
                     if !has_newline {
                         write!(f, [text(" ")])?;
                     }
                 } else {
-                    let normalized = normalize_jsx_text(content);
+                    let normalized = normalize_tree_text(content);
                     write!(f, [text(normalized.as_str())])?;
                 }
             } else {
@@ -361,7 +332,6 @@ fn template_argument_should_indent_fit_layout(
     matches!(
         context.tree.get(expression_id),
         Expression::Member { .. }
-            | Expression::PrivateMember { .. }
             | Expression::Index { .. }
             | Expression::If { .. }
             | Expression::Match { .. }
@@ -415,23 +385,23 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-/// Normalize jsx text by collapsing whitespace to single spaces.
-fn normalize_jsx_text(text: &str) -> String {
-    let Some(normalized) = collapse_jsx_whitespace_to_single_spaces(text) else {
+/// Normalize tree text by collapsing whitespace to single spaces.
+fn normalize_tree_text(text: &str) -> String {
+    let Some(normalized) = collapse_tree_whitespace_to_single_spaces(text) else {
         return String::new();
     };
 
     normalized
 }
 
-/// Collapse JSX whitespace runs to single spaces and drop outer whitespace.
-fn collapse_jsx_whitespace_to_single_spaces(text: &str) -> Option<String> {
+/// Collapse tree whitespace runs to single spaces and drop outer whitespace.
+fn collapse_tree_whitespace_to_single_spaces(text: &str) -> Option<String> {
     let mut collapsed = String::new();
     let mut saw_word = false;
     let mut has_pending_space = false;
 
     for character in text.chars() {
-        if is_jsx_whitespace_char(character) {
+        if is_tree_whitespace_char(character) {
             if saw_word {
                 has_pending_space = true;
             }

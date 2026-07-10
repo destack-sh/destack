@@ -1,4 +1,4 @@
-use super::argument::write_argument_with_following_span_start;
+use super::argument::with_argument_following_span_start;
 use crate::annotation::{DanglingIndentMode, FormatDanglingComments, block_infix_annotations};
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::file::any_ignore_range_for_nodes;
@@ -164,7 +164,7 @@ pub(crate) fn write_call_argument_in_list<'ast>(
     following_span_start: u32,
     separator: CallArgumentSeparator,
 ) -> FormatResult<()> {
-    write_argument_with_following_span_start(f, argument_id, following_span_start)?;
+    with_argument_following_span_start(f, following_span_start, |f| write!(f, [argument_id]))?;
     write_call_argument_separator(f, separator)?;
 
     Ok(())

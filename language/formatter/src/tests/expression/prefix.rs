@@ -14,7 +14,7 @@ const bits = ~~mask;
 const pre = ++count;
 const post = count++;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -31,7 +31,7 @@ const negative = - -value;
 const plusIncrement = + ++value;
 const minusDecrement = - --value;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -44,7 +44,7 @@ const ignored = void   run()
         r#"const kind = typeof value;
 const ignored = void run();
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 

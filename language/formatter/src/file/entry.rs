@@ -360,10 +360,10 @@ mod tests {
     fn test_format_file_source_uses_provided_source() {
         let file = File::from_text(
             FileId::new(1),
-            "main.ts".to_string(),
-            Uri::from_string("test:///main.ts"),
+            "main.ds".to_string(),
+            Uri::from_string("test:///main.ds"),
             None,
-            FileType::TypeScript,
+            FileType::Destack,
             "const stale=1".to_string(),
         );
 
@@ -382,10 +382,10 @@ mod tests {
     fn test_format_file_source_preserves_eof_comments() {
         let file = File::from_text(
             FileId::new(1),
-            "main.ts".to_string(),
-            Uri::from_string("test:///main.ts"),
+            "main.ds".to_string(),
+            Uri::from_string("test:///main.ds"),
             None,
-            FileType::TypeScript,
+            FileType::Destack,
             String::new(),
         );
 
@@ -435,10 +435,10 @@ mod tests {
         let source = "const first=1;\nconst second=2;\n";
         let file = File::from_text(
             file_id,
-            "main.ts".to_string(),
-            Uri::from_string("test:///main.ts"),
+            "main.ds".to_string(),
+            Uri::from_string("test:///main.ds"),
             None,
-            FileType::TypeScript,
+            FileType::Destack,
             source.to_string(),
         );
 

@@ -9,7 +9,7 @@ fn test_format_grouped_last_argument_layout_with_short_cast_tail() {
   return "y";
 }, {} as SomeType<OtherType>);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -43,7 +43,7 @@ fn test_format_new_expression_does_not_use_test_call_layout() {
   100,
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -56,7 +56,7 @@ fn test_format_new_maybe_expression() {
 "#,
         r#"new? User("florian");
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -95,7 +95,7 @@ call(() => { return foo; }, { a: 1, b: 2, c: 3 });
 // DO group when first is object and second is arrow
 call({ a: 1, b: 2, c: 3 }, () => { return foo; });
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -211,7 +211,7 @@ fn test_format_named_function_argument_layout() {
     toastService.addToastItem(...args);
   });
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -245,7 +245,7 @@ fn test_format_preserves_blank_lines_between_call_arguments() {
   bar
 )
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -294,7 +294,7 @@ const arrayTail = call((
   return foo;
 }, value as string[]);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -339,7 +339,7 @@ fn test_format_grouped_first_block_arrow_argument_layout() {
     assert_format_program_reference_widths(
         r#"const value = call(() => { return foo; }, bar);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -365,7 +365,7 @@ fn test_format_nested_single_argument_call_layout() {
     assert_format_program_reference_widths(
         r#"const value = load(path.join(__dirname, "very-long-relative/path/that/forces/layout", "another-long-segment"));
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 40,
@@ -399,7 +399,7 @@ fn test_format_function_composition_call_arguments_broken_out() {
     assert_format_program_reference_widths(
         r#"const value = compose(sortBy((x) => x), flatten, map((x) => [x, x * 2]));
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -431,7 +431,7 @@ fn test_format_test_call_layout_with_duration() {
   doThing();
 }, 1000);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -460,7 +460,7 @@ fn test_format_two_argument_test_call_keeps_expression_body_callback() {
         r#"it("name", (first, second) =>
   first + second);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
     );
 }
@@ -475,7 +475,7 @@ fn test_format_two_argument_test_call_keeps_block_arrow_callback() {
   return first + second;
 });
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
     );
 }
@@ -492,7 +492,7 @@ fn test_format_test_call_with_non_literal_name_stays_broken_out() {
   30000,
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -530,7 +530,7 @@ fn test_format_unit_test_setup_wrapper_keeps_direct_layout() {
   foo();
 }));
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
     );
 }
@@ -545,7 +545,7 @@ fn test_format_three_argument_hook_keeps_direct_layout() {
   foo();
 }, [foo]);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
     );
 }
@@ -556,7 +556,7 @@ fn test_format_import_meta_resolve_follows_member_chain_layout() {
     assert_format_program_reference_widths(
         r#"const url = import.meta.resolve("pkg/path");
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 40,
@@ -579,7 +579,7 @@ fn test_format_long_curried_call_breaks_from_inner_call() {
     assert_format_program_reference_widths(
         r#"const value = curriedFunction(firstArg)(secondArg)(thirdArg);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[
             (
                 30,
@@ -600,41 +600,41 @@ fn test_format_long_curried_call_breaks_from_inner_call() {
     );
 }
 
-/// Private field receivers should not force call arguments onto separate lines.
+/// Member receivers should not force call arguments onto separate lines.
 #[test]
-fn test_format_private_field_call_arguments_stay_grouped() {
+fn test_format_member_call_arguments_stay_grouped() {
     assert_format_program_reference_widths(
         r#"class Foo {
-  #t: NodeJS.Timeout | undefined = undefined;
-  #v: number;
+  private timer: NodeJS.Timeout | undefined = undefined;
+  private value: number;
 
   constructor(v: number) {
-    this.#v = v;
+    this.value = v;
   }
 
   start() {
-    this.#t = setInterval(() => {
+    this.timer = setInterval(() => {
       console.log();
-    }, this.#v);
+    }, this.value);
   }
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
                 r#"class Foo {
-  #t: NodeJS.Timeout | undefined = undefined;
-  #v: number;
+  private timer: NodeJS.Timeout | undefined = undefined;
+  private value: number;
 
   constructor(v: number) {
-    this.#v = v;
+    this.value = v;
   }
 
   start() {
-    this.#t = setInterval(() => {
+    this.timer = setInterval(() => {
       console.log();
-    }, this.#v);
+    }, this.value);
   }
 }
 "#,
@@ -642,17 +642,17 @@ fn test_format_private_field_call_arguments_stay_grouped() {
             (
                 100,
                 r#"class Foo {
-  #t: NodeJS.Timeout | undefined = undefined;
-  #v: number;
+  private timer: NodeJS.Timeout | undefined = undefined;
+  private value: number;
 
   constructor(v: number) {
-    this.#v = v;
+    this.value = v;
   }
 
   start() {
-    this.#t = setInterval(() => {
+    this.timer = setInterval(() => {
       console.log();
-    }, this.#v);
+    }, this.value);
   }
 }
 "#,
@@ -673,7 +673,7 @@ fn test_format_spread_with_block_arrow_callback_argument() {
   return 1;
 });
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -688,7 +688,7 @@ fn test_format_lambda_callback_with_short_array_tail() {
   return foo;
 }, [1, 2, 3]);
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(40).with_indent_width(2)
     );
 }
@@ -701,7 +701,7 @@ fn test_format_grouped_last_comment_only_callback_block() {
   // code
 });
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         &[(
             80,
             r#"target(...argument, () => {
@@ -730,7 +730,7 @@ fn test_format_last_argument_trailing_line_comment_breaks_call() {
   "good", // trailing
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }

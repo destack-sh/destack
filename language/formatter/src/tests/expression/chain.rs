@@ -4,9 +4,9 @@ use crate::{
 };
 use destack_source::FileType;
 
-/// Nested helper calls in broken sequence expressions should still stay flat when they fit.
+/// Nested helper calls in broken tuples should still stay flat when they fit.
 #[test]
-fn test_format_member_call_arguments_stay_flat_in_broken_sequence() {
+fn test_format_member_call_arguments_stay_flat_in_broken_tuple() {
     assert_format_program_roundtrip_with_file_type(
         r#"function f() {
   return (
@@ -22,11 +22,11 @@ fn test_format_member_call_arguments_stay_flat_in_broken_sequence() {
         (_this$prop3 = babelHelpers.classPrivateFieldGet2(_prop2, this)),
         // This forces the sequence group to expand without forcing the helper call.
         // The helper call should keep its own fitting decision.
-        class Inner {}
+        class Inner {},
     );
 }
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100),
     );
 }
@@ -56,7 +56,7 @@ fn test_format_member_chain_with_generic_call_arguments() {
     assert_format_program_reference_widths(
         r#"const defaultColorDecoratorsEnablement = accessor.get(IConfigurationService).getValue<"auto" | "always" | "never">("longlonglonglonglonglonglonglonglong")
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             60,
             r#"const defaultColorDecoratorsEnablement = accessor
@@ -95,7 +95,7 @@ fn test_format_member_chain_preserves_blank_lines() {
   // TO DO -- END
   .then(() => writeRegistry())
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             80,
             r#"Promise.all(writeIconFiles)
@@ -116,7 +116,7 @@ fn test_format_member_instantiation_chain_breaks_at_narrow_width() {
         r#"api.getService()
     .getFactory<number>;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(25),
     );
 }
@@ -199,7 +199,7 @@ fn test_format_member_chain_breaks_computed_first_hop_with_separator_comment() {
     key
 ].call();
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(20),
     );
 }
@@ -214,7 +214,7 @@ fn test_format_member_chain_elides_blank_line_after_terminal_call() {
 "#,
         r#"const x = fn().c1();
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80),
     );
 }
@@ -225,7 +225,7 @@ fn test_format_member_chain_breaks_for_tagged_template_argument() {
     assert_format_program_reference_widths(
         r#"const value = utc("time_updated").notNull().default(sql`CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)`);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             60,
             r#"const value = utc("time_updated")

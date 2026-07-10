@@ -1,11 +1,10 @@
 use std::borrow::Cow;
 
 use destack_repository::JsdocLineWrappingStyle;
+use destack_source::FileType;
 use markdown::mdast::Node;
 
-use super::super::embedded::{
-    fenced_code_file_type, format_embedded_code, format_embedded_code_as,
-};
+use super::super::embedded::{fenced_code_file_type, format_embedded_code};
 use super::super::line::LineBuffer;
 use super::super::normalize::{append_trailing_dot, capitalize_first};
 use super::super::wrap::{format_table_block, indent_str, str_width, wrap_paragraph};
@@ -749,13 +748,17 @@ fn format_code_value<'a>(
                 return Cow::Borrowed(code);
             };
 
-            if let Some(formatted) = format_embedded_code_as(code, width, format_options, file_type)
-            {
+            if let Some(formatted) = format_embedded_code(code, width, format_options, file_type) {
                 return Cow::Owned(formatted);
             }
         }
         // unlabeled code blocks inherit the surrounding language
-        else if let Some(formatted) = format_embedded_code(code, width, format_options) {
+        else if let Some(formatted) = format_embedded_code(
+            code,
+            width,
+            format_options,
+            FileType::from(format_options.language_type),
+        ) {
             return Cow::Owned(formatted);
         }
     }

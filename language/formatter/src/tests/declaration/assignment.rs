@@ -7,7 +7,7 @@ fn test_format_union_head_comment_after_equals_is_idempotent() {
     assert_format_program_reference_widths(
         r#"type Aa1 = /*1*/ | /*2*/ C | D;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -30,7 +30,7 @@ fn test_format_type_alias_line_comment_after_equals() {
         r#"type Item = // keep
 Alpha | Beta;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -60,14 +60,14 @@ const jestPackageJson =
   loadPackage(jestPath);
 
 class A {
-  #testerConfig;
+  private testerConfig;
   constructor() {
     let basePath: string | undefined =
-      this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+      this.testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
   }
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -80,10 +80,10 @@ const jestPackageJson =
   loadPackage(jestPath);
 
 class A {
-  #testerConfig;
+  private testerConfig;
   constructor() {
     let basePath: string | undefined =
-      this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+      this.testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
   }
 }
 "#,
@@ -98,10 +98,10 @@ const jestPackageJson =
   loadPackage(jestPath);
 
 class A {
-  #testerConfig;
+  private testerConfig;
   constructor() {
     let basePath: string | undefined =
-      this.#testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
+      this.testerConfig.languageOptions.parserOptions?.tsconfigRootDir;
   }
 }
 "#,
@@ -116,7 +116,7 @@ fn test_format_assignment_interpolated_template_argument_uses_fluid_layout() {
     assert_format_program_reference_widths(
         r#"const veryLongBindingName = namespace.foo(`hello ${name}`)
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             30,
             r#"const veryLongBindingName =
@@ -134,7 +134,7 @@ fn test_format_assignment_null_argument_breaks_after_operator() {
     assert_format_program_reference_widths(
         r#"const veryLongBindingName = namespace.foo(null)
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             30,
             r#"const veryLongBindingName =
@@ -154,7 +154,7 @@ fn test_format_assignment_nested_object_pattern_stays_inline() {
   }
 } = obj;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             80,
             r#"const {
@@ -178,7 +178,7 @@ export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
 const r = /* THIS */ f<Type>()
 const s = /* comment */ foo<A | B | C>()
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -208,22 +208,22 @@ const s = /* comment */ foo<A | B | C>();
 #[test]
 fn test_format_type_alias_conditional_layout() {
     assert_format_program_reference_widths(
-        r#"export type _Repeat<A extends any, N extends number, L extends List = []> =
+        r#"export type _Repeat<A: any, N: number, L: List = ()> =
   __Repeat<N, A, L> extends infer X
   ? Cast<X, List>
   : never
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
-                r#"export type _Repeat<A extends any, N extends number, L extends List = []> =
+                r#"export type _Repeat<A: any, N: number, L: List = ()> =
   __Repeat<N, A, L> extends infer X ? Cast<X, List> : never;
 "#,
             ),
             (
                 100,
-                r#"export type _Repeat<A extends any, N extends number, L extends List = []> =
+                r#"export type _Repeat<A: any, N: number, L: List = ()> =
   __Repeat<N, A, L> extends infer X ? Cast<X, List> : never;
 "#,
             ),
@@ -246,7 +246,7 @@ const onPanning: ComponenASDtProps<
 >["onPanning"] = () => {
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -278,7 +278,7 @@ fn test_format_assignment_chain_layout() {
     assert_format_program_reference_widths(
         r#"const longVariableName = alpha = beta = computeValue()
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             30,
             r#"const longVariableName =
@@ -297,7 +297,7 @@ fn test_format_assignment_chain_lambda_tail_layout() {
         r#"const longVariableName = alpha = beta = () => {}
 const short = a = b
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             30,
             r#"const longVariableName =
@@ -320,7 +320,7 @@ fn test_format_assignment_break_left_hand_side_layout() {
   ({ className, unfurl: unfurlAttrr, ...attrs } = { className: "name", unfurl: "unfurl", others: [1, 2, 3]});
 };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -386,7 +386,7 @@ const result = configurationService.getValue<Record<string, boolean>>(
   enalementSetting
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -462,7 +462,7 @@ class A {
 const requestTrie =
   TernarySearchTree.forPaths<IRecursiveWatchRequest>(!isLinux);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -500,7 +500,7 @@ fn test_format_assignment_expression_call_chain_breaks_after_operator() {
     assert_format_program_reference_widths(
         r#"result = api.namespace.member().tail()
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             20,
             r#"result =
@@ -519,7 +519,7 @@ fn test_format_assignment_string_rhs_breaks_after_operator() {
         r#"const veryLongVariableName = "value"
 veryLongVariableName = "value"
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[(
             20,
             r#"const veryLongVariableName =

@@ -2,7 +2,7 @@
 
 use destack_formatter::format_file_source;
 use destack_source::{File, FileId, FileType, Uri};
-use destack_test::stress::{StressExpectation, generate_formatter_fuzz_case};
+use destack_test::stress::{StressExpectation, generate_fuzz_case};
 use destack_repository::FormatterOptions;
 use libfuzzer_sys::fuzz_target;
 
@@ -20,7 +20,7 @@ fuzz_target!(|data: &[u8]| {
 
             (source.to_string(), file_type, StressExpectation::Recovery)
         }
-        _ => generate_formatter_fuzz_case(&data[1..]),
+        _ => generate_fuzz_case(&data[1..]),
     };
     let file_name = file_name_for_type(file_type);
 
@@ -55,12 +55,9 @@ fn fuzz_file(name: &str, file_type: FileType, source: &str) -> File {
 }
 
 fn file_type_from_byte(byte: u8) -> FileType {
-    match byte % 5 {
+    match byte % 2 {
         0 => FileType::Destack,
-        1 => FileType::DestackDeclaration,
-        2 => FileType::TypeScript,
-        3 => FileType::TypeScriptXml,
-        _ => FileType::TypeScriptDeclaration,
+        _ => FileType::DestackDeclaration,
     }
 }
 
@@ -68,9 +65,6 @@ fn file_name_for_type(file_type: FileType) -> &'static str {
     match file_type {
         FileType::Destack => "fuzz.ds",
         FileType::DestackDeclaration => "fuzz.d.ds",
-        FileType::TypeScript => "fuzz.ts",
-        FileType::TypeScriptXml => "fuzz.tsx",
-        FileType::TypeScriptDeclaration => "fuzz.d.ts",
         _ => "fuzz.ds",
     }
 }

@@ -82,11 +82,7 @@ fn write_optional_suffix<'ast>(
 fn write_generic_parameter_constraint_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
-    if f.context().options.language_type.is_destack() {
-        write!(f, [token(":")])
-    } else {
-        write!(f, [space(), token("extends")])
-    }
+    write!(f, [token(":")])
 }
 
 /// Write one type-parameter-like constraint and `=` trailer sequence.

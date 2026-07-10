@@ -58,7 +58,7 @@ fn test_format_logical_expression_in_object_property_breaks_after_colon() {
         thirdVeryLongThingThatKeepsGoingAndGoingAndGoing,
 };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
     );
 }
 
@@ -77,7 +77,7 @@ fn test_format_logical_expression_in_class_field_initializer_breaks_after_equals
         thirdVeryLongThingThatKeepsGoingAndGoingAndGoing;
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
     );
 }
 
@@ -94,6 +94,6 @@ fn test_format_logical_expression_in_ternary_test_indents_tail_operands() {
         ? void 0
         : fallbackValue;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
     );
 }

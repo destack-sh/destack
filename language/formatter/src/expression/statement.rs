@@ -66,8 +66,7 @@ fn value_branch_expression_should_expand<'ast>(
         return true;
     }
 
-    f.context().options.language_type.is_destack()
-        && expression_is_in_statement_context(f.context(), node_id)
+    expression_is_in_statement_context(f.context(), node_id)
 }
 
 /// Return whether one try expression should expand explicit branch blocks.

@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-use super::embedded::{
-    fenced_code_file_type, format_embedded_code, format_embedded_code_as, update_template_depth,
-};
+use destack_source::FileType;
+
+use super::embedded::{fenced_code_file_type, format_embedded_code, update_template_depth};
 use super::normalize::{capitalize_first, normalize_markdown_emphasis};
 use super::parse::JsdocTag;
 use super::serialize::{
@@ -120,7 +120,7 @@ impl JsdocFormatter<'_> {
     fn push_formatted_code_lines(&mut self, code: &str, indent: &str) {
         let mut template_depth: u32 = 0;
         for line in code.lines() {
-            if line.is_empty() {
+            if line.trim().is_empty() {
                 self.content_lines.push_empty();
             } else if template_depth == 0 {
                 let s = self.content_lines.begin_line();
@@ -147,6 +147,26 @@ impl JsdocFormatter<'_> {
                 let s = self.content_lines.begin_line();
                 s.push_str(indent);
                 s.push_str(content);
+            }
+        }
+    }
+
+    /// Push opaque code lines without changing their relative indentation.
+    fn push_opaque_code_lines(&mut self, code: &str, indent: &str) {
+        let common_indent = code
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.len() - line.trim_start().len())
+            .min()
+            .unwrap_or(0);
+
+        for line in code.lines() {
+            if line.trim().is_empty() {
+                self.content_lines.push_empty();
+            } else {
+                let output = self.content_lines.begin_line();
+                output.push_str(indent);
+                output.push_str(&line[common_indent..]);
             }
         }
     }
@@ -184,7 +204,10 @@ impl JsdocFormatter<'_> {
 
         // use the remaining width after code indentation
         let effective_width = self.wrap_width.saturating_sub(self.code_indent_width());
-        if let Some(formatted) = format_embedded_code(code, effective_width, self.format_options) {
+        let file_type = FileType::from(self.format_options.language_type);
+        if let Some(formatted) =
+            format_embedded_code(code, effective_width, self.format_options, file_type)
+        {
             self.push_formatted_code_lines(&formatted, indent);
             return;
         }
@@ -214,7 +237,7 @@ impl JsdocFormatter<'_> {
         if !inner_code.is_empty() {
             let lang = lang_line[3..].trim();
             if let Some(file_type) = fenced_code_file_type(lang) {
-                if let Some(formatted) = format_embedded_code_as(
+                if let Some(formatted) = format_embedded_code(
                     inner_code,
                     effective_width,
                     self.format_options,
@@ -225,7 +248,7 @@ impl JsdocFormatter<'_> {
                     self.push_raw_code_lines(inner_code, indent);
                 }
             } else {
-                self.push_raw_code_lines(inner_code, indent);
+                self.push_opaque_code_lines(inner_code, indent);
             }
         }
 

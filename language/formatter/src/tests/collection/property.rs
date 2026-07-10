@@ -1,5 +1,5 @@
 use crate::{DestackFormatOptions, assert_format, assert_format_program};
-use destack_source::{FileType, LanguageType};
+use destack_source::FileType;
 
 /// Empty structs should collapse cleanly.
 #[test]
@@ -40,7 +40,7 @@ fn test_format_struct_with_fields() {
     );
 }
 
-/// TypeScript field modifiers should stay attached to the field.
+/// Field modifiers should stay attached to the field.
 #[test]
 fn test_format_class_with_abstract_override_field() {
     assert_format!(
@@ -49,10 +49,7 @@ fn test_format_class_with_abstract_override_field() {
 	abstract override bar: int32;
 }"#,
         crate::parse_first_expression,
-        DestackFormatOptions {
-            language_type: LanguageType::TypeScript,
-            ..DestackFormatOptions::default_tab()
-        }
+        DestackFormatOptions::default_tab()
     );
 }
 
@@ -90,7 +87,7 @@ fn test_format_quoted_constructor_name() {
 ];
 "#
         .trim_start(),
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -111,7 +108,7 @@ class C {
 }
 "#
         .trim_start(),
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -139,18 +136,18 @@ extension<T> of Set<T> {
     );
 }
 
-/// JavaScript class fields should drop unnecessary key quotes.
+/// String-named class fields should preserve their quoted spelling.
 #[test]
-fn test_format_javascript_class_quote_props_as_needed() {
+fn test_format_class_string_keys_preserve_quotes() {
     assert_format_program!(
         r#"class Example { "a" = 1; "needs-quotes" = 2; }
 "#,
         r#"class Example {
-  a = 1;
+  "a" = 1;
   "needs-quotes" = 2;
 }
 "#,
-        FileType::JavaScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }

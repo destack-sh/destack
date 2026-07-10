@@ -104,7 +104,6 @@ fn type_cast_like_needs_parentheses(
 
         // member or call lhs
         Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Call { left, .. }
         | Expression::Instantiation { left, .. }
@@ -624,7 +623,6 @@ fn expression_is_update_or_lower_precedence(
             | Expression::As { .. }
             | Expression::Satisfies { .. }
             | Expression::Assign { .. }
-            | Expression::SequenceExpression { .. }
             | Expression::Yield { .. }
     )
 }
@@ -721,7 +719,7 @@ fn expression_has_transparent_wrapper(
 fn expression_is_callable_selection(child_expression: &Expression) -> bool {
     matches!(
         child_expression,
-        Expression::Member { .. } | Expression::PrivateMember { .. } | Expression::Index { .. }
+        Expression::Member { .. } | Expression::Index { .. }
     )
 }
 
@@ -741,9 +739,7 @@ fn postfix_wrapper_is_semantic_in_parent(
                 || (!generic_arguments.is_empty()
                     && matches!(child_expression, Expression::Instantiation { .. }))
         }
-        Expression::Member { left, .. }
-        | Expression::PrivateMember { left, .. }
-        | Expression::Index { left, .. }
+        Expression::Member { left, .. } | Expression::Index { left, .. }
             if *left == parent_child_id =>
         {
             matches!(child_expression, Expression::Instantiation { .. })

@@ -37,10 +37,7 @@ pub(crate) fn write_postfix_base_expression<'ast>(
         matches!(
             f.context().tree.get(expression_id),
             Expression::ScalarLiteral(ScalarLiteral::Integer(_))
-        ) && matches!(
-            f.context().tree.get(parent_id),
-            Expression::Member { .. } | Expression::PrivateMember { .. }
-        )
+        ) && matches!(f.context().tree.get(parent_id), Expression::Member { .. })
     });
     let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
         || needs_integer_member_parentheses
@@ -75,7 +72,6 @@ fn postfix_parent_expression_id(
         let uses_expression_as_left = matches!(
             parent_expression,
             Expression::Member { left, .. }
-                | Expression::PrivateMember { left, .. }
                 | Expression::Call { left, .. }
                 | Expression::Index { left, .. }
                 | Expression::Instantiation { left, .. }
@@ -96,7 +92,6 @@ pub(crate) fn is_chain_expression(expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::Member { .. }
-            | Expression::PrivateMember { .. }
             | Expression::Call { .. }
             | Expression::Index { .. }
             | Expression::Instantiation { .. }

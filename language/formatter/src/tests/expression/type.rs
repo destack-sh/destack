@@ -13,7 +13,7 @@ fn test_format_type_conditional_with_constrained_infer() {
 "#,
         r#"type Result = T extends infer U extends string ? U : never;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -37,7 +37,7 @@ fn test_format_type_conditional_trailing_branch_comments() {
           : never // not callable
       : T; // non-object
 "#,
-        FileType::TypeScriptDeclaration
+        FileType::DestackDeclaration
     );
 }
 
@@ -105,7 +105,7 @@ fn test_format_type_conditional_alternate_line_comment() {
         }
       : StreamWebCompressionStream;
 "#,
-        FileType::TypeScriptDeclaration
+        FileType::DestackDeclaration
     );
 }
 
@@ -119,7 +119,7 @@ type B = T | {}
         r#"type A = typeof globalThis extends { onmessage: any } ? {} : AbortController;
 type B = T | {};
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -135,7 +135,7 @@ type Factory<U> = typeof namespace.Factory < U >
 type Handler = Callback<typeof something<Type1, Type2>>;
 type Factory<U> = typeof namespace.Factory<U>;
 "#,
-        FileType::TypeScriptXml
+        FileType::Destack
     );
 }
 
@@ -176,11 +176,11 @@ type C = F extends abstract new(...args: any) => infer T ? T : never
         r#"type B = { new (): Foo; new (...args: any): Bar };
 type C = F extends abstract new (...args: any) => infer T ? T : never;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
-/// TypeScript generic const parameters should keep their source keyword.
+/// Generic const parameters should keep their source keyword.
 #[test]
 fn test_format_type_const_generic_parameter() {
     assert_format_program!(
@@ -188,19 +188,19 @@ fn test_format_type_const_generic_parameter() {
 "#,
         r#"type Fn = <const T>(value: T) => T;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
-/// TypeScript labeled tuple rest elements should use rest-first spelling.
+/// Labeled tuple rest elements should use label-first spelling.
 #[test]
 fn test_format_type_labeled_tuple_rest() {
     assert_format_program!(
-        r#"type AnyRest = [...args: any[]]
+        r#"type AnyRest = (args: ...any[])
 "#,
-        r#"type AnyRest = [...args: any[]];
+        r#"type AnyRest = (args: ...any[],);
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -226,7 +226,7 @@ fn test_format_type_member_doc_comment_after_missing_terminator() {
     conversionFailed(opts: { prefix: string; argument: string; types: string[] }): TypeError;
 }
 "#,
-        FileType::TypeScriptDeclaration
+        FileType::DestackDeclaration
     );
 }
 
@@ -248,7 +248,7 @@ fn test_format_type_member_comment_only_tail() {
     // endings?: "transparent" | "native";
 }
 "#,
-        FileType::TypeScriptDeclaration
+        FileType::DestackDeclaration
     );
 }
 
@@ -276,7 +276,7 @@ fn test_format_type_member_blank_line_before_doc_comment() {
     }): void;
 }
 "#,
-        FileType::TypeScriptDeclaration
+        FileType::DestackDeclaration
     );
 }
 
@@ -288,7 +288,7 @@ fn test_format_type_readonly_array_union() {
 "#,
         r#"type Args = readonly string[] | undefined | null;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -344,7 +344,7 @@ fn test_format_class_method_optional_computed_key() {
     ): void;
 }
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -358,7 +358,7 @@ const g = (): (value: Value) => void => (value: Value) => {};
         r#"function f(): (value: Value) => void {}
 const g = (): ((value: Value) => void) => (value: Value) => {};
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -370,7 +370,7 @@ fn test_format_type_mapped_with_remap() {
 "#,
         r#"type Remap = { readonly [K in keyof T as `${K}`]-?: T[K] };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -387,7 +387,7 @@ fn test_format_type_mapped_with_remap_separator_block_comment() {
     [K in keyof T as /* remap-note */ `get${Capitalize<K & string>}`]: () => T[K];
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -405,7 +405,7 @@ fn test_format_type_mapped_with_remap_separator_line_comment() {
         Capitalize<K & string>]: () => T[K];
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -427,8 +427,8 @@ fn test_format_type_mapped_with_remap_separator_line_comment_in_template_roundtr
     }`]: () => T[K];
 };
 "#,
-        "main.ts",
-        FileType::TypeScript,
+        "main.ds",
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -438,20 +438,20 @@ fn test_format_type_mapped_with_remap_separator_line_comment_in_template_roundtr
 fn test_format_type_template_literal_union_with_leading_pipe() {
     assert_format_program!(
         r#"type T = `${
-  | 'W'
-  | 'I'
-  | 'L'
-  | 'L'
-  | 'B'
-  | 'R'
-  | 'E'
-    | 'A'
-  | 'K'
-}${'!' | '!!'}`
+  | "W"
+  | "I"
+  | "L"
+  | "L"
+  | "B"
+  | "R"
+  | "E"
+    | "A"
+  | "K"
+}${"!" | "!!"}`
 "#,
         r#"type T = `${"W" | "I" | "L" | "L" | "B" | "R" | "E" | "A" | "K"}${"!" | "!!"}`;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -467,7 +467,7 @@ fn test_format_statement_cast_keeps_leading_comment_without_wrapper_node() {
         r#"// keep
 foo as Bar;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
@@ -479,7 +479,7 @@ fn test_format_type_as_comment_chain() {
         r#"(activeService as unknown as QuickInputController) /* TS fail */
   .pick();
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -509,7 +509,7 @@ fn test_format_type_as_multiline_block_comment_before_type() {
  * keep
  */ Bar;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -523,7 +523,7 @@ type U = Foo<string, /*b*/ number>
         r#"type T = Foo</*a*/ string>;
 type U = Foo<string, /*b*/ number>;
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -538,7 +538,7 @@ fn test_format_type_mapped_comments() {
   // be used to index type 'BinaryOperatorToText'."
 };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -578,7 +578,7 @@ fn test_format_type_mapped_leading_body_line_comment() {
     [K in keyof T]: boolean;
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -596,7 +596,7 @@ fn test_format_type_mapped_leading_body_block_comment() {
     [K in keyof T]: boolean;
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -612,7 +612,7 @@ fn test_format_type_mapped_value_trailing_comment() {
     [K in keyof T]: boolean; // mapped-line
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -628,7 +628,7 @@ fn test_format_type_mapped_value_separator_block_comment() {
     [K in keyof T]: /* keep */ boolean;
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -644,7 +644,7 @@ fn test_format_type_mapped_value_trailing_block_comment_after_semicolon() {
     [K in keyof T]: boolean /* mapped-block */;
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -661,7 +661,7 @@ fn test_format_type_mapped_value_separator_line_comment() {
     [K in keyof T]: boolean; // mapped-line
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -678,7 +678,7 @@ fn test_format_type_mapped_optional_value_separator_line_comment() {
     readonly [K in keyof T]?: boolean; // map-value
 };
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -727,7 +727,7 @@ type A3 =
   |
   b;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -793,7 +793,7 @@ fn test_format_union_leading_pipe_multiline_doc_comment_reaches_first_arm_prefix
     a
   | b;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
@@ -834,8 +834,8 @@ type C2 =
   // A comment to force break
   | B;
 "#,
-        "main.ts",
-        FileType::TypeScript,
+        "main.ds",
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
@@ -853,7 +853,7 @@ y: boolean
 x: boolean }
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -900,7 +900,7 @@ export const IsUnionType = (
 )  ? false
   : true
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -937,7 +937,7 @@ fn test_format_union_parenthesis_layout() {
         r#"type T1<B> = | (B extends any ? number : string);
 type T2 = | (() => void);
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -972,7 +972,7 @@ fn test_format_union_intersection_parenthesis_layout() {
         roundingIncrement?: number;
     };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -1016,7 +1016,6 @@ fn test_format_single_member_union_layout() {
     assert_format_program_reference_widths(
         r#"// Single-member unions should not have unnecessary parentheses
 type Items = ( | number)[];
-type Items2 = ( & number)[];
 
 // Multi-member unions should keep parentheses
 type Items3 = (string | number)[];
@@ -1024,13 +1023,12 @@ type Items3 = (string | number)[];
 // Simple case without array
 type Simple = | number;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
                 r#"// Single-member unions should not have unnecessary parentheses
 type Items = number[];
-type Items2 = number[];
 
 // Multi-member unions should keep parentheses
 type Items3 = (string | number)[];
@@ -1043,7 +1041,6 @@ type Simple = number;
                 100,
                 r#"// Single-member unions should not have unnecessary parentheses
 type Items = number[];
-type Items2 = number[];
 
 // Multi-member unions should keep parentheses
 type Items3 = (string | number)[];
@@ -1070,7 +1067,7 @@ fn test_format_parenthesized_union_last_arm_comment() {
     | "b" // arm-b
 )[]; // final-tail
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -1084,7 +1081,7 @@ fn test_format_union_doc_head_width_behavior() {
   | { xxxxxxxxxxxxxxx: true }
   | { xxxxxxxxxxxxxxx: false; xxxxxxxxxxxxxxx: bigint | null };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -1124,7 +1121,7 @@ export interface TestUnionTypeAnnotation2 {
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -1165,18 +1162,18 @@ export interface TestUnionTypeAnnotation2 {
 fn test_format_template_literal_union_width_behavior() {
     assert_format_program_reference_widths(
         r#"export type T = `${
-  | 'W'
-  | 'I'
-  | 'L'
-  | 'L'
-  | 'B'
-  | 'R'
-  | 'E'
-  | 'A'
-  | 'K'
-}${'!' | '!!'}`
+  | "W"
+  | "I"
+  | "L"
+  | "L"
+  | "B"
+  | "R"
+  | "E"
+  | "A"
+  | "K"
+}${"!" | "!!"}`
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -1207,18 +1204,18 @@ fn test_format_template_literal_conditional_width_behavior() {
     assert_format_program_reference_widths(
         r#"type templateLiteralType = `${
   TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-    ? '_'
-    : ''
+    ? "_"
+    : ""
 }`;
 
-type CamelToSnakeCase<TCamelCaseString extends string> =
+type CamelToSnakeCase<TCamelCaseString: string> =
   TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
     ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
-        ? '_'
-        : ''}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+        ? "_"
+        : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
     : TCamelCaseString;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -1227,7 +1224,7 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
     ? "_"
     : ""}`;
 
-type CamelToSnakeCase<TCamelCaseString extends string> =
+type CamelToSnakeCase<TCamelCaseString: string> =
   TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
     ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
         ? "_"
@@ -1241,7 +1238,7 @@ type CamelToSnakeCase<TCamelCaseString extends string> =
   ? "_"
   : ""}`;
 
-type CamelToSnakeCase<TCamelCaseString extends string> =
+type CamelToSnakeCase<TCamelCaseString: string> =
   TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
     ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
         ? "_"
@@ -1266,7 +1263,7 @@ fn test_format_type_assertion_assignment_layout() {
 ((type) as any)['t'];
 ((type) satisfies any)['t'];
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -1276,8 +1273,8 @@ fn test_format_type_assertion_assignment_layout() {
 () => type as unknown;
 () => type satisfies unknown;
 
-(type as any)["t"];
-(type satisfies any)["t"];
+(type as any)['t'];
+(type satisfies any)['t'];
 "#,
             ),
             (
@@ -1288,8 +1285,8 @@ fn test_format_type_assertion_assignment_layout() {
 () => type as unknown;
 () => type satisfies unknown;
 
-(type as any)["t"];
-(type satisfies any)["t"];
+(type as any)['t'];
+(type satisfies any)['t'];
 "#,
             ),
         ],
@@ -1329,7 +1326,7 @@ console.log(
     string | number | undefined
 );
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,

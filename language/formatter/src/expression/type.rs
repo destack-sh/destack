@@ -2825,11 +2825,6 @@ fn write_type_expression_body_inner<'ast>(
 
             write_tuple_type(f, elements, "(", ")", trailing_separator)?;
         }
-        TypeExpression::ArrayTuple { elements } => {
-            let trailing_separator = optional_tuple_trailing_separator(f);
-
-            write_tuple_type(f, elements, "[", "]", trailing_separator)?;
-        }
         TypeExpression::Array { element } => {
             write_postfix_type_operand(f, *element)?;
             write!(f, [token("[]")])?;
@@ -3445,11 +3440,7 @@ impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
                 }
             }
             TupleElement::Spread { label, value } => {
-                if let Some(label) = label
-                    && f.context().options.language_type.is_typescript()
-                {
-                    write!(f, [token("..."), *label, token(":"), space(), value])?;
-                } else if let Some(label) = label {
+                if let Some(label) = label {
                     write!(f, [*label, token(":"), space()])?;
 
                     write!(f, [token("..."), value])?;

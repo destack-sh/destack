@@ -77,7 +77,7 @@ pub struct DestackFormatContext<'a> {
     pub element_cache: FormatElementCache,
     /// The start position of the following sibling for the node currently being formatted.
     pub current_following_span_start: u32,
-    /// Whether tree callback bodies should expand like JSX return elements.
+    /// Whether tree callback bodies should expand like tree return elements.
     pub should_expand_tree_callback_bodies: bool,
     /// The comment cursor for this formatting pass.
     pub comments: Comments<'a>,
@@ -144,13 +144,13 @@ impl<'a> DestackFormatContext<'a> {
         std::mem::replace(&mut self.current_following_span_start, following_span_start)
     }
 
-    /// Return whether tree callback bodies should expand like JSX return elements.
+    /// Return whether tree callback bodies should expand like tree return elements.
     #[inline]
     pub fn should_expand_tree_callback_bodies(&self) -> bool {
         self.should_expand_tree_callback_bodies
     }
 
-    /// Replace whether tree callback bodies should expand like JSX return elements.
+    /// Replace whether tree callback bodies should expand like tree return elements.
     #[inline]
     pub fn replace_should_expand_tree_callback_bodies(&mut self, should_expand: bool) -> bool {
         std::mem::replace(&mut self.should_expand_tree_callback_bodies, should_expand)

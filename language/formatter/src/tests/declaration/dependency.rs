@@ -51,7 +51,7 @@ fn test_format_import_default_and_namespace_roundtrip() {
     assert_format_roundtrip!(
         r#"import a, * as b from "a""#,
         r#"import a, * as b from "a""#,
-        FileType::JavaScript,
+        FileType::Destack,
         crate::parse_first_expression,
     );
 }

@@ -473,11 +473,7 @@ fn struct_literal_separator(
         return ",";
     }
 
-    if f.context().options.language_type.is_destack() {
-        return type_member_separator(f.context(), properties_ids);
-    }
-
-    ";"
+    type_member_separator(f.context(), properties_ids)
 }
 
 /// Decide the top-level layout for one struct literal.

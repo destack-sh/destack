@@ -130,14 +130,14 @@ fn test_format_pattern_parameter_default_comments() {
   sqrt = Math.sqrt,
 } = {}) => {};
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default().with_indent_width(2),
     );
 }
 
-/// Generic parameter constraints should canonicalize by file type.
+/// Generic parameter constraints should normalize to colon bounds.
 #[test]
-fn test_format_generic_parameter_constraint_canonicalizes_by_file_type() {
+fn test_format_generic_parameter_constraints_use_colon_bounds() {
     assert_format_program_roundtrip_with_file_type(
         r#"type Value<T extends string> = T
 "#,
@@ -150,9 +150,9 @@ fn test_format_generic_parameter_constraint_canonicalizes_by_file_type() {
     assert_format_program_roundtrip_with_file_type(
         r#"type Value<T: string> = T
 "#,
-        r#"type Value<T extends string> = T;
+        r#"type Value<T: string> = T;
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -166,7 +166,7 @@ fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
   // this deliberately long comment keeps the separator attachment in the broken layout
 ): number => {};
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -187,14 +187,14 @@ fn test_format_signature_trailing_separator_block_comment_is_idempotent() {
 class X2 {
   getSectionMode(
     pageMetaData: PageMetaData,
-    sectionMetaData: SectionMetaData = ['unknown']
+    sectionMetaData: SectionMetaData = ["unknown"]
     /* $FlowFixMe This error was exposed while converting keyMirror
      * to keyMirrorRecursive */
   ): $Enum<SectionMode> {
   }
 }
 "#,
-        FileType::TypeScript
+        FileType::Destack
     );
 }
 
@@ -219,7 +219,7 @@ fn test_format_method_comments() {
   }
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -278,7 +278,7 @@ fn test_format_type_literal_parameter_layout() {
 }: { query?: Record<any, any> } = {}) {
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -306,7 +306,7 @@ fn test_format_mapped_type_bracket_spacing() {
         input,
         r#"export type Bar<T> = { [P in keyof T]: string };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 
@@ -314,7 +314,7 @@ fn test_format_mapped_type_bracket_spacing() {
         input,
         r#"export type Bar<T> = { [P in keyof T]: string };
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default_with_line_width(100).with_indent_width(2),
     );
 }
@@ -339,7 +339,7 @@ const arrow = (x /* c1 */ : number, y /* c2 */ : string) => {};
 function optional(x? /* comment */ : number) {}
 function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -399,7 +399,7 @@ fn test_format_interface_method_parameter_separator_comment() {
     ): number;
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -418,7 +418,7 @@ fn test_format_signature_return_separator_comment() {
     Promise<void>;
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         DestackFormatOptions::default(),
     );
 }
@@ -477,7 +477,7 @@ const A5 = {
   ) { }
 }
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -504,17 +504,17 @@ class A3 {
 }
 
 class A4 {
-  publicLog<
-    E extends ClassifiedEvent<OmitMetadata<T>>,
-    T extends IGDPRProperty,
-  >(eventName: string, data?: object) {}
+  publicLog<E: ClassifiedEvent<OmitMetadata<T>>, T: IGDPRProperty>(
+    eventName: string,
+    data?: object,
+  ) {}
 }
 
 const A5 = {
-  publicLog<
-    E extends ClassifiedEvent<OmitMetadata<T>>,
-    T extends IGDPRProperty,
-  >(eventName: string, data?: object) {},
+  publicLog<E: ClassifiedEvent<OmitMetadata<T>>, T: IGDPRProperty>(
+    eventName: string,
+    data?: object,
+  ) {},
 };
 "#,
             ),
@@ -543,14 +543,14 @@ class A3 {
 }
 
 class A4 {
-  publicLog<E extends ClassifiedEvent<OmitMetadata<T>>, T extends IGDPRProperty>(
+  publicLog<E: ClassifiedEvent<OmitMetadata<T>>, T: IGDPRProperty>(
     eventName: string,
     data?: object,
   ) {}
 }
 
 const A5 = {
-  publicLog<E extends ClassifiedEvent<OmitMetadata<T>>, T extends IGDPRProperty>(
+  publicLog<E: ClassifiedEvent<OmitMetadata<T>>, T: IGDPRProperty>(
     eventName: string,
     data?: object,
   ) {},
@@ -606,7 +606,7 @@ function parseTitle(
   }: { maxLength?: number } = {}
 ) {}
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
@@ -718,7 +718,7 @@ fn test_format_parameter_type_query_layout() {
     toastService.addToastItem(...args);
   });
 "#,
-        FileType::TypeScript,
+        FileType::Destack,
         &[
             (
                 80,
