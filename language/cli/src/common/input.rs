@@ -150,7 +150,7 @@ impl InputArgs {
 ///
 /// Examples:
 /// - `foo:export const x = 1` becomes `("foo.ds", "export const x = 1")`
-/// - `bar.ts:const x: number = 1` becomes `("bar.ts", "const x: number = 1")`
+/// - `bar.ds:const x: number = 1` becomes `("bar.ds", "const x: number = 1")`
 fn parse_module_arg(arg: &str, default_extension: &str) -> ConsoleResult<(String, String)> {
     let colon_pos = arg.find(':').ok_or_else(|| {
         ConsoleError::message(format!(

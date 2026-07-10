@@ -36,12 +36,12 @@ fn test_fmt_formats_destack_file() {
     assert_eq!(formatted, "const answer = 42;\n");
 }
 
-/// Formats typescript files during default directory scans.
+/// Formats `.ds` files during default directory scans.
 #[test]
-fn test_fmt_default_scan_includes_typescript() {
-    // set up a typescript file in the root
-    let program = TestProgram::new("fmt_scan_ts");
-    let path = program.write_text("main.ts", "const answer=42");
+fn test_fmt_default_scan_includes_destack() {
+    // set up a source file in the root
+    let program = TestProgram::new("fmt_scan_ds");
+    let path = program.write_text("main.ds", "const answer=42");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
@@ -70,8 +70,8 @@ fn test_fmt_default_scan_honors_gitignore() {
     // set up a regular source and an output source
     let program = TestProgram::new("fmt_scan_ignore");
     program.write_text(".gitignore", "dist/\n");
-    let src_path = program.write_text("src/main.ts", "const answer=42");
-    let output_path = program.write_text("dist/index.ts", "const output=1");
+    let src_path = program.write_text("src/main.ds", "const answer=42");
+    let output_path = program.write_text("dist/index.ds", "const output=1");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
