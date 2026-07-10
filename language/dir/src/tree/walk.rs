@@ -295,7 +295,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::ScalarLiteral { .. } => {}
         TypeExpression::Literal { .. } => {}
         TypeExpression::Intrinsic => {}
-        TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
+        TypeExpression::Tuple { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
                 visitor.visit_tuple_element(tree, *element_id, element);
@@ -968,8 +968,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Identifier { name: _ } => {}
 
-        Expression::PrivateIdentifier { name: _ } => {}
-
         Expression::This
         | Expression::Super
         | Expression::ImportMeta
@@ -1048,13 +1046,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             for argument_id in elements {
                 let argument = tree.get(*argument_id);
                 visitor.visit_argument(tree, *argument_id, argument);
-            }
-        }
-
-        Expression::SequenceExpression { expressions } => {
-            for expr_id in expressions {
-                let expr = tree.get(*expr_id);
-                visitor.visit_expression(tree, *expr_id, expr);
             }
         }
 
@@ -1182,14 +1173,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Member {
-            left: receiver,
-            name: _,
-        } => {
-            let receiver_expr = tree.get(*receiver);
-            visitor.visit_expression(tree, *receiver, receiver_expr);
-        }
-
-        Expression::PrivateMember {
             left: receiver,
             name: _,
         } => {
@@ -1527,9 +1510,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, key: &Key) {
     match key {
         Key::Name(_name) => {
-            // nothing to do
-        }
-        Key::Private(_name) => {
             // nothing to do
         }
         Key::Expression(dynamic_key) => {
@@ -2001,7 +1981,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
-        PatternField::Spread { pattern } => {
+        PatternField::Rest { pattern } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
@@ -2074,7 +2054,7 @@ pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
             let pattern_node = tree.get(*pattern);
             visitor.visit_assign_pattern(tree, *pattern, pattern_node);
         }
-        AssignPatternField::Spread { pattern } => {
+        AssignPatternField::Rest { pattern } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_assign_pattern(tree, *pattern_id, pattern_node);

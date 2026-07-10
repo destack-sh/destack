@@ -39,8 +39,6 @@ impl Name {
 pub enum Key {
     /// A named key.
     Name(Name),
-    /// A private key.
-    Private(StringId),
     /// A dynamic value-space key.
     Expression(LocalNodeId<Expression>),
 }
@@ -51,7 +49,6 @@ impl Key {
     pub fn direct_static_key(self) -> Option<StaticKey> {
         match self {
             Self::Name(name) => Some(name.static_key()),
-            Self::Private(_) => None,
             Self::Expression(_) => None,
         }
     }
@@ -60,17 +57,7 @@ impl Key {
     pub fn static_key(self, tree: &View<'_>) -> Option<StaticKey> {
         match self {
             Self::Name(name) => Some(name.static_key()),
-            Self::Private(_) => None,
             Self::Expression(expression) => tree.get(expression).static_key(),
-        }
-    }
-
-    /// Return the private name when this is a private member key.
-    #[inline]
-    pub fn private_name(self) -> Option<StringId> {
-        match self {
-            Self::Private(name) => Some(name),
-            Self::Name(_) | Self::Expression(_) => None,
         }
     }
 }

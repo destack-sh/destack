@@ -358,17 +358,6 @@ pub enum TypeExpression {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
-    /// Bracket tuple type.
-    ///
-    /// Examples:
-    /// ```
-    /// [A, B]
-    /// [name: string, age: number]
-    /// ```
-    ArrayTuple {
-        elements: Vec<LocalNodeId<TupleElement>>,
-    },
-
     /// Homogeneous array type.
     ///
     /// Examples:

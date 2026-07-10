@@ -742,9 +742,9 @@ pub enum TokenLiteral {
         /// Whether the regex string has flags (e.g. `/abc/g`).
         has_flags: bool,
     },
-    /// Text content inside tree literals (TSX-compatible).
+    /// Text content inside tree literals.
     /// Raw text between `>` and `</` or `{`, like "Hello" in `<div>Hello</div>`.
-    /// Separate from String because JSX text has no escape sequences (uses HTML entities instead).
+    /// Separate from String because tree text uses HTML entities instead of escape sequences.
     TreeString,
 }
 

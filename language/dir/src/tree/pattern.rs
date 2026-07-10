@@ -88,7 +88,7 @@ impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;
 }
 
-/// A PatternField is a field of a variant pattern.
+/// One field in a destructuring or matching pattern.
 ///
 /// Examples:
 /// ```
@@ -99,8 +99,8 @@ impl Node for Pattern {
 /// 4     // positional
 /// x = 4 // named with default
 /// x: y = 4 // named with default and alias
-/// ... // spread
-/// ...rest // spread with name
+/// ... // unbound rest
+/// ...rest // bound rest
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PatternField {
@@ -117,11 +117,11 @@ pub enum PatternField {
     },
     /// Positional field with a pattern (like `4` or `x = 1`).
     Positional { pattern: LocalNodeId<Pattern> },
-    /// Spread field (like `...x` or `...[a, b]`).
-    Spread {
+    /// Rest field like `...x`, `...[a, b]`, or an unbound `...`.
+    Rest {
         pattern: Option<LocalNodeId<Pattern>>,
     },
-    /// Elision in a sequence pattern like `[,a]` or `[,,b]`.
+    /// Elision in a sequence pattern like `[, a]` or `[, , b]`.
     Elision,
 }
 
@@ -129,7 +129,7 @@ impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
 }
 
-/// An AssignPattern is one assignment left hand side.
+/// One assignment left hand side.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPattern {
     /// Writable place target like `x`, `obj.x`, or `obj[key]`.
@@ -157,7 +157,7 @@ impl Node for AssignPattern {
     const TYPE: NodeType = NodeType::AssignPattern;
 }
 
-/// An AssignPatternField is one field in a destructuring assignment target.
+/// One field in a destructuring assignment target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
@@ -173,8 +173,8 @@ pub enum AssignPatternField {
     },
     /// Positional field like `[value]`.
     Positional { pattern: LocalNodeId<AssignPattern> },
-    /// Spread field like `{ ...rest }` or `[...rest]`.
-    Spread {
+    /// Rest field like `{ ...rest }`, `[...rest]`, or an unbound `...`.
+    Rest {
         pattern: Option<LocalNodeId<AssignPattern>>,
     },
     /// Elision like `[, value]`.
