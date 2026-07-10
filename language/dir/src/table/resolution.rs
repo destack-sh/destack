@@ -268,7 +268,6 @@ pub struct ResolutionSegment {
     pub(crate) assign_patterns: IndexMap<GlobalNodeIdAny, AssignPatternResolution, FxBuildHasher>,
 }
 
-
 /// Per-kind resolution counts marking one segment position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolutionMark {
@@ -298,8 +297,19 @@ impl ResolutionSegment {
 
     /// Truncate resolutions back to one mark, newest first.
     pub fn truncate_to(&mut self, mark: ResolutionMark) {
-        let [names, instantiations, labels, receivers, members, calls, places, guards, constructs, patterns, assign_patterns] =
-            mark.lengths;
+        let [
+            names,
+            instantiations,
+            labels,
+            receivers,
+            members,
+            calls,
+            places,
+            guards,
+            constructs,
+            patterns,
+            assign_patterns,
+        ] = mark.lengths;
         Self::truncate_map(&mut self.names, names);
         Self::truncate_map(&mut self.instantiations, instantiations);
         Self::truncate_map(&mut self.labels, labels);

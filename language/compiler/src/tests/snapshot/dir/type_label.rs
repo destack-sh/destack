@@ -35,7 +35,15 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Reference(reference) => self.reference_symbol_label(reference.symbol),
             dir::Type::Instance(instance) => self.instance_type_label(types, instance),
             dir::Type::This => "this".to_string(),
-            dir::Type::Member(member) => self.member_type_label(types, member),
+            dir::Type::Member(member) => self.member_type_label(types, types.member(*member)),
+            dir::Type::Refined(refined) => {
+                let refined = types.refined(*refined);
+                let base = self.type_id_label(types, refined.base);
+                let key = self.static_key(refined.key);
+                let value = self.type_id_label(types, refined.value);
+
+                format!("{base}<type {key} = {value}>")
+            }
             dir::Type::EnumMember(member) => self.symbol_path_label(member.member),
             dir::Type::Form(form) => self.form_type_label(types, form),
             dir::Type::Dynamic(any) => {
@@ -43,14 +51,18 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("Dynamic<{constraint}>")
             }
-            dir::Type::Operation(operation) => self.operation_type_label(types, operation),
+            dir::Type::Operation(operation) => {
+                self.operation_type_label(types, types.operation(*operation))
+            }
             dir::Type::Array(array) => self.array_type_label(types, array),
             dir::Type::FixedArray(array) => self.fixed_array_type_label(types, array),
             dir::Type::Range(range) => self.range_type_label(range),
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
             dir::Type::Tuple(tuple) => self.tuple_type_label(types, tuple),
             dir::Type::Shape(shape) => self.shape_type_label(types, shape),
-            dir::Type::FunctionSignature(function) => self.function_type_label(types, function),
+            dir::Type::FunctionSignature(function) => {
+                self.function_type_label(types, types.signature(*function))
+            }
             dir::Type::Function(function) => self.function_value_type_label(types, function),
             dir::Type::FunctionPointer(function) => {
                 self.function_pointer_type_label(types, function)
@@ -82,7 +94,7 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         function: &dir::FunctionType,
     ) -> String {
-        let signature = self.function_signature_type(types, function.signature);
+        let (types, signature) = self.function_signature_type(types, function.signature);
         let parameters = self.function_parameter_tuple_label(types, &signature);
         let return_type = self.function_return_type_label(types, &signature);
 
@@ -95,7 +107,7 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         function: &dir::FunctionPointerType,
     ) -> String {
-        let signature = self.function_signature_type(types, function.signature);
+        let (types, signature) = self.function_signature_type(types, function.signature);
         let parameters = self.function_parameter_tuple_label(types, &signature);
         let return_type = self.function_return_type_label(types, &signature);
 
@@ -103,21 +115,31 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return the function signature type referenced by one callable representation.
-    fn function_signature_type(
-        &self,
-        types: &dir::TypeTable<'_>,
+    fn function_signature_type<'t>(
+        &'t self,
+        types: &'t dir::TypeTable<'t>,
         signature_id: dir::GlobalTypeId,
-    ) -> dir::FunctionSignatureType {
-        assert_eq!(
-            signature_id.module_id, types.module_id,
-            "callable signature must belong to the snapshot module"
-        );
+    ) -> (&'t dir::TypeTable<'t>, dir::FunctionSignatureType) {
+        // foreign signatures resolve through their owning module's table
+        let types = if signature_id.module_id == types.module_id {
+            types
+        } else {
+            self.foreign_types
+                .get(&signature_id.module_id)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "callable signature module {:?} is not loaded for snapshots",
+                        signature_id.module_id
+                    )
+                })
+        };
         let signature = types.get_type(signature_id.local_id);
         let dir::Type::FunctionSignature(signature) = signature else {
             panic!("callable signature type must point to a function signature");
         };
+        let signature = *types.signature(signature);
 
-        signature
+        (types, signature)
     }
 
     /// Return one function signature's parameter tuple label.
@@ -269,9 +291,10 @@ impl DirSnapshotBuilder<'_> {
         match &form.form {
             dir::Form::Managed => format!("Managed<{value}>"),
             dir::Form::Owned => format!("Owned<{value}>"),
-            dir::Form::Borrowed { lifetime, access } => {
-                let lifetime = self.type_id_label(types, *lifetime);
-                let access = self.type_id_label(types, *access);
+            dir::Form::Borrowed(borrow) => {
+                let borrow = types.borrow_form(*borrow);
+                let lifetime = self.type_id_label(types, borrow.lifetime);
+                let access = self.type_id_label(types, borrow.access);
 
                 format!("Borrowed<{value}, {lifetime}, {access}>")
             }
@@ -636,7 +659,7 @@ impl DirSnapshotBuilder<'_> {
         if field.ty.module_id == types.module_id
             && let dir::Type::FunctionSignature(function) = types.get_type(field.ty.local_id)
         {
-            let signature = self.method_signature_label(types, &function);
+            let signature = self.method_signature_label(types, types.signature(function));
 
             format!("{readonly}{key}{optional}{signature}")
         }

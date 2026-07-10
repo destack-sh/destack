@@ -816,6 +816,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::Chain { expression } => self.lower_expression(*expression)?,
             dir::Expression::Maybe { left, position: _ } => {
                 let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);
@@ -839,7 +840,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
-            dir::Expression::Member { left, name } => {
+            dir::Expression::Member { left, name, .. } => {
                 let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let Some(name) = *name else {
                     return Err(self.unsupported_construct(
@@ -859,6 +860,7 @@ impl ModuleLowerer<'_> {
                 position: _,
                 left,
                 index,
+                ..
             } => {
                 let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);
@@ -898,6 +900,7 @@ impl ModuleLowerer<'_> {
                 left,
                 generic_arguments,
                 arguments,
+                ..
             } => {
                 let left_id = self.lower_expression_as::<js::Expression>(*left)?;
                 let position = self.get_postfix_expression_position(left_id);

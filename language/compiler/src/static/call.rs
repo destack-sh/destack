@@ -35,6 +35,7 @@ impl StaticContext<'_> {
         let dir::Expression::Member {
             left: receiver,
             name: Some(name),
+            ..
         } = self.view.get(callee)
         else {
             return None;
