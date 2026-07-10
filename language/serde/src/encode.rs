@@ -42,6 +42,18 @@ where
     Ok(encoder.len())
 }
 
+/// Encode one value into one hasher, without buffering bytes.
+pub fn hash_into<T, H>(value: &T, hasher: &mut H) -> Result<()>
+where
+    T: Serialize + ?Sized,
+    H: std::hash::Hasher,
+{
+    let mut encoder = Encoder::new_hasher(hasher);
+    value.serialize(&mut encoder)?;
+
+    Ok(())
+}
+
 /// Encode one value into one caller-owned byte slice.
 pub fn to_slice<'a, T>(value: &T, output: &'a mut [u8]) -> Result<&'a mut [u8]>
 where
@@ -57,14 +69,12 @@ where
 }
 
 /// Stateful binary encoder.
-#[derive(Debug)]
 struct Encoder<'output> {
     /// Encoded output destination.
     output: EncoderOutput<'output>,
 }
 
 /// Encoder output destination.
-#[derive(Debug)]
 enum EncoderOutput<'output> {
     /// Growable byte vector.
     Vec(Vec<u8>),
@@ -79,6 +89,22 @@ enum EncoderOutput<'output> {
     },
     /// Byte count only.
     Count(usize),
+    /// Streaming hasher sink.
+    Hasher(&'output mut dyn std::hash::Hasher),
+}
+
+impl std::fmt::Debug for Encoder<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let sink = match &self.output {
+            EncoderOutput::Vec(_) => "vec",
+            EncoderOutput::VecRef(_) => "vec_ref",
+            EncoderOutput::Slice { .. } => "slice",
+            EncoderOutput::Count(_) => "count",
+            EncoderOutput::Hasher(_) => "hasher",
+        };
+
+        formatter.debug_struct("Encoder").field("output", &sink).finish()
+    }
 }
 
 impl Encoder<'_> {
@@ -96,6 +122,7 @@ impl Encoder<'_> {
     /// Return the number of encoded bytes.
     fn len(&self) -> usize {
         match &self.output {
+            EncoderOutput::Hasher(_) => 0,
             EncoderOutput::Vec(bytes) => bytes.len(),
             EncoderOutput::VecRef(bytes) => bytes.len(),
             EncoderOutput::Slice { len, .. } => *len,
@@ -134,9 +161,21 @@ impl Encoder<'_> {
         }
     }
 
+    /// Create a new streaming hasher encoder.
+    fn new_hasher(hasher: &mut dyn std::hash::Hasher) -> Encoder<'_> {
+        Encoder {
+            output: EncoderOutput::Hasher(hasher),
+        }
+    }
+
     /// Write one raw byte.
     fn write_byte(&mut self, byte: u8) -> Result<()> {
         match &mut self.output {
+            EncoderOutput::Hasher(hasher) => {
+                hasher.write(&[byte]);
+
+                Ok(())
+            }
             EncoderOutput::Vec(output) => {
                 output.push(byte);
 
@@ -168,6 +207,11 @@ impl Encoder<'_> {
     /// Write raw bytes.
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
         match &mut self.output {
+            EncoderOutput::Hasher(hasher) => {
+                hasher.write(bytes);
+
+                Ok(())
+            }
             EncoderOutput::Vec(output) => {
                 output.extend_from_slice(bytes);
 
