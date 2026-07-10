@@ -8,7 +8,7 @@ use destack_core::StringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
-use destack_source::{File, FileType, IndentStyle, LineEnding, NodeSpanType, Span};
+use destack_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
 
 /// The formatter type for one JS formatting pass.
 pub type JsFormatter<'context, 'buffer> = Formatter<'buffer, JsFormatContext<'context>>;
@@ -56,13 +56,42 @@ pub enum FormatMode {
     Minimal,
 }
 
+/// The script syntax emitted by one print pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ScriptFormat {
+    /// JavaScript without type syntax.
+    JavaScript,
+    /// TypeScript with runtime and type syntax.
+    #[default]
+    TypeScript,
+    /// TypeScript declarations only.
+    Declaration,
+}
+
+impl ScriptFormat {
+    /// Return whether type syntax should be emitted.
+    #[inline]
+    pub fn includes_types(self) -> bool {
+        matches!(self, Self::TypeScript | Self::Declaration)
+    }
+
+    /// Return the canonical output extension.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::JavaScript => "js",
+            Self::TypeScript => "ts",
+            Self::Declaration => "d.ts",
+        }
+    }
+}
+
 /// JS/TS format options.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct JsFormatOptions {
     /// The formatting mode.
     pub mode: FormatMode = FormatMode::Pretty,
-    /// The output file type.
-    pub file_type: FileType = FileType::TypeScript,
+    /// The emitted script syntax.
+    pub format: ScriptFormat = ScriptFormat::TypeScript,
     /// The line ending to apply to printed output.
     pub line_ending: LineEnding = LineEnding::LineFeed,
     /// The indent style.
@@ -91,9 +120,9 @@ impl JsFormatOptions {
         }
     }
 
-    /// Set the file type.
-    pub fn with_file_type(mut self, file_type: FileType) -> Self {
-        self.file_type = file_type;
+    /// Set the emitted script syntax.
+    pub fn with_format(mut self, format: ScriptFormat) -> Self {
+        self.format = format;
         self
     }
 
@@ -132,30 +161,6 @@ impl JsFormatOptions {
             trim_trailing_whitespace: true,
             max_output_bytes: MAX_OUTPUT_BYTES,
         }
-    }
-
-    /// Return whether type syntax should be emitted.
-    #[inline]
-    pub fn include_types(&self) -> bool {
-        matches!(
-            self.file_type,
-            FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration
-        )
-    }
-
-    /// Return whether annotations should be emitted.
-    #[inline]
-    pub fn include_annotations(&self) -> bool {
-        matches!(
-            self.file_type,
-            FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration
-        )
-    }
-
-    /// Return whether declarations only should be emitted.
-    #[inline]
-    pub fn is_declaration(&self) -> bool {
-        matches!(self.file_type, FileType::TypeScriptDeclaration)
     }
 }
 
@@ -205,13 +210,7 @@ impl<'context> JsFormatContext<'context> {
     /// Return whether type syntax should be emitted.
     #[inline]
     pub fn include_types(&self) -> bool {
-        self.options.include_types()
-    }
-
-    /// Return whether annotations should be emitted.
-    #[inline]
-    pub fn include_annotations(&self) -> bool {
-        self.options.include_annotations()
+        self.options.format.includes_types()
     }
 
     /// Return one source span for one lowered node when one exists.

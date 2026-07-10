@@ -1,6 +1,5 @@
 use destack_core::StringPool;
 use destack_fir::format::FileMarker;
-use destack_source::FileType;
 use std::convert::Infallible;
 
 use crate::tree::Precedence;
@@ -8,7 +7,8 @@ use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
     Declaration, Declarator, DependencyItem, EnumField, Expression, GenericParameter, JsSourceMap,
     LocalNodeId, LocalNodeIdAny, Member, NOOP_JS_SOURCE_MAP, NodeType, Parameter, Pattern,
-    PatternField, Property, Statement, SwitchCase, Tree, TupleElement, TypeExpression, TypeMember,
+    PatternField, Property, ScriptFormat, Statement, SwitchCase, Tree, TupleElement,
+    TypeExpression, TypeMember,
 };
 
 /// The result type for direct JS printing.
@@ -25,25 +25,25 @@ pub struct PrintedScript {
 
 /// Print one root list through the direct minified printer.
 pub fn print_roots_minified(
-    file_type: FileType,
+    format: ScriptFormat,
     tree: &Tree,
     roots: &[LocalNodeIdAny],
     strings: &StringPool,
 ) -> JsPrintResult<PrintedScript> {
-    let mut printer = Printer::new(file_type, tree, roots, strings, &NOOP_JS_SOURCE_MAP);
+    let mut printer = Printer::new(format, tree, roots, strings, &NOOP_JS_SOURCE_MAP);
     printer.print_roots()?;
     Ok(printer.finish())
 }
 
 /// Print one root list through the direct minified printer with one source span provider.
 pub fn print_roots_minified_with_source_map(
-    file_type: FileType,
+    format: ScriptFormat,
     tree: &Tree,
     roots: &[LocalNodeIdAny],
     strings: &StringPool,
     source_map: &dyn JsSourceMap,
 ) -> JsPrintResult<PrintedScript> {
-    let mut printer = Printer::new(file_type, tree, roots, strings, source_map);
+    let mut printer = Printer::new(format, tree, roots, strings, source_map);
     printer.print_roots()?;
     Ok(printer.finish())
 }
@@ -108,7 +108,7 @@ impl<'a> Printer<'a> {
 
     /// Create one direct script printer.
     pub(crate) fn new(
-        file_type: FileType,
+        format: ScriptFormat,
         tree: &'a Tree,
         roots: &'a [LocalNodeIdAny],
         strings: &'a StringPool,
@@ -119,14 +119,8 @@ impl<'a> Printer<'a> {
             roots,
             strings,
             source_map,
-            include_types: matches!(
-                file_type,
-                FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration
-            ),
-            include_annotations: matches!(
-                file_type,
-                FileType::TypeScript | FileType::TypeScriptXml | FileType::TypeScriptDeclaration
-            ),
+            include_types: format.includes_types(),
+            include_annotations: format.includes_types(),
             code: String::new(),
             markers: Vec::new(),
         }
