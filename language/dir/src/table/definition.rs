@@ -714,6 +714,10 @@ pub struct FieldDefinition {
     pub key: StaticKey,
     /// The field initializer expression, when one is declared.
     pub initializer: Option<GlobalNodeIdAny>,
+    /// Whether the field is optional on its declaration.
+    pub is_optional: bool,
+    /// Whether the field rejects writes after initialization.
+    pub is_readonly: bool,
     /// Whether the field asserts definite assignment outside constructors.
     pub is_definite: bool,
     /// Whether subclasses must provide the field.
@@ -841,6 +845,7 @@ impl DefinitionMember {
     pub fn is_default(&self) -> bool {
         match self {
             Self::Method(method) => method.implementation == MethodImplementation::Default,
+            Self::AssociatedType(associated) => associated.value.is_some(),
             _ => false,
         }
     }

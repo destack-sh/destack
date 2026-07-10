@@ -846,6 +846,8 @@ pub struct MappedTypeParameter {
     pub constraint: GlobalTypeId,
     /// The optional key remap like `as Foo<K>`.
     pub key_remap: Option<GlobalTypeId>,
+    /// The keyed source whose field modifiers carry, like `T` in `[K in keyof T]`.
+    pub modifiers_type: Option<GlobalTypeId>,
 }
 
 /// Mapped-type modifiers.
