@@ -85,41 +85,6 @@ impl Module {
             panic!("module has no code language type: {:?}", self.id);
         })
     }
-
-    /// Return true when this module is parsed as Destack.
-    pub fn is_destack(&self) -> bool {
-        self.language_type
-            .is_some_and(|language_type| language_type.is_destack())
-    }
-
-    /// Return true when this module is parsed as JavaScript.
-    pub fn is_javascript(&self) -> bool {
-        self.language_type
-            .is_some_and(|language_type| language_type.is_javascript())
-    }
-
-    /// Return true when this module is parsed as TypeScript.
-    pub fn is_typescript(&self) -> bool {
-        self.language_type
-            .is_some_and(|language_type| language_type.is_typescript())
-    }
-
-    /// Return true when this module is parsed as JavaScript or TypeScript.
-    pub fn is_ecmascript(&self) -> bool {
-        self.is_javascript() || self.is_typescript()
-    }
-
-    /// Return true when this module is parsed as a declaration file.
-    pub fn is_declaration(&self) -> bool {
-        self.language_type
-            .is_some_and(|language_type| language_type.is_declaration())
-    }
-
-    /// Return true when this module language supports declaration merging.
-    pub fn supports_declaration_merging(&self) -> bool {
-        self.language_type
-            .is_some_and(|language_type| language_type.supports_declaration_merging())
-    }
 }
 
 /// One source file that contributes to a module.
