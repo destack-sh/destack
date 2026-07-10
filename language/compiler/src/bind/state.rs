@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{DirBound, DirParsed};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, StringId};
 use indexmap::IndexMap;
 
 use crate::Compiler;
@@ -34,6 +34,8 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) binding_stack: Vec<BindingContext>,
     /// Shared binding symbols for active union patterns.
     pub(in crate::bind) union_pattern_symbols: Vec<IndexMap<dir::StaticKey, dir::LocalSymbolId>>,
+    /// Shared symbols for repeated `infer` binders per conditional scope.
+    pub(in crate::bind) infer_symbols: IndexMap<(dir::LocalScopeId, StringId), dir::LocalSymbolId>,
 
     /// The binding table being built.
     pub(in crate::bind) bindings: dir::BindingSegment,
@@ -81,6 +83,7 @@ impl<'a> BindState<'a> {
             options: dir::NodeVisitorOptions::default(),
             scope_stack: vec![namespace_scope],
             infer_scope_stack: Vec::new(),
+            infer_symbols: IndexMap::new(),
             binding_stack: vec![BindingContext {
                 export: None,
                 mutability: None,
