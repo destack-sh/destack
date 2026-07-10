@@ -6,7 +6,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::mem::size_of;
 use xxhash_rust::xxh3::xxh3_128;
 
-use crate::StableHasher;
+use crate::{StableHasher, stable_hash_text};
 
 const LOCAL_INDEX_MIN_CAPACITY: usize = 16;
 const LOCAL_INDEX_EMPTY_SLOT: u32 = u32::MAX;
@@ -16,17 +16,17 @@ const LOCAL_INDEX_LOAD_DENOMINATOR: usize = 4;
 /// Stable content identity for one interned string.
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize, Reflect)]
-pub struct StringId(pub u128);
+pub struct StringId(pub u64);
 
 impl Debug for StringId {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "#{:032x}", self.0)
+        write!(f, "#{:016x}", self.0)
     }
 }
 
 impl std::fmt::Display for StringId {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "#{:032x}", self.0)
+        write!(f, "#{:016x}", self.0)
     }
 }
 
@@ -34,12 +34,12 @@ impl StringId {
     /// Create the stable id for one string.
     #[inline]
     pub fn for_text(text: &str) -> Self {
-        Self(xxh3_128(text.as_bytes()))
+        Self(stable_hash_text(text))
     }
 
     /// Return the raw stable hash bits.
     #[inline]
-    pub fn raw(self) -> u128 {
+    pub fn raw(self) -> u64 {
         self.0
     }
 }
