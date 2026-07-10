@@ -756,6 +756,13 @@ pub enum Form {
     Readonly,
 }
 
+impl Form {
+    /// Return whether two forms share one constructor.
+    pub fn same_constructor(&self, other: &Form) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
 /// Explicit runtime `Dynamic<T>` representation.
 ///
 /// Examples:

@@ -99,4 +99,12 @@ impl FunctionSignature {
     pub fn declares_generic_scope(&self) -> bool {
         !self.generic_parameters.is_empty() || !self.where_clauses.is_empty()
     }
+
+    /// Return whether this signature constructs its receiver.
+    pub fn is_constructor(&self) -> bool {
+        matches!(
+            self.role,
+            Some(FunctionRole::Constructor | FunctionRole::New)
+        )
+    }
 }
