@@ -1,6 +1,6 @@
 use crate::DestackFormatter;
 use crate::annotation::FormatLeadingComments;
-use crate::file::{ignore_ranges_for_nodes, write_ignored_span};
+use crate::file::{ignore_ranges_for_nodes, write_source_span};
 use destack_dir::{LocalNodeId, Node, Tree, TreeStore};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{empty_line, hard_line_break};
@@ -93,7 +93,7 @@ where
                 write!(f, [FormatLeadingComments::Comments(comments)])?;
             }
 
-            write_ignored_span(f, *range_span)?;
+            write_source_span(f, *range_span)?;
             skip_until = Some(range_span.end);
             continue;
         }

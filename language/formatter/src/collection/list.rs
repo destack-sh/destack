@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::context::with_following_span_start;
-use crate::file::{ignore_ranges_for_nodes, write_ignored_span};
+use crate::file::{ignore_ranges_for_nodes, write_source_span};
 use crate::{DestackFormatContext, FormatNode};
 use destack_dir::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore};
 use destack_fir::format::{FormatResult, GroupId};
@@ -555,7 +555,7 @@ where
                 write!(f, [token(separator), soft_line_break_or_space()])?;
             }
 
-            write_ignored_span(f, *range_span)?;
+            write_source_span(f, *range_span)?;
             if ends_with_separator && has_following_element {
                 write!(f, [soft_line_break_or_space()])?;
             }

@@ -14,7 +14,7 @@ use crate::declaration::sequence::{
     block_allows_value_tail, expression_postfix_end, format_block_body_narrow,
     format_block_body_wide, program_statement_sequence,
 };
-use crate::file::{has_file_ignore_directive, write_ignored_span};
+use crate::file::{has_file_ignore_directive, write_source_span};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 
 /// Create a formatter for a list of expression statements.
@@ -28,7 +28,7 @@ pub fn statement_list<'ast>(
             && has_file_ignore_directive(f.context())
         {
             let full_file_span = Span::new(f.context().file.id, 0, f.context().file.len);
-            write_ignored_span(f, full_file_span)?;
+            write_source_span(f, full_file_span)?;
             return Ok(());
         }
 

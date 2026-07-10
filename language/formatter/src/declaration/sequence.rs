@@ -14,7 +14,7 @@ use crate::declaration::{
 };
 use crate::expression::format_expression;
 use crate::file::{
-    ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_ignored_span,
+    ignore_range_for_node, ignore_ranges_for_nodes, node_has_ignore_directive, write_source_span,
 };
 use destack_dir::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionForm,
@@ -684,10 +684,10 @@ pub(crate) fn format_block_statement_sequence<'ast>(
             );
             if prefix_start < range_span.start {
                 let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
-                write_ignored_span(f, prefix_span)?;
+                write_source_span(f, prefix_span)?;
             }
 
-            write_ignored_span(f, range_span)?;
+            write_source_span(f, range_span)?;
             skip_until = Some(range_span.end);
             previous_output_end = Some((range_span.file, range_span.end));
             previous_output_was_ignored = true;
@@ -878,10 +878,10 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
             );
             if prefix_start < range_span.start {
                 let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
-                write_ignored_span(f, prefix_span)?;
+                write_source_span(f, prefix_span)?;
             }
 
-            write_ignored_span(f, range_span)?;
+            write_source_span(f, range_span)?;
             skip_until = Some(range_span.end);
             prev_was_import = false;
             prev_import_id = None;
@@ -1085,10 +1085,10 @@ fn format_program_statement_sequence<'ast>(
             );
             if prefix_start < range_span.start {
                 let prefix_span = Span::new(range_span.file, prefix_start, range_span.start);
-                write_ignored_span(f, prefix_span)?;
+                write_source_span(f, prefix_span)?;
             }
 
-            write_ignored_span(f, range_span)?;
+            write_source_span(f, range_span)?;
             skip_until = Some(range_span.end);
             prev_was_import = false;
             prev_import_id = None;
