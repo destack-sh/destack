@@ -119,7 +119,7 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
     }
 
     /// Convert this rotation to axis-angle representation.
-    toAxisAngle(): [Vector3<T>, T] {
+    toAxisAngle(): (Vector3<T>, T) {
         todo("Quaternion.toAxisAngle")
     }
 

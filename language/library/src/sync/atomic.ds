@@ -115,7 +115,7 @@ export extension<T> of Atomic<T> {
         expected: T,
         desired: T,
         order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
-    ): [T, boolean] {
+    ): (T, boolean) {
         todo("Atomic.compareExchange")
     }
 }
@@ -209,7 +209,7 @@ export declare function atomicCas<T>(
     isVolatile: boolean,
     isMakeAvailable: boolean,
     isMakeVisible: boolean,
-): [T, boolean];
+): (T, boolean);
 
 /// Atomic compare-and-swap (weak).
 ///
@@ -226,7 +226,7 @@ export declare function atomicCasWeak<T>(
     isVolatile: boolean,
     isMakeAvailable: boolean,
     isMakeVisible: boolean,
-): [T, boolean];
+): (T, boolean);
 
 /// Atomic exchange.
 ///
