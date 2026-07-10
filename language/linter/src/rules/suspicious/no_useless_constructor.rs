@@ -247,7 +247,10 @@ fn constructor_argument_binding(
     let (value_expression_id, is_spread) = match argument {
         dir::Argument::Positional { value } => (*value, false),
         dir::Argument::Spread { value, .. } => (*value, true),
-        dir::Argument::Named { .. } | dir::Argument::Labeled { .. } | dir::Argument::Error => {
+        dir::Argument::Named { .. }
+        | dir::Argument::Labeled { .. }
+        | dir::Argument::Elision
+        | dir::Argument::Error => {
             return None;
         }
     };

@@ -175,7 +175,7 @@ fn argument_value_expression_id(argument: &Argument) -> Option<LocalNodeId<Expre
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => Some(*value),
-        Argument::Error => None,
+        Argument::Elision | Argument::Error => None,
     }
 }
 

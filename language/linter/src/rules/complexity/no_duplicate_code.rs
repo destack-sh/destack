@@ -1635,7 +1635,7 @@ impl dir::NodeVisitor for DuplicateSignatureCollector<'_> {
                     self.push_same("argument_label", "None");
                 }
             }
-            dir::Argument::Error => {}
+            dir::Argument::Elision | dir::Argument::Error => {}
         }
 
         dir::walk_argument(self, tree, id, argument);

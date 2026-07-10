@@ -1276,7 +1276,7 @@ pub fn argument_value_expression_id(
         | dir::Argument::Spread { value, .. }
         | dir::Argument::Named { value, .. }
         | dir::Argument::Labeled { value, .. } => Some(*value),
-        dir::Argument::Error => None,
+        dir::Argument::Elision | dir::Argument::Error => None,
     }
 }
 
@@ -2024,6 +2024,7 @@ pub fn expression_has_side_effects(
                 | dir::Argument::Spread { value, .. }
                 | dir::Argument::Named { value, .. }
                 | dir::Argument::Labeled { value, .. } => expression_has_side_effects(ctx, *value),
+                dir::Argument::Elision => false,
                 dir::Argument::Error => true,
             }
         }),
@@ -2113,11 +2114,8 @@ pub fn expression_has_side_effects(
         | dir::Expression::Export { .. }
         | dir::Expression::Label { .. } => true,
 
-        // side effects: debugger, error, stub
-        dir::Expression::Debugger
-        | dir::Expression::Error
-        | dir::Expression::Missing
-        | dir::Expression::Stub => true,
+        // side effects: debugger and damaged expressions
+        dir::Expression::Debugger | dir::Expression::Error | dir::Expression::Missing => true,
 
         // wrapped expressions: check inner
         dir::Expression::Parenthesized { expression } => {
