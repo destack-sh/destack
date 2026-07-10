@@ -19,7 +19,7 @@ impl StaticContext<'_> {
     ) -> Result<dir::StaticTerm, StaticError> {
         match self.view.get(expression) {
             dir::Expression::ScalarLiteral(value) => Ok((*value).into()),
-            dir::Expression::Member { left, name } => {
+            dir::Expression::Member { left, name, .. } => {
                 self.evaluate_member(expression, *left, *name)
             }
             dir::Expression::Unary { operator, right } => self.evaluate_unary(*operator, *right),
@@ -81,6 +81,7 @@ impl StaticContext<'_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => self.strings.get(*name) == "meta" && self.is_import_keyword(*left),
             _ => false,
         }
@@ -92,6 +93,7 @@ impl StaticContext<'_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => self.strings.get(*name) == "target" && self.is_import_meta(*left),
             _ => false,
         }

@@ -241,7 +241,6 @@ impl Coercion {
             _ => true,
         }
     }
-
 }
 
 /// Coercions added by one DIR phase.

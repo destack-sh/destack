@@ -624,6 +624,7 @@ impl ModuleLowerer<'_> {
                 Some("semantic function signature lowering expected a function type".to_string()),
             ));
         };
+        let function = *self.types.signature(function);
 
         // generic parameters
         let generic_parameters = match function.template {
@@ -778,7 +779,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
-            dir::Type::Operation(operation) => match operation {
+            dir::Type::Operation(operation) => match self.types.operation(*operation) {
                 dir::TypeOperation::StringMapping { mapping, target } => {
                     self.lower_string_mapping(source_id, *mapping, *target)?
                 }

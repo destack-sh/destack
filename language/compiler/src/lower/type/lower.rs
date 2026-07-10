@@ -639,7 +639,7 @@ impl<'a> TypeLowerer<'a> {
             dir::Form::Managed | dir::Form::Placed { .. } | dir::Form::Readonly => {
                 self.lower_type(types, form.value, module_id, node, builder)
             }
-            dir::Form::Borrowed { .. } => self.lower_form_reference_type(
+            dir::Form::Borrowed(_) => self.lower_form_reference_type(
                 types,
                 form,
                 mir::ReferenceKind::Borrowed,
@@ -672,7 +672,7 @@ impl<'a> TypeLowerer<'a> {
             self.lower_value_representation_type(types, form.value, module_id, node, builder)?;
         let space = self.form_space(types, form.value, module_id, node)?;
         let access = self
-            .form_access(form)
+            .form_access(types, form)
             .unwrap_or_else(|| self.default_reference_access(kind));
 
         Ok(builder.type_reference(kind, base_type, access, space, mir::Nullability::None))
@@ -1201,11 +1201,12 @@ impl<'a> TypeLowerer<'a> {
     }
 
     /// Return the access encoded by a resolved `Form` type.
-    fn form_access(&self, form: &dir::FormType) -> Option<mir::Access> {
-        let dir::Form::Borrowed { access, .. } = &form.form else {
+    fn form_access(&self, types: &dir::TypeTable<'_>, form: &dir::FormType) -> Option<mir::Access> {
+        let dir::Form::Borrowed(borrow) = form.form else {
             return None;
         };
-        let access = self.static_string_term(access)?;
+        let access = types.borrow_form(borrow).access;
+        let access = self.static_string_term(&access)?;
         let access = self.strings.get(access);
 
         match access.as_ref() {
