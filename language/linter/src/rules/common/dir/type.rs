@@ -109,18 +109,15 @@ fn for_each_reference_symbol_type_id(
 }
 
 /// Return whether one type is a template literal operation.
-fn type_is_template_literal_operation(ty: &dir::Type) -> bool {
-    matches!(
-        ty,
-        dir::Type::Operation(dir::TypeOperation::TemplateLiteral(_))
-    )
+fn type_is_template_literal_operation(operation: Option<&dir::TypeOperation>) -> bool {
+    matches!(operation, Some(dir::TypeOperation::TemplateLiteral(_)))
 }
 
 /// Return whether one type operation still needs check reduction.
-fn type_is_reducible_operation(ty: &dir::Type) -> bool {
+fn type_is_reducible_operation(operation: Option<&dir::TypeOperation>) -> bool {
     matches!(
-        ty,
-        dir::Type::Operation(
+        operation,
+        Some(
             dir::TypeOperation::StringMapping { .. }
                 | dir::TypeOperation::Conditional(_)
                 | dir::TypeOperation::Mapped(_)
@@ -497,6 +494,13 @@ fn evaluate_terminal_boolean_type_query(
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
 ) -> bool {
+    // resolve the operation payload once for the operation queries below
+    let operation = match ty {
+        dir::Type::Operation(operation) => ctx.checked_operation(module, *operation),
+        _ => None,
+    };
+    let operation = operation.as_ref();
+
     match query {
         TypeBooleanQuery::StrictBoolean => matches!(
             ty,
@@ -508,7 +512,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Slice(_) | dir::Type::FixedArray(_) | dir::Type::Tuple(_)
         ),
         TypeBooleanQuery::String { .. } => {
-            type_is_template_literal_operation(ty) || type_is_string_like(ty)
+            type_is_template_literal_operation(operation) || type_is_string_like(ty, operation)
         }
         TypeBooleanQuery::Float => matches!(ty, dir::Type::Primitive(dir::PrimitiveType::Float(_))),
         TypeBooleanQuery::Function => match ty {
@@ -517,7 +521,9 @@ fn evaluate_terminal_boolean_type_query(
             _ => false,
         },
         TypeBooleanQuery::HasThisParameter => match ty {
-            dir::Type::FunctionSignature(function) => function.this_parameter.is_some(),
+            dir::Type::FunctionSignature(function) => ctx
+                .checked_signature(module, *function)
+                .is_some_and(|function| function.this_parameter.is_some()),
             _ => false,
         },
         TypeBooleanQuery::ReferenceSymbolKind { .. } => false,
@@ -597,7 +603,9 @@ fn evaluate_terminal_boolean_type_query(
             _ => false,
         },
         TypeBooleanQuery::AsyncFunction => match ty {
-            dir::Type::FunctionSignature(function) => function.asynchrony == dir::Asynchrony::Async,
+            dir::Type::FunctionSignature(function) => ctx
+                .checked_signature(module, *function)
+                .is_some_and(|function| function.asynchrony == dir::Asynchrony::Async),
             dir::Type::Shape(object) => ctx
                 .checked_type_ids(module, object.call_signatures)
                 .iter()
@@ -618,7 +626,7 @@ fn evaluate_terminal_boolean_type_query(
         TypeBooleanQuery::Promise { .. } => false,
         TypeBooleanQuery::VoidOrNever => matches!(ty, dir::Type::Void | dir::Type::Never),
         TypeBooleanQuery::TemplateInterpolation { .. } => match ty {
-            ty if type_is_template_literal_operation(ty) => true,
+            _ if type_is_template_literal_operation(operation) => true,
             dir::Type::Primitive(
                 dir::PrimitiveType::Bigint
                 | dir::PrimitiveType::Integer(_)
@@ -629,7 +637,7 @@ fn evaluate_terminal_boolean_type_query(
                 | dir::ScalarLiteral::Bigint(_)
                 | dir::ScalarLiteral::Float(_),
             ) => true,
-            _ => type_is_string_like(ty),
+            _ => type_is_string_like(ty, operation),
         },
         TypeBooleanQuery::StringLikePropertyKey => type_is_string_like_property_key(ty),
         TypeBooleanQuery::NumericPropertyKey => type_is_numeric_property_key(ty),
@@ -651,7 +659,7 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Any
             | dir::Type::Unknown
             | dir::Type::Error => true,
-            ty if type_is_reducible_operation(ty) => true,
+            _ if type_is_reducible_operation(operation) => true,
             _ => false,
         },
         TypeBooleanQuery::HasNonNullishFalsy { strings } => match ty {
@@ -725,13 +733,12 @@ fn generic_arguments_contain_empty_map_value(
 }
 
 /// Return true when one type is string-like.
-fn type_is_string_like(ty: &dir::Type) -> bool {
+fn type_is_string_like(ty: &dir::Type, operation: Option<&dir::TypeOperation>) -> bool {
     matches!(
         ty,
         dir::Type::Primitive(dir::PrimitiveType::String)
             | dir::Type::Literal(dir::ScalarLiteral::String(_))
-            | dir::Type::Operation(dir::TypeOperation::StringMapping { .. })
-    )
+    ) || matches!(operation, Some(dir::TypeOperation::StringMapping { .. }))
 }
 
 /// Return true when one type is string-like for object property keys.
@@ -1063,13 +1070,12 @@ fn has_non_void_this_parameter_type_inner(
         .checked_type(normalized_type_id)
         .unwrap_or(dir::Type::Error);
     match ty {
-        dir::Type::FunctionSignature(function) => {
-            function
-                .this_parameter
-                .is_some_and(|this_parameter_type_id| {
-                    !is_void_or_never_type(ctx, this_parameter_type_id)
-                })
-        }
+        dir::Type::FunctionSignature(function) => ctx
+            .checked_signature(normalized_type_id.module_id, function)
+            .and_then(|function| function.this_parameter)
+            .is_some_and(|this_parameter_type_id| {
+                !is_void_or_never_type(ctx, this_parameter_type_id)
+            }),
         dir::Type::Shape(object) => ctx
             .checked_type_ids(normalized_type_id.module_id, object.call_signatures)
             .iter()
@@ -1734,9 +1740,12 @@ fn function_parameter_type_at_inner(
     } else {
         match ty {
             dir::Type::FunctionSignature(function) => ctx
-                .checked_parameters(type_id.module_id, function.parameters)
-                .get(index)
-                .map(|parameter| parameter.ty),
+                .checked_signature(type_id.module_id, function)
+                .and_then(|function| {
+                    ctx.checked_parameters(type_id.module_id, function.parameters)
+                        .get(index)
+                        .map(|parameter| parameter.ty)
+                }),
             dir::Type::Shape(object) => ctx
                 .checked_type_ids(type_id.module_id, object.call_signatures)
                 .first()
@@ -1781,10 +1790,11 @@ fn function_parameter_types_at_inner(
     } else {
         match ty {
             dir::Type::FunctionSignature(function) => {
-                if let Some(parameter_type_id) = ctx
-                    .checked_parameters(type_id.module_id, function.parameters)
-                    .get(index)
-                    .map(|parameter| parameter.ty)
+                if let Some(function) = ctx.checked_signature(type_id.module_id, function)
+                    && let Some(parameter_type_id) = ctx
+                        .checked_parameters(type_id.module_id, function.parameters)
+                        .get(index)
+                        .map(|parameter| parameter.ty)
                     && !results.contains(&parameter_type_id)
                 {
                     results.push(parameter_type_id);
@@ -1840,7 +1850,9 @@ fn function_return_type_inner(
         function_return_type_inner(ctx, signature_type_id, state)
     } else {
         match ty {
-            dir::Type::FunctionSignature(function) => function.return_type,
+            dir::Type::FunctionSignature(function) => ctx
+                .checked_signature(type_id.module_id, function)
+                .and_then(|function| function.return_type),
             dir::Type::Shape(object) => ctx
                 .checked_type_ids(type_id.module_id, object.call_signatures)
                 .first()

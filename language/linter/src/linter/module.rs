@@ -226,7 +226,37 @@ impl<'a> LintModuleContext<'a> {
         self.session.with_type(type_id, |ty, _| *ty)
     }
 
-    /// Read one type id row list through its owning module.
+    /// Read one function signature payload through its owning module.
+    pub fn checked_signature(
+        &self,
+        module: ModuleId,
+        id: dir::FunctionSignatureId,
+    ) -> Option<dir::FunctionSignatureType> {
+        if module == self.module.id {
+            return Some(*self.types.signature(id));
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| *checked.types.signature(id))
+    }
+
+    /// Read one type operation payload through its owning module.
+    pub fn checked_operation(
+        &self,
+        module: ModuleId,
+        id: dir::TypeOperationId,
+    ) -> Option<dir::TypeOperation> {
+        if module == self.module.id {
+            return Some(*self.types.operation(id));
+        }
+
+        self.session
+            .checked_module(module)
+            .map(|checked| *checked.types.operation(id))
+    }
+
+    /// Read one type id list through its owning module.
     pub fn checked_type_ids(
         &self,
         module: ModuleId,
