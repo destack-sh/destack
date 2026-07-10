@@ -208,9 +208,9 @@ impl Repository {
         revision: Revision,
         file_id: FileId,
     ) -> Result<Option<Arc<File>>, RepositoryError> {
-        // prefer immutable builtin files
+        // prefer immutable builtin files, loaded once
         if let Some(builtin) = self.builtin.file(file_id) {
-            return Ok(Some(Arc::new(builtin.file())));
+            return Ok(Some(Arc::clone(builtin)));
         }
 
         // read editable revision files
@@ -241,7 +241,7 @@ impl Repository {
         path: &Path,
     ) -> Result<Option<FileMetadata>, RepositoryError> {
         // prefer immutable builtin files
-        if let Some(builtin) = self.builtin.file_for_path(path) {
+        if let Some(builtin) = self.builtin.builtin_file_for_path(path) {
             return Ok(Some(builtin.metadata()));
         }
 
@@ -280,7 +280,7 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<ContentId>, RepositoryError> {
         // prefer immutable builtin files
-        if let Some(builtin) = self.builtin.file(file_id) {
+        if let Some(builtin) = self.builtin.builtin_file(file_id) {
             return Ok(Some(builtin.content_id()));
         }
 
@@ -302,7 +302,7 @@ impl Repository {
         file_id: FileId,
     ) -> Result<Option<String>, RepositoryError> {
         // prefer immutable builtin files
-        if let Some(builtin) = self.builtin.file(file_id) {
+        if let Some(builtin) = self.builtin.builtin_file(file_id) {
             return Ok(Some(builtin.uri.to_string()));
         }
 

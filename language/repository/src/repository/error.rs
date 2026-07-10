@@ -10,6 +10,15 @@ use crate::repository::{Ref, Revision};
 /// One error raised by repository operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RepositoryError {
+    /// One narrowed module id collided across two distinct modules.
+    ModuleIdCollision {
+        /// The colliding module id.
+        id: destack_source::ModuleId,
+        /// The module already registered under the id.
+        left: String,
+        /// The module that collided with it.
+        right: String,
+    },
     /// One mount name was registered with two different bases.
     MountConflict {
         /// The conflicting mount name.
@@ -104,6 +113,12 @@ pub enum RepositoryError {
 impl fmt::Display for RepositoryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ModuleIdCollision { id, left, right } => {
+                write!(
+                    formatter,
+                    "module id {id:?} collides between '{left}' and '{right}'"
+                )
+            }
             Self::MountConflict {
                 name,
                 existing,

@@ -42,11 +42,13 @@ pub struct BuiltinPackage {
     /// The package identity.
     package: Arc<Package>,
     /// The files shipped in this package.
-    files: &'static [BuiltinFile],
+    builtin_files: &'static [BuiltinFile],
     /// Builtin files keyed by file id.
-    file_by_id: IndexMap<FileId, BuiltinFile>,
+    builtin_file_by_id: IndexMap<FileId, BuiltinFile>,
     /// Builtin files keyed by path or URI.
-    file_by_path: IndexMap<&'static str, BuiltinFile>,
+    builtin_file_by_path: IndexMap<&'static str, BuiltinFile>,
+    /// Loaded source files keyed by file id, built once on first read.
+    file_by_id: IndexMap<FileId, Arc<File>>,
     /// The modules shipped in this package.
     modules: Vec<(ModuleId, Arc<Module>)>,
 }
@@ -79,22 +81,30 @@ impl BuiltinPackage {
             .iter()
             .map(|builtin| builtin.module_entry(package.id))
             .collect();
-        let file_by_id = BUILTINS
+        let builtin_file_by_id = BUILTINS
             .iter()
             .copied()
             .map(|builtin| (builtin.file_id(), builtin))
             .collect();
-        let file_by_path = BUILTINS
+        // key by canonical uri only so workspace files never shadow builtins
+        let builtin_file_by_path = BUILTINS
             .iter()
             .copied()
-            .flat_map(|builtin| [(builtin.uri, builtin), (builtin.path, builtin)])
+            .map(|builtin| (builtin.uri, builtin))
+            .collect();
+
+        let file_by_id = BUILTINS
+            .iter()
+            .copied()
+            .map(|builtin| (builtin.file_id(), Arc::new(builtin.file())))
             .collect();
 
         Self {
             package,
-            files: BUILTINS,
+            builtin_files: BUILTINS,
+            builtin_file_by_id,
+            builtin_file_by_path,
             file_by_id,
-            file_by_path,
             modules,
         }
     }
@@ -116,7 +126,7 @@ impl BuiltinPackage {
 
     /// Return all builtin files.
     pub fn files(&self) -> &'static [BuiltinFile] {
-        self.files
+        self.builtin_files
     }
 
     /// Return one builtin module URI from an absolute builtin specifier.
@@ -140,7 +150,7 @@ impl BuiltinPackage {
     /// Return the canonical module URI for one extensionless builtin path.
     fn canonical_module_uri(&self, path: &str) -> Uri {
         let key = format!("{BUILTIN_PACKAGE_URI}{path}");
-        match self.file_by_path.get(key.as_str()) {
+        match self.builtin_file_by_path.get(key.as_str()) {
             Some(file) => Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", file.path)),
             None => Uri::from_string(key),
         }
@@ -152,7 +162,7 @@ impl BuiltinPackage {
         base_uri: &str,
         specifier: &str,
     ) -> Option<Uri> {
-        let base = match self.file_by_path.get(base_uri) {
+        let base = match self.builtin_file_by_path.get(base_uri) {
             Some(file) => file.path.strip_suffix(".ds").unwrap_or(file.path),
             None => base_uri.strip_prefix(BUILTIN_PACKAGE_URI)?,
         };
@@ -178,20 +188,25 @@ impl BuiltinPackage {
     }
 
     /// Return one builtin file by file id.
-    pub fn file(&self, file_id: FileId) -> Option<BuiltinFile> {
-        self.file_by_id.get(&file_id).copied()
+    pub fn builtin_file(&self, file_id: FileId) -> Option<BuiltinFile> {
+        self.builtin_file_by_id.get(&file_id).copied()
+    }
+
+    /// Return one loaded builtin source file by file id.
+    pub fn file(&self, file_id: FileId) -> Option<&Arc<File>> {
+        self.file_by_id.get(&file_id)
     }
 
     /// Return one builtin file by path or URI.
-    pub fn file_for_path(&self, path: &Path) -> Option<BuiltinFile> {
+    pub fn builtin_file_for_path(&self, path: &Path) -> Option<BuiltinFile> {
         let path = path.to_str()?;
 
-        self.file_by_path.get(path).copied()
+        self.builtin_file_by_path.get(path).copied()
     }
 
     /// Return one builtin file id by path or URI.
     pub fn file_id_for_path(&self, path: &Path) -> Option<FileId> {
-        self.file_for_path(path).map(BuiltinFile::file_id)
+        self.builtin_file_for_path(path).map(BuiltinFile::file_id)
     }
 
     /// Return builtin modules keyed by module id.
