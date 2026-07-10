@@ -42,6 +42,8 @@ struct ModuleFileCandidate {
     path: PathBuf,
     /// The source file type.
     file_type: FileType,
+    /// The source loader.
+    loader: Loader,
     /// The condition alias suffixes for this file.
     aliases: Vec<ConditionFileAlias>,
     /// The owning package id.
@@ -118,9 +120,13 @@ impl Repository {
         known_aliases: &mut FxHashMap<PackageId, IndexMap<String, ConditionGate>>,
     ) -> Result<Option<ModuleFileCandidate>, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(&path);
+        let Ok(loader) = Loader::try_from(file_type) else {
+            return Ok(None);
+        };
 
-        // skip non-module workspace files
-        if !self.is_module_file(&path, file_type) {
+        // skip the package configuration file
+        let is_package_config = path.file_name().is_some_and(|name| name == "destack.json");
+        if is_package_config {
             return Ok(None);
         }
 
@@ -141,6 +147,7 @@ impl Repository {
             file_id,
             path,
             file_type,
+            loader,
             aliases,
             package_id: package.id,
             package_root: package.path.clone(),
@@ -176,7 +183,6 @@ impl Repository {
     /// Build one module from its base file candidate.
     fn module_from_candidate(&self, candidate: ModuleFileCandidate) -> Module {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
-        let loader = Loader::from(candidate.file_type);
         let module_id = ModuleId::from_path_with_loader(
             candidate.package_id,
             &candidate.path,
@@ -191,14 +197,13 @@ impl Repository {
             Some(candidate.path),
             candidate.package_id,
             language_type,
-            loader,
+            candidate.loader,
         )
     }
 
     /// Build one module file from a conditional file candidate.
     fn module_file_from_candidate(candidate: ModuleFileCandidate) -> ModuleFile {
         let language_type = LanguageType::try_from(candidate.file_type).ok();
-        let loader = Loader::from(candidate.file_type);
         let aliases = candidate
             .aliases
             .iter()
@@ -215,7 +220,7 @@ impl Repository {
             Uri::logical(candidate.path.to_string_lossy()),
             Some(candidate.path),
             language_type,
-            loader,
+            candidate.loader,
             aliases,
             gates,
         )
@@ -452,19 +457,6 @@ impl Repository {
         let modules = self.module_index(revision)?;
 
         Ok(modules.module_id_for_uri(uri))
-    }
-
-    /// Return whether one workspace file should materialize as a module.
-    fn is_module_file(&self, path: &Path, file_type: FileType) -> bool {
-        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-            return false;
-        };
-
-        if file_name == "destack.json" {
-            return false;
-        }
-
-        file_type.is_code() || file_type.is_data() || file_type.is_text() || file_type.is_binary()
     }
 }
 
