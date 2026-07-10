@@ -31,7 +31,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC205 message="unknown property 'extra' in object literal for type 'Person'"
@@ -78,7 +78,7 @@ const value: Person = source;
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
 
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=9 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

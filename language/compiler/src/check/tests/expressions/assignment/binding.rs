@@ -57,7 +57,7 @@ value = 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -90,7 +90,7 @@ value = "text";
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'int32'"
@@ -128,7 +128,7 @@ value += 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -161,7 +161,7 @@ value = 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=float64
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -194,7 +194,7 @@ value = "text";
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=float64
 /// @type.node source="\"text\"" type="text"
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"text\"' is not assignable to type 'float64'"
@@ -230,7 +230,7 @@ value = 1;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -264,7 +264,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=5 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -296,7 +296,7 @@ values = [];
 /// @resolution.pattern.assign source=values kind=place place=binding(values) type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -353,7 +353,7 @@ values = [1, 2];
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=5 constraints=3 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -388,7 +388,7 @@ values = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=7 constraints=4 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'FixedArray<int32, 2>'"
@@ -431,7 +431,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -522,7 +522,7 @@ const copy = value;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
         r#"
 /// @diagnostic.error code=EC405 message="'value' is used before being assigned"
@@ -582,7 +582,7 @@ const copy = value;
 /// @type.node source=value type=string | undefined
 /// @resolution.name source=value target=value
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=3
+/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=3
 "#,
     );
 }

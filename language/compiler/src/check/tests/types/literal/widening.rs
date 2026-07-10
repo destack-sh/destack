@@ -75,7 +75,7 @@ const first = values[0];
 
 /// @generic.instance id="Array<1 | 2>.<extension#6>.index#4" template=collections.array.index#4 arguments=(1 | 2, 1 | 2)
 
-/// @check.stats.solve variables=0 types=14 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=14 constraints=4 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -100,7 +100,7 @@ const value: number | boolean = 1;
 /// @type.symbol symbol=value source=value type=float64 | boolean
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -128,7 +128,7 @@ const value = true ? 1 : 2;
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -156,7 +156,7 @@ let value = true ? 1 : 2;
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

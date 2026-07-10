@@ -34,7 +34,7 @@ function capture<T>(value: T): { reactions: T[] } {
 
 }
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=3 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -147,7 +147,7 @@ function pending<T>(): State<T> {
 /// @generic.instance id=Pending<T#3> template=Pending arguments=(T#3)
 /// @generic.instance id=State<T#4> template=State arguments=(T#4)
 
-/// @check.stats.solve variables=0 types=24 constraints=0 obligations=2 solutions=0 bounds=0 decisions=8
+/// @check.stats.solve variables=0 types=24 constraints=4 obligations=2 solutions=0 bounds=0 decisions=8
 "#,
     );
 }
@@ -408,7 +408,7 @@ function ok<T, E>(value: T): AsyncResult<T, E> {
 /// @generic.instance id=Promise<T#2> template=Promise arguments=(T#2)
 /// @generic.instance id=Promise<T#3> template=Promise arguments=(T#3)
 
-/// @check.stats.solve variables=5 types=63 constraints=3 obligations=6 solutions=5 bounds=6 decisions=44
+/// @check.stats.solve variables=5 types=63 constraints=12 obligations=6 solutions=5 bounds=6 decisions=44
 "#,
     );
 }
@@ -554,7 +554,7 @@ extension<T, E> of Result<T, E> {
 /// @generic.instance id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2)
 /// @generic.instance id="Result<T#3, E#3>" template=Result arguments=(T#3, E#3)
 
-/// @check.stats.solve variables=2 types=31 constraints=1 obligations=5 solutions=2 bounds=9 decisions=18
+/// @check.stats.solve variables=2 types=31 constraints=5 obligations=5 solutions=2 bounds=9 decisions=18
 "#,
     );
 }
