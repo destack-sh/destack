@@ -28,7 +28,7 @@ value = 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=0 obligations=1 solutions=0 bounds=0 decisions=1
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
@@ -66,7 +66,7 @@ value += 2;
 /// @resolution.pattern.assign source=value kind=place place=binding(value) type=int32
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=4 constraints=1 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error code=EC212 message="cannot assign to immutable binding 'value'"
@@ -106,7 +106,7 @@ state.count = 1;
 /// @resolution.pattern.assign source=state.count kind=place place=field(count) type=int32
 /// @type.node source=1 type=1
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=1 solutions=0 bounds=0 decisions=2
+/// @check.stats.solve variables=0 types=6 constraints=3 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

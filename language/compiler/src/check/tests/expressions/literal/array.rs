@@ -137,7 +137,7 @@ const values: int32[] = [];
 /// @type.symbol symbol=values source=values type=Array<int32>
 /// @type.node source=[] type=Array<int32>
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -193,7 +193,7 @@ const values: number[] = [1, 2, 3];
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
 
-/// @check.stats.solve variables=0 types=6 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=6 constraints=4 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -220,7 +220,7 @@ const values: number[] = [1, "two"];
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '\"two\"' is not assignable to type 'float64'"

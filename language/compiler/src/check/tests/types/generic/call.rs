@@ -63,7 +63,7 @@ const text = identity("x");
 /// @generic.instance id="identity<\"x\">" template=identity arguments=("x")
 /// @generic.instance id=identity<1> template=identity arguments=(1)
 
-/// @check.stats.solve variables=2 types=10 constraints=0 obligations=0 solutions=2 bounds=2 decisions=7
+/// @check.stats.solve variables=2 types=10 constraints=4 obligations=0 solutions=2 bounds=2 decisions=7
 "#);
 }
 

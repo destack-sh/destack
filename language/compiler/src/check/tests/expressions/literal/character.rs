@@ -70,7 +70,7 @@ const value: char = 'a';
 /// @type.symbol symbol=value source=value type=char
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -153,7 +153,7 @@ const value: char | string = 'a';
 /// @type.symbol symbol=value source=value type=char | string
 /// @type.node source='a' type='a'
 
-/// @check.stats.solve variables=0 types=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

@@ -72,7 +72,7 @@ const value: string = "hello";
 /// @type.symbol symbol=value source=value type=string
 /// @type.node source="\"hello\"" type="hello"
 
-/// @check.stats.solve variables=0 types=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

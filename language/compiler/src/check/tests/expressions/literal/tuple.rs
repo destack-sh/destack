@@ -136,7 +136,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.node source=1 type=1
 /// @type.node source="\"a\"" type="a"
 
-/// @check.stats.solve variables=0 types=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=9 constraints=3 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -163,7 +163,7 @@ const value: (number, string) = (1, 2);
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
-/// @check.stats.solve variables=0 types=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
+/// @check.stats.solve variables=0 types=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type '2' is not assignable to type 'string'"
