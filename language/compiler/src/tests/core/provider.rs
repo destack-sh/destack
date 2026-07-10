@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -29,9 +29,16 @@ pub(crate) struct TestProvider {
     compiler: Compiler,
     /// The artifact trace for this test provider.
     trace: Arc<Trace>,
+    /// Whether attempts retain event traces, set by event assertions.
+    emit_events: Cell<bool>,
 }
 
 impl TestProvider {
+    /// Retain event traces for following attempts.
+    pub(crate) fn retain_events(&self) {
+        self.emit_events.set(true);
+    }
+
     /// Create one test provider.
     pub(crate) fn new(repository: Arc<Repository>, revision: Revision) -> Self {
         let compiler = Compiler::new(repository.clone());
@@ -41,6 +48,7 @@ impl TestProvider {
             revision,
             compiler,
             trace: Trace::new(Clock::default()),
+            emit_events: Cell::new(false),
         }
     }
 
@@ -535,9 +543,9 @@ impl ProviderContext for TestProviderContext<'_> {
         self.base
     }
 
-    /// Emit event traces from compiler test attempts.
+    /// Emit event traces when one event assertion requested them.
     fn emit_events(&self) -> bool {
-        true
+        self.provider.emit_events.get()
     }
 
     /// Return the recorder for this artifact attempt.

@@ -638,7 +638,7 @@ export type Button = string;
         "packages/app/main.ds",
         r#"
 /// @diagnostic.error code=EI209 message="package '@acme/ui' has no active export './button'"
-/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
+/// @diagnostic.label line=2 column=1 span="import { Button } from \"@acme/ui/button\"" line_source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
 }
@@ -794,7 +794,7 @@ import { value } from "pkg";
         "main.ds",
         r#"
 /// @diagnostic.error code=EI208 message="package 'pkg' is not declared as a dependency"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"pkg\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"pkg\"" line_source="import { value } from \"pkg\";"
 "#,
     );
 }
@@ -814,7 +814,7 @@ import { value } from "@scope/pkg";
         "main.ds",
         r#"
 /// @diagnostic.error code=EI208 message="package '@scope/pkg' is not declared as a dependency"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"@scope/pkg\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"@scope/pkg\"" line_source="import { value } from \"@scope/pkg\";"
 "#,
     );
 }
@@ -883,7 +883,7 @@ export type Button = string;
         "packages/app/main.ds",
         r#"
 /// @diagnostic.error code=EI208 message="package '@acme/ui' is not declared as a dependency"
-/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
+/// @diagnostic.label line=2 column=1 span="import { Button } from \"@acme/ui/button\"" line_source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
 }
@@ -952,7 +952,7 @@ export type Button = string;
         "packages/app/main.ds",
         r#"
 /// @diagnostic.error code=EI209 message="package '@acme/ui' has no active export './button'"
-/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
+/// @diagnostic.label line=2 column=1 span="import { Button } from \"@acme/ui/button\"" line_source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
 }
@@ -1009,7 +1009,7 @@ import { Button } from "@acme/ui/button";
         "packages/app/main.ds",
         r#"
 /// @diagnostic.error code=EI210 message="package '@acme/ui' export './button' is not a module"
-/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
+/// @diagnostic.label line=2 column=1 span="import { Button } from \"@acme/ui/button\"" line_source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
 }
@@ -1080,7 +1080,7 @@ export type Button = string;
         "packages/app/main.ds",
         r#"
 /// @diagnostic.error code=EI207 message="package export path '@acme/ui/button' crosses package boundaries"
-/// @diagnostic.label line=2 column=1 source="import { Button } from \"@acme/ui/button\";"
+/// @diagnostic.label line=2 column=1 span="import { Button } from \"@acme/ui/button\"" line_source="import { Button } from \"@acme/ui/button\";"
 "#,
     );
 }

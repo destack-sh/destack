@@ -174,7 +174,7 @@ import { Missing } from "./missing.ds";
         "main.ds",
         r#"
 /// @diagnostic.error code=EI200 message="unresolved module './missing.ds'"
-/// @diagnostic.label line=2 column=1 source="import { Missing } from \"./missing.ds\";"
+/// @diagnostic.label line=2 column=1 span="import { Missing } from \"./missing.ds\"" line_source="import { Missing } from \"./missing.ds\";"
 "#,
     );
 }
@@ -206,7 +206,7 @@ export let value = 2;
         "main.ds",
         r#"
 /// @diagnostic.error code=EI205 message="ambiguous module specifier './dep': dep.ds, dep.ts"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"./dep\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"./dep\"" line_source="import { value } from \"./dep\";"
 "#,
     );
 }
@@ -258,7 +258,7 @@ export let value = 1;
         "packages/app/main.ds",
         r#"
 /// @diagnostic.error code=EI206 message="relative module specifier '../lib/dep.ds' crosses package boundaries"
-/// @diagnostic.label line=2 column=1 source="import { value } from \"../lib/dep.ds\";"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"../lib/dep.ds\"" line_source="import { value } from \"../lib/dep.ds\";"
 "#,
     );
 }

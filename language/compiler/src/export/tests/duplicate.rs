@@ -15,7 +15,7 @@ export { value };
         "main.ds",
         r#"
 /// @diagnostic.error code=ET101 message="duplicate export 'value'"
-/// @diagnostic.label line=3 column=10 source="export { value };"
+/// @diagnostic.label line=3 column=10 span="value" line_source="export { value };"
 "#,
     );
 }
@@ -53,7 +53,7 @@ export { missing };
         "main.ds",
         r#"
 /// @diagnostic.error code=ET100 message="missing exported local binding 'missing'"
-/// @diagnostic.label line=2 column=10 source="export { missing };"
+/// @diagnostic.label line=2 column=10 span="missing" line_source="export { missing };"
 "#,
     );
 }
@@ -78,7 +78,8 @@ export const value = 1;
         .build();
     compiler.assert_dir_exported_diagnostics(
         "main.ds", r#"
-
+/// @diagnostic.error code=ET102 message="global export cannot use default key"
+/// @diagnostic.label line=3 column=14 span="value as default" line_source="export { value as default } from \"./dep.ds\";"
 "#,
     );
 }
@@ -103,7 +104,8 @@ export const value = 1;
         .build();
     compiler.assert_dir_exported_diagnostics(
         "main.ds", r#"
-
+/// @diagnostic.error code=ET107 message="global namespace export requires an alias"
+/// @diagnostic.label line=3 column=5 span="export * from \"./dep.ds\"" line_source="export * from \"./dep.ds\";"
 "#,
     );
 }
