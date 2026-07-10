@@ -12,22 +12,22 @@ const TARGET_DOMAIN: &[u8] = b"destack.source.target.v1";
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 #[serde(transparent)]
-pub struct TargetKey(pub u128);
+pub struct TargetKey(pub u64);
 
 impl std::fmt::Display for TargetKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:032x}", self.0)
+        write!(f, "{:016x}", self.0)
     }
 }
 
 impl TargetKey {
     /// Wrap a raw stable target key.
-    pub const fn new(key: u128) -> Self {
+    pub const fn new(key: u64) -> Self {
         Self(key)
     }
 
     /// Return the raw stable key value.
-    pub const fn raw(self) -> u128 {
+    pub const fn raw(self) -> u64 {
         self.0
     }
 }

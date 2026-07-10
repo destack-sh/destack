@@ -16,23 +16,23 @@ const CONTENT_DOMAIN: &[u8] = b"destack.content.v1";
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
-pub struct FileId(pub u128);
+pub struct FileId(pub u64);
 
 impl std::fmt::Debug for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "f{:032x}", self.0)
+        write!(f, "f{:016x}", self.0)
     }
 }
 
 impl std::fmt::Display for FileId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "f{:032x}", self.0)
+        write!(f, "f{:016x}", self.0)
     }
 }
 
 impl FileId {
     /// Turn a raw id into a FileId.
-    pub const fn new(id: u128) -> Self {
+    pub const fn new(id: u64) -> Self {
         Self(id)
     }
 
@@ -98,7 +98,7 @@ pub struct ContentId(pub u128);
 
 impl std::fmt::Debug for ContentId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "c{:032x}", self.0)
+        write!(formatter, "c{:016x}", self.0)
     }
 }
 

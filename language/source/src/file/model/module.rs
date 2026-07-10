@@ -13,28 +13,28 @@ const MODULE_LOADER_DEFAULT: &[u8] = b"default";
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
-pub struct ModuleKey(pub u128);
+pub struct ModuleKey(pub u64);
 
 impl std::fmt::Debug for ModuleKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:032x}", self.0)
+        write!(f, "{:016x}", self.0)
     }
 }
 
 impl std::fmt::Display for ModuleKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:032x}", self.0)
+        write!(f, "{:016x}", self.0)
     }
 }
 
 impl ModuleKey {
     /// Wrap a raw stable module key.
-    pub const fn new(key: u128) -> Self {
+    pub const fn new(key: u64) -> Self {
         Self(key)
     }
 
     /// Return the raw stable key value.
-    pub const fn raw(self) -> u128 {
+    pub const fn raw(self) -> u64 {
         self.0
     }
 }
@@ -65,7 +65,7 @@ impl std::fmt::Display for ModuleId {
 
 impl ModuleId {
     /// Create a ModuleId from a package and module key.
-    pub const fn new(package: PackageId, module_key: u128) -> Self {
+    pub const fn new(package: PackageId, module_key: u64) -> Self {
         Self {
             package_id: package,
             module_key: ModuleKey::new(module_key),

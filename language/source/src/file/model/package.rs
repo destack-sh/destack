@@ -14,23 +14,23 @@ const PACKAGE_KIND_URI: &[u8] = b"uri";
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
 #[serde(transparent)]
-pub struct PackageId(pub u128);
+pub struct PackageId(pub u64);
 
 impl std::fmt::Debug for PackageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:032x}", self.0)
+        write!(f, "#{:016x}", self.0)
     }
 }
 
 impl std::fmt::Display for PackageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:032x}", self.0)
+        write!(f, "#{:016x}", self.0)
     }
 }
 
 impl PackageId {
     /// Create a PackageId from a raw hash value.
-    pub const fn new(id: u128) -> Self {
+    pub const fn new(id: u64) -> Self {
         Self(id)
     }
 
@@ -56,7 +56,7 @@ impl PackageId {
     }
 
     /// Get the raw id value.
-    pub fn raw(&self) -> u128 {
+    pub fn raw(&self) -> u64 {
         self.0
     }
 }
