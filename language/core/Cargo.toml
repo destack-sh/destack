@@ -15,6 +15,7 @@ doctest = false
 blake3 = { workspace = true }
 destack_serde = { workspace = true }
 parking_lot = { workspace = true }
+indexmap = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 xxhash-rust = { workspace = true, features = ["xxh3"] }

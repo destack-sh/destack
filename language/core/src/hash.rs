@@ -1,5 +1,11 @@
 use std::hash::{Hash, Hasher};
 
+/// Insertion-ordered map hashed by the fast session hasher.
+pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, rustc_hash::FxBuildHasher>;
+
+/// Insertion-ordered set hashed by the fast session hasher.
+pub type FxIndexSet<T> = indexmap::IndexSet<T, rustc_hash::FxBuildHasher>;
+
 /// Deterministic BLAKE3-backed hasher for stable ids and cache keys.
 #[derive(Clone, Debug)]
 pub struct StableHasher {
