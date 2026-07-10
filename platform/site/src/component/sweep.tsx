@@ -1,5 +1,5 @@
 import type { Accessor } from "solid-js";
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 
 /// Configuration for one deterministic column sweep.
 export type SweepOptions = {
@@ -49,16 +49,25 @@ export type SweepTextProps = {
 
 /// Render text with one illuminated character at a time.
 export function SweepText(props: SweepTextProps) {
+    const [isMounted, setIsMounted] = createSignal(false);
+
+    // preserve one stable text node through server hydration
+    onMount(() => setIsMounted(true));
+
     return (
         <span class={props.class}>
-            {Array.from(props.text, (character, index) => {
-                const column = props.firstColumn + index;
-                const isLit = Math.abs(props.column - column) <= 1;
+            <Show fallback={props.text} when={isMounted()}>
+                {Array.from(props.text, (character, index) => {
+                    const column = props.firstColumn + index;
+                    const isLit = Math.abs(props.column - column) <= 1;
 
-                return (
-                    <span classList={{ "sweep-text__character--lit": isLit }}>{character}</span>
-                );
-            })}
+                    return (
+                        <span classList={{ "sweep-text__character--lit": isLit }}>
+                            {character}
+                        </span>
+                    );
+                })}
+            </Show>
         </span>
     );
 }

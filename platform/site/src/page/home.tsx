@@ -1,3 +1,6 @@
+import { createMemo, createSignal, onCleanup, onMount, type Component } from "solid-js";
+import { Dynamic } from "solid-js/web";
+
 import { Seo } from "../component/seo";
 import { Shell } from "../component/shell";
 import { createSweep, SweepText } from "../component/sweep";
@@ -23,6 +26,12 @@ const lastSweepColumn = 110;
 /// The horizontal planet offset within the shared sweep.
 const planetSweepOffset = 18;
 
+/// The first sweep column assigned to a capability action.
+const actionSweepFirstColumn = 20;
+
+/// The sweep distance between successive capability actions.
+const actionSweepStride = 10;
+
 /// The width of the ASCII lake.
 const lakeWidth = 140;
 
@@ -41,14 +50,81 @@ const lakeRamp = "~-=+#";
 /// The public installation command.
 const installCommand = "curl -fsSL https://destack.sh/install | sh";
 
+/// Properties supplied to one lower action section.
+type ActionSectionProps = {
+    /// The selected action.
+    action: string;
+
+    /// The selected action description.
+    description: string;
+
+    /// The displayed action number.
+    number: string;
+};
+
+/// One linked product action and its lower section.
+type Point = {
+    /// The action identifier.
+    action: string;
+
+    /// The short action description.
+    description: string;
+
+    /// The lower section rendered for the action.
+    section: Component<ActionSectionProps>;
+};
+
 /// The current Destack product outline.
 const points = [
-    "a universal software engine for correct, optimal, integrated software",
-    "a TypeScript++ language, compiler, VM, runtime, and libraries",
-    "web and native targets from one integrated toolchain",
-    "simulation and introspection built into the system",
-    "incrementally granular building blocks for your own software stack",
-] as const;
+    {
+        action: "build",
+        description: "correct and optimal full stack software",
+        section: PlaceholderSection,
+    },
+    {
+        action: "write",
+        description: "familiar TypeScript, Node, and Web code",
+        section: PlaceholderSection,
+    },
+    {
+        action: "read",
+        description: "idiomatic modern TS + Rust-y features",
+        section: PlaceholderSection,
+    },
+    {
+        action: "compile",
+        description: "to sandboxed VM and true AOT native targets",
+        section: PlaceholderSection,
+    },
+    {
+        action: "control",
+        description: "precise access over every host binding",
+        section: PlaceholderSection,
+    },
+    {
+        action: "check",
+        description: "with strong types and userland lints",
+        section: PlaceholderSection,
+    },
+    {
+        action: "test",
+        description: "every byte and cycle of your systems",
+        section: PlaceholderSection,
+    },
+    {
+        action: "simulate",
+        description: "the entire application end-to-end",
+        section: PlaceholderSection,
+    },
+    {
+        action: "debug",
+        description: "backward, in parallel or slow motion",
+        section: PlaceholderSection,
+    },
+] as const satisfies readonly Point[];
+
+/// One public action identifier.
+type Action = (typeof points)[number]["action"];
 
 /// The real Destack mark sampled into a fixed-width luminance field.
 const planet = [
@@ -129,6 +205,26 @@ export function HomePage() {
         lastColumn: lastSweepColumn,
         stepMilliseconds: asciiLightIntervalMilliseconds,
     });
+    const [selectedAction, setSelectedAction] = createSignal<Action>(points[0].action);
+    const selectedPoint = createMemo(
+        () => points.find((point) => point.action === selectedAction()) ?? points[0],
+    );
+    const selectedIndex = createMemo(() => points.indexOf(selectedPoint()));
+
+    // select URL-addressed actions after hydration and on navigation
+    onMount(() => {
+        const selectHash = () => {
+            const action = window.location.hash.slice(1);
+            const point = points.find((candidate) => candidate.action === action);
+
+            setSelectedAction(point?.action ?? points[0].action);
+        };
+
+        selectHash();
+        window.addEventListener("hashchange", selectHash);
+
+        onCleanup(() => window.removeEventListener("hashchange", selectHash));
+    });
 
     return (
         <Shell>
@@ -151,17 +247,42 @@ export function HomePage() {
                             />
                         </p>
                         <p class="home-hero__statement">
-                            a system for understanding systems.
+                            the absurdly integrated computing stack
                         </p>
                     </div>
 
                     <div class="home-hero__body">
                         <div class="home-hero__copy">
-                            <ul class="home-points">
-                                {points.map((point) => (
-                                    <li>{point}</li>
+                            <ol class="home-points">
+                                {points.map((point, index) => (
+                                    <li>
+                                        <a
+                                            aria-current={
+                                                selectedAction() === point.action
+                                                    ? "location"
+                                                    : undefined
+                                            }
+                                            href={`#${point.action}`}
+                                            onClick={() => setSelectedAction(point.action)}
+                                        >
+                                            <span class="home-points__number">
+                                                {String(index + 1).padStart(2, "0")}
+                                            </span>
+                                            <strong class="home-points__action">
+                                                <SweepText
+                                                    column={sweepColumn()}
+                                                    firstColumn={
+                                                        actionSweepFirstColumn +
+                                                        index * actionSweepStride
+                                                    }
+                                                    text={`[${point.action}]`}
+                                                />
+                                            </strong>
+                                            <span>{point.description}</span>
+                                        </a>
+                                    </li>
                                 ))}
-                            </ul>
+                            </ol>
 
                             {/* Installation */}
                             <div class="home-install" id="install">
@@ -183,12 +304,39 @@ export function HomePage() {
                     <AsciiLake lightColumn={projectLakeColumn(sweepColumn())} />
                 </section>
 
-                {/* future content */}
-                <section aria-hidden="true" class="home-placeholder">
-                    <span>...</span>
+                {/* Selected action */}
+                <section class="home-stage">
+                    {points.map((point) => (
+                        <span
+                            aria-hidden="true"
+                            class="home-stage__anchor"
+                            id={point.action}
+                        />
+                    ))}
+
+                    <Dynamic
+                        action={selectedPoint().action}
+                        component={selectedPoint().section}
+                        description={selectedPoint().description}
+                        number={String(selectedIndex() + 1).padStart(2, "0")}
+                    />
                 </section>
             </article>
         </Shell>
+    );
+}
+
+/// Render an empty lower section for an action.
+function PlaceholderSection(props: ActionSectionProps) {
+    return (
+        <section class="home-action-section">
+            <header class="home-action-section__header">
+                [{props.number}:{props.action}]
+            </header>
+            <div aria-hidden="true" class="home-action-section__body">
+                <span>...</span>
+            </div>
+        </section>
     );
 }
 
