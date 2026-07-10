@@ -3,11 +3,11 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::flags::ParserFlags;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
+use destack_core::StringId;
 use destack_dir::{
     Asynchrony, BlockContext, ConstructorType, Declaration, Expression, FunctionDeclaration,
     FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionTypeExpression,
     GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
-    WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -49,54 +49,36 @@ struct ParsedFunction {
     body_span: Option<Span>,
 }
 
-/// Parsed function head syntax before parameters.
-struct ParsedFunctionHead {
-    /// The declaration header.
-    header: DeclarationHeader,
-    /// Whether the function is async.
-    is_async: bool,
-    /// The optional function role.
-    role: Option<FunctionRole>,
-    /// The source form of the function.
-    form: FunctionForm,
-    /// When the function may be called.
-    phase: FunctionPhase,
-    /// Whether the function is a generator.
-    is_generator: bool,
-    /// The optional function name.
-    name: Option<Name>,
-    /// The optional function name span.
-    name_span: Option<Span>,
-    /// The generic parameters.
-    generic_parameters: Option<Vec<LocalNodeId<GenericParameter>>>,
-    /// The generic parameter container span.
-    generic_parameter_span: Option<Span>,
-}
-
-/// Parsed function parameter list syntax.
-struct ParsedFunctionParameters {
-    /// The parsed parameters.
-    parameters: Vec<LocalNodeId<Parameter>>,
-    /// The parameter container span.
-    parameter_span: Option<Span>,
-}
-
-/// Parsed function return syntax.
-struct ParsedFunctionReturn {
-    /// The optional return type.
-    return_type: Option<LocalNodeId<TypeExpression>>,
-    /// The return type span.
-    return_type_span: Option<Span>,
-    /// The parsed where clauses.
-    where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
-}
-
-/// Parsed function body syntax.
-struct ParsedFunctionBody {
-    /// The optional body expression.
-    body: Option<LocalNodeId<Expression>>,
-    /// The body container span.
-    body_span: Option<Span>,
+impl ParsedFunction {
+    /// Create empty parsed function state for one declaration header.
+    #[inline]
+    fn new(header: DeclarationHeader) -> Self {
+        Self {
+            header,
+            name: None,
+            name_span: None,
+            signature: FunctionSignature {
+                asynchrony: Asynchrony::Sync,
+                role: None,
+                form: FunctionForm::Lambda,
+                phase: FunctionPhase::Normal,
+                generic_parameters: Vec::new(),
+                where_clauses: Vec::new(),
+                this_form: None,
+                this_parameter: None,
+                parameters: Vec::new(),
+                return_type: None,
+                is_abstract: header.is_abstract,
+                is_override: false,
+                is_generator: false,
+            },
+            body: None,
+            generic_parameter_span: None,
+            parameter_span: None,
+            return_type_span: None,
+            body_span: None,
+        }
+    }
 }
 
 impl Parser {
@@ -109,12 +91,14 @@ impl Parser {
     /// }
     /// (value: int32): int32 => value
     /// ```
+    #[inline(never)]
     pub(crate) fn eat_function(
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        let function = self.eat_function_syntax(header)?;
+        let mut function = ParsedFunction::new(header);
+        self.eat_function_syntax(&mut function)?;
 
         Ok(self.insert_function_declaration(start, function))
     }
@@ -125,7 +109,8 @@ impl Parser {
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let function = self.eat_function_syntax(header)?;
+        let mut function = ParsedFunction::new(header);
+        self.eat_function_syntax(&mut function)?;
 
         if function.signature.form == FunctionForm::Lambda && function.body.is_none() {
             return self.insert_function_type_expression(start, function);
@@ -135,53 +120,48 @@ impl Parser {
     }
 
     /// Eat one function before inserting a grammar-specific node.
-    fn eat_function_syntax(&mut self, header: DeclarationHeader) -> ParserResult<ParsedFunction> {
-        let head = self.eat_function_head(header)?;
-        self.require_function_name(&head)?;
+    #[inline(never)]
+    fn eat_function_syntax(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        self.eat_function_head(function)?;
+        self.require_function_name(function)?;
+        self.eat_function_parameters(function)?;
+        self.eat_function_tail(function)
+    }
 
-        let parameters = self.eat_function_parameters(&head)?;
-        let return_part = self.eat_function_return(&head)?;
-        let body = self.eat_function_body(&head)?;
+    /// Eat function syntax after its head and parameters are known.
+    #[inline(never)]
+    fn eat_function_tail(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        self.eat_function_return(function)?;
+        self.eat_function_body(function)
+    }
 
-        let parameter_span = parameters.parameter_span;
-        let (this_form, this_parameter, parameters) =
-            self.split_this_parameter_maybe(parameters.parameters);
-
-        let asynchrony = if head.is_async {
-            Asynchrony::Async
-        } else {
-            Asynchrony::Sync
+    /// Eat a bare lambda after its identifier parameter has been consumed.
+    #[inline(never)]
+    pub(crate) fn eat_bare_lambda(
+        &mut self,
+        start: &ParserSpanStart,
+        parameter_name: StringId,
+        parameter_span: Span,
+        header: DeclarationHeader,
+    ) -> ParserResult<LocalNodeId<Declaration>> {
+        let parameter = Parameter::Named {
+            name: parameter_name,
+            is_optional: false,
+            is_comptime: false,
+            declared_type: None,
+            default: None,
         };
-        let signature = FunctionSignature {
-            asynchrony,
-            form: head.form,
-            phase: head.phase,
-            role: head.role,
-            generic_parameters: head.generic_parameters.unwrap_or_default(),
-            where_clauses: return_part.where_clauses.unwrap_or_default(),
-            this_form,
-            this_parameter,
-            parameters,
-            return_type: return_part.return_type,
-            is_abstract: head.header.is_abstract,
-            is_override: false,
-            is_generator: head.is_generator,
-        };
+        let parameter = self.insert_node(parameter, parameter_span);
+        let mut function = ParsedFunction::new(header);
+        function.signature.parameters.push(parameter);
+        function.parameter_span = Some(parameter_span);
+        self.eat_function_tail(&mut function)?;
 
-        Ok(ParsedFunction {
-            header: head.header,
-            name: head.name,
-            name_span: head.name_span,
-            signature,
-            body: body.body,
-            generic_parameter_span: head.generic_parameter_span,
-            parameter_span,
-            return_type_span: return_part.return_type_span,
-            body_span: body.body_span,
-        })
+        Ok(self.insert_function_declaration(start, function))
     }
 
     /// Insert parsed function syntax as a function declaration.
+    #[inline(never)]
     fn insert_function_declaration(
         &mut self,
         start: &ParserSpanStart,
@@ -303,15 +283,15 @@ impl Parser {
     }
 
     /// Eat function modifiers, form, name, and generic parameters.
-    fn eat_function_head(
-        &mut self,
-        mut header: DeclarationHeader,
-    ) -> ParserResult<ParsedFunctionHead> {
-        if self.is_keyword(Keyword::Abstract) && !header.is_abstract {
+    #[inline(never)]
+    fn eat_function_head(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // absorb an explicit abstract modifier
+        if self.is_keyword(Keyword::Abstract) && !function.header.is_abstract {
             self.bump();
-            header.is_abstract = true;
+            function.header.is_abstract = true;
         }
 
+        // parse the function head components
         let phase = self.eat_function_phase_modifier();
         let is_async = self.eat_function_async_modifier();
         let role = self.eat_function_role();
@@ -320,18 +300,23 @@ impl Parser {
         let (name, name_span) = self.eat_function_name(form)?;
         let (generic_parameters, generic_parameter_span) = self.eat_function_generics()?;
 
-        Ok(ParsedFunctionHead {
-            header,
-            is_async,
-            role,
-            form,
-            phase,
-            is_generator,
-            name,
-            name_span,
-            generic_parameters,
-            generic_parameter_span,
-        })
+        // record the parsed head
+        function.name = name;
+        function.name_span = name_span;
+        function.signature.asynchrony = if is_async {
+            Asynchrony::Async
+        } else {
+            Asynchrony::Sync
+        };
+        function.signature.role = role;
+        function.signature.form = form;
+        function.signature.phase = phase;
+        function.signature.generic_parameters = generic_parameters.unwrap_or_default();
+        function.signature.is_abstract = function.header.is_abstract;
+        function.signature.is_generator = is_generator;
+        function.generic_parameter_span = generic_parameter_span;
+
+        Ok(())
     }
 
     /// Eat a function phase marker.
@@ -419,8 +404,8 @@ impl Parser {
     }
 
     /// Require function forms to have names.
-    fn require_function_name(&self, head: &ParsedFunctionHead) -> ParserResult<()> {
-        if head.form == FunctionForm::Function && head.name.is_none() {
+    fn require_function_name(&self, function: &ParsedFunction) -> ParserResult<()> {
+        if function.signature.form == FunctionForm::Function && function.name.is_none() {
             Err(ParserError::expected(self.peek(), TokenType::Identifier))
         } else {
             Ok(())
@@ -428,25 +413,25 @@ impl Parser {
     }
 
     /// Eat function parameters.
-    fn eat_function_parameters(
-        &mut self,
-        head: &ParsedFunctionHead,
-    ) -> ParserResult<ParsedFunctionParameters> {
-        let has_parenthesized_parameters = head.form == FunctionForm::Function
+    #[inline(never)]
+    fn eat_function_parameters(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // select the parameter grammar from the function form and source position
+        let has_parenthesized_parameters = function.signature.form == FunctionForm::Function
             || self.flags.is_in_type()
             || self.peek_is(TokenType::OpenParenthesis);
         if has_parenthesized_parameters {
-            self.eat_parenthesized_function_parameters(head)
+            self.eat_parenthesized_function_parameters(function)
         } else {
-            self.eat_bare_function_parameter(head)
+            self.eat_bare_function_parameter(function)
         }
     }
 
     /// Eat a parenthesized function parameter list.
     fn eat_parenthesized_function_parameters(
         &mut self,
-        head: &ParsedFunctionHead,
-    ) -> ParserResult<ParsedFunctionParameters> {
+        function: &mut ParsedFunction,
+    ) -> ParserResult<()> {
+        // parse the parameter list
         let start = self.span_start();
         self.eat_token(TokenType::OpenParenthesis)?;
 
@@ -455,9 +440,9 @@ impl Parser {
         } else {
             let flags = self
                 .flags
-                .with_generator(head.is_generator)
-                .with_forbid_yield(head.is_generator)
-                .with_forbid_await(head.is_async);
+                .with_generator(function.signature.is_generator)
+                .with_forbid_yield(function.signature.is_generator)
+                .with_forbid_await(function.signature.asynchrony == Asynchrony::Async);
             self.with_flags(flags, |parser| parser.eat_parameters_body())?
         };
 
@@ -466,21 +451,24 @@ impl Parser {
             NodeType::Parameter,
         );
 
-        Ok(ParsedFunctionParameters {
-            parameters,
-            parameter_span: Some(self.get_span_from(&start)),
-        })
+        // separate the receiver parameter and record the list
+        let (this_form, this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
+        function.signature.this_form = this_form;
+        function.signature.this_parameter = this_parameter;
+        function.signature.parameters = parameters;
+        function.parameter_span = Some(self.get_span_from(&start));
+
+        Ok(())
     }
 
     /// Eat a single bare lambda parameter.
-    fn eat_bare_function_parameter(
-        &mut self,
-        head: &ParsedFunctionHead,
-    ) -> ParserResult<ParsedFunctionParameters> {
-        if head.is_generator && self.is_keyword(Keyword::Yield) {
+    fn eat_bare_function_parameter(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // reject a reserved generator parameter
+        if function.signature.is_generator && self.is_keyword(Keyword::Yield) {
             return Err(ParserError::unexpected(self.peek()));
         }
 
+        // build the single named parameter
         let start = self.span_start();
         let name = self.eat_identifier()?;
         let parameter = Parameter::Named {
@@ -493,35 +481,32 @@ impl Parser {
         let parameter_span = self.get_span_from(&start);
         let parameter = self.insert_node(parameter, parameter_span);
 
-        Ok(ParsedFunctionParameters {
-            parameters: vec![parameter],
-            parameter_span: Some(parameter_span),
-        })
+        function.signature.parameters.push(parameter);
+        function.parameter_span = Some(parameter_span);
+
+        Ok(())
     }
 
     /// Eat function return type syntax and where clauses.
-    fn eat_function_return(
-        &mut self,
-        head: &ParsedFunctionHead,
-    ) -> ParserResult<ParsedFunctionReturn> {
-        if head.form == FunctionForm::Lambda && self.has_lambda_return_type_marker() {
-            self.eat_lambda_return_type()
-        } else if head.form == FunctionForm::Function || self.flags.is_in_type() {
-            self.eat_regular_return_type()
+    #[inline(never)]
+    fn eat_function_return(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // select return syntax from the function form and source position
+        if function.signature.form == FunctionForm::Lambda && self.has_lambda_return_type_marker() {
+            self.eat_lambda_return_type(function)
+        } else if function.signature.form == FunctionForm::Function || self.flags.is_in_type() {
+            self.eat_regular_return_type(function)
         } else {
-            Ok(ParsedFunctionReturn {
-                return_type: None,
-                return_type_span: None,
-                where_clauses: None,
-            })
+            Ok(())
         }
     }
 
     /// Eat a lambda return type.
-    fn eat_lambda_return_type(&mut self) -> ParserResult<ParsedFunctionReturn> {
+    fn eat_lambda_return_type(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // consume the return marker
         let start = self.span_start();
         self.bump();
 
+        // build the nested type parser flags
         let mut flags = self.flags.nested().in_type();
         if self.flags.is_in_type_conditional_right() {
             flags = flags.in_type_conditional_right();
@@ -533,20 +518,22 @@ impl Parser {
             flags = flags.in_arrow_return_type();
         }
 
+        // parse and record the return clauses
         let return_type =
             self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
         let where_clauses = self.eat_where_maybe()?;
 
-        Ok(ParsedFunctionReturn {
-            return_type: Some(return_type),
-            return_type_span: Some(self.get_span_from(&start)),
-            where_clauses,
-        })
+        function.signature.return_type = Some(return_type);
+        function.signature.where_clauses = where_clauses.unwrap_or_default();
+        function.return_type_span = Some(self.get_span_from(&start));
+
+        Ok(())
     }
 
     /// Eat a function return type.
-    fn eat_regular_return_type(&mut self) -> ParserResult<ParsedFunctionReturn> {
-        let (return_type, return_type_span) = if self.has_regular_return_type_marker() {
+    fn eat_regular_return_type(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // parse an explicit return type
+        if self.has_regular_return_type_marker() {
             let start = self.span_start();
             self.bump();
 
@@ -554,18 +541,15 @@ impl Parser {
             let return_type =
                 self.eat_type_expression_or_recover_missing(flags, NodeType::Declaration)?;
 
-            (Some(return_type), Some(self.get_span_from(&start)))
-        } else {
-            (None, None)
-        };
+            function.signature.return_type = Some(return_type);
+            function.return_type_span = Some(self.get_span_from(&start));
+        }
 
+        // parse trailing where clauses
         let where_clauses = self.eat_where_maybe()?;
+        function.signature.where_clauses = where_clauses.unwrap_or_default();
 
-        Ok(ParsedFunctionReturn {
-            return_type,
-            return_type_span,
-            where_clauses,
-        })
+        Ok(())
     }
 
     /// Return whether a function return type marker is present.
@@ -587,38 +571,42 @@ impl Parser {
     }
 
     /// Eat a function body when the source form owns one.
-    fn eat_function_body(&mut self, head: &ParsedFunctionHead) -> ParserResult<ParsedFunctionBody> {
-        if head.form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
+    #[inline(never)]
+    fn eat_function_body(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // parse a declared function block
+        if function.signature.form == FunctionForm::Function && self.peek_is(TokenType::OpenBrace) {
             let start = self.span_start();
-            let flags = self.function_block_body_flags(head);
+            let flags = self.function_block_body_flags(function);
             let block_id =
                 self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
             let span = self.get_span_from(&start);
             let body = self.tree.insert(Expression::Block(block_id), span);
 
-            Ok(ParsedFunctionBody {
-                body: Some(body),
-                body_span: Some(span),
-            })
-        } else if head.form == FunctionForm::Lambda
+            function.body = Some(body);
+            function.body_span = Some(span);
+
+            Ok(())
+        }
+        // parse a lambda body
+        else if function.signature.form == FunctionForm::Lambda
             && !self.flags.is_in_type()
             && self.peek_arrow_is()
         {
-            self.eat_lambda_body(head)
+            self.eat_lambda_body(function)
         } else {
-            Ok(ParsedFunctionBody {
-                body: None,
-                body_span: None,
-            })
+            Ok(())
         }
     }
 
     /// Eat a lambda body.
-    fn eat_lambda_body(&mut self, head: &ParsedFunctionHead) -> ParserResult<ParsedFunctionBody> {
+    fn eat_lambda_body(&mut self, function: &mut ParsedFunction) -> ParserResult<()> {
+        // consume the lambda arrow
         self.eat_arrow()?;
+
+        // parse the block or expression body
         let start = self.span_start();
         let body = if self.is_block_start() {
-            let flags = self.function_block_body_flags(head);
+            let flags = self.function_block_body_flags(function);
             let block_id =
                 self.with_flags(flags, |parser| parser.eat_block(BlockContext::Expression))?;
 
@@ -629,28 +617,31 @@ impl Parser {
                 .flags
                 .in_before_block()
                 .not_in_decorator()
-                .with_generator(head.is_generator);
-            flags.set_forbid_await(flags.is_forbid_await() && !head.is_async);
+                .with_generator(function.signature.is_generator);
+            let is_async = function.signature.asynchrony == Asynchrony::Async;
+            flags.set_forbid_await(flags.is_forbid_await() && !is_async);
 
             self.eat_expression(flags)?
         };
         let span = self.get_span_from(&start);
 
-        Ok(ParsedFunctionBody {
-            body: Some(body),
-            body_span: Some(span),
-        })
+        // record the parsed body
+        function.body = Some(body);
+        function.body_span = Some(span);
+
+        Ok(())
     }
 
     /// Build parser flags for a function block body.
-    fn function_block_body_flags(&self, head: &ParsedFunctionHead) -> ParserFlags {
+    fn function_block_body_flags(&self, function: &ParsedFunction) -> ParserFlags {
         let mut flags = self
             .flags
             .in_statement_position()
             .in_before_block()
             .not_in_decorator()
-            .with_generator(head.is_generator);
-        flags.set_forbid_await(flags.is_forbid_await() && !head.is_async);
+            .with_generator(function.signature.is_generator);
+        let is_async = function.signature.asynchrony == Asynchrony::Async;
+        flags.set_forbid_await(flags.is_forbid_await() && !is_async);
 
         flags
     }

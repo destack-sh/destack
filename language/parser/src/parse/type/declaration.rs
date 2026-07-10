@@ -125,6 +125,7 @@ impl Parser {
     /// Value<T> = Result<T, Error>
     /// Value = { id: string }
     /// ```
+    #[inline(never)]
     pub(in crate::parse) fn eat_type_alias_declaration(
         &mut self,
         start: &ParserSpanStart,

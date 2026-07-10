@@ -119,12 +119,6 @@ impl Lexer {
         self.scanner.span_str(span)
     }
 
-    /// Return the last eaten symbol.
-    #[inline]
-    pub fn previous(&self) -> char {
-        self.scanner.previous()
-    }
-
     /// Return whether there is nothing more to consume.
     #[inline]
     pub fn is_end(&self) -> bool {
@@ -151,8 +145,8 @@ impl Lexer {
 
     /// Advance by a known run of ascii bytes.
     #[inline]
-    pub(super) fn advance_ascii_bytes(&mut self, count: usize, last_byte: u8) {
-        self.scanner.advance_ascii_bytes(count, last_byte);
+    pub(super) fn advance_ascii_bytes(&mut self, count: usize) {
+        self.scanner.advance_ascii_bytes(count);
     }
 
     /// Return the source file ID.

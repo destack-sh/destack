@@ -897,7 +897,7 @@ impl Parser {
             Ok(property_id) => property_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::Property);
-                let span = err.span;
+                let span = err.span(self.file_id);
                 let recovered_span = self.recover_body(span, Some(err));
 
                 self.insert_node(Property::Error, recovered_span)
@@ -953,7 +953,7 @@ impl Parser {
             Ok(property_id) => property_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::Property);
-                let span = err.span;
+                let span = err.span(self.file_id);
                 let recovered_span = self.recover_body(span, Some(err));
 
                 self.insert_node(Property::Error, recovered_span)
@@ -1616,7 +1616,7 @@ impl Parser {
             Ok(member_id) => member_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::TypeMember);
-                let span = err.span;
+                let span = err.span(self.file_id);
                 let recovered_span = self.recover_body(span, Some(err));
 
                 self.insert_node(TypeMember::Error, recovered_span)
@@ -2105,7 +2105,7 @@ impl Parser {
             Ok(member_id) => member_id,
             Err(err) => {
                 let err = err.for_node_type(NodeType::Member);
-                let span = err.span;
+                let span = err.span(self.file_id);
                 let recovered_span = self.recover_body(span, Some(err));
 
                 self.insert_node(Member::Error, recovered_span)

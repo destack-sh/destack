@@ -9,14 +9,12 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 use super::DeclarationHeader;
 
 impl Parser {
-    /// Eat a global augmentation declaration.
-    pub(crate) fn eat_global(
+    /// Eat a global augmentation declaration after its `global` head.
+    pub(crate) fn eat_global_body(
         &mut self,
         start: &ParserSpanStart,
         header: DeclarationHeader,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        self.eat_identifier_str("global")?;
-
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
             .eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)

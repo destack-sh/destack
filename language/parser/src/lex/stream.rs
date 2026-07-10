@@ -331,29 +331,24 @@ impl Lexer {
         let bytes = self.scanner.remaining_bytes();
         let mut count = 0usize;
         let mut first_newline_start = None;
-        let mut last_byte = 0;
 
         while count < bytes.len() {
             let byte = bytes[count];
 
             // ordinary spaces
             if matches!(byte, b' ' | b'\t' | 0x0B | 0x0C) {
-                last_byte = byte;
                 count += 1;
             }
             // line feed
             else if byte == b'\n' {
                 first_newline_start.get_or_insert(start + count as u32);
-                last_byte = byte;
                 count += 1;
             }
             // carriage return, with optional line feed
             else if byte == b'\r' {
                 first_newline_start.get_or_insert(start + count as u32);
-                last_byte = byte;
                 count += 1;
                 if bytes.get(count).copied() == Some(b'\n') {
-                    last_byte = b'\n';
                     count += 1;
                 }
             } else {
@@ -365,7 +360,7 @@ impl Lexer {
             return;
         }
 
-        self.scanner.advance_ascii_bytes(count, last_byte);
+        self.scanner.advance_ascii_bytes(count);
 
         if let Some(newline_start) = first_newline_start {
             self.handle_compact_newline(newline_start);
@@ -393,7 +388,7 @@ impl Lexer {
             TokenType::LineComment
         };
 
-        self.scanner.advance_ascii_bytes(2, b'/');
+        self.scanner.advance_ascii_bytes(2);
         self.eat_until(b'\n');
         self.handle_comment_trivia(token_type, start, true);
     }
@@ -409,7 +404,7 @@ impl Lexer {
             TokenType::BlockComment
         };
 
-        self.scanner.advance_ascii_bytes(2, b'*');
+        self.scanner.advance_ascii_bytes(2);
         let (is_terminated, has_line_terminator) = self.eat_block_comment();
         if is_terminated {
             self.handle_comment_trivia(token_type, start, has_line_terminator);

@@ -21,8 +21,6 @@ pub(super) struct Scanner {
     position: usize,
     /// The byte position where the current token started.
     token_start: usize,
-    /// The most recently consumed character.
-    previous: char,
 }
 
 impl Scanner {
@@ -40,7 +38,6 @@ impl Scanner {
             source_len,
             position: 0,
             token_start: 0,
-            previous: EOF_CHAR,
         }
     }
 
@@ -71,7 +68,6 @@ impl Scanner {
         );
         self.position = position;
         self.token_start = position;
-        self.previous = EOF_CHAR;
     }
 
     /// Return the source text.
@@ -106,12 +102,6 @@ impl Scanner {
     #[inline]
     pub(super) fn span_str(&self, span: Span) -> &str {
         self.file.span_str(span)
-    }
-
-    /// Return the most recently consumed character.
-    #[inline]
-    pub(super) fn previous(&self) -> char {
-        self.previous
     }
 
     /// Peek one source byte without consuming it.
@@ -176,29 +166,22 @@ impl Scanner {
         let byte = unsafe { *self.source.add(self.position) };
         if byte.is_ascii() {
             self.position += 1;
-            self.previous = byte as char;
-            return Some(self.previous);
+
+            return Some(byte as char);
         }
 
         let character = self.remaining().chars().next()?;
         self.position += character.len_utf8();
-        self.previous = character;
+
         Some(character)
     }
 
     /// Advance by a known run of ASCII bytes.
     #[inline]
-    pub(super) fn advance_ascii_bytes(&mut self, count: usize, last_byte: u8) {
-        if count == 0 {
-            return;
-        }
+    pub(super) fn advance_ascii_bytes(&mut self, count: usize) {
+        debug_assert!(count > 0, "ASCII byte run must not be empty");
 
-        debug_assert!(
-            last_byte.is_ascii(),
-            "advance_ascii_bytes expects ASCII last byte"
-        );
         self.position += count;
-        self.previous = last_byte as char;
     }
 
     /// Advance by one known ASCII byte.
@@ -208,14 +191,12 @@ impl Scanner {
         let byte = unsafe { *self.source.add(self.position) };
         debug_assert!(byte.is_ascii(), "advance_ascii_byte expects ASCII");
         self.position += 1;
-        self.previous = byte as char;
     }
 
     /// Advance by a known run of bytes.
     #[inline]
     pub(super) fn advance_bytes(&mut self, count: usize) {
         self.position += count;
-        self.previous = EOF_CHAR;
     }
 
     /// Eat characters while a predicate returns true.

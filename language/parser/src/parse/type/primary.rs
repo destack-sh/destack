@@ -197,7 +197,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let mut elements = Vec::new();
         let minimum_precedence = operator.precedence();
-        let operator_span = start.token_span();
+        let operator_span = start.token_span(self.file_id);
 
         // elements
         while matches!(

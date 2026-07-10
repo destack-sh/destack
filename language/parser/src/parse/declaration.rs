@@ -83,6 +83,19 @@ pub(crate) fn is_declaration_modifier_keyword(keyword: Keyword) -> bool {
     )
 }
 
+/// Return true when a keyword can prefix a declaration expression.
+pub(crate) fn is_declaration_prefix_keyword(keyword: Keyword) -> bool {
+    matches!(
+        keyword,
+        Keyword::Export
+            | Keyword::Declare
+            | Keyword::Abstract
+            | Keyword::Final
+            | Keyword::Local
+            | Keyword::Shared
+    )
+}
+
 /// Return true when a keyword can act as a type relation operator.
 pub(crate) fn is_type_relation_keyword(keyword: Option<Keyword>) -> bool {
     matches!(

@@ -11,26 +11,8 @@ pub(crate) struct ExpressionScope {
     pub(super) flags: ParserFlags,
     /// The minimum infix precedence accepted here.
     pub(super) minimum_precedence: Option<u16>,
-    /// Whether the expression is parsed in statement position.
-    pub(super) is_statement_position: bool,
-    /// Whether `:` is owned by an outer ternary or match case.
-    pub(super) owns_colon_boundary: bool,
-    /// Whether newline terminates continuation in match case bodies.
-    pub(super) is_match_case_body: bool,
-    /// Whether the receiver is the operand of `new`.
-    pub(super) is_new_receiver: bool,
-    /// Whether tree syntax owns `<` continuations.
-    pub(super) is_tree_literal: bool,
-    /// Whether `in`, `of`, or the body block belongs to an outer for-each parser.
-    pub(super) owns_for_each_boundary: bool,
-    /// Whether generic postfix syntax is disabled after typeof.
-    pub(super) is_typeof_query: bool,
     /// Whether newline calls belong to an outer statement boundary.
-    pub(super) owns_newline_call_boundary: bool,
-    /// Whether newline terminates decorator target parsing.
-    pub(super) owns_decorator_line_boundary: bool,
-    /// Whether static closers terminate expression parsing.
-    pub(super) is_static: bool,
+    owns_newline_call_boundary: bool,
 }
 
 /// Type expression parse scope.
@@ -40,16 +22,6 @@ pub(super) struct TypeScope {
     pub(super) flags: ParserFlags,
     /// The minimum infix precedence accepted here.
     pub(super) minimum_precedence: Option<u16>,
-    /// Whether `:` is owned by an outer ternary, match case, or conditional type.
-    pub(super) owns_colon_boundary: bool,
-    /// Whether `extends` belongs to an outer conditional type.
-    pub(super) disallows_conditional: bool,
-    /// Whether heritage clauses own `implements`.
-    pub(super) stops_before_implements: bool,
-    /// Whether static type closers stop parsing.
-    pub(super) is_static: bool,
-    /// Whether constructor arguments belong to the enclosing `new` expression.
-    pub(super) is_new_receiver: bool,
 }
 
 impl ExpressionScope {
@@ -58,16 +30,7 @@ impl ExpressionScope {
         Self {
             flags,
             minimum_precedence: None,
-            is_statement_position: flags.is_in_statement_position(),
-            owns_colon_boundary: flags.is_in_ternary_condition() || flags.is_in_match_case(),
-            is_match_case_body: flags.is_in_match_case_body(),
-            is_new_receiver: flags.is_in_new_receiver(),
-            is_tree_literal: flags.is_in_tree_literal(),
-            owns_for_each_boundary: flags.is_in_for_each(),
-            is_typeof_query: flags.is_in_typeof_query(),
             owns_newline_call_boundary: false,
-            owns_decorator_line_boundary: flags.is_in_decorator(),
-            is_static: flags.is_in_static(),
         }
     }
 
@@ -83,6 +46,66 @@ impl ExpressionScope {
         self.owns_newline_call_boundary = enabled;
 
         self
+    }
+
+    /// Return whether this expression is parsed in statement position.
+    #[inline]
+    pub(super) fn is_statement_position(self) -> bool {
+        self.flags.is_in_statement_position()
+    }
+
+    /// Return whether an outer ternary or match case owns `:`.
+    #[inline]
+    pub(super) fn owns_colon_boundary(self) -> bool {
+        self.flags.is_in_ternary_condition() || self.flags.is_in_match_case()
+    }
+
+    /// Return whether newline terminates a match case body expression.
+    #[inline]
+    pub(super) fn is_match_case_body(self) -> bool {
+        self.flags.is_in_match_case_body()
+    }
+
+    /// Return whether the expression is the receiver of `new`.
+    #[inline]
+    pub(super) fn is_new_receiver(self) -> bool {
+        self.flags.is_in_new_receiver()
+    }
+
+    /// Return whether tree syntax owns `<` continuations.
+    #[inline]
+    pub(super) fn is_tree_literal(self) -> bool {
+        self.flags.is_in_tree_literal()
+    }
+
+    /// Return whether an outer for-each construct owns its continuation.
+    #[inline]
+    pub(super) fn owns_for_each_boundary(self) -> bool {
+        self.flags.is_in_for_each()
+    }
+
+    /// Return whether this expression is the operand of `typeof`.
+    #[inline]
+    pub(super) fn is_typeof_query(self) -> bool {
+        self.flags.is_in_typeof_query()
+    }
+
+    /// Return whether an outer statement boundary owns newline calls.
+    #[inline]
+    pub(super) fn owns_newline_call_boundary(self) -> bool {
+        self.owns_newline_call_boundary
+    }
+
+    /// Return whether newline terminates decorator target parsing.
+    #[inline]
+    pub(super) fn owns_decorator_line_boundary(self) -> bool {
+        self.flags.is_in_decorator()
+    }
+
+    /// Return whether static closers terminate this expression.
+    #[inline]
+    pub(super) fn is_static(self) -> bool {
+        self.flags.is_in_static()
     }
 
     /// Return true when this scope stops before an operator.
@@ -115,13 +138,6 @@ impl TypeScope {
         Self {
             flags,
             minimum_precedence: None,
-            owns_colon_boundary: flags.is_in_ternary_condition()
-                || flags.is_in_match_case()
-                || flags.is_in_type_conditional_right(),
-            disallows_conditional: flags.is_disallow_type_conditional(),
-            stops_before_implements: flags.is_in_before_block() || flags.is_in_super_type(),
-            is_static: flags.is_in_static(),
-            is_new_receiver: flags.is_in_new_receiver(),
         }
     }
 
@@ -130,6 +146,38 @@ impl TypeScope {
         self.minimum_precedence = minimum_precedence;
 
         self
+    }
+
+    /// Return whether an outer construct owns `:`.
+    #[inline]
+    pub(super) fn owns_colon_boundary(self) -> bool {
+        self.flags.is_in_ternary_condition()
+            || self.flags.is_in_match_case()
+            || self.flags.is_in_type_conditional_right()
+    }
+
+    /// Return whether conditional types are disabled in this scope.
+    #[inline]
+    pub(super) fn disallows_conditional(self) -> bool {
+        self.flags.is_disallow_type_conditional()
+    }
+
+    /// Return whether an outer heritage clause owns `implements`.
+    #[inline]
+    pub(super) fn stops_before_implements(self) -> bool {
+        self.flags.is_in_before_block() || self.flags.is_in_super_type()
+    }
+
+    /// Return whether static closers terminate this type expression.
+    #[inline]
+    pub(super) fn is_static(self) -> bool {
+        self.flags.is_in_static()
+    }
+
+    /// Return whether constructor arguments belong to an enclosing `new` expression.
+    #[inline]
+    pub(super) fn is_new_receiver(self) -> bool {
+        self.flags.is_in_new_receiver()
     }
 
     /// Return true when this scope stops before an operator.

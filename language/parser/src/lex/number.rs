@@ -21,7 +21,7 @@ impl Lexer {
     ///
     /// Returns the number literal.
     pub(super) fn eat_number_literal(&mut self, first_digit: char) -> TokenLiteral {
-        debug_assert!('0' <= self.previous() && self.previous() <= '9');
+        debug_assert!(first_digit.is_ascii_digit());
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
             // parse encoding base
@@ -176,7 +176,7 @@ impl Lexer {
         }
 
         if index > 0 {
-            self.scanner.advance_ascii_bytes(index, bytes[index - 1]);
+            self.scanner.advance_ascii_bytes(index);
         }
 
         has_digits
@@ -202,7 +202,7 @@ impl Lexer {
         }
 
         if index > 0 {
-            self.scanner.advance_ascii_bytes(index, bytes[index - 1]);
+            self.scanner.advance_ascii_bytes(index);
         }
 
         has_digits
@@ -212,7 +212,6 @@ impl Lexer {
     ///
     /// Returns whether the exponent is non-empty.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
-        debug_assert!(self.previous() == 'e' || self.previous() == 'E');
         if matches!(self.scanner.byte(), b'-' | b'+') {
             self.scanner.advance_ascii_byte();
         }

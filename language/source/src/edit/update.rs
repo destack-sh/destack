@@ -4,7 +4,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 /// One byte range in source text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct ByteRange {
     /// Inclusive start byte offset.
     pub start: u32,

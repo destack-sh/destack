@@ -6,13 +6,11 @@ use destack_dir::{
 };
 
 impl Parser {
-    /// Eat a module declaration.
-    pub(crate) fn eat_module(
+    /// Eat a module declaration after its `module` head.
+    pub(crate) fn eat_module_body(
         &mut self,
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        self.eat_identifier_str("module")?;
-
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
             .eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)

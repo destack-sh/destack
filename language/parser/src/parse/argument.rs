@@ -1840,13 +1840,14 @@ impl Parser {
     /// ```
     fn eat_tree_attribute_string_literal(&mut self) -> ParserResult<(StringId, Span)> {
         let token = self.peek_string_literal()?;
-        let content = self.get_string_literal_str(token);
 
-        // decode tree attribute entities before scalar parsing
-        let string_id = if let Some(decoded) = decode_html_entities(content) {
+        // decode valid entities before interning the attribute value
+        let decoded = decode_html_entities(self.get_string_literal_str(token));
+        let string_id = if let Some(decoded) = decoded {
             self.strings.intern(&decoded)
         } else {
-            self.strings.intern(content)
+            let content_span = Span::new(self.file_id, token.span.start + 1, token.span.end - 1);
+            self.intern_span(content_span)
         };
 
         self.bump();

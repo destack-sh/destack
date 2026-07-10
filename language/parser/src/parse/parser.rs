@@ -1,15 +1,16 @@
 use crate::{Lexer, LexerState, ParserTriviaMode, is_semantic, keyword_from_identifier};
 use core::fmt;
-use destack_core::{StringPool, ensure_sufficient_stack};
+use destack_core::{LocalStringPool, StringId, StringPool, ensure_sufficient_stack};
 use destack_dir::{
     BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token, TokenLiteral,
-    TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
+    TokenSpan, TokenType, Tree, TreeMark, TreeStore,
 };
 use destack_source::{
-    Diagnostic, DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType, ModuleId,
-    MultiSpan, NodeSearchMode, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, PackageId, Span,
+    ByteRange, Diagnostic, DiagnosticCollection, EnclosingSpan, File, FileId, LanguageType,
+    ModuleId, MultiSpan, NodeSearchMode, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, PackageId,
+    Span,
 };
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 use std::mem;
 use std::sync::Arc;
@@ -18,16 +19,12 @@ use crate::{ParserError, ParserResult};
 
 use super::flags::ParserFlags;
 use super::mode::ContextualLexMode;
-use super::options::{ParserOptions, ParserTokenHistory};
+use super::options::ParserOptions;
 
 /// Estimated source bytes per parser token.
 const ESTIMATED_TOKEN_BYTES: usize = 6;
-/// Estimated source bytes per materialized token.
-const ESTIMATED_TOKEN_BUFFER_BYTES: usize = 4;
-/// Estimated parser tokens per interned string.
-const ESTIMATED_STRING_TOKEN_DIVISOR: usize = 3;
-/// Initial parser lookahead capacity.
-const LOOKAHEAD_CAPACITY: usize = 4;
+/// Recursive descents between nested stack checks.
+const STACK_CHECK_INTERVAL: u16 = 32;
 /// Maximum nested recursive parser descent before reporting malformed input.
 const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
 
@@ -40,51 +37,44 @@ struct LookaheadState {
     side_tokens_len: usize,
 }
 
-/// One cached future token after the current parser token.
-#[derive(Debug)]
-struct LookaheadToken {
-    /// The parser token.
-    token: Token,
-    /// The lexer state after this token.
-    state: LookaheadState,
-}
-
 /// Cached future tokens after the current parser token.
 #[derive(Debug)]
 struct Lookahead {
-    /// The unread future tokens and their lexer states.
-    tokens: Vec<LookaheadToken>,
+    /// The unread future tokens.
+    tokens: VecDeque<Token>,
+    /// The lexer boundaries between unread future tokens.
+    boundaries: VecDeque<LookaheadState>,
     /// The lexer state after the current parser token.
-    current: Option<LookaheadState>,
+    after_current: Option<LookaheadState>,
 }
 
 impl Lookahead {
     /// Create an empty lookahead cache.
     fn new() -> Self {
         Self {
-            tokens: Vec::with_capacity(LOOKAHEAD_CAPACITY),
-            current: None,
+            tokens: VecDeque::new(),
+            boundaries: VecDeque::new(),
+            after_current: None,
         }
     }
 
     /// Remove all unread tokens and current state.
     fn clear(&mut self) {
         self.tokens.clear();
-        self.current = None;
+        self.boundaries.clear();
+        self.after_current = None;
     }
 
     /// Return one future token by parser-relative offset.
     #[inline(always)]
     fn get(&self, offset: usize) -> Option<Token> {
-        self.tokens
-            .get(offset.checked_sub(1)?)
-            .map(|entry| entry.token)
+        self.tokens.get(offset.checked_sub(1)?).copied()
     }
 
     /// Return the final cached future token.
     #[inline(always)]
     fn last(&self) -> Option<Token> {
-        self.tokens.last().map(|entry| entry.token)
+        self.tokens.back().copied()
     }
 
     /// Return whether the cache contains one parser-relative offset.
@@ -93,11 +83,17 @@ impl Lookahead {
         offset <= self.tokens.len()
     }
 
+    /// Return whether no future token is cached.
+    #[inline(always)]
+    fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
     /// Save the lexer state after the current parser token.
     #[inline(always)]
-    fn save_current(&mut self, lexer_state: LexerState, side_tokens_len: usize) {
-        if self.current.is_none() {
-            self.current = Some(LookaheadState {
+    fn save_after_current(&mut self, lexer_state: LexerState, side_tokens_len: usize) {
+        if self.after_current.is_none() {
+            self.after_current = Some(LookaheadState {
                 lexer: lexer_state,
                 side_tokens_len,
             });
@@ -106,44 +102,49 @@ impl Lookahead {
 
     /// Return the saved cursor state after the current parser token.
     #[inline(always)]
-    fn current_state(&self) -> Option<LookaheadState> {
-        self.current
+    fn state_after_current(&self) -> Option<LookaheadState> {
+        self.after_current
+    }
+
+    /// Save the lexer boundary after the final cached token.
+    #[inline(always)]
+    fn push_boundary(&mut self, lexer_state: LexerState, side_tokens_len: usize) {
+        debug_assert!(!self.tokens.is_empty());
+        self.boundaries.push_back(LookaheadState {
+            lexer: lexer_state,
+            side_tokens_len,
+        });
     }
 
     /// Push one future token.
     #[inline(always)]
-    fn push(&mut self, token: Token, lexer_state: LexerState, side_tokens_len: usize) {
-        self.tokens.push(LookaheadToken {
-            token,
-            state: LookaheadState {
-                lexer: lexer_state,
-                side_tokens_len,
-            },
-        });
+    fn push(&mut self, token: Token) {
+        self.tokens.push_back(token);
     }
 
     /// Pop the next future token into the parser cursor.
-    fn pop(&mut self) -> Option<Token> {
-        if self.tokens.is_empty() {
-            return None;
-        }
+    ///
+    /// The cache must contain at least one token.
+    #[inline(never)]
+    fn pop(&mut self) -> Token {
+        debug_assert!(!self.tokens.is_empty());
 
-        let entry = self.tokens.remove(0);
+        // SAFETY: callers check that the cache contains a token
+        let token = unsafe { self.tokens.pop_front().unwrap_unchecked() };
 
         if self.tokens.is_empty() {
-            self.current = None;
+            debug_assert!(self.boundaries.is_empty());
+            self.after_current = None;
         } else {
-            self.current = Some(entry.state);
+            self.after_current = self.boundaries.pop_front();
+            debug_assert!(self.after_current.is_some());
         }
 
-        Some(entry.token)
+        token
     }
 }
 
-/// A parser for a single source file.
-///
-/// The Parser works on "semantic" undifferentiated Tokens (keywords are just identifiers).
-/// Whitespace and regular line comments are completely ignored; newline is significant (see ASI rules).
+/// A streaming parser for one source file.
 pub struct Parser {
     /// The source we're parsing.
     pub file: Arc<File>,
@@ -154,9 +155,7 @@ pub struct Parser {
     /// The cached future tokens.
     lookahead: Lookahead,
     /// The tokens consumed by parser context-sensitive interpretation.
-    consumed_tokens: Vec<Token>,
-    /// The semantic token retention mode.
-    token_history: ParserTokenHistory,
+    tokens: Vec<Token>,
     /// The side token stream.
     side_tokens: Vec<Token>,
     /// The structured comments collected during lexing.
@@ -170,8 +169,6 @@ pub struct Parser {
     current_token: Token,
     /// The previous semantic token end.
     previous_token_end: u32,
-    /// Whether any semantic token was consumed.
-    has_consumed_semantic_token: bool,
     /// The last consumed visible token.
     last_consumed_token: Token,
     /// Whether the parser is finished.
@@ -185,8 +182,10 @@ pub struct Parser {
 
     /// The Node DIR tree.
     pub tree: Tree,
-    /// The shared string pool.
-    pub strings: Arc<StringPool>,
+    /// The strings interned by this parser.
+    pub strings: LocalStringPool,
+    /// The shared string pool receiving parsed strings.
+    shared_strings: Arc<StringPool>,
 
     /// Whether the source is an ambient declaration file.
     pub(crate) is_ambient: bool,
@@ -272,12 +271,21 @@ impl Parser {
         owner: NodeType,
         parse: impl FnOnce(&mut Self) -> ParserResult<T>,
     ) -> ParserResult<T> {
+        // bound malformed recursive input
         if self.recursive_descent_depth >= MAX_RECURSIVE_DESCENT_DEPTH {
             return Err(ParserError::unexpected_for(self.peek(), owner));
         }
 
+        // periodically allow nested calls to grow onto another stack
         self.recursive_descent_depth += 1;
-        let result = ensure_sufficient_stack(|| parse(self));
+        let is_stack_check = self.recursive_descent_depth % STACK_CHECK_INTERVAL == 0;
+        let result = if is_stack_check {
+            ensure_sufficient_stack(|| parse(self))
+        } else {
+            parse(self)
+        };
+
+        // restore the caller depth
         self.recursive_descent_depth -= 1;
 
         result
@@ -303,7 +311,6 @@ impl Parser {
         } else {
             0
         };
-        let estimated_strings = estimated_tokens / ESTIMATED_STRING_TOKEN_DIVISOR;
 
         // create the live lexer cursor
         let mut lexer = Lexer::new(file.clone());
@@ -311,34 +318,27 @@ impl Parser {
 
         // initialize source-local parser state
         let file_id = file.id;
-        strings.reserve(estimated_strings);
-        let flags = ParserFlags::default();
         let mut parser = Self {
             file,
             file_id,
             lexer,
             lookahead: Lookahead::new(),
-            consumed_tokens: Vec::with_capacity(if options.token_history.records_tokens() {
-                estimated_tokens
-            } else {
-                0
-            }),
-            token_history: options.token_history,
+            tokens: Vec::with_capacity(estimated_tokens),
             side_tokens: Vec::with_capacity(estimated_side_tokens),
             comments: Vec::with_capacity(estimated_comments),
             trivia_mode: options.trivia_mode,
             contextual_lex_mode: ContextualLexMode::Normal,
             current_token: Token::eof(0),
             previous_token_end: 0,
-            has_consumed_semantic_token: false,
             last_consumed_token: Token::eof(0),
             is_finished: false,
-            flags,
+            flags: ParserFlags::default(),
             preserve_parenthesized_wrappers: options.preserve_parenthesized_wrappers,
             recursive_descent_depth: 0,
             is_ambient: language.is_declaration(),
             tree,
-            strings,
+            strings: LocalStringPool::new(),
+            shared_strings: strings,
             errors: Vec::with_capacity(4),
             reported_errors: HashSet::with_capacity(4),
         };
@@ -347,7 +347,7 @@ impl Parser {
         parser
     }
 
-    /// Create a new parser from a text File and tokenize it.
+    /// Create a parser for one source file.
     pub fn lex_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
         let options = ParserOptions {
             trivia_mode: ParserTriviaMode::Documentation,
@@ -357,7 +357,7 @@ impl Parser {
         Self::lex_file_with_options(file, language, options, strings)
     }
 
-    /// Create a new parser from a module text File and tokenize it.
+    /// Create a parser for one module source file.
     pub fn lex_module(
         module_id: ModuleId,
         file: Arc<File>,
@@ -372,7 +372,7 @@ impl Parser {
         Self::lex_module_with_options(module_id, file, language, options, strings)
     }
 
-    /// Lex a file and apply parser options.
+    /// Create a parser for one source file with explicit options.
     pub fn lex_file_with_options(
         file: Arc<File>,
         language: LanguageType,
@@ -384,7 +384,7 @@ impl Parser {
         Self::lex_module_with_options(module_id, file, language, options, strings)
     }
 
-    /// Lex a module text File and apply parser options.
+    /// Create a parser for one module source file with explicit options.
     pub fn lex_module_with_options(
         module_id: ModuleId,
         file: Arc<File>,
@@ -394,21 +394,12 @@ impl Parser {
     ) -> Self {
         let source_len = file.text().len();
         let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
-        let tree = Tree::with_capacities(module_id, Self::estimate_tree_capacity(estimated_tokens));
+        let tree = Tree::with_capacity(module_id, estimated_tokens);
 
         Self::lex_module_tree_with_options(file, language, options, strings, tree)
     }
 
-    /// Estimate initial tree buffers from token count.
-    fn estimate_tree_capacity(estimated_tokens: usize) -> TreeCapacity {
-        TreeCapacity {
-            nodes: estimated_tokens,
-            comments: estimated_tokens / 16,
-            ..TreeCapacity::default()
-        }
-    }
-
-    /// Lex a module text File into an existing DIR tree and apply parser options.
+    /// Create a parser that appends one module source file to an existing DIR tree.
     pub fn lex_module_tree_with_options(
         file: Arc<File>,
         language: LanguageType,
@@ -429,6 +420,13 @@ impl Parser {
     #[inline]
     pub fn compute_side_span_from_tree(tree: &Tree) -> MultiSpan {
         MultiSpan::new(tree.get_side_decorator_spans())
+    }
+
+    /// Publish locally interned strings and return the shared pool.
+    pub fn publish_strings(&self) -> &Arc<StringPool> {
+        self.shared_strings.extend(&self.strings);
+
+        &self.shared_strings
     }
 
     /// Swap parser flags and return the previous value.
@@ -468,37 +466,11 @@ impl Parser {
     #[cfg(test)]
     #[inline]
     pub(crate) fn tokens(&self) -> Vec<TokenSpan> {
-        if !self.token_history.records_tokens() {
-            return self.lexed_token_spans();
-        }
-
-        self.consumed_tokens
+        self.tokens
             .iter()
             .copied()
             .map(|token| TokenSpan::new(token, self.file_id))
             .collect()
-    }
-
-    /// Lex this file into semantic token spans for parser tests.
-    #[cfg(test)]
-    fn lexed_token_spans(&self) -> Vec<TokenSpan> {
-        let result = Lexer::lex_with_options(self.file.clone(), self.trivia_mode);
-        let mut tokens = result.tokens;
-        tokens.push(result.eof_token);
-
-        tokens
-    }
-
-    /// Lex this file into compact tokens for non-hot token inspection.
-    fn lexed_tokens(&self) -> (Vec<Token>, Vec<Token>) {
-        let mut lexer = Lexer::new(self.file.clone());
-        lexer.set_trivia_mode(self.trivia_mode);
-
-        let eof_token = lexer.eof_token();
-        let (mut tokens, side_tokens) = lexer.take_tokens();
-        tokens.push(eof_token);
-
-        (tokens, side_tokens)
     }
 
     /// Return the innermost expression after skipping parenthesized wrappers.
@@ -825,16 +797,7 @@ impl Parser {
     /// Return owned token buffers after lexing to EOF.
     pub fn take_tokens(&mut self) -> (Vec<Token>, Vec<Token>) {
         self.truncate_unread_tokens();
-
-        if !self.token_history.records_tokens() {
-            if !self.has_consumed_semantic_token && self.previous_token_end == 0 {
-                return self.take_streamed_tokens();
-            }
-
-            return self.lexed_tokens();
-        }
-
-        let mut tokens = mem::take(&mut self.consumed_tokens);
+        let mut tokens = mem::take(&mut self.tokens);
         tokens.push(self.current_token);
 
         if self.current_token.is(TokenType::End) {
@@ -853,31 +816,6 @@ impl Parser {
                 break;
             }
         }
-        self.drain_lexer_side_tokens();
-
-        (tokens, mem::take(&mut self.side_tokens))
-    }
-
-    /// Return token buffers from the current untouched streaming lexer cursor.
-    fn take_streamed_tokens(&mut self) -> (Vec<Token>, Vec<Token>) {
-        self.truncate_unread_tokens();
-
-        let mut tokens = Vec::with_capacity(self.file.text().len() / ESTIMATED_TOKEN_BUFFER_BYTES);
-        tokens.push(self.current_token);
-
-        if !self.current_token.is(TokenType::End) {
-            self.contextual_lex_mode = ContextualLexMode::Normal;
-            loop {
-                let token = self.read_token_from_lexer();
-                let is_end = token.is(TokenType::End);
-                tokens.push(token);
-
-                if is_end {
-                    break;
-                }
-            }
-        }
-
         self.drain_lexer_side_tokens();
 
         (tokens, mem::take(&mut self.side_tokens))
@@ -907,7 +845,7 @@ impl Parser {
 
     /// Drop unread tokens and restore the lexer after the current token.
     fn truncate_unread_tokens(&mut self) {
-        if let Some(state) = self.lookahead.current_state() {
+        if let Some(state) = self.lookahead.state_after_current() {
             self.lexer.restore_state(state.lexer);
             self.side_tokens.truncate(state.side_tokens_len);
         }
@@ -921,10 +859,11 @@ impl Parser {
             return;
         }
 
-        if self.lookahead.current_state().is_none() {
+        if self.lookahead.state_after_current().is_none() {
             let lexer_state = self.lexer.state();
             let side_tokens_len = self.side_tokens.len();
-            self.lookahead.save_current(lexer_state, side_tokens_len);
+            self.lookahead
+                .save_after_current(lexer_state, side_tokens_len);
         }
 
         while !self.lookahead.has(offset) {
@@ -936,9 +875,15 @@ impl Parser {
                 break;
             }
 
+            // preserve the boundary before extending an existing token sequence
+            if self.lookahead.last().is_some() {
+                let lexer_state = self.lexer.state();
+                let side_tokens_len = self.side_tokens.len();
+                self.lookahead.push_boundary(lexer_state, side_tokens_len);
+            }
+
             let token = self.read_token_from_lexer();
-            self.lookahead
-                .push(token, self.lexer.state(), self.side_tokens.len());
+            self.lookahead.push(token);
         }
     }
 
@@ -1022,11 +967,13 @@ impl Parser {
     /// Read the next token into the parser cursor.
     #[inline]
     fn read_next_token(&mut self) {
-        if let Some(token) = self.lookahead.pop() {
-            self.current_token = token;
-        } else {
+        if self.lookahead.is_empty() {
             self.current_token = self.read_token_from_lexer();
+
+            return;
         }
+
+        self.current_token = self.lookahead.pop();
     }
 
     /// Read one token from the live lexer in the current contextual mode.
@@ -1141,7 +1088,7 @@ impl Parser {
         let diagnostics = self
             .errors
             .iter()
-            .map(|error| error.to_diagnostic(content))
+            .map(|error| error.to_diagnostic(content, self.file_id))
             .collect();
 
         DiagnosticCollection::from_diagnostics(diagnostics)
@@ -1151,7 +1098,7 @@ impl Parser {
     pub fn diagnostic(&self, error: &ParserError) -> Diagnostic {
         let content = self.file.content_id();
 
-        error.to_diagnostic(content)
+        error.to_diagnostic(content, self.file_id)
     }
 
     /// Create a checkpoint for speculative parsing that may allocate tree nodes.
@@ -1167,19 +1114,19 @@ impl Parser {
     /// Create a checkpoint for speculative cursor movement without tree allocation snapshots.
     #[inline(always)]
     pub fn cursor_checkpoint(&mut self) -> ParserCursorCheckpoint {
-        let (lexer_state, side_tokens_len) = if let Some(state) = self.lookahead.current_state() {
-            (state.lexer, state.side_tokens_len)
-        } else {
-            (self.lexer.state(), self.side_tokens.len())
-        };
+        let (lexer_state, side_tokens_len) =
+            if let Some(state) = self.lookahead.state_after_current() {
+                (state.lexer, state.side_tokens_len)
+            } else {
+                (self.lexer.state(), self.side_tokens.len())
+            };
         ParserCursorCheckpoint {
             lexer_state,
             contextual_lex_mode: self.contextual_lex_mode,
-            consumed_tokens_len: self.consumed_tokens.len(),
+            tokens_len: self.tokens.len(),
             side_tokens_len,
             current_token: self.current_token,
             previous_token_end: self.previous_token_end,
-            has_consumed_semantic_token: self.has_consumed_semantic_token,
             last_consumed_token: self.last_consumed_token,
         }
     }
@@ -1188,7 +1135,6 @@ impl Parser {
     #[inline(always)]
     pub fn span_start(&self) -> ParserSpanStart {
         ParserSpanStart {
-            file_id: self.file_id,
             current_token: self.current_token,
         }
     }
@@ -1198,12 +1144,10 @@ impl Parser {
         self.lookahead.clear();
         self.lexer.restore_state(checkpoint.lexer_state);
         self.contextual_lex_mode = checkpoint.contextual_lex_mode;
-        self.consumed_tokens
-            .truncate(checkpoint.consumed_tokens_len);
+        self.tokens.truncate(checkpoint.tokens_len);
         self.side_tokens.truncate(checkpoint.side_tokens_len);
         self.current_token = checkpoint.current_token;
         self.previous_token_end = checkpoint.previous_token_end;
-        self.has_consumed_semantic_token = checkpoint.has_consumed_semantic_token;
         self.last_consumed_token = checkpoint.last_consumed_token;
     }
 
@@ -1340,6 +1284,22 @@ impl Parser {
         self.file.get_span_str(span).unwrap_or_default()
     }
 
+    /// Intern the source text backing one span.
+    #[inline]
+    pub(crate) fn intern_span(&mut self, span: Span) -> StringId {
+        let text = self.file.span_str(span);
+
+        self.strings.intern(text)
+    }
+
+    /// Get the source text backing one file-local byte range.
+    #[inline]
+    pub fn get_range_str(&self, range: ByteRange) -> &str {
+        let span = Span::new(self.file_id, range.start, range.end);
+
+        self.get_span_str(span)
+    }
+
     /// Gets the str source backing a TokenSpan.
     #[inline]
     pub fn get_token_span_str(&self, token: TokenSpan) -> &str {
@@ -1467,15 +1427,11 @@ impl Parser {
         self.read_next_token();
     }
 
-    /// Record one consumed semantic token when token history is enabled.
+    /// Record one consumed semantic token.
     #[inline]
     fn record_consumed_token(&mut self, token: Token) {
         if !token.is(TokenType::End) {
-            self.has_consumed_semantic_token = true;
-        }
-
-        if self.token_history.records_tokens() {
-            self.consumed_tokens.push(token);
+            self.tokens.push(token);
         }
     }
 
@@ -1702,15 +1658,13 @@ pub struct ParserCursorCheckpoint {
     /// The contextual lexing mode at checkpoint time.
     contextual_lex_mode: ContextualLexMode,
     /// The consumed token count at checkpoint time.
-    consumed_tokens_len: usize,
+    tokens_len: usize,
     /// The side token count at checkpoint time.
     side_tokens_len: usize,
     /// The parser owned current token at checkpoint time.
     current_token: Token,
     /// The previous semantic token end at checkpoint time.
     previous_token_end: u32,
-    /// Whether any semantic token had been consumed at checkpoint time.
-    has_consumed_semantic_token: bool,
     /// The last consumed visible token at checkpoint time.
     last_consumed_token: Token,
 }
@@ -1718,8 +1672,6 @@ pub struct ParserCursorCheckpoint {
 /// Lightweight parser position used for span construction.
 #[derive(Debug, Copy, Clone)]
 pub struct ParserSpanStart {
-    /// The source file at span start time.
-    file_id: FileId,
     /// The parser owned current token at span start time.
     current_token: Token,
 }
@@ -1727,8 +1679,8 @@ pub struct ParserSpanStart {
 impl ParserSpanStart {
     /// Return the token span that started this source span.
     #[inline]
-    pub(crate) fn token_span(&self) -> Span {
-        self.current_token.span(self.file_id)
+    pub(crate) fn token_span(&self, file_id: FileId) -> Span {
+        self.current_token.span(file_id)
     }
 
     /// Return the start of the token that started this span.

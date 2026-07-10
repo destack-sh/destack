@@ -53,14 +53,22 @@ impl Parser {
         left_expression: LocalNodeId<Expression>,
         scope: ExpressionScope,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        if scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign)) {
-            return Ok(left_expression);
-        }
-
-        let Some((operator, operator_span)) = self.eat_assignment_operator(scope)? else {
+        let Some(operator) = self.current_assignment_operator(scope) else {
             return Ok(left_expression);
         };
+        let operator_span = self.eat_assignment_operator_span();
 
+        self.eat_assignment_chain(start, left_expression, operator, operator_span)
+    }
+
+    /// Eat an assignment chain after its first operator has been consumed.
+    fn eat_assignment_chain(
+        &mut self,
+        start: &ParserSpanStart,
+        left_expression: LocalNodeId<Expression>,
+        operator: AssignOperator,
+        operator_span: Span,
+    ) -> ParserResult<LocalNodeId<Expression>> {
         // validate expression target
         let left = self.assignment_pattern_from_expression(left_expression)?;
         self.require_assignable_operator(left, operator)?;
@@ -92,15 +100,12 @@ impl Parser {
             let right = self.with_flags(right_scope.flags, |parser| {
                 parser.eat_conditional(&right_start, right_scope)
             })?;
-            let has_assignment_operator = self.assignment_operator_is_present(right_scope);
-            if !has_assignment_operator {
+            let Some(operator) = self.current_assignment_operator(right_scope) else {
                 return Ok(self.finish_pending_assignment_expressions(pending, right));
-            }
+            };
 
             let left = self.assignment_pattern_from_expression(right)?;
-            let Some((operator, operator_span)) = self.eat_assignment_operator(right_scope)? else {
-                return Err(ParserError::unexpected(self.peek()));
-            };
+            let operator_span = self.eat_assignment_operator_span();
             self.require_assignable_operator(left, operator)?;
             pending.push(PendingAssignmentExpression {
                 start: right_start,
@@ -152,35 +157,23 @@ impl Parser {
         expression_id
     }
 
-    /// Eat an assignment operator owned by this expression scope.
-    fn eat_assignment_operator(
-        &mut self,
-        scope: ExpressionScope,
-    ) -> ParserResult<Option<(AssignOperator, Span)>> {
+    /// Return the assignment operator owned by this expression scope.
+    fn current_assignment_operator(&self, scope: ExpressionScope) -> Option<AssignOperator> {
         let operator_is_outer =
             scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign));
         if operator_is_outer {
-            return Ok(None);
+            return None;
         }
 
-        let Some(operator) = AssignOperator::from_token(self.peek_token_type()) else {
-            return Ok(None);
-        };
-
-        let operator_start = self.span_start();
-        self.bump();
-        let operator_span = self.get_span_from(&operator_start);
-
-        Ok(Some((operator, operator_span)))
+        AssignOperator::from_token(self.peek_token_type())
     }
 
-    /// Return whether an assignment operator is present in this scope.
-    fn assignment_operator_is_present(&mut self, scope: ExpressionScope) -> bool {
-        if scope.stops_before(ExpressionInfixOperator::Assign(AssignOperator::Assign)) {
-            return false;
-        }
+    /// Eat the current assignment operator and return its span.
+    fn eat_assignment_operator_span(&mut self) -> Span {
+        let operator_start = self.span_start();
+        self.bump();
 
-        AssignOperator::from_token(self.peek_token_type()).is_some()
+        self.get_span_from(&operator_start)
     }
 
     /// Require compound assignment to target a simple expression pattern.

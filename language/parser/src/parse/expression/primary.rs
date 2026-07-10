@@ -1,10 +1,12 @@
-use crate::parse::DeclarationHeader;
 use crate::parse::scope::ExpressionScope;
+use crate::parse::{DeclarationHeader, is_declaration_keyword, is_declaration_prefix_keyword};
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use destack_core::StringId;
 use destack_dir::{
     BinaryOperator, BlockContext, Expression, InferForm, Keyword, LocalNodeId, NodeType, Path,
     ScalarLiteral, TokenType, TypeExpression, UnaryOperator,
 };
+use destack_source::Span;
 use smallvec::smallvec;
 
 impl Parser {
@@ -16,6 +18,7 @@ impl Parser {
     /// await load()
     /// { value: 1 }
     /// ```
+    #[inline(never)]
     pub(in crate::parse::expression) fn eat_value_prefix_or_primary(
         &mut self,
         start: &ParserSpanStart,
@@ -58,6 +61,7 @@ impl Parser {
     /// label: value
     /// async value => value
     /// ```
+    #[inline(never)]
     fn eat_identifier_value_primary(
         &mut self,
         start: &ParserSpanStart,
@@ -66,55 +70,71 @@ impl Parser {
             return self.eat_keyword_value_family_primary(start, keyword);
         }
 
-        if let Some(expression_id) = self.eat_module_or_global_identifier_primary(start)? {
-            return Ok(expression_id);
+        let (name, name_span) = self.eat_identifier_with_span()?;
+        match self.peek_token_type() {
+            TokenType::ArrowWide => {
+                let declaration =
+                    self.eat_bare_lambda(start, name, name_span, DeclarationHeader::default())?;
+
+                Ok(self.declaration_expression(start, declaration))
+            }
+            TokenType::Colon if self.can_parse_label_body() => {
+                let body = self.eat_label_expression_body()?;
+                let expression = Expression::Label { label: name, body };
+                let expression_id = self.insert_node(expression, self.get_span_from(start));
+                self.tree.set_main_span(expression_id, name_span);
+
+                Ok(expression_id)
+            }
+            TokenType::OpenBrace => self.eat_identifier_brace_primary(start, name, name_span),
+            _ => Ok(self.insert_identifier_expression(start, name, name_span)),
         }
-
-        if let Some(expression_id) = self.eat_identifier_tagged_object_primary(start)? {
-            return Ok(expression_id);
-        }
-
-        let next_token_type = self.next_token_type();
-
-        if matches!(next_token_type, TokenType::ArrowWide)
-            && let Some(expression_id) = self.eat_lambda_expression(start)?
-        {
-            return Ok(expression_id);
-        }
-
-        if next_token_type == TokenType::Colon {
-            return self.eat_label_primary(start);
-        }
-
-        self.eat_identifier_primary(start)
     }
 
-    /// Eat a direct single-name tagged object expression.
+    /// Eat an identifier followed by an object body.
     ///
     /// Examples:
     /// ```ds
+    /// module {}
+    /// global {}
     /// Type { field: value }
-    /// Row { id: 1, name }
-    /// Item { ...defaults }
     /// ```
-    fn eat_identifier_tagged_object_primary(
+    #[inline(never)]
+    fn eat_identifier_brace_primary(
         &mut self,
         start: &ParserSpanStart,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if self.next_token_type() != TokenType::OpenBrace {
-            return Ok(None);
+        name: StringId,
+        name_span: Span,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let name_text = self.strings.get(name);
+        let is_module = name_text == "module";
+        let is_global = name_text == "global";
+
+        if is_module {
+            let declaration = self.eat_module_body(start)?;
+
+            return Ok(self.declaration_expression(start, declaration));
+        }
+
+        if is_global {
+            let header = DeclarationHeader {
+                is_ambient: self.is_ambient,
+                ..DeclarationHeader::default()
+            };
+            let declaration = self.eat_global_body(start, header)?;
+
+            return Ok(self.declaration_expression(start, declaration));
         }
 
         if self.flags.is_in_super_type()
             || self.flags.is_in_before_block()
             || self.flags.is_in_for_each()
-            || self.next_token().is_on_new_line()
+            || self.current_token_is_on_new_line()
         {
-            return Ok(None);
+            return Ok(self.insert_identifier_expression(start, name, name_span));
         }
 
-        let (name, name_span) = self.eat_identifier_with_span()?;
-        let ty = if self.get_span_str(name_span) == "_" {
+        let ty = if name_text == "_" {
             self.insert_node(
                 TypeExpression::Infer {
                     form: InferForm::Hole,
@@ -145,7 +165,7 @@ impl Parser {
             self.get_span_from(start),
         );
 
-        Ok(Some(expression_id))
+        Ok(expression_id)
     }
 
     /// Eat one keyword family primary in value space.
@@ -156,6 +176,7 @@ impl Parser {
     /// export class Value {}
     /// keyof Type
     /// ```
+    #[inline(never)]
     fn eat_keyword_value_family_primary(
         &mut self,
         start: &ParserSpanStart,
@@ -188,45 +209,6 @@ impl Parser {
         self.eat_identifier_primary(start)
     }
 
-    /// Eat a module or global primary declaration when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// module name {}
-    /// global {}
-    /// module name { export const value = 1 }
-    /// ```
-    fn eat_module_or_global_identifier_primary(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if self.is_module_identifier() && self.next_token_type() == TokenType::OpenBrace {
-            let declaration = self.eat_module(start)?;
-            let expression_id = self.insert_node(
-                Expression::Declaration(declaration),
-                self.get_span_from(start),
-            );
-
-            return Ok(Some(expression_id));
-        }
-
-        if self.is_global_identifier() && self.next_token_type() == TokenType::OpenBrace {
-            let header = DeclarationHeader {
-                is_ambient: self.is_ambient,
-                ..DeclarationHeader::default()
-            };
-            let declaration = self.eat_global(start, header)?;
-            let expression_id = self.insert_node(
-                Expression::Declaration(declaration),
-                self.get_span_from(start),
-            );
-
-            return Ok(Some(expression_id));
-        }
-
-        Ok(None)
-    }
-
     /// Return whether the current type keyword is a value identifier here.
     fn current_type_keyword_is_value_identifier(&mut self) -> bool {
         self.type_keyword_starts_value_member_path()
@@ -241,6 +223,7 @@ impl Parser {
     /// 42
     /// `hello ${name}`
     /// ```
+    #[inline(never)]
     fn eat_token_value_primary(
         &mut self,
         start: &ParserSpanStart,
@@ -259,14 +242,7 @@ impl Parser {
                 .map(|id| (id, false)),
             TokenType::OpenBrace => self.eat_value_brace_primary(start).map(|id| (id, false)),
             TokenType::LessThan if self.can_start_generic_arrow_expression() => {
-                let function_id = self.eat_function(start, DeclarationHeader::default())?;
-                Ok((
-                    self.insert_node(
-                        Expression::Declaration(function_id),
-                        self.get_span_from(start),
-                    ),
-                    false,
-                ))
+                self.eat_generic_arrow_primary(start).map(|id| (id, false))
             }
             TokenType::LessThan if self.is_tree_literal_start() => {
                 let flags = self.flags.not_in_position();
@@ -305,9 +281,7 @@ impl Parser {
                     false,
                 ))
             }
-            TokenType::ElementwiseOr => self
-                .eat_value_leading_binary_list(start, BinaryOperator::ElementwiseOr)
-                .map(|id| (id, false)),
+            TokenType::ElementwiseOr => self.eat_value_leading_or(start).map(|id| (id, false)),
             TokenType::Range | TokenType::RangeInclusive => {
                 self.eat_value_startless_range(start).map(|id| (id, false))
             }
@@ -318,20 +292,31 @@ impl Parser {
         }
     }
 
-    /// Parse a value list with a leading binary separator.
+    /// Eat a generic arrow function primary.
+    #[inline(never)]
+    fn eat_generic_arrow_primary(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let function = self.eat_function(start, DeclarationHeader::default())?;
+
+        Ok(self.insert_node(Expression::Declaration(function), self.get_span_from(start)))
+    }
+
+    /// Parse an elementwise-or expression with a leading separator.
     ///
     /// Examples:
     /// ```ds
     /// | A | B
     /// | A
-    /// & A & B
     /// ```
-    fn eat_value_leading_binary_list(
+    #[inline(never)]
+    fn eat_value_leading_or(
         &mut self,
         start: &ParserSpanStart,
-        operator: BinaryOperator,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let mut left: Option<LocalNodeId<Expression>> = None;
+        let operator = BinaryOperator::ElementwiseOr;
         let minimum_precedence = operator.precedence();
 
         while self.peek_token_type() == TokenType::ElementwiseOr {
@@ -418,29 +403,6 @@ impl Parser {
         self.eat_identifier_expression_path(start)
     }
 
-    /// Parse one labeled expression primary.
-    ///
-    /// Examples:
-    /// ```ds
-    /// label: value
-    /// outer: while ready {}
-    /// case: call()
-    /// ```
-    fn eat_label_primary(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        if !self.can_parse_label_expression() {
-            return self.eat_identifier_primary(start);
-        }
-
-        let (label, label_span, body) = self.eat_label_expression_shell()?;
-        let id = self.insert_node(Expression::Label { label, body }, self.get_span_from(start));
-        self.tree.set_main_span(id, label_span);
-
-        Ok(id)
-    }
-
     /// Return whether a type keyword is the head of a value member path.
     fn type_keyword_starts_value_member_path(&mut self) -> bool {
         let keyword = self.current_keyword();
@@ -490,6 +452,7 @@ impl Parser {
     /// export class Value {}
     /// declare namespace Value {}
     /// ```
+    #[inline(never)]
     pub(crate) fn eat_keyword_expression(
         &mut self,
         start: &ParserSpanStart,
@@ -539,6 +502,100 @@ impl Parser {
         Ok(None)
     }
 
+    /// Parse one keyword expression in statement position.
+    ///
+    /// Examples:
+    /// ```ds
+    /// export const value = 1
+    /// if ready { value }
+    /// return value
+    /// ```
+    #[inline(never)]
+    pub(crate) fn eat_statement_keyword_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        keyword: Keyword,
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
+        let header = DeclarationHeader::default();
+
+        // declaration prefixes
+        if is_declaration_prefix_keyword(keyword) {
+            return self.eat_declaration_prefix_primary(start, keyword);
+        }
+
+        // declaration or comptime expression
+        if keyword == Keyword::Comptime {
+            if let Some(expression) =
+                self.eat_keyword_declaration_expression(start, keyword, header)?
+            {
+                return Ok(Some(expression));
+            }
+
+            return self.eat_keyword_control_expression(start, keyword);
+        }
+
+        // declaration or async value
+        if keyword == Keyword::Async {
+            if let Some(expression) =
+                self.eat_keyword_declaration_expression(start, keyword, header)?
+            {
+                return Ok(Some(expression));
+            }
+
+            return self.eat_keyword_value_primary(start, keyword);
+        }
+
+        // declaration or type value
+        if matches!(
+            keyword,
+            Keyword::Type | Keyword::Newtype | Keyword::Readonly
+        ) {
+            if let Some(expression) =
+                self.eat_keyword_declaration_expression(start, keyword, header)?
+            {
+                return Ok(Some(expression));
+            }
+
+            return self.eat_keyword_type_value(start, keyword, header);
+        }
+
+        // direct declarations
+        if is_declaration_keyword(keyword) {
+            return self.eat_keyword_declaration_expression(start, keyword, header);
+        }
+
+        // control expressions
+        if matches!(
+            keyword,
+            Keyword::If
+                | Keyword::While
+                | Keyword::Do
+                | Keyword::For
+                | Keyword::Loop
+                | Keyword::Try
+                | Keyword::Switch
+                | Keyword::Match
+                | Keyword::Break
+                | Keyword::Continue
+                | Keyword::Throw
+                | Keyword::Return
+                | Keyword::Yield
+                | Keyword::Await
+        ) {
+            return self.eat_keyword_control_expression(start, keyword);
+        }
+
+        // scalar and meta primaries
+        if matches!(
+            keyword,
+            Keyword::Debugger | Keyword::Null | Keyword::Undefined | Keyword::New | Keyword::Import
+        ) {
+            return self.eat_keyword_value_primary(start, keyword);
+        }
+
+        Ok(None)
+    }
+
     /// Parse control keyword expressions.
     ///
     /// Examples:
@@ -547,6 +604,7 @@ impl Parser {
     /// if ready { value } else { fallback }
     /// try work() catch error
     /// ```
+    #[inline(never)]
     fn eat_keyword_control_expression(
         &mut self,
         start: &ParserSpanStart,
@@ -599,6 +657,7 @@ impl Parser {
     /// true
     /// this
     /// ```
+    #[inline(never)]
     fn eat_keyword_value_primary(
         &mut self,
         start: &ParserSpanStart,
@@ -643,6 +702,7 @@ impl Parser {
     /// interface Shape {}
     /// typeof value
     /// ```
+    #[inline(never)]
     fn eat_keyword_type_value(
         &mut self,
         start: &ParserSpanStart,
@@ -712,6 +772,7 @@ impl Parser {
     /// { [key]: value }
     /// { ...other }
     /// ```
+    #[inline(never)]
     fn eat_value_brace_primary(
         &mut self,
         start: &ParserSpanStart,

@@ -142,11 +142,11 @@ impl Parser {
             return true;
         }
 
-        if scope.owns_colon_boundary && self.peek_is(TokenType::Colon) {
+        if scope.owns_colon_boundary() && self.peek_is(TokenType::Colon) {
             return true;
         }
 
-        scope.is_static && Self::starts_type_angle_close(self.peek_token_type())
+        scope.is_static() && Self::starts_type_angle_close(self.peek_token_type())
     }
 
     /// Return whether one type infix operator belongs to an outer parser.
@@ -157,7 +157,7 @@ impl Parser {
         }
 
         // heritage boundary
-        if scope.stops_before_implements
+        if scope.stops_before_implements()
             && operator == TypeInfixOperator::Relation(TypeBinaryOperator::Implements)
         {
             return true;
@@ -169,7 +169,7 @@ impl Parser {
         }
 
         // conditional type boundary
-        if scope.disallows_conditional
+        if scope.disallows_conditional()
             && operator == TypeInfixOperator::Relation(TypeBinaryOperator::Extends)
         {
             return true;

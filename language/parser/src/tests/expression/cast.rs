@@ -433,7 +433,7 @@ fn test_parse_as_cast_missing_type_target() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].span), "");
+    assert_eq!(parser.get_range_str(parser.errors[0].range), "");
 
     // value as
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -450,7 +450,7 @@ fn test_parse_satisfies_missing_type_target() {
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].span), "");
+    assert_eq!(parser.get_range_str(parser.errors[0].range), "");
 
     // value satisfies
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -845,7 +845,7 @@ fn test_report_type_assertion_in_new_receiver() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "<");
+    assert_eq!(parser.get_range_str(error.range), "<");
 }
 
 /// Report unparenthesized cast assignment targets.
@@ -855,7 +855,7 @@ fn test_report_unparenthesized_cast_assignment_target() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "value as number");
+    assert_eq!(parser.get_range_str(error.range), "value as number");
 }
 
 /// Report unparenthesized satisfies assignment targets.
@@ -865,7 +865,7 @@ fn test_report_unparenthesized_satisfies_assignment_target() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "value satisfies number");
+    assert_eq!(parser.get_range_str(error.range), "value satisfies number");
 }
 
 /// Parse parenthesized cast assignment targets.

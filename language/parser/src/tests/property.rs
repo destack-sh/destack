@@ -49,7 +49,7 @@ fn test_report_member_optional_definite_assignment_combo() {
     let mut parser = test.prepare();
 
     let error = parser.eat_member().unwrap_err();
-    assert_eq!(parser.get_span_str(error.span), "?");
+    assert_eq!(parser.get_range_str(error.range), "?");
 }
 
 #[test]
@@ -425,7 +425,7 @@ fn test_recover_members_embedded_type() {
     let members = parser.eat_members(false).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].span), "...");
+    assert_eq!(parser.get_range_str(parser.errors[0].range), "...");
     assert_eq!(members.len(), 2);
 
     assert_node!(parser.tree, members[0], Member::Error);
@@ -447,7 +447,7 @@ fn test_report_member_method_signature_without_separator() {
     let mut parser = test.prepare();
     let error = parser.eat_member().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "method2");
+    assert_eq!(parser.get_range_str(error.range), "method2");
 }
 
 #[test]
@@ -691,7 +691,7 @@ fn test_parse_property_diagnoses_definite_assignment() {
     let mut parser = test.prepare();
 
     let error = parser.eat_property().unwrap_err();
-    assert_eq!(parser.get_span_str(error.span), "!");
+    assert_eq!(parser.get_range_str(error.range), "!");
 }
 
 #[test]
@@ -777,7 +777,7 @@ fn test_report_property_optional_definite_assignment_combo() {
     let mut parser = test.prepare();
     let error = parser.eat_property().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "?");
+    assert_eq!(parser.get_range_str(error.range), "?");
 }
 
 #[test]
@@ -1187,7 +1187,7 @@ fn test_report_member_static_associated_type() {
     let mut parser = test.prepare();
     let error = parser.eat_member().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "type");
+    assert_eq!(parser.get_range_str(error.range), "type");
 }
 
 #[test]
@@ -1197,7 +1197,7 @@ fn test_report_member_static_associated_comptime_const() {
     let error = parser.eat_member().unwrap_err();
 
     assert_eq!(
-        parser.get_span_str(error.span),
+        parser.get_range_str(error.range),
         "static comptime const Rows"
     );
 }

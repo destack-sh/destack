@@ -520,15 +520,15 @@ impl Parser {
         token_type: TokenType,
         is_on_new_line: bool,
     ) -> bool {
-        if scope.is_new_receiver {
+        if scope.is_new_receiver() {
             return true;
         }
 
-        if scope.is_static && Self::starts_type_angle_close(token_type) {
+        if scope.is_static() && Self::starts_type_angle_close(token_type) {
             return true;
         }
 
-        if scope.is_typeof_query && is_on_new_line {
+        if scope.is_typeof_query() && is_on_new_line {
             return true;
         }
 
@@ -536,18 +536,18 @@ impl Parser {
             return true;
         }
 
-        if scope.owns_colon_boundary && token_type == TokenType::Colon {
+        if scope.owns_colon_boundary() && token_type == TokenType::Colon {
             return true;
         }
 
         if is_on_new_line
-            && (scope.is_statement_position || scope.is_match_case_body)
+            && (scope.is_statement_position() || scope.is_match_case_body())
             && self.tree.get(left).ends_statement_on_newline()
         {
             return true;
         }
 
-        if scope.owns_for_each_boundary
+        if scope.owns_for_each_boundary()
             && matches!(self.current_keyword(), Some(Keyword::In | Keyword::Of))
         {
             return true;
@@ -588,10 +588,21 @@ impl Parser {
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
     ) -> ParserResult<LocalNodeId<Expression>> {
+        if !self.current_token_starts_conditional(scope) {
+            return Ok(left);
+        }
+
+        self.eat_conditional_chain(*start, left, scope)
+    }
+
+    /// Eat a conditional chain after its first question mark is known.
+    fn eat_conditional_chain(
+        &mut self,
+        mut start: ParserSpanStart,
+        mut left: LocalNodeId<Expression>,
+        mut condition_scope: ExpressionScope,
+    ) -> ParserResult<LocalNodeId<Expression>> {
         let mut pending = Vec::new();
-        let mut start = *start;
-        let mut left = left;
-        let mut condition_scope = scope;
 
         while self.current_token_starts_conditional(condition_scope) {
             // parse conditional branches
@@ -717,6 +728,7 @@ impl Parser {
     /// ..
     /// ..=end
     /// ```
+    #[inline(never)]
     pub(in crate::parse::expression) fn eat_value_startless_range(
         &mut self,
         start: &ParserSpanStart,
@@ -742,7 +754,7 @@ impl Parser {
         ))
     }
 
-    /// Parse Destack reference operators in value space.
+    /// Parse reference operators in value space.
     ///
     /// Examples:
     /// ```ds
