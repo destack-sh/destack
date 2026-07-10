@@ -6,23 +6,13 @@ use serde::{Deserialize, Serialize};
 /// The format of a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FileType {
-    // destack
+    // code
     /// `.ds`
     Destack,
     /// `.d.ds`
     DestackDeclaration,
-
-    // javascript/typescript compatibility
-    /// `.js`
-    JavaScript,
-    /// `.jsx`
-    JavaScriptXml,
-    /// `.ts`
-    TypeScript,
-    /// `.tsx`
-    TypeScriptXml,
-    /// `.d.ts`
-    TypeScriptDeclaration,
+    /// Emitted ECMAScript-family script.
+    Script,
 
     // data
     /// `.txt`
@@ -84,11 +74,6 @@ pub enum FileType {
 pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
     FileType::Destack,
     FileType::DestackDeclaration,
-    FileType::JavaScript,
-    FileType::JavaScriptXml,
-    FileType::TypeScript,
-    FileType::TypeScriptXml,
-    FileType::TypeScriptDeclaration,
     FileType::Text,
     FileType::Toml,
     FileType::Yaml,
@@ -102,14 +87,7 @@ pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
 ];
 
 /// Source code file types used for extensionless module resolution.
-pub const CODE_FILE_TYPES: &[FileType] = &[
-    FileType::Destack,
-    FileType::DestackDeclaration,
-    FileType::TypeScript,
-    FileType::TypeScriptXml,
-    FileType::JavaScript,
-    FileType::JavaScriptXml,
-];
+pub const CODE_FILE_TYPES: &[FileType] = &[FileType::Destack, FileType::DestackDeclaration];
 
 impl FileType {
     /// Get a source format from a file extension.
@@ -118,13 +96,6 @@ impl FileType {
             // destack
             "ds" => FileType::Destack,
             "d.ds" => FileType::DestackDeclaration,
-
-            // javascript/typescript
-            "js" => FileType::JavaScript,
-            "jsx" => FileType::JavaScriptXml,
-            "ts" => FileType::TypeScript,
-            "tsx" => FileType::TypeScriptXml,
-            "d.ts" => FileType::TypeScriptDeclaration,
 
             // data formats
             "txt" => FileType::Text,
@@ -189,9 +160,6 @@ impl FileType {
             if file_name.ends_with(".d.ds") {
                 return Some(FileType::DestackDeclaration);
             }
-            if file_name.ends_with(".d.ts") {
-                return Some(FileType::TypeScriptDeclaration);
-            }
         }
 
         // fall back to the simple extension
@@ -214,13 +182,6 @@ impl FileType {
             // destack
             FileType::Destack => "ds",
             FileType::DestackDeclaration => "d.ds",
-
-            // javascript/typescript
-            FileType::JavaScript => "js",
-            FileType::JavaScriptXml => "jsx",
-            FileType::TypeScript => "ts",
-            FileType::TypeScriptXml => "tsx",
-            FileType::TypeScriptDeclaration => "d.ts",
 
             // data formats
             FileType::Text => "txt",
@@ -249,6 +210,7 @@ impl FileType {
             | FileType::Model
             | FileType::Neural
             | FileType::Document
+            | FileType::Script
             | FileType::Binary
             | FileType::Unknown => return None,
         };
@@ -265,16 +227,7 @@ impl FileType {
 
     /// Whether this file type is a code file (can be parsed as code).
     pub fn is_code(&self) -> bool {
-        matches!(
-            self,
-            FileType::Destack
-                | FileType::DestackDeclaration
-                | FileType::JavaScript
-                | FileType::JavaScriptXml
-                | FileType::TypeScript
-                | FileType::TypeScriptXml
-                | FileType::TypeScriptDeclaration
-        )
+        matches!(self, FileType::Destack | FileType::DestackDeclaration)
     }
 
     /// Whether this file type is a data file (JSON, TOML, YAML, etc.).
@@ -292,6 +245,7 @@ impl FileType {
                 | FileType::Css
                 | FileType::Svg
                 | FileType::Env
+                | FileType::Script
                 | FileType::SourceMap
         )
     }
@@ -321,11 +275,6 @@ impl FileType {
         match self {
             FileType::Destack => &["**/*.ds"],
             FileType::DestackDeclaration => &["**/*.d.ds"],
-            FileType::JavaScript => &["**/*.js"],
-            FileType::JavaScriptXml => &["**/*.jsx"],
-            FileType::TypeScript => &["**/*.ts"],
-            FileType::TypeScriptXml => &["**/*.tsx"],
-            FileType::TypeScriptDeclaration => &["**/*.d.ts"],
             FileType::Text => &["**/*.txt"],
             FileType::Toml => &["**/*.toml"],
             FileType::Yaml => &["**/*.yaml", "**/*.yml"],
@@ -346,6 +295,7 @@ impl FileType {
             | FileType::Model
             | FileType::Neural
             | FileType::Document
+            | FileType::Script
             | FileType::Binary
             | FileType::Unknown => &[],
         }
