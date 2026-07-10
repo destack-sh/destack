@@ -274,7 +274,7 @@ fn create_source_file(
 fn create_destack_config(_name: &str, template: Template) -> String {
     // select include patterns by template
     let (include, root_dir) = match template {
-        Template::Minimal => (vec!["**/*.ds", "**/*.ts"], None),
+        Template::Minimal => (vec!["**/*.ds"], None),
         Template::Lib | Template::App => (vec!["src/**/*"], Some("src")),
     };
 

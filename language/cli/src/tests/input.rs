@@ -11,7 +11,7 @@ fn test_input_args_to_sources_orders_inputs() {
         eval: vec!["let x = 1".to_string()],
         module: vec!["mod:export const value = 1".to_string()],
         stdin: true,
-        file_type: Some("ts".to_string()),
+        file_type: Some("ds".to_string()),
     };
 
     // resolve the sources
@@ -27,19 +27,19 @@ fn test_input_args_to_sources_orders_inputs() {
     // assert resolved names
     match &sources[1] {
         InputSource::Inline { name, .. } => {
-            assert_eq!(name, "<eval0>.ts");
+            assert_eq!(name, "<eval0>.ds");
         }
         _ => unreachable!(),
     }
     match &sources[2] {
         InputSource::Inline { name, .. } => {
-            assert_eq!(name, "mod.ts");
+            assert_eq!(name, "mod.ds");
         }
         _ => unreachable!(),
     }
     match &sources[3] {
         InputSource::Stdin { name } => {
-            assert_eq!(name, "<stdin>.ts");
+            assert_eq!(name, "<stdin>.ds");
         }
         _ => unreachable!(),
     }

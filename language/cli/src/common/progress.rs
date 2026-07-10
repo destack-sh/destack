@@ -318,9 +318,8 @@ fn module_to_short_name(path: &str) -> String {
 
     // strip extension if present
     if let Some(stem) = name
-        .strip_suffix(".ds")
-        .or_else(|| name.strip_suffix(".ts"))
-        .or_else(|| name.strip_suffix(".d.ts"))
+        .strip_suffix(".d.ds")
+        .or_else(|| name.strip_suffix(".ds"))
     {
         stem.to_string()
     } else {
