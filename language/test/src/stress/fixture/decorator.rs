@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate decorator and annotation surfaces.
-pub(super) fn decorator_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn decorator_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 640);
     source.push_str("newtype deprecated = () | (string,);\n\n");
 

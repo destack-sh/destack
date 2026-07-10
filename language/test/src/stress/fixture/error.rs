@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate Result and Try integration surfaces.
-pub(super) fn error_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn error_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 720);
     source.push_str("declare function read(): Result<int32, MissingError | FormatError>;\n");
     source.push_str("declare function readAsync(): Promise<Result<int32, MissingError>>;\n");

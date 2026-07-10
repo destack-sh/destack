@@ -1,7 +1,5 @@
-use super::StressMode;
-
 /// Generate many nested statement blocks.
-pub(super) fn nested_block(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn nested_block(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("export function nestedBlock(input: number): number {\n");
     source.push_str("    let value = input;\n");
@@ -18,7 +16,7 @@ pub(super) fn nested_block(_mode: StressMode, scale: usize, _width: usize) -> St
 }
 
 /// Generate deeply layered control flow.
-pub(super) fn control_flow(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn control_flow(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("export function controlFlow(values: number[]): number {\n");
     source.push_str("    let total = 0;\n");

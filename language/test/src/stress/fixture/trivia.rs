@@ -1,7 +1,5 @@
-use super::StressMode;
-
 /// Generate a large comment attachment surface.
-pub(super) fn large_trivia(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn large_trivia(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("/**\n * Large trivia keeps attached documentation stable.\n */\n");
     source.push_str("export function documented(value: number): number {\n");
@@ -18,7 +16,7 @@ pub(super) fn large_trivia(_mode: StressMode, scale: usize, _width: usize) -> St
 }
 
 /// Generate dense trivia around every syntax boundary.
-pub(super) fn trivia_wall(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn trivia_wall(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("export const triviaWall = {\n");
 
@@ -43,7 +41,7 @@ pub(super) fn trivia_wall(_mode: StressMode, scale: usize, _width: usize) -> Str
 }
 
 /// Generate damaged trivia with a later recovered declaration.
-pub(super) fn damaged_trivia(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_trivia(scale: usize, _width: usize) -> String {
     let mut source = String::new();
 
     for index in 0..scale {

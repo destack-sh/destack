@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_source::FileType;
+use destack_source::{FileType, LanguageType};
 
 use crate::core::fixtures_dir;
 use crate::stress::file::write_complete_file;
@@ -8,11 +8,13 @@ use crate::stress::file::write_complete_file;
 use super::array::large_array;
 use super::block::{control_flow, nested_block};
 use super::call::deep_call;
-use super::class::large_class;
+use super::class::{large_ambient_class, large_class};
 use super::comptime::comptime_forms;
-use super::declaration::{damaged_declaration, large_declaration};
+use super::declaration::{
+    damaged_ambient_declaration, damaged_declaration, large_ambient_declaration, large_declaration,
+};
 use super::decorator::decorator_forms;
-use super::dependency::large_import_export;
+use super::dependency::{large_ambient_import_export, large_import_export};
 use super::error::error_forms;
 use super::expression::{convoluted_expressions, damaged_expression, nested_try};
 use super::generic::ambiguous_generics;
@@ -30,7 +32,7 @@ use super::pathology::{
     damaged_argument_lists, damaged_arrow_return_heads, damaged_delimiters,
     damaged_function_type_heads, damaged_generic_heads, damaged_infix_chains,
     damaged_nested_blocks, damaged_parenthesized_heads, damaged_type_member_bodies, deep_block,
-    deep_parentheses, deep_tree, massive_file, trivia_flood, wide_call,
+    deep_parentheses, deep_tree, massive_ambient_file, massive_file, trivia_flood, wide_call,
 };
 use super::pattern::{convoluted_patterns, damaged_type, nested_match};
 use super::range::range_forms;
@@ -45,7 +47,7 @@ use super::recovery::{
     damaged_statement_slot_boundaries, damaged_template_boundaries,
 };
 use super::sequence::{sequence_pattern_forms, sequence_type_forms};
-use super::signature::large_signature;
+use super::signature::{large_ambient_signature, large_signature};
 use super::ternary::nested_ternary;
 use super::torture::{
     long_assignment_chain, long_binary_chain, long_conditional_type_chain, long_logical_chain,
@@ -53,11 +55,11 @@ use super::torture::{
     long_type_prefix_chain, long_value_prefix_chain, nested_lambda_chain,
     parenthesized_binary_chain,
 };
-use super::tree::{ambiguous_tsx, damaged_tree_nesting, damaged_tsx, nested_tsx};
+use super::tree::{ambiguous_tree, damaged_tree, damaged_tree_nesting, nested_tree};
 use super::trivia::{damaged_trivia, large_trivia, trivia_wall};
 use super::ty::{convoluted_types, deep_type, large_type};
 use super::using::using_forms;
-use super::weave::{woven_destack_forms, woven_source_forms, woven_tsx_forms};
+use super::weave::{woven_destack_forms, woven_tree_forms, woven_typescript_forms};
 
 const DEFAULT_WIDTH: usize = 96;
 const FUZZ_MAX_SCALE: usize = 64;
@@ -89,20 +91,6 @@ const RECOVERY_PATHOLOGICAL_BRUTAL: usize = 8_192;
 const VALID: StressExpectation = StressExpectation::Valid;
 const BOUNDED: StressExpectation = StressExpectation::Bounded;
 const RECOVERY: StressExpectation = StressExpectation::Recovery;
-const ALL_MODES: &[StressMode] = &[
-    StressMode::Destack,
-    StressMode::DestackDeclaration,
-    StressMode::TypeScript,
-    StressMode::TypeScriptXml,
-    StressMode::TypeScriptDeclaration,
-];
-const SOURCE_MODES: &[StressMode] = &[
-    StressMode::Destack,
-    StressMode::TypeScript,
-    StressMode::TypeScriptXml,
-];
-const DESTACK_MODES: &[StressMode] = &[StressMode::Destack];
-const TSX_MODES: &[StressMode] = &[StressMode::Destack, StressMode::TypeScriptXml];
 const REGULAR_VARIANTS: &[StressVariant] = &[
     StressVariant::new("large", REGULAR_LARGE, DEFAULT_WIDTH),
     StressVariant::new("huge", REGULAR_HUGE, 120),
@@ -173,280 +161,173 @@ const RECOVERY_PATHOLOGICAL_VARIANTS: &[StressVariant] = &[
 ];
 
 const FAMILIES: &[StressFamily] = &[
-    StressFamily::new("large_declaration", ALL_MODES, VALID, large_declaration),
-    StressFamily::new("large_function", ALL_MODES, VALID, large_signature),
-    StressFamily::new("large_class", ALL_MODES, VALID, large_class),
-    StressFamily::new("large_interface", ALL_MODES, VALID, large_interface),
-    StressFamily::new("large_type", ALL_MODES, VALID, large_type),
-    StressFamily::new("large_import_export", ALL_MODES, VALID, large_import_export),
-    StressFamily::new("large_trivia", SOURCE_MODES, VALID, large_trivia),
-    StressFamily::new("large_array", SOURCE_MODES, VALID, large_array),
-    StressFamily::new("large_object", SOURCE_MODES, VALID, large_object),
-    StressFamily::new("nested_block", SOURCE_MODES, VALID, nested_block),
-    StressFamily::recursive_expression("nested_ternary", SOURCE_MODES, nested_ternary),
-    StressFamily::new("nested_match", DESTACK_MODES, VALID, nested_match),
-    StressFamily::new("nested_try", DESTACK_MODES, VALID, nested_try),
-    StressFamily::new("nested_tsx", TSX_MODES, VALID, nested_tsx),
-    StressFamily::recursive("deep_call", SOURCE_MODES, deep_call),
-    StressFamily::recursive("deep_member", SOURCE_MODES, deep_member),
-    StressFamily::new("deep_type", ALL_MODES, VALID, deep_type),
-    StressFamily::new("control_flow", SOURCE_MODES, VALID, control_flow),
-    StressFamily::new("trivia_wall", SOURCE_MODES, VALID, trivia_wall),
+    StressFamily::new("large_declaration", VALID, large_declaration),
     StressFamily::new(
-        "convoluted_expressions",
-        SOURCE_MODES,
+        "large_ambient_declaration",
         VALID,
-        convoluted_expressions,
-    ),
-    StressFamily::new("convoluted_types", ALL_MODES, VALID, convoluted_types),
+        large_ambient_declaration,
+    )
+    .with_language(LanguageType::DestackDeclaration),
+    StressFamily::new("large_function", VALID, large_signature),
+    StressFamily::new("large_ambient_function", VALID, large_ambient_signature)
+        .with_language(LanguageType::DestackDeclaration),
+    StressFamily::new("large_class", VALID, large_class),
+    StressFamily::new("large_ambient_class", VALID, large_ambient_class)
+        .with_language(LanguageType::DestackDeclaration),
+    StressFamily::new("large_interface", VALID, large_interface),
+    StressFamily::new("large_type", VALID, large_type),
+    StressFamily::new("large_import_export", VALID, large_import_export),
     StressFamily::new(
-        "convoluted_patterns",
-        DESTACK_MODES,
+        "large_ambient_import_export",
         VALID,
-        convoluted_patterns,
-    ),
-    StressFamily::new("expression_matrix", SOURCE_MODES, VALID, expression_matrix),
-    StressFamily::new("type_matrix", ALL_MODES, VALID, type_matrix),
-    StressFamily::new("sequence_types", DESTACK_MODES, VALID, sequence_type_forms),
-    StressFamily::new(
-        "sequence_patterns",
-        DESTACK_MODES,
+        large_ambient_import_export,
+    )
+    .with_language(LanguageType::DestackDeclaration),
+    StressFamily::new("large_trivia", VALID, large_trivia),
+    StressFamily::new("large_array", VALID, large_array),
+    StressFamily::new("large_object", VALID, large_object),
+    StressFamily::new("nested_block", VALID, nested_block),
+    StressFamily::recursive_expression("nested_ternary", nested_ternary),
+    StressFamily::new("nested_match", VALID, nested_match),
+    StressFamily::new("nested_try", VALID, nested_try),
+    StressFamily::new("nested_tree", VALID, nested_tree),
+    StressFamily::recursive("deep_call", deep_call),
+    StressFamily::recursive("deep_member", deep_member),
+    StressFamily::new("deep_type", VALID, deep_type),
+    StressFamily::new("control_flow", VALID, control_flow),
+    StressFamily::new("trivia_wall", VALID, trivia_wall),
+    StressFamily::new("convoluted_expressions", VALID, convoluted_expressions),
+    StressFamily::new("convoluted_types", VALID, convoluted_types),
+    StressFamily::new("convoluted_patterns", VALID, convoluted_patterns),
+    StressFamily::new("expression_matrix", VALID, expression_matrix),
+    StressFamily::new("type_matrix", VALID, type_matrix),
+    StressFamily::new("sequence_types", VALID, sequence_type_forms),
+    StressFamily::new("sequence_patterns", VALID, sequence_pattern_forms),
+    StressFamily::new("range_forms", VALID, range_forms),
+    StressFamily::new("operator_forms", VALID, operator_forms),
+    StressFamily::new("decorator_forms", VALID, decorator_forms),
+    StressFamily::new("module_forms", VALID, module_forms),
+    StressFamily::new("comptime_forms", VALID, comptime_forms),
+    StressFamily::new("memory_forms", VALID, memory_forms),
+    StressFamily::new("error_forms", VALID, error_forms),
+    StressFamily::new("using_forms", VALID, using_forms),
+    StressFamily::new("woven_typescript", VALID, woven_typescript_forms),
+    StressFamily::new("woven_destack", VALID, woven_destack_forms),
+    StressFamily::new("woven_tree", VALID, woven_tree_forms),
+    StressFamily::new("ambiguous_generics", VALID, ambiguous_generics),
+    StressFamily::new("ambiguous_tree", VALID, ambiguous_tree),
+    StressFamily::new("ambiguous_objects", VALID, ambiguous_objects),
+    StressFamily::pathological_capped_at_brutal("massive_file", VALID, massive_file),
+    StressFamily::pathological_capped_at_brutal(
+        "massive_ambient_file",
         VALID,
-        sequence_pattern_forms,
-    ),
-    StressFamily::new("range_forms", DESTACK_MODES, VALID, range_forms),
-    StressFamily::new("operator_forms", SOURCE_MODES, VALID, operator_forms),
-    StressFamily::new("decorator_forms", DESTACK_MODES, VALID, decorator_forms),
-    StressFamily::new("module_forms", DESTACK_MODES, VALID, module_forms),
-    StressFamily::new("comptime_forms", DESTACK_MODES, VALID, comptime_forms),
-    StressFamily::new("memory_forms", DESTACK_MODES, VALID, memory_forms),
-    StressFamily::new("error_forms", DESTACK_MODES, VALID, error_forms),
-    StressFamily::new("using_forms", DESTACK_MODES, VALID, using_forms),
-    StressFamily::new("woven_source", SOURCE_MODES, VALID, woven_source_forms),
-    StressFamily::new("woven_destack", DESTACK_MODES, VALID, woven_destack_forms),
-    StressFamily::new("woven_tsx", TSX_MODES, VALID, woven_tsx_forms),
-    StressFamily::new(
-        "ambiguous_generics",
-        SOURCE_MODES,
-        VALID,
-        ambiguous_generics,
-    ),
-    StressFamily::new("ambiguous_tsx", TSX_MODES, VALID, ambiguous_tsx),
-    StressFamily::new("ambiguous_objects", SOURCE_MODES, VALID, ambiguous_objects),
-    StressFamily::pathological_capped_at_brutal("massive_file", ALL_MODES, VALID, massive_file),
-    StressFamily::deep("deep_parentheses", SOURCE_MODES, VALID, deep_parentheses),
-    StressFamily::deep("deep_block", SOURCE_MODES, VALID, deep_block),
-    StressFamily::deep("deep_tree", TSX_MODES, VALID, deep_tree),
-    StressFamily::pathological("wide_call", SOURCE_MODES, VALID, wide_call),
-    StressFamily::pathological("long_binary_chain", SOURCE_MODES, VALID, long_binary_chain),
-    StressFamily::pathological(
-        "long_logical_chain",
-        SOURCE_MODES,
-        VALID,
-        long_logical_chain,
-    ),
-    StressFamily::pathological(
-        "long_nullish_chain",
-        SOURCE_MODES,
-        VALID,
-        long_nullish_chain,
-    ),
-    StressFamily::pathological(
-        "long_assignment_chain",
-        SOURCE_MODES,
-        VALID,
-        long_assignment_chain,
-    ),
-    StressFamily::recursive_expression(
-        "long_value_prefix_chain",
-        SOURCE_MODES,
-        long_value_prefix_chain,
-    ),
-    StressFamily::recursive_expression("long_type_prefix_chain", ALL_MODES, long_type_prefix_chain),
-    StressFamily::recursive(
-        "long_pattern_prefix_chain",
-        DESTACK_MODES,
-        long_pattern_prefix_chain,
-    ),
-    StressFamily::pathological(
-        "long_type_operator_chain",
-        ALL_MODES,
-        VALID,
-        long_type_operator_chain,
-    ),
+        massive_ambient_file,
+    )
+    .with_language(LanguageType::DestackDeclaration),
+    StressFamily::deep("deep_parentheses", VALID, deep_parentheses),
+    StressFamily::deep("deep_block", VALID, deep_block),
+    StressFamily::deep("deep_tree", VALID, deep_tree),
+    StressFamily::pathological("wide_call", VALID, wide_call),
+    StressFamily::pathological("long_binary_chain", VALID, long_binary_chain),
+    StressFamily::pathological("long_logical_chain", VALID, long_logical_chain),
+    StressFamily::pathological("long_nullish_chain", VALID, long_nullish_chain),
+    StressFamily::pathological("long_assignment_chain", VALID, long_assignment_chain),
+    StressFamily::recursive_expression("long_value_prefix_chain", long_value_prefix_chain),
+    StressFamily::recursive_expression("long_type_prefix_chain", long_type_prefix_chain),
+    StressFamily::recursive("long_pattern_prefix_chain", long_pattern_prefix_chain),
+    StressFamily::pathological("long_type_operator_chain", VALID, long_type_operator_chain),
     StressFamily::pathological_capped_at_massive(
         "long_conditional_type_chain",
-        ALL_MODES,
         VALID,
         long_conditional_type_chain,
     ),
-    StressFamily::pathological(
-        "long_postfix_chain",
-        SOURCE_MODES,
-        VALID,
-        long_postfix_chain,
-    ),
-    StressFamily::recursive("nested_lambda_chain", SOURCE_MODES, nested_lambda_chain),
+    StressFamily::pathological("long_postfix_chain", VALID, long_postfix_chain),
+    StressFamily::recursive("nested_lambda_chain", nested_lambda_chain),
     StressFamily::deep(
         "parenthesized_binary_chain",
-        SOURCE_MODES,
         VALID,
         parenthesized_binary_chain,
     ),
-    StressFamily::pathological_capped_at_massive("trivia_flood", SOURCE_MODES, VALID, trivia_flood),
+    StressFamily::pathological_capped_at_massive("trivia_flood", VALID, trivia_flood),
+    StressFamily::new("damaged_declaration", RECOVERY, damaged_declaration),
     StressFamily::new(
-        "damaged_declaration",
-        ALL_MODES,
+        "damaged_ambient_declaration",
         RECOVERY,
-        damaged_declaration,
-    ),
-    StressFamily::new(
-        "damaged_expression",
-        SOURCE_MODES,
-        RECOVERY,
-        damaged_expression,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_expression_matrix",
-        SOURCE_MODES,
-        damaged_expression_matrix,
-    ),
-    StressFamily::new("damaged_type", ALL_MODES, RECOVERY, damaged_type),
-    StressFamily::recovery_pathological("damaged_type_matrix", ALL_MODES, damaged_type_matrix),
-    StressFamily::recovery_pathological(
-        "damaged_declaration_matrix",
-        ALL_MODES,
-        damaged_declaration_matrix,
-    ),
-    StressFamily::new("damaged_tsx", TSX_MODES, RECOVERY, damaged_tsx),
-    StressFamily::recovery_pathological("damaged_tree_matrix", TSX_MODES, damaged_tree_matrix),
-    StressFamily::new(
-        "damaged_tree_nesting",
-        TSX_MODES,
-        RECOVERY,
-        damaged_tree_nesting,
-    ),
-    StressFamily::new("damaged_trivia", SOURCE_MODES, RECOVERY, damaged_trivia),
-    StressFamily::recovery_pathological(
-        "damaged_argument_lists",
-        SOURCE_MODES,
-        damaged_argument_lists,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_type_member_bodies",
-        ALL_MODES,
-        damaged_type_member_bodies,
-    ),
-    StressFamily::recovery_pathological("damaged_delimiters", SOURCE_MODES, damaged_delimiters),
-    StressFamily::recovery_pathological(
-        "damaged_nested_blocks",
-        SOURCE_MODES,
-        damaged_nested_blocks,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_parenthesized_heads",
-        SOURCE_MODES,
-        damaged_parenthesized_heads,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_generic_heads",
-        SOURCE_MODES,
-        damaged_generic_heads,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_arrow_return_heads",
-        SOURCE_MODES,
-        damaged_arrow_return_heads,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_function_type_heads",
-        SOURCE_MODES,
-        damaged_function_type_heads,
-    ),
-    StressFamily::recovery_pathological("damaged_infix_chains", SOURCE_MODES, damaged_infix_chains),
+        damaged_ambient_declaration,
+    )
+    .with_language(LanguageType::DestackDeclaration),
+    StressFamily::new("damaged_expression", RECOVERY, damaged_expression),
+    StressFamily::recovery_pathological("damaged_expression_matrix", damaged_expression_matrix),
+    StressFamily::new("damaged_type", RECOVERY, damaged_type),
+    StressFamily::recovery_pathological("damaged_type_matrix", damaged_type_matrix),
+    StressFamily::recovery_pathological("damaged_declaration_matrix", damaged_declaration_matrix),
+    StressFamily::new("damaged_tree", RECOVERY, damaged_tree),
+    StressFamily::recovery_pathological("damaged_tree_matrix", damaged_tree_matrix),
+    StressFamily::new("damaged_tree_nesting", RECOVERY, damaged_tree_nesting),
+    StressFamily::new("damaged_trivia", RECOVERY, damaged_trivia),
+    StressFamily::recovery_pathological("damaged_argument_lists", damaged_argument_lists),
+    StressFamily::recovery_pathological("damaged_type_member_bodies", damaged_type_member_bodies),
+    StressFamily::recovery_pathological("damaged_delimiters", damaged_delimiters),
+    StressFamily::recovery_pathological("damaged_nested_blocks", damaged_nested_blocks),
+    StressFamily::recovery_pathological("damaged_parenthesized_heads", damaged_parenthesized_heads),
+    StressFamily::recovery_pathological("damaged_generic_heads", damaged_generic_heads),
+    StressFamily::recovery_pathological("damaged_arrow_return_heads", damaged_arrow_return_heads),
+    StressFamily::recovery_pathological("damaged_function_type_heads", damaged_function_type_heads),
+    StressFamily::recovery_pathological("damaged_infix_chains", damaged_infix_chains),
     StressFamily::recovery_pathological(
         "damaged_dependency_boundaries",
-        ALL_MODES,
         damaged_dependency_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_dependency_item_boundaries",
-        ALL_MODES,
         damaged_dependency_item_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_dependency_target_boundaries",
-        ALL_MODES,
         damaged_dependency_target_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_import_target_boundaries",
-        ALL_MODES,
         damaged_import_target_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_export_target_boundaries",
-        ALL_MODES,
         damaged_export_target_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_export_target_only_boundaries",
-        ALL_MODES,
         damaged_export_target_only_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_dependency_attribute_boundaries",
-        ALL_MODES,
         damaged_dependency_attribute_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_dependency_namespace_boundaries",
-        ALL_MODES,
         damaged_dependency_namespace_boundaries,
     ),
-    StressFamily::recovery_pathological(
-        "damaged_pattern_boundaries",
-        SOURCE_MODES,
-        damaged_pattern_boundaries,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_member_boundaries",
-        ALL_MODES,
-        damaged_member_boundaries,
-    ),
-    StressFamily::recovery_pathological(
-        "damaged_template_boundaries",
-        SOURCE_MODES,
-        damaged_template_boundaries,
-    ),
+    StressFamily::recovery_pathological("damaged_pattern_boundaries", damaged_pattern_boundaries),
+    StressFamily::recovery_pathological("damaged_member_boundaries", damaged_member_boundaries),
+    StressFamily::recovery_pathological("damaged_template_boundaries", damaged_template_boundaries),
     StressFamily::recovery_pathological(
         "damaged_statement_boundaries",
-        SOURCE_MODES,
         damaged_statement_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_statement_slot_boundaries",
-        SOURCE_MODES,
         damaged_statement_slot_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_statement_call_boundaries",
-        SOURCE_MODES,
         damaged_statement_call_boundaries,
     ),
     StressFamily::recovery_pathological(
         "damaged_statement_object_boundaries",
-        SOURCE_MODES,
         damaged_statement_object_boundaries,
     ),
-    StressFamily::recovery_pathological(
-        "damaged_delimiter_storms",
-        SOURCE_MODES,
-        damaged_delimiter_storms,
-    ),
+    StressFamily::recovery_pathological("damaged_delimiter_storms", damaged_delimiter_storms),
     StressFamily::recovery_pathological(
         "damaged_documentation_boundaries",
-        ALL_MODES,
         damaged_documentation_boundaries,
     ),
 ];
@@ -475,34 +356,19 @@ pub enum StressExpectation {
     Recovery,
 }
 
-/// One generated stress file mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum StressMode {
-    /// `.ds` source.
-    Destack,
-    /// `.d.ds` declaration source.
-    DestackDeclaration,
-    /// `.ts` source.
-    TypeScript,
-    /// `.tsx` source.
-    TypeScriptXml,
-    /// `.d.ts` declaration source.
-    TypeScriptDeclaration,
-}
-
 /// One generated stress fixture family.
 #[derive(Debug, Clone, Copy)]
 struct StressFamily {
     /// The generated folder name.
     name: &'static str,
-    /// The file modes covered by this family.
-    modes: &'static [StressMode],
+    /// The generated source language.
+    language: LanguageType,
     /// The expected parser result shape.
     expectation: StressExpectation,
     /// The generated variant ladder.
     ladder: StressLadder,
     /// The source builder for this family.
-    generate: fn(StressMode, usize, usize) -> String,
+    generate: fn(usize, usize) -> String,
 }
 
 /// Generated fixture variant ladder.
@@ -554,13 +420,12 @@ impl StressFamily {
     /// Create one stress fixture family.
     const fn new(
         name: &'static str,
-        modes: &'static [StressMode],
         expectation: StressExpectation,
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation,
             ladder: StressLadder::Regular,
             generate,
@@ -570,13 +435,12 @@ impl StressFamily {
     /// Create one pathological stress fixture family.
     const fn pathological(
         name: &'static str,
-        modes: &'static [StressMode],
         expectation: StressExpectation,
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation,
             ladder: StressLadder::Pathological,
             generate,
@@ -586,13 +450,12 @@ impl StressFamily {
     /// Create one pathological stress fixture family capped at brutal scale.
     const fn pathological_capped_at_brutal(
         name: &'static str,
-        modes: &'static [StressMode],
         expectation: StressExpectation,
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation,
             ladder: StressLadder::PathologicalCappedAtBrutal,
             generate,
@@ -602,13 +465,12 @@ impl StressFamily {
     /// Create one pathological stress fixture family capped at massive scale.
     const fn pathological_capped_at_massive(
         name: &'static str,
-        modes: &'static [StressMode],
         expectation: StressExpectation,
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation,
             ladder: StressLadder::PathologicalCappedAtMassive,
             generate,
@@ -618,13 +480,12 @@ impl StressFamily {
     /// Create one deep nesting stress fixture family.
     const fn deep(
         name: &'static str,
-        modes: &'static [StressMode],
         expectation: StressExpectation,
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation,
             ladder: StressLadder::Deep,
             generate,
@@ -632,14 +493,10 @@ impl StressFamily {
     }
 
     /// Create one recursive descent stress fixture family.
-    const fn recursive(
-        name: &'static str,
-        modes: &'static [StressMode],
-        generate: fn(StressMode, usize, usize) -> String,
-    ) -> Self {
+    const fn recursive(name: &'static str, generate: fn(usize, usize) -> String) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation: StressExpectation::Valid,
             ladder: StressLadder::Recursive,
             generate,
@@ -649,12 +506,11 @@ impl StressFamily {
     /// Create one recursive expression stress fixture family.
     const fn recursive_expression(
         name: &'static str,
-        modes: &'static [StressMode],
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation: StressExpectation::Valid,
             ladder: StressLadder::RecursiveExpression,
             generate,
@@ -664,25 +520,39 @@ impl StressFamily {
     /// Create one large recovery stress fixture family.
     const fn recovery_pathological(
         name: &'static str,
-        modes: &'static [StressMode],
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
     ) -> Self {
         Self {
             name,
-            modes,
+            language: LanguageType::Destack,
             expectation: StressExpectation::Recovery,
             ladder: StressLadder::RecoveryPathological,
             generate,
         }
     }
 
-    /// Generate all fixture sources for one file mode.
-    fn sources(self, mode: StressMode, scale_limit: usize) -> Vec<StressFixtureSource> {
+    /// Generate all fixture sources up to one scale limit.
+    fn sources(self, scale_limit: usize) -> Vec<StressFixtureSource> {
         self.variants()
             .iter()
             .filter(|variant| variant.scale <= scale_limit)
-            .map(|variant| variant.source(mode, self.generate, self.expectation))
+            .map(|variant| variant.source(self.generate, self.expectation))
             .collect()
+    }
+
+    /// Set the generated source language.
+    const fn with_language(mut self, language: LanguageType) -> Self {
+        self.language = language;
+
+        self
+    }
+
+    /// Return the generated source extension.
+    const fn file_extension(self) -> &'static str {
+        match self.language {
+            LanguageType::Destack => "ds",
+            LanguageType::DestackDeclaration => "d.ds",
+        }
     }
 
     /// Return all variants for this family.
@@ -745,13 +615,12 @@ impl StressVariant {
     /// Generate one fixture source.
     fn source(
         self,
-        mode: StressMode,
-        generate: fn(StressMode, usize, usize) -> String,
+        generate: fn(usize, usize) -> String,
         default_expectation: StressExpectation,
     ) -> StressFixtureSource {
         StressFixtureSource {
             name: self.name,
-            source: generate(mode, self.scale, self.width),
+            source: generate(self.scale, self.width),
             expectation: self.expectation.unwrap_or(default_expectation),
         }
     }
@@ -790,12 +659,17 @@ impl StressFixture {
     }
 
     /// Create a source file name for diagnostics.
-    pub fn file_name(&self) -> String {
+    pub fn file_name(&self) -> Result<String, String> {
         self.path
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or("stress.ds")
-            .to_string()
+            .map(|name| name.to_string())
+            .ok_or_else(|| {
+                format!(
+                    "stress path has no UTF-8 file name: {}",
+                    self.path.display()
+                )
+            })
     }
 
     /// Create a stable logical path for file ids.
@@ -807,64 +681,12 @@ impl StressFixture {
     }
 }
 
-impl StressMode {
-    /// Return the file type for this mode.
-    pub(super) fn file_type(self) -> FileType {
-        match self {
-            Self::Destack => FileType::Destack,
-            Self::DestackDeclaration => FileType::DestackDeclaration,
-            Self::TypeScript => FileType::TypeScript,
-            Self::TypeScriptXml => FileType::TypeScriptXml,
-            Self::TypeScriptDeclaration => FileType::TypeScriptDeclaration,
-        }
-    }
-
-    /// Return the stable file name label for this mode.
-    fn label(self) -> &'static str {
-        match self {
-            Self::Destack => "destack",
-            Self::DestackDeclaration => "destack_declaration",
-            Self::TypeScript => "typescript",
-            Self::TypeScriptXml => "tsx",
-            Self::TypeScriptDeclaration => "typescript_declaration",
-        }
-    }
-
-    /// Return the file extension for this mode.
-    fn extension(self) -> &'static str {
-        match self {
-            Self::Destack => "ds",
-            Self::DestackDeclaration => "d.ds",
-            Self::TypeScript => "ts",
-            Self::TypeScriptXml => "tsx",
-            Self::TypeScriptDeclaration => "d.ts",
-        }
-    }
-
-    /// Return whether this mode is declaration-only.
-    pub(super) fn is_declaration(self) -> bool {
-        matches!(self, Self::DestackDeclaration | Self::TypeScriptDeclaration)
-    }
-
-    /// Return whether this mode uses Destack syntax.
-    pub(super) fn is_destack(self) -> bool {
-        matches!(self, Self::Destack | Self::DestackDeclaration)
-    }
-
-    /// Return whether this mode can parse TSX trees.
-    pub(super) fn is_tsx(self) -> bool {
-        matches!(self, Self::Destack | Self::TypeScriptXml)
-    }
-}
-
 /// Generated stress fixture identity parsed from a fixture path.
 struct StressFixtureDescriptor<'a> {
     /// The fixture family name.
     family: &'a str,
     /// The variant name within the family.
     variant: &'a str,
-    /// The generated file mode.
-    mode: StressMode,
 }
 
 impl<'a> StressFixtureDescriptor<'a> {
@@ -880,29 +702,26 @@ impl<'a> StressFixtureDescriptor<'a> {
             .and_then(|name| name.to_str())
             .ok_or_else(|| format!("stress path has no file name: {}", path.display()))?;
 
-        for family in FAMILIES {
-            if family.name != family_name {
-                continue;
-            }
+        let family = FAMILIES
+            .iter()
+            .find(|family| family.name == family_name)
+            .ok_or_else(|| format!("unknown stress family: {family_name}"))?;
+        let extension = family.file_extension();
+        let variant = file_name
+            .strip_suffix(extension)
+            .and_then(|file_name| file_name.strip_suffix('.'))
+            .filter(|variant| !variant.is_empty())
+            .ok_or_else(|| format!("invalid stress fixture file: {}", path.display()))?;
 
-            if let Some((variant, mode)) = Self::variant_and_mode(file_name, family.modes) {
-                return Ok(Self {
-                    family: family_name,
-                    variant,
-                    mode,
-                });
-            }
-        }
-
-        Err(format!(
-            "unknown generated stress fixture: {}",
-            path.display()
-        ))
+        Ok(Self {
+            family: family_name,
+            variant,
+        })
     }
 
     /// Return the generated fixture name.
     fn name(&self) -> String {
-        format!("{}::{}::{}", self.family, self.variant, self.mode.label())
+        format!("{}::{}", self.family, self.variant)
     }
 
     /// Return the expected parser result shape.
@@ -911,73 +730,43 @@ impl<'a> StressFixtureDescriptor<'a> {
             .iter()
             .find(|family| family.name == self.family)
             .ok_or_else(|| format!("unknown stress family: {}", self.family))?;
-        let expectation = family.variant_expectation(self.variant).ok_or_else(|| {
-            format!(
-                "unknown stress variant: {}::{}::{}",
-                self.family,
-                self.variant,
-                self.mode.label()
-            )
-        })?;
+        let expectation = family
+            .variant_expectation(self.variant)
+            .ok_or_else(|| format!("unknown stress variant: {}::{}", self.family, self.variant))?;
 
         Ok(expectation)
     }
-
-    /// Return the variant name and mode encoded in one file name.
-    fn variant_and_mode(
-        file_name: &'a str,
-        modes: &'static [StressMode],
-    ) -> Option<(&'a str, StressMode)> {
-        for mode in modes {
-            let Some(variant) = strip_mode_suffix(file_name, *mode) else {
-                continue;
-            };
-
-            if !variant.is_empty() {
-                return Some((variant, *mode));
-            }
-        }
-
-        None
-    }
-}
-
-/// Strip one generated mode suffix from a stress file name.
-fn strip_mode_suffix(file_name: &str, mode: StressMode) -> Option<&str> {
-    let file_name = file_name.strip_suffix(mode.extension())?;
-    let file_name = file_name.strip_suffix('.')?;
-    let file_name = file_name.strip_suffix(mode.label())?;
-    let variant = file_name.strip_suffix('.')?;
-
-    Some(variant)
 }
 
 /// Materialize and return the parser stress corpus.
 pub fn materialize_parser_fixtures() -> Result<Vec<StressFixture>, String> {
     let directory = stress_generated_dir("parser");
-    materialize_fixtures(&directory, true, true, PARSER_SCALE_LIMIT)
+    materialize_fixtures(&directory, PARSER_SCALE_LIMIT)
 }
 
 /// Materialize and return the formatter stress corpus.
 pub fn materialize_formatter_fixtures() -> Result<Vec<StressFixture>, String> {
     let directory = stress_generated_dir("formatter");
-    materialize_fixtures(&directory, true, true, FORMATTER_SCALE_LIMIT)
+    materialize_fixtures(&directory, FORMATTER_SCALE_LIMIT)
 }
 
-/// Generate one deterministic parser fuzz input from arbitrary bytes.
-pub fn generate_parser_fuzz_case(data: &[u8]) -> (String, FileType, StressExpectation) {
-    generate_fuzz_case(data, true)
-}
+/// Generate one deterministic stress fuzz input from arbitrary bytes.
+pub fn generate_fuzz_case(data: &[u8]) -> (String, FileType, StressExpectation) {
+    let seed = data.iter().fold(0_u64, |seed, byte| {
+        seed.wrapping_mul(131).wrapping_add(u64::from(*byte))
+    });
 
-/// Generate one deterministic formatter fuzz input from arbitrary bytes.
-pub fn generate_formatter_fuzz_case(data: &[u8]) -> (String, FileType, StressExpectation) {
-    generate_fuzz_case(data, true)
+    let family = &FAMILIES[seed as usize % FAMILIES.len()];
+    let scale_seed = seed as usize / FAMILIES.len();
+    let scale = 1 + scale_seed % FUZZ_MAX_SCALE;
+    let width = FUZZ_WIDTHS[(scale_seed / FUZZ_MAX_SCALE) % FUZZ_WIDTHS.len()];
+    let source = (family.generate)(scale, width);
+
+    (source, FileType::from(family.language), family.expectation)
 }
 
 fn materialize_fixtures(
     directory: &Path,
-    include_recovery: bool,
-    include_bounded: bool,
     scale_limit: usize,
 ) -> Result<Vec<StressFixture>, String> {
     std::fs::create_dir_all(directory)
@@ -987,37 +776,23 @@ fn materialize_fixtures(
 
     // write each generated fixture into its topical directory
     for family in FAMILIES {
-        if family.expectation == StressExpectation::Recovery && !include_recovery {
-            continue;
-        }
+        let family_directory = directory.join(family.name);
+        std::fs::create_dir_all(&family_directory)
+            .map_err(|error| format!("failed to create {}: {error}", family_directory.display()))?;
+        let extension = family.file_extension();
 
-        for mode in family.modes {
-            let family_directory = directory.join(family.name);
-            std::fs::create_dir_all(&family_directory).map_err(|error| {
-                format!("failed to create {}: {error}", family_directory.display())
-            })?;
+        for source in family.sources(scale_limit) {
+            let expectation = source.expectation;
+            let file_name = format!("{}.{}", source.name, extension);
+            let path = family_directory.join(file_name);
+            write_complete_file(&path, source.source)?;
 
-            for source in family.sources(*mode, scale_limit) {
-                let expectation = source.expectation;
-                if expectation == StressExpectation::Recovery && !include_recovery {
-                    continue;
-                }
-
-                if expectation == StressExpectation::Bounded && !include_bounded {
-                    continue;
-                }
-
-                let file_name = format!("{}.{}.{}", source.name, mode.label(), mode.extension());
-                let path = family_directory.join(file_name);
-                write_complete_file(&path, source.source)?;
-
-                fixtures.push(StressFixture {
-                    name: format!("{}::{}::{}", family.name, source.name, mode.label()),
-                    path,
-                    file_type: mode.file_type(),
-                    expectation,
-                });
-            }
+            fixtures.push(StressFixture {
+                name: format!("{}::{}", family.name, source.name),
+                path,
+                file_type: FileType::from(family.language),
+                expectation,
+            });
         }
     }
 
@@ -1028,47 +803,25 @@ fn stress_generated_dir(kind: &str) -> PathBuf {
     fixtures_dir().join("stress").join(kind).join("generated")
 }
 
-fn generate_fuzz_case(
-    data: &[u8],
-    include_recovery: bool,
-) -> (String, FileType, StressExpectation) {
-    let seed = data.iter().fold(0_u64, |seed, byte| {
-        seed.wrapping_mul(131).wrapping_add(u64::from(*byte))
-    });
-
-    let families = FAMILIES
-        .iter()
-        .filter(|family| include_recovery || family.expectation == StressExpectation::Valid)
-        .collect::<Vec<_>>();
-    let family = families[seed as usize % families.len()];
-    let mode = family.modes[(seed as usize / families.len()) % family.modes.len()];
-    let scale_seed = seed as usize / families.len() / family.modes.len();
-    let scale = 1 + scale_seed % FUZZ_MAX_SCALE;
-    let width = FUZZ_WIDTHS[(scale_seed / FUZZ_MAX_SCALE) % FUZZ_WIDTHS.len()];
-    let source = (family.generate)(mode, scale, width);
-
-    (source, mode.file_type(), family.expectation)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_generate_parser_fuzz_case_uses_small_sources() {
-        let (source, _file_type, expectation) = generate_parser_fuzz_case(&[0, 16, 6]);
+    fn test_generate_fuzz_case_uses_small_sources() {
+        let (source, _file_type, expectation) = generate_fuzz_case(&[0, 16, 6]);
 
         assert_ne!(expectation, StressExpectation::Bounded);
         assert!(source.len() < 10_000);
     }
 
     #[test]
-    fn test_generate_formatter_fuzz_case_includes_recovery_sources() {
+    fn test_generate_fuzz_case_includes_recovery_sources() {
         let mut saw_recovery = false;
 
         for seed in 0_u16..1_024 {
             let data = seed.to_le_bytes();
-            let (_source, _file_type, expectation) = generate_formatter_fuzz_case(&data);
+            let (_source, _file_type, expectation) = generate_fuzz_case(&data);
             saw_recovery |= expectation == StressExpectation::Recovery;
         }
 

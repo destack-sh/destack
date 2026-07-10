@@ -1,7 +1,5 @@
-use super::StressMode;
-
 /// Generate nested try/catch value expressions.
-pub(super) fn nested_try(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn nested_try(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("function nestedTry(source: Source): Payload {\n");
     source.push_str("    return try {\n");
@@ -20,7 +18,7 @@ pub(super) fn nested_try(_mode: StressMode, scale: usize, _width: usize) -> Stri
 }
 
 /// Generate long expression chains.
-pub(super) fn convoluted_expressions(mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn convoluted_expressions(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("const convoluted = input\n");
 
@@ -32,15 +30,13 @@ pub(super) fn convoluted_expressions(mode: StressMode, scale: usize, _width: usi
 
     source.push_str("    .reduce((left, right) => left + right, 0);\n");
 
-    if mode.is_destack() {
-        source.push_str("const propagated = encode(input)? + decode(input)?;\n");
-    }
+    source.push_str("const propagated = encode(input)? + decode(input)?;\n");
 
     source
 }
 
 /// Generate damaged expression syntax with a later recovered declaration.
-pub(super) fn damaged_expression(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn damaged_expression(scale: usize, _width: usize) -> String {
     let mut source = String::new();
 
     for index in 0..scale {

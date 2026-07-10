@@ -1,9 +1,7 @@
 use std::fmt::Write;
 
-use super::StressMode;
-
 /// Generate Destack sequence forms.
-pub(super) fn sequence_type_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn sequence_type_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 512);
     source.push_str("type ByteSlice = [uint8];\n");
     source.push_str("type ByteBlock<comptime N: uint> = [uint8; N];\n");
@@ -26,7 +24,7 @@ pub(super) fn sequence_type_forms(_mode: StressMode, scale: usize, _width: usize
 }
 
 /// Generate Destack sequence pattern forms.
-pub(super) fn sequence_pattern_forms(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn sequence_pattern_forms(scale: usize, _width: usize) -> String {
     let mut source = String::with_capacity(scale * 360);
     source.push_str("declare function parsePng(bytes: [uint8]): int32;\n");
     source.push_str("declare function parseJpeg(bytes: [uint8]): int32;\n\n");

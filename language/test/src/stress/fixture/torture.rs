@@ -1,9 +1,8 @@
-use super::StressMode;
 use super::generator::{Generator, emit};
 
 /// Generate one very long left associative binary expression.
-pub(super) fn long_binary_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 12);
+pub(super) fn long_binary_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 12);
     generator.emit("const longBinaryChain = seed");
 
     for index in 0..scale {
@@ -24,8 +23,8 @@ pub(super) fn long_binary_chain(mode: StressMode, scale: usize, width: usize) ->
 }
 
 /// Generate one very long logical expression.
-pub(super) fn long_logical_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 20);
+pub(super) fn long_logical_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 20);
     generator.emit("const longLogicalChain = flag0");
 
     for index in 1..scale {
@@ -39,8 +38,8 @@ pub(super) fn long_logical_chain(mode: StressMode, scale: usize, width: usize) -
 }
 
 /// Generate one very long nullish coalescing expression.
-pub(super) fn long_nullish_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 16);
+pub(super) fn long_nullish_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 16);
     generator.emit("const longNullishChain = value0");
 
     for index in 1..scale {
@@ -53,8 +52,8 @@ pub(super) fn long_nullish_chain(mode: StressMode, scale: usize, width: usize) -
 }
 
 /// Generate one very long right associative assignment expression.
-pub(super) fn long_assignment_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 16);
+pub(super) fn long_assignment_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 16);
     generator.emit("const longAssignmentChain = ");
 
     for index in 0..scale {
@@ -67,8 +66,8 @@ pub(super) fn long_assignment_chain(mode: StressMode, scale: usize, width: usize
 }
 
 /// Generate one very long value prefix expression.
-pub(super) fn long_value_prefix_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 4);
+pub(super) fn long_value_prefix_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 4);
     generator.emit("const longValuePrefixChain = ");
 
     for _ in 0..scale {
@@ -81,23 +80,17 @@ pub(super) fn long_value_prefix_chain(mode: StressMode, scale: usize, width: usi
 }
 
 /// Generate one very long type prefix expression.
-pub(super) fn long_type_prefix_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 8);
+pub(super) fn long_type_prefix_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 8);
     generator.emit("type LongTypePrefixChain<T> = ");
-
-    if mode.is_destack() {
-        generator.emit("(");
-    }
+    generator.emit("(");
 
     for _ in 0..scale {
         generator.emit("keyof ");
     }
 
     generator.emit("T");
-
-    if mode.is_destack() {
-        generator.emit(")");
-    }
+    generator.emit(")");
 
     generator.emit(";\n");
 
@@ -105,8 +98,8 @@ pub(super) fn long_type_prefix_chain(mode: StressMode, scale: usize, width: usiz
 }
 
 /// Generate one very long pattern prefix expression.
-pub(super) fn long_pattern_prefix_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 4);
+pub(super) fn long_pattern_prefix_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 4);
     generator.emit("function longPatternPrefixChain(value) {\n");
     generator.emit("    return match (value) {\n");
     generator.emit("        ");
@@ -124,13 +117,10 @@ pub(super) fn long_pattern_prefix_chain(mode: StressMode, scale: usize, width: u
 }
 
 /// Generate one very long union and intersection type expression.
-pub(super) fn long_type_operator_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 18);
+pub(super) fn long_type_operator_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 18);
     generator.emit("type LongTypeOperatorChain<T> = ");
-
-    if mode.is_destack() {
-        generator.emit("(");
-    }
+    generator.emit("(");
 
     generator.emit("{ readonly seed: T }");
 
@@ -142,9 +132,7 @@ pub(super) fn long_type_operator_chain(mode: StressMode, scale: usize, width: us
         );
     }
 
-    if mode.is_destack() {
-        generator.emit(")");
-    }
+    generator.emit(")");
 
     generator.emit(";\n");
 
@@ -152,13 +140,10 @@ pub(super) fn long_type_operator_chain(mode: StressMode, scale: usize, width: us
 }
 
 /// Generate one long conditional type fallback ladder.
-pub(super) fn long_conditional_type_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 34);
+pub(super) fn long_conditional_type_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 34);
     generator.emit("type LongConditionalTypeChain<T> = ");
-
-    if mode.is_destack() {
-        generator.emit("(");
-    }
+    generator.emit("(");
 
     for index in 0..scale {
         emit!(
@@ -168,10 +153,7 @@ pub(super) fn long_conditional_type_chain(mode: StressMode, scale: usize, width:
     }
 
     generator.emit("never");
-
-    if mode.is_destack() {
-        generator.emit(")");
-    }
+    generator.emit(")");
 
     generator.emit(";\n");
 
@@ -179,8 +161,8 @@ pub(super) fn long_conditional_type_chain(mode: StressMode, scale: usize, width:
 }
 
 /// Generate one very long postfix chain.
-pub(super) fn long_postfix_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 24);
+pub(super) fn long_postfix_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 24);
     generator.emit("const longPostfixChain = root");
 
     for index in 0..scale {
@@ -198,8 +180,8 @@ pub(super) fn long_postfix_chain(mode: StressMode, scale: usize, width: usize) -
 }
 
 /// Generate deeply nested lambda expressions.
-pub(super) fn nested_lambda_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 18);
+pub(super) fn nested_lambda_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 18);
     generator.emit("const nestedLambdaChain = ");
 
     for index in 0..scale {
@@ -218,8 +200,8 @@ pub(super) fn nested_lambda_chain(mode: StressMode, scale: usize, width: usize) 
 }
 
 /// Generate alternating parentheses and binary operators.
-pub(super) fn parenthesized_binary_chain(mode: StressMode, scale: usize, width: usize) -> String {
-    let mut generator = Generator::new(mode, scale, width, scale * 16);
+pub(super) fn parenthesized_binary_chain(scale: usize, width: usize) -> String {
+    let mut generator = Generator::new(scale, width, scale * 16);
     generator.emit("const parenthesizedBinaryChain = ");
 
     for _ in 0..scale {

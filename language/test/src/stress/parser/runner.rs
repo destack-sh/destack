@@ -22,7 +22,10 @@ pub(super) fn run_parser_stress(fixture: &StressFixture) -> CaseResult {
     };
     let file_size = source.len();
     let line_count = source.lines().count();
-    let file_name = fixture.file_name();
+    let file_name = match fixture.file_name() {
+        Ok(file_name) => file_name,
+        Err(message) => return CaseResult::Failed { message },
+    };
     let file_id = FileId::from_logical_path(&fixture.logical_path());
     let file = File::from_text(
         file_id,

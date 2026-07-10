@@ -1,7 +1,5 @@
-use super::StressMode;
-
 /// Generate a large interface surface.
-pub(super) fn large_interface(_mode: StressMode, scale: usize, _width: usize) -> String {
+pub(super) fn large_interface(scale: usize, _width: usize) -> String {
     let mut source = String::new();
     source.push_str("export interface LargeInterface<In, Out> {\n");
 
