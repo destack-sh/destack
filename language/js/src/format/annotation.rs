@@ -13,7 +13,7 @@ impl<'ast> FormatNode<'ast, Annotation> for Annotation {
         f: &mut JsFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         assert!(
-            f.context().include_annotations(),
+            f.context().include_types(),
             "annotation in non-annotation context: {node_id:?}"
         );
         match self {

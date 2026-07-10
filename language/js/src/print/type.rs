@@ -746,8 +746,8 @@ mod tests {
     use crate::{
         FunctionTypeDeclaration, GenericParameter, JsFormatContext, JsFormatOptions, LocalNodeId,
         LocalNodeIdAny, MappedTypeModifier, NOOP_JS_SOURCE_MAP, Parameter, Path, PrimitiveType,
-        ScalarLiteral, Tree, TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter,
-        TypeTemplateLiteral, format_roots, print_roots_minified,
+        ScalarLiteral, ScriptFormat, Tree, TypeExpression, TypeLiteral, TypeMappedModifiers,
+        TypeMappedParameter, TypeTemplateLiteral, format_roots, print_roots_minified,
     };
 
     fn insert_type(tree: &mut Tree, ty: TypeExpression) -> LocalNodeId<TypeExpression> {
@@ -972,7 +972,7 @@ mod tests {
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
-        let printed = print_roots_minified(FileType::TypeScript, tree, roots, strings).unwrap();
+        let printed = print_roots_minified(ScriptFormat::TypeScript, tree, roots, strings).unwrap();
 
         printed.code
     }
@@ -987,11 +987,11 @@ mod tests {
             "test.ts".to_string(),
             Uri::from_string("file:///test.ts"),
             None,
-            FileType::TypeScript,
+            FileType::Destack,
             String::new(),
         );
         let context = JsFormatContext {
-            options: JsFormatOptions::pretty().with_file_type(FileType::TypeScript),
+            options: JsFormatOptions::pretty().with_format(ScriptFormat::TypeScript),
             file: &file,
             tree,
             roots,

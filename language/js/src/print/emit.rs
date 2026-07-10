@@ -565,13 +565,14 @@ impl<'a> Printer<'a> {
 mod tests {
     use destack_core::StringPool;
     use destack_fir::format::FileMarker;
-    use destack_source::{FileId, FileType, NodeSpanRegion, NodeSpanType, Span};
+    use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 
     use super::Printer;
     use crate::{
         Argument, BinaryOperator, DependencyBinding, DependencyForm, DependencyItem, Expression,
         JsSourceMap, Key, LocalNodeId, LocalNodeIdAny, Name, Path, PostfixPosition, Property,
-        ScalarLiteral, Statement, Tree, print_roots_minified, print_roots_minified_with_source_map,
+        ScalarLiteral, ScriptFormat, Statement, Tree, print_roots_minified,
+        print_roots_minified_with_source_map,
     };
 
     fn insert_expression(tree: &mut Tree, expression: Expression) -> LocalNodeId<Expression> {
@@ -611,7 +612,7 @@ mod tests {
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
-        let printed = print_roots_minified(FileType::JavaScript, tree, roots, strings).unwrap();
+        let printed = print_roots_minified(ScriptFormat::JavaScript, tree, roots, strings).unwrap();
 
         printed.code
     }
@@ -1062,7 +1063,7 @@ mod tests {
             span: Span::new(FileId::new(1), 10, 23),
         };
         let printed = print_roots_minified_with_source_map(
-            FileType::JavaScript,
+            ScriptFormat::JavaScript,
             &tree,
             &[import_call.into_any()],
             &strings,
@@ -1132,7 +1133,7 @@ mod tests {
             ],
         };
         let printed = print_roots_minified_with_source_map(
-            FileType::TypeScript,
+            ScriptFormat::TypeScript,
             &tree,
             &[statement.into_any()],
             &strings,
