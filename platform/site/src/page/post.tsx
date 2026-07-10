@@ -40,15 +40,10 @@ function comparePosts(left: Post, right: Post) {
 
 function MissingPost() {
     return (
-        <section class="mx-auto grid w-full max-w-328 gap-4 px-4 py-12 md:px-10">
-            <p class="text-sm font-extrabold text-destack-accent lowercase">missing post</p>
-            <h1 class="page-title">this post does not exist</h1>
-            <A
-                class="w-max border-b-4 border-destack-line text-sm font-extrabold lowercase hover:border-destack-accent"
-                href="/blog/"
-            >
-                back to blog
-            </A>
+        <section class="blog-missing">
+            <p>[missing post]</p>
+            <h1>this post does not exist</h1>
+            <A href="/blog/">[back to blog]</A>
         </section>
     );
 }
