@@ -5,7 +5,6 @@ use destack_dir::{
     FunctionRole, InferForm, Key, Name, NodeType, Pattern, PostfixPosition, Property,
     ScalarLiteral, TokenType, TupleElement, TypeExpression,
 };
-use destack_source::LanguageType;
 
 /// Parse a tuple literal with two elements.
 #[test]
@@ -482,13 +481,12 @@ fn test_parse_struct_literal_infer_hole() {
 /// Parse a struct literal with generic parameters and two fields.
 #[test]
 fn test_parse_struct_literal_path_with_generic_parameters() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r##"
 geom.Mesh<2, 4> {
     vertices: [1, 2],
     y,
 }"##,
-        LanguageType::Destack,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -515,13 +513,10 @@ geom.Mesh<2, 4> {
     test.assert_no_errors(&parser);
 }
 
-/// Parse boolean IdentifierName property keys and accessors in JavaScript.
+/// Parse boolean identifier-name property keys and accessors.
 #[test]
 fn test_parse_object_boolean_identifier_name_keys() {
-    let mut test = TestParser::new_with_language(
-        "{ true: 1, false: 2, get true() {}, set false(value) {} }",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("{ true: 1, false: 2, get true() {}, set false(value) {} }");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -560,12 +555,10 @@ fn test_parse_object_boolean_identifier_name_keys() {
 
 #[test]
 fn test_parse_object_literal_with_typed_arrow_value() {
-    let language = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"{
     reproFunc: (_: any): any => { },
 }"#,
-        language,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -586,8 +579,7 @@ fn test_parse_object_literal_with_typed_arrow_value() {
 /// Comma in parentheses parses as tuple expression.
 #[test]
 fn test_parse_tuple_expression() {
-    let language = LanguageType::Destack;
-    let mut test = TestParser::new_with_language("(a, b, c)", language);
+    let mut test = TestParser::new("(a, b, c)");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 

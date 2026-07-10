@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_dir::{Comment, Token, TokenSpan, TokenType};
-use destack_source::{File, LanguageType};
+use destack_source::File;
 
 use super::lexer::{Lexer, ParserTriviaMode};
 use super::trivia::{CommentRetention, TriviaComment, retained_comment};
@@ -85,28 +85,21 @@ impl Lexer {
     /// Lex the input string into semantic tokens, side tokens, and the end-of-sequence Token.
     /// Semantic tokens are identifiers, keywords, literals, operators.
     /// Side tokens are whitespace and comments.
-    pub fn lex(
-        file: Arc<File>,
-        language: LanguageType,
-    ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
-        let result = Self::lex_file(file, language);
+    pub fn lex(file: Arc<File>) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
+        let result = Self::lex_file(file);
         (result.tokens, result.side_tokens, result.eof_token)
     }
 
     /// Lex the input string and return token buffers.
-    pub fn lex_file(file: Arc<File>, language: LanguageType) -> LexResult {
-        let mut lexer = Lexer::new_storing_tokens(file, language);
+    pub fn lex_file(file: Arc<File>) -> LexResult {
+        let mut lexer = Lexer::new_storing_tokens(file);
         lexer.set_trivia_mode(ParserTriviaMode::Full);
         lexer.lex_to_result()
     }
 
     /// Lex the input string with trivia retention configured.
-    pub fn lex_with_options(
-        file: Arc<File>,
-        language: LanguageType,
-        trivia_mode: ParserTriviaMode,
-    ) -> LexResult {
-        let mut lexer = Lexer::new_storing_tokens(file, language);
+    pub fn lex_with_options(file: Arc<File>, trivia_mode: ParserTriviaMode) -> LexResult {
+        let mut lexer = Lexer::new_storing_tokens(file);
         lexer.set_trivia_mode(trivia_mode);
         lexer.lex_to_result()
     }

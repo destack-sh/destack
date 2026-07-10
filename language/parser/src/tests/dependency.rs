@@ -3,7 +3,7 @@ use destack_dir::{
     DependencyBinding, DependencyForm, DependencyItem, Expression, ImportAttribute,
     ImportAttributeClauseKind, ImportAttributeValue, LocalNodeId, Name, ScalarLiteral,
 };
-use destack_source::{LanguageType, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_string};
 
@@ -704,7 +704,7 @@ fn test_parse_export_type_identifier_name() {
 
 #[test]
 fn test_parse_export_clause_after_comment_newline_keyword() {
-    let mut test = TestParser::new_with_language("export //comment\n{}", LanguageType::JavaScript);
+    let mut test = TestParser::new("export //comment\n{}");
     let mut parser = test.prepare();
     let export_id = parser.eat_export().unwrap();
 
@@ -716,10 +716,7 @@ fn test_parse_export_clause_after_comment_newline_keyword() {
 
 #[test]
 fn test_parse_export_specifier_alias_after_comment_newline() {
-    let mut test = TestParser::new_with_language(
-        "export {\n  bar as // comment\n  baz,\n} from 'foo'",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("export {\n  bar as // comment\n  baz,\n} from 'foo'");
     let mut parser = test.prepare();
     let export_id = parser.eat_export().unwrap();
 
@@ -736,10 +733,7 @@ fn test_parse_export_specifier_alias_after_comment_newline() {
 
 #[test]
 fn test_parse_import_specifier_alias_after_comment_newline() {
-    let mut test = TestParser::new_with_language(
-        "import {\n  bar as // comment\n  baz,\n} from 'foo'",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("import {\n  bar as // comment\n  baz,\n} from 'foo'");
     let mut parser = test.prepare();
     let import_id = parser.eat_import().unwrap();
 
@@ -1030,7 +1024,7 @@ fn test_parse_export_default_with_multiple_aliases() {
 fn test_report_export_type_without_binding() {
     // source: export type
     let source = "export type";
-    let mut test = TestParser::new_with_language("export type", LanguageType::TypeScript);
+    let mut test = TestParser::new("export type");
     let mut parser = test.prepare();
     let error = parser.eat_export().unwrap_err();
 
@@ -1172,7 +1166,7 @@ fn test_parse_export_as_identifier_without_target() {
 #[test]
 fn test_parse_export_type_identifier_without_target() {
     // source: export { type }
-    let mut test = TestParser::new_with_language("export { type }", LanguageType::TypeScript);
+    let mut test = TestParser::new("export { type }");
     let mut parser = test.prepare();
     let export_id = parser.eat_export().unwrap();
 
@@ -1192,7 +1186,7 @@ fn test_parse_export_type_identifier_without_target() {
 #[test]
 fn test_parse_export_named_type_with_keyword_alias_without_target() {
     // source: export { type as if }
-    let mut test = TestParser::new_with_language("export { type as if }", LanguageType::TypeScript);
+    let mut test = TestParser::new("export { type as if }");
     let mut parser = test.prepare();
     let export_id = parser.eat_export().unwrap();
 
@@ -1212,8 +1206,7 @@ fn test_parse_export_named_type_with_keyword_alias_without_target() {
 #[test]
 fn test_parse_export_type_only_as_as_keyword_alias_without_target() {
     // source: export { type as as if }
-    let mut test =
-        TestParser::new_with_language("export { type as as if }", LanguageType::TypeScript);
+    let mut test = TestParser::new("export { type as as if }");
     let mut parser = test.prepare();
     let export_id = parser.eat_export().unwrap();
 
@@ -1232,10 +1225,7 @@ fn test_parse_export_type_only_as_as_keyword_alias_without_target() {
 
 #[test]
 fn test_report_export_function_without_name() {
-    let mut test = TestParser::new_with_language(
-        "export function(option: any): void",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("export function(option: any): void");
     let mut parser = test.prepare();
     let error = parser.eat_export().unwrap_err();
 
@@ -1244,7 +1234,7 @@ fn test_report_export_function_without_name() {
 
 #[test]
 fn test_parse_root_import_named_binding_from_source() {
-    let mut test = TestParser::new_with_language("import {a} from 'a';", LanguageType::JavaScript);
+    let mut test = TestParser::new("import {a} from 'a';");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1259,8 +1249,7 @@ fn test_parse_root_import_named_binding_from_source() {
 
 #[test]
 fn test_parse_root_import_default_and_namespace() {
-    let mut test =
-        TestParser::new_with_language("import a, * as b from 'a';", LanguageType::JavaScript);
+    let mut test = TestParser::new("import a, * as b from 'a';");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1275,8 +1264,7 @@ fn test_parse_root_import_default_and_namespace() {
 
 #[test]
 fn test_parse_root_empty_type_import() {
-    let mut test =
-        TestParser::new_with_language("import type {} from 'a';", LanguageType::TypeScript);
+    let mut test = TestParser::new("import type {} from 'a';");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1291,7 +1279,7 @@ fn test_parse_root_empty_type_import() {
 
 #[test]
 fn test_parse_root_export_named_binding_from_source() {
-    let mut test = TestParser::new_with_language("export {a} from 'a';", LanguageType::JavaScript);
+    let mut test = TestParser::new("export {a} from 'a';");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 

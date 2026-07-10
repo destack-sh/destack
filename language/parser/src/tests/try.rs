@@ -1,7 +1,6 @@
 use destack_dir::{
     Argument, Block, Catch, Expression, Name, Pattern, PatternField, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 use crate::{TestParser, assert_expression_path, assert_node, assert_string, block_expression_ids};
 
@@ -126,7 +125,7 @@ try {
 
 #[test]
 fn test_parse_try_with_typed_catch_pattern() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 try {
     foo()
@@ -134,7 +133,6 @@ try {
     bar()
 }
 "###,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -297,7 +295,7 @@ try {
 /// Recover a missing catch close parenthesis in place.
 #[test]
 fn test_parse_try_with_missing_catch_close_parenthesis() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 try {
     foo()
@@ -305,7 +303,6 @@ try {
     bar()
 }
 "###,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -327,7 +324,7 @@ try {
 /// Parse typed destructuring catch patterns.
 #[test]
 fn test_parse_try_with_typed_destructuring_catch_pattern() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 try {
     foo()
@@ -335,7 +332,6 @@ try {
     bar()
 }
 "###,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -376,12 +372,11 @@ try {
     });
 }
 
-/// Parse untyped catch expression parameters as expression patterns.
+/// Parse catch expression parameters as expression patterns.
 #[test]
-fn test_parse_untyped_catch_expression_parameter() {
+fn test_parse_catch_expression_parameter() {
     // source: try {} catch (answer()) {}
-    let mut test =
-        TestParser::new_with_language("try {} catch (answer()) {}", LanguageType::JavaScript);
+    let mut test = TestParser::new("try {} catch (answer()) {}");
     let mut parser = test.prepare();
 
     let try_id = parser.eat_try().unwrap();
@@ -396,11 +391,11 @@ fn test_parse_untyped_catch_expression_parameter() {
     });
 }
 
-/// Parse untyped catch literal parameters as expression patterns.
+/// Parse catch literal parameters as expression patterns.
 #[test]
-fn test_parse_untyped_catch_literal_parameter() {
+fn test_parse_catch_literal_parameter() {
     // source: try {} catch (42) {}
-    let mut test = TestParser::new_with_language("try {} catch (42) {}", LanguageType::JavaScript);
+    let mut test = TestParser::new("try {} catch (42) {}");
     let mut parser = test.prepare();
 
     let try_id = parser.eat_try().unwrap();
@@ -414,13 +409,10 @@ fn test_parse_untyped_catch_literal_parameter() {
     });
 }
 
-/// Parse untyped catch blocks separated from try by a newline.
+/// Parse catch blocks separated from try by a newline.
 #[test]
-fn test_parse_untyped_catch_without_binding_after_newline() {
-    let mut test = TestParser::new_with_language(
-        "try {\n  foo()\n}\ncatch {\n  bar()\n}",
-        LanguageType::JavaScript,
-    );
+fn test_parse_catch_without_binding_after_newline() {
+    let mut test = TestParser::new("try {\n  foo()\n}\ncatch {\n  bar()\n}");
     let mut parser = test.prepare();
 
     let try_id = parser.eat_try().unwrap();
@@ -439,12 +431,11 @@ fn test_parse_untyped_catch_without_binding_after_newline() {
     });
 }
 
-/// Parse untyped try/catch/finally with comment and newline breaks around keyword boundaries.
+/// Parse try/catch/finally with comment and newline breaks around keyword boundaries.
 #[test]
-fn test_parse_untyped_try_with_comment_newline_boundaries() {
-    let mut test = TestParser::new_with_language(
+fn test_parse_try_with_comment_newline_boundaries() {
+    let mut test = TestParser::new(
         "try // Comment 1\n{\n}\ncatch(\n// Comment 2\ne\n) {\n}\nfinally // Comment 3\n{\n}\n",
-        LanguageType::JavaScript,
     );
     let mut parser = test.prepare();
 

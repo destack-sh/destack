@@ -3,6 +3,7 @@ use destack_dir::{Declaration, Expression, FunctionDeclaration, FunctionForm, Lo
 
 impl Parser {
     /// Unwrap label wrappers to get the underlying expression.
+    #[cfg(test)]
     pub(crate) fn unwrap_label_expression(
         &self,
         expression_id: LocalNodeId<Expression>,

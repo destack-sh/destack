@@ -1,7 +1,7 @@
 use crate::parse::expression::operator::ExpressionInfixOperator;
 use crate::parse::scope::{CONDITIONAL_PRECEDENCE, ExpressionScope};
 use crate::parse::r#type::operator::{TypeBinaryOperator, TypeInfixOperator};
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::{Parser, ParserResult, ParserSpanStart};
 use destack_dir::{
     BinaryOperator, Condition, Expression, IfForm, Keyword, LocalNodeId, NodeType,
     OperatorPrecedence, RangeEnd, TokenType, TypeExpression,
@@ -157,12 +157,8 @@ impl Parser {
             return Ok(None);
         }
 
-        if is_on_new_line && self.can_start_tree_literal() {
-            if scope.is_statement_position {
-                return Ok(None);
-            }
-
-            return Err(ParserError::unexpected(self.peek()));
+        if is_on_new_line && self.is_tree_literal_start() {
+            return Ok(None);
         }
 
         if is_on_new_line
@@ -219,10 +215,7 @@ impl Parser {
             return Some(*value);
         }
 
-        self.language
-            .is_destack()
-            .then(|| self.static_type_head_from_expression(left))
-            .flatten()
+        self.static_type_head_from_expression(left)
     }
 
     /// Eat the current value infix operator span.
@@ -630,14 +623,6 @@ impl Parser {
             }
         }
 
-        // tree literal boundary
-        if !scope.is_statement_position
-            && self.current_token_is_on_new_line()
-            && self.can_start_tree_literal()
-        {
-            return Err(ParserError::unexpected(self.peek()));
-        }
-
         Ok(left)
     }
 
@@ -658,12 +643,7 @@ impl Parser {
     /// a ? b : c
     /// ```
     fn eat_conditional_then(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        self.eat_expression(
-            self.flags
-                .not_in_position()
-                .in_ternary_condition()
-                .not_in_sequence_expression(),
-        )
+        self.eat_expression(self.flags.not_in_position().in_ternary_condition())
     }
 
     /// Eat the false branch of a conditional expression.
@@ -696,7 +676,6 @@ impl Parser {
 
             // finish ordinary false branch expression
             let expression = parser.eat_assignment_rest(&start, condition, scope)?;
-            let expression = parser.eat_sequence_rest(&start, expression, scope)?;
 
             Ok(ConditionalElseExpression::Expression(expression))
         })
@@ -704,7 +683,7 @@ impl Parser {
 
     /// Return the scope for a ternary false branch.
     fn conditional_else_scope(&self) -> ExpressionScope {
-        ExpressionScope::from_flags(self.flags.not_in_position().not_in_sequence_expression())
+        ExpressionScope::from_flags(self.flags.not_in_position())
     }
 
     /// Finish pending right-associative ternary expression nodes.
@@ -728,60 +707,6 @@ impl Parser {
         }
 
         else_expression
-    }
-
-    /// Eat a sequence expression after one parsed expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// first, second
-    /// first, second, third
-    /// first, call(second)
-    /// ```
-    pub(crate) fn eat_sequence_rest(
-        &mut self,
-        start: &ParserSpanStart,
-        mut left: LocalNodeId<Expression>,
-        scope: ExpressionScope,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        if scope.minimum_precedence.is_some()
-            || !scope.allows_sequence
-            || !(self.language.is_javascript() || self.language.is_typescript())
-            || !self.peek_is(TokenType::Comma)
-        {
-            return Ok(left);
-        }
-
-        let expressions = self.eat_sequence_expressions(left)?;
-        left = self.insert_node(
-            Expression::SequenceExpression { expressions },
-            self.get_span_from(start),
-        );
-
-        Ok(left)
-    }
-
-    /// Eat sequence expression operands after the first expression.
-    ///
-    /// Examples:
-    /// ```ds
-    /// , second
-    /// , second, third
-    /// , call(second)
-    /// ```
-    fn eat_sequence_expressions(
-        &mut self,
-        first: LocalNodeId<Expression>,
-    ) -> ParserResult<Vec<LocalNodeId<Expression>>> {
-        let mut expressions = vec![first];
-        while self.peek_is(TokenType::Comma) {
-            self.bump();
-            let expression =
-                self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
-            expressions.push(expression);
-        }
-
-        Ok(expressions)
     }
 
     /// Parse a startless value range.

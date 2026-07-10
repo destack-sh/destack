@@ -42,7 +42,7 @@ impl Parser {
 
     /// Return whether the current token starts a Destack infer hole.
     fn current_token_starts_infer_hole(&self) -> bool {
-        self.language.is_destack() && self.current_identifier_str_is("_")
+        self.current_identifier_str_is("_")
     }
 
     /// Eat a Destack infer hole.

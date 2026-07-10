@@ -5,7 +5,6 @@ use destack_dir::{
     Expression, FunctionDeclaration, FunctionForm, IfForm, Key, Name, Pattern, Property,
     ScalarLiteral,
 };
-use destack_source::LanguageType;
 
 /// Parse `true ? 1 : 2`.
 #[test]
@@ -56,8 +55,7 @@ fn test_parse_statement_position_ternaries() {
 /// Parse an arrow expression as the false branch.
 #[test]
 fn test_parse_ternary_arrow_else_expression() {
-    let mut test =
-        TestParser::new_with_language("ready ? value : item => item", LanguageType::TypeScript);
+    let mut test = TestParser::new("ready ? value : item => item");
     let mut parser = test.prepare();
     let if_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -121,10 +119,7 @@ fn test_parse_if_ternary_multiline_with_comments() {
 /// Keep `// then-boundary` and `// else-boundary` on ternary branch boundaries.
 #[test]
 fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
-    let mut test = TestParser::new_with_language(
-        "cond ? // then-boundary\nleft : // else-boundary\nright",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("cond ? // then-boundary\nleft : // else-boundary\nright");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -154,10 +149,7 @@ fn test_parse_if_ternary_boundary_comments_attach_to_branch_owners() {
 /// Keep inline branch comments outside ternary branch spans.
 #[test]
 fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
-    let mut test = TestParser::new_with_language(
-        "condition ? null /* branch-note */ : other",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("condition ? null /* branch-note */ : other");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -183,10 +175,7 @@ fn test_parse_if_ternary_inline_branch_comment_keeps_branch_token_span() {
 /// Keep nested tree branch spans on the branch tokens.
 #[test]
 fn test_parse_if_ternary_nested_tree_branches_keep_token_spans() {
-    let mut test = TestParser::new_with_language(
-        "condition ? null /* branch-note */ : other ? <A /> : <B />",
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new("condition ? null /* branch-note */ : other ? <A /> : <B />");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -314,12 +303,10 @@ fn test_parse_if_ternary_with_binary_condition() {
 
 #[test]
 fn test_parse_export_const_ternary_object_literal_arrow_value() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"export const reproValue = true ? {} : {
     reproFunc: (_: any): any => { },
 };"#,
-        options,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -365,18 +352,15 @@ fn test_parse_export_const_ternary_object_literal_arrow_value() {
 
 #[test]
 fn test_parse_ternary_object_literal_arrow_value_expression() {
-    let options = LanguageType::TypeScript;
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"true ? {} : {
     reproFunc: (_: any): any => { },
 }"#,
-        options,
     );
     let mut parser = test.prepare();
-    let result = parser.with_flags(
-        parser.flags.not_in_position().not_in_sequence_expression(),
-        |parser| parser.eat_expression(parser.flags),
-    );
+    let result = parser.with_flags(parser.flags.not_in_position(), |parser| {
+        parser.eat_expression(parser.flags)
+    });
     match result {
         Ok(expr_id) => {
             assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
@@ -413,10 +397,7 @@ fn test_parse_ternary_object_literal_arrow_value_expression() {
 
 #[test]
 fn test_parse_assignment_object_spread_ternary_value() {
-    let mut test = TestParser::new_with_language(
-        "target = { ...tls ? { cert: tls.cert } : {}, ...node }",
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new("target = { ...tls ? { cert: tls.cert } : {}, ...node }");
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.flags).unwrap();

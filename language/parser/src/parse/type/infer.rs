@@ -44,7 +44,7 @@ impl Parser {
     /// ```
     fn eat_infer_binding(&mut self) -> ParserResult<(Option<StringId>, Span)> {
         let (name, name_span) = self.eat_identifier_with_span()?;
-        if self.language.is_destack() && self.get_span_str(name_span) == "_" {
+        if self.get_span_str(name_span) == "_" {
             return Ok((None, name_span));
         }
 

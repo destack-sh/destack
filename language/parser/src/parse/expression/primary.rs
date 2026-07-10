@@ -101,7 +101,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if !self.language.is_destack() || self.next_token_type() != TokenType::OpenBrace {
+        if self.next_token_type() != TokenType::OpenBrace {
             return Ok(None);
         }
 
@@ -161,15 +161,13 @@ impl Parser {
         start: &ParserSpanStart,
         keyword: Keyword,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        if !self.language.is_destack() && keyword == Keyword::Shared {
-            return self.eat_identifier_primary(start);
-        }
-
         if let Some(expression_id) = self.eat_declaration_prefix_primary(start, keyword)? {
             return Ok(expression_id);
         }
 
-        if let Some(expression_id) = self.eat_keyword_expression(start, keyword)? {
+        if let Some(expression_id) =
+            self.eat_keyword_expression(start, keyword, DeclarationHeader::default())?
+        {
             return Ok(expression_id);
         }
 
@@ -214,7 +212,7 @@ impl Parser {
 
         if self.is_global_identifier() && self.next_token_type() == TokenType::OpenBrace {
             let header = DeclarationHeader {
-                is_ambient: self.language.is_declaration(),
+                is_ambient: self.is_ambient,
                 ..DeclarationHeader::default()
             };
             let declaration = self.eat_global(start, header)?;
@@ -270,7 +268,7 @@ impl Parser {
                     false,
                 ))
             }
-            TokenType::LessThan if self.can_start_tree_literal() => {
+            TokenType::LessThan if self.is_tree_literal_start() => {
                 let flags = self.flags.not_in_position();
                 self.with_flags(flags, |parser| parser.eat_tree_literal())
                     .map(|id| (id, false))
@@ -307,32 +305,15 @@ impl Parser {
                     false,
                 ))
             }
-            TokenType::ElementwiseOr if self.language.is_destack() => self
+            TokenType::ElementwiseOr => self
                 .eat_value_leading_binary_list(start, BinaryOperator::ElementwiseOr)
                 .map(|id| (id, false)),
-            TokenType::Range | TokenType::RangeInclusive if self.language.is_destack() => {
+            TokenType::Range | TokenType::RangeInclusive => {
                 self.eat_value_startless_range(start).map(|id| (id, false))
             }
-            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd
-                if self.language.is_destack() =>
-            {
-                self.eat_value_reference_operator(start)
-                    .map(|id| (id, false))
-            }
-            TokenType::Hash if self.token_type_at_offset(1) == TokenType::Identifier => {
-                if self.language.is_destack() {
-                    return Err(ParserError::unexpected(self.peek()));
-                }
-
-                self.bump();
-                let (name, name_span) = self.eat_identifier_with_span()?;
-                let id = self.insert_node(
-                    Expression::PrivateIdentifier { name },
-                    self.get_span_from(start),
-                );
-                self.tree.set_main_span(id, name_span);
-                Ok((id, false))
-            }
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor | TokenType::LogicalAnd => self
+                .eat_value_reference_operator(start)
+                .map(|id| (id, false)),
             _ => Err(ParserError::unexpected(self.peek())),
         }
     }
@@ -465,7 +446,7 @@ impl Parser {
         let keyword = self.current_keyword();
         let is_contextual_type_keyword =
             matches!(keyword, Some(Keyword::Keyof | Keyword::Readonly))
-                || self.language.is_destack() && keyword == Some(Keyword::Shared);
+                || keyword == Some(Keyword::Shared);
         if !is_contextual_type_keyword {
             return false;
         }
@@ -480,8 +461,7 @@ impl Parser {
     fn current_type_prefix_keyword_without_operand_is_value_identifier(&mut self) -> bool {
         let keyword = self.current_keyword();
         let is_contextual_type_prefix = matches!(keyword, Some(Keyword::Keyof | Keyword::Readonly))
-            || self.language.is_destack()
-                && matches!(keyword, Some(Keyword::Local | Keyword::Shared));
+            || matches!(keyword, Some(Keyword::Local | Keyword::Shared));
         if !is_contextual_type_prefix {
             return false;
         }
@@ -502,22 +482,6 @@ impl Parser {
         !next_token_can_start_operand
     }
 
-    /// Parse keyword expression dispatch.
-    ///
-    /// Examples:
-    /// ```ds
-    /// if value {}
-    /// return value
-    /// match value { case => result }
-    /// ```
-    pub(crate) fn eat_keyword_expression(
-        &mut self,
-        start: &ParserSpanStart,
-        keyword: Keyword,
-    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        self.eat_keyword_expression_with_header(start, keyword, DeclarationHeader::default())
-    }
-
     /// Parse keyword expression dispatch with a declaration header.
     ///
     /// Examples:
@@ -526,7 +490,7 @@ impl Parser {
     /// export class Value {}
     /// declare namespace Value {}
     /// ```
-    pub(in crate::parse::expression) fn eat_keyword_expression_with_header(
+    pub(crate) fn eat_keyword_expression(
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
@@ -606,10 +570,10 @@ impl Parser {
                 }
             }
             Keyword::For => self.eat_for().map(Some),
-            Keyword::Loop if self.language.is_destack() => self.eat_loop().map(Some),
+            Keyword::Loop => self.eat_loop().map(Some),
             Keyword::Try => self.eat_try().map(Some),
             Keyword::Switch => self.eat_match().map(Some),
-            Keyword::Match if self.language.is_destack() => self.eat_match().map(Some),
+            Keyword::Match => self.eat_match().map(Some),
             Keyword::Break => self.eat_break().map(Some),
             Keyword::Continue => self.eat_continue().map(Some),
             Keyword::Throw => self.eat_throw().map(Some),
@@ -622,7 +586,7 @@ impl Parser {
                 Err(ParserError::unexpected(self.peek()))
             }
             Keyword::Await => self.eat_await().map(Some),
-            Keyword::Comptime if self.language.is_destack() => self.eat_comptime().map(Some),
+            Keyword::Comptime => self.eat_comptime().map(Some),
             _ => Ok(None),
         }
     }

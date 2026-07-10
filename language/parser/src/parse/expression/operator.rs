@@ -106,10 +106,6 @@ impl Parser {
         }
 
         let operator = UnaryOperator::from_prefix_token(token_type)?;
-        if operator == UnaryOperator::Dereference && !self.language.is_destack() {
-            return None;
-        }
-
         Some(operator)
     }
 
@@ -134,17 +130,12 @@ impl Parser {
     pub(in crate::parse::expression) fn current_infix_operator_maybe(
         &self,
     ) -> Option<CurrentExpressionInfixOperator> {
-        Self::infix_operator_from_token(
-            self.language.is_destack(),
-            self.current_token().ty(),
-            self.current_token().keyword(),
-        )
+        Self::infix_operator_from_token(self.current_token().ty(), self.current_token().keyword())
     }
 
     /// Return a parser infix operator for one token and optional keyword.
     #[inline]
     fn infix_operator_from_token(
-        is_destack: bool,
         token_type: TokenType,
         keyword: Option<Keyword>,
     ) -> Option<CurrentExpressionInfixOperator> {
@@ -156,7 +147,7 @@ impl Parser {
             });
         }
 
-        if is_destack && token_type == TokenType::Range {
+        if token_type == TokenType::Range {
             return Some(CurrentExpressionInfixOperator {
                 operator: ExpressionInfixOperator::Range(RangeEnd::Open),
                 precedence: OperatorPrecedence::Range as u16,
@@ -164,7 +155,7 @@ impl Parser {
             });
         }
 
-        if is_destack && token_type == TokenType::RangeInclusive {
+        if token_type == TokenType::RangeInclusive {
             return Some(CurrentExpressionInfixOperator {
                 operator: ExpressionInfixOperator::Range(RangeEnd::Inclusive),
                 precedence: OperatorPrecedence::Range as u16,

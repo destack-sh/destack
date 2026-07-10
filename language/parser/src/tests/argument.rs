@@ -5,7 +5,7 @@ use destack_dir::{
     Pattern, PatternField, ScalarLiteral, TokenType, TreeAttribute, TreeAttributeValue,
     TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
+use destack_source::{NodeSpanBoundary, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_path,
@@ -90,9 +90,8 @@ fn test_parse_parameter_missing_type_expression() {
 
 #[test]
 fn test_parse_parameter_default_async_lambda_with_await_body() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "loadFonts: () => Promise<void> = async () => { await Fonts.loadElementsFonts(elements); }",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
@@ -148,25 +147,12 @@ fn test_parse_parameter_with_pattern_and_defaults() {
 #[test]
 fn test_parse_parameter_optional_pattern() {
     // []? optional pattern parameter
-    let mut test = TestParser::new_with_language("[]?", LanguageType::TypeScript);
+    let mut test = TestParser::new("[]?");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, is_optional, .. } => {
         assert!(*is_optional);
         assert_node!(parser.tree, *pattern, Pattern::Sequence { .. } => {});
-    });
-}
-
-#[test]
-fn test_parse_parameter_underscore_name() {
-    // _ in TypeScript parameters is a normal name
-    let mut test = TestParser::new_with_language("_", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let parameter_id = parser.eat_parameter().unwrap();
-    assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
-        assert_string!(parser, *name, "_");
-        assert!(declared_type.is_none());
-        assert!(default.is_none());
     });
 }
 
@@ -197,7 +183,7 @@ fn test_parse_parameter_variadic_with_type() {
 #[test]
 fn test_parse_parameter_optional_variadic() {
     // ...args? optional rest parameter
-    let mut test = TestParser::new_with_language("...args?", LanguageType::TypeScript);
+    let mut test = TestParser::new("...args?");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::VariadicNamed { name, .. } => {
@@ -231,7 +217,7 @@ fn test_parse_parameter_variadic_tuple_name() {
 #[test]
 fn test_parse_parameter_variadic_array_pattern() {
     // ...[first, second]
-    let mut test = TestParser::new_with_language("...[first, second]", LanguageType::TypeScript);
+    let mut test = TestParser::new("...[first, second]");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -245,10 +231,7 @@ fn test_parse_parameter_variadic_array_pattern() {
 #[test]
 fn test_parse_parameter_variadic_array_pattern_with_type() {
     // ...[body, init]: ConstructorParameters<typeof Response>
-    let mut test = TestParser::new_with_language(
-        "...[body, init]: ConstructorParameters<typeof Response>",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("...[body, init]: ConstructorParameters<typeof Response>");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -287,12 +270,11 @@ fn test_parse_parameter_variadic_array_pattern_with_type() {
 #[test]
 fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults() {
     // ...[src, { id, systemId, input, syncSnapshot = false } = {} as any]: SpawnArguments<...>
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"...[
     src,
     { id, systemId, input, syncSnapshot = false } = {} as any
 ]: SpawnArguments<TContext, TExpressionEvent, TEvent, TActor>"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
@@ -347,7 +329,7 @@ fn test_parse_parameter_variadic_array_pattern_with_nested_object_and_defaults()
 #[test]
 fn test_parse_parameter_variadic_object_pattern() {
     // ...{ value: alias }
-    let mut test = TestParser::new_with_language("...{ value: alias }", LanguageType::TypeScript);
+    let mut test = TestParser::new("...{ value: alias }");
     let mut parser = test.prepare();
     let parameter_id = parser.eat_parameter().unwrap();
     assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
@@ -373,13 +355,12 @@ fn test_parse_parameter_multiline() {
 
 #[test]
 fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"<
   Return extends ReturnType<onRequestHookHandler<RawServer>>
     | ReturnType<onRequestAsyncHookHandler<RawServer>>
     = ReturnType<onRequestHookHandler<RawServer>>
 >"#,
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let generic_parameters = parser.eat_generic_parameters(true).unwrap();
@@ -457,10 +438,7 @@ fn test_parse_generic_parameters_multiline_union_constraint_with_default() {
 
 #[test]
 fn test_parse_generic_parameters_default_before_shifted_close() {
-    let mut test = TestParser::new_with_language(
-        "<Union, LastElement = LastOf<Union>>",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("<Union, LastElement = LastOf<Union>>");
     let mut parser = test.prepare();
     let generic_parameters = parser.eat_generic_parameters(true).unwrap();
 
@@ -568,8 +546,7 @@ fn test_parse_generic_arguments_explicit_type_argument() {
 #[test]
 fn test_parse_generic_arguments_object_shape_prefers_type_in_type_context() {
     // <{ name: "alpha"; count: 1 }>
-    let mut test =
-        TestParser::new_with_language(r#"<{ name: "alpha"; count: 1 }>"#, LanguageType::Destack);
+    let mut test = TestParser::new(r#"<{ name: "alpha"; count: 1 }>"#);
     let mut parser = test.prepare();
     parser.flags.set_in_type(true);
     let arguments = parser.eat_generic_arguments().unwrap();
@@ -614,7 +591,7 @@ fn test_parse_generic_arguments_empty_in_type_context_recovers_error_slot() {
 #[test]
 fn test_parse_generic_arguments_first_value_with_boundary_comment() {
     let source = "<\n  // first-type-arg\n  string | number\n>";
-    let mut test = TestParser::new_with_language(source, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     parser.flags.set_in_type(true);
     let arguments = parser.eat_generic_arguments().unwrap();
@@ -631,7 +608,7 @@ fn test_parse_generic_arguments_first_value_with_boundary_comment() {
 #[test]
 fn test_parse_generic_arguments_following_value_with_boundary_comment() {
     let source = "<string,\n  // second-type-arg\n  number>";
-    let mut test = TestParser::new_with_language(source, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(source);
     let mut parser = test.prepare();
     parser.flags.set_in_type(true);
     let arguments = parser.eat_generic_arguments().unwrap();
@@ -648,7 +625,7 @@ fn test_parse_generic_arguments_following_value_with_boundary_comment() {
 #[test]
 fn test_report_generic_arguments_missing_close_angle_in_value_context() {
     // <string, number
-    let mut test = TestParser::new_with_language("<string, number", LanguageType::TypeScript);
+    let mut test = TestParser::new("<string, number");
     let mut parser = test.prepare();
     let error = parser.eat_generic_arguments().unwrap_err();
 
@@ -658,7 +635,7 @@ fn test_report_generic_arguments_missing_close_angle_in_value_context() {
 #[test]
 fn test_parse_spread_type_generic_argument() {
     // <...T>
-    let mut test = TestParser::new_with_language("<...T>", LanguageType::Destack);
+    let mut test = TestParser::new("<...T>");
     let mut parser = test.prepare();
     parser.flags.set_in_type(true);
     let arguments = parser.eat_generic_arguments().unwrap();
@@ -677,7 +654,7 @@ fn test_parse_spread_type_generic_argument() {
 #[test]
 fn test_parse_spread_value_generic_argument() {
     // <...1 + 2>
-    let mut test = TestParser::new_with_language("<...1 + 2>", LanguageType::Destack);
+    let mut test = TestParser::new("<...1 + 2>");
     let mut parser = test.prepare();
     let arguments = parser.eat_generic_arguments().unwrap();
 
@@ -700,7 +677,7 @@ fn test_parse_spread_value_generic_argument() {
 #[test]
 fn test_parse_variadic_type_generic_parameter() {
     // <...Parameters, Return>
-    let mut test = TestParser::new_with_language("<...Parameters, Return>", LanguageType::Destack);
+    let mut test = TestParser::new("<...Parameters, Return>");
     let mut parser = test.prepare();
     let parameters = parser.eat_generic_parameters(true).unwrap();
 
@@ -722,10 +699,7 @@ fn test_parse_variadic_type_generic_parameter() {
 #[test]
 fn test_parse_variadic_value_generic_parameter() {
     // <comptime ...Shape: readonly usize[]>
-    let mut test = TestParser::new_with_language(
-        "<comptime ...Shape: readonly usize[]>",
-        LanguageType::Destack,
-    );
+    let mut test = TestParser::new("<comptime ...Shape: readonly usize[]>");
     let mut parser = test.prepare();
     let parameters = parser.eat_generic_parameters(true).unwrap();
 
@@ -805,7 +779,7 @@ fn test_parse_comptime_modifier_allows_block_line_break() {
     assert!(parser.peek_is(TokenType::OpenBrace));
 }
 
-/// Parse TypeScript parameter decorators in constructors and methods.
+/// Parse parameter decorators in constructors and methods.
 #[test]
 fn test_parse_parameter_decorators() {
     let input = r#"
@@ -815,7 +789,7 @@ class Test {
     method(@p1 t1, @p1 @p2 ...t2) {}
 }
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -910,7 +884,7 @@ class Test {
     constructor(value: string, count = 0, ...items: Item[]) {}
 }
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -997,10 +971,7 @@ fn test_parse_named_argument_string_literal_value() {
 /// Decode valid HTML entities in quoted tree attribute strings.
 #[test]
 fn test_parse_tree_attribute_string_decodes_html_entities() {
-    let mut test = TestParser::new_with_language(
-        "title=\"A&nbsp;&amp;&#160;&#xA0;B\"",
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new("title=\"A&nbsp;&amp;&#160;&#xA0;B\"");
     let mut parser = test.prepare();
     let argument_id = parser.eat_tree_attribute().unwrap();
 
@@ -1013,8 +984,7 @@ fn test_parse_tree_attribute_string_decodes_html_entities() {
 /// Preserve invalid HTML entities in quoted tree attribute strings.
 #[test]
 fn test_parse_tree_attribute_string_preserves_invalid_html_entities() {
-    let mut test =
-        TestParser::new_with_language("title=\"A&missing;B&amp;C\"", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("title=\"A&missing;B&amp;C\"");
     let mut parser = test.prepare();
     let argument_id = parser.eat_tree_attribute().unwrap();
 
@@ -1026,10 +996,8 @@ fn test_parse_tree_attribute_string_preserves_invalid_html_entities() {
 
 #[test]
 fn test_parse_named_argument_with_newline_before_assign_before_tree() {
-    let mut test = TestParser::new_with_language(
-        "onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }",
-        LanguageType::TypeScriptXml,
-    );
+    let mut test =
+        TestParser::new("onBroadcastSelected\n    = { this._onYouTubeBroadcastIDSelected }");
     let mut parser = test.prepare();
     let argument_id = parser.eat_tree_attribute().unwrap();
 
@@ -1044,7 +1012,7 @@ fn test_parse_named_argument_with_newline_before_assign_before_tree() {
 
 #[test]
 fn test_parse_named_argument_with_numeric_kebab_segment() {
-    let mut test = TestParser::new_with_language("panose-1=\"test\"", LanguageType::TypeScript);
+    let mut test = TestParser::new("panose-1=\"test\"");
     let mut parser = test.prepare();
     let argument_id = parser.eat_tree_attribute().unwrap();
     assert_node!(parser.tree, argument_id, TreeAttribute::Named { name: Name::Identifier(name), value: Some(TreeAttributeValue::String(string)) } => {
@@ -1055,9 +1023,8 @@ fn test_parse_named_argument_with_numeric_kebab_segment() {
 
 #[test]
 fn test_parse_named_argument_with_double_hyphen_kebab_segment() {
-    let mut test = TestParser::new_with_language(
-        "data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? 'add' : 'remove'}",
-        LanguageType::TypeScriptXml,
+    let mut test = TestParser::new(
+        r#"data-nextjs-container-errors-pseudo-html--diff={sign === '+' ? "add" : "remove"}"#,
     );
     let mut parser = test.prepare();
     let argument_id = parser.eat_tree_attribute().unwrap();
@@ -1287,7 +1254,7 @@ fn test_parse_dynamic_arguments_recover_leading_empty_slots() {
 
 #[test]
 fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
-    let mut test = TestParser::new_with_language("foo(a,b;", LanguageType::JavaScript);
+    let mut test = TestParser::new("foo(a,b;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1312,7 +1279,7 @@ fn test_parse_malformed_call_statement_missing_close_keeps_call_shape() {
 
 #[test]
 fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
-    let mut test = TestParser::new_with_language("foo(a,b const;", LanguageType::JavaScript);
+    let mut test = TestParser::new("foo(a,b const;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1347,7 +1314,7 @@ fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
 
 #[test]
 fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape() {
-    let mut test = TestParser::new_with_language("foo (,,b);", LanguageType::JavaScript);
+    let mut test = TestParser::new("foo (,,b);");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1372,7 +1339,7 @@ fn test_parse_malformed_call_statement_with_leading_empty_slots_keeps_call_shape
 
 #[test]
 fn test_parse_malformed_call_statement_with_trailing_spread_keeps_call_shape() {
-    let mut test = TestParser::new_with_language("foo (a, ...);", LanguageType::JavaScript);
+    let mut test = TestParser::new("foo (a, ...);");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1397,7 +1364,7 @@ fn test_parse_malformed_call_before_empty_slots_call_preserves_following_stateme
 foo(a,b const;
 foo (,,b);
 "#;
-    let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1447,7 +1414,7 @@ fn test_parse_malformed_call_before_trailing_spread_call_preserves_following_sta
 foo(a,b const;
 foo (a, ...);
 "#;
-    let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1496,7 +1463,7 @@ fn test_parse_malformed_call_with_empty_slot_before_following_call_keeps_stateme
 foo(,
 bar();
 "#;
-    let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1536,7 +1503,7 @@ fn test_parse_malformed_call_with_empty_slot_before_following_const_keeps_statem
 foo(,
 const value = 1;
 "#;
-    let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
+    let mut test = TestParser::new(source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -1588,8 +1555,7 @@ fn test_parse_spread_argument() {
 #[test]
 fn test_parse_spread_argument_with_doc_block_comment_newline() {
     // .../** comment */\nargs
-    let mut test =
-        TestParser::new_with_language(".../** comment */\nargs", LanguageType::JavaScript);
+    let mut test = TestParser::new(".../** comment */\nargs");
     let mut parser = test.prepare();
     let argument_id = parser.eat_positional_argument().unwrap();
 
@@ -1603,12 +1569,10 @@ fn test_parse_spread_argument_with_doc_block_comment_newline() {
 
 #[test]
 fn test_parse_type_tuple_spread_label_element() {
-    let mut test = TestParser::new("[...args: number]");
+    let mut test = TestParser::new("(...args: number)");
     let mut parser = test.prepare();
-    parser.eat_token(TokenType::OpenBracket).unwrap();
-    let elements = parser
-        .eat_type_tuple_elements_body(TokenType::CloseBracket)
-        .unwrap();
+    parser.eat_token(TokenType::OpenParenthesis).unwrap();
+    let elements = parser.eat_type_tuple_elements_body().unwrap();
 
     assert_eq!(elements.len(), 1);
     assert_node!(parser.tree, elements[0], TupleElement::Spread { label, value } => {
@@ -1619,12 +1583,10 @@ fn test_parse_type_tuple_spread_label_element() {
 
 #[test]
 fn test_parse_type_tuple_label_element_span() {
-    let mut test = TestParser::new("[label: number]");
+    let mut test = TestParser::new("(label: number)");
     let mut parser = test.prepare();
-    parser.eat_token(TokenType::OpenBracket).unwrap();
-    let elements = parser
-        .eat_type_tuple_elements_body(TokenType::CloseBracket)
-        .unwrap();
+    parser.eat_token(TokenType::OpenParenthesis).unwrap();
+    let elements = parser.eat_type_tuple_elements_body().unwrap();
 
     assert_eq!(elements.len(), 1);
     assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
@@ -1637,12 +1599,10 @@ fn test_parse_type_tuple_label_element_span() {
 
 #[test]
 fn test_parse_type_tuple_label_element_multiline_union_type() {
-    let mut test = TestParser::new("[options?:\n  | SkipToken\n  | OtherOption]");
+    let mut test = TestParser::new("(options?:\n  | SkipToken\n  | OtherOption)");
     let mut parser = test.prepare();
-    parser.eat_token(TokenType::OpenBracket).unwrap();
-    let elements = parser
-        .eat_type_tuple_elements_body(TokenType::CloseBracket)
-        .unwrap();
+    parser.eat_token(TokenType::OpenParenthesis).unwrap();
+    let elements = parser.eat_type_tuple_elements_body().unwrap();
 
     assert_eq!(elements.len(), 1);
     assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
@@ -1659,9 +1619,8 @@ fn test_parse_type_tuple_label_element_multiline_union_type() {
 
 #[test]
 fn test_parse_generic_arguments_with_nested_generics_and_union() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "<keyof ServerReservedEventsMap<never, never, never, never> | keyof NamespaceReservedEventsMap<never, never, never, never>>",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let generic_arguments = parser.eat_generic_arguments().unwrap();
@@ -1678,10 +1637,7 @@ fn test_parse_generic_arguments_with_nested_generics_and_union() {
 
 #[test]
 fn test_parse_associated_generic_refinements() {
-    let mut test = TestParser::new_with_language(
-        "<type Item = uint8, comptime Width = 16>",
-        LanguageType::Destack,
-    );
+    let mut test = TestParser::new("<type Item = uint8, comptime Width = 16>");
     let mut parser = test.prepare();
     let generic_arguments = parser.eat_generic_arguments().unwrap();
 

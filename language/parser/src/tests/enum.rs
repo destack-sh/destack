@@ -3,7 +3,7 @@ use destack_dir::{
     Expression, GenericParameter, NodeType, PlaceModifier, ScalarLiteral, TokenType,
     TypeExpression, WhereClause,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
@@ -74,12 +74,11 @@ fn test_parse_local_const_enum_declaration() {
 
 #[test]
 fn test_parse_recovers_enum_without_body() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 enum;
 enum A;
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();

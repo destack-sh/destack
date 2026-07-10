@@ -2,7 +2,7 @@ use destack_dir::{
     BinaryOperator, Block, CommentKind, ConditionOperand, Declaration, Declarator, Expression,
     FunctionDeclaration, FunctionForm, LetKind, Mutability, Pattern, PatternField, ScalarLiteral,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_string,
@@ -128,27 +128,6 @@ fn test_parse_if_parenthesized_condition_keeps_inner_span() {
         let condition_text = &parser.file.text()
             [condition_span.start as usize..condition_span.end as usize];
         assert_eq!(condition_text, "cond");
-    });
-}
-
-#[test]
-fn test_parse_if_empty_statement() {
-    let mut test = TestParser::new_with_language("if (cond);", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    // if (cond);
-    let if_id = parser.eat_if().unwrap();
-    assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
-        // cond
-        let condition_id = condition.as_expression().expect("expected expression condition");
-        assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
-        // empty then block
-        assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
-            assert_node!(parser.tree, *block_id, Block { .. } => {
-                let expressions = block_expression_ids(parser.tree.get(*block_id));
-                assert!(expressions.is_empty());
-            });
-        });
     });
 }
 
@@ -467,7 +446,7 @@ else
 
 #[test]
 fn test_parse_if_else_with_typed_parenthesized_arrow_statement() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 if (payments) res.status(200).json({ payments });
 else
@@ -477,7 +456,6 @@ else
       error,
     });
 "###,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -674,8 +652,7 @@ fn test_parse_if_condition_chain_after_comparison() {
 
 #[test]
 fn test_parse_if_head_trailing_comment_on_condition_owner() {
-    let mut test =
-        TestParser::new_with_language("if (ready) // if-head\n    run()", LanguageType::TypeScript);
+    let mut test = TestParser::new("if (ready) // if-head\n    run()");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -711,10 +688,8 @@ fn test_parse_if_head_trailing_comment_on_condition_owner() {
 
 #[test]
 fn test_parse_if_else_boundary_comment_on_else_owner() {
-    let mut test = TestParser::new_with_language(
-        "if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n",
-        LanguageType::TypeScript,
-    );
+    let mut test =
+        TestParser::new("if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -739,7 +714,7 @@ fn test_parse_if_else_boundary_comment_on_else_owner() {
 #[test]
 fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
     let input = "if (foo) a = b;\n/* foo */ else foo.split;";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -754,7 +729,7 @@ fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
 #[test]
 fn test_parse_if_else_after_then_semicolon_with_trailing_boundary_comment() {
     let input = "if (foo) a = b;\nelse /* foo */ foo.split;";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 

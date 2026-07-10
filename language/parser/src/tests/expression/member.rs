@@ -4,55 +4,12 @@ use crate::{
     assert_value_expression_path,
 };
 use destack_dir::{
-    Argument, CommentKind, Expression, Key, Name, PostfixPosition, Property, RangeEnd,
-    ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
+    Argument, CommentKind, Expression, PostfixPosition, RangeEnd, ScalarLiteral, TokenType,
+    TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
-
-#[test]
-fn test_parse_keyword_and_private_member_expressions() {
-    let input = r#"
-foo.bar
-foo.await
-foo.yield
-foo.for
-foo?.for
-foo?.bar
-class Test {
-  #bar
-  test(other) {
-    this.#bar;
-    this?.#bar;
-    other.#bar;
-    other?.#bar;
-  }
-}
-"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let expressions = parser.parse();
-    test.assert_no_errors(&parser);
-
-    assert_eq!(expressions.len(), 7);
-    for expression in &expressions[..6] {
-        assert!(
-            matches!(
-                parser.tree.get(*expression),
-                Expression::Member { .. }
-                    | Expression::PrivateMember { .. }
-                    | Expression::Maybe { .. }
-            ),
-            "expected member expression, got {:?}",
-            parser.tree.get(*expression)
-        );
-    }
-    assert_node!(parser.tree, expressions[6], Expression::Declaration(_));
-}
-
-/// Parse a dotted value reference as a runtime member chain.
 #[test]
 fn test_parse_member_expression_as_member_chain() {
-    let mut test = TestParser::new_with_language("foo.bar", LanguageType::TypeScript);
+    let mut test = TestParser::new("foo.bar");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -73,7 +30,7 @@ keyof.nested.ok satisfies string;
 readonly.nested.ok satisfies number;
 shared?.nested.ok satisfies boolean;
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::Destack);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -110,7 +67,7 @@ shared?.nested.ok satisfies boolean;
 /// Parse super member access.
 #[test]
 fn test_parse_super_member_expression() {
-    let mut test = TestParser::new_with_language("super.value", LanguageType::TypeScript);
+    let mut test = TestParser::new("super.value");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -123,7 +80,7 @@ fn test_parse_super_member_expression() {
 
 #[test]
 fn test_parse_member_expression_with_newline_after_dot() {
-    let mut test = TestParser::new_with_language("receiver.\nnext", LanguageType::TypeScript);
+    let mut test = TestParser::new("receiver.\nnext");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -136,8 +93,7 @@ fn test_parse_member_expression_with_newline_after_dot() {
 
 #[test]
 fn test_parse_call_chain_with_newline_after_dot() {
-    let mut test =
-        TestParser::new_with_language("receiver().\nthen(value)", LanguageType::TypeScript);
+    let mut test = TestParser::new("receiver().\nthen(value)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -162,10 +118,7 @@ fn test_parse_call_chain_with_newline_after_dot() {
 /// Keep member-hop boundary comments on the hop owner expressions.
 #[test]
 fn test_parse_member_hop_comments_attach_to_boundary_owners() {
-    let mut test = TestParser::new_with_language(
-        "source /* hop-a */ .first() /* hop-b */ .second()",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("source /* hop-a */ .first() /* hop-b */ .second()");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -218,10 +171,7 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
 /// Attach call-boundary comments to the call separator owner.
 #[test]
 fn test_parse_call_boundary_comment_attaches_to_call_separator() {
-    let mut test = TestParser::new_with_language(
-        "run /* callee-note */ (first, second)",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("run /* callee-note */ (first, second)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -232,33 +182,8 @@ fn test_parse_call_boundary_comment_attaches_to_call_separator() {
 }
 
 #[test]
-fn test_parse_private_member_expression_with_newline_before_dot() {
-    let mut test = TestParser::new_with_language("this\n.#value", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name } => {
-        assert_node!(parser.tree, *left, Expression::This);
-        assert_string!(parser, *name, "value");
-    });
-}
-
-#[test]
-fn test_report_destack_private_member_expression() {
-    let mut test = TestParser::new("this.#value");
-    let mut parser = test.prepare();
-
-    let error = parser.eat_expression(parser.flags).unwrap_err();
-    assert_eq!(parser.get_span_str(error.span), "#");
-}
-
-#[test]
 fn test_parse_member_expression_with_line_comment_before_dot() {
-    let mut test = TestParser::new_with_language(
-        "container // marker\n.left as PropertyAccessExpression",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("container // marker\n.left as PropertyAccessExpression");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -302,9 +227,8 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
 /// Keep full-function line comments before member dots attached to the dot boundary.
 #[test]
 fn test_parse_function_member_comment_boundary_before_dot() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "function f(container) { return ((container // marker\n.left as PropertyAccessExpression).expression as PropertyAccessExpression).expression; }",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let _ = parser.eat_expression(parser.flags).unwrap();
@@ -337,9 +261,8 @@ fn test_parse_function_member_comment_boundary_before_dot() {
 /// Attach block comments before member continuations to the dot boundary.
 #[test]
 fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "(activeService as unknown as QuickInputController) /* boundary note */ .pick()",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let _ = parser.eat_expression(parser.flags).unwrap();
@@ -363,46 +286,12 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
 }
 
 #[test]
-fn test_parse_object_property_private_member_cast_with_newline_before_dot() {
-    let mut test = TestParser::new_with_language(
-        "({ value: this\n.#javascriptTransformer as unknown as JavaScriptTransformer })",
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_no_errors(&parser);
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
-        assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
-            assert_eq!(properties.len(), 1);
-            assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-                assert_string!(parser, *name, "value");
-                assert_node!(parser.tree, *value, Expression::As { expression, target_type } => {
-                    assert_node!(parser.tree, *expression, Expression::As { expression, target_type } => {
-                        assert_node!(parser.tree, *expression, Expression::PrivateMember { left, name } => {
-                            assert_node!(parser.tree, *left, Expression::This);
-                            assert_string!(parser, *name, "javascriptTransformer");
-                        });
-                        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
-                            assert_eq!(*value, TypeLiteral::Unknown);
-                        });
-                    });
-                    assert_expression_path!(parser, parser.tree.get(*target_type), "JavaScriptTransformer");
-                });
-            });
-        });
-    });
-}
-
-#[test]
 fn test_report_decimal_integer_member_access_without_separator() {
-    for language in [LanguageType::Destack, LanguageType::TypeScript] {
-        let mut test = TestParser::new_with_language("1.foo", language);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.flags).unwrap_err();
+    let mut test = TestParser::new("1.foo");
+    let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
 
-        assert_eq!(parser.get_span_str(error.span), ".");
-    }
+    assert_eq!(parser.get_span_str(error.span), ".");
 }
 
 #[test]
@@ -420,45 +309,8 @@ fn test_parse_parenthesized_integer_member_access() {
 }
 
 #[test]
-fn test_parse_double_dot_member_access_after_numeric_literal() {
-    let mut test = TestParser::new_with_language("0..value", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
-        assert_string!(parser, *name, "value");
-        assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
-            assert_eq!(*value, 0.0);
-        });
-    });
-}
-
-#[test]
-fn test_parse_double_dot_member_call_after_numeric_literal() {
-    for language in [LanguageType::JavaScript, LanguageType::TypeScript] {
-        let mut test = TestParser::new_with_language("123..a(1)", language);
-        let mut parser = test.prepare();
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-        assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
-            assert_eq!(arguments.len(), 1);
-            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
-            });
-
-            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
-                assert_string!(parser, *name, "a");
-                assert_node!(parser.tree, *left, Expression::ScalarLiteral(ScalarLiteral::Float(value)) => {
-                    assert_eq!(*value, 123.0);
-                });
-            });
-        });
-    }
-}
-
-#[test]
 fn test_parse_destack_double_dot_as_range() {
-    let mut test = TestParser::new_with_language("0..a", LanguageType::Destack);
+    let mut test = TestParser::new("0..a");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -472,22 +324,9 @@ fn test_parse_destack_double_dot_as_range() {
         });
     });
 }
-
-#[test]
-fn test_report_hex_integer_member_separator() {
-    let mut test = TestParser::new_with_language("0x1..a", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let _ = parser.parse();
-
-    // parser should not reinterpret `..` as a decimal separator for non-decimal integers
-    assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_span_str(parser.errors[0].span), "0x1.");
-}
-
-/// Parse this member access in variant context.
 #[test]
 fn test_parse_this_member_expression_in_variant_context() {
-    let mut test = TestParser::new_with_language("this.port1.onmessage", LanguageType::TypeScript);
+    let mut test = TestParser::new("this.port1.onmessage");
     let mut parser = test.prepare();
     parser.flags = parser.flags.in_variant();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -505,10 +344,7 @@ fn test_parse_this_member_expression_in_variant_context() {
 /// Parse this member access in call arguments in variant context.
 #[test]
 fn test_parse_call_argument_this_member_expression_in_variant_context() {
-    let mut test = TestParser::new_with_language(
-        "setTimeout(this.port1.onmessage, 0)",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("setTimeout(this.port1.onmessage, 0)");
     let mut parser = test.prepare();
     parser.flags = parser.flags.in_variant();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -554,7 +390,7 @@ self
 /// Parse boolean IdentifierName member access.
 #[test]
 fn test_parse_member_boolean_identifier_name() {
-    let mut test = TestParser::new_with_language("a.true", LanguageType::JavaScript);
+    let mut test = TestParser::new("a.true");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -566,7 +402,7 @@ fn test_parse_member_boolean_identifier_name() {
 /// Parse null IdentifierName path access.
 #[test]
 fn test_parse_path_null_identifier_name() {
-    let mut test = TestParser::new_with_language("a.null", LanguageType::JavaScript);
+    let mut test = TestParser::new("a.null");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -581,10 +417,7 @@ fn test_parse_path_null_identifier_name() {
 /// Parse default IdentifierName member access.
 #[test]
 fn test_parse_member_default_identifier_name_after_parenthesized_await_call() {
-    let mut test = TestParser::new_with_language(
-        r#"(await load(join("file://", process.argv[2]))).default"#,
-        LanguageType::JavaScript,
-    );
+    let mut test = TestParser::new(r#"(await load(join("file://", process.argv[2]))).default"#);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 

@@ -30,10 +30,6 @@ impl Parser {
         let mut items = Vec::new();
         let mut expects_item = true;
 
-        // newline alone only separates heritage items in block-value mode
-        let allow_newline_separator =
-            !(self.language.is_javascript() || self.language.is_typescript());
-
         while self.has_more_tokens() {
             // clause boundary
             if self.is_super_clause_terminator(terminators) {
@@ -52,9 +48,6 @@ impl Parser {
                     break;
                 }
 
-                if !allow_newline_separator && !expects_item {
-                    return Err(ParserError::unexpected(self.peek()));
-                }
                 if !expects_item {
                     expects_item = true;
                 }

@@ -142,8 +142,7 @@ impl Parser {
                 return Err(ParserError::unexpected(self.peek()));
             }
 
-            let value =
-                self.eat_expression(self.flags.not_in_position().not_in_sequence_expression())?;
+            let value = self.eat_expression(self.flags.not_in_position())?;
             let item = self.insert_node(
                 DependencyItem::Binding {
                     binding: DependencyBinding::Default,

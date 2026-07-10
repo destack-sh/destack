@@ -11,8 +11,6 @@ pub(crate) struct ExpressionScope {
     pub(super) flags: ParserFlags,
     /// The minimum infix precedence accepted here.
     pub(super) minimum_precedence: Option<u16>,
-    /// Whether sequence expressions may be parsed.
-    pub(super) allows_sequence: bool,
     /// Whether the expression is parsed in statement position.
     pub(super) is_statement_position: bool,
     /// Whether `:` is owned by an outer ternary or match case.
@@ -60,7 +58,6 @@ impl ExpressionScope {
         Self {
             flags,
             minimum_precedence: None,
-            allows_sequence: flags.allows_sequence_expression(),
             is_statement_position: flags.is_in_statement_position(),
             owns_colon_boundary: flags.is_in_ternary_condition() || flags.is_in_match_case(),
             is_match_case_body: flags.is_in_match_case_body(),

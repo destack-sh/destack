@@ -1,13 +1,13 @@
 use super::{
-    LanguageType, TokenLiteral, TokenType, assert_tokenize_eq_roundtrip,
-    assert_tree_tokenize_eq_roundtrip, lex_source_with_tree_literals, token,
+    TokenLiteral, TokenType, assert_tokenize_eq_roundtrip, assert_tree_tokenize_eq_roundtrip,
+    lex_source_with_tree_literals, token,
 };
 
 /// Tree literals after type aliases should enter tree tokenization at the next tree expression.
 #[test]
 fn test_lex_tree_after_type_alias_before_tree() {
     let src = "type X = typeof Array\n<div>a</div>";
-    let (semantic_tokens, _, _) = lex_source_with_tree_literals(src, LanguageType::TypeScriptXml);
+    let (semantic_tokens, _, _) = lex_source_with_tree_literals(src);
     let tokens: Vec<_> = semantic_tokens
         .iter()
         .map(|token| (token.token.ty(), token.token.literal()))
@@ -364,7 +364,7 @@ fn test_lex_tree_invalid_html_entity_as_text() {
     );
 }
 
-/// HTML5 entities outside the TypeScript JSX set should remain tree string text.
+/// HTML5 entities outside the supported tree set should remain tree string text.
 #[test]
 fn test_lex_tree_html5_only_entity_as_text() {
     assert_tree_tokenize_eq_roundtrip!(
@@ -435,8 +435,7 @@ fn test_lex_tree_deeply_nested() {
     </B>
 </A>
 ";
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     let opens: Vec<_> = tokens
         .iter()
@@ -532,7 +531,7 @@ fn test_lex_tree_self_closing_after_nested_attribute_object_expression() {
     ),
   }}
 />"#;
-    let (tokens, _, _) = lex_source_with_tree_literals(input, LanguageType::TypeScriptXml);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
     let semantic_types: Vec<TokenType> = tokens
         .iter()
         .map(|token| token.token.ty())
@@ -555,8 +554,7 @@ fn test_lex_tree_self_closing_after_nested_attribute_object_expression() {
 #[test]
 fn test_lex_tree_in_nested_callbacks() {
     let input = r#"x.map((m) => (<>{y.map((p) => { switch (p) { case 'a': return (<div></div>); } })}</>))"#;
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     let open_parens = tokens
         .iter()
@@ -587,8 +585,7 @@ fn test_lex_tree_nested_multiline_with_text() {
 		})}
 	</>
 ))"#;
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // verify "Tool: " is lexed as TreeString
     let has_tool_tree_string = tokens.iter().any(|t| {
@@ -638,7 +635,7 @@ fn test_lex_tree_text_after_map_callback_blocks() {
     </Show>
   </button>
 </div>"#;
-    let (tokens, _, _) = lex_source_with_tree_literals(input, LanguageType::TypeScriptXml);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     let asc_token = tokens
         .iter()
@@ -675,8 +672,7 @@ fn test_lex_tree_sibling_after_expr_container() {
         <form></form>
     </div>
 )"#;
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // The `<form` should be recognized as a tree opening
     let form_start = input.find("<form").unwrap();
@@ -693,8 +689,7 @@ fn test_lex_tree_sibling_after_expr_container() {
 #[test]
 fn test_lex_tree_sibling_after_expr_container_tabs() {
     let input = "return (\n\t<div>\n\t\t{x.map(() => (<p></p>))}\n\t\t<form></form>\n\t</div>\n)";
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // The `<form` should be recognized as a tree opening
     let form_start = input.find("<form").unwrap();
@@ -711,8 +706,7 @@ fn test_lex_tree_sibling_after_expr_container_tabs() {
 #[test]
 fn test_lex_tree_multiline_form_after_expression_container() {
     let input = "<div>\n\t{x}\n\t<form\n\t\tonClick={() => {}}\n\t>\n\t</form>\n</div>";
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // The `<form` should be recognized as a tree opening
     let form_start = input.find("<form").unwrap();
@@ -750,8 +744,7 @@ fn test_lex_tree_after_nested_spread_attributes() {
               ]
             : []),
     ]"#;
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // The <E after && should be LessThan (tree opening), not a comparison
     let e_start = input.find("<E").unwrap();
@@ -767,8 +760,7 @@ fn test_lex_tree_after_nested_spread_attributes() {
 #[test]
 fn test_lex_tree_after_ternary_question() {
     let input = r#"a == b ? <>{y && <E />}</> : null"#;
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // Check that <> is recognized as tree fragment opening
     let fragment_start = input.find("<>").unwrap();
@@ -786,8 +778,7 @@ fn test_lex_tree_after_ternary_question() {
 #[test]
 fn test_lex_tree_fragment_text_after_logical_and() {
     let input = r#"<code>{value && <>x</>}</code>"#;
-    let language = LanguageType::TypeScriptXml;
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     let text_token = tokens
         .iter()
@@ -802,8 +793,7 @@ fn test_lex_tree_fragment_text_after_logical_and() {
 #[test]
 fn test_lex_tree_nested_in_attribute_expression() {
     let input = r#"<Outer title={<div><LemonButton icon={<IconLink />} /></div>} />"#;
-    let language = LanguageType::default();
-    let (tokens, _, _) = lex_source_with_tree_literals(input, language);
+    let (tokens, _, _) = lex_source_with_tree_literals(input);
 
     // After <IconLink />, the } should be CloseBrace (not TreeString)
     let close_brace_after_icon = tokens

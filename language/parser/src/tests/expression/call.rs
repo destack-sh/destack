@@ -2,7 +2,6 @@ use destack_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
     InferForm, LocalNodeId, NodeType, PostfixPosition, ScalarLiteral, TokenType, TypeExpression,
 };
-use destack_source::LanguageType;
 use std::fmt::Write;
 
 use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -85,21 +84,6 @@ fn test_parse_member_postfix_missing_name() {
 
     // foo.
     assert_node!(parser.tree, expression_id, Expression::Member { left, name: None } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "foo");
-    });
-}
-
-#[test]
-fn test_parse_private_member_postfix_missing_name() {
-    // foo.#
-    let mut test = TestParser::new_with_language("foo.#", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
-
-    // foo.#
-    assert_node!(parser.tree, expression_id, Expression::PrivateMember { left, name: None } => {
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
     });
 }
@@ -281,7 +265,7 @@ fn nested_call_source(depth: usize) -> String {
 #[test]
 fn test_parse_deeply_nested_call_expression() {
     let source = nested_call_source(1024);
-    let mut test = TestParser::new_with_language(&source, LanguageType::TypeScript);
+    let mut test = TestParser::new(&source);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -579,7 +563,7 @@ fn test_parse_new_with_arguments() {
 #[test]
 fn test_parse_new_type_arguments_before_if_keyword() {
     // new A<T> if (0);
-    let mut test = TestParser::new_with_language("new A<T> if (0);", LanguageType::TypeScript);
+    let mut test = TestParser::new("new A<T> if (0);");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -602,7 +586,7 @@ fn test_parse_new_type_arguments_before_if_keyword() {
 #[test]
 fn test_parse_new_type_arguments_without_parenthesized_call() {
     // new A<T>
-    let mut test = TestParser::new_with_language("new A<T>", LanguageType::TypeScript);
+    let mut test = TestParser::new("new A<T>");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -625,7 +609,7 @@ fn test_parse_new_type_arguments_without_parenthesized_call() {
 #[test]
 fn test_parse_new_type_arguments_with_spaces() {
     // new A < T >
-    let mut test = TestParser::new_with_language("new A < T >", LanguageType::TypeScript);
+    let mut test = TestParser::new("new A < T >");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -646,7 +630,7 @@ fn test_parse_new_type_arguments_with_spaces() {
 #[test]
 fn test_parse_new_multiple_type_arguments_with_spaces() {
     // new A < B, C >
-    let mut test = TestParser::new_with_language("new A < B, C >", LanguageType::TypeScript);
+    let mut test = TestParser::new("new A < B, C >");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -670,7 +654,7 @@ fn test_parse_new_multiple_type_arguments_with_spaces() {
 #[test]
 fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
     // f<< T > (()=>T) > T
-    let mut test = TestParser::new_with_language("f<< T > (()=>T) > T", LanguageType::TypeScript);
+    let mut test = TestParser::new("f<< T > (()=>T) > T");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -709,8 +693,7 @@ fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
 #[test]
 fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
     // new Type(...instances)
-    let mut test =
-        TestParser::new_with_language("new Type(...instances)", LanguageType::TypeScript);
+    let mut test = TestParser::new("new Type(...instances)");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -727,10 +710,7 @@ fn test_parse_new_with_type_identifier_receiver_and_spread_argument() {
 
 #[test]
 fn test_parse_new_parenthesized_cast_receiver_with_generic_arguments() {
-    let mut test = TestParser::new_with_language(
-        "new Promise<Foo>((resolve, reject) => {})",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("new Promise<Foo>((resolve, reject) => {})");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 

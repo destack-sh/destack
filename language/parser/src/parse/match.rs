@@ -359,7 +359,7 @@ impl Parser {
         // single expression
         else {
             let expression_id = self.with_flags(self.flags.in_match_case_body(), |parser| {
-                parser.eat_expression(parser.flags.not_in_sequence_expression())
+                parser.eat_expression(parser.flags)
             })?;
             let match_case_id = self.insert_node(
                 MatchCase::Expression {

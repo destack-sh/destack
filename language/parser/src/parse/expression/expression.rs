@@ -116,7 +116,7 @@ impl Parser {
 
         if self.is_global_identifier() && self.next_token_type() == TokenType::OpenBrace {
             let header = DeclarationHeader {
-                is_ambient: self.language.is_declaration(),
+                is_ambient: self.is_ambient,
                 ..DeclarationHeader::default()
             };
             let declaration = self.eat_global(start, header)?;
@@ -178,7 +178,7 @@ impl Parser {
         let left_expression_id = self.eat_conditional_rest(start, left_expression_id, scope)?;
         let left_expression_id = self.eat_assignment_rest(start, left_expression_id, scope)?;
 
-        self.eat_sequence_rest(start, left_expression_id, scope)
+        Ok(left_expression_id)
     }
 
     /// Eat one complete value expression.
@@ -187,7 +187,6 @@ impl Parser {
     /// ```ds
     /// left ? then : else
     /// target = value
-    /// first, second
     /// ```
     pub(super) fn eat_expression_body(
         &mut self,
@@ -201,7 +200,6 @@ impl Parser {
         };
 
         let expression_id = self.eat_assignment(&start, scope)?;
-        let expression_id = self.eat_sequence_rest(&start, expression_id, scope)?;
         let expression_id = self.wrap_decorated_default_export(&start, expression_id, &decorators);
         self.attach_pending_decorators_to_expression(&mut decorators, expression_id);
 
@@ -248,7 +246,7 @@ impl Parser {
             return true;
         }
 
-        if !self.language.is_destack() || self.flags.is_in_before_block() {
+        if self.flags.is_in_before_block() {
             return false;
         }
 
@@ -332,10 +330,6 @@ impl Parser {
             return false;
         }
 
-        if !self.language.is_destack() {
-            return next_token_type == TokenType::Identifier;
-        }
-
         matches!(
             next_token_type,
             TokenType::Identifier
@@ -366,10 +360,6 @@ impl Parser {
 
     /// Return whether current keyword starts a do-while statement.
     pub(crate) fn is_do_while_statement(&mut self, next_token_type: TokenType) -> bool {
-        if !self.language.is_destack() {
-            return true;
-        }
-
         if next_token_type != TokenType::OpenBrace {
             return false;
         }

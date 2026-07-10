@@ -7,9 +7,7 @@ pub(crate) struct ParserFlags {
 
 impl Default for ParserFlags {
     fn default() -> Self {
-        Self {
-            flags: Self::ALLOW_SEQUENCE_EXPRESSION_FLAG,
-        }
+        Self { flags: 0 }
     }
 }
 
@@ -19,7 +17,6 @@ impl ParserFlags {
         | Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG
         | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
         | Self::IN_ARROW_RETURN_TYPE_FLAG
-        | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG
         | Self::IN_MATCH_CASE_BODY_FLAG;
     const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
 
@@ -44,12 +41,9 @@ impl ParserFlags {
     const IN_GENERATOR_FLAG: u32 = 1 << 18;
     const FORBID_YIELD_FLAG: u32 = 1 << 19;
     const FORBID_AWAIT_FLAG: u32 = 1 << 20;
-    const ALLOW_SEQUENCE_EXPRESSION_FLAG: u32 = 1 << 21;
-    const ALLOW_PRIVATE_HASH_KEY_FLAG: u32 = 1 << 22;
-    const DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG: u32 = 1 << 23;
-    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 24;
-    const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 25;
-    const IN_DECORATOR_HEAD_FLAG: u32 = 1 << 26;
+    const DISALLOW_TYPE_CONDITIONAL_FLAG: u32 = 1 << 21;
+    const IN_MATCH_CASE_BODY_FLAG: u32 = 1 << 22;
+    const IN_DECORATOR_HEAD_FLAG: u32 = 1 << 23;
 
     #[inline]
     const fn has_flag(self, flag: u32) -> bool {
@@ -195,21 +189,6 @@ impl ParserFlags {
         self.has_flag(Self::FORBID_AWAIT_FLAG)
     }
 
-    #[inline]
-    pub(crate) const fn allows_sequence_expression(self) -> bool {
-        self.has_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn allows_private_hash_key(self) -> bool {
-        self.has_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn is_disallow_ambiguous_tree_literal(self) -> bool {
-        self.has_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG)
-    }
-
     /// Replace the hot expression-local portion of these flags.
     #[inline]
     pub(crate) fn with_expression_context(mut self, context: ParserFlags) -> Self {
@@ -284,16 +263,6 @@ impl ParserFlags {
         self.set_flag(Self::FORBID_AWAIT_FLAG, enabled);
     }
 
-    #[inline]
-    pub(crate) fn set_allow_sequence_expression(&mut self, enabled: bool) {
-        self.set_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, enabled);
-    }
-
-    #[inline]
-    pub(crate) fn set_disallow_ambiguous_tree_literal(&mut self, enabled: bool) {
-        self.set_flag(Self::DISALLOW_AMBIGUOUS_TREE_LITERAL_FLAG, enabled);
-    }
-
     /// Set `in_static` to the given value.
     #[inline]
     pub(crate) fn with_static(self, enabled: bool) -> Self {
@@ -363,18 +332,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn with_forbid_await(self, enabled: bool) -> Self {
         self.with_flag(Self::FORBID_AWAIT_FLAG, enabled)
-    }
-
-    /// Set `allow_sequence_expression` to the given value.
-    #[inline]
-    pub(crate) fn with_sequence_expression(self, enabled: bool) -> Self {
-        self.with_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, enabled)
-    }
-
-    /// Set `allow_private_hash_key` to the given value.
-    #[inline]
-    pub(crate) fn with_allow_private_hash_key(self, enabled: bool) -> Self {
-        self.with_flag(Self::ALLOW_PRIVATE_HASH_KEY_FLAG, enabled)
     }
 
     /// Set `in_static=true`.
@@ -535,12 +492,6 @@ impl ParserFlags {
         self.with_flag(Self::IN_DECORATOR_FLAG, false)
     }
 
-    /// Disallow sequence expressions (comma operator).
-    #[inline]
-    pub(crate) fn not_in_sequence_expression(self) -> Self {
-        self.with_flag(Self::ALLOW_SEQUENCE_EXPRESSION_FLAG, false)
-    }
-
     /// Disallow arrow return type shielding for nested expressions.
     #[inline]
     pub(crate) fn not_in_arrow_return_type(self) -> Self {
@@ -561,10 +512,8 @@ impl ParserFlags {
         flags.set_in_generator(self.is_in_generator());
         flags.set_forbid_yield(self.is_forbid_yield());
         flags.set_forbid_await(self.is_forbid_await());
-        flags.set_allow_sequence_expression(self.allows_sequence_expression());
         flags.set_in_decorator(self.is_in_decorator());
         flags.set_in_decorator_head(false);
-        flags.set_disallow_ambiguous_tree_literal(self.is_disallow_ambiguous_tree_literal());
         flags.set_in_statement_context(self.is_in_statement_context());
         flags
     }

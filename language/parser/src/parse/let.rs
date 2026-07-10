@@ -58,7 +58,7 @@ impl Parser {
         // parse declarators
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.eat_declarator(true, false, None)?;
+            let declarator_id = self.eat_declarator(true, None)?;
             declarators.push(declarator_id);
 
             if self.peek_is(TokenType::Comma) {
@@ -121,19 +121,12 @@ impl Parser {
     /// Return true when a token can start a `using` binding pattern.
     #[inline]
     pub(crate) fn token_can_start_using_binding_pattern(&self, token_type: TokenType) -> bool {
-        if self.language.is_destack() {
-            return matches!(
-                token_type,
-                TokenType::Identifier
-                    | TokenType::OpenParenthesis
-                    | TokenType::OpenBrace
-                    | TokenType::OpenBracket
-            );
-        }
-
         matches!(
             token_type,
-            TokenType::Identifier | TokenType::OpenBrace | TokenType::OpenBracket
+            TokenType::Identifier
+                | TokenType::OpenParenthesis
+                | TokenType::OpenBrace
+                | TokenType::OpenBracket
         )
     }
 
@@ -157,7 +150,7 @@ impl Parser {
         kind: LetKind,
         mutability: Mutability,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let first_declarator = self.eat_declarator(false, true, None)?;
+        let first_declarator = self.eat_declarator(false, None)?;
 
         // let else
         if self.is_keyword(Keyword::Else) {
@@ -210,7 +203,7 @@ impl Parser {
         loop {
             if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
-                let declarator_id = self.eat_declarator(false, false, None)?;
+                let declarator_id = self.eat_declarator(false, None)?;
                 declarators.push(declarator_id);
                 continue;
             }
@@ -303,7 +296,6 @@ impl Parser {
     pub(super) fn eat_declarator(
         &mut self,
         require_value: bool,
-        allow_match_pattern: bool,
         value_minimum_precedence: Option<u16>,
     ) -> ParserResult<LocalNodeId<Declarator>> {
         let start = self.span_start();
@@ -332,8 +324,8 @@ impl Parser {
             // reserve mutability markers and the Destack wildcard for pattern parsing
             let keyword = self.current_keyword();
             let is_mutability_keyword = matches!(keyword, Some(Keyword::Const | Keyword::Let))
-                || self.language.is_destack() && keyword == Some(Keyword::Readonly);
-            let is_wildcard = self.language.is_destack() && self.current_identifier_str_is("_");
+                || keyword == Some(Keyword::Readonly);
+            let is_wildcard = self.current_identifier_str_is("_");
 
             has_binding_boundary && !is_mutability_keyword && !is_wildcard
         } else {
@@ -357,14 +349,6 @@ impl Parser {
             self.with_flags(pattern_flags, |parser| parser.eat_pattern())?
         };
 
-        // non Destack declaration declarators must use plain binding patterns
-        if !allow_match_pattern
-            && !self.language.is_destack()
-            && !self.declarator_pattern_is_valid_binding(pattern_id)
-        {
-            return Err(ParserError::unexpected(self.tree.get_span(pattern_id)));
-        }
-
         // type
         let (ty, ty_span) = if self.peek_colon_is() {
             let type_start = self.span_start();
@@ -383,7 +367,7 @@ impl Parser {
             self.bump(); // eat assign
             let operator_span = self.get_span_from(&operator_start);
 
-            let value_flags = self.flags.not_in_position().not_in_sequence_expression();
+            let value_flags = self.flags.not_in_position();
             let value = if let Some(value_minimum_precedence) = value_minimum_precedence {
                 self.eat_expression_at_precedence(value_flags, value_minimum_precedence)?
             } else {
@@ -431,21 +415,5 @@ impl Parser {
             || self.peek_is(TokenType::CloseBrace)
             || self.peek_is(TokenType::CloseParenthesis)
             || self.is_keyword(Keyword::Else)
-    }
-
-    /// Return true when a declarator pattern is a valid binding.
-    fn declarator_pattern_is_valid_binding(&self, pattern_id: LocalNodeId<Pattern>) -> bool {
-        match self.tree.get(pattern_id) {
-            Pattern::Expression { value } => self.declarator_expression_is_valid_binding(*value),
-            _ => true,
-        }
-    }
-
-    /// Return true when an expression is a valid declarator binding.
-    fn declarator_expression_is_valid_binding(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        matches!(self.tree.get(expression_id), Expression::Identifier { .. })
     }
 }

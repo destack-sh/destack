@@ -218,10 +218,8 @@ impl Parser {
                     ));
                 }
 
-                // typed and untyped source forms reject legacy leading-zero decimal forms
-                if (self.language.is_javascript() || self.language.is_typescript())
-                    && self.int_literal_uses_legacy_leading_zero(literal_str, base, is_bigint)
-                {
+                // reject legacy leading-zero decimal forms
+                if self.int_literal_uses_legacy_leading_zero(literal_str, base, is_bigint) {
                     return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
@@ -238,10 +236,8 @@ impl Parser {
                     ));
                 }
 
-                // typed and untyped source forms reject invalid digits for prefixed literals
-                if (self.language.is_javascript() || self.language.is_typescript())
-                    && self.int_literal_has_invalid_digits(literal_str, base, is_bigint)
-                {
+                // reject invalid digits for prefixed literals
+                if self.int_literal_has_invalid_digits(literal_str, base, is_bigint) {
                     return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
@@ -249,7 +245,7 @@ impl Parser {
                     ));
                 }
 
-                // typed and untyped source forms require a separator before identifier starts
+                // require a separator before an identifier starts
                 if has_adjacent_identifier_suffix {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -310,10 +306,8 @@ impl Parser {
                     ));
                 }
 
-                // typed and untyped source forms reject legacy leading-zero decimal forms
-                if (self.language.is_javascript() || self.language.is_typescript())
-                    && self.float_literal_uses_legacy_leading_zero(literal_str)
-                {
+                // reject legacy leading-zero decimal forms
+                if self.float_literal_uses_legacy_leading_zero(literal_str) {
                     return Err(ParserError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
@@ -321,7 +315,7 @@ impl Parser {
                     ));
                 }
 
-                // typed and untyped source forms require a separator after numeric literals before identifier starts
+                // require a separator after numeric literals before an identifier starts
                 if has_adjacent_identifier_suffix {
                     return Err(ParserError::expected_for(
                         literal_span.span,
@@ -385,7 +379,7 @@ impl Parser {
                     ));
                 }
 
-                if self.language.is_destack() && literal_str.starts_with('\'') {
+                if literal_str.starts_with('\'') {
                     return Self::decode_character_literal(literal_str)
                         .map(ScalarLiteral::Character)
                         .ok_or_else(|| {
@@ -663,12 +657,8 @@ impl Parser {
         second.is_ascii_digit() || second == '_'
     }
 
-    /// Return true when a typed or untyped numeric literal is immediately followed by an identifier.
+    /// Return true when a numeric literal is immediately followed by an identifier.
     fn numeric_literal_has_adjacent_identifier_suffix(&mut self, literal: TokenSpan) -> bool {
-        if !(self.language.is_javascript() || self.language.is_typescript()) {
-            return false;
-        }
-
         let next = self.peek();
         if next.token.ty() != TokenType::Identifier {
             return false;
@@ -933,7 +923,6 @@ impl Parser {
     /// Examples:
     /// ```ds
     /// value
-    /// first, second
     /// condition ? yes : no
     /// ```
     fn eat_template_interpolation_expression(&mut self) -> ParserResult<LocalNodeId<Expression>> {
@@ -943,12 +932,9 @@ impl Parser {
 
         if self.flags == flags {
             self.eat_assignment(&start, scope)
-                .and_then(|expression| self.eat_sequence_rest(&start, expression, scope))
         } else {
             let outer_flags = self.swap_flags(flags);
-            let expression = self
-                .eat_assignment(&start, scope)
-                .and_then(|expression| self.eat_sequence_rest(&start, expression, scope));
+            let expression = self.eat_assignment(&start, scope);
             self.restore_flags(outer_flags);
 
             expression
@@ -971,7 +957,7 @@ impl Parser {
             ));
         }
 
-        let expression_context = self.flags.not_in_position().not_in_sequence_expression();
+        let expression_context = self.flags.not_in_position();
         let flags = self.flags.with_expression_context(expression_context);
 
         if self.peek_is(TokenType::Comma) {
@@ -986,7 +972,7 @@ impl Parser {
             ));
         }
 
-        if self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
+        if self.peek_is(TokenType::Semicolon) {
             let value = self.recover_missing_expression_here(NodeType::Expression);
             self.bump();
             let length = self.eat_expression_or_recover_missing(flags, NodeType::Expression)?;
@@ -999,8 +985,7 @@ impl Parser {
         }
 
         let first = self.with_flags(flags, |parser| parser.eat_positional_argument())?;
-        if self.language.is_destack()
-            && self.peek_is(TokenType::Semicolon)
+        if self.peek_is(TokenType::Semicolon)
             && let Argument::Positional { value } = self.tree.get(first)
         {
             let value = *value;
@@ -1031,8 +1016,7 @@ impl Parser {
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
-            let element_expression_context =
-                self.flags.not_in_position().not_in_sequence_expression();
+            let element_expression_context = self.flags.not_in_position();
             self.with_flags(
                 self.flags
                     .with_expression_context(element_expression_context),
@@ -1581,7 +1565,7 @@ impl Parser {
             let (path, segment_spans, _last_span) =
                 self.eat_tree_literal_path_with_endpoint_spans()?;
 
-            // jsx namespace names cannot be followed by member access
+            // tree namespace names cannot be followed by member access
             if self.tree_literal_path_has_namespace_member(&path) {
                 return Err(ParserError::unexpected(self.peek()));
             }

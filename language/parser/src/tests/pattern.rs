@@ -2,7 +2,6 @@ use destack_dir::{
     Expression, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd, ScalarLiteral,
     TokenType, Tree, TypeExpression,
 };
-use destack_source::LanguageType;
 
 use crate::{
     TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
@@ -53,17 +52,6 @@ fn test_parse_deeply_nested_tuple_pattern() {
     test.assert_no_errors(&parser);
     assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields } => {
         assert_eq!(fields.len(), 1);
-    });
-}
-
-#[test]
-fn test_parse_pattern_underscore_identifier() {
-    // _ in TypeScript patterns is a normal binding name
-    let mut test = TestParser::new_with_language("_", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let pattern_id = parser.eat_pattern().unwrap();
-    assert_node!(parser.tree, pattern_id, Pattern::Binding { name, pattern: None } => {
-        assert_string!(parser, *name, "_");
     });
 }
 
@@ -267,7 +255,7 @@ fn test_parse_pattern_dereference_sequence() {
                     assert_string!(parser, *name, "head");
                 });
             });
-            assert_node!(parser.tree, fields[1], PatternField::Spread { pattern: Some(pattern) } => {
+            assert_node!(parser.tree, fields[1], PatternField::Rest { pattern: Some(pattern) } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
                     assert_string!(parser, *name, "tail");
                 });
@@ -615,7 +603,7 @@ fn test_parse_pattern_tuple() {
         });
 
         // ...
-        assert_node!(parser.tree, fields[4], PatternField::Spread { pattern: None } => {
+        assert_node!(parser.tree, fields[4], PatternField::Rest { pattern: None } => {
         });
     });
 }
@@ -638,15 +626,14 @@ fn test_parse_pattern_tuple_with_path() {
         });
 
         // ..
-        assert_node!(parser.tree, fields[1], PatternField::Spread { pattern: None } => {
+        assert_node!(parser.tree, fields[1], PatternField::Rest { pattern: None } => {
         });
     });
 }
 
 #[test]
 fn test_parse_pattern_object_field_const_alias() {
-    let mut test =
-        TestParser::new_with_language("{ const: value, title }", LanguageType::TypeScript);
+    let mut test = TestParser::new("{ const: value, title }");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -665,32 +652,6 @@ fn test_parse_pattern_object_field_const_alias() {
         // title
         assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: true, pattern: None } => {
             assert_name!(parser, *name, "title");
-        });
-    });
-}
-
-#[test]
-fn test_parse_pattern_tuple_spread_non_terminal() {
-    let mut test = TestParser::new("(x, ...rest, z)");
-    let mut parser = test.prepare();
-    let pattern_id = parser.eat_pattern().unwrap();
-
-    assert_node!(parser.tree, pattern_id, Pattern::Tuple { fields, .. } => {
-        assert_eq!(fields.len(), 3);
-        assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
-                assert_string!(parser, *name, "x");
-            });
-        });
-        assert_node!(parser.tree, fields[1], PatternField::Spread { pattern: Some(pattern) } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
-                assert_string!(parser, *name, "rest");
-            });
-        });
-        assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
-                assert_string!(parser, *name, "z");
-            });
         });
     });
 }
@@ -730,7 +691,7 @@ fn test_parse_pattern_tuple_newline_separated() {
         });
 
         // ..
-        assert_node!(parser.tree, fields[2], PatternField::Spread { pattern: None } => {
+        assert_node!(parser.tree, fields[2], PatternField::Rest { pattern: None } => {
         });
     });
 }
@@ -798,14 +759,14 @@ fn test_parse_pattern_struct_anonymous() {
         });
 
         // ..
-        assert_node!(parser.tree, fields[4], PatternField::Spread { pattern: None } => {
+        assert_node!(parser.tree, fields[4], PatternField::Rest { pattern: None } => {
         });
     });
 }
 
 #[test]
 fn test_parse_pattern_named_default_after_comment_newline() {
-    let mut test = TestParser::new_with_language("{d //comment\n= b}", LanguageType::JavaScript);
+    let mut test = TestParser::new("{d //comment\n= b}");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -858,10 +819,7 @@ fn test_parse_pattern_struct_numeric_name_aliases() {
 
 #[test]
 fn test_parse_pattern_struct_boolean_name_aliases() {
-    let mut test = TestParser::new_with_language(
-        "{ false: decorators, true: metadata }",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("{ false: decorators, true: metadata }");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -884,7 +842,7 @@ fn test_parse_pattern_struct_boolean_name_aliases() {
 
 #[test]
 fn test_parse_pattern_struct_numeric_literal_field() {
-    let mut test = TestParser::new_with_language("{ 5 }", LanguageType::JavaScript);
+    let mut test = TestParser::new("{ 5 }");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -982,7 +940,7 @@ fn test_parse_pattern_struct_with_nested_tagged_object_field() {
 }
 
 #[test]
-fn test_parse_pattern_slice() {
+fn test_parse_pattern_unbound_rest() {
     let mut test = TestParser::new("[1, ...]");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
@@ -996,21 +954,46 @@ fn test_parse_pattern_slice() {
             });
         });
         // ...
-        assert_node!(parser.tree, fields[1], PatternField::Spread { pattern: None } => {
+        assert_node!(parser.tree, fields[1], PatternField::Rest { pattern: None } => {
         });
     });
 }
 
-/// Parse a spread field with a sequence pattern.
+/// Parse prefix and suffix fields around an unbound rest.
 #[test]
-fn test_parse_pattern_spread_array_pattern() {
+fn test_parse_pattern_unbound_middle_rest() {
+    let mut test = TestParser::new("[first, ..., last]");
+    let mut parser = test.prepare();
+    let pattern_id = parser.eat_pattern().unwrap();
+
+    assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
+        assert_eq!(fields.len(), 3);
+        assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                assert_string!(parser, *name, "first");
+            });
+        });
+        assert_node!(parser.tree, fields[1], PatternField::Rest { pattern: None });
+        assert_node!(parser.tree, fields[2], PatternField::Positional { pattern } => {
+            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
+                assert_string!(parser, *name, "last");
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
+/// Parse a rest field with a sequence pattern.
+#[test]
+fn test_parse_pattern_nested_rest() {
     let mut test = TestParser::new("[...[x, y]]");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
         assert_eq!(fields.len(), 1);
-        assert_node!(parser.tree, fields[0], PatternField::Spread { pattern: Some(pattern) } => {
+        assert_node!(parser.tree, fields[0], PatternField::Rest { pattern: Some(pattern) } => {
             assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                 assert_eq!(fields.len(), 2);
                 assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
@@ -1030,33 +1013,6 @@ fn test_parse_pattern_spread_array_pattern() {
 
 #[test]
 fn test_parse_pattern_object_readonly_shorthand() {
-    let mut test = TestParser::new_with_language("{ readonly }", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let pattern_id = parser.eat_pattern().unwrap();
-
-    assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
-        assert_eq!(fields.len(), 1);
-        assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None } => {
-            assert_name!(parser, *name, "readonly");
-        });
-    });
-}
-
-#[test]
-fn test_parse_pattern_object_readonly_shorthand_with_newline() {
-    let mut test = TestParser::new_with_language("{ readonly\n}", LanguageType::JavaScript);
-    let mut parser = test.prepare();
-    let pattern_id = parser.eat_pattern().unwrap();
-
-    assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
-        assert_eq!(fields.len(), 1);
-        assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None } => {
-            assert_name!(parser, *name, "readonly");
-        });
-    });
-}
-#[test]
-fn test_parse_pattern_object_readonly_shorthand_in_value_block_mode() {
     let mut test = TestParser::new("{ readonly }");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
@@ -1070,29 +1026,20 @@ fn test_parse_pattern_object_readonly_shorthand_in_value_block_mode() {
 }
 
 #[test]
-fn test_parse_pattern_array_readonly_identifier() {
-    let mut test =
-        TestParser::new_with_language("[readonly, setReadonly]", LanguageType::TypeScript);
+fn test_parse_pattern_object_readonly_shorthand_with_newline() {
+    let mut test = TestParser::new("{ readonly\n}");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
-    assert_node!(parser.tree, pattern_id, Pattern::Sequence { fields } => {
-        assert_eq!(fields.len(), 2);
-        assert_node!(parser.tree, fields[0], PatternField::Positional { pattern } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
-                assert_string!(parser, *name, "readonly");
-            });
-        });
-        assert_node!(parser.tree, fields[1], PatternField::Positional { pattern } => {
-            assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None } => {
-                assert_string!(parser, *name, "setReadonly");
-            });
+    assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+        assert_eq!(fields.len(), 1);
+        assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None } => {
+            assert_name!(parser, *name, "readonly");
         });
     });
 }
-
 #[test]
-fn test_parse_pattern_array_readonly_identifier_in_value_block_mode() {
+fn test_parse_pattern_array_readonly_identifier() {
     let mut test = TestParser::new("[readonly, setReadonly]");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
@@ -1113,7 +1060,7 @@ fn test_parse_pattern_array_readonly_identifier_in_value_block_mode() {
 }
 
 #[test]
-fn test_report_pattern_object_readonly_modifier_with_name_in_value_block_mode() {
+fn test_report_pattern_object_readonly_modifier_with_name() {
     let mut test = TestParser::new("{ readonly value }");
     let mut parser = test.prepare();
     let error = parser.eat_pattern().unwrap_err();
@@ -1122,9 +1069,8 @@ fn test_report_pattern_object_readonly_modifier_with_name_in_value_block_mode() 
 }
 
 #[test]
-fn test_parse_pattern_object_spread_newline_before_terminator() {
-    let mut test =
-        TestParser::new_with_language("{\n  onSuccess,\n  ...rest\n}", LanguageType::TypeScript);
+fn test_parse_pattern_object_rest_newline_before_terminator() {
+    let mut test = TestParser::new("{\n  onSuccess,\n  ...rest\n}");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1133,7 +1079,7 @@ fn test_parse_pattern_object_spread_newline_before_terminator() {
         assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, is_shorthand: true } => {
             assert_name!(parser, *name, "onSuccess");
         });
-        assert_node!(parser.tree, fields[1], PatternField::Spread { pattern: Some(pattern) } => {
+        assert_node!(parser.tree, fields[1], PatternField::Rest { pattern: Some(pattern) } => {
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                 assert_string!(parser, *name, "rest");
             });
@@ -1268,8 +1214,7 @@ fn test_parse_pattern_array_trailing_elision() {
 #[test]
 fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
     // {a,b=1,c:d,e:f=2,[g]:[h]}
-    let mut test =
-        TestParser::new_with_language("{a,b=1,c:d,e:f=2,[g]:[h]}", LanguageType::JavaScript);
+    let mut test = TestParser::new("{a,b=1,c:d,e:f=2,[g]:[h]}");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1301,8 +1246,7 @@ fn test_parse_object_pattern_defaults_do_not_consume_following_fields() {
 #[test]
 fn test_parse_object_pattern_alias_and_computed_defaults() {
     // {c, d:e=1, [f]:g=2, h=i}
-    let mut test =
-        TestParser::new_with_language("{c, d:e=1, [f]:g=2, h=i}", LanguageType::JavaScript);
+    let mut test = TestParser::new("{c, d:e=1, [f]:g=2, h=i}");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1329,7 +1273,7 @@ fn test_parse_object_pattern_alias_and_computed_defaults() {
 #[test]
 fn test_parse_object_pattern_computed_field_with_newline_after_colon() {
     // { [key]:\nvalue }
-    let mut test = TestParser::new_with_language("{ [key]:\nvalue }", LanguageType::JavaScript);
+    let mut test = TestParser::new("{ [key]:\nvalue }");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 
@@ -1351,7 +1295,7 @@ fn test_parse_object_pattern_computed_field_with_newline_after_colon() {
 #[test]
 fn test_parse_object_pattern_alias_with_newline_after_colon() {
     // { source:\ntarget }
-    let mut test = TestParser::new_with_language("{ source:\ntarget }", LanguageType::JavaScript);
+    let mut test = TestParser::new("{ source:\ntarget }");
     let mut parser = test.prepare();
     let pattern_id = parser.eat_pattern().unwrap();
 

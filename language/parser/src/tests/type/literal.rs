@@ -5,7 +5,7 @@ use destack_dir::{
     MappedTypeModifier, Name, NodeType, Parameter, ScalarLiteral, TypeDeclaration, TypeExpression,
     TypeLiteral, TypeMember,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 /// Assert one plain type reference without generic arguments.
 fn assert_plain_type_reference(
@@ -360,12 +360,11 @@ fn test_parse_type_literal_construct_signature() {
 /// Parse type literal overloads with generic call signatures.
 #[test]
 fn test_parse_type_literal_generic_call_overloads() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type Tmp = {
 <N extends number>(num: N): typeof num
 <S extends string>(str: S): typeof str
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -451,12 +450,11 @@ fn test_parse_type_literal_generic_call_overloads() {
 /// Parse type literal overloads with generic call signatures returning paths.
 #[test]
 fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type Tmp = {
 <N extends number>(num: N): MyType
 <S extends string>(str: S): MyType
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -484,14 +482,13 @@ fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
 /// Parse generic call signatures with a const type parameter and conditional mapped bound.
 #[test]
 fn test_parse_type_literal_call_signature_with_const_parameter_conditional_bound() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type T = {
   <
 Value extends Field<any> | Field.ValueAny,
 const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?: (variant: S[K]) => Field.ValueAny } : { readonly [K in Variants[number]]?: (variant: Value) => Field.ValueAny })
   >(f: Mapping): Value
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -538,14 +535,13 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
 /// Parse const type parameters when `extends` starts on the next line.
 #[test]
 fn test_parse_type_literal_call_signature_const_parameter_newline_extends() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type T = {
   <
 const Mapping
   extends string
   >(value: Mapping): Mapping
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -573,8 +569,7 @@ const Mapping
 /// Parse typeof queries that target readonly named values.
 #[test]
 fn test_parse_typeof_query_with_readonly_identifier() {
-    let mut test =
-        TestParser::new_with_language("type T = typeof readonly", LanguageType::TypeScript);
+    let mut test = TestParser::new("type T = typeof readonly");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -593,7 +588,7 @@ fn test_parse_typeof_query_with_readonly_identifier() {
 /// Parse typeof queries that target type named values.
 #[test]
 fn test_parse_typeof_query_with_type_identifier() {
-    let mut test = TestParser::new_with_language("type T = typeof type", LanguageType::TypeScript);
+    let mut test = TestParser::new("type T = typeof type");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -612,10 +607,7 @@ fn test_parse_typeof_query_with_type_identifier() {
 /// Parse typeof queries over instantiated value references.
 #[test]
 fn test_parse_typeof_query_with_instantiation() {
-    let mut test = TestParser::new_with_language(
-        "type A<U> = InstanceType<typeof Array<U>>",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("type A<U> = InstanceType<typeof Array<U>>");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -642,13 +634,10 @@ fn test_parse_typeof_query_with_instantiation() {
     });
 }
 
-/// Parse typeof query instantiations in TSX mode.
+/// Parse a typeof query with generic instantiation.
 #[test]
-fn test_parse_typeof_query_instantiation_in_tsx_mode() {
-    let mut test = TestParser::new_with_language(
-        "type T = Callback<typeof something<Type1, Type2>>",
-        LanguageType::TypeScriptXml,
-    );
+fn test_parse_typeof_query_instantiation_in_generic_argument() {
+    let mut test = TestParser::new("type T = Callback<typeof something<Type1, Type2>>");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -679,10 +668,7 @@ fn test_parse_typeof_query_instantiation_in_tsx_mode() {
 /// Parse typeof query instantiations on member references.
 #[test]
 fn test_parse_typeof_query_with_member_instantiation() {
-    let mut test = TestParser::new_with_language(
-        "type T<U> = typeof namespace.Factory<U>",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("type T<U> = typeof namespace.Factory<U>");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -830,13 +816,12 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
 
 #[test]
 fn test_parse_type_literal_index_signature_with_multiline_brackets() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type T = {
   [
 topic: string
   ]: number;
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -1037,9 +1022,8 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
 /// Generic arrow function types work in declaration files.
 #[test]
 fn test_parse_generic_arrow_function_type() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         "type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void",
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -1055,10 +1039,7 @@ fn test_parse_generic_arrow_function_type() {
 /// Arrow function type with conditional return.
 #[test]
 fn test_parse_type_arrow_with_conditional_return() {
-    let mut test = TestParser::new_with_language(
-        "type T = <X>() => X extends A | B ? true : false",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("type T = <X>() => X extends A | B ? true : false");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1081,7 +1062,7 @@ fn test_parse_type_nested_conditional_with_arrows() {
   ? true
   : false
 : false"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1104,7 +1085,7 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
     let input = r#"type T = {
   method: <Expected extends IsUnion<Expected> extends true ? "error" : SomeType>(arg: Expected) => true;
 }"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1127,7 +1108,7 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
 #[test]
 fn test_parse_nested_generic_reference_with_literal_argument() {
     let input = r#"type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1156,7 +1137,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
     ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
   ) => true;
 }"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1218,7 +1199,7 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
         ? unknown
         : MismatchInfo<DeepPick<Actual, Expected>, Expected>,
 >"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let generic_parameters = parser.eat_generic_parameters(false).unwrap();
 
@@ -1248,7 +1229,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
 >(
   ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
 ) => true"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1303,7 +1284,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
     ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
   ) => true;
 }"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1368,7 +1349,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
     let input = r#"type T = {
   f: <U extends A<B>>(x: U) => true;
 }"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1435,7 +1416,7 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
     let input = r#"type T = {
   f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true;
 }"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1488,7 +1469,7 @@ fn test_parse_type_literal_where_field_after_function_type() {
   setSelectedFields: (fields: FieldOption[]) => void
   where?: Where
 }"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut test = TestParser::declaration(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -1521,7 +1502,7 @@ fn test_parse_type_literal_where_field_after_function_type() {
 #[test]
 fn test_parse_type_generic_arrow_in_generic_arguments() {
     let input = "type T = Extends<<T>() => T extends X ? true : false, <T>() => T extends Y ? true : false>";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 

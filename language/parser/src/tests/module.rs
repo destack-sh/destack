@@ -1,11 +1,10 @@
 use destack_dir::{Declaration, Decorator, DecoratorPosition, Expression, ModuleDeclaration};
-use destack_source::LanguageType;
 
 use crate::{TestParser, assert_expression_path, assert_node};
 
 #[test]
 fn test_parse_module_newline_as_identifiers() {
-    let mut test = TestParser::new_with_language("module\nFoo\n{}", LanguageType::TypeScript);
+    let mut test = TestParser::new("module\nFoo\n{}");
     let mut parser = test.prepare();
 
     let expressions = parser.parse();

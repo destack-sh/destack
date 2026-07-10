@@ -308,12 +308,8 @@ impl Parser {
             return Ok(true);
         }
 
-        if self.current_token_is_on_new_line() && self.can_start_tree_literal() {
-            if scope.is_statement_position {
-                return Ok(true);
-            }
-
-            return Err(ParserError::unexpected(self.peek()));
+        if self.current_token_is_on_new_line() && self.is_tree_literal_start() {
+            return Ok(true);
         }
 
         Ok(false)
@@ -436,10 +432,6 @@ impl Parser {
         }
 
         // plain postfix maybe is Destack syntax, TS keeps `?` for ternaries
-        if !self.language.is_destack() {
-            return false;
-        }
-
         // an attached question mark is try-propagation, a detached one a ternary
         self.question_is_attached_to_operand()
     }
@@ -458,10 +450,7 @@ impl Parser {
         left: LocalNodeId<Expression>,
         scope: ExpressionScope,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        if !self.language.is_destack()
-            || !self.peek_is(TokenType::OpenBrace)
-            || self.current_token_is_on_new_line()
-        {
+        if !self.peek_is(TokenType::OpenBrace) || self.current_token_is_on_new_line() {
             return Ok(None);
         }
 
@@ -651,7 +640,7 @@ impl Parser {
 
         // private member
         if self.peek_is(TokenType::Hash) {
-            return self.eat_private_member_postfix(start, left);
+            return Err(ParserError::unexpected(self.peek()));
         }
 
         // named or missing member
@@ -686,42 +675,6 @@ impl Parser {
             },
             self.get_span_from(start),
         ))
-    }
-
-    /// Parse a private member postfix.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value.#member
-    /// this.#member
-    /// value.#method()
-    /// ```
-    fn eat_private_member_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        if self.language.is_destack() {
-            return Err(ParserError::unexpected(self.peek()));
-        }
-
-        let hash_span = self.peek().span;
-        self.bump();
-
-        let name = if self.peek_is(TokenType::Identifier) {
-            Some(self.eat_identifier()?)
-        } else {
-            self.report_unexpected_for_here(NodeType::Expression);
-            None
-        };
-
-        let expression = self.insert_node(
-            Expression::PrivateMember { left, name },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(expression, hash_span);
-
-        Ok(expression)
     }
 
     /// Parse a named member or recover a missing member name.

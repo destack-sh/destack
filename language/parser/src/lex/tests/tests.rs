@@ -4,8 +4,7 @@ use crate::{Lexer, Parser, ParserOptions, ParserTokenHistory, ParserTriviaMode};
 use destack_core::StringPool;
 use destack_dir::render_tokens;
 pub(in crate::lex) use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
-pub(in crate::lex) use destack_source::LanguageType;
-use destack_source::{File, FileId, FileType, Span, Uri};
+use destack_source::{File, FileId, FileType, LanguageType, Span, Uri};
 
 /// The lexer entry point used by a roundtrip assertion.
 #[derive(Debug, Clone, Copy)]
@@ -17,10 +16,7 @@ pub(in crate::lex) enum LexMode {
 }
 
 /// Lex the given source input string into its constituent tokens and side tokens.
-pub(in crate::lex) fn lex_source(
-    input: &str,
-    language: LanguageType,
-) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
+pub(in crate::lex) fn lex_source(input: &str) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
     // build a synthetic file
     let file = File::from_text(
         FileId::new(0),
@@ -31,15 +27,12 @@ pub(in crate::lex) fn lex_source(
         input.to_string(),
     );
 
-    Lexer::lex(Arc::new(file), language)
+    Lexer::lex(Arc::new(file))
 }
 
 /// Lex source and strip source positions from semantic and side tokens.
-pub(in crate::lex) fn lex_source_tokens(
-    input: &str,
-    language: LanguageType,
-) -> (Vec<Token>, Vec<Token>) {
-    let (semantic_tokens, side_tokens, _) = lex_source(input, language);
+pub(in crate::lex) fn lex_source_tokens(input: &str) -> (Vec<Token>, Vec<Token>) {
+    let (semantic_tokens, side_tokens, _) = lex_source(input);
 
     // normalize semantic tokens
     let semantic_tokens = semantic_tokens
@@ -99,12 +92,8 @@ fn position_expected_tokens(input: &str, tokens: Vec<Token>) -> Vec<Token> {
 }
 
 /// Assert one string literal token with the requested escape validity.
-pub(in crate::lex) fn assert_single_string_literal_token(
-    input: &str,
-    language: LanguageType,
-    has_invalid_escape: bool,
-) {
-    let (semantic_tokens, side_tokens) = lex_source_tokens(input, language);
+pub(in crate::lex) fn assert_single_string_literal_token(input: &str, has_invalid_escape: bool) {
+    let (semantic_tokens, side_tokens) = lex_source_tokens(input);
     let expected_tokens = vec![
         token(
             TokenType::Literal,
@@ -122,23 +111,14 @@ pub(in crate::lex) fn assert_single_string_literal_token(
     assert_eq!(side_tokens, vec![]);
 }
 
-/// Assert one legacy string escape is invalid in every JavaScript-like language.
-pub(in crate::lex) fn assert_legacy_string_escape_is_invalid_across_languages(input: &str) {
-    for language in [
-        LanguageType::default(),
-        LanguageType::TypeScript,
-        LanguageType::TypeScriptXml,
-        LanguageType::JavaScript,
-        LanguageType::JavaScriptXml,
-    ] {
-        assert_single_string_literal_token(input, language, true);
-    }
+/// Assert one legacy string escape is invalid.
+pub(in crate::lex) fn assert_legacy_string_escape_is_invalid(input: &str) {
+    assert_single_string_literal_token(input, true);
 }
 
 /// Lex source through the parser so tree child tokenization is active.
 pub(in crate::lex) fn lex_source_with_tree_literals(
     input: &str,
-    language: LanguageType,
 ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
     // build a synthetic file
     let file = File::from_text(
@@ -160,7 +140,7 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
     // configure parser driven lexing
     let mut parser = Parser::lex_file_with_options(
         file,
-        language,
+        LanguageType::Destack,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
             token_history: ParserTokenHistory::Record,
@@ -182,8 +162,7 @@ pub(in crate::lex) fn assert_tokens_roundtrip(
     mut expected_tokens: Vec<Token>,
     mode: LexMode,
 ) {
-    let language = LanguageType::default();
-    let tokens = lex_roundtrip_tokens(input, language, mode);
+    let tokens = lex_roundtrip_tokens(input, mode);
 
     // add implicit EOF
     if !matches!(expected_tokens.last(), Some(token) if token.ty() == TokenType::End) {
@@ -199,13 +178,13 @@ pub(in crate::lex) fn assert_tokens_roundtrip(
     assert_eq!(rendered_input, input);
 
     // require idempotent tokenization
-    let tokens_again = lex_roundtrip_tokens(&rendered_input, language, mode);
+    let tokens_again = lex_roundtrip_tokens(&rendered_input, mode);
     assert_eq!(tokens_again, tokens);
 }
 
 /// Lex source into one source ordered token stream.
-fn lex_roundtrip_tokens(input: &str, language: LanguageType, mode: LexMode) -> Vec<Token> {
-    let (semantic_tokens, side_tokens, _) = lex_spans(input, language, mode);
+fn lex_roundtrip_tokens(input: &str, mode: LexMode) -> Vec<Token> {
+    let (semantic_tokens, side_tokens, _) = lex_spans(input, mode);
     let mut tokens: Vec<TokenSpan> = semantic_tokens.into_iter().chain(side_tokens).collect();
 
     // restore source order across semantic and side tokens
@@ -218,14 +197,10 @@ fn lex_roundtrip_tokens(input: &str, language: LanguageType, mode: LexMode) -> V
 }
 
 /// Lex source through the selected test entry point.
-fn lex_spans(
-    input: &str,
-    language: LanguageType,
-    mode: LexMode,
-) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
+fn lex_spans(input: &str, mode: LexMode) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
     match mode {
-        LexMode::Normal => lex_source(input, language),
-        LexMode::Tree => lex_source_with_tree_literals(input, language),
+        LexMode::Normal => lex_source(input),
+        LexMode::Tree => lex_source_with_tree_literals(input),
     }
 }
 

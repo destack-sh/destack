@@ -74,9 +74,8 @@ impl Parser {
 
         // for condition loop
         if asynchrony == Asynchrony::Sync && has_top_level_semicolon {
-            // c style for clauses always allow comma operator expressions
-            let mut clause_flags = self.flags.nested();
-            clause_flags.set_allow_sequence_expression(true);
+            // parse each c style clause as an independent expression
+            let clause_flags = self.flags.nested();
 
             // initialization
             let initialization_id = if self.peek_is(TokenType::Semicolon) {
@@ -137,15 +136,6 @@ impl Parser {
                 Keyword::Of => ForEachOperator::Of,
                 _ => return Err(ParserError::unexpected(operator_token)),
             };
-
-            // reject using bindings in semicolon statement `for ... in`
-            // block-value mode allows them
-            if !self.language.is_destack()
-                && operator == ForEachOperator::In
-                && matches!(binding, ForEachBinding::Using { .. })
-            {
-                return Err(ParserError::unexpected(self.peek()));
-            }
 
             // iterator
             let iterator_flags = self.for_each_value_flags(header_scan.is_some());

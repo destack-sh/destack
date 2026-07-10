@@ -4,7 +4,6 @@ use destack_dir::{
     Declaration, Expression, GenericParameter, IntegerType, LocalNodeId, Mutability, NodeType,
     PlaceModifier, ScalarLiteral, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 #[test]
 fn test_parse_type_alias() {
@@ -46,10 +45,7 @@ fn test_parse_local_newtype_declaration() {
 
 #[test]
 fn test_parse_declare_type_alias_kind() {
-    let mut test = TestParser::new_with_language(
-        "declare type T = string",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("declare type T = string");
     let mut parser = test.prepare();
     let expressions = parser.parse();
     let expression_id = parser.unwrap_label_expression(expressions[0]);
@@ -68,10 +64,7 @@ fn test_parse_declare_type_alias_kind() {
 /// Parse a type alias followed by a tree literal.
 #[test]
 fn test_parse_type_alias_before_tree_literal() {
-    let mut test = TestParser::new_with_language(
-        "type X = typeof Array\n<div>a</div>;",
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new("type X = typeof Array\n<div>a</div>;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
     assert_eq!(expressions.len(), 2);
@@ -90,7 +83,7 @@ fn test_parse_type_alias_before_tree_literal() {
 
 #[test]
 fn test_parse_bigint_literal_type() {
-    let mut test = TestParser::new_with_language("let x: 0n;", LanguageType::TypeScript);
+    let mut test = TestParser::new("let x: 0n;");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
@@ -138,7 +131,7 @@ fn test_parse_type_alias_with_generic_parameters() {
 /// Parse a type alias when `>` and `=` are adjacent.
 #[test]
 fn test_parse_type_alias_with_generic_parameters_without_spacing() {
-    let mut test = TestParser::new_with_language("type T<U>=U;", LanguageType::TypeScript);
+    let mut test = TestParser::new("type T<U>=U;");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -158,7 +151,7 @@ fn test_parse_type_alias_with_generic_parameters_without_spacing() {
 /// Parse a type alias with an explicit empty generic list.
 #[test]
 fn test_parse_type_alias_with_empty_generic_parameters() {
-    let mut test = TestParser::new_with_language("type Box<> = string;", LanguageType::TypeScript);
+    let mut test = TestParser::new("type Box<> = string;");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -188,7 +181,7 @@ fn test_recover_type_alias_value_declaration_boundaries() {
     ];
 
     for source in cases {
-        let mut test = TestParser::new_with_language(source, LanguageType::TypeScript);
+        let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let roots = parser.parse();
 
@@ -208,7 +201,7 @@ fn test_recover_type_alias_value_declaration_boundaries() {
 /// Parse parenthesized multiline unions with a leading separator and comments.
 #[test]
 fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type Reflect = (
   | // leading separator comment
   {
@@ -218,7 +211,6 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
   oneOf: readonly string[]
 }
 )"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();

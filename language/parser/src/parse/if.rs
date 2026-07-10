@@ -68,11 +68,9 @@ impl Parser {
         // save state so missing else can rewind cleanly
         let else_mark = self.checkpoint();
 
-        // semicolon statement forms consume optional separators before else
-        if !self.language.is_destack() {
-            while self.peek_is(TokenType::Semicolon) {
-                self.bump();
-            }
+        // allow a terminated branch expression before else
+        while self.peek_is(TokenType::Semicolon) {
+            self.bump();
         }
 
         // no else: restore speculative state
@@ -204,7 +202,7 @@ impl Parser {
         if is_binding {
             let (kind, mutability) = self.eat_let_kind()?;
             let minimum_precedence = OperatorPrecedence::LogicalAnd as u16 + 1;
-            let declarator = self.eat_declarator(true, true, Some(minimum_precedence))?;
+            let declarator = self.eat_declarator(true, Some(minimum_precedence))?;
 
             Ok(ConditionOperand::Binding {
                 kind,
@@ -259,11 +257,6 @@ impl Parser {
         head: IfHead,
         then_expression: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        // semicolon statement forms allow a trailing then semicolon
-        if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
-            self.bump();
-        }
-
         // optional else branch
         let else_expression = self.eat_if_else_expression_maybe()?;
 

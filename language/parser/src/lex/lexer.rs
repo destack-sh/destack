@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use destack_dir::Token;
-use destack_source::{File, FileId, LanguageType, Span};
+use destack_source::{File, FileId, Span};
 
 use super::scanner::Scanner;
 use super::trivia::{Trivia, TriviaCheckpoint};
@@ -15,8 +15,6 @@ pub struct Lexer {
     pub(super) scanner: Scanner,
     /// The options for the lexer.
     pub(super) options: LexerOptions,
-    /// The language type for parsing behavior.
-    pub(super) language: LanguageType,
     /// Live lexer trivia state.
     pub(super) trivia: Trivia,
     /// Whether the most recent side token contained a line terminator.
@@ -48,31 +46,29 @@ impl Debug for Lexer {
 
 impl Lexer {
     /// Create a new Lexer from a file.
-    pub fn new(file: Arc<File>, language: LanguageType) -> Lexer {
-        Self::new_with_capacity(file, language, 0, 0)
+    pub fn new(file: Arc<File>) -> Lexer {
+        Self::new_with_capacity(file, 0, 0)
     }
 
     /// Create a lexer that stores tokens internally.
-    pub(super) fn new_storing_tokens(file: Arc<File>, language: LanguageType) -> Lexer {
+    pub(super) fn new_storing_tokens(file: Arc<File>) -> Lexer {
         let source_len = file.text().len();
         let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
         let semantic_token_capacity = estimated_tokens;
         let side_token_capacity = estimated_tokens / 2;
 
-        Self::new_with_capacity(file, language, semantic_token_capacity, side_token_capacity)
+        Self::new_with_capacity(file, semantic_token_capacity, side_token_capacity)
     }
 
     /// Create a lexer with explicit token buffer capacities.
     fn new_with_capacity(
         file: Arc<File>,
-        language: LanguageType,
         semantic_token_capacity: usize,
         side_token_capacity: usize,
     ) -> Lexer {
         Lexer {
             scanner: Scanner::new(file),
             options: LexerOptions::default(),
-            language,
             trivia: Trivia::new(),
             last_side_token_had_line_terminator: false,
             trivia_mode: ParserTriviaMode::default(),

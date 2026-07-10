@@ -3,7 +3,7 @@ use destack_dir::{
     IntegerType, Key, Member, Name, Parameter, PlaceModifier, ScalarLiteral, StructDeclaration,
     TypeExpression, TypeLiteral, Visibility, WhereClause,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
@@ -150,6 +150,34 @@ fn test_parse_shared_struct_declaration() {
     });
 }
 
+/// Parse comptime and fixed-array forms together inside a struct.
+#[test]
+fn test_parse_struct_comptime_forms() {
+    let mut test = TestParser::new(
+        r#"struct StaticBuffer<comptime Size: uint> {
+    comptime {
+        assert(Size > 0 && Size <= 65536);
+    }
+    tag: Size extends 4 ? "small" : "large";
+    data: [uint8; Size];
+}"#,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 1);
+
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { members, .. }) => {
+            assert_eq!(members.len(), 3);
+            assert_node!(parser.tree, members[0], Member::ComptimeBlock { .. });
+            assert_node!(parser.tree, members[1], Member::Field { .. });
+            assert_node!(parser.tree, members[2], Member::Field { .. });
+        });
+    });
+}
+
 #[test]
 fn test_report_struct_extends() {
     let mut test = TestParser::new(
@@ -217,13 +245,12 @@ class Counter extends {}
 
 #[test]
 fn test_parse_class_member_method_parameter_type_then_default_value() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"class LicensingStore {
   usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {
     return userCount >= userLimit
   }
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -260,12 +287,11 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
 
 #[test]
 fn test_parse_class_superclass_boundary_comment_on_super_type() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r"class Child extends Base // extends-tail
 {
   value = 1
 }",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -291,13 +317,12 @@ fn test_parse_class_superclass_boundary_comment_on_super_type() {
 
 #[test]
 fn test_parse_class_implement_list_comments_on_interface_types() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r"class Child implements First, // impl-first
 Second // impl-second
 {
   value = 1
 }",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -332,12 +357,11 @@ Second // impl-second
 
 #[test]
 fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r"declare class Box // box-head
 <T> implements Item<T>, Other {
   value: T
 }",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();

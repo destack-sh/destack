@@ -88,19 +88,6 @@ impl Lexer {
         }
 
         match self.scanner.byte() {
-            // js and ts decimal member syntax: `123..prop` and `0..prop`
-            // consume the first dot into a float literal so the second dot can start member access
-            b'.' if self.scanner.byte_at(1) == b'.'
-                && is_ascii_identifier_start_byte(self.scanner.byte_at(2))
-                && (self.language.is_javascript() || self.language.is_typescript()) =>
-            {
-                self.scanner.advance_ascii_byte();
-                TokenLiteral::Float {
-                    base,
-                    is_empty_exponent: false,
-                }
-            }
-
             // don't be greedy if this is actually an
             // integer literal followed by field or method access
             // (`12.foo()` and `12..toString()`)

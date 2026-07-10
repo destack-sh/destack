@@ -1,4 +1,4 @@
-use super::{LanguageType, TokenType, assert_tokenize_eq_roundtrip, eof, lex_source_tokens, token};
+use super::{TokenType, assert_tokenize_eq_roundtrip, token};
 
 /// Destack punctuation should lex to the expected operator and delimiter tokens.
 #[test]
@@ -53,41 +53,6 @@ fn test_lex_basic_destack_punctuation() {
         token(TokenType::ElementwiseNot, 1, None),
     );
 }
-
-/// Range punctuation should only produce range tokens in Destack mode.
-#[test]
-fn test_lex_range_tokens_in_destack_only() {
-    let (semantic_tokens, _) = lex_source_tokens("a..b ..= c", LanguageType::default());
-    assert_eq!(
-        semantic_tokens,
-        vec![
-            token(TokenType::Identifier, 1, None),
-            token(TokenType::Range, 2, None),
-            token(TokenType::Identifier, 1, None),
-            token(TokenType::RangeInclusive, 3, None),
-            token(TokenType::Identifier, 1, None),
-            eof(),
-        ],
-    );
-
-    let (semantic_tokens, _) = lex_source_tokens("a..b ..= c", LanguageType::TypeScript);
-    assert_eq!(
-        semantic_tokens,
-        vec![
-            token(TokenType::Identifier, 1, None),
-            token(TokenType::Dot, 1, None),
-            token(TokenType::Dot, 1, None),
-            token(TokenType::Identifier, 1, None),
-            token(TokenType::Dot, 1, None),
-            token(TokenType::Dot, 1, None),
-            token(TokenType::Assign, 1, None),
-            token(TokenType::Identifier, 1, None),
-            eof(),
-        ],
-    );
-}
-
-/// Comparison and equality operators should lex to their specific token kinds.
 #[test]
 fn test_lex_comparisons_and_equals() {
     assert_tokenize_eq_roundtrip!(

@@ -4,13 +4,12 @@ use destack_dir::{
     Declaration, Expression, GenericArgument, GenericParameter, TypeDeclaration, TypeExpression,
     TypeLiteral,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_conditional_type_alias_with_generics() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -59,8 +58,7 @@ fn test_parse_conditional_type_alias_with_generics() {
 
 #[test]
 fn test_parse_type_alias_records_generic_parameter_container_span() {
-    let mut test =
-        TestParser::new_with_language("type Box<T> = T", LanguageType::TypeScriptDeclaration);
+    let mut test = TestParser::new("type Box<T> = T");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -80,10 +78,9 @@ fn test_parse_type_alias_records_generic_parameter_container_span() {
 /// Parse conditional type aliases with object infer constraints after a multiline extends.
 #[test]
 fn test_parse_type_declaration_conditional_object_infer_after_newline() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"type ImplicitArrayBuffer<T extends WithImplicitCoercion<ArrayBufferLike>> = T extends
     { valueOf(): infer V extends ArrayBufferLike } ? V : T"#,
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -105,10 +102,9 @@ fn test_parse_type_declaration_conditional_object_infer_after_newline() {
 /// Parse generic parameter defaults that end before a shifted type close.
 #[test]
 fn test_parse_type_declaration_generic_default_before_shifted_close() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"export type TuplifyUnion<Union, LastElement = LastOf<Union>> =
-    IsNever<Union> extends true ? [] : [...TuplifyUnion<Exclude<Union, LastElement>>, LastElement]"#,
-        LanguageType::TypeScriptDeclaration,
+    IsNever<Union> extends true ? () : (...TuplifyUnion<Exclude<Union, LastElement>>, LastElement)"#,
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
@@ -132,9 +128,8 @@ fn test_parse_type_declaration_generic_default_before_shifted_close() {
 
 #[test]
 fn test_parse_conditional_type_alias_with_generics_through_expression_entry() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         "type FindMyWayVersion<RawServer extends RawServerBase> = RawServer extends http.Server ? HTTPVersion.V1 : HTTPVersion.V2",
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();

@@ -7,7 +7,7 @@ use destack_dir::{
     InterfaceDeclaration, Key, Name, Parameter, Pattern, PatternField, PlaceModifier,
     TypeExpression, TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
 };
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_interface_anonymous_empty() {
@@ -47,11 +47,10 @@ fn test_parse_interface_with_extends() {
 
 #[test]
 fn test_parse_interface_extends_with_generic_arguments() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -104,13 +103,12 @@ fn test_parse_interface_with_missing_close_brace() {
 /// Parse interface call signatures with generic parameters before tree syntax.
 #[test]
 fn test_parse_interface_generic_call_signature_before_tree() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 interface Foo<G> {
     <T>(bar: G): T;
 }
 "#,
-        destack_source::LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
 
@@ -143,7 +141,7 @@ interface Foo<G> {
 /// Parse interface call signature overloads separated by a blank line.
 #[test]
 fn test_parse_interface_call_signature_overloads_with_blank_line_separator() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 interface Example {
   (a: number): typeof a
@@ -151,7 +149,6 @@ interface Example {
   <T>(): void
 };
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let roots = parser.parse();
@@ -212,13 +209,12 @@ Baz {
 
 #[test]
 fn test_parse_interface_extends_comma_separated_with_newline() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r###"
 interface Foo extends Bar,
 Baz {
 }
 "###,
-        destack_source::LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -327,7 +323,7 @@ fn test_parse_interface_with_generic_parameters() {
 
 #[test]
 fn test_parse_interface_with_empty_generic_parameters() {
-    let mut test = TestParser::new_with_language("interface Box<> {}", LanguageType::TypeScript);
+    let mut test = TestParser::new("interface Box<> {}");
     let mut parser = test.prepare();
 
     let start = parser.span_start();
@@ -606,10 +602,10 @@ interface Iterator<T, TReturn = any, TNext = any> {
     });
 }
 
-/// Parse TypeScript interface members that use semicolon separators.
+/// Parse interface members that use semicolon separators.
 #[test]
 fn test_parse_interface_semicolon_member_separators() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 interface MacroContext {
     readonly trigger: MacroTrigger;
@@ -617,7 +613,6 @@ interface MacroContext {
     resolve(name: string): Symbol | undefined;
 }
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -659,17 +654,16 @@ interface MacroContext {
     });
 }
 
-/// Parse TypeScript index signatures on structural interfaces.
+/// Parse index signatures on structural interfaces.
 #[test]
 fn test_parse_interface_index_signature_members() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"
 interface ImportMetaEnv {
     readonly [key: string]: string | undefined;
     length: number;
 }
 "#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -708,12 +702,11 @@ interface ImportMetaEnv {
 
 #[test]
 fn test_parse_interface_method_overloads_named_where() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"interface Query {
 where(where: string, parameters?: ObjectLiteral): this
 where(where: Brackets, parameters?: ObjectLiteral): this
 }"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
 
@@ -831,14 +824,13 @@ interface Add<T, R = this> {
     });
 }
 
-/// 'is' can be used as a property name in TypeScript declaration files.
+/// Parse `is` as a property name in declaration files.
 #[test]
 fn test_parse_interface_with_is_property_name() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"interface Webidl {
     is: WebidlIs
 }"#,
-        destack_source::LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
 
@@ -861,7 +853,7 @@ fn test_parse_interface_with_is_property_name() {
 /// 'is' as property name works in multi-member interfaces.
 #[test]
 fn test_parse_interface_with_is_and_other_members() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"export interface Webidl {
     errors: WebidlErrors
     util: WebidlUtil
@@ -869,7 +861,6 @@ fn test_parse_interface_with_is_and_other_members() {
     is: WebidlIs
     attributes: WebIDLExtendedAttributes
 }"#,
-        destack_source::LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
 
@@ -915,10 +906,7 @@ fn test_parse_interface_with_is_and_other_members() {
 
 #[test]
 fn test_parse_interface_head_comment_before_body_on_declaration_owner() {
-    let mut test = TestParser::new_with_language(
-        "interface Shape // interface-head\n{\n  area: number\n}",
-        destack_source::LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("interface Shape // interface-head\n{\n  area: number\n}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 

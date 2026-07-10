@@ -1,10 +1,8 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
-    Declaration, Expression, GenericArgument, TokenType, TypeDeclaration, TypeExpression,
-    TypeLiteral,
+    Declaration, Expression, GenericArgument, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 #[test]
 fn test_parse_type_infer_span() {
@@ -76,23 +74,6 @@ fn test_parse_static_value_call_type_expression() {
         });
     });
 
-    test.assert_no_errors(&parser);
-}
-
-#[test]
-fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
-    let mut test = TestParser::new_with_language("shared Value", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let type_id = parser
-        .with_flags(parser.flags.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
-        .unwrap();
-
-    assert_expression_path!(parser, parser.tree.get(type_id), "shared");
-
-    let next_span = parser.peek().span;
-    assert_eq!(parser.get_span_str(next_span), "Value");
     test.assert_no_errors(&parser);
 }
 
@@ -179,23 +160,6 @@ fn test_parse_owned_local_type_expression() {
 }
 
 #[test]
-fn test_parse_typescript_type_expression_keeps_local_as_identifier() {
-    let mut test = TestParser::new_with_language("local Value", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let type_id = parser
-        .with_flags(parser.flags.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
-        .unwrap();
-
-    assert_expression_path!(parser, parser.tree.get(type_id), "local");
-
-    let next_span = parser.peek().span;
-    assert_eq!(parser.get_span_str(next_span), "Value");
-    test.assert_no_errors(&parser);
-}
-
-#[test]
 fn test_parse_type_not_operator_span() {
     let mut test = TestParser::new("type T = !Unpin");
     let mut parser = test.prepare();
@@ -222,10 +186,7 @@ fn test_parse_type_not_operator_span() {
 
 #[test]
 fn test_parse_readonly_type_operator_precedence() {
-    let mut test = TestParser::new_with_language(
-        "type T = readonly string[] | undefined",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("type T = readonly string[] | undefined");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -250,7 +211,7 @@ fn test_parse_readonly_type_operator_precedence() {
 
 #[test]
 fn test_parse_type_unary_postfix_operator_span() {
-    let mut test = TestParser::new_with_language("Value as const", LanguageType::TypeScript);
+    let mut test = TestParser::new("Value as const");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -269,7 +230,7 @@ fn test_parse_type_unary_postfix_operator_span() {
 
 #[test]
 fn test_parse_type_binary_operator_span() {
-    let mut test = TestParser::new_with_language("Value as Other", LanguageType::TypeScript);
+    let mut test = TestParser::new("Value as Other");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -319,24 +280,8 @@ fn test_parse_type_binary_extends_operator_span() {
 }
 
 #[test]
-fn test_parse_typescript_extends_type_requires_conditional_branches() {
-    let mut test = TestParser::new_with_language("Left extends Right", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let error = parser
-        .with_flags(parser.flags.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
-        .unwrap_err();
-
-    assert_eq!(error.node_type, None);
-    assert_eq!(error.expected, Some(TokenType::Maybe));
-    assert_eq!(parser.get_span_str(error.span), "");
-}
-
-#[test]
 fn test_parse_type_binary_satisfies_operator_span() {
-    let mut test =
-        TestParser::new_with_language("Value satisfies Constraint", LanguageType::TypeScript);
+    let mut test = TestParser::new("Value satisfies Constraint");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -376,24 +321,6 @@ fn test_parse_type_binary_implements_operator_span() {
             });
         });
     });
-}
-
-#[test]
-fn test_parse_typescript_type_expression_stops_before_implements() {
-    let mut test =
-        TestParser::new_with_language("Value implements Trait", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-    let type_id = parser
-        .with_flags(parser.flags.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
-        .unwrap();
-
-    assert_expression_path!(parser, parser.tree.get(type_id), "Value");
-
-    let next_span = parser.peek().span;
-    assert_eq!(parser.get_span_str(next_span), "implements");
-    test.assert_no_errors(&parser);
 }
 
 #[test]

@@ -1,16 +1,11 @@
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
-use destack_dir::{Keyword, LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
+use destack_dir::{LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
 
 impl Parser {
     /// Return whether the current token starts a type tuple head.
     pub(crate) fn starts_type_tuple_head(&mut self) -> bool {
-        // readonly is a tuple modifier only where bracket singles stay tuples
-        let is_readonly_element = !self.language.is_destack() && self.is_keyword(Keyword::Readonly);
-
-        self.peek_is(TokenType::Spread)
-            || is_readonly_element
-            || self.starts_labeled_type_tuple_head()
+        self.peek_is(TokenType::Spread) || self.starts_labeled_type_tuple_head()
     }
 
     /// Return whether the current token starts a labeled type tuple head.
@@ -22,14 +17,14 @@ impl Parser {
     }
 
     /// Return whether one trailing `?` belongs to the surrounding type tuple element.
-    pub(crate) fn current_type_tuple_element_is_optional(&mut self, terminator: TokenType) -> bool {
+    pub(crate) fn current_type_tuple_element_is_optional(&mut self) -> bool {
         if !self.peek_is(TokenType::Maybe) {
             return false;
         }
 
         let next_token_type = self.next_token_type();
 
-        next_token_type == TokenType::Comma || next_token_type == terminator
+        next_token_type == TokenType::Comma || next_token_type == TokenType::CloseParenthesis
     }
 
     /// Eat one labeled type tuple head.
@@ -63,47 +58,22 @@ impl Parser {
     /// name?: string
     /// ...rest: string[]
     /// ```
-    fn eat_type_tuple_element(
-        &mut self,
-        terminator: TokenType,
-    ) -> ParserResult<LocalNodeId<TupleElement>> {
+    fn eat_type_tuple_element(&mut self) -> ParserResult<LocalNodeId<TupleElement>> {
         let start = self.span_start();
-        let is_readonly = self.eat_type_tuple_readonly_modifier()?;
 
         // spread element
         if self.peek_is(TokenType::Spread) {
-            return self.eat_type_tuple_spread_element(&start, terminator, is_readonly);
+            return self.eat_type_tuple_spread_element(&start);
         }
 
         let (label, is_optional) = self.eat_type_tuple_label_if_present()?;
 
         // named rest payload
         if label.is_some() && self.peek_is(TokenType::Spread) {
-            return self.eat_type_tuple_named_rest_element(&start, label, is_optional, is_readonly);
+            return self.eat_type_tuple_named_rest_element(&start, label, is_optional);
         }
 
-        self.eat_type_tuple_regular_element(&start, terminator, label, is_optional, is_readonly)
-    }
-
-    /// Eat a readonly tuple element modifier.
-    ///
-    /// Examples:
-    /// ```ds
-    /// readonly string
-    /// readonly name: string
-    /// readonly [string, number]
-    /// ```
-    fn eat_type_tuple_readonly_modifier(&mut self) -> ParserResult<bool> {
-        let next = self.peek();
-        if !self.language.is_destack()
-            && next.token.ty() == TokenType::Identifier
-            && self.get_span_str(next.span) == "readonly"
-        {
-            self.bump();
-            return Ok(true);
-        }
-
-        Ok(false)
+        self.eat_type_tuple_regular_element(&start, label, is_optional)
     }
 
     /// Eat a spread tuple element.
@@ -112,19 +82,12 @@ impl Parser {
     /// ```ds
     /// ...string[]
     /// ...rest: string[]
-    /// ...readonly string[]
     /// ```
     fn eat_type_tuple_spread_element(
         &mut self,
         start: &ParserSpanStart,
-        _terminator: TokenType,
-        is_readonly: bool,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         self.bump();
-
-        if is_readonly {
-            return Err(ParserError::unexpected(self.get_span_from(start)));
-        }
 
         let label = if self.starts_labeled_type_tuple_head() {
             let (label, is_optional) = self.eat_labeled_type_tuple_head()?;
@@ -169,18 +132,16 @@ impl Parser {
     /// ```ds
     /// rest: ...string[]
     /// args: ...unknown[]
-    /// values: ...readonly string[]
     /// ```
     fn eat_type_tuple_named_rest_element(
         &mut self,
         start: &ParserSpanStart,
         label: Option<StringId>,
         is_optional: bool,
-        is_readonly: bool,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         self.bump();
 
-        if is_optional || is_readonly {
+        if is_optional {
             return Err(ParserError::unexpected(self.get_span_from(start)));
         }
 
@@ -203,16 +164,14 @@ impl Parser {
     fn eat_type_tuple_regular_element(
         &mut self,
         start: &ParserSpanStart,
-        terminator: TokenType,
         label: Option<StringId>,
         is_optional: bool,
-        is_readonly: bool,
     ) -> ParserResult<LocalNodeId<TupleElement>> {
         let value = self.eat_type_expression()?;
 
         let is_optional = if label.is_some() {
             is_optional
-        } else if self.current_type_tuple_element_is_optional(terminator) {
+        } else if self.current_type_tuple_element_is_optional() {
             self.bump();
             true
         } else {
@@ -224,7 +183,7 @@ impl Parser {
                 label,
                 value,
                 is_optional,
-                is_readonly,
+                is_readonly: false,
             },
             self.get_span_from(start),
         ))
@@ -241,11 +200,10 @@ impl Parser {
     pub(crate) fn eat_type_tuple_tail(
         &mut self,
         start: &ParserSpanStart,
-        terminator: TokenType,
         value: LocalNodeId<TypeExpression>,
     ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         // optional marker on an unlabeled tuple element
-        let is_optional = if self.current_type_tuple_element_is_optional(terminator) {
+        let is_optional = if self.current_type_tuple_element_is_optional() {
             self.bump();
             true
         } else {
@@ -267,7 +225,7 @@ impl Parser {
         let mut elements = vec![first_element];
         if self.peek_is(TokenType::Comma) {
             self.eat_comma()?;
-            elements.extend(self.eat_type_tuple_elements_body(terminator)?);
+            elements.extend(self.eat_type_tuple_elements_body()?);
         }
 
         Ok(elements)
@@ -283,20 +241,19 @@ impl Parser {
     /// ```
     pub(crate) fn eat_type_tuple_elements_body(
         &mut self,
-        terminator: TokenType,
     ) -> ParserResult<Vec<LocalNodeId<TupleElement>>> {
         let mut element_ids = Vec::new();
 
         while self.has_more_tokens() {
             // closing token
-            if self.peek_is(terminator) {
+            if self.peek_is(TokenType::CloseParenthesis) {
                 break;
             }
 
             // one tuple element
             let element_start = self.span_start();
             let is_recovered_element;
-            let element_id = match self.eat_type_tuple_element(terminator) {
+            let element_id = match self.eat_type_tuple_element() {
                 Ok(element_id) => {
                     is_recovered_element = matches!(self.tree.get(element_id), TupleElement::Error);
                     element_id
@@ -304,7 +261,7 @@ impl Parser {
                 Err(error) => {
                     self.recover_list_item(
                         self.get_span_from(&element_start),
-                        terminator,
+                        TokenType::CloseParenthesis,
                         Some(error),
                     );
                     let element_id =
@@ -321,7 +278,9 @@ impl Parser {
                 self.eat_comma()?;
             }
             // recovery boundary
-            else if !is_recovered_element || !self.can_continue_after_recovered_item(terminator) {
+            else if !is_recovered_element
+                || !self.can_continue_after_recovered_item(TokenType::CloseParenthesis)
+            {
                 break;
             }
         }

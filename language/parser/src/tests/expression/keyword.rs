@@ -6,7 +6,7 @@ use destack_dir::{
     Expression, FunctionDeclaration, ImportAttributeClauseKind, Key, Name, Parameter, Pattern,
     Property, ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
+use destack_source::{NodeSpanBoundary, NodeSpanType};
 
 /// Parse a do block expression with a value tail.
 #[test]
@@ -186,10 +186,8 @@ if (value is string) {
 /// Parse runtime type guard comments into expression and target boundaries.
 #[test]
 fn test_parse_if_is_type_guard_comment_boundaries() {
-    let mut test = TestParser::new_with_language(
-        "if (value /* checked value */ is /* expected type */ string) { value }",
-        LanguageType::Destack,
-    );
+    let mut test =
+        TestParser::new("if (value /* checked value */ is /* expected type */ string) { value }");
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
@@ -356,10 +354,7 @@ fn test_parse_export_expression_type_declaration() {
 /// Parse export default abstract class with decorator prefixes.
 #[test]
 fn test_parse_export_default_abstract_class_with_decorator_prefixes() {
-    let mut test = TestParser::new_with_language(
-        "@before\nexport default @after abstract class Foo { }",
-        LanguageType::TypeScript,
-    );
+    let mut test = TestParser::new("@before\nexport default @after abstract class Foo { }");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -421,8 +416,7 @@ type = type * 2
 /// Parse `namespace[this.dest] = values`.
 #[test]
 fn test_parse_namespace_as_identifier_in_index_assignment() {
-    let mut test =
-        TestParser::new_with_language("namespace[this.dest] = values", LanguageType::TypeScript);
+    let mut test = TestParser::new("namespace[this.dest] = values");
     let mut parser = test.prepare();
 
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -446,19 +440,17 @@ fn test_parse_namespace_as_identifier_in_index_assignment() {
 
 #[test]
 fn test_parse_override_as_identifier_call() {
-    for language in [LanguageType::TypeScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_language("override(value)", language);
-        let mut parser = test.prepare();
+    let mut test = TestParser::new("override(value)");
+    let mut parser = test.prepare();
 
-        let expression_id = parser.eat_expression(parser.flags).unwrap();
-        assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
-            assert_expression_path!(parser, parser.tree.get(*left), "override");
-            assert_eq!(arguments.len(), 1);
-            assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*value), "value");
-            });
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "override");
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "value");
         });
-    }
+    });
 }
 
 #[test]
@@ -475,26 +467,9 @@ fn test_parse_abstract_as_identifier_call() {
         });
     });
 }
-
-#[test]
-fn test_parse_type_as_identifier_call() {
-    let mut test = TestParser::new_with_language("type(123)", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
-        assert_expression_path!(parser, parser.tree.get(*left), "type");
-        assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
-            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(123)));
-        });
-    });
-}
-
-/// Parse `abstract\nclass B {}` as `abstract; class B {}`.
 #[test]
 fn test_parse_abstract_newline_as_identifier_then_class() {
-    let mut test = TestParser::new_with_language("abstract\nclass B {}", LanguageType::TypeScript);
+    let mut test = TestParser::new("abstract\nclass B {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -511,7 +486,7 @@ fn test_parse_abstract_newline_as_identifier_then_class() {
 /// Parse `type\nFoo = string;` as `type; Foo = string`.
 #[test]
 fn test_parse_type_newline_as_identifier_then_assignment() {
-    let mut test = TestParser::new_with_language("type\nFoo = string;", LanguageType::TypeScript);
+    let mut test = TestParser::new("type\nFoo = string;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -528,7 +503,7 @@ fn test_parse_type_newline_as_identifier_then_assignment() {
 /// Parse `type` as a callback parameter and statement identifier.
 #[test]
 fn test_parse_callback_parameter_named_type() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         "avplay.setListener({
     onsubtitlechange: (duration, subtitles, type, attributes) => {
         duration // $ExpectType string
@@ -537,7 +512,6 @@ fn test_parse_callback_parameter_named_type() {
         attributes // $ExpectType AVPlaySubtitleAttribute[]
     }
 })",
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
@@ -589,13 +563,11 @@ fn test_parse_callback_parameter_named_type() {
 
 #[test]
 fn test_report_export_path_expression() {
-    for language in [LanguageType::JavaScript, LanguageType::Destack] {
-        let mut test = TestParser::new_with_language("export foo", language);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression(parser.flags).unwrap_err();
+    let mut test = TestParser::new("export foo");
+    let mut parser = test.prepare();
+    let error = parser.eat_expression(parser.flags).unwrap_err();
 
-        assert_eq!(parser.get_span_str(error.span), "foo");
-    }
+    assert_eq!(parser.get_span_str(error.span), "foo");
 }
 
 /// Parse `import { bar, baz } from foo`.

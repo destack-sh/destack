@@ -76,8 +76,7 @@ impl Parser {
 
     /// Return the expression scope for assignment right sides.
     fn assignment_right_scope(&self) -> ExpressionScope {
-        ExpressionScope::from_flags(self.flags.not_in_position().not_in_sequence_expression())
-            .with_newline_call_boundary(true)
+        ExpressionScope::from_flags(self.flags.not_in_position()).with_newline_call_boundary(true)
     }
 
     /// Eat a right-associative assignment tail and fold it from the right.
@@ -351,7 +350,7 @@ impl Parser {
             Argument::Spread { value, .. } => {
                 let pattern = self.assignment_pattern_from_expression(value)?;
 
-                AssignPatternField::Spread {
+                AssignPatternField::Rest {
                     pattern: Some(pattern),
                 }
             }
@@ -456,18 +455,13 @@ impl Parser {
 
                 AssignPatternField::Computed { key, pattern }
             }
-            Property::Field {
-                key: Key::Private(_),
-                ..
-            }
-            | Property::Method { .. }
-            | Property::Error => {
+            Property::Method { .. } | Property::Error => {
                 return Err(ParserError::unexpected(span));
             }
             Property::Spread { value } => {
                 let pattern = self.assignment_pattern_from_expression(value)?;
 
-                AssignPatternField::Spread {
+                AssignPatternField::Rest {
                     pattern: Some(pattern),
                 }
             }
@@ -526,16 +520,16 @@ impl Parser {
 
         match self.tree.get(expression_id) {
             Expression::Identifier { .. } => true,
-            Expression::Member { .. }
-            | Expression::PrivateMember { .. }
-            | Expression::Index { .. } => !self.expression_contains_optional_chain(expression_id),
+            Expression::Member { .. } | Expression::Index { .. } => {
+                !self.expression_contains_optional_chain(expression_id)
+            }
             Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
                 self.expression_is_simple_assignment_target(*expression)
             }
             Expression::Unary {
                 operator: UnaryOperator::Dereference,
                 right,
-            } if self.language.is_destack() => self.expression_is_simple_assignment_target(*right),
+            } => self.expression_is_simple_assignment_target(*right),
             Expression::Must { left, .. } => self.expression_is_simple_assignment_target(*left),
             _ => false,
         }
@@ -547,9 +541,7 @@ impl Parser {
 
         match self.tree.get(expression_id) {
             Expression::Maybe { .. } => true,
-            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-                self.expression_contains_optional_chain(*left)
-            }
+            Expression::Member { left, .. } => self.expression_contains_optional_chain(*left),
             Expression::Index { left, .. } => self.expression_contains_optional_chain(*left),
             Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
                 self.expression_contains_optional_chain(*expression)

@@ -4,7 +4,6 @@ use destack_dir::{
     BinaryOperator, Declaration, Expression, GenericArgument, ScalarLiteral, TupleElement,
     TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::LanguageType;
 
 #[test]
 fn test_parse_function_type_return_conditional() {
@@ -237,12 +236,11 @@ fn test_parse_generic_indexed_access_with_array_suffix() {
 /// Parenthesized leading-pipe unions should remain grouped before array suffixes.
 #[test]
 fn test_parse_parenthesized_leading_pipe_union_with_array_suffix() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"type Result = (
   | "a"
   | "b"
 )[]"#,
-        LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -300,10 +298,7 @@ fn test_parse_type_associated_projection_with_generic_arguments() {
 #[test]
 fn test_parse_generic_indexed_access_in_declaration_file() {
     // Foo<T[number]>[]
-    let mut test = TestParser::new_with_language(
-        "type A = Foo<T[number]>[]",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("type A = Foo<T[number]>[]");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -365,10 +360,7 @@ fn test_parse_nested_generic_closings_in_type() {
 /// Tuple expressions inside generic arguments should parse as a single argument.
 #[test]
 fn test_parse_tuple_generic_argument() {
-    let mut test = TestParser::new_with_language(
-        "type A = And<[Left, Right]>",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("type A = And<(Left, Right)>");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -378,7 +370,7 @@ fn test_parse_tuple_generic_argument() {
                 assert_path!(parser, *path, "And");
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                         assert_eq!(elements.len(), 2);
                         assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*value), "Left");
@@ -396,10 +388,7 @@ fn test_parse_tuple_generic_argument() {
 /// Parenthesized union expressions inside generic arguments should stay grouped.
 #[test]
 fn test_parse_parenthesized_union_generic_argument() {
-    let mut test = TestParser::new_with_language(
-        "type Alias = Wrap<(number | string)>;",
-        LanguageType::Destack,
-    );
+    let mut test = TestParser::new("type Alias = Wrap<(number | string)>;");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -429,8 +418,7 @@ fn test_parse_parenthesized_union_generic_argument() {
 /// Comptime value expressions inside generic arguments stay in value space.
 #[test]
 fn test_parse_value_expression_generic_argument() {
-    let mut test =
-        TestParser::new_with_language("type Alias = Buffer<1 + 2>", LanguageType::Destack);
+    let mut test = TestParser::new("type Alias = Buffer<1 + 2>");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -461,9 +449,8 @@ fn test_parse_value_expression_generic_argument() {
 /// Nested generic arguments inside tuple generic arguments should stay grouped.
 #[test]
 fn test_parse_tuple_generic_argument_with_nested_generics() {
-    let mut test = TestParser::new_with_language(
-        r#"type A<Actual> = And<[Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>]>;"#,
-        LanguageType::TypeScriptDeclaration,
+    let mut test = TestParser::declaration(
+        r#"type A<Actual> = And<(Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>)>;"#,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -473,7 +460,7 @@ fn test_parse_tuple_generic_argument_with_nested_generics() {
             assert_node!(parser.tree, *value, TypeExpression::Reference { generic_arguments, .. } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                    assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                         assert_eq!(elements.len(), 2);
                     });
                 });
@@ -485,9 +472,8 @@ fn test_parse_tuple_generic_argument_with_nested_generics() {
 /// Tuple generic arguments inside a conditional type should stay grouped.
 #[test]
 fn test_parse_tuple_generic_argument_in_type_conditional() {
-    let mut test = TestParser::new_with_language(
-        r#"type A<Actual, Expected> = And<[Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>]> extends true ? Actual : Expected;"#,
-        LanguageType::TypeScriptDeclaration,
+    let mut test = TestParser::declaration(
+        r#"type A<Actual, Expected> = And<(Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>)> extends true ? Actual : Expected;"#,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -498,7 +484,7 @@ fn test_parse_tuple_generic_argument_in_type_conditional() {
                 assert_node!(parser.tree, *left, TypeExpression::Reference { generic_arguments, .. } => {
                     assert_eq!(generic_arguments.len(), 1);
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                        assert_node!(parser.tree, *value, TypeExpression::Tuple { elements } => {
                             assert_eq!(elements.len(), 2);
                         });
                     });
@@ -512,10 +498,7 @@ fn test_parse_tuple_generic_argument_in_type_conditional() {
 #[test]
 fn test_parse_readonly_generic_indexed_access() {
     // readonly Foo<T[number]>
-    let mut test = TestParser::new_with_language(
-        "type A = readonly Foo<T[number]>",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("type A = readonly Foo<T[number]>");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -546,10 +529,7 @@ fn test_parse_readonly_generic_indexed_access() {
 #[test]
 fn test_parse_readonly_generic_indexed_access_array() {
     // readonly Foo<T[number]>[]
-    let mut test = TestParser::new_with_language(
-        "type A = readonly Foo<T[number]>[]",
-        LanguageType::TypeScriptDeclaration,
-    );
+    let mut test = TestParser::declaration("type A = readonly Foo<T[number]>[]");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
@@ -582,12 +562,11 @@ fn test_parse_readonly_generic_indexed_access_array() {
 /// Complex conditional type from deno builtins with nested indexed access.
 #[test]
 fn test_parse_deno_conditional_indexed_access() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::declaration(
         r#"type ToNativeParameterTypes<T extends readonly NativeType[]> =
 [T[number][]] extends [T] ? ToNativeType<T[number]>[]
   : [readonly T[number][]] extends [T] ? readonly ToNativeType<T[number]>[]
   : never"#,
-        LanguageType::TypeScriptDeclaration,
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();

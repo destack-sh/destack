@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use destack_parser::Lexer;
-use destack_source::{File, FileId, FileType, LanguageType, Uri};
+use destack_source::{File, FileId, FileType, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -21,5 +21,5 @@ fuzz_target!(|data: &[u8]| {
         FileType::Destack,
         input.to_string(),
     ));
-    let _ = Lexer::lex(file, LanguageType::Destack);
+    let _ = Lexer::lex(file);
 });

@@ -4,7 +4,7 @@ use destack_dir::{
     Parameter, Pattern, Property, ScalarAlias, ScalarLiteral, TemplateLiteral, TokenType,
     TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
-use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
@@ -38,7 +38,7 @@ fn test_parse_integer_literal() {
 /// Parse integer literals with uppercase radix prefixes.
 #[test]
 fn test_parse_integer_literal_uppercase_radix_prefixes() {
-    let mut test = TestParser::new_with_language("0B101 0O77 0Xff", LanguageType::TypeScript);
+    let mut test = TestParser::new("0B101 0O77 0Xff");
     let mut parser = test.prepare();
 
     assert_eq!(
@@ -134,35 +134,6 @@ fn test_parse_boolean_literal() {
         ScalarLiteral::Boolean(false)
     );
 }
-
-/// Parse string literal.
-#[test]
-fn test_parse_string_literal() {
-    let mut test = TestParser::new_with_language(r#""hello" 'hi there'"#, LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    let literal = parser.eat_scalar_literal().unwrap();
-    assert_string!(
-        parser,
-        match literal {
-            ScalarLiteral::String(id) => id,
-            other => panic!("expected string literal, got {other:?}"),
-        },
-        "hello"
-    );
-
-    let literal = parser.eat_scalar_literal().unwrap();
-    assert_string!(
-        parser,
-        match literal {
-            ScalarLiteral::String(id) => id,
-            other => panic!("expected string literal, got {other:?}"),
-        },
-        "hi there"
-    );
-}
-
-/// Parse Destack single quoted literals as characters.
 #[test]
 fn test_parse_single_quoted_character_literal() {
     let mut test = TestParser::new("'a'");
@@ -192,46 +163,6 @@ fn test_parse_escaped_single_quoted_character_literal() {
         ScalarLiteral::Character('A')
     );
 }
-
-/// Parse a single quoted line separator string literal.
-#[test]
-fn test_parse_single_quoted_line_separator_as_string() {
-    // source: ('\u{2028}')
-    let mut test = TestParser::new_with_language("('\u{2028}')", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    parser.eat_token(TokenType::OpenParenthesis).unwrap();
-    let literal = parser.eat_scalar_literal().unwrap();
-    assert_string!(
-        parser,
-        match literal {
-            ScalarLiteral::String(id) => id,
-            other => panic!("expected string literal, got {other:?}"),
-        },
-        "\u{2028}"
-    );
-}
-
-/// Parse a single quoted paragraph separator string literal.
-#[test]
-fn test_parse_single_quoted_paragraph_separator_as_string() {
-    // source: ('\u{2029}')
-    let mut test = TestParser::new_with_language("('\u{2029}')", LanguageType::TypeScript);
-    let mut parser = test.prepare();
-
-    parser.eat_token(TokenType::OpenParenthesis).unwrap();
-    let literal = parser.eat_scalar_literal().unwrap();
-    assert_string!(
-        parser,
-        match literal {
-            ScalarLiteral::String(id) => id,
-            other => panic!("expected string literal, got {other:?}"),
-        },
-        "\u{2029}"
-    );
-}
-
-/// Parse a regex string literal.
 #[test]
 fn test_parse_regex_string_literal() {
     let mut test = TestParser::new("/abc/\n/abc/g");
@@ -394,10 +325,10 @@ fn test_parse_template_literal() {
     }
 }
 
-/// Parse template interpolation with a TypeScript `as` cast.
+/// Parse template interpolation with an `as` cast.
 #[test]
 fn test_parse_template_literal_as_cast_expression() {
-    let mut test = TestParser::new_with_language("`${type as string}`", LanguageType::TypeScript);
+    let mut test = TestParser::new("`${type as string}`");
     let mut parser = test.prepare();
     let literal = parser.eat_template_literal().unwrap();
 
@@ -686,7 +617,7 @@ fn test_parse_tree_fragment() {
 /// Parse inline whitespace-only tree text as a meaningful child.
 #[test]
 fn test_parse_tree_inline_whitespace_text_child() {
-    let mut test = TestParser::new_with_language("<Text> </Text>", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<Text> </Text>");
     let mut parser = test.prepare();
 
     let expression = parser.eat_tree_literal().unwrap();
@@ -702,8 +633,7 @@ fn test_parse_tree_inline_whitespace_text_child() {
 /// Parse tree literal body source spans separately from opening tags.
 #[test]
 fn test_parse_tree_literal_records_body_span() {
-    let mut test =
-        TestParser::new_with_language("<Link>\n  Docs\n</Link>", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<Link>\n  Docs\n</Link>");
     let mut parser = test.prepare();
 
     let expression = parser.eat_tree_literal().unwrap();
@@ -717,7 +647,7 @@ fn test_parse_tree_literal_records_body_span() {
 
 #[test]
 fn test_parse_tree_fragment_with_kebab_tag() {
-    let mut test = TestParser::new_with_language("<amp-something />", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<amp-something />");
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     // <amp-something />
@@ -1105,10 +1035,7 @@ fn test_parse_tree_in_parenthesis() {
 /// Parse tree literal with generic attributes on the tag.
 #[test]
 fn test_parse_tree_with_generic_arguments() {
-    let mut test = TestParser::new_with_language(
-        r#"<Component<any>></Component>"#,
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new(r#"<Component<any>></Component>"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), generic_arguments, attributes, children, .. } => {
@@ -1130,8 +1057,7 @@ fn test_parse_tree_with_generic_arguments() {
 /// Parse generic attributes containing a shift-left-like generic arrow.
 #[test]
 fn test_parse_generic_arguments_with_shift_left_generic_arrow() {
-    let mut test =
-        TestParser::new_with_language(r#"<<T>(v: T) => void>"#, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(r#"<<T>(v: T) => void>"#);
     let mut parser = test.prepare();
 
     // parse the generic attributes
@@ -1164,10 +1090,7 @@ fn test_parse_generic_arguments_with_shift_left_generic_arrow() {
 /// Parse tree literal with shift-left-like generic attributes on the tag.
 #[test]
 fn test_parse_tree_with_shift_left_generic_arguments() {
-    let mut test = TestParser::new_with_language(
-        r#"<Component<<T>(v: T) => void> />"#,
-        LanguageType::TypeScriptXml,
-    );
+    let mut test = TestParser::new(r#"<Component<<T>(v: T) => void> />"#);
     let mut parser = test.prepare();
 
     // parse the tree literal
@@ -1190,11 +1113,10 @@ fn test_parse_tree_with_shift_left_generic_arguments() {
 /// Parse a tree literal with generic attributes and multiline attributes.
 #[test]
 fn test_parse_tree_with_generic_arguments_and_multiline_attributes() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<Tags<ValueTagData>
   defaultValue={value}
 />"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_tree_literal().unwrap();
@@ -1224,7 +1146,7 @@ fn test_parse_tree_with_generic_arguments_and_multiline_attributes() {
 /// Parse tree attribute comments without expanding the tag name span.
 #[test]
 fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<Widget
   // props-leading
   {...props} // props-tail
@@ -1232,7 +1154,6 @@ fn test_parse_tree_attribute_leading_comments_keep_tag_name_span() {
   // extra-leading
   {...extra}
 />"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression_id = parser.eat_tree_literal().unwrap();
@@ -1346,7 +1267,7 @@ fn test_parse_tree_with_comment_container() {
 /// Parse a tree fragment with keyword text followed by an expression container.
 #[test]
 fn test_parse_tree_fragment_with_keyword_text_and_expression() {
-    let mut test = TestParser::new_with_language("<>for {x}</>", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("<>for {x}</>");
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -1368,10 +1289,7 @@ fn test_parse_tree_fragment_with_keyword_text_and_expression() {
 /// Parse tree fragment with comments between the angle brackets.
 #[test]
 fn test_parse_tree_fragment_with_comments() {
-    let mut test = TestParser::new_with_language(
-        "<\n// comment\n/* comment */\n>\n</>",
-        LanguageType::JavaScriptXml,
-    );
+    let mut test = TestParser::new("<\n// comment\n/* comment */\n>\n</>");
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, attributes, children, .. } => {
@@ -1384,8 +1302,7 @@ fn test_parse_tree_fragment_with_comments() {
 /// Parse tree fragment with a closing tag that has trivia before the slash.
 #[test]
 fn test_parse_tree_fragment_closing_with_trivia() {
-    let mut test =
-        TestParser::new_with_language("<>\n< /* comment */ / >", LanguageType::JavaScriptXml);
+    let mut test = TestParser::new("<>\n< /* comment */ / >");
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, attributes, children, .. } => {
@@ -1398,8 +1315,7 @@ fn test_parse_tree_fragment_closing_with_trivia() {
 /// Parse tree literal with namespace tag and attribute.
 #[test]
 fn test_parse_tree_with_namespace_tag() {
-    let mut test =
-        TestParser::new_with_language(r#"<Foo:Bar n:foo="bar" />"#, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(r#"<Foo:Bar n:foo="bar" />"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
@@ -1474,7 +1390,7 @@ fn test_parse_nested_tree_in_attribute() {
 /// Parse multiline tree attribute expression containers before a tag close.
 #[test]
 fn test_parse_multiline_tree_attribute_expression_before_tag_close() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<PopoverProvider
   popover={
     <TooltipContent>
@@ -1484,7 +1400,6 @@ fn test_parse_multiline_tree_attribute_expression_before_tag_close() {
 >
   <PopoverTrigger />
 </PopoverProvider>"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
@@ -1524,7 +1439,7 @@ fn test_parse_multiline_tree_attribute_expression_before_tag_close() {
 
 #[test]
 fn test_parse_tree_attribute_tree_with_nested_map_before_tag_close() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<PopoverProvider
   popover={
     <TooltipContent>
@@ -1543,7 +1458,6 @@ fn test_parse_tree_attribute_tree_with_nested_map_before_tag_close() {
 >
   <PopoverTrigger style={{ margin: 4 }} />
 </PopoverProvider>"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
@@ -1583,9 +1497,8 @@ fn test_parse_tree_attribute_tree_with_nested_map_before_tag_close() {
 /// Tree fragment text in attribute expression containers parses as tree string.
 #[test]
 fn test_parse_tree_fragment_text_in_attribute_expression() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<Show when={shouldShow()} fallback={<>off</>}><>{props.children}</></Show>"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr = parser.eat_tree_literal().unwrap();
@@ -1610,13 +1523,12 @@ fn test_parse_tree_fragment_text_in_attribute_expression() {
 /// Parse a named tree literal with text content inside an attribute expression container.
 #[test]
 fn test_parse_tree_named_text_in_attribute_expression() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<ParentComponent prop={
   <Child>
     test
   </Child>
 }/>;"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr = parser.eat_tree_literal().unwrap();
@@ -1658,7 +1570,7 @@ fn test_parse_tree_attribute_object_callback_with_fragment_ternary() {
 />"#;
 
     // parse one tree literal from the tree-tag input
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression_id = parser.eat_tree_literal().unwrap();
 
@@ -1707,14 +1619,13 @@ fn test_parse_tree_attribute_object_callback_with_fragment_ternary() {
 /// Parse spread attributes with newline and comments after the container open.
 #[test]
 fn test_parse_tree_attribute_spread_with_multiline_comments() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<Tag
   {
     // comment before spread
     ...(rootProps as any)
   }
 />"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
@@ -1734,9 +1645,8 @@ fn test_parse_tree_attribute_spread_with_multiline_comments() {
 
 #[test]
 fn test_parse_tree_attribute_spread_with_cast() {
-    let mut test = TestParser::new_with_language(
+    let mut test = TestParser::new(
         r#"<WrappedComponent {...(this.props as P & DependentProps)} {...this.state} />"#,
-        LanguageType::TypeScriptXml,
     );
     let mut parser = test.prepare();
     let expr = parser.eat_tree_literal().unwrap();
@@ -1889,8 +1799,7 @@ fn test_parse_tree_expression_container_relational() {
 /// Parse generic calls inside tree expression containers.
 #[test]
 fn test_parse_tree_expression_container_generic_call() {
-    let mut test =
-        TestParser::new_with_language(r#"<div>{foo<T>(x)}</div>"#, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(r#"<div>{foo<T>(x)}</div>"#);
     let mut parser = test.prepare();
     let expr = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
@@ -1918,10 +1827,8 @@ fn test_parse_tree_expression_container_generic_call() {
 /// Parse logical and with an inline tree containing attributes and text.
 #[test]
 fn test_parse_tree_expression_container_logical_and_inline_tree_with_text() {
-    let mut test = TestParser::new_with_language(
-        r#"<div>{errors.Checkbox && <p id="Checkbox">Checkbox Error</p>}</div>"#,
-        LanguageType::TypeScriptXml,
-    );
+    let mut test =
+        TestParser::new(r#"<div>{errors.Checkbox && <p id="Checkbox">Checkbox Error</p>}</div>"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -1948,8 +1855,7 @@ fn test_parse_tree_expression_container_logical_and_inline_tree_with_text() {
 /// Tree literal should parse after a closing class block on a new line.
 #[test]
 fn test_parse_tree_after_class_block_newline() {
-    let mut test =
-        TestParser::new_with_language("class C extends D<T> {}\n<C/>", LanguageType::TypeScriptXml);
+    let mut test = TestParser::new("class C extends D<T> {}\n<C/>");
     let mut parser = test.prepare();
 
     // class declaration
@@ -2027,10 +1933,7 @@ fn test_parse_template_literal_ternary() {
 /// Parse tree text that includes `=` after opening tags.
 #[test]
 fn test_parse_tree_text_with_equals_after_tag_with_attribute_no_space() {
-    let mut test = TestParser::new_with_language(
-        r#"<div className={styles.foo}>=</div>"#,
-        LanguageType::JavaScriptXml,
-    );
+    let mut test = TestParser::new(r#"<div className={styles.foo}>=</div>"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2046,10 +1949,7 @@ fn test_parse_tree_text_with_equals_after_tag_with_attribute_no_space() {
 /// Parse tree text that includes `=` after opening tags.
 #[test]
 fn test_parse_tree_text_with_equals_after_tag_with_attribute_with_space() {
-    let mut test = TestParser::new_with_language(
-        r#"<div className={styles.foo} >=</div>"#,
-        LanguageType::JavaScriptXml,
-    );
+    let mut test = TestParser::new(r#"<div className={styles.foo} >=</div>"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2065,7 +1965,7 @@ fn test_parse_tree_text_with_equals_after_tag_with_attribute_with_space() {
 /// Parse tree text that includes `=` after opening tags.
 #[test]
 fn test_parse_tree_text_with_equals_after_simple_tag_no_space() {
-    let mut test = TestParser::new_with_language(r#"<div>=</div>"#, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(r#"<div>=</div>"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2081,7 +1981,7 @@ fn test_parse_tree_text_with_equals_after_simple_tag_no_space() {
 /// Parse tree fragments containing text after opening tags.
 #[test]
 fn test_parse_tree_fragment_text_with_equals_prefix() {
-    let mut test = TestParser::new_with_language(r#"<>=x</>"#, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(r#"<>=x</>"#);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     test.assert_no_errors(&parser);
@@ -2103,7 +2003,7 @@ fn test_parse_nested_tree_fragment_text_with_equals_prefix() {
     <>=x</>
 </>;
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -2131,7 +2031,7 @@ fn test_parse_nested_tree_fragment_text_with_equals_prefix() {
 /// Parse tree fragments followed by `>=1` as binary expressions.
 #[test]
 fn test_parse_tree_fragment_followed_by_greater_than_or_equal() {
-    let mut test = TestParser::new_with_language(r#"<>x</>>=1"#, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(r#"<>x</>>=1"#);
     let mut parser = test.prepare();
     let expression = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
@@ -2146,8 +2046,7 @@ fn test_parse_tree_fragment_followed_by_greater_than_or_equal() {
 /// Parse tree children followed by `>=1` as binary expressions.
 #[test]
 fn test_parse_tree_element_followed_by_greater_than_or_equal() {
-    let mut test =
-        TestParser::new_with_language(r#"<span>x</span>>=1"#, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(r#"<span>x</span>>=1"#);
     let mut parser = test.prepare();
     let expression = parser.eat_expression(parser.flags).unwrap();
     test.assert_no_errors(&parser);
@@ -2168,7 +2067,7 @@ fn test_parse_tree_text_and_greater_than_or_equal_sequence() {
 <span>=x</span>;
 <span>x</span>>=1;
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -2205,7 +2104,7 @@ fn test_parse_tree_fragment_equals_in_array() {
     ]}
 />
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2229,7 +2128,7 @@ fn test_parse_tree_fragment_equals_in_array() {
 #[test]
 fn test_parse_tree_ternary_expression_container_in_xml_mode() {
     let input = r#"<div>{isLoading ? <div>loading</div> : <div>done</div>}</div>"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2249,7 +2148,7 @@ fn test_parse_tree_ternary_expression_container_in_xml_mode() {
 #[test]
 fn test_parse_tree_ternary_expression_container() {
     let input = r#"<div>{isLoading ? <div>loading</div> : <div>done</div>}</div>"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2275,7 +2174,7 @@ fn test_parse_tree_after_parenthesized_tree_in_expression_container() {
   <button />
 </div>"#;
 
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children, .. } => {
@@ -2325,7 +2224,7 @@ fn test_parse_tree_after_parenthesized_tree_in_expression_container() {
 #[test]
 fn test_parse_tree_ternary_fragment_with_text_fallback() {
     let input = "shouldShow ? <>{children}</> : <>off</>";
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_expression(parser.flags).unwrap();
     assert_node!(parser.tree, expression, Expression::If { form, condition, then_expression, else_expression } => {
@@ -2358,7 +2257,7 @@ fn test_parse_tree_ternary_fragment_with_text_fallback() {
 #[test]
 fn test_parse_tree_fragment_with_colon_text_node() {
     let input = r#"<code>{value && <>:</>}</code>"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2388,7 +2287,7 @@ fn test_parse_tree_fragment_with_colon_text_node() {
 #[test]
 fn test_parse_tree_logical_and_fragment_with_nested_ternary_tree() {
     let input = r#"<div>{condition && <>{show ? <Box /> : null}</>}</div>"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2418,7 +2317,7 @@ fn test_parse_tree_logical_and_fragment_with_nested_ternary_tree() {
 #[test]
 fn test_parse_tree_fragment_with_keyword_text_before_expression() {
     let input = r#"<strong>{componentNameJsx && <>for {componentNameJsx}</>}</strong>"#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expression = parser.eat_tree_literal().unwrap();
 
@@ -2453,7 +2352,7 @@ fn test_parse_tree_fragment_with_keyword_text_before_expression() {
 /// Report tree literal namespace and member combinations during parse.
 #[test]
 fn test_report_tree_literal_namespace_member_path_parse_error() {
-    let mut test = TestParser::new_with_language("<a.b:c />", LanguageType::JavaScriptXml);
+    let mut test = TestParser::new("<a.b:c />");
     let mut parser = test.prepare();
 
     let error = parser
@@ -2471,7 +2370,7 @@ function x() {
     <div />
 }
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -2497,7 +2396,7 @@ class Foo {}
 <Comp></Comp>
 </>
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -2531,7 +2430,7 @@ function x() {
     <div />
 }
 
-{ foo: 'test' }
+{ foo: "test" }
 <Comp></Comp>
 
 function test1() {}
@@ -2543,7 +2442,7 @@ class Foo {}
 <Comp></Comp>
 </>
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
     test.assert_no_errors(&parser);
@@ -2568,7 +2467,11 @@ class Foo {}
         Expression::TreeExpression { .. }
     );
     assert_node!(parser.tree, expressions[6], Expression::Declaration(_));
-    assert_node!(parser.tree, expressions[7], Expression::Block(_));
+    assert_node!(
+        parser.tree,
+        expressions[7],
+        Expression::ObjectExpression { .. }
+    );
     assert_node!(
         parser.tree,
         expressions[8],
@@ -2596,7 +2499,7 @@ function test() {
     <Comp />
 }
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -2636,7 +2539,7 @@ function app() {
   );
 }
 "#;
-    let mut test = TestParser::new_with_language(input, LanguageType::TypeScriptXml);
+    let mut test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -2662,19 +2565,6 @@ function app() {
             });
         });
     });
-}
-
-/// Report tree-looking input when it continues an expression across a newline.
-#[test]
-fn test_report_tree_after_expression_newline() {
-    let input = "x\n<Comp />";
-    let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
-    let mut parser = test.prepare();
-
-    // require a valid expression continuation after the newline
-    let error = parser.eat_expression(parser.flags).unwrap_err();
-
-    assert_eq!(parser.get_span_str(error.span), "<");
 }
 
 #[test]
