@@ -143,6 +143,12 @@ impl ModuleLowerer<'_> {
                 let value = self.lower_expression_as::<js::Expression>(*value)?;
                 js::Argument::Spread { value }
             }
+            dir::Argument::Elision => {
+                return Err(self.unsupported_construct(
+                    argument_id.into_global_any(self.module.id),
+                    Some("array elisions are only lowered in array literals".to_string()),
+                ));
+            }
             dir::Argument::Error => {
                 return Err(self.unsupported_construct(
                     argument_id.into_global_any(self.module.id),
