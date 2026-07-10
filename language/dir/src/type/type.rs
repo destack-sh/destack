@@ -56,9 +56,9 @@ pub enum Type {
     /// This type in a method signature, like `this` in `clone(): this`.
     This,
     /// Member type selected from an owner type, like `T.Output`.
-    Member(MemberType),
-    /// Applied type refined by one associated member equality, like `Iterator<type Item = uint8>`.
-    Refined(RefinedType),
+    Member(MemberTypeId),
+    /// Applied type refined by one associated member equality.
+    Refined(RefinedTypeId),
     /// Singleton enum member type, like `Mode.Read`.
     EnumMember(EnumMemberType),
 
@@ -67,8 +67,8 @@ pub enum Type {
     /// Explicit runtime `Dynamic<T>` representation, like `Dynamic<Printable>`.
     Dynamic(DynamicType),
 
-    /// Type-level operation preserved by check.
-    Operation(TypeOperation),
+    /// Type-level operation.
+    Operation(TypeOperationId),
 
     /// Homogeneous array type, like `int32[]`.
     Array(ArrayType),
@@ -83,8 +83,8 @@ pub enum Type {
     /// Structural object shape type, like `{ name: string }`.
     Shape(ShapeType),
 
-    /// Function signature type, like `(value: int32) => string`.
-    FunctionSignature(FunctionSignatureType),
+    /// Function signature type, like `(value: int32) => string`, interned in the segment.
+    FunctionSignature(FunctionSignatureId),
     /// Fat callable value with an explicit captured environment.
     Function(FunctionType),
     /// Thin callable value with no captured environment.
@@ -146,6 +146,49 @@ impl From<&ScalarLiteral> for Type {
 }
 
 impl Type {
+    /// Return this type's variant name.
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Self::Variable(_) => "Variable",
+            Self::Error => "Error",
+            Self::Never => "Never",
+            Self::Any => "Any",
+            Self::Unknown => "Unknown",
+            Self::Void => "Void",
+            Self::Null => "Null",
+            Self::Undefined => "Undefined",
+            Self::Object => "Object",
+            Self::Primitive(_) => "Primitive",
+            Self::Literal(_) => "Literal",
+            Self::Key(_) => "Key",
+            Self::Memory(_) => "Memory",
+            Self::Static(_) => "Static",
+            Self::Intrinsic => "Intrinsic",
+            Self::Parameter(_) => "Parameter",
+            Self::Erased(_) => "Erased",
+            Self::This => "This",
+            Self::Range(_) => "Range",
+            Self::Reference(_) => "Reference",
+            Self::Instance(_) => "Instance",
+            Self::Refined(_) => "Refined",
+            Self::Member(_) => "Member",
+            Self::EnumMember(_) => "EnumMember",
+            Self::Form(_) => "Form",
+            Self::Dynamic(_) => "Dynamic",
+            Self::Operation(_) => "Operation",
+            Self::Array(_) => "Array",
+            Self::FixedArray(_) => "FixedArray",
+            Self::Slice(_) => "Slice",
+            Self::Tuple(_) => "Tuple",
+            Self::Shape(_) => "Shape",
+            Self::FunctionSignature(_) => "FunctionSignature",
+            Self::Function(_) => "Function",
+            Self::FunctionPointer(_) => "FunctionPointer",
+            Self::Union(_) => "Union",
+            Self::Intersection(_) => "Intersection",
+        }
+    }
+
     /// Return whether this type is the undefined singleton.
     pub fn is_undefined(&self) -> bool {
         matches!(
@@ -179,14 +222,6 @@ impl Type {
         Some(domain)
     }
 
-    /// Return the direct infer operation.
-    pub fn infer(&self) -> Option<InferType> {
-        match self {
-            Self::Operation(TypeOperation::Infer(infer)) => Some(*infer),
-            _ => None,
-        }
-    }
-
     /// Return the symbolic leaf kind contributed by this type alone.
     /// A stored type joins this bit with every child type's flags.
     pub fn own_flags(&self) -> TypeFlags {
@@ -200,9 +235,6 @@ impl Type {
             Self::Reference(_) => TypeFlags::HAS_REFERENCE,
             Self::Member(_) => TypeFlags::HAS_MEMBER,
             Self::Refined(_) => TypeFlags::HAS_MEMBER,
-            Self::Operation(TypeOperation::Infer(_)) => {
-                TypeFlags::HAS_OPERATION | TypeFlags::HAS_INFER
-            }
             Self::Operation(_) => TypeFlags::HAS_OPERATION,
 
             // concrete heads contribute nothing of their own
@@ -375,6 +407,85 @@ impl GlobalTypeId {
 impl From<GlobalTypeId> for LocalTypeId {
     fn from(id: GlobalTypeId) -> Self {
         id.local_id
+    }
+}
+
+/// Unique identifier for one interned borrow form payload.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct BorrowFormId(pub u32);
+
+impl BorrowFormId {
+    /// Wrap a raw id as a BorrowFormId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+/// One borrow form's solved lifetime and access pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct BorrowForm {
+    /// The solved borrow lifetime singleton.
+    pub lifetime: GlobalTypeId,
+    /// The solved borrow access singleton.
+    pub access: GlobalTypeId,
+}
+
+/// Unique identifier for one interned member projection payload.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct MemberTypeId(pub u32);
+
+impl MemberTypeId {
+    /// Wrap a raw id as a MemberTypeId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+/// Unique identifier for one interned refined application payload.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct RefinedTypeId(pub u32);
+
+impl RefinedTypeId {
+    /// Wrap a raw id as a RefinedTypeId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+/// Unique identifier for one interned function signature payload.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct FunctionSignatureId(pub u32);
+
+impl FunctionSignatureId {
+    /// Wrap a raw id as a FunctionSignatureId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
+/// Unique identifier for one interned type operation payload.
+#[repr(transparent)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub struct TypeOperationId(pub u32);
+
+impl TypeOperationId {
+    /// Wrap a raw id as a TypeOperationId.
+    pub fn new(id: u32) -> Self {
+        Self(id)
     }
 }
 
@@ -631,13 +742,9 @@ pub enum Form {
     Managed,
     /// Owned value, like `^User`.
     Owned,
-    /// Borrowed value, like `&User`, `&readonly User`, or `&exclusive User`.
-    Borrowed {
-        /// The solved borrow lifetime singleton.
-        lifetime: GlobalTypeId,
-        /// The solved borrow access singleton.
-        access: GlobalTypeId,
-    },
+    /// Borrowed value, like `&User`, `&readonly User`, or `&exclusive User`,
+    /// with its lifetime and access pair interned in the segment.
+    Borrowed(BorrowFormId),
     /// Raw pointer value, like `*User`.
     Raw,
     /// Placed value, like `local User` or `shared User`.
@@ -705,6 +812,16 @@ pub enum TypeOperation {
     StaticBinary(StaticBinaryType),
     /// Static unary operation like `!Wide`.
     StaticUnary(StaticUnaryType),
+}
+
+impl TypeOperation {
+    /// Return the structural flags this operation contributes to its type.
+    pub fn own_flags(&self) -> TypeFlags {
+        match self {
+            Self::Infer(_) => TypeFlags::HAS_INFER,
+            _ => TypeFlags::EMPTY,
+        }
+    }
 }
 
 /// Type query expression, like `typeof value`.
@@ -1914,3 +2031,9 @@ pub struct IntersectionType {
     /// The intersection element list.
     pub elements: TypeListId,
 }
+
+// lock the hot table shapes: one cache line per type, packed forms
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Type>() == 64);
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Form>() == 32);

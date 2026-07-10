@@ -7,13 +7,14 @@ use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use destack_core::{Arena, StringId};
+use destack_core::{Arena, PoolId, StringId, ValuePool};
 use destack_source::ModuleId;
 
 use crate::{
-    Form, FunctionParameterType, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalTypeId,
-    SegmentView, Type, TypeElement, TypeField, TypeFlags, TypeIndexSignature, TypeListId,
-    TypeOperation,
+    BorrowForm, BorrowFormId, Form, FunctionParameterType, FunctionSignatureId,
+    FunctionSignatureType, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, LocalTypeId, MemberType,
+    MemberTypeId, RefinedType, RefinedTypeId, SegmentView, Type, TypeElement, TypeField, TypeFlags,
+    TypeIndexSignature, TypeListId, TypeOperation, TypeOperationId,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -197,6 +198,96 @@ impl<'a> TypeTable<'a> {
         panic!("DIR type {type_id:?} is not visible")
     }
 
+    /// Get one interned borrow form payload when present.
+    pub fn borrow_form_maybe(&self, id: BorrowFormId) -> Option<&BorrowForm> {
+        for segment in self.segments.iter().rev() {
+            if let Some(borrow) = segment.borrow_form(id) {
+                return Some(borrow);
+            }
+        }
+
+        None
+    }
+
+    /// Get one interned borrow form payload.
+    pub fn borrow_form(&self, id: BorrowFormId) -> &BorrowForm {
+        self.borrow_form_maybe(id)
+            .unwrap_or_else(|| panic!("DIR borrow form {id:?} is not visible"))
+    }
+
+    /// Get one interned member projection payload when present.
+    pub fn member_maybe(&self, id: MemberTypeId) -> Option<&MemberType> {
+        for segment in self.segments.iter().rev() {
+            if let Some(member) = segment.member(id) {
+                return Some(member);
+            }
+        }
+
+        None
+    }
+
+    /// Get one interned member projection payload.
+    pub fn member(&self, id: MemberTypeId) -> &MemberType {
+        self.member_maybe(id)
+            .unwrap_or_else(|| panic!("DIR member type {id:?} is not visible"))
+    }
+
+    /// Get one interned refined application payload when present.
+    pub fn refined_maybe(&self, id: RefinedTypeId) -> Option<&RefinedType> {
+        for segment in self.segments.iter().rev() {
+            if let Some(refined) = segment.refined(id) {
+                return Some(refined);
+            }
+        }
+
+        None
+    }
+
+    /// Get one interned refined application payload.
+    pub fn refined(&self, id: RefinedTypeId) -> &RefinedType {
+        self.refined_maybe(id)
+            .unwrap_or_else(|| panic!("DIR refined type {id:?} is not visible"))
+    }
+
+    /// Get one interned function signature payload when present.
+    pub fn signature_maybe(&self, id: FunctionSignatureId) -> Option<&FunctionSignatureType> {
+        for segment in self.segments.iter().rev() {
+            if let Some(signature) = segment.signature(id) {
+                return Some(signature);
+            }
+        }
+
+        None
+    }
+
+    /// Get one interned function signature payload.
+    pub fn signature(&self, id: FunctionSignatureId) -> &FunctionSignatureType {
+        self.signature_maybe(id)
+            .unwrap_or_else(|| panic!("DIR function signature {id:?} is not visible"))
+    }
+
+    /// Get one interned type operation payload when present.
+    pub fn operation_maybe(&self, id: TypeOperationId) -> Option<&TypeOperation> {
+        for segment in self.segments.iter().rev() {
+            if let Some(operation) = segment.operation(id) {
+                return Some(operation);
+            }
+        }
+
+        None
+    }
+
+    /// Get one interned type operation payload.
+    pub fn operation(&self, id: TypeOperationId) -> &TypeOperation {
+        for segment in self.segments.iter().rev() {
+            if let Some(operation) = segment.operation(id) {
+                return operation;
+            }
+        }
+
+        panic!("DIR type operation {id:?} is not visible")
+    }
+
     /// Get one type id list.
     pub fn type_ids(&self, list: TypeListId) -> &[GlobalTypeId] {
         self.slice(list, |segment| &segment.type_ids)
@@ -259,6 +350,7 @@ impl<'a> TypeTable<'a> {
                 }
             }
             Type::Member(member) => {
+                let member = self.member(*member);
                 visit(member.owner);
                 for child in self.type_ids(member.arguments) {
                     visit(*child);
@@ -269,6 +361,7 @@ impl<'a> TypeTable<'a> {
             }
             Type::EnumMember(member) => visit(member.owner),
             Type::Refined(refined) => {
+                let refined = self.refined(*refined);
                 visit(refined.base);
                 visit(refined.value);
             }
@@ -277,9 +370,10 @@ impl<'a> TypeTable<'a> {
             Type::Form(form) => {
                 visit(form.value);
                 match &form.form {
-                    Form::Borrowed { lifetime, access } => {
-                        visit(*lifetime);
-                        visit(*access);
+                    Form::Borrowed(borrow) => {
+                        let borrow = self.borrow_form(*borrow);
+                        visit(borrow.lifetime);
+                        visit(borrow.access);
                     }
                     Form::Placed { place } => visit(*place),
                     Form::Managed | Form::Owned | Form::Raw | Form::Readonly => {}
@@ -287,8 +381,8 @@ impl<'a> TypeTable<'a> {
             }
             Type::Dynamic(dynamic) => visit(dynamic.constraint),
 
-            // type operations
-            Type::Operation(operation) => match operation {
+            // type operations resolve their interned payload
+            Type::Operation(operation) => match self.operation(*operation) {
                 TypeOperation::StringMapping { mapping: _, target } => visit(*target),
                 TypeOperation::Conditional(conditional) => {
                     visit(conditional.left);
@@ -368,6 +462,7 @@ impl<'a> TypeTable<'a> {
                 }
             }
             Type::FunctionSignature(function) => {
+                let function = self.signature(*function);
                 if let Some(this_parameter) = function.this_parameter {
                     visit(this_parameter);
                 }
@@ -455,7 +550,26 @@ impl<'a> TypeTable<'a> {
     }
 }
 
-/// Type slots added by one DIR phase.
+macro_rules! pool_id {
+    ($id:ty) => {
+        impl PoolId for $id {
+            fn from_raw(raw: u32) -> Self {
+                Self(raw)
+            }
+
+            fn raw(self) -> u32 {
+                self.0
+            }
+        }
+    };
+}
+
+pool_id!(TypeOperationId);
+pool_id!(FunctionSignatureId);
+pool_id!(MemberTypeId);
+pool_id!(RefinedTypeId);
+pool_id!(BorrowFormId);
+
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct TypeSegment {
     /// The module id of the type segment.
@@ -479,6 +593,17 @@ pub struct TypeSegment {
     pub(crate) index_signatures: ListPool<TypeIndexSignature>,
     /// The string lists referenced by type payloads.
     pub(crate) strings: ListPool<StringId>,
+
+    /// The interned type operation payloads.
+    pub(crate) operations: ValuePool<TypeOperationId, TypeOperation>,
+    /// The interned function signature payloads.
+    pub(crate) signatures: ValuePool<FunctionSignatureId, FunctionSignatureType>,
+    /// The interned member projection payloads.
+    pub(crate) members: ValuePool<MemberTypeId, MemberType>,
+    /// The interned refined application payloads.
+    pub(crate) refinements: ValuePool<RefinedTypeId, RefinedType>,
+    /// The interned borrow form payloads.
+    pub(crate) borrows: ValuePool<BorrowFormId, BorrowForm>,
 
     /// The intern index from value hash to owned type slots.
     #[serde(skip)]
@@ -512,9 +637,24 @@ pub struct TypeMark {
     index_signatures: u32,
     /// The string element count at the mark.
     strings: u32,
+    /// The owned operation count at the mark.
+    operations: u32,
+    /// The owned signature count at the mark.
+    signatures: u32,
+    /// The owned member count at the mark.
+    members: u32,
+    /// The owned refined count at the mark.
+    refinements: u32,
+    /// The owned borrow count at the mark.
+    borrows: u32,
 }
 
 impl TypeSegment {
+    /// Return the first type id owned by this segment.
+    pub fn first_type_id(&self) -> u32 {
+        self.first_type_id
+    }
+
     /// Create a new type segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
@@ -528,6 +668,11 @@ impl TypeSegment {
             parameters: ListPool::new(0),
             index_signatures: ListPool::new(0),
             strings: ListPool::new(0),
+            operations: ValuePool::new(0),
+            signatures: ValuePool::new(0),
+            members: ValuePool::new(0),
+            refinements: ValuePool::new(0),
+            borrows: ValuePool::new(0),
             index: FxHashMap::default(),
             hashes: Vec::new(),
             node_types: IndexMap::new(),
@@ -549,6 +694,11 @@ impl TypeSegment {
             parameters: ListPool::new(base.parameters.element_count()),
             index_signatures: ListPool::new(base.index_signatures.element_count()),
             strings: ListPool::new(base.strings.element_count()),
+            operations: ValuePool::new(base.operations.count()),
+            signatures: ValuePool::new(base.signatures.count()),
+            members: ValuePool::new(base.members.count()),
+            refinements: ValuePool::new(base.refinements.count()),
+            borrows: ValuePool::new(base.borrows.count()),
             index: FxHashMap::default(),
             hashes: Vec::new(),
             node_types: IndexMap::new(),
@@ -579,6 +729,81 @@ impl TypeSegment {
         self.index.entry(hash).or_default().push(type_id);
 
         type_id
+    }
+
+    /// Intern one type operation payload.
+    pub fn intern_operation(&mut self, operation: TypeOperation) -> TypeOperationId {
+        self.operations.intern(operation)
+    }
+
+    /// Return the number of operations owned up to and including this segment.
+    pub fn operation_count(&self) -> u32 {
+        self.operations.count()
+    }
+
+    /// Return one operation payload, when owned by this segment.
+    pub fn operation(&self, id: TypeOperationId) -> Option<&TypeOperation> {
+        self.operations.get(id)
+    }
+
+    /// Intern one function signature payload.
+    pub fn intern_signature(&mut self, signature: FunctionSignatureType) -> FunctionSignatureId {
+        self.signatures.intern(signature)
+    }
+
+    /// Return the number of signatures owned up to and including this segment.
+    pub fn signature_count(&self) -> u32 {
+        self.signatures.count()
+    }
+
+    /// Return one signature payload, when owned by this segment.
+    pub fn signature(&self, id: FunctionSignatureId) -> Option<&FunctionSignatureType> {
+        self.signatures.get(id)
+    }
+
+    /// Intern one member projection payload.
+    pub fn intern_member(&mut self, member: MemberType) -> MemberTypeId {
+        self.members.intern(member)
+    }
+
+    /// Return the number of members owned up to and including this segment.
+    pub fn member_count(&self) -> u32 {
+        self.members.count()
+    }
+
+    /// Return one member payload, when owned by this segment.
+    pub fn member(&self, id: MemberTypeId) -> Option<&MemberType> {
+        self.members.get(id)
+    }
+
+    /// Intern one refined application payload.
+    pub fn intern_refined(&mut self, refined: RefinedType) -> RefinedTypeId {
+        self.refinements.intern(refined)
+    }
+
+    /// Return the number of refined payloads owned up to and including this segment.
+    pub fn refined_count(&self) -> u32 {
+        self.refinements.count()
+    }
+
+    /// Return one refined payload, when owned by this segment.
+    pub fn refined(&self, id: RefinedTypeId) -> Option<&RefinedType> {
+        self.refinements.get(id)
+    }
+
+    /// Intern one borrow form payload.
+    pub fn intern_borrow(&mut self, borrow: BorrowForm) -> BorrowFormId {
+        self.borrows.intern(borrow)
+    }
+
+    /// Return the number of borrows owned up to and including this segment.
+    pub fn borrow_count(&self) -> u32 {
+        self.borrows.count()
+    }
+
+    /// Return one borrow payload, when owned by this segment.
+    pub fn borrow_form(&self, id: BorrowFormId) -> Option<&BorrowForm> {
+        self.borrows.get(id)
     }
 
     /// Intern one type id list.
@@ -750,6 +975,11 @@ impl TypeSegment {
             parameters: self.parameters.element_count(),
             index_signatures: self.index_signatures.element_count(),
             strings: self.strings.element_count(),
+            operations: self.operations.count(),
+            signatures: self.signatures.count(),
+            members: self.members.count(),
+            refinements: self.refinements.count(),
+            borrows: self.borrows.count(),
         }
     }
 
@@ -775,6 +1005,13 @@ impl TypeSegment {
         self.parameters.truncate_to(mark.parameters);
         self.index_signatures.truncate_to(mark.index_signatures);
         self.strings.truncate_to(mark.strings);
+
+        // drop the payload slots
+        self.operations.truncate_to(mark.operations);
+        self.signatures.truncate_to(mark.signatures);
+        self.members.truncate_to(mark.members);
+        self.refinements.truncate_to(mark.refinements);
+        self.borrows.truncate_to(mark.borrows);
     }
 
     /// Return the number of entries in this table.
