@@ -133,6 +133,9 @@ impl SessionState {
         let roots = parser.parse();
         attempt.emit_diagnostics(parser.diagnostics());
 
+        // publish parsed strings to the repository
+        parser.publish_strings();
+
         // preserve parser side data in the artifact payload
         let (tokens, side_tokens) = parser.take_tokens();
 

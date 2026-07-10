@@ -37,12 +37,11 @@ pub(super) fn run_parser_stress(fixture: &StressFixture) -> CaseResult {
     );
     let file = Arc::new(file);
 
-    // parse and retain the string pool for semantic recovery checks
+    // parse the stress source
     let start = Instant::now();
-    let strings = Arc::new(StringPool::new());
     let language_type =
         LanguageType::try_from(file.ty).expect("stress file type has no parser language");
-    let mut parser = Parser::lex_file(file, language_type, strings.clone());
+    let mut parser = Parser::lex_file(file, language_type, Arc::new(StringPool::new()));
     let roots = parser.parse();
     let elapsed = start.elapsed();
     let has_errors = !parser.errors.is_empty();
@@ -79,7 +78,7 @@ pub(super) fn run_parser_stress(fixture: &StressFixture) -> CaseResult {
             };
         }
 
-        if !contains_recovery_sentinel(&parser, &roots, &strings) {
+        if !contains_recovery_sentinel(&parser, &roots) {
             return CaseResult::Failed {
                 message: format!("recovery fixture did not reach {RECOVERY_SENTINEL}"),
             };
@@ -94,41 +93,29 @@ pub(super) fn run_parser_stress(fixture: &StressFixture) -> CaseResult {
 }
 
 /// Return whether any parsed root reaches the recovery sentinel.
-fn contains_recovery_sentinel(
-    parser: &Parser,
-    roots: &[LocalNodeId<Expression>],
-    strings: &StringPool,
-) -> bool {
+fn contains_recovery_sentinel(parser: &Parser, roots: &[LocalNodeId<Expression>]) -> bool {
     roots
         .iter()
-        .any(|root| expression_names_sentinel(parser, *root, strings))
+        .any(|root| expression_names_sentinel(parser, *root))
 }
 
 /// Return whether one expression names the recovery sentinel.
-fn expression_names_sentinel(
-    parser: &Parser,
-    expression_id: LocalNodeId<Expression>,
-    strings: &StringPool,
-) -> bool {
+fn expression_names_sentinel(parser: &Parser, expression_id: LocalNodeId<Expression>) -> bool {
     match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => {
-            declaration_names_sentinel(parser, *declaration_id, strings)
+            declaration_names_sentinel(parser, *declaration_id)
         }
         Expression::Let { declarators, .. } => declarators.iter().any(|declarator_id| {
             let declarator = parser.tree.get(*declarator_id);
 
-            pattern_names_sentinel(parser, declarator.pattern, strings)
+            pattern_names_sentinel(parser, declarator.pattern)
         }),
         _ => false,
     }
 }
 
 /// Return whether one declaration names the recovery sentinel.
-fn declaration_names_sentinel(
-    parser: &Parser,
-    declaration_id: LocalNodeId<Declaration>,
-    strings: &StringPool,
-) -> bool {
+fn declaration_names_sentinel(parser: &Parser, declaration_id: LocalNodeId<Declaration>) -> bool {
     let name = match parser.tree.get(declaration_id) {
         Declaration::Type(declaration) => Some(declaration.name),
         Declaration::Struct(declaration) => Some(declaration.name),
@@ -139,30 +126,24 @@ fn declaration_names_sentinel(
         Declaration::Global(_) | Declaration::Module(_) | Declaration::Extension(_) => None,
     };
 
-    name.is_some_and(|name| name_is_sentinel(name, strings))
+    name.is_some_and(|name| name_is_sentinel(parser, name))
 }
 
 /// Return whether one pattern names the recovery sentinel.
-fn pattern_names_sentinel(
-    parser: &Parser,
-    pattern_id: LocalNodeId<Pattern>,
-    strings: &StringPool,
-) -> bool {
+fn pattern_names_sentinel(parser: &Parser, pattern_id: LocalNodeId<Pattern>) -> bool {
     match parser.tree.get(pattern_id) {
-        Pattern::Binding { name, .. } => strings.get(*name) == RECOVERY_SENTINEL,
-        Pattern::Must(pattern) => pattern_names_sentinel(parser, *pattern, strings),
-        Pattern::Expression { value } => expression_names_sentinel(parser, *value, strings),
+        Pattern::Binding { name, .. } => parser.strings.get(*name) == RECOVERY_SENTINEL,
+        Pattern::Must(pattern) => pattern_names_sentinel(parser, *pattern),
+        Pattern::Expression { value } => expression_names_sentinel(parser, *value),
         Pattern::Default { pattern, .. }
         | Pattern::BorrowOf { right: pattern, .. }
         | Pattern::MoveOf { right: pattern, .. }
-        | Pattern::DereferenceOf { right: pattern } => {
-            pattern_names_sentinel(parser, *pattern, strings)
-        }
+        | Pattern::DereferenceOf { right: pattern } => pattern_names_sentinel(parser, *pattern),
         _ => false,
     }
 }
 
 /// Return whether one name is the recovery sentinel.
-fn name_is_sentinel(name: Name, strings: &StringPool) -> bool {
-    strings.get(name.string()) == RECOVERY_SENTINEL
+fn name_is_sentinel(parser: &Parser, name: Name) -> bool {
+    parser.strings.get(name.string()) == RECOVERY_SENTINEL
 }

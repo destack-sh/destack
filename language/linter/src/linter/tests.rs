@@ -1562,7 +1562,7 @@ impl<'a> LintResult<'a> {
         let side_span = parser.compute_side_span();
         let parents = NodeParentIndex::from_tree(&parser.tree);
         let (tokens, side_tokens) = parser.take_token_spans();
-        let strings = parser.strings.as_ref();
+        let strings = parser.publish_strings();
         let format_options = DestackFormatOptions::default();
         let context = DestackFormatContext::new(
             format_options,
