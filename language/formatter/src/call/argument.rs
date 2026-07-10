@@ -14,6 +14,7 @@ use crate::annotation::{
     format_trailing_comments, infix_or_postfix_annotations, prefix_annotations,
 };
 use crate::expression::write_expression_without_trailing_comments;
+use crate::file::write_source_span;
 use crate::tree::has_multiline_jsx_argument;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
@@ -73,7 +74,7 @@ pub(crate) fn write_plain_call_argument<'ast>(
             write_expression_without_trailing_comments(f, *value)?;
         }
         Argument::Error => {
-            write!(f, [token("/* ERROR */")])?;
+            write_source_span(f, f.context().span(argument_id))?;
         }
     }
 
@@ -120,7 +121,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         // payload
-        write_call_argument_payload(self, f)?;
+        write_call_argument_payload(self, node_id, f)?;
 
         // trailing comments
         write!(
@@ -276,7 +277,7 @@ pub(crate) fn write_call_argument_node_body<'ast>(
     }
 
     // payload
-    write_call_argument_payload(argument, f)?;
+    write_call_argument_payload(argument, node_id, f)?;
 
     // trailing annotations
     write!(f, [infix_or_postfix_annotations(f.context(), node_id)])?;
@@ -287,6 +288,7 @@ pub(crate) fn write_call_argument_node_body<'ast>(
 /// Write one argument payload without node-local comment ownership.
 fn write_call_argument_payload<'ast>(
     argument: &Argument,
+    argument_id: LocalNodeId<Argument>,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match argument {
@@ -314,7 +316,7 @@ fn write_call_argument_payload<'ast>(
             }
         }
         Argument::Error => {
-            write!(f, [token("/* ERROR */")])?;
+            write_source_span(f, f.context().span(argument_id))?;
         }
     }
 

@@ -3161,7 +3161,7 @@ fn write_type_expression_body_inner<'ast>(
         },
         TypeExpression::Missing => {}
         TypeExpression::Error => {
-            write!(f, [token("/* ERROR */")])?;
+            write_source_span(f, f.context().span(node_id))?;
         }
     }
 
@@ -3338,7 +3338,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 }
             }
             TypeMember::Error => {
-                write!(f, [token("/* ERROR */")])?;
+                write_source_span(f, f.context().span(node_id))?;
             }
         }
 
@@ -3401,7 +3401,7 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
                 )?;
             }
             GenericArgument::Error => {
-                write!(f, [token("/* ERROR */")])?;
+                write_source_span(f, f.context().span(node_id))?;
             }
         }
 
@@ -3458,7 +3458,7 @@ impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
                 }
             }
             TupleElement::Error => {
-                write!(f, [token("/* ERROR */")])?;
+                write_source_span(f, f.context().span(node_id))?;
             }
         }
 

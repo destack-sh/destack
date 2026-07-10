@@ -12,6 +12,20 @@ fn test_format_struct_empty() {
     );
 }
 
+/// Malformed object properties should preserve their authored source.
+#[test]
+fn test_format_recovered_property() {
+    assert_format!(
+        ": 1, y: 2",
+        ": 1",
+        |parser| {
+            let properties = parser.eat_properties()?;
+            Ok(properties[0])
+        },
+        DestackFormatOptions::default()
+    );
+}
+
 /// Struct fields should expand into one field per line.
 #[test]
 fn test_format_struct_with_fields() {

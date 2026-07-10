@@ -12,6 +12,7 @@ use crate::chain::transparent_inner_expression;
 use crate::collection::literal::format_scalar_literal;
 use crate::context::with_expanded_tree_callback_bodies;
 use crate::expression::{argument_value, jsx_chain_ternary_needs_expanded_branches};
+use crate::file::write_source_span;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{
@@ -427,7 +428,7 @@ pub(crate) fn write_tree_attribute<'ast>(
         }
         TreeAttribute::Error => {
             write!(f, [prefix_annotations(f.context(), attribute_id)])?;
-            write!(f, [token("{"), token("/* ERROR */"), token("}")])?;
+            write_source_span(f, f.context().span(attribute_id))?;
         }
     }
 
@@ -479,7 +480,8 @@ fn write_tree_child_inner<'ast>(
             write!(f, [*value])?;
         }
         TreeChild::Error => {
-            write!(f, [token("{"), token("/* ERROR */"), token("}")])?;
+            write!(f, [prefix_annotations(f.context(), child_id)])?;
+            write_source_span(f, f.context().span(child_id))?;
         }
     }
 

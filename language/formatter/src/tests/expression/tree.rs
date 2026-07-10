@@ -1,4 +1,7 @@
-use crate::{DestackFormatOptions, assert_format_program, assert_format_program_reference_widths};
+use crate::{
+    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
+    assert_format_roundtrip,
+};
 use destack_source::FileType;
 
 /// Tree attribute kinds should stay in a stable opening tag order and spelling.
@@ -11,6 +14,44 @@ fn test_format_tree_attribute_kinds() {
 "#,
         FileType::Destack,
         DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+    );
+}
+
+/// Malformed tree attributes should retain their slot and following attributes.
+#[test]
+fn test_format_recovered_tree_attribute() {
+    assert_format_roundtrip!(
+        r#"<Panel broken= next="ok" />"#,
+        r#"<Panel broken= next="ok" />"#,
+        FileType::Destack,
+        |parser| parser.eat_tree_literal(),
+    );
+}
+
+/// Malformed tree children should retain their slot and following children.
+#[test]
+fn test_format_recovered_tree_child() {
+    assert_format_roundtrip!(
+        "<Panel>{,}<Child /></Panel>",
+        r#"<Panel>
+    {,}
+    <Child />
+</Panel>"#,
+        FileType::Destack,
+        |parser| parser.eat_tree_literal(),
+    );
+}
+
+/// Missing closing tags should be restored from the recovered tree structure.
+#[test]
+fn test_format_recovered_tree_closing_tag() {
+    assert_format_roundtrip!(
+        "<Panel><Child />",
+        r#"<Panel>
+    <Child />
+</Panel>"#,
+        FileType::Destack,
+        |parser| parser.eat_tree_literal(),
     );
 }
 

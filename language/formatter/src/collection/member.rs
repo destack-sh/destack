@@ -12,6 +12,7 @@ use crate::declaration::signature::{
 use crate::declaration::write_statement_terminator_after_anchor;
 use crate::file::{
     node_has_ignore_directive, node_has_trailing_ignore_directive, write_ignored_node,
+    write_source_span,
 };
 use crate::{DestackFormatter, FormatNode};
 use destack_dir::{
@@ -368,7 +369,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 }
                 Member::Method { .. } => {}
                 Member::Error => {
-                    write!(f, [token("/* ERROR */")])?;
+                    write_source_span(f, f.context().span(node_id))?;
                 }
             }
 

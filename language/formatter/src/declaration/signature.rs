@@ -5,6 +5,7 @@ use crate::annotation::{
 use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entries};
 use crate::context::PreparedFormat;
 use crate::expression::{TypeExpressionLayout, write_type_expression_node};
+use crate::file::write_source_span;
 use crate::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
     write_type_expression_with_inline_prefix_annotations,
@@ -697,7 +698,7 @@ fn format_parameter_node<'ast>(
             is_comptime,
             declared_type,
         } => write_variadic_pattern_parameter(f, node_id, *pattern, *is_comptime, *declared_type),
-        Parameter::Error => write!(f, [token("/* ERROR */")]),
+        Parameter::Error => write_source_span(f, f.context().span(node_id)),
     }
 }
 
@@ -1210,7 +1211,7 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
                 write_parameter_default(f, *default)?;
             }
             GenericParameter::Error => {
-                write!(f, [token("/* ERROR */")])?;
+                write_source_span(f, f.context().span(node_id))?;
             }
         }
 
