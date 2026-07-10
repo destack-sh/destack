@@ -870,6 +870,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "siphasher",
  "tracing",
 ]
 
@@ -1256,9 +1257,7 @@ dependencies = [
  "destack_source",
  "destack_unicode",
  "memchr",
- "num_cpus",
  "pprof",
- "rayon",
  "rustc-hash 2.1.2",
  "smallvec",
  "tracing",
@@ -2549,16 +2548,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_cpus"
-version = "1.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
-dependencies = [
- "hermit-abi",
- "libc",
-]
-
-[[package]]
 name = "object"
 version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3346,6 +3335,12 @@ name = "similar"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
+
+[[package]]
+name = "siphasher"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 
 [[package]]
 name = "sized-chunks"
