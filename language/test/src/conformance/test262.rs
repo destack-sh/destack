@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_source::FileType;
-
-use super::parse::{ParseOptions, parse_file};
+use super::parse::parse_file;
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -52,7 +50,7 @@ impl Test262Suite {
                     && let Some(stem) = path.file_stem()
                 {
                     let name = format!("{prefix}/{}", stem.to_string_lossy());
-                    tests.push(Case::valid(name, FileType::JavaScript));
+                    tests.push(Case::valid(name));
                 }
             }
         }
@@ -120,15 +118,7 @@ impl ConformanceDriver for Test262Suite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        let parse_outcome = parse_file(
-            &path,
-            &content,
-            test.file_type,
-            ParseOptions {
-                disallow_ambiguous_tree_literal: false,
-                should_print_diagnostics: show_diff,
-            },
-        );
+        let parse_outcome = parse_file(&path, &content, test.file_type, show_diff);
 
         parse_outcome.case_outcome(test.source_validity)
     }

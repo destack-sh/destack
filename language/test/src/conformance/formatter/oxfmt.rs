@@ -1,11 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use destack_source::FileType;
-
 use super::expected::{load_expected_output, load_oxfmt_expected_case};
 use super::fixtures::{
-    expect_error_from_path, is_excluded_directory, is_excluded_fixture_file,
-    is_formattable_file_type, sibling_with_suffix,
+    expect_error_from_path, is_excluded_directory, is_excluded_fixture_file, is_formattable_path,
+    sibling_with_suffix,
 };
 use super::format::{default_conformance_formatter_options, run_formatter_case};
 use crate::conformance::{
@@ -60,19 +58,16 @@ impl OxfmtSuite {
                 continue;
             }
 
-            let Some(file_type) = FileType::from_path(&path) else {
-                continue;
-            };
-            if !is_formattable_file_type(file_type) {
+            if !is_formattable_path(&path) {
                 continue;
             }
 
             let relative = path.strip_prefix(&self.tests_dir).unwrap_or(&path);
             let test_name = relative.to_string_lossy().replace('\\', "/");
             let mut test = if expect_error_from_path(&test_name) {
-                Case::invalid(test_name, file_type)
+                Case::invalid(test_name)
             } else {
-                Case::valid(test_name, file_type)
+                Case::valid(test_name)
             };
 
             if let Some(expected_path) = sibling_with_suffix(&path, ".snap")

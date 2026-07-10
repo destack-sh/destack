@@ -417,7 +417,7 @@ fn select_primary_file_path<'a>(
     if let Some((path, _, _)) = clean_files.iter().find(|(path, _, _)| {
         matches!(
             FileType::from_path(Path::new(path)),
-            Some(FileType::Destack | FileType::TypeScript)
+            Some(FileType::Destack)
         )
     }) {
         return path;

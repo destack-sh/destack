@@ -257,7 +257,7 @@ pub fn setup_test_environment_with_repository(
             .add_file(&file_path, file.content.as_bytes())
             .expect("failed to add test file");
 
-        if matches!(file.path.as_str(), "main.ds" | "main.ts" | "main.js") || main_path.is_none() {
+        if file.path == "main.ds" || main_path.is_none() {
             main_path = Some(file_path);
         }
     }

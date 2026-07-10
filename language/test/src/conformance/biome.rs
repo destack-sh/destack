@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::parse::{ParseOptions, parse_file};
+use super::parse::parse_file;
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -45,8 +45,7 @@ impl BiomeSuite {
                             continue;
                         }
                         let name = format!("{prefix}/{file_name}");
-                        let file_type = Case::file_type_from_name(&name);
-                        tests.push(Case::valid(name, file_type));
+                        tests.push(Case::valid(name));
                     }
                 }
             }
@@ -100,15 +99,7 @@ impl ConformanceDriver for BiomeSuite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        let parse_outcome = parse_file(
-            &path,
-            &content,
-            test.file_type,
-            ParseOptions {
-                disallow_ambiguous_tree_literal: false,
-                should_print_diagnostics: show_diff,
-            },
-        );
+        let parse_outcome = parse_file(&path, &content, test.file_type, show_diff);
 
         parse_outcome.case_outcome(test.source_validity)
     }

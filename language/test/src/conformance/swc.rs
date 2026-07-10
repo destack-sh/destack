@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_source::FileType;
-
-use super::parse::{ParseOptions, parse_file};
+use super::parse::parse_file;
 use crate::conformance::{
     Case, CaseOutcome, ConformanceDriver, ConformanceSuiteResult, run_conformance_driver,
     suite_fixtures_dir, suite_tests_dir,
@@ -31,7 +29,7 @@ impl SwcSuite {
         }
     }
 
-    fn discover_recursive(&self, dir: &Path, prefix: &str, category: &str) -> Vec<Case> {
+    fn discover_recursive(&self, dir: &Path, prefix: &str) -> Vec<Case> {
         let mut tests = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -45,7 +43,7 @@ impl SwcSuite {
                     } else {
                         format!("{prefix}/{file_name}")
                     };
-                    tests.extend(self.discover_recursive(&path, &new_prefix, category));
+                    tests.extend(self.discover_recursive(&path, &new_prefix));
                 } else if let Some(ext) = path.extension() {
                     let ext = ext.to_string_lossy();
                     if matches!(ext.as_ref(), "ts" | "tsx" | "js" | "jsx") {
@@ -60,13 +58,11 @@ impl SwcSuite {
                             format!("{prefix}/{stem}.{ext}")
                         };
 
-                        // determine file type based on category and extension
-                        let file_type = Self::file_type_for_category(category, &name);
                         if name.contains("/errors/") || name.contains("typescript-errors") {
                             continue;
                         }
 
-                        tests.push(Case::valid(name, file_type));
+                        tests.push(Case::valid(name));
                     }
                 }
             }
@@ -74,21 +70,6 @@ impl SwcSuite {
 
         tests.sort_by(|a, b| a.name.cmp(&b.name));
         tests
-    }
-
-    /// Determine file type based on SWC category directory.
-    fn file_type_for_category(category: &str, name: &str) -> FileType {
-        // tsx directory = TypeScript with JSX
-        let in_tsx_dir = name.contains("/tsx/") || name.contains("/tsx-");
-        if category.contains("tsx") || in_tsx_dir || name.ends_with(".tsx") {
-            FileType::TypeScriptXml
-        } else if category == "typescript" || name.ends_with(".ts") {
-            FileType::TypeScript
-        } else if category == "jsx" || name.ends_with(".jsx") {
-            FileType::JavaScriptXml
-        } else {
-            FileType::JavaScript
-        }
     }
 }
 
@@ -122,7 +103,7 @@ impl ConformanceDriver for SwcSuite {
         for category in &["typescript", "jsx", "js"] {
             let category_dir = self.tests_dir.join(category);
             if category_dir.exists() {
-                tests.extend(self.discover_recursive(&category_dir, category, category));
+                tests.extend(self.discover_recursive(&category_dir, category));
             }
         }
 
@@ -137,15 +118,7 @@ impl ConformanceDriver for SwcSuite {
             Err(_) => return CaseOutcome::FailedRead,
         };
 
-        let parse_outcome = parse_file(
-            &path,
-            &content,
-            test.file_type,
-            ParseOptions {
-                disallow_ambiguous_tree_literal: false,
-                should_print_diagnostics: show_diff,
-            },
-        );
+        let parse_outcome = parse_file(&path, &content, test.file_type, show_diff);
 
         parse_outcome.case_outcome(test.source_validity)
     }

@@ -32,29 +32,20 @@ impl ParseOutcome {
     }
 }
 
-/// Options for parsing in conformance tests.
-#[derive(Debug, Clone, Default)]
-pub(super) struct ParseOptions {
-    /// Whether to disallow ambiguous tree literal syntax.
-    pub disallow_ambiguous_tree_literal: bool,
-    /// Whether failed cases should print diagnostics.
-    pub should_print_diagnostics: bool,
-}
-
 /// Parse one file and return whether parser diagnostics rejected it.
 pub(super) fn parse_file(
     path: &Path,
     content: &str,
     file_type: FileType,
-    options: ParseOptions,
+    should_print_diagnostics: bool,
 ) -> ParseOutcome {
     // build a synthetic file for parser only diagnostics
     let uri = Uri::from_path(path);
     let name = path
         .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("case.js")
-        .to_string();
+        .unwrap_or(path.as_os_str())
+        .to_string_lossy()
+        .into_owned();
     let file = Arc::new(File::from_text(
         FileId::new(0),
         name,
@@ -69,10 +60,7 @@ pub(super) fn parse_file(
     let mut parser = Parser::lex_file_with_options(
         file.clone(),
         language,
-        ParserOptions {
-            disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
-            ..ParserOptions::default()
-        },
+        ParserOptions::default(),
         Arc::new(StringPool::new()),
     );
     let _ = parser.parse();
@@ -85,7 +73,7 @@ pub(super) fn parse_file(
         .any(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error);
 
     if has_error {
-        if options.should_print_diagnostics {
+        if should_print_diagnostics {
             let file_for_id = |current_file_id| {
                 if current_file_id == file.id {
                     Some(file.clone())
