@@ -68,7 +68,7 @@ The TypeScript primitives keep their meaning, but we support more scalar types.
 | --- | --- | --- |
 | **`number`** | `let x: number` | stays the default numeric type, an alias for `float64` |
 | **Integer and float widths** | `int32`, `uint8`, `float32`, ... | added as real scalar types |
-| **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` |
+| **Single-quoted literals** | `'A'` | always a `char`; strings use double quotes |
 | **String indexing** | `text[0]` | yields `char` in `.ds`, and traps on a lone surrogate |
 | **`symbol`** | `let key: symbol` | supported as a regular property key type |
 | **`unique symbol`** | `const key: unique symbol` | supported for statically known singleton keys |
