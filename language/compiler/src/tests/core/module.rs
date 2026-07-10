@@ -79,6 +79,9 @@ fn parse_module_file(
         "compiler source should parse cleanly: {diagnostics:?}"
     );
 
+    // publish parsed strings to the test repository
+    parser.publish_strings();
+
     // append token side data
     let (tokens, side_tokens) = parser.take_tokens();
 

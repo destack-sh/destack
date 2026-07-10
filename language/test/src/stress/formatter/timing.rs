@@ -9,8 +9,8 @@ pub(super) struct FormatterTiming {
     pub(super) parse: Duration,
     /// Parser diagnostic construction.
     pub(super) diagnostics: Duration,
-    /// Parser comment attachment.
-    pub(super) comments: Duration,
+    /// Local string publication.
+    pub(super) strings: Duration,
     /// Token span, side token span, and side span materialization.
     pub(super) token_spans: Duration,
     /// Parent index construction.
@@ -31,10 +31,10 @@ impl FormatterTiming {
     /// Format these phase timings for terminal output.
     pub(super) fn format(self) -> String {
         format!(
-            "parse {}, diagnostics {}, comments {}, token spans {}, parents {}, options {}, context {}, format {}, print {}, document {}",
+            "parse {}, diagnostics {}, strings {}, token spans {}, parents {}, options {}, context {}, format {}, print {}, document {}",
             format_duration(self.parse),
             format_duration(self.diagnostics),
-            format_duration(self.comments),
+            format_duration(self.strings),
             format_duration(self.token_spans),
             format_duration(self.parents),
             format_duration(self.options),

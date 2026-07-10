@@ -118,7 +118,7 @@ fn format_expressions(
 ) -> String {
     // build formatter context
     let side_span = parser.compute_side_span();
-    let strings = parser.strings.as_ref();
+    let strings = parser.publish_strings();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
 
     // convert options and format

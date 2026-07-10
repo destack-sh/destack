@@ -122,14 +122,11 @@ pub fn format_source(
         });
     }
 
-    // finalize retained comments before formatting
-    parser.attach_comments();
-
     // build the formatter context
     let (tokens, side_tokens) = parser.take_token_spans();
     let side_span = parser.compute_side_span();
     parser.tree.index_parents();
-    let strings = parser.strings.as_ref();
+    let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,
@@ -168,9 +165,6 @@ pub fn format_source_range(
         });
     }
 
-    // finalize retained comments before formatting
-    parser.attach_comments();
-
     // find roots that overlap the selected byte range
     let overlapping = expressions
         .iter()
@@ -198,7 +192,7 @@ pub fn format_source_range(
     let (tokens, side_tokens) = parser.take_token_spans();
     let side_span = parser.compute_side_span();
     parser.tree.index_parents();
-    let strings = parser.strings.as_ref();
+    let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
         options,

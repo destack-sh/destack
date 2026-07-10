@@ -87,6 +87,7 @@ impl TestFormatter {
             let (tokens, side_tokens) = parser.take_token_spans();
             parser.tree.index_parents();
             let parents = parser.tree.parents().clone();
+            let strings = parser.publish_strings().clone();
 
             (
                 parser.compute_side_span(),
@@ -94,7 +95,7 @@ impl TestFormatter {
                 parents,
                 tokens,
                 side_tokens,
-                parser.strings,
+                strings,
                 n,
             )
         };

@@ -61,11 +61,6 @@ pub(super) fn format_pass(
         return Err(format_parse_error(&diagnostics));
     }
 
-    // finalize retained comments
-    let comments_start = Instant::now();
-    parser.attach_comments();
-    let comments_elapsed = comments_start.elapsed();
-
     // materialize token spans and side spans
     let token_spans_start = Instant::now();
     let (tokens, side_tokens) = parser.take_token_spans();
@@ -82,9 +77,13 @@ pub(super) fn format_pass(
     let format_options = DestackFormatOptions::from_formatter_options(options, language_type);
     let options_elapsed = options_start.elapsed();
 
+    // publish parser-local strings
+    let strings_start = Instant::now();
+    let strings = parser.publish_strings();
+    let strings_elapsed = strings_start.elapsed();
+
     // build formatter context
     let context_start = Instant::now();
-    let strings = parser.strings.as_ref();
     let context = DestackFormatContext::new(
         format_options,
         file.as_ref(),
@@ -104,7 +103,7 @@ pub(super) fn format_pass(
     let timing = FormatterTiming {
         parse: parse_elapsed,
         diagnostics: diagnostics_elapsed,
-        comments: comments_elapsed,
+        strings: strings_elapsed,
         token_spans: token_spans_elapsed,
         parents: parents_elapsed,
         options: options_elapsed,
