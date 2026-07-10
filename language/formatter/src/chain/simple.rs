@@ -70,7 +70,7 @@ fn argument_is_simple(
         }
 
         // spread arguments always break the simple layout
-        Argument::Spread { .. } | Argument::Error => false,
+        Argument::Spread { .. } | Argument::Elision | Argument::Error => false,
     }
 }
 

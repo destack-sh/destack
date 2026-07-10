@@ -125,7 +125,7 @@ pub fn is_trivial_argument(tree: &Tree, argument: &Argument) -> bool {
         | Argument::Labeled { value, .. }
         | Argument::Positional { value, .. }
         | Argument::Spread { value, .. } => is_trivial_expression(tree, tree.get(*value)),
-        Argument::Error => false,
+        Argument::Elision | Argument::Error => false,
     }
 }
 

@@ -293,6 +293,19 @@ pub(crate) fn write_comment_slice<'ast>(
     Ok(())
 }
 
+/// Write one comment sequence without a separator before its first comment.
+pub(crate) fn write_comment_sequence<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    comments: &[Comment],
+) -> FormatResult<()> {
+    let Some((first_comment, remaining_comments)) = comments.split_first() else {
+        return Ok(());
+    };
+
+    format_comment(f, *first_comment)?;
+    write_comment_slice(f, remaining_comments)
+}
+
 /// Return one dangling comment formatter for one enclosing span.
 #[inline]
 pub(crate) const fn format_dangling_comments<'a>(span: Span) -> FormatDanglingComments<'a> {

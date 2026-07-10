@@ -474,9 +474,6 @@ pub(crate) fn format_operator_expression<'ast>(
             write!(f, [token("debugger")])?;
         }
 
-        // stub: placeholder for annotation only files
-        Expression::Stub => {}
-
         // missing: preserve the surrounding source hole
         Expression::Missing => {}
 

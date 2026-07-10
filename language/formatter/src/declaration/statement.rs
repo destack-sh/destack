@@ -9,6 +9,7 @@ use destack_source::Span;
 
 use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, postfix_annotations, prefix_annotations,
+    write_comment_sequence,
 };
 use crate::declaration::sequence::{
     block_allows_value_tail, expression_postfix_end, format_block_body_narrow,
@@ -32,8 +33,14 @@ pub fn statement_list<'ast>(
             return Ok(());
         }
 
-        // empty file
+        // comment only files have no semantic root for their trivia
         if expressions.is_empty() {
+            let comments = f.context().comments().unprinted_comments().to_vec();
+            if !comments.is_empty() {
+                write_comment_sequence(f, &comments)?;
+                write!(f, [hard_line_break()])?;
+            }
+
             return Ok(());
         }
 

@@ -4,7 +4,7 @@ use super::whitespace::{
     tree_text_is_whitespace_only,
 };
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Expression, LocalNodeId, TreeChild};
+use destack_dir::{LocalNodeId, TreeChild};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     empty_line, format_with, hard_line_break, if_group_breaks, if_group_fits_on_line,
@@ -203,9 +203,11 @@ pub(crate) fn tree_child_allows_trailing_inline_punctuation(
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
     match context.tree.get(child_id) {
-        TreeChild::Expression { value } => !matches!(context.tree.get(*value), Expression::Stub),
+        TreeChild::Expression { .. } => true,
         TreeChild::Tree { .. } => true,
-        TreeChild::Text { .. } | TreeChild::Spread { .. } | TreeChild::Error => false,
+        TreeChild::Text { .. } | TreeChild::Empty | TreeChild::Spread { .. } | TreeChild::Error => {
+            false
+        }
     }
 }
 

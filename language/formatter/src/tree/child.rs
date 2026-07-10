@@ -1,18 +1,13 @@
 use super::attribute::argument_transparent_value_id;
-use crate::annotation::format_comment;
+use crate::DestackFormatContext;
 use crate::chain::{
     chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
     transparent_inner_expression,
 };
-use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
-    Block, BlockForm, Comment, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm,
+    Block, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm,
     LocalNodeId, MatchCase, Node, NodeType, ScalarLiteral, TokenType, Tree, TreeChild, TreeStore,
 };
-use destack_fir::format::{Buffer, FormatResult};
-use destack_fir::prelude::{hard_line_break, space};
-use destack_fir::write;
-use destack_source::Span;
 
 /// Return whether one node span contains a line comment.
 pub(crate) fn node_has_line_comment<T>(
@@ -266,6 +261,10 @@ pub(crate) fn tree_child_breaks_element(
     context: &DestackFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
+    if matches!(context.tree.get(child_id), TreeChild::Empty) {
+        return node_has_line_comment(context, child_id);
+    }
+
     let Some(value_id) = context.tree.get(child_id).value() else {
         return false;
     };
@@ -299,10 +298,7 @@ pub(crate) fn tree_child_breaks_element(
         _ => false,
     };
 
-    if (context.has_annotation(child_id) || context.has_annotation(value_id))
-        && !is_text_node
-        && !matches!(value_expression, Expression::Stub)
-    {
+    if (context.has_annotation(child_id) || context.has_annotation(value_id)) && !is_text_node {
         if matches!(
             value_expression,
             Expression::If {
@@ -317,7 +313,6 @@ pub(crate) fn tree_child_breaks_element(
     }
 
     match value_expression {
-        Expression::Stub => context.options.language_type.is_destack(),
         Expression::If {
             form: IfForm::Ternary,
             ..
@@ -487,40 +482,4 @@ fn block_has_tree_value(context: &DestackFormatContext<'_>, block_id: LocalNodeI
 
     expression_id
         .is_some_and(|expression_id| expression_branch_has_tree_value(context, expression_id))
-}
-
-/// Format one multiline stub comment list.
-pub(crate) fn format_multiline_stub_comment_nodes<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    comment_nodes: &[Comment],
-) -> FormatResult<()> {
-    for (index, comment) in comment_nodes.iter().copied().enumerate() {
-        if index > 0 {
-            write!(f, [hard_line_break()])?;
-        }
-        format_comment(f, comment)?;
-    }
-
-    Ok(())
-}
-
-/// Format inline stub comments from one source span.
-pub(crate) fn format_inline_stub_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    span: Span,
-) -> FormatResult<bool> {
-    let comment_nodes = {
-        let comments = f.context().comments();
-        comments.comments_in_range(span.start, span.end).to_vec()
-    };
-
-    for (index, comment) in comment_nodes.iter().copied().enumerate() {
-        if index > 0 {
-            write!(f, [space()])?;
-        }
-
-        format_comment(f, comment)?;
-    }
-
-    Ok(!comment_nodes.is_empty())
 }

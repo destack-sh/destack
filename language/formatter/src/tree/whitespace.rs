@@ -55,7 +55,9 @@ pub(crate) fn tree_text_is_whitespace_only(
             }
             _ => None,
         },
-        TreeChild::Spread { .. } | TreeChild::Tree { .. } | TreeChild::Error => None,
+        TreeChild::Empty | TreeChild::Spread { .. } | TreeChild::Tree { .. } | TreeChild::Error => {
+            None
+        }
     }
 }
 

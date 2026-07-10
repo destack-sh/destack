@@ -615,7 +615,7 @@ fn write_function_argument_with_options<'ast>(
                 write!(f, [label, token(":"), space()])?;
             }
         }
-        Argument::Positional { .. } | Argument::Error => {}
+        Argument::Positional { .. } | Argument::Elision | Argument::Error => {}
     }
 
     // declaration
