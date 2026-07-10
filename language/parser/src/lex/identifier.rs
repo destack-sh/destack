@@ -19,81 +19,115 @@ impl Lexer {
         }
 
         if index > 0 {
-            self.advance_ascii_bytes(index, bytes[index - 1]);
+            self.advance_ascii_bytes(index);
         }
     }
 
-    /// Parse an identifier-like token after its first character.
-    ///
-    /// Returns the token kind and optional literal when the identifier is a
-    /// built-in literal.
-    pub(super) fn eat_identifier_like(
+    /// Parse an ASCII identifier-like token after its first byte.
+    pub(super) fn eat_ascii_identifier_like(
+        &mut self,
+        first_byte: u8,
+    ) -> (TokenType, Option<TokenLiteral>) {
+        debug_assert!(first_byte.is_ascii());
+        debug_assert!(is_identifier_start(first_byte as char));
+
+        // consume the common ASCII continuation
+        self.eat_ascii_identifier_continue();
+
+        // continue mixed Unicode or escaped identifiers out of line
+        let next_byte = self.scanner.byte();
+        if next_byte == b'\\' || !next_byte.is_ascii() {
+            return self.eat_identifier_non_ascii_or_escape_tail(first_byte as char);
+        }
+
+        // preserve invalid literal prefixes as one recovery token
+        if next_byte == b'#' {
+            return (TokenType::UnknownLiteralPrefix, None);
+        }
+
+        self.classify_identifier_token(first_byte as char)
+    }
+
+    /// Parse a Unicode identifier-like token after its first character.
+    pub(super) fn eat_unicode_identifier_like(
         &mut self,
         first_char: char,
     ) -> (TokenType, Option<TokenLiteral>) {
+        debug_assert!(!first_char.is_ascii());
         debug_assert!(is_identifier_start(first_char));
-        // consume ascii identifier tails in bulk
-        if first_char.is_ascii() {
-            // continue through mixed ascii and unicode identifier tails
-            loop {
-                self.eat_ascii_identifier_continue();
 
-                if self.is_end() {
-                    break;
-                }
+        // consume the Unicode continuation
+        self.eat_while(is_identifier_continue);
 
-                let byte = self.scanner.byte();
-                if byte.is_ascii() {
-                    break;
-                }
+        self.eat_identifier_suffix(first_char)
+    }
 
-                let current = self.scanner.peek_char();
-                if is_identifier_continue(current) {
-                    self.scanner.eat_char();
-                    continue;
-                }
-
+    /// Continue an ASCII identifier through non-ASCII or escape content.
+    #[cold]
+    #[inline(never)]
+    fn eat_identifier_non_ascii_or_escape_tail(
+        &mut self,
+        first_char: char,
+    ) -> (TokenType, Option<TokenLiteral>) {
+        // consume alternating Unicode and ASCII continuation runs
+        loop {
+            let next_byte = self.scanner.byte();
+            if next_byte == b'\\' {
                 break;
             }
-        } else {
-            // unicode continuation tail
-            self.eat_while(is_identifier_continue);
+
+            let character = self.scanner.peek_char();
+            if !is_identifier_continue(character) {
+                break;
+            }
+
+            self.scanner.eat_char();
+            self.eat_ascii_identifier_continue();
         }
 
-        // check for unicode escapes mid-identifier (e.g., `AB\u{43}`)
-        // only consume escapes that decode to identifier continuations
-        if self.scanner.byte() == b'\\'
+        self.eat_identifier_suffix(first_char)
+    }
+
+    /// Parse an identifier suffix after every regular continuation is consumed.
+    fn eat_identifier_suffix(&mut self, first_char: char) -> (TokenType, Option<TokenLiteral>) {
+        let next_byte = self.scanner.byte();
+
+        // consume valid Unicode escapes in the identifier tail
+        if next_byte == b'\\'
             && self.scanner.byte_at(1) == b'u'
             && self.next_unicode_escape_continues_identifier()
         {
             self.eat_identifier_with_unicode_escapes();
+
             return (TokenType::Identifier, None);
         }
-        // known prefixes must have been handled earlier
-        match self.scanner.byte() {
-            b'#' => return (TokenType::UnknownLiteralPrefix, None),
-            byte if !byte.is_ascii() && self.scanner.peek_char().is_emoji_char() => {
-                return (self.eat_invalid_identifier(), None);
-            }
-            _ => {}
+
+        // preserve invalid suffixes as one recovery token
+        if next_byte == b'#' {
+            return (TokenType::UnknownLiteralPrefix, None);
         }
-        // boolean
+        if !next_byte.is_ascii() && self.scanner.peek_char().is_emoji_char() {
+            return (self.eat_invalid_identifier(), None);
+        }
+
+        self.classify_identifier_token(first_char)
+    }
+
+    /// Classify one fully consumed identifier-like token.
+    fn classify_identifier_token(&self, first_char: char) -> (TokenType, Option<TokenLiteral>) {
         let bytes = self.token_bytes();
+
         if first_char == 't' && bytes == b"true" {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::Boolean { value: true }),
             )
-        }
-        // false
-        else if first_char == 'f' && bytes == b"false" {
+        } else if first_char == 'f' && bytes == b"false" {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::Boolean { value: false }),
             )
-        }
-        // just an identifier
-        else {
+        } else {
             (TokenType::Identifier, None)
         }
     }
@@ -236,8 +270,7 @@ impl Lexer {
         };
 
         if consumed > 0 {
-            self.scanner
-                .advance_ascii_bytes(consumed, bytes[consumed - 1]);
+            self.scanner.advance_ascii_bytes(consumed);
         }
 
         Some(decoded)

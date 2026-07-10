@@ -10,7 +10,6 @@ use destack_dir::{
     Expression, Keyword, LocalNodeId, NodeType, TokenLiteral, TokenType, TypeExpression,
 };
 use destack_source::Span;
-use smallvec::SmallVec;
 use std::mem;
 
 impl Parser {
@@ -107,7 +106,8 @@ impl Parser {
         }
 
         if self.is_module_identifier() && self.next_token_type() == TokenType::OpenBrace {
-            let declaration = self.eat_module(start)?;
+            self.bump();
+            let declaration = self.eat_module_body(start)?;
             return Ok(Some(self.insert_node(
                 Expression::Declaration(declaration),
                 self.get_span_from(start),
@@ -119,7 +119,8 @@ impl Parser {
                 is_ambient: self.is_ambient,
                 ..DeclarationHeader::default()
             };
-            let declaration = self.eat_global(start, header)?;
+            self.bump();
+            let declaration = self.eat_global_body(start, header)?;
             return Ok(Some(self.insert_node(
                 Expression::Declaration(declaration),
                 self.get_span_from(start),
@@ -150,11 +151,22 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let (name, name_span) = self.eat_identifier_with_span()?;
+
+        Ok(self.insert_identifier_expression(start, name, name_span))
+    }
+
+    /// Insert one already consumed identifier expression.
+    pub(in crate::parse::expression) fn insert_identifier_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        name: StringId,
+        name_span: Span,
+    ) -> LocalNodeId<Expression> {
         let expression = Expression::Identifier { name };
         let expression_id = self.insert_node(expression, self.get_span_from(start));
         self.tree.set_main_span(expression_id, name_span);
 
-        Ok(expression_id)
+        expression_id
     }
 
     /// Parse expression continuation after an already parsed left value.
@@ -193,14 +205,23 @@ impl Parser {
         scope: ExpressionScope,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let start = self.span_start();
-        let mut decorators = if !self.flags.is_in_decorator() && self.peek_is(TokenType::At) {
-            self.eat_decorators_maybe()?
-        } else {
-            SmallVec::new()
-        };
+        if !self.flags.is_in_decorator() && self.peek_is(TokenType::At) {
+            return self.eat_decorated_expression(&start, scope);
+        }
 
-        let expression_id = self.eat_assignment(&start, scope)?;
-        let expression_id = self.wrap_decorated_default_export(&start, expression_id, &decorators);
+        self.eat_assignment(&start, scope)
+    }
+
+    /// Eat an expression with leading decorators.
+    #[cold]
+    fn eat_decorated_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        scope: ExpressionScope,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let mut decorators = self.eat_decorators_maybe()?;
+        let expression_id = self.eat_assignment(start, scope)?;
+        let expression_id = self.wrap_decorated_default_export(start, expression_id, &decorators);
         self.attach_pending_decorators_to_expression(&mut decorators, expression_id);
 
         Ok(expression_id)
@@ -392,7 +413,7 @@ impl Parser {
             )
         {
             let span = self.peek().span;
-            let name = self.strings.intern(self.get_span_str(span));
+            let name = self.intern_span(span);
             self.bump();
             return Ok((name, span));
         }

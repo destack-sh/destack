@@ -197,7 +197,7 @@ fn test_report_unterminated_regex_literal() {
     let mut parser = test.prepare();
     let error = parser.eat_regex_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "/42");
+    assert_eq!(parser.get_range_str(error.range), "/42");
 }
 
 /// Report regex literals with raw line terminators.
@@ -209,7 +209,7 @@ fn test_report_regex_literal_with_line_terminator() {
     let mut parser = test.prepare();
     let error = parser.eat_regex_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "/test\n/");
+    assert_eq!(parser.get_range_str(error.range), "/test\n/");
 }
 
 /// Parse a template string literal.
@@ -381,7 +381,7 @@ fn test_report_template_literal_legacy_octal_escape() {
     let mut parser = test.prepare();
     let error = parser.eat_template_literal().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), r"`\1`");
+    assert_eq!(parser.get_range_str(error.range), r"`\1`");
 }
 
 #[test]
@@ -2358,7 +2358,7 @@ fn test_report_tree_literal_namespace_member_path_parse_error() {
     let error = parser
         .eat_tree_literal()
         .expect_err("expected parse failure for namespace member path");
-    assert_eq!(parser.get_span_str(error.span), "/");
+    assert_eq!(parser.get_range_str(error.range), "/");
 }
 
 /// Parse tree children after newline-terminated declarations.

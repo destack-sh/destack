@@ -1,4 +1,6 @@
-use crate::parse::{DeclarationHeader, PendingDecorators, is_declaration_keyword};
+use crate::parse::{
+    DeclarationHeader, PendingDecorators, is_declaration_keyword, is_declaration_prefix_keyword,
+};
 use crate::{Parser, ParserCheckpoint, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Asynchrony, Declaration, DependencyBinding, DependencyForm, DependencyItem, EnumKind,
@@ -41,16 +43,7 @@ impl Parser {
         start: &ParserSpanStart,
         keyword: Keyword,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        let is_declaration_prefix = matches!(
-            keyword,
-            Keyword::Export
-                | Keyword::Declare
-                | Keyword::Abstract
-                | Keyword::Final
-                | Keyword::Local
-                | Keyword::Shared
-        );
-        if !is_declaration_prefix {
+        if !is_declaration_prefix_keyword(keyword) {
             return Ok(None);
         }
 
@@ -65,126 +58,226 @@ impl Parser {
     /// function value() {}
     /// interface Shape {}
     /// ```
+    #[inline(never)]
     pub(in crate::parse::expression) fn eat_keyword_declaration_expression(
         &mut self,
         start: &ParserSpanStart,
         keyword: Keyword,
         header: DeclarationHeader,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        // functions
-        if keyword == Keyword::Function
-            && matches!(
+        // parse direct binding expressions
+        if keyword == Keyword::Let {
+            return self.eat_let_from_keyword(start, header, keyword).map(Some);
+        }
+        if keyword == Keyword::Const {
+            return self.eat_const_expression(start, header).map(Some);
+        }
+        if keyword == Keyword::Using {
+            return self.try_eat_using_expression(start, header);
+        }
+
+        // parse declaration nodes
+        let declaration = match keyword {
+            // functions
+            Keyword::Function | Keyword::Async | Keyword::Comptime => {
+                self.try_eat_function_declaration(start, keyword, header)
+            }
+
+            // structs and classes
+            Keyword::Struct => self.try_eat_struct_or_class_declaration(start, header, false),
+            Keyword::Class => self.try_eat_struct_or_class_declaration(start, header, true),
+
+            // enums
+            Keyword::Enum => self.eat_enum_declaration(start, header).map(Some),
+
+            // interfaces and extensions
+            Keyword::Interface => self.try_eat_interface_declaration(start, header),
+            Keyword::Extension => self.try_eat_extension_declaration(start, header),
+
+            // type declarations
+            Keyword::Newtype => self.try_eat_newtype_declaration(start, header),
+            Keyword::Type | Keyword::Readonly => self.try_eat_type_alias_declaration(start, header),
+
+            // not a declaration expression
+            _ => Ok(None),
+        }?;
+
+        Ok(declaration.map(|declaration| self.declaration_expression(start, declaration)))
+    }
+
+    /// Parse a function declaration when the keyword owns a function head.
+    #[inline(never)]
+    fn try_eat_function_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        keyword: Keyword,
+        header: DeclarationHeader,
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
+        let has_function_head = if keyword == Keyword::Function {
+            matches!(
                 self.token_type_at_offset(1),
                 TokenType::Identifier
                     | TokenType::Multiply
                     | TokenType::OpenParenthesis
                     | TokenType::LessThan
             )
-        {
-            let declaration = self.eat_function(start, header)?;
+        } else {
+            self.next_keyword() == Some(Keyword::Function) && !self.next_token().is_on_new_line()
+        };
+        if !has_function_head {
+            return Ok(None);
+        }
 
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // structs and classes
-        else if matches!(keyword, Keyword::Struct | Keyword::Class)
-            && (matches!(
-                self.token_type_at_offset(1),
-                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
-            ) || self.keyword_at_offset(1) == Some(Keyword::Extends))
-        {
-            let is_class = keyword == Keyword::Class;
-            let declaration = self.eat_struct_or_class(start, header, is_class)?;
+        let declaration = self.eat_function(start, header)?;
 
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // enum declarations
-        else if keyword == Keyword::Enum {
-            if !matches!(
-                self.token_type_at_offset(1),
-                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
-            ) {
-                return Err(ParserError::unexpected(self.peek()));
-            }
+        Ok(Some(declaration))
+    }
 
-            let declaration = self.eat_enum(start, EnumKind::Enum, header)?;
+    /// Parse a struct or class declaration when its nominal head follows.
+    #[inline(never)]
+    fn try_eat_struct_or_class_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+        is_class: bool,
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
+        let has_nominal_head = matches!(
+            self.token_type_at_offset(1),
+            TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+        ) || self.keyword_at_offset(1) == Some(Keyword::Extends);
+        if !has_nominal_head {
+            return Ok(None);
+        }
 
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // const enum declarations
-        else if keyword == Keyword::Const
-            && self.next_keyword() == Some(Keyword::Enum)
-            && !self.next_token().is_on_new_line()
-        {
-            self.eat_keyword(Keyword::Const)?;
-            let declaration = self.eat_enum(start, EnumKind::Const, header)?;
+        let declaration = self.eat_struct_or_class(start, header, is_class)?;
 
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // interface declarations
-        else if keyword == Keyword::Interface
-            && matches!(
-                self.token_type_at_offset(1),
-                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
-            )
-        {
-            let declaration = self.eat_interface(start, header, TypeKind::Structural)?;
+        Ok(Some(declaration))
+    }
 
-            Ok(Some(self.declaration_expression(start, declaration)))
+    /// Parse an enum declaration.
+    #[inline(never)]
+    fn eat_enum_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<LocalNodeId<Declaration>> {
+        let has_enum_head = matches!(
+            self.token_type_at_offset(1),
+            TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+        );
+        if !has_enum_head {
+            return Err(ParserError::unexpected(self.peek()));
         }
-        // extension declarations
-        else if keyword == Keyword::Extension
-            && matches!(
-                self.token_type_at_offset(1),
-                TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
-            )
-        {
-            let declaration = self.eat_extension(start, header)?;
 
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // binding declarations
-        else if matches!(keyword, Keyword::Let | Keyword::Const) {
-            self.eat_let_from_keyword(start, header, keyword).map(Some)
-        }
-        // nominal interfaces
-        else if keyword == Keyword::Newtype && self.next_keyword() == Some(Keyword::Interface) {
-            self.eat_keyword(Keyword::Newtype)?;
-            let declaration = self.eat_interface(start, header, TypeKind::Nominal)?;
+        self.eat_enum(start, EnumKind::Enum, header)
+    }
 
-            Ok(Some(self.declaration_expression(start, declaration)))
+    /// Parse a const enum declaration or const binding expression.
+    #[inline(never)]
+    fn eat_const_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let is_const_enum =
+            self.next_keyword() == Some(Keyword::Enum) && !self.next_token().is_on_new_line();
+        if !is_const_enum {
+            return self.eat_let_from_keyword(start, header, Keyword::Const);
         }
-        // type alias declarations
-        else if matches!(
-            keyword,
-            Keyword::Type | Keyword::Newtype | Keyword::Readonly
-        ) && self.type_keyword_starts_alias_declaration()
-        {
-            let keyword =
-                self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
-            let type_keyword = self.type_keyword_header(keyword)?;
-            let declaration = self.eat_type_alias_declaration(start, header, type_keyword)?;
 
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // using declarations
-        else if keyword == Keyword::Using
-            && self.can_parse_using_declaration(&header, Asynchrony::Sync)
-        {
-            self.eat_using(start, header, Asynchrony::Sync).map(Some)
-        }
-        // async and comptime function declarations
-        else if (keyword == Keyword::Async || keyword == Keyword::Comptime)
-            && self.next_keyword() == Some(Keyword::Function)
-            && !self.next_token().is_on_new_line()
-        {
-            let declaration = self.eat_function(start, header)?;
+        self.eat_keyword(Keyword::Const)?;
+        let declaration = self.eat_enum(start, EnumKind::Const, header)?;
 
-            Ok(Some(self.declaration_expression(start, declaration)))
+        Ok(self.declaration_expression(start, declaration))
+    }
+
+    /// Parse a structural interface declaration when its head follows.
+    #[inline(never)]
+    fn try_eat_interface_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
+        let has_interface_head = matches!(
+            self.token_type_at_offset(1),
+            TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+        );
+        if !has_interface_head {
+            return Ok(None);
         }
-        // not a declaration expression
-        else {
-            Ok(None)
+
+        let declaration = self.eat_interface(start, header, TypeKind::Structural)?;
+
+        Ok(Some(declaration))
+    }
+
+    /// Parse an extension declaration when its head follows.
+    #[inline(never)]
+    fn try_eat_extension_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
+        let has_extension_head = matches!(
+            self.token_type_at_offset(1),
+            TokenType::Identifier | TokenType::LessThan | TokenType::OpenBrace
+        );
+        if !has_extension_head {
+            return Ok(None);
         }
+
+        let declaration = self.eat_extension(start, header)?;
+
+        Ok(Some(declaration))
+    }
+
+    /// Parse a nominal interface or type alias declaration.
+    #[inline(never)]
+    fn try_eat_newtype_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
+        if self.next_keyword() != Some(Keyword::Interface) {
+            return self.try_eat_type_alias_declaration(start, header);
+        }
+
+        self.eat_keyword(Keyword::Newtype)?;
+        let declaration = self.eat_interface(start, header, TypeKind::Nominal)?;
+
+        Ok(Some(declaration))
+    }
+
+    /// Parse a type alias declaration when the keyword owns the following head.
+    #[inline(never)]
+    fn try_eat_type_alias_declaration(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<Option<LocalNodeId<Declaration>>> {
+        if !self.type_keyword_starts_alias_declaration() {
+            return Ok(None);
+        }
+
+        let keyword = self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
+        let type_keyword = self.type_keyword_header(keyword)?;
+        let declaration = self.eat_type_alias_declaration(start, header, type_keyword)?;
+
+        Ok(Some(declaration))
+    }
+
+    /// Parse a using expression when its binding head follows.
+    #[inline(never)]
+    fn try_eat_using_expression(
+        &mut self,
+        start: &ParserSpanStart,
+        header: DeclarationHeader,
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
+        if !self.can_parse_using_declaration(&header, Asynchrony::Sync) {
+            return Ok(None);
+        }
+
+        self.eat_using(start, header, Asynchrony::Sync).map(Some)
     }
 
     /// Parse declaration prefix modifiers before a keyword expression.
@@ -579,7 +672,8 @@ impl Parser {
             return Err(ParserError::unexpected(self.peek()));
         }
 
-        let declaration = self.eat_global(start, header)?;
+        self.bump();
+        let declaration = self.eat_global_body(start, header)?;
         let expression = self.declaration_expression(start, declaration);
 
         Ok(Some(expression))

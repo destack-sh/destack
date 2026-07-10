@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Lexer, Parser, ParserOptions, ParserTokenHistory, ParserTriviaMode};
+use crate::{Lexer, Parser, ParserOptions, ParserTriviaMode};
 use destack_core::StringPool;
 use destack_dir::render_tokens;
 pub(in crate::lex) use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
@@ -143,7 +143,6 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
         LanguageType::Destack,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            token_history: ParserTokenHistory::Record,
             ..ParserOptions::default()
         },
         Arc::new(StringPool::new()),

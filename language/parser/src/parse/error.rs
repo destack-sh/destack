@@ -1,14 +1,14 @@
 use core::fmt;
 
 use destack_dir::{NodeType, TokenSpan, TokenType};
-use destack_source::{ContentId, Diagnostic, DiagnosticLabel, Span};
+use destack_source::{ByteRange, ContentId, Diagnostic, DiagnosticLabel, FileId, Span};
 use std::error::Error;
 
 /// One structural parser error used for recovery and diagnostics.
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub struct ParserError {
-    /// The span of the error.
-    pub span: Span,
+    /// The source byte range of the error.
+    pub range: ByteRange,
     /// The actual token type at the error span.
     pub actual: Option<TokenType>,
     /// The expected token type.
@@ -20,8 +20,8 @@ pub struct ParserError {
 /// The source location of one parser error.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ParserErrorLocation {
-    /// The source span of the error.
-    span: Span,
+    /// The source byte range of the error.
+    range: ByteRange,
     /// The actual token type at the error span.
     actual: Option<TokenType>,
 }
@@ -30,7 +30,13 @@ impl From<Span> for ParserErrorLocation {
     /// Create a parser error location from a source span.
     #[inline]
     fn from(span: Span) -> Self {
-        Self { span, actual: None }
+        Self {
+            range: ByteRange {
+                start: span.start,
+                end: span.end,
+            },
+            actual: None,
+        }
     }
 }
 
@@ -39,7 +45,10 @@ impl From<TokenSpan> for ParserErrorLocation {
     #[inline]
     fn from(token: TokenSpan) -> Self {
         Self {
-            span: token.span,
+            range: ByteRange {
+                start: token.span.start,
+                end: token.span.end,
+            },
             actual: Some(token.token.ty()),
         }
     }
@@ -66,13 +75,19 @@ impl<T> ParserResultExt<T> for Result<T, ParserError> {
 }
 
 impl ParserError {
+    /// Return this error range as a span in the parsed file.
+    #[inline]
+    pub fn span(self, file_id: FileId) -> Span {
+        Span::new(file_id, self.range.start, self.range.end)
+    }
+
     /// Create a parser error for an unexpected location.
     #[inline]
     pub fn unexpected(location: impl Into<ParserErrorLocation>) -> Self {
         let location = location.into();
 
         Self {
-            span: location.span,
+            range: location.range,
             actual: location.actual,
             expected: None,
             node_type: None,
@@ -85,7 +100,7 @@ impl ParserError {
         let location = location.into();
 
         Self {
-            span: location.span,
+            range: location.range,
             actual: location.actual,
             expected: None,
             node_type: Some(node_type),
@@ -98,7 +113,7 @@ impl ParserError {
         let location = location.into();
 
         Self {
-            span: location.span,
+            range: location.range,
             actual: location.actual,
             expected: Some(expected),
             node_type: None,
@@ -115,7 +130,7 @@ impl ParserError {
         let location = location.into();
 
         Self {
-            span: location.span,
+            range: location.range,
             actual: location.actual,
             expected: Some(expected),
             node_type: Some(node_type),
@@ -133,10 +148,10 @@ impl ParserError {
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.expected {
-            Some(token_type) => write!(f, "expected {token_type} at {:?}", self.span)?,
+            Some(token_type) => write!(f, "expected {token_type} at {:?}", self.range)?,
             None => match self.actual {
-                Some(token_type) => write!(f, "unexpected {token_type} at {:?}", self.span)?,
-                None => write!(f, "unexpected syntax at {:?}", self.span)?,
+                Some(token_type) => write!(f, "unexpected {token_type} at {:?}", self.range)?,
+                None => write!(f, "unexpected syntax at {:?}", self.range)?,
             },
         }
 
@@ -148,7 +163,7 @@ impl Error for ParserError {}
 
 impl ParserError {
     /// Convert this parse error into one source diagnostic.
-    pub fn to_diagnostic(&self, content: ContentId) -> Diagnostic {
+    pub fn to_diagnostic(&self, content: ContentId, file_id: FileId) -> Diagnostic {
         let in_node_str = match self.node_type {
             Some(node_type) => format!(" in {node_type:?}"),
             None => "".to_string(),
@@ -171,7 +186,8 @@ impl ParserError {
                 )
             }
         };
-        let primary = DiagnosticLabel::message(content, self.span, label);
+        let span = self.span(file_id);
+        let primary = DiagnosticLabel::message(content, span, label);
 
         Diagnostic::error("EP001", message, primary)
     }

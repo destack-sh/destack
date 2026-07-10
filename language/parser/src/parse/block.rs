@@ -1,13 +1,11 @@
 use crate::parse::error::ParserResultExt;
-use destack_core::StringId;
 use destack_dir::{
     Block, BlockContext, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm,
     Keyword, LocalNodeId, NodeType, Token, TokenType, YieldCardinality,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use super::r#if::IfHead;
-use crate::parse::DeclarationHeader;
 use crate::parse::flags::ParserFlags;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
@@ -289,8 +287,24 @@ impl Parser {
             return false;
         }
 
-        // inspect the label target to determine whether label parsing is allowed here
         let label_target = self.token_at_offset(2);
+
+        self.label_target_is_valid(label_target)
+    }
+
+    /// Return whether the current `:` can continue an already consumed label.
+    pub(super) fn can_parse_label_body(&mut self) -> bool {
+        if self.flags.is_in_match_case() || !self.peek_is(TokenType::Colon) {
+            return false;
+        }
+
+        let label_target = self.next_token();
+
+        self.label_target_is_valid(label_target)
+    }
+
+    /// Return whether one token can begin the body of a label in this context.
+    fn label_target_is_valid(&self, label_target: Token) -> bool {
         let label_target_type = label_target.ty();
         let label_target_keyword = label_target.keyword();
 
@@ -312,15 +326,12 @@ impl Parser {
         // labeled blocks are only allowed in statement position
         let is_label_block = label_target_type == TokenType::OpenBrace;
         let is_in_statement_position = self.flags.is_in_statement_position();
+
         is_label_expression || (is_in_statement_position && is_label_block)
     }
 
-    /// Eat one labeled expression shell after the caller accepted `identifier:`.
-    pub(super) fn eat_label_expression_shell(
-        &mut self,
-    ) -> ParserResult<(StringId, Span, LocalNodeId<Expression>)> {
-        // parse label prefix
-        let (label, label_span) = self.eat_identifier_with_span()?;
+    /// Eat a label body after its identifier has been consumed.
+    pub(super) fn eat_label_expression_body(&mut self) -> ParserResult<LocalNodeId<Expression>> {
         self.eat_colon()?;
 
         // allow empty labeled statements (`label:;`)
@@ -342,7 +353,7 @@ impl Parser {
             self.eat_expression(self.flags)?
         };
 
-        Ok((label, label_span, body))
+        Ok(body)
     }
 
     /// Try to parse a labeled statement before generic statement keyword dispatch.
@@ -354,7 +365,8 @@ impl Parser {
             return Ok(None);
         }
 
-        let (label, label_span, body) = self.eat_label_expression_shell()?;
+        let (label, label_span) = self.eat_identifier_with_span()?;
+        let body = self.eat_label_expression_body()?;
 
         // build labeled expression
         let label_id =
@@ -377,9 +389,7 @@ impl Parser {
 
         // direct keyword dispatch in statement position
         if let Some(keyword) = self.current_keyword() {
-            if let Some(expression_id) =
-                self.eat_keyword_expression(start, keyword, DeclarationHeader::default())?
-            {
+            if let Some(expression_id) = self.eat_statement_keyword_expression(start, keyword)? {
                 let expression = self.tree.get(expression_id);
                 let is_terminal_statement = expression.is_statement_boundary();
                 if is_terminal_statement
@@ -787,7 +797,7 @@ impl Parser {
             }
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
-                let span = err.span;
+                let span = err.span(self.file_id);
                 let recovered_span = self.recover_statement(span, Some(err));
                 let error_id = self.tree.insert(Expression::Error, recovered_span);
 

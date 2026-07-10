@@ -1,6 +1,7 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_core::StringPool;
+use destack_dir::{Expression, TypeExpression};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
@@ -62,6 +63,10 @@ struct ParserBenchStageStats {
     side_tokens: u64,
     /// The parsed DIR node count.
     nodes: u64,
+    /// The parsed expression count.
+    expressions: u64,
+    /// The parsed type expression count.
+    type_expressions: u64,
     /// The retained comment count.
     comments: u64,
     /// The parser diagnostic count.
@@ -74,6 +79,8 @@ impl ParserBenchStageStats {
         self.tokens = self.tokens.saturating_add(other.tokens);
         self.side_tokens = self.side_tokens.saturating_add(other.side_tokens);
         self.nodes = self.nodes.saturating_add(other.nodes);
+        self.expressions = self.expressions.saturating_add(other.expressions);
+        self.type_expressions = self.type_expressions.saturating_add(other.type_expressions);
         self.comments = self.comments.saturating_add(other.comments);
         self.errors = self.errors.saturating_add(other.errors);
     }
@@ -172,6 +179,8 @@ fn summarize_parser_stage(
                 tokens: tokens.len() as u64,
                 side_tokens: side_tokens.len() as u64,
                 nodes: parser.tree.node_count() as u64,
+                expressions: parser.tree.iter_nodes::<Expression>().count() as u64,
+                type_expressions: parser.tree.iter_nodes::<TypeExpression>().count() as u64,
                 comments: parser.tree.comments().len() as u64,
                 errors: parser.errors.len() as u64,
             }
@@ -188,6 +197,8 @@ fn summarize_parser_stage(
                 tokens: tokens.len() as u64,
                 side_tokens: side_tokens.len() as u64,
                 nodes: parser.tree.node_count() as u64,
+                expressions: parser.tree.iter_nodes::<Expression>().count() as u64,
+                type_expressions: parser.tree.iter_nodes::<TypeExpression>().count() as u64,
                 comments: parser.tree.comments().len() as u64,
                 errors: parser.errors.len() as u64,
             }
@@ -640,7 +651,7 @@ fn bench_parse(criterion: &mut Criterion) {
     for corpus in &corpora {
         let stats = summarize_parser_corpus(corpus, stage, trivia_mode);
         eprintln!(
-            "parser corpus {}: {} stage, {} trivia, {} files, {} bytes, {} lines, {} tokens, {} side tokens, {} nodes, {} comments, {} errors",
+            "parser corpus {}: {} stage, {} trivia, {} files, {} bytes, {} lines, {} tokens, {} side tokens, {} nodes, {} expressions, {} type expressions, {} comments, {} errors",
             corpus.name,
             stage_name,
             trivia_mode_name,
@@ -650,6 +661,8 @@ fn bench_parse(criterion: &mut Criterion) {
             stats.tokens,
             stats.side_tokens,
             stats.nodes,
+            stats.expressions,
+            stats.type_expressions,
             stats.comments,
             stats.errors
         );
@@ -662,7 +675,7 @@ fn bench_parse(criterion: &mut Criterion) {
             corpus,
             |bencher, corpus| {
                 bencher.iter(|| {
-                    for file in corpus.files.iter() {
+                    for file in &corpus.files {
                         run_parser_stage(file.clone(), stage, trivia_mode);
                     }
                 });

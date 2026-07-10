@@ -42,11 +42,11 @@ mod r#where;
 pub use declaration::{DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
 pub(crate) use declaration::{
     DeclarationHeader, is_declaration_keyword, is_declaration_modifier_keyword,
-    is_type_relation_keyword,
+    is_declaration_prefix_keyword, is_type_relation_keyword,
 };
 pub(crate) use decorator::PendingDecorators;
 pub(crate) use function::ArrowHeadKind;
-pub use options::{ParserOptions, ParserTokenHistory};
+pub use options::ParserOptions;
 pub use prelude::*;
 pub use property::BINDING_MODIFIERS;
 pub(crate) use property::TypeMemberContainerKind;

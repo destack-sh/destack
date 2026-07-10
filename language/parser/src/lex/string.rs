@@ -3,7 +3,6 @@ use super::lexer::Lexer;
 impl Lexer {
     /// Parse a quoted string literal after its opening quote.
     pub(super) fn eat_quoted_string(&mut self, quote: char) -> (bool, bool) {
-        debug_assert!(self.previous() == quote);
         debug_assert!(quote.is_ascii());
 
         let quote_byte = quote as u8;

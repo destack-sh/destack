@@ -309,7 +309,7 @@ enum Value {
         1,
         "expected one dangling decorator parse error"
     );
-    assert_eq!(parser.file.span_str(parser.errors[0].span), "}");
+    assert_eq!(parser.get_range_str(parser.errors[0].range), "}");
 
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {

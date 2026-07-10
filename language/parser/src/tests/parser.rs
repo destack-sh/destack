@@ -7,7 +7,7 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
-use crate::{Parser, ParserOptions, ParserTokenHistory, ParserTriviaMode};
+use crate::{Parser, ParserOptions, ParserTriviaMode};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -64,7 +64,6 @@ impl TestParser {
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
             preserve_parenthesized_wrappers: true,
-            token_history: ParserTokenHistory::Record,
             ..ParserOptions::default()
         }
     }
@@ -83,7 +82,7 @@ impl TestParser {
                     error.node_type,
                     error.actual,
                     error.expected,
-                    parser.get_span_str(error.span).to_owned(),
+                    parser.get_range_str(error.range).to_owned(),
                 )
             })
             .collect();

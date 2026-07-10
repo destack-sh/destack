@@ -629,7 +629,7 @@ fn test_report_generic_arguments_missing_close_angle_in_value_context() {
     let mut parser = test.prepare();
     let error = parser.eat_generic_arguments().unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "");
+    assert_eq!(parser.get_range_str(error.range), "");
 }
 
 #[test]

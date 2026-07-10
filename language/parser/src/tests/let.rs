@@ -830,7 +830,7 @@ fn test_report_let_else_without_initializer() {
         .unwrap_err();
 
     // let x else { return }
-    assert_eq!(parser.get_span_str(error.span), "else");
+    assert_eq!(parser.get_range_str(error.range), "else");
 }
 
 #[test]
@@ -843,7 +843,7 @@ fn test_report_let_else_without_block_branch() {
         .unwrap_err();
 
     // let x = value else return
-    assert_eq!(parser.get_span_str(error.span), "return");
+    assert_eq!(parser.get_range_str(error.range), "return");
 }
 
 #[test]
@@ -856,7 +856,7 @@ fn test_report_indexed_declarator_target() {
         .eat_let(&start, DeclarationHeader::default())
         .unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "[");
+    assert_eq!(parser.get_range_str(error.range), "[");
 }
 
 #[test]

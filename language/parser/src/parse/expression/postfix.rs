@@ -29,44 +29,24 @@ impl Parser {
             let is_on_new_line = self.current_token_is_on_new_line();
 
             // decorator target boundary
-            if scope.owns_decorator_line_boundary && is_on_new_line {
+            if scope.owns_decorator_line_boundary() && is_on_new_line {
                 break;
             }
 
             // statement boundary
-            if scope.is_match_case_body && is_on_new_line {
+            if scope.is_match_case_body() && is_on_new_line {
                 break;
             }
 
-            // token dispatch
-            let next = match token_type {
-                TokenType::OpenBrace => self.eat_tagged_object_postfix(start, left, scope)?,
-                TokenType::OpenParenthesis => {
-                    self.eat_call_postfix(left, is_parenthesized, scope, is_on_new_line)?
-                }
-                TokenType::OpenBracket => Some(self.eat_index(left, PostfixPosition::Direct)?),
-                TokenType::Dot => Some(self.eat_value_dot_postfix(start, left)?),
-                TokenType::Maybe if self.current_question_starts_maybe_postfix() => {
-                    Some(self.eat_maybe_postfix(start, left, PostfixPosition::Direct)?)
-                }
-                TokenType::Not if !is_on_new_line => {
-                    Some(self.eat_must_postfix(start, left, PostfixPosition::Direct)?)
-                }
-                TokenType::Identifier if self.current_value_comptime_postfix_starts() => {
-                    Some(self.eat_comptime_postfix(start, left))
-                }
-                TokenType::LessThan | TokenType::ShiftLeft => {
-                    self.eat_generic_postfix(start, left, scope)?
-                }
-                TokenType::TemplateString | TokenType::TemplateStringStart
-                    if self.tagged_template_tag_is_valid(left) =>
-                {
-                    Some(self.eat_tagged_template_postfix(start, left)?)
-                }
-                _ if !is_on_new_line => self.eat_current_unary_postfix(start, left),
-                _ => None,
-            };
-
+            // parse the next postfix operation
+            let next = self.eat_value_postfix(
+                start,
+                left,
+                is_parenthesized,
+                scope,
+                is_on_new_line,
+                token_type,
+            )?;
             let Some(expression_id) = next else {
                 break;
             };
@@ -76,6 +56,47 @@ impl Parser {
         }
 
         Ok((left, is_parenthesized))
+    }
+
+    /// Eat the value postfix operation starting at the current token when present.
+    #[inline(never)]
+    fn eat_value_postfix(
+        &mut self,
+        start: &ParserSpanStart,
+        left: LocalNodeId<Expression>,
+        is_parenthesized: bool,
+        scope: ExpressionScope,
+        is_on_new_line: bool,
+        token_type: TokenType,
+    ) -> ParserResult<Option<LocalNodeId<Expression>>> {
+        match token_type {
+            TokenType::OpenBrace => self.eat_tagged_object_postfix(start, left, scope),
+            TokenType::OpenParenthesis => {
+                self.eat_call_postfix(left, is_parenthesized, scope, is_on_new_line)
+            }
+            TokenType::OpenBracket => self.eat_index(left, PostfixPosition::Direct).map(Some),
+            TokenType::Dot => self.eat_value_dot_postfix(start, left).map(Some),
+            TokenType::Maybe if self.current_question_starts_maybe_postfix() => self
+                .eat_maybe_postfix(start, left, PostfixPosition::Direct)
+                .map(Some),
+            TokenType::Not if !is_on_new_line => self
+                .eat_must_postfix(start, left, PostfixPosition::Direct)
+                .map(Some),
+            TokenType::Identifier if self.current_value_comptime_postfix_starts() => {
+                Ok(Some(self.eat_comptime_postfix(start, left)))
+            }
+            TokenType::LessThan | TokenType::ShiftLeft => {
+                self.eat_generic_postfix(start, left, scope)
+            }
+            TokenType::TemplateString | TokenType::TemplateStringStart
+                if self.tagged_template_tag_is_valid(left) =>
+            {
+                self.eat_tagged_template_postfix(start, left).map(Some)
+            }
+            _ if !is_on_new_line => Ok(UnaryOperator::from_postfix_token(token_type)
+                .map(|operator| self.eat_unary_postfix(start, left, operator))),
+            _ => Ok(None),
+        }
     }
 
     /// Return whether the current token starts a value comptime postfix.
@@ -118,11 +139,11 @@ impl Parser {
         scope: ExpressionScope,
         is_on_new_line: bool,
     ) -> bool {
-        if scope.is_new_receiver {
+        if scope.is_new_receiver() {
             return true;
         }
 
-        if scope.owns_newline_call_boundary && is_on_new_line {
+        if scope.owns_newline_call_boundary() && is_on_new_line {
             return true;
         }
 
@@ -236,24 +257,6 @@ impl Parser {
         expression_id
     }
 
-    /// Eat a value unary postfix when present.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value++
-    /// value--
-    /// object.field++
-    /// ```
-    fn eat_current_unary_postfix(
-        &mut self,
-        start: &ParserSpanStart,
-        left: LocalNodeId<Expression>,
-    ) -> Option<LocalNodeId<Expression>> {
-        let operator = UnaryOperator::from_postfix_token(self.peek_token_type())?;
-
-        Some(self.eat_unary_postfix(start, left, operator))
-    }
-
     /// Parse value generic postfix syntax when present.
     ///
     /// Examples:
@@ -262,6 +265,7 @@ impl Parser {
     /// value<T>(argument)
     /// value<<T>() => T>
     /// ```
+    #[inline(never)]
     fn eat_generic_postfix(
         &mut self,
         start: &ParserSpanStart,
@@ -304,7 +308,7 @@ impl Parser {
             return Ok(true);
         }
 
-        if scope.is_new_receiver || scope.is_tree_literal || scope.is_typeof_query {
+        if scope.is_new_receiver() || scope.is_tree_literal() || scope.is_typeof_query() {
             return Ok(true);
         }
 
@@ -455,7 +459,7 @@ impl Parser {
         }
 
         // let heritage and for each recovery own the following block
-        if self.flags.is_in_super_type() || scope.owns_for_each_boundary {
+        if self.flags.is_in_super_type() || scope.owns_for_each_boundary() {
             return Ok(None);
         }
 

@@ -9,8 +9,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
-    ParserOptions, ParserTokenHistory, ParserTriviaMode, TestParser, assert_comment,
-    assert_expression_path, assert_name, assert_node, assert_path, assert_string,
+    ParserOptions, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
+    assert_name, assert_node, assert_path, assert_string,
 };
 
 #[test]
@@ -1749,7 +1749,7 @@ fn test_report_unparenthesized_arrow_call() {
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
     // (
-    assert_eq!(parser.get_span_str(error.span), "(");
+    assert_eq!(parser.get_range_str(error.range), "(");
 
     // source: a => {}()
     let mut test = TestParser::new("a => {}()");
@@ -1757,7 +1757,7 @@ fn test_report_unparenthesized_arrow_call() {
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
     // (
-    assert_eq!(parser.get_span_str(error.span), "(");
+    assert_eq!(parser.get_range_str(error.range), "(");
 }
 
 /// Parse direct calls on parenthesized arrow functions.
@@ -1787,7 +1787,6 @@ fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     let mut test = TestParser::new("(() => {})()");
     let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
-        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });

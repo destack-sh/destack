@@ -41,7 +41,7 @@ impl Parser {
             let is_on_new_line = self.current_token_is_on_new_line();
 
             // static type close
-            if scope.is_static && Self::starts_type_angle_close(token_type) {
+            if scope.is_static() && Self::starts_type_angle_close(token_type) {
                 break;
             }
 
@@ -50,7 +50,7 @@ impl Parser {
                     left = self.eat_type_index_postfix(left)?;
                 }
                 TokenType::OpenParenthesis => {
-                    if scope.is_new_receiver {
+                    if scope.is_new_receiver() {
                         break;
                     }
 

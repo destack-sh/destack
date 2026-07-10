@@ -1,7 +1,7 @@
 use crate::tests::TestParser;
 use crate::{
-    ParserOptions, ParserTokenHistory, ParserTriviaMode, assert_expression_path, assert_node,
-    assert_path, assert_string,
+    ParserOptions, ParserTriviaMode, assert_expression_path, assert_node, assert_path,
+    assert_string,
 };
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Key, Name,
@@ -17,7 +17,7 @@ fn assert_instantiation_assignment_reports_at(input: &str, expected_leaf: &str) 
     let error = parser
         .eat_expression(parser.flags)
         .expect_err("expected instantiation assignment target to fail");
-    let error_text = parser.get_span_str(error.span);
+    let error_text = parser.get_range_str(error.range);
 
     assert_eq!(error.node_type, None);
     assert_eq!(error.expected, None);
@@ -87,7 +87,6 @@ fn test_parse_parenthesized_instantiation_expression_statement() {
     let mut test = TestParser::new("(f<T>)<K>;");
     let mut parser = test.prepare_with_options(ParserOptions {
         trivia_mode: ParserTriviaMode::Full,
-        token_history: ParserTokenHistory::Record,
         preserve_parenthesized_wrappers: false,
         ..ParserOptions::default()
     });

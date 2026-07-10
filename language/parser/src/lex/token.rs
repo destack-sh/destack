@@ -75,7 +75,7 @@ impl Lexer {
     /// Parse one ASCII token from its first byte.
     fn read_ascii_source_token(&mut self, start: u32, first_byte: u8) -> Token {
         debug_assert!(first_byte.is_ascii());
-        self.scanner.advance_ascii_bytes(1, first_byte);
+        self.scanner.advance_ascii_bytes(1);
 
         match first_byte {
             // newline trivia
@@ -92,14 +92,14 @@ impl Lexer {
 
             // ordinary trivia
             b' ' | b'\t' | 0x0B | 0x0C => {
-                let token_type = self.eat_whitespace();
+                let token_type = self.eat_whitespace(first_byte as char);
 
                 self.finish_source_token(start, first_byte, token_type, None)
             }
 
             // identifiers and literals
             b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'$' => {
-                let (token_type, literal) = self.eat_identifier_like(first_byte as char);
+                let (token_type, literal) = self.eat_ascii_identifier_like(first_byte);
 
                 self.finish_source_token(start, first_byte, token_type, literal)
             }
@@ -254,11 +254,11 @@ impl Lexer {
                 return (TokenType::Newline, None);
             }
 
-            return (self.eat_whitespace(), None);
+            return (self.eat_whitespace(first_char), None);
         }
 
         if is_identifier_start(first_char) {
-            return self.eat_identifier_like(first_char);
+            return self.eat_unicode_identifier_like(first_char);
         }
 
         if first_char.is_emoji_char() {
@@ -674,13 +674,13 @@ impl Lexer {
         }
 
         if index > 0 {
-            self.advance_ascii_bytes(index, bytes[index - 1]);
+            self.advance_ascii_bytes(index);
         }
     }
 
     /// Parse a whitespace sequence after its first character.
-    fn eat_whitespace(&mut self) -> TokenType {
-        debug_assert!(is_whitespace(self.previous()));
+    fn eat_whitespace(&mut self, first_char: char) -> TokenType {
+        debug_assert!(is_whitespace(first_char));
 
         // consume contiguous ascii spaces and tabs in bulk
         self.eat_ascii_non_newline_whitespace();

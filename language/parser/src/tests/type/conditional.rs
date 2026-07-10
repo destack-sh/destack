@@ -208,7 +208,7 @@ fn test_report_optional_type() {
     let mut parser = test.prepare();
     let error = parser.eat_expression(parser.flags).unwrap_err();
 
-    assert_eq!(parser.get_span_str(error.span), "?");
+    assert_eq!(parser.get_range_str(error.range), "?");
 }
 
 #[test]
