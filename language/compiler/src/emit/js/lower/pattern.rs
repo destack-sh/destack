@@ -107,7 +107,7 @@ impl ModuleLowerer<'_> {
                     assign_pattern_field_id,
                 )
             }
-            dir::AssignPatternField::Spread { pattern } => {
+            dir::AssignPatternField::Rest { pattern } => {
                 let pattern = pattern
                     .map(|pattern_id| self.lower_assign_pattern(pattern_id))
                     .transpose()?;
@@ -310,7 +310,7 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
-            dir::PatternField::Spread { pattern } => {
+            dir::PatternField::Rest { pattern } => {
                 let pattern = pattern
                     .map(|pattern_id| self.lower_pattern(pattern_id))
                     .transpose()?;

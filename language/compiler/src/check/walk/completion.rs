@@ -104,7 +104,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::Identifier { .. }
             | dir::Expression::This
             | dir::Expression::ScalarLiteral(_)
-            | dir::Expression::PrivateIdentifier { .. }
             | dir::Expression::Super
             | dir::Expression::ImportMeta
             | dir::Expression::ImportSource
@@ -117,7 +116,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::ArrayExpression { .. }
             | dir::Expression::FixedArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
-            | dir::Expression::SequenceExpression { .. }
             | dir::Expression::ObjectExpression { .. }
             | dir::Expression::StructExpression { .. }
             | dir::Expression::TreeExpression { .. }
@@ -132,7 +130,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::MoveOf { .. }
             | dir::Expression::BorrowOf { .. }
             | dir::Expression::Member { .. }
-            | dir::Expression::PrivateMember { .. }
             | dir::Expression::Index { .. }
             | dir::Expression::Instantiation { .. }
             | dir::Expression::Call { .. }

@@ -137,7 +137,6 @@ impl ModuleLowerer<'_> {
                 let name = self.lower_name(name);
                 js::Key::Name(name)
             }
-            dir::Key::Private(name) => js::Key::Private(name),
             dir::Key::Expression(expression_id) => {
                 let expression_id = self.lower_expression_as::<js::Expression>(expression_id)?;
                 js::Key::Expression(expression_id)

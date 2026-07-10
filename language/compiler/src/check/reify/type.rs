@@ -370,6 +370,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::FixedArray { element, length }
             }
             dir::Type::Tuple(tuple) => {
+                if tuple.form == dir::TupleForm::Array {
+                    return Ok(None);
+                }
+
                 let tuple_elements = self
                     .check
                     .tuple_elements(id.module_id, tuple.elements)?
@@ -396,10 +400,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     elements.push(self.insert(element));
                 }
 
-                match tuple.form {
-                    dir::TupleForm::Tuple => dir::TypeExpression::Tuple { elements },
-                    dir::TupleForm::Array => dir::TypeExpression::ArrayTuple { elements },
-                }
+                dir::TypeExpression::Tuple { elements }
             }
             dir::Type::Shape(shape) => {
                 // signatures have no member spelling here yet

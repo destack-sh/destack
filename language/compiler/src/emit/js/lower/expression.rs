@@ -610,13 +610,6 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::PrivateIdentifier { name } => {
-                let name = *name;
-                let expression = js::Expression::PrivateIdentifier { name };
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
             dir::Expression::ScalarLiteral(value) => {
                 let value = self.lower_scalar_literal(value);
                 let expression = js::Expression::ScalarLiteral { value };
@@ -630,16 +623,6 @@ impl ModuleLowerer<'_> {
                     .map(|element_id| self.lower_array_element(*element_id, expression_id))
                     .collect::<Result<Vec<_>, EmitError>>()?;
                 let expression = js::Expression::ArrayLiteral { elements };
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
-            dir::Expression::SequenceExpression { expressions } => {
-                let expressions = expressions
-                    .iter()
-                    .map(|expr_id| self.lower_expression_as::<js::Expression>(*expr_id))
-                    .collect::<Result<Vec<_>, EmitError>>()?;
-                let expression = js::Expression::SequenceExpression { expressions };
                 self.tree
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
@@ -869,22 +852,6 @@ impl ModuleLowerer<'_> {
                     ));
                 };
                 let expression = js::Expression::Member {
-                    left: left_id,
-                    name,
-                };
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
-            dir::Expression::PrivateMember { left, name } => {
-                let left_id = self.lower_expression_as::<js::Expression>(*left)?;
-                let Some(name) = *name else {
-                    return Err(self.unsupported_construct(
-                        expression_id.into_global_any(self.module.id),
-                        Some("missing private member name".to_string()),
-                    ));
-                };
-                let expression = js::Expression::PrivateMember {
                     left: left_id,
                     name,
                 };

@@ -125,7 +125,7 @@ impl<'a> AddressTakenCollector<'a> {
             } => {
                 self.record_reference_target(tree, *value);
             }
-            dir::Expression::Member { left, .. } | dir::Expression::PrivateMember { left, .. } => {
+            dir::Expression::Member { left, .. } => {
                 if !self.expression_is_reference_like(*left) {
                     self.record_reference_target(tree, *left);
                 }

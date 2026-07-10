@@ -55,10 +55,6 @@ impl CheckState<'_> {
             dir::Expression::BorrowOf {
                 mutability, right, ..
             } => self.infer_borrow_expression(site, mutability, right),
-            dir::Expression::SequenceExpression { expressions } => self.infer_sequence_expression(
-                site,
-                &expressions.into_iter().collect::<SmallVec<[_; 4]>>(),
-            ),
             dir::Expression::If {
                 then_expression,
                 else_expression,
@@ -122,8 +118,7 @@ impl CheckState<'_> {
                 iterator,
                 ..
             } => self.infer_for_each_expression(site, operator, binding, iterator),
-            dir::Expression::Member { left, name }
-            | dir::Expression::PrivateMember { left, name } => {
+            dir::Expression::Member { left, name } => {
                 if let Some(Decision::Name(resolution)) = self.decision(node.into_any()).cloned() {
                     self.infer_name_expression(site, &resolution)
                 } else {
@@ -237,10 +232,7 @@ impl CheckState<'_> {
                 self.infer_try_projection_expression(site, left)
             }
             dir::Expression::Await { expression } => self.infer_await_expression(site, expression),
-            dir::Expression::PrivateIdentifier { .. }
-            | dir::Expression::Debugger
-            | dir::Expression::Missing
-            | dir::Expression::Error => {
+            dir::Expression::Debugger | dir::Expression::Missing | dir::Expression::Error => {
                 self.commit_error_node(node.into_any())?;
 
                 Ok(Answer::Ready(()))

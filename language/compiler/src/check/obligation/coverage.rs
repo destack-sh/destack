@@ -501,7 +501,7 @@ impl CheckState<'_> {
             let field_decision = match field {
                 // bare fields and elisions always cover
                 dir::PatternField::Named { pattern: None, .. }
-                | dir::PatternField::Spread { pattern: None }
+                | dir::PatternField::Rest { pattern: None }
                 | dir::PatternField::Elision => Answer::Ready(true),
                 // named fields cover their projected member values
                 dir::PatternField::Named {
@@ -545,7 +545,7 @@ impl CheckState<'_> {
                 // inner fields cover through the whole value
                 dir::PatternField::Computed { pattern, .. }
                 | dir::PatternField::Positional { pattern }
-                | dir::PatternField::Spread {
+                | dir::PatternField::Rest {
                     pattern: Some(pattern),
                 } => self.decide_pattern_covers(origin, pattern.into_global(module), value)?,
             };

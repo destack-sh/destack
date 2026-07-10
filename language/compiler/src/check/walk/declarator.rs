@@ -432,7 +432,7 @@ impl WalkState<'_, '_> {
                 // [pattern]
                 | dir::PatternField::Positional { .. }
                 // { ...pattern }
-                | dir::PatternField::Spread { .. }
+                | dir::PatternField::Rest { .. }
                 // { name }
                 | dir::PatternField::Named { pattern: None, .. }
                 // [,]

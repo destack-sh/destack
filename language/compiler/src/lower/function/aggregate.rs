@@ -598,15 +598,6 @@ impl FunctionLowerer<'_> {
                     message: "struct field not found".to_string(),
                 })
                 .map_err(CompilerError::from),
-            dir::Key::Private(_) => Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.context.module_id)
-                        .into_anchored(Some(self.context.profile)),
-                ),
-                message: "private field key not supported in struct layout".to_string(),
-            }
-            .into()),
             dir::Key::Expression(_) => Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id

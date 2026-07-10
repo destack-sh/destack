@@ -48,7 +48,7 @@ impl CheckState<'_> {
         let has_rest = fields.iter().any(|field| {
             matches!(
                 self.module(module).view().get(*field),
-                dir::PatternField::Spread { .. }
+                dir::PatternField::Rest { .. }
             )
         });
         let arity = dir::PatternSequenceArity {
@@ -88,7 +88,7 @@ impl CheckState<'_> {
                     });
                     position += 1;
                 }
-                dir::PatternField::Spread { pattern } => {
+                dir::PatternField::Rest { pattern } => {
                     let pattern = *pattern;
                     let Some(call) = answer!(self.select_sequence_rest(
                         field.into_global_any(module),
@@ -214,7 +214,7 @@ impl CheckState<'_> {
                     });
                     position += 1;
                 }
-                dir::AssignPatternField::Spread { pattern } => {
+                dir::AssignPatternField::Rest { pattern } => {
                     let pattern = *pattern;
                     let Some(call) = answer!(self.select_sequence_rest(
                         field.into_global_any(module),
@@ -339,7 +339,7 @@ impl CheckState<'_> {
                 dir::AssignPatternField::Positional { .. } | dir::AssignPatternField::Elision => {
                     position += 1;
                 }
-                dir::AssignPatternField::Spread { .. } => return Some(position),
+                dir::AssignPatternField::Rest { .. } => return Some(position),
                 _ => {}
             }
         }

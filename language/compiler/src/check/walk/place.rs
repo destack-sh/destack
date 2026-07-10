@@ -23,9 +23,7 @@ impl WalkState<'_, '_> {
                 return self.walk_named_assigned_place(id.into_any(), access);
             }
             // value.member
-            dir::Expression::Member { left, .. }
-            // value.#member
-            | dir::Expression::PrivateMember { left, .. } => {
+            dir::Expression::Member { left, .. } => {
                 if self.has_name_reference(id) {
                     return self.walk_name_path_assigned_place(id, access);
                 }
@@ -116,10 +114,6 @@ impl WalkState<'_, '_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
-            }
-            | dir::Expression::PrivateMember {
-                left,
-                name: Some(name),
             } => {
                 if !matches!(self.tree.get(*left), dir::Expression::This) {
                     return Ok(None);
@@ -145,7 +139,6 @@ impl WalkState<'_, '_> {
             // other writes do not affect local definite assignment
             dir::Expression::Identifier { .. }
             | dir::Expression::Member { .. }
-            | dir::Expression::PrivateMember { .. }
             | dir::Expression::Index { .. } => Ok(None),
 
             // reject expressions that cannot be written

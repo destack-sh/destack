@@ -161,7 +161,7 @@ impl CheckState<'_> {
 
                     (key, Some(pattern))
                 }
-                dir::PatternField::Spread { pattern } => {
+                dir::PatternField::Rest { pattern } => {
                     let rest_origin = Origin::Node(field.into_global_any(module), scope);
                     let Some(projection) = answer!(self.object_rest_projection(
                         rest_origin,
@@ -325,7 +325,7 @@ impl CheckState<'_> {
 
                     (key, Some(pattern))
                 }
-                dir::AssignPatternField::Spread { pattern } => {
+                dir::AssignPatternField::Rest { pattern } => {
                     let rest_origin = Origin::Node(source, scope);
                     let Some(projection) = answer!(self.object_rest_projection(
                         rest_origin,

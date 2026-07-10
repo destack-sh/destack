@@ -110,14 +110,6 @@ impl CheckState<'_> {
             dir::Expression::Satisfies { expression, .. } => {
                 self.check_transparent_expression(site, expression, target, relation, origin, use_)
             }
-            dir::Expression::SequenceExpression { expressions } => self.check_sequence_expression(
-                site,
-                &expressions.into_iter().collect::<SmallVec<[_; 4]>>(),
-                target,
-                relation,
-                origin,
-                use_,
-            ),
             dir::Expression::If {
                 then_expression,
                 else_expression,

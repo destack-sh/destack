@@ -246,7 +246,6 @@ impl WalkState<'_, '_> {
             // value.member
             dir::Expression::Member { left, .. }
             // value.#member
-            | dir::Expression::PrivateMember { left, .. }
             // value[index]
             | dir::Expression::Index { left, .. } => Some(*left),
             // not a member path

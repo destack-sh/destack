@@ -221,9 +221,6 @@ impl FunctionLowerer<'_> {
                 && resolution_receiver.is_some()
                 && let dir::Expression::Member {
                     left: receiver_id, ..
-                }
-                | dir::Expression::PrivateMember {
-                    left: receiver_id, ..
                 } = left_expr
             {
                 // skip evaluation for namespace receivers, they are compile-time only

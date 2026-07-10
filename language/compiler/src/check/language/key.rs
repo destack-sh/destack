@@ -13,7 +13,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
         let key = match key {
             dir::Key::Name(name) => Some(name.static_key()),
-            dir::Key::Private(_) => None,
             dir::Key::Expression(expression) => {
                 let expression_site =
                     self.node_site(expression.into_global_any(site.node.module_id))?;

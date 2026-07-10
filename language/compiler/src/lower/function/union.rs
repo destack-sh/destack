@@ -285,14 +285,10 @@ impl FunctionLowerer<'_> {
         let (member_id, literal_value) = literal_value;
 
         // extract the member access expression
-        let (dir::Expression::Member {
+        let dir::Expression::Member {
             left: receiver_id,
             name,
-        }
-        | dir::Expression::PrivateMember {
-            left: receiver_id,
-            name,
-        }) = self.context.dir_tree.get(member_id)
+        } = self.context.dir_tree.get(member_id)
         else {
             return Ok(None);
         };
@@ -529,7 +525,7 @@ impl FunctionLowerer<'_> {
     fn is_member_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         matches!(
             self.context.dir_tree.get(expression_id),
-            dir::Expression::Member { .. } | dir::Expression::PrivateMember { .. }
+            dir::Expression::Member { .. }
         )
     }
 
