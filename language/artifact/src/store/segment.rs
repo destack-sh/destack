@@ -1,3 +1,4 @@
+use rustc_hash::FxHashMap;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,7 +25,7 @@ pub struct SegmentedArtifactStore {
     /// Artifact records waiting for segment publication.
     pending: Mutex<Vec<ArtifactRecord>>,
     /// Loaded records keyed by exact artifact version.
-    index: RwLock<HashMap<ArtifactVersion, IndexedArtifactRecord>>,
+    index: RwLock<FxHashMap<ArtifactVersion, IndexedArtifactRecord>>,
     /// Segment files already reflected in the process-local index.
     segments: RwLock<HashSet<PathBuf>>,
     /// Whether the persistent segment directory has been indexed.
@@ -43,7 +44,7 @@ impl SegmentedArtifactStore {
             layout,
             build_fingerprint: build_fingerprint.into(),
             pending: Mutex::new(Vec::new()),
-            index: RwLock::new(HashMap::new()),
+            index: RwLock::new(HashMap::default()),
             segments: RwLock::new(HashSet::new()),
             is_index_loaded: RwLock::new(false),
         }
@@ -212,7 +213,7 @@ impl SegmentedArtifactStore {
     ) -> Result<(), ArtifactStoreError> {
         let _flush = self.flush_records(strings)?;
 
-        let mut retained_index = HashMap::new();
+        let mut retained_index = HashMap::default();
         let mut retained_segments = HashSet::new();
 
         // rewrite partially live segments under the store lock
@@ -510,7 +511,7 @@ impl ArtifactSegment {
     /// Insert all records from this segment into an index.
     pub(super) fn insert_into(
         self,
-        index: &mut HashMap<ArtifactVersion, IndexedArtifactRecord>,
+        index: &mut FxHashMap<ArtifactVersion, IndexedArtifactRecord>,
     ) -> Result<(), ArtifactStoreError> {
         let mut strings = HashMap::new();
         for string in self.strings {
