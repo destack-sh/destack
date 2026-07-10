@@ -7,7 +7,7 @@ import { Space } from "../place.ds";
 import { Bump } from "./bump.ds";
 
 /// Typed arena for values with a shared lifetime.
-export struct Arena<T, comptime L: Lifetime, comptime S: Space = "local"> {
+export struct Arena<in out T, comptime L: Lifetime, comptime S: Space = "local"> {
     /// The backing bump allocator.
     bump: Bump<S>;
 

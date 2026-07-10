@@ -15,7 +15,7 @@ export struct TensorExecutionOptions {
 /// Allocation options for a new tensor.
 export struct TensorCreateOptions<
     comptime Rank: int,
-    F: TensorFormat = Dense<MemoryOrder.RowMajor>,
+    in out F: TensorFormat = Dense<MemoryOrder.RowMajor>,
     P: Placement = Unsharded,
 > {
     /// Tensor placement.

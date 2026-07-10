@@ -5,7 +5,7 @@ import { Clone, Default } from "destack:memory";
 import { Atomic } from "destack:sync";
 
 /// A concurrent multi-producer multi-consumer queue.
-export shared class ConcurrentQueue<T> {
+export shared class ConcurrentQueue<in out T> {
     /// The queue state.
     state: Atomic<uint64> = Atomic.new(0);
 }
