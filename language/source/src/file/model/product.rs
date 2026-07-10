@@ -12,22 +12,22 @@ const PRODUCT_DOMAIN: &[u8] = b"destack.source.product.v1";
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 #[serde(transparent)]
-pub struct ProductKey(pub u128);
+pub struct ProductKey(pub u64);
 
 impl std::fmt::Display for ProductKey {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{:032x}", self.0)
+        write!(formatter, "{:016x}", self.0)
     }
 }
 
 impl ProductKey {
     /// Wrap a raw stable product key.
-    pub const fn new(key: u128) -> Self {
+    pub const fn new(key: u64) -> Self {
         Self(key)
     }
 
     /// Return the raw stable key value.
-    pub const fn raw(self) -> u128 {
+    pub const fn raw(self) -> u64 {
         self.0
     }
 }
