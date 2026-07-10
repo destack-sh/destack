@@ -24,15 +24,7 @@ use super::output::OutputBuffer;
 use super::{CommandError, CommandResult};
 
 /// File types that the formatter can process.
-const FORMATTABLE_TYPES: &[FileType] = &[
-    FileType::Destack,
-    FileType::DestackDeclaration,
-    FileType::JavaScript,
-    FileType::JavaScriptXml,
-    FileType::TypeScript,
-    FileType::TypeScriptXml,
-    FileType::TypeScriptDeclaration,
-];
+const FORMATTABLE_TYPES: &[FileType] = &[FileType::Destack, FileType::DestackDeclaration];
 
 /// Payload for format command output.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
