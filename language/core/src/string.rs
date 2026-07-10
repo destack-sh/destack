@@ -4,8 +4,9 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::size_of;
+use xxhash_rust::xxh3::xxh3_128;
 
-use crate::{StableHasher, stable_hash_text_128};
+use crate::StableHasher;
 
 /// Stable content identity for one interned string.
 #[repr(transparent)]
@@ -28,13 +29,138 @@ impl StringId {
     /// Create the stable id for one string.
     #[inline]
     pub fn for_text(text: &str) -> Self {
-        Self(stable_hash_text_128(text))
+        Self(xxh3_128(text.as_bytes()))
     }
 
     /// Return the raw stable hash bits.
     #[inline]
     pub fn raw(self) -> u128 {
         self.0
+    }
+}
+
+/// One byte range in local contiguous string storage.
+#[derive(Debug, Copy, Clone)]
+struct LocalStringRange {
+    /// The byte offset in the string buffer.
+    offset: u32,
+    /// The string byte length.
+    len: u32,
+}
+
+/// Content-addressed string storage owned by one operation.
+#[derive(Clone, Default)]
+pub struct LocalStringPool {
+    /// The contiguous string bytes.
+    buffer: String,
+    /// The stable string IDs in insertion order.
+    ids: Vec<StringId>,
+    /// The string byte ranges in insertion order.
+    ranges: Vec<LocalStringRange>,
+    /// The dense string index by stable string ID.
+    slot_by_id: FxHashMap<StringId, u32>,
+}
+
+impl Debug for LocalStringPool {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("LocalStringPool")
+            .field("length", &self.ids.len())
+            .field("buffer_size", &self.buffer.len())
+            .finish()
+    }
+}
+
+impl LocalStringPool {
+    /// Create an empty local string pool.
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return the string associated with one stable ID.
+    #[inline]
+    pub fn get(&self, id: StringId) -> &str {
+        self.get_maybe(id)
+            .unwrap_or_else(|| panic!("string id {id} is not present in this string pool"))
+    }
+
+    /// Return the string associated with one stable ID when present.
+    #[inline]
+    pub fn get_maybe(&self, id: StringId) -> Option<&str> {
+        let slot = self.slot_by_id.get(&id).copied()? as usize;
+        let range = self.ranges[slot];
+        let start = range.offset as usize;
+        let end = start + range.len as usize;
+
+        Some(&self.buffer[start..end])
+    }
+
+    /// Intern one string and return its stable ID.
+    #[inline]
+    pub fn intern(&mut self, text: &str) -> StringId {
+        let id = StringId::for_text(text);
+
+        // return an existing string after checking the content identity
+        if let Some(existing) = self.get_maybe(id) {
+            assert_eq!(
+                existing, text,
+                "string id collision for {id}: existing {existing:?}, new {text:?}",
+            );
+
+            return id;
+        }
+
+        // append the new string to contiguous storage
+        debug_assert!(self.buffer.len() <= u32::MAX as usize);
+        debug_assert!(text.len() <= u32::MAX as usize);
+        debug_assert!(self.ids.len() <= u32::MAX as usize);
+        let offset = self.buffer.len() as u32;
+        let len = text.len() as u32;
+        let slot = self.ids.len() as u32;
+        self.buffer.push_str(text);
+        self.ids.push(id);
+        self.ranges.push(LocalStringRange { offset, len });
+        self.slot_by_id.insert(id, slot);
+
+        id
+    }
+
+    /// Iterate strings in insertion order.
+    pub fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
+        self.ids
+            .iter()
+            .copied()
+            .zip(&self.ranges)
+            .map(|(id, range)| {
+                let start = range.offset as usize;
+                let end = start + range.len as usize;
+
+                (id, &self.buffer[start..end])
+            })
+    }
+
+    /// Return the number of unique strings.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+
+    /// Return whether no strings are stored.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
+    /// Return the bytes owned by this pool.
+    pub fn owned_bytes(&self) -> usize {
+        let mut bytes = size_of::<Self>();
+        bytes += self.buffer.capacity();
+        bytes += self.ids.capacity() * size_of::<StringId>();
+        bytes += self.ranges.capacity() * size_of::<LocalStringRange>();
+        bytes += self.slot_by_id.capacity() * size_of::<(StringId, u32)>();
+
+        bytes
     }
 }
 
@@ -382,8 +508,7 @@ impl StringPool {
 
         {
             let state = self.inner.read();
-            if state.contains(id) {
-                let existing = state.get(id);
+            if let Some(existing) = state.get_maybe(id) {
                 assert_eq!(
                     existing, text,
                     "string id collision for {id}: existing {existing:?}, new {text:?}",
@@ -395,8 +520,7 @@ impl StringPool {
 
         let mut state = self.inner.write();
 
-        if state.contains(id) {
-            let existing = state.get(id);
+        if let Some(existing) = state.get_maybe(id) {
             assert_eq!(
                 existing, text,
                 "string id collision for {id}: existing {existing:?}, new {text:?}",
@@ -408,6 +532,23 @@ impl StringPool {
         state.insert_verified(id, text);
 
         id
+    }
+
+    /// Add all strings from a local pool.
+    pub fn extend(&self, strings: &LocalStringPool) {
+        let mut state = self.inner.write();
+
+        // merge unique strings while preserving content identities
+        for (id, text) in strings.iter() {
+            if let Some(existing) = state.get_maybe(id) {
+                assert_eq!(
+                    existing, text,
+                    "string id collision for {id}: existing {existing:?}, new {text:?}",
+                );
+            } else {
+                state.insert_verified(id, text);
+            }
+        }
     }
 
     /// Ensure this pool contains one string from another pool.
@@ -632,6 +773,37 @@ mod tests {
         let id = StringId::for_text("missing");
 
         assert_eq!(pool.get_maybe(id), None);
+    }
+
+    #[test]
+    fn test_local_pool_interns_unique_strings() {
+        let mut pool = LocalStringPool::new();
+        let alpha = pool.intern("alpha");
+        let beta = pool.intern("beta");
+
+        assert_eq!(pool.intern("alpha"), alpha);
+        assert_eq!(pool.get(alpha), "alpha");
+        assert_eq!(pool.get(beta), "beta");
+        assert_eq!(
+            pool.iter().collect::<Vec<_>>(),
+            [(alpha, "alpha"), (beta, "beta")]
+        );
+        assert_eq!(pool.len(), 2);
+    }
+
+    #[test]
+    fn test_pool_extends_from_local_strings() {
+        let mut local = LocalStringPool::new();
+        let alpha = local.intern("alpha");
+        let beta = local.intern("beta");
+
+        let pool = StringPool::new();
+        pool.intern("alpha");
+        pool.extend(&local);
+
+        assert_eq!(pool.get(alpha), "alpha");
+        assert_eq!(pool.get(beta), "beta");
+        assert_eq!(pool.len(), 2);
     }
 
     #[test]

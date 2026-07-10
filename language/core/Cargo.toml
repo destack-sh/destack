@@ -17,6 +17,7 @@ destack_serde = { workspace = true }
 parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+xxhash-rust = { workspace = true, features = ["xxh3"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 stacker = { workspace = true }
