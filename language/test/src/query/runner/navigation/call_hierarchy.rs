@@ -424,7 +424,7 @@ fn validate_call_ranges(
     }
 
     // validate ordering and duplicates within the call site ranges
-    let mut previous: Option<(u128, u32, u32)> = None;
+    let mut previous: Option<(u64, u32, u32)> = None;
     for span in ranges {
         // build a stable ordering key for the call site span
         let key = span_key(*span);
@@ -448,7 +448,7 @@ fn validate_call_ranges(
 
 /// Validate ordering and duplicates for call hierarchy items.
 fn validate_call_ordering<'a>(items: impl Iterator<Item = &'a CallItem>, errors: &mut Vec<String>) {
-    let mut previous: Option<(u128, u32, u32, u32, u32, u8, String)> = None;
+    let mut previous: Option<(u64, u32, u32, u32, u32, u8, String)> = None;
 
     // compare each item key against the previous one
     for item in items {
@@ -497,7 +497,7 @@ fn validate_span_bounds(
 }
 
 /// Build a stable ordering key for a call hierarchy item.
-fn item_key(item: &CallItem) -> (u128, u32, u32, u32, u32, u8, String) {
+fn item_key(item: &CallItem) -> (u64, u32, u32, u32, u32, u8, String) {
     let range = item_range(item);
     let selection = item_selection_range(item);
 
@@ -523,6 +523,6 @@ fn item_selection_range(item: &CallItem) -> Span {
 }
 
 /// Build a stable ordering key for a span.
-fn span_key(span: Span) -> (u128, u32, u32) {
+fn span_key(span: Span) -> (u64, u32, u32) {
     (span.file.0, span.start, span.end)
 }

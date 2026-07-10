@@ -145,7 +145,7 @@ struct PatchOrder {
     /// The source end offset.
     end: u32,
     /// The source file id.
-    file: u128,
+    file: u64,
     /// The replacement text.
     text: String,
 }

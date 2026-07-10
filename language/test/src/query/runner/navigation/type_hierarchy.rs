@@ -236,7 +236,7 @@ fn validate_items_invariants(
     }
 
     // validate ordering and duplicates
-    let mut previous: Option<(u128, u32, u32, u32, u32, u8, String)> = None;
+    let mut previous: Option<(u64, u32, u32, u32, u32, u8, String)> = None;
     for item in items {
         // build a stable ordering key for the item
         let key = item_key(item);
@@ -319,7 +319,7 @@ fn validate_span_bounds(
 }
 
 /// Build a stable ordering key for a type hierarchy item.
-fn item_key(item: &TypeItem) -> (u128, u32, u32, u32, u32, u8, String) {
+fn item_key(item: &TypeItem) -> (u64, u32, u32, u32, u32, u8, String) {
     let range = item_range(item);
     let selection = item_selection_range(item);
 

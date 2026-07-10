@@ -242,7 +242,7 @@ impl CallItem {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct CallItemOrder<'a> {
     /// The source file id.
-    file: u128,
+    file: u64,
     /// The item start offset.
     start: u32,
     /// The item end offset.

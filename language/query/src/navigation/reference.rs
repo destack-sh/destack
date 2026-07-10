@@ -255,7 +255,7 @@ struct ReferenceSpanOrder {
     /// The span end offset.
     end: u32,
     /// The stable file id.
-    id: u128,
+    id: u64,
 }
 
 impl ReferenceSpanOrder {
