@@ -196,7 +196,7 @@ export type PatternField =
     | NamedPatternField
     | ComputedPatternField
     | PositionalPatternField
-    | SpreadPatternField
+    | RestPatternField
     | ElisionPatternField;
 
 /// Named pattern field.
@@ -241,15 +241,13 @@ export interface PositionalPatternField extends Node {
     pattern: Pattern;
 }
 
-/// Spread pattern field.
-export interface SpreadPatternField extends Node {
+/// Rest pattern field.
+export interface RestPatternField extends Node {
     /// The node kind.
     nodeKind: "patternField";
     /// The field kind.
-    kind: "spread";
-    /// The explicit mutability when present.
-    mutability?: Mutability;
-    /// The spread pattern when present.
+    kind: "rest";
+    /// The rest pattern when present.
     pattern?: Pattern;
 }
 
@@ -315,7 +313,7 @@ export type AssignPatternField =
     | NamedAssignPatternField
     | ComputedAssignPatternField
     | PositionalAssignPatternField
-    | SpreadAssignPatternField
+    | RestAssignPatternField
     | ElisionAssignPatternField;
 
 /// Named assignment field.
@@ -354,13 +352,13 @@ export interface PositionalAssignPatternField extends Node {
     pattern: AssignPattern;
 }
 
-/// Spread assignment field.
-export interface SpreadAssignPatternField extends Node {
+/// Rest assignment field.
+export interface RestAssignPatternField extends Node {
     /// The node kind.
     nodeKind: "assignPatternField";
     /// The field kind.
-    kind: "spread";
-    /// The spread pattern when present.
+    kind: "rest";
+    /// The rest pattern when present.
     pattern?: AssignPattern;
 }
 
