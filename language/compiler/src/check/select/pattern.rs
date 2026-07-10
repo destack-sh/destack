@@ -642,7 +642,7 @@ impl CheckState<'_> {
             dir::PatternField::Computed { key, pattern } => self
                 .static_key_from_expression(module, key)?
                 .map(|key| (key, Some(pattern))),
-            dir::PatternField::Spread { .. }
+            dir::PatternField::Rest { .. }
             | dir::PatternField::Elision
             | dir::PatternField::Positional { .. } => None,
         };

@@ -117,10 +117,10 @@ impl PatternBindingSet {
             }
             | dir::PatternField::Computed { pattern, .. }
             | dir::PatternField::Positional { pattern }
-            | dir::PatternField::Spread {
+            | dir::PatternField::Rest {
                 pattern: Some(pattern),
             } => self.insert_pattern(tree, *pattern),
-            dir::PatternField::Spread { pattern: None } | dir::PatternField::Elision => true,
+            dir::PatternField::Rest { pattern: None } | dir::PatternField::Elision => true,
         }
     }
 

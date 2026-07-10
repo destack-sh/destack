@@ -774,7 +774,7 @@ impl CheckState<'_> {
                 dir::PatternField::Elision => {
                     position += 1;
                 }
-                dir::PatternField::Computed { .. } | dir::PatternField::Spread { .. } => {
+                dir::PatternField::Computed { .. } | dir::PatternField::Rest { .. } => {
                     self.report_pattern_source_not_object_shaped(origin, payload)?;
                 }
             }

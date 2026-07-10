@@ -29,10 +29,7 @@ impl CheckState<'_> {
         match view.get(id) {
             // value
             dir::Expression::Identifier { .. } => {
-                let reference = module
-                    .resolved
-                    .references
-                    .get(node.into_any())?;
+                let reference = module.resolved.references.get(node.into_any())?;
                 let symbol = match reference {
                     dir::Reference::Bound(symbols) => {
                         let symbols = self.present_symbols(symbols);
@@ -53,11 +50,6 @@ impl CheckState<'_> {
             dir::Expression::This => Some(FlowPath::receiver(dir::ReceiverKind::This)),
             // value.member
             dir::Expression::Member {
-                left,
-                name: Some(name),
-            }
-            // value.#member
-            | dir::Expression::PrivateMember {
                 left,
                 name: Some(name),
             } => {

@@ -619,8 +619,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_array_expression(expression_id, elements)
             }
 
-            dir::Expression::Member { left, name }
-            | dir::Expression::PrivateMember { left, name } => {
+            dir::Expression::Member { left, name } => {
                 let Some(name) = *name else {
                     return Err(LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(
@@ -914,10 +913,6 @@ impl<'a> FunctionLowerer<'a> {
                 self.set_binding_value(binding, value);
             }
             dir::Expression::Member {
-                left: receiver_id,
-                name,
-            }
-            | dir::Expression::PrivateMember {
                 left: receiver_id,
                 name,
             } => {

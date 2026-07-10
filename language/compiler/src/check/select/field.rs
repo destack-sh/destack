@@ -17,7 +17,7 @@ impl CheckState<'_> {
             .map(|field| {
                 let is_rest = matches!(
                     self.module(module).view().get(*field),
-                    dir::PatternField::Spread { .. }
+                    dir::PatternField::Rest { .. }
                 );
 
                 (field.into_any(), is_rest)
@@ -38,7 +38,7 @@ impl CheckState<'_> {
             .map(|field| {
                 let is_rest = matches!(
                     self.module(module).view().get(*field),
-                    dir::AssignPatternField::Spread { .. }
+                    dir::AssignPatternField::Rest { .. }
                 );
 
                 (field.into_any(), is_rest)
@@ -101,7 +101,7 @@ impl CheckState<'_> {
             dir::PatternField::Computed { key, .. } => self
                 .static_key_from_expression(module, key)?
                 .map(|static_key| (key.into_any(), static_key)),
-            dir::PatternField::Spread { .. }
+            dir::PatternField::Rest { .. }
             | dir::PatternField::Elision
             | dir::PatternField::Positional { .. } => None,
         };
@@ -122,7 +122,7 @@ impl CheckState<'_> {
             dir::AssignPatternField::Computed { key, .. } => self
                 .static_key_from_expression(module, key)?
                 .map(|static_key| (key.into_any(), static_key)),
-            dir::AssignPatternField::Spread { .. }
+            dir::AssignPatternField::Rest { .. }
             | dir::AssignPatternField::Elision
             | dir::AssignPatternField::Positional { .. } => None,
         };
@@ -164,7 +164,7 @@ impl CheckState<'_> {
             }
 
             // rest fields only introduce names through an explicit nested pattern
-            dir::PatternField::Spread { pattern } => {
+            dir::PatternField::Rest { pattern } => {
                 if let Some(pattern) = pattern {
                     self.check_pattern_binding(module, pattern, names)?;
                 }

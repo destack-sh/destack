@@ -134,7 +134,7 @@ impl ModuleLowerer<'_> {
             | dir::Expression::Satisfies { expression, .. } => {
                 return self.lower_const_initializer(*expression, mir_type);
             }
-            dir::Expression::Member { .. } | dir::Expression::PrivateMember { .. } => {
+            dir::Expression::Member { .. } => {
                 return self.lower_const_member_initializer(expression_id, mir_type);
             }
             _ => None,

@@ -39,9 +39,7 @@ impl CheckState<'_> {
         let root = loop {
             let expression = self.module(module).view().get(current).clone();
             match expression {
-                dir::Expression::Member { left, .. }
-                | dir::Expression::PrivateMember { left, .. }
-                | dir::Expression::Index { left, .. } => {
+                dir::Expression::Member { left, .. } | dir::Expression::Index { left, .. } => {
                     let site = self.node_site(left.into_global_any(module))?;
                     let ty = answer!(self.node_type_at(site)?);
                     anchors.push(ty);
@@ -132,16 +130,9 @@ impl CheckState<'_> {
 
         match expression {
             // value
-            dir::Expression::Identifier { name } => {
-                self.select_binding_place(source, name)
-            }
+            dir::Expression::Identifier { name } => self.select_binding_place(source, name),
             // value.member
             dir::Expression::Member {
-                left,
-                name: Some(name),
-            }
-            // value.#member
-            | dir::Expression::PrivateMember {
                 left,
                 name: Some(name),
             } => {
@@ -189,7 +180,9 @@ impl CheckState<'_> {
                 )?) else {
                     return Ok(Answer::Ready(None));
                 };
-                if let Some(constraint) = selection.key_constraint(self.origin_scope(origin), index, index_node) {
+                if let Some(constraint) =
+                    selection.key_constraint(self.origin_scope(origin), index, index_node)
+                {
                     self.push_constraint(constraint);
                 }
                 let ty = selection.ty();
@@ -207,11 +200,9 @@ impl CheckState<'_> {
                 let receiver_node = right.into_global_any(module);
                 let receiver_site = self.node_site(receiver_node)?;
                 let receiver = answer!(self.infer_node_type(receiver_site, PlaceUse::Read)?);
-                let Some(write) = answer!(self.select_dereference(
-                    origin,
-                    receiver,
-                    dir::Access::Mutable,
-                )?) else {
+                let Some(write) =
+                    answer!(self.select_dereference(origin, receiver, dir::Access::Mutable)?)
+                else {
                     return Ok(Answer::Ready(None));
                 };
                 let (read, ty) = match use_ {

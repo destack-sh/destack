@@ -147,7 +147,7 @@ impl WalkState<'_, '_> {
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
             }
             // { ...pattern }
-            dir::PatternField::Spread { pattern } => {
+            dir::PatternField::Rest { pattern } => {
                 if let Some(pattern) = *pattern {
                     self.walk_pattern(pattern, self.tree.get(pattern))?;
                 }

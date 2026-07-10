@@ -321,11 +321,8 @@ impl WalkState<'_, '_> {
                 let source = self.intern_type(dir::Type::Error)?;
                 self.commit_node_type(id, source)?;
             }
-            // #name, debugger, missing, and damaged nodes
-            dir::Expression::PrivateIdentifier { .. }
-            | dir::Expression::Debugger
-            | dir::Expression::Missing
-            | dir::Expression::Error => {}
+            // debugger, missing, and damaged nodes
+            dir::Expression::Debugger | dir::Expression::Missing | dir::Expression::Error => {}
             // start..end
             dir::Expression::RangeExpression {
                 start,
@@ -361,13 +358,6 @@ impl WalkState<'_, '_> {
             dir::Expression::TupleExpression { elements } => {
                 for element in elements {
                     self.walk_argument(*element, self.tree.get(*element))?;
-                }
-            }
-            // a, b, c
-            dir::Expression::SequenceExpression { expressions } => {
-                let expressions = expressions.iter().copied().collect::<SmallVec<[_; 4]>>();
-                for expression in &expressions {
-                    self.walk_expression(*expression, self.tree.get(*expression))?;
                 }
             }
             // { key: value }
@@ -513,10 +503,6 @@ impl WalkState<'_, '_> {
             // value.member, or a static name path resolved by the resolve phase
             dir::Expression::Member { left, .. } => {
                 self.walk_member_expression(id, *left)?;
-            }
-            // value.#member always projects at selection
-            dir::Expression::PrivateMember { left, .. } => {
-                self.walk_expression(*left, self.tree.get(*left))?;
             }
             // value[index]
             dir::Expression::Index { left, index, .. } => {
@@ -1415,14 +1401,15 @@ impl WalkState<'_, '_> {
                 let pattern = *pattern;
                 self.walk_assign_pattern(pattern, None, access)?
             }
-            dir::AssignPatternField::Spread {
+            dir::AssignPatternField::Rest {
                 pattern: Some(pattern),
             } => {
                 let pattern = *pattern;
                 self.walk_assign_pattern(pattern, None, access)?
             }
-            dir::AssignPatternField::Spread { pattern: None }
-            | dir::AssignPatternField::Elision => Vec::new(),
+            dir::AssignPatternField::Rest { pattern: None } | dir::AssignPatternField::Elision => {
+                Vec::new()
+            }
         };
 
         Ok(places)

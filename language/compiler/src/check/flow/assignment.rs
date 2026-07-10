@@ -166,7 +166,7 @@ impl WalkState<'_, '_> {
                 ..
             }
             // { ...pattern }
-            | dir::PatternField::Spread {
+            | dir::PatternField::Rest {
                 pattern: Some(pattern),
             }
             // { [key]: pattern }
@@ -178,7 +178,7 @@ impl WalkState<'_, '_> {
             // { name }
             dir::PatternField::Named { pattern: None, .. }
             // { ... }
-            | dir::PatternField::Spread { pattern: None }
+            | dir::PatternField::Rest { pattern: None }
             // [,]
             | dir::PatternField::Elision => {}
         }

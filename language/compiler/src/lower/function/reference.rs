@@ -105,7 +105,6 @@ impl FunctionLowerer<'_> {
 
             // field and element borrows preserve the aggregate storage space
             dir::Expression::Member { left, .. }
-            | dir::Expression::PrivateMember { left, .. }
             | dir::Expression::Index { left, .. } => self.borrow_space(expression_id, *left),
 
             // rvalue borrows spill into a temporary local slot first
@@ -326,8 +325,7 @@ impl FunctionLowerer<'_> {
             dir::Expression::This => {
                 self.lower_reference_of_this_expression(expression_id, mutability, result_type)
             }
-            dir::Expression::Member { left, name }
-            | dir::Expression::PrivateMember { left, name } => {
+            dir::Expression::Member { left, name } => {
                 // lower the aggregate value
                 let (aggregate_value, aggregate_type) = self.lower_value_expression(*left)?;
 
