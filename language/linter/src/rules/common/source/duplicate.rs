@@ -344,7 +344,7 @@ fn hash_argument_shape(
             label.hash(hasher);
             hash_expression_kind(ctx, hasher, *value);
         }
-        dir::Argument::Error => {}
+        dir::Argument::Elision | dir::Argument::Error => {}
     }
 }
 

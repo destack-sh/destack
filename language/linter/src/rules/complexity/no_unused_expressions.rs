@@ -508,7 +508,6 @@ fn expression_is_known_effectful_statement(expression: &dir::Expression) -> bool
             | dir::Expression::Label { .. }
             | dir::Expression::Debugger
             | dir::Expression::Error
-            | dir::Expression::Stub
     )
 }
 

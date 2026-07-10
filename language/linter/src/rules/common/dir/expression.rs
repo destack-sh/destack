@@ -164,7 +164,7 @@ pub fn argument_expression_id(
         | dir::Argument::Labeled { label: _, value }
         | dir::Argument::Positional { value }
         | dir::Argument::Spread { label: _, value } => Some(*value),
-        dir::Argument::Error => None,
+        dir::Argument::Elision | dir::Argument::Error => None,
     }
 }
 
