@@ -2,7 +2,7 @@ import { Default, Zeroable } from "./capability.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 @languageItem("memory.MaybeUninit")
-export newtype MaybeUninit<T> = intrinsic;
+export newtype MaybeUninit<out T> = intrinsic;
 
 export extension<T> of MaybeUninit<T> implements Default {
     /// Create initialized storage for `value`.
