@@ -283,21 +283,32 @@ fn command_file_images(
     let mut seen = HashSet::new();
     let mut files = Vec::new();
 
-    // collect every file referenced by primary labels
+    // collect every file referenced by labels and suggestion patches
     for diagnostic in diagnostics.iter() {
-        let file_id = diagnostic.primary_label().span.file;
-        if !seen.insert(file_id) {
-            continue;
-        }
+        let mut file_ids = vec![diagnostic.primary_label().span.file];
+        file_ids.extend(diagnostic.labels().map(|label| label.span.file));
+        file_ids.extend(
+            diagnostic
+                .suggestions
+                .iter()
+                .flat_map(|suggestion| &suggestion.patches.files)
+                .map(|patch| patch.file),
+        );
 
-        let Some(file) = context
-            .repository
-            .file(revision, file_id)
-            .map_err(|error| CommandError::internal(error.to_string()))?
-        else {
-            continue;
-        };
-        files.push(crate::FileImage::from(file.as_ref()));
+        for file_id in file_ids {
+            if !seen.insert(file_id) {
+                continue;
+            }
+
+            let Some(file) = context
+                .repository
+                .file(revision, file_id)
+                .map_err(|error| CommandError::internal(error.to_string()))?
+            else {
+                continue;
+            };
+            files.push(crate::FileImage::from(file.as_ref()));
+        }
     }
 
     Ok(files)
