@@ -1,43 +1,67 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{ContentId, LabeledSpan, Span};
+use crate::{ContentId, FileId, Span};
+
+/// One resolved diagnostic location.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum DiagnosticTarget {
+    /// An exact source span.
+    Span(Span),
+    /// A whole source file.
+    File(FileId),
+}
+
+impl DiagnosticTarget {
+    /// Return the targeted file.
+    pub fn file(&self) -> FileId {
+        match self {
+            Self::Span(span) => span.file,
+            Self::File(file) => *file,
+        }
+    }
+
+    /// Return the exact span when the target is one.
+    pub fn span(&self) -> Option<Span> {
+        match self {
+            Self::Span(span) => Some(*span),
+            Self::File(_) => None,
+        }
+    }
+}
 
 /// One concrete source label in a diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct DiagnosticLabel {
-    /// The exact content containing the span.
+    /// The exact content the target was recorded against.
     pub content: ContentId,
-    /// The concrete source span.
-    pub span: Span,
-    /// The optional label shown on the span.
+    /// The targeted source location.
+    pub target: DiagnosticTarget,
+    /// The optional label shown on the target.
     pub message: Option<String>,
 }
 
 impl DiagnosticLabel {
     /// Create a source label.
-    pub fn new(content: ContentId, span: Span) -> Self {
+    pub fn new(content: ContentId, target: DiagnosticTarget) -> Self {
         Self {
             content,
-            span,
+            target,
             message: None,
         }
     }
 
     /// Create a source label with one message.
-    pub fn message(content: ContentId, span: Span, message: impl Into<String>) -> Self {
+    pub fn message(
+        content: ContentId,
+        target: DiagnosticTarget,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             content,
-            span,
+            target,
             message: Some(message.into()),
         }
-    }
-
-    /// Create a labeled span for rendering.
-    pub fn to_labeled_span(&self, fallback: &str) -> LabeledSpan {
-        let label = self.message.clone().unwrap_or_else(|| fallback.to_string());
-
-        LabeledSpan::new(self.span, label)
     }
 }
 

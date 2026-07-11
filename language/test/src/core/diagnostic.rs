@@ -6,7 +6,7 @@ use destack_parser::source_colorizer;
 use destack_repository::{Repository, Revision};
 use destack_source::{
     AnnotateOptions, AnnotateSpan, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity,
-    File, FileId, PrintOptions, annotate_file,
+    File, FileId, PrintOptions, Span, annotate_file,
 };
 
 use super::{Case, CaseResult};
@@ -30,7 +30,7 @@ where
     // individual diagnostics
     for diagnostic in diagnostics.iter() {
         let primary = diagnostic.primary_label();
-        let file_id = primary.span.file;
+        let file_id = primary.target.file();
         let file =
             file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"));
         let annotate_options = annotate_options
@@ -46,8 +46,13 @@ where
 
         let header_message = annotate_options.color_normal.apply(&diagnostic.message);
         let header = format!("{header_preamble}: {header_message}");
-        let primary =
-            AnnotateSpan::primary(primary.span, primary.message.clone().unwrap_or_default());
+        let primary = AnnotateSpan::primary(
+            primary
+                .target
+                .span()
+                .unwrap_or_else(|| Span::empty(file_id)),
+            primary.message.clone().unwrap_or_default(),
+        );
         let body = annotate_file(&file, &[primary], annotate_options)
             .unwrap_or_else(|error| panic!("failed to render diagnostic: {error}"));
 

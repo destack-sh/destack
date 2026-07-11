@@ -123,40 +123,63 @@ where
         let header_message = color_bold(&options, Color::BrightWhite, &diagnostic.message);
         write_line(&options, &format!("{header_preamble}: {header_message}"));
 
-        // gather same-file labels into the primary window
-        let mut spans = vec![AnnotateSpan::primary(
-            primary.span,
-            primary.message.clone().unwrap_or_default(),
-        )];
+        // gather same-file span labels into the primary window
+        let primary_span = primary.target.span();
+        let mut spans = Vec::new();
+        if let Some(span) = primary_span {
+            spans.push(AnnotateSpan::primary(
+                span,
+                primary.message.clone().unwrap_or_default(),
+            ));
+        }
         let mut detached = Vec::new();
         for label in diagnostic.labels() {
-            if label.span.file == primary.span.file {
-                spans.push(AnnotateSpan::secondary(
-                    label.span,
-                    label.message.clone().unwrap_or_default(),
-                ));
-            } else {
-                detached.push(label);
+            match label.target.span() {
+                Some(span) if label.target.file() == primary.target.file() => {
+                    spans.push(AnnotateSpan::secondary(
+                        span,
+                        label.message.clone().unwrap_or_default(),
+                    ));
+                }
+                _ => detached.push(label),
             }
         }
-        let body = annotate_file(&file, &spans, annotate_options.clone())?;
-        write_block(&options, &body);
+        // whole-file primaries point at their file without a window
+        if !spans.is_empty() {
+            let body = annotate_file(&file, &spans, annotate_options.clone())?;
+            write_block(&options, &body);
+        } else {
+            let text = format!(
+                "  {} {}",
+                color_text(&options, Color::BrightMagenta, "──▶"),
+                color_text(&options, Color::BrightWhite, &file.name),
+            );
+            write_block(&options, &text);
+        }
 
-        // labels in other files render their own window; labels whose
-        //  source is unavailable degrade to a bare note instead of
-        //  aborting the whole collection
+        // span labels in other files render their own window, file
+        //  labels point at their file, and labels whose source is
+        //  unavailable degrade to a bare note
         let detached_options = annotate_options.clone().with_context_lines(1, 1);
         for label in detached {
-            let span =
-                AnnotateSpan::secondary(label.span, label.message.clone().unwrap_or_default());
-            match file_for_label(file_for_id, label) {
-                Ok(detached_file) => {
+            let message = label.message.clone().unwrap_or_default();
+            match (label.target.span(), file_for_label(file_for_id, label)) {
+                (Some(span), Ok(detached_file)) => {
+                    let span = AnnotateSpan::secondary(span, message);
                     let detached_body =
                         annotate_file(&detached_file, &[span], detached_options.clone())?;
                     write_block(&options, &detached_body);
                 }
-                Err(_) => {
-                    let message = label.message.clone().unwrap_or_default();
+                (None, Ok(detached_file)) => {
+                    let text = format!(
+                        "  {} {}: {}",
+                        color_text(&options, Color::BrightMagenta, "──▶"),
+                        color_text(&options, Color::BrightWhite, &detached_file.name),
+                        color_text(&options, Color::BrightWhite, &message),
+                    );
+                    write_block(&options, &text);
+                }
+                (_, Err(_)) => {
                     let text = format!(
                         " {} {} {}",
                         color_text(&options, Color::BrightMagenta, "="),
@@ -260,7 +283,7 @@ fn file_for_label<F>(
 where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
-    let file_id = label.span.file;
+    let file_id = label.target.file();
     let file = file_for_id(file_id).ok_or(DiagnosticRenderError::MissingFile { file: file_id })?;
     let actual = file.content_id();
 
@@ -352,8 +375,8 @@ mod tests {
 
     use crate::{
         Applicability, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSuggestion,
-        File, FileId, FilePatch, FileType, Patch, PatchSet, PrintOptions, Span, Uri,
-        print_diagnostics,
+        DiagnosticTarget, File, FileId, FilePatch, FileType, Patch, PatchSet, PrintOptions, Span,
+        Uri, print_diagnostics,
     };
 
     /// Capture diagnostic printer output as one string.
@@ -403,13 +426,13 @@ mod tests {
         )
         .label(DiagnosticLabel::message(
             content,
-            let_span,
+            DiagnosticTarget::Span(let_span),
             "replace `let` with `const`",
         ));
         let diagnostic = Diagnostic::warning(
             "W001",
             "variable is never reassigned",
-            DiagnosticLabel::message(content, let_span, "use const"),
+            DiagnosticLabel::message(content, DiagnosticTarget::Span(let_span), "use const"),
         )
         .suggestion(suggestion);
         let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
@@ -452,11 +475,15 @@ mod tests {
         let diagnostic = Diagnostic::error(
             "EC200",
             "type '300' is not assignable to type 'int8'",
-            DiagnosticLabel::message(content, value_span, "this value does not fit"),
+            DiagnosticLabel::message(
+                content,
+                DiagnosticTarget::Span(value_span),
+                "this value does not fit",
+            ),
         )
         .label(DiagnosticLabel::message(
             content,
-            annotation_span,
+            DiagnosticTarget::Span(annotation_span),
             "expected `int8` because of this annotation",
         ))
         .note("`int8` holds values in -128..=127")

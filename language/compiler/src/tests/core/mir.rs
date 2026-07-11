@@ -6,8 +6,8 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use destack_repository::{ProviderContext, Revision};
 use destack_source::{
-    DiagnosticCollection, DiagnosticLabel, File, FileId, FileType, ModuleId, PackageId, ProfileId,
-    Span, TargetId, Uri,
+    DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, FileId, FileType, ModuleId,
+    PackageId, ProfileId, Span, TargetId, Uri,
 };
 use std::sync::Arc;
 
@@ -86,7 +86,7 @@ impl DiagnosticContext for TestMirProvider {
 
         Ok(DiagnosticLabel {
             content: self.file.content_id(),
-            span,
+            target: DiagnosticTarget::Span(span),
             message,
         })
     }

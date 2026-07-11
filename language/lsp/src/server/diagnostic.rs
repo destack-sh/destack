@@ -5,7 +5,7 @@ use destack_core::StableHasher;
 use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_source::{
-    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, FileId,
+    Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, FileId, Span,
 };
 use destack_workspace::{
     DiagnosticSnapshot, DiagnosticsRequest, Error, ReloadReason, ReloadRequest, Workspace,
@@ -87,12 +87,15 @@ where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
     let primary = diagnostic.primary_label();
-    let primary_file = file_for_id(primary.span.file)?;
+    let primary_file = file_for_id(primary.target.file())?;
     if !label_matches_file(primary, &primary_file) {
         return None;
     }
 
-    let primary_span = primary.span;
+    let primary_span = primary
+        .target
+        .span()
+        .unwrap_or_else(|| Span::empty(primary.target.file()));
     let range = byte_span_to_range(&primary_file, primary_span);
 
     // severity
@@ -106,7 +109,7 @@ where
     let related_locations = diagnostic
         .labels()
         .filter_map(|label| {
-            let file = file_for_id(label.span.file)?;
+            let file = file_for_id(label.target.file())?;
             if !label_matches_file(label, &file) {
                 return None;
             }
@@ -116,7 +119,13 @@ where
             Some(lsp::DiagnosticRelatedInformation {
                 location: lsp::Location {
                     uri,
-                    range: byte_span_to_range(&file, label.span),
+                    range: byte_span_to_range(
+                        &file,
+                        label
+                            .target
+                            .span()
+                            .unwrap_or_else(|| Span::empty(label.target.file())),
+                    ),
                 },
                 message: label
                     .message
@@ -170,9 +179,7 @@ pub(super) fn diagnostic_result_id(diagnostics: &[Diagnostic]) -> String {
         diagnostic.message.hash(&mut hasher);
         let primary = diagnostic.primary_label();
         primary.content.hash(&mut hasher);
-        let primary_span = primary.span;
-        primary_span.start.hash(&mut hasher);
-        primary_span.end.hash(&mut hasher);
+        primary.target.hash(&mut hasher);
         let severity = match diagnostic.severity {
             DiagnosticSeverity::Error => 0u8,
             DiagnosticSeverity::Warning => 1u8,
@@ -186,7 +193,7 @@ pub(super) fn diagnostic_result_id(diagnostics: &[Diagnostic]) -> String {
 
 /// Return true when one diagnostic label still points at the same file content.
 fn label_matches_file(label: &DiagnosticLabel, file: &File) -> bool {
-    label.span.file == file.id && label.content == file.content_id()
+    label.target.file() == file.id && label.content == file.content_id()
 }
 
 /// Convert a workspace code action kind to an LSP code action kind.

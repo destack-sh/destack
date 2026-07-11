@@ -236,7 +236,7 @@ fn diagnostics_for_file(
 
     module_artifact_diagnostics(&session.repository, session.revision, module_id, profile_id)
         .iter()
-        .filter(|diagnostic| diagnostic.primary_label().span.file == file_id)
+        .filter(|diagnostic| diagnostic.primary_label().target.file() == file_id)
         .cloned()
         .collect()
 }

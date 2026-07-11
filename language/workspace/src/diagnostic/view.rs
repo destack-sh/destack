@@ -48,7 +48,7 @@ pub(crate) fn diagnostics_by_file(
 
     // group diagnostics by the file that owns the primary label
     for diagnostic in diagnostics.iter() {
-        let file_id = diagnostic.primary_label().span.file;
+        let file_id = diagnostic.primary_label().target.file();
         diagnostics_by_file
             .entry(file_id)
             .or_insert_with(Vec::new)

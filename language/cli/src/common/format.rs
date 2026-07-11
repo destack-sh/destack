@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_parser::source_colorizer;
 use destack_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError, DiagnosticSeverity,
-    File, FileId, PrintOptions, print_diagnostics as print_diagnostics_impl,
+    File, FileId, PrintOptions, Span, print_diagnostics as print_diagnostics_impl,
 };
 use serde::Serialize;
 
@@ -278,7 +278,10 @@ where
     // emit github annotations per diagnostic
     for d in diagnostics {
         let primary = d.primary_label();
-        let primary_span = primary.span;
+        let primary_span = primary
+            .target
+            .span()
+            .unwrap_or_else(|| Span::empty(primary.target.file()));
         let file = resolve_label_file(file_for_id, primary);
 
         // get_position returns 0 based line and column
@@ -397,7 +400,10 @@ where
         .iter()
         .map(|d| {
             let primary = d.primary_label();
-            let primary_span = primary.span;
+            let primary_span = primary
+                .target
+                .span()
+                .unwrap_or_else(|| Span::empty(primary.target.file()));
             let file = resolve_label_file(file_for_id, primary);
 
             // get_position returns 0 based line and column
@@ -452,7 +458,7 @@ fn resolve_label_file<F>(file_for_id: &F, label: &DiagnosticLabel) -> Arc<File>
 where
     F: Fn(FileId) -> Option<Arc<File>>,
 {
-    let file_id = label.span.file;
+    let file_id = label.target.file();
     let file =
         file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"));
     let content = file.content_id();

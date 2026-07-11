@@ -12,7 +12,8 @@ use destack_repository::{
     TraceView,
 };
 use destack_source::{
-    Content, ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, Span,
+    Content, ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId,
+    Span,
 };
 
 use super::module::{parse_module, parsed_dependencies};
@@ -443,22 +444,27 @@ impl<'a> TestProviderContext<'a> {
         anchor: &DiagnosticAnchor,
         message: Option<String>,
     ) -> Result<DiagnosticLabel, DiagnosticError> {
-        let span = self.anchor_span(anchor)?;
-        let content = self.file_content_id(span.file)?;
+        let target = self.anchor_target(anchor)?;
+        let content = self.file_content_id(target.file())?;
 
         Ok(DiagnosticLabel {
             content,
-            span,
+            target,
             message,
         })
     }
 
-    /// Return the source span for one diagnostic anchor.
-    fn anchor_span(&self, anchor: &DiagnosticAnchor) -> Result<Span, DiagnosticError> {
+    /// Return the source target for one diagnostic anchor.
+    fn anchor_target(
+        &self,
+        anchor: &DiagnosticAnchor,
+    ) -> Result<DiagnosticTarget, DiagnosticError> {
         match anchor {
-            DiagnosticAnchor::Span(span) => Ok(*span),
-            DiagnosticAnchor::File(file) => Ok(Span::empty(*file)),
-            DiagnosticAnchor::Module(module) => self.module_file_id(*module).map(Span::empty),
+            DiagnosticAnchor::Span(span) => Ok(DiagnosticTarget::Span(*span)),
+            DiagnosticAnchor::File(file) => Ok(DiagnosticTarget::File(*file)),
+            DiagnosticAnchor::Module(module) => {
+                self.module_file_id(*module).map(DiagnosticTarget::File)
+            }
             DiagnosticAnchor::Package(_) => Err(Self::invalid_anchor(
                 "package diagnostics are not used in compiler tests",
             )),

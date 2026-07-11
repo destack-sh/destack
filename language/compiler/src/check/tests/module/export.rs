@@ -134,7 +134,7 @@ const second = sibling;
         r#"
 /// @diagnostic.error code=EC308 message="cannot find 'sibling'"
 /// @diagnostic.label line=5 column=16 span="sibling" line_source="const second = sibling;"
-/// @diagnostic.related file="util.ds" line=1 column=1 span="" line_source="" message="'sibling' is declared in this module"
+/// @diagnostic.related file="util.ds" message="'sibling' is declared in this module"
 /// @diagnostic.help message="import 'sibling' from that module"
 "#,
     );
