@@ -5,7 +5,7 @@ use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, FileId, LanguageType, Uri};
 
@@ -40,13 +40,10 @@ pub(super) fn format_pass(
     // parse source
     let parse_start = Instant::now();
     let file = Arc::new(stress_file(fixture, source)?);
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         file.clone(),
         language_type,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
