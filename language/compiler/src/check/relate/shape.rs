@@ -171,6 +171,7 @@ impl CheckState<'_> {
         let element = match self.ty(ty)? {
             dir::Type::Array(array) => array.element,
             dir::Type::Slice(slice) => slice.element,
+            dir::Type::FixedArray(array) => array.element,
             _ => ty,
         };
 
