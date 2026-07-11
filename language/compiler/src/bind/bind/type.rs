@@ -257,7 +257,9 @@ impl Compiler {
             let key = Some(dir::StaticKey::Name(name));
             let symbol_id = match state.infer_scope() {
                 // repeated binders of one name share one inferred parameter
-                Some(scope_id) if let Some(&shared) = state.infer_symbols.get(&(scope_id, name)) => {
+                Some(scope_id)
+                    if let Some(&shared) = state.infer_symbols.get(&(scope_id, name)) =>
+                {
                     shared
                 }
                 Some(scope_id) => {

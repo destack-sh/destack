@@ -5,12 +5,10 @@ use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 use crate::CompilerResult;
 use crate::check::CheckState;
 
-/// Nesting depth bound guarding reified annotation spellings.
+/// Nesting depth bound guarding reified annotations.
 const REIFY_DEPTH: usize = 32;
 
 /// Synthesizes type and static expression nodes from solved check types.
-/// Every reified node lands in the amended output tree; types without
-/// a faithful source spelling leave their annotation slot empty.
 pub(in crate::check) struct TypeReifier<'a, 'b> {
     /// The solved component state read for type structure.
     check: &'a CheckState<'b>,
@@ -48,7 +46,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Reify one solved type into a synthesized type expression.
-    /// Returns None when the type has no faithful source spelling.
     pub(in crate::check) fn reify(
         &mut self,
         id: dir::GlobalTypeId,
@@ -231,8 +228,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         let next = depth - 1;
 
         let expression = match ty {
-            // open variables and errors have no honest spelling
+            // open variables and errors have no honest source form
             dir::Type::Variable(_) | dir::Type::Erased(_) | dir::Type::Error => return Ok(None),
+            // refinements print as their base application
+            dir::Type::Refined(refined) => {
+                let refined = self.check.type_refined(id.module_id, refined)?;
+
+                return self.reify_depth(refined.base, depth);
+            }
 
             dir::Type::Never => Self::literal(dir::TypeLiteral::Never),
             dir::Type::Any => Self::literal(dir::TypeLiteral::Any),
@@ -300,7 +303,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let Some(name) = self.symbol_name(instance.symbol) else {
                     return Ok(None);
                 };
-                let template = self.check.symbol_template(instance.symbol);
+                let template = self.check.loaded_symbol_template(instance.symbol);
                 let arguments = self
                     .check
                     .type_ids(id.module_id, instance.arguments)?
@@ -319,6 +322,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 }
             }
             dir::Type::Member(member) => {
+                let member = self.check.type_member(id.module_id, member)?;
                 let dir::StaticKey::Name(key) = member.key else {
                     return Ok(None);
                 };
@@ -326,7 +330,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     return Ok(None);
                 };
                 // member types do not carry the selected declaration symbol,
-                // so their generic arguments keep the type-argument form
+                //  so their generic arguments keep the type-argument form
                 let member_arguments = self
                     .check
                     .type_ids(id.module_id, member.arguments)?
@@ -337,7 +341,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::Member {
                     left,
-                    name: self.strings.intern(&self.check_text(key)),
+                    name: key,
                     generic_arguments: arguments,
                 }
             }
@@ -403,7 +407,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::Tuple { elements }
             }
             dir::Type::Shape(shape) => {
-                // signatures have no member spelling here yet
+                // signatures have no member form here yet
                 if !shape.call_signatures.is_empty()
                     || !shape.construct_signatures.is_empty()
                     || !shape.index_signatures.is_empty()
@@ -418,9 +422,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 let mut members = Vec::with_capacity(shape_fields.len());
                 for field in &shape_fields {
                     let key = match field.key {
-                        dir::StaticKey::Name(name) => dir::Key::Name(dir::Name::Identifier(
-                            self.strings.intern(&self.check_text(name)),
-                        )),
+                        dir::StaticKey::Name(name) => dir::Key::Name(dir::Name::Identifier(name)),
                         dir::StaticKey::Index(index) => dir::Key::Name(dir::Name::Index(index)),
                         dir::StaticKey::Symbol(_) => return Ok(None),
                     };
@@ -441,6 +443,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 dir::TypeExpression::Object { members }
             }
             dir::Type::FunctionSignature(function) => {
+                let function = self.check.type_signature(id.module_id, function)?;
                 let Some(function) = self.reify_function(id.module_id, &function, next)? else {
                     return Ok(None);
                 };
@@ -499,11 +502,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         target_type,
                     },
                     dir::Form::Readonly => dir::TypeExpression::Readonly { target_type },
-                    dir::Form::Borrowed { lifetime, access } => {
-                        let Some(lifetime) = self.reify_static_depth(*lifetime, next)? else {
+                    dir::Form::Borrowed(borrow) => {
+                        let borrow = self.check.type_borrow(id.module_id, *borrow)?;
+                        let (lifetime, access) = (borrow.lifetime, borrow.access);
+                        let Some(lifetime) = self.reify_static_depth(lifetime, next)? else {
                             return Ok(None);
                         };
-                        let Some(access) = self.reify_static_depth(*access, next)? else {
+                        let Some(access) = self.reify_static_depth(access, next)? else {
                             return Ok(None);
                         };
                         let target_type =
@@ -543,13 +548,16 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
                 dir::TypeExpression::Reference {
                     path: dir::Path {
-                        segments: [self.strings.intern("Dynamic")].into_iter().collect(),
+                        segments: [self.language_item_name(dir::LanguageItem::Dynamic)]
+                            .into_iter()
+                            .collect(),
                     },
                     generic_arguments: vec![argument],
                 }
             }
 
             dir::Type::Operation(operation) => {
+                let operation = self.check.type_operation(id.module_id, operation)?;
                 let Some(expression) = self.reify_operation(&operation, next)? else {
                     return Ok(None);
                 };
@@ -678,12 +686,10 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
             dir::TypeOperation::Infer(infer) => dir::TypeExpression::Infer {
                 form: dir::InferForm::Infer,
-                name: infer
-                    .name
-                    .map(|name| self.strings.intern(&self.check_text(name))),
+                name: infer.name,
                 constraint: None,
             },
-            // the remaining operations have no faithful annotation spelling
+            // the remaining operations have no faithful annotation form
             dir::TypeOperation::StringMapping { .. }
             | dir::TypeOperation::Narrow(_)
             | dir::TypeOperation::TypeOf(_)
@@ -705,7 +711,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         function: &dir::FunctionSignatureType,
         depth: usize,
     ) -> CompilerResult<Option<dir::FunctionTypeExpression>> {
-        // async, generator, and generic signatures have no annotation spelling
+        // async, generator, and generic signatures have no annotation form
         if function.asynchrony != dir::Asynchrony::Sync
             || function.is_generator
             || !self
@@ -787,7 +793,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         depth: usize,
     ) -> CompilerResult<Option<dir::TypeExpression>> {
         let signature_id = self.check.settled_root(function.signature)?;
-        let dir::Type::FunctionSignature(signature) = self.check.ty(signature_id)? else {
+        let Some(signature) = self.check.signature_head(signature_id)? else {
             return Ok(None);
         };
         let signature_parameters = self
@@ -1013,7 +1019,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         Ok(Some(expression))
     }
 
-    /// Return the scalar literal spelling of one exact key type.
+    /// Return the scalar literal text of one exact key type.
     fn static_key_literal(key: &dir::StaticKey) -> Option<dir::ScalarLiteral> {
         match key {
             dir::StaticKey::Name(name) => Some(dir::ScalarLiteral::String(*name)),
@@ -1053,9 +1059,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         match binding.key {
             dir::GenericParameterKey::Symbol(symbol) => self.symbol_name(symbol),
-            dir::GenericParameterKey::Generated(name) => {
-                Some(self.strings.intern(&self.check_text(name)))
-            }
+            dir::GenericParameterKey::Generated(name) => Some(name),
         }
     }
 
@@ -1074,9 +1078,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     ) -> Option<dir::StringId> {
         match binding.key {
             dir::GenericParameterKey::Symbol(symbol) => self.symbol_name(symbol),
-            dir::GenericParameterKey::Generated(name) => {
-                Some(self.strings.intern(&self.check_text(name)))
-            }
+            dir::GenericParameterKey::Generated(name) => Some(name),
         }
     }
 
@@ -1104,22 +1106,17 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Some(self.language_item_name(item));
         }
 
-        let name = self.check.format_symbol(symbol);
-        if name == "<anonymous>" || name == "[symbol]" {
-            return None;
+        // only plain name keys print as identifiers
+        let bindings = self.check.binding_table(symbol.module_id);
+        match bindings.get_symbol(symbol.local_id).key {
+            Some(dir::StaticKey::Name(name)) => Some(name),
+            _ => None,
         }
-
-        Some(self.strings.intern(&name))
     }
 
     /// Spell one language item by its source export name.
     fn language_item_name(&self, item: dir::LanguageItem) -> dir::StringId {
         self.strings.intern(item.export_name())
-    }
-
-    /// Resolve one interned string through the component pools.
-    fn check_text(&self, id: dir::StringId) -> String {
-        self.check.format_static_key(&dir::StaticKey::Name(id))
     }
 
     /// Return one keyword type literal expression.
@@ -1138,9 +1135,6 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     }
 
     /// Return whether one signature's return annotation may be filled.
-    ///
-    /// Async and generator returns spell carrier types and wait for
-    /// their reified carrier wiring.
     pub(super) fn returns_fillable(signature: &dir::FunctionSignature) -> bool {
         signature.asynchrony == dir::Asynchrony::Sync && !signature.is_generator
     }

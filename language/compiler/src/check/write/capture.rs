@@ -1,8 +1,8 @@
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
 
-use crate::check::CheckState;
+use crate::check::{Capture, CheckState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -15,7 +15,7 @@ impl CheckState<'_> {
 
         // collect managed fields per lifted lexical scope
         let mut managed_symbols =
-            IndexMap::<dir::LocalScopeId, IndexSet<dir::GlobalSymbolId>>::new();
+            FxIndexMap::<dir::LocalScopeId, FxIndexSet<dir::GlobalSymbolId>>::default();
         for capture in &captures {
             for symbol in &capture.symbols {
                 if self.capture_mode(module, capture.directive.as_ref(), *symbol)?
@@ -35,7 +35,7 @@ impl CheckState<'_> {
         }
 
         // materialize one shared frame for each managed scope
-        let mut frames = IndexMap::new();
+        let mut frames = FxIndexMap::default();
         for (scope, symbols) in managed_symbols {
             let frame = self.write_capture_frame(module, scope, &symbols)?;
 
@@ -59,7 +59,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         scope: dir::LocalScopeId,
-        symbols: &IndexSet<dir::GlobalSymbolId>,
+        symbols: &FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<dir::LocalCaptureFrameId> {
         let scope_bindings = &self.module(module).bindings.get_scope_by_id(scope).bindings;
         let mut frame_bindings = Vec::new();
@@ -135,11 +135,11 @@ impl CheckState<'_> {
     fn write_capture(
         &mut self,
         module: ModuleId,
-        capture: crate::check::Capture,
-        frames: &IndexMap<dir::LocalScopeId, dir::LocalCaptureFrameId>,
+        capture: Capture,
+        frames: &FxIndexMap<dir::LocalScopeId, dir::LocalCaptureFrameId>,
     ) -> CompilerResult<(dir::GlobalSymbolId, dir::Capture)> {
         let function = capture.symbol;
-        let mut used_frames = IndexSet::new();
+        let mut used_frames = FxIndexSet::default();
         let mut captured = Vec::new();
 
         // materialize captured lexical bindings
@@ -223,8 +223,8 @@ impl CheckState<'_> {
             return Ok(dir::CaptureMode::Manage);
         };
 
-        let symbol_entry = self.module(module).bindings.get_symbol(symbol.local_id);
-        let Some(name) = symbol_entry.name() else {
+        let binding = self.module(module).bindings.get_symbol(symbol.local_id);
+        let Some(name) = binding.name() else {
             return Ok(directive.default);
         };
 
@@ -238,16 +238,16 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(ty) = self.symbol_type_maybe(symbol) else {
             let module = self.module(symbol.module_id);
-            let symbol_entry = module.bindings.get_symbol(symbol.local_id);
-            let name = symbol_entry
+            let binding = module.bindings.get_symbol(symbol.local_id);
+            let name = binding
                 .name()
-                .map(|name| module.strings.get(name).to_string())
+                .map(|name| self.strings().get(name).to_string())
                 .unwrap_or_else(|| "<anonymous>".to_string());
 
             return Err(CompilerError::Internal {
                 message: format!(
                     "captured symbol {symbol:?} named {name} has no checked type: kind={:?} role={:?} scope={:?}",
-                    symbol_entry.kind, symbol_entry.role, symbol_entry.scope
+                    binding.kind, binding.role, binding.scope
                 ),
             });
         };
