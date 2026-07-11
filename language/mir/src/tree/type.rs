@@ -74,7 +74,7 @@ impl Space {
     }
 
     /// Return the canonical source name for this space.
-    pub fn label(&self) -> &str {
+    pub const fn label(self) -> &'static str {
         match self {
             Space::Local => "local",
             Space::Shared => "shared",

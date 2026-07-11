@@ -52,7 +52,13 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         // global header
         write!(
             f,
-            [token("global"), space(), text(&name), token(":"), space()]
+            [
+                token("global"),
+                space(),
+                copied_text(&name),
+                token(":"),
+                space()
+            ]
         )?;
         write!(f, [self.ty])?;
         if self.space != Space::Local {
@@ -61,7 +67,10 @@ impl<'a> FormatMirNode<'a, Global> for Global {
                 [
                     token(","),
                     space(),
-                    text(&format!("space({})", self.space.label()))
+                    token("space"),
+                    token("("),
+                    token(self.space.label()),
+                    token(")")
                 ]
             )?;
         }
@@ -138,19 +147,19 @@ fn format_byte_literal<'a>(bytes: &[u8], f: &mut MirFormatter<'a, '_>) -> Format
     write!(f, [token("b"), token("\"")])?;
     for &byte in bytes {
         if byte == b'"' {
-            write!(f, [text("\\\"")])?;
+            write!(f, [token("\\\"")])?;
         } else if byte == b'\\' {
-            write!(f, [text("\\\\")])?;
+            write!(f, [token("\\\\")])?;
         } else if byte == b'\n' {
-            write!(f, [text("\\n")])?;
+            write!(f, [token("\\n")])?;
         } else if byte == b'\r' {
-            write!(f, [text("\\r")])?;
+            write!(f, [token("\\r")])?;
         } else if byte == b'\t' {
-            write!(f, [text("\\t")])?;
+            write!(f, [token("\\t")])?;
         } else if byte.is_ascii_graphic() || byte == b' ' {
-            write!(f, [text(&String::from(byte as char))])?;
+            write!(f, [copied_text(&String::from(byte as char))])?;
         } else {
-            write!(f, [text(&format!("\\x{byte:02x}"))])?;
+            write!(f, [copied_text(&format!("\\x{byte:02x}"))])?;
         }
     }
     write!(f, [token("\"")])
