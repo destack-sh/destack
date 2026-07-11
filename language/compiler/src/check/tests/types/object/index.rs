@@ -634,3 +634,65 @@ const value = bag.missing;
 "#,
     );
 }
+
+// TODO #Incomplete: subscript selection does not project nominal interface
+//  index signatures yet, so the read below still rejects with EC306
+#[test]
+fn test_interface_index_signature_carries_its_key_domain() {
+    let session = TestSession::single(
+        r#"
+interface Bag<T> {
+    [key: string]: T;
+}
+
+declare const bag: Bag<int32>;
+const value = bag["name"];
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+interface Bag<in out T> {
+    [key: string]: T;
+}
+
+declare const bag: Bag<int32>;
+const value = bag["name"];
+
+=== checked ===
+interface Bag<T> {
+/// @generic.template symbol=Bag parameters=(T)
+/// @type.symbol symbol=Bag type=Bag
+/// @definition.interface symbol=Bag template=(T)
+/// @definition.where symbol=Bag relation=satisfies left=this right=Bag<T>
+/// @definition.signature kind=index source="[key: string]: T" key=string type=T
+/// @type.symbol symbol=Bag.T source=T type=T
+
+    [key: string]: T;
+    /// @resolution.name source=T target=Bag.T
+
+}
+
+declare const bag: Bag<int32>;
+/// @type.symbol symbol=bag source=bag type=Bag<int32>
+/// @resolution.name source=Bag target=Bag
+
+const value = bag["name"];
+/// @type.symbol symbol=value source=value type=<error>
+/// @type.node source="bag[\"name\"]" type=<error>
+/// @type.node source=bag type=Bag<int32>
+/// @resolution.name source=bag target=bag
+/// @generic.instance source=bag id=Bag<int32>
+/// @type.node source="\"name\"" type="name"
+
+/// @generic.instance id=Bag<int32> template=Bag arguments=(int32)
+"#,
+        r#"
+/// @diagnostic.error code=EC306 message="operator '[]' is not defined for 'Bag<int32>' and '\"name\"'"
+/// @diagnostic.label line=7 column=15 span="bag[\"name\"]" line_source="const value = bag[\"name\"];"
+"#,
+    );
+}
