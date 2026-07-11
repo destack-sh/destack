@@ -63,6 +63,102 @@ const result = parse("id");
 }
 
 #[test]
+fn test_call_prefers_decisive_overload_over_undecidable_earlier() {
+    let session = TestSession::single(
+        r#"
+struct Box<T> {
+    value: T;
+}
+
+function apply<U>(run: (value: string) => Box<U>): "boxed" {
+    return "boxed";
+}
+
+function apply<U>(run: (value: string) => U): "plain" {
+    return "plain";
+}
+
+const result = apply((value) => {});
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types(),
+        r#"
+=== annotated ===
+struct Box<out T> {
+    value: T;
+}
+
+function apply<U>(run: (arg0: string) => Box<U>): "boxed" {
+    return "boxed";
+}
+
+function apply<U>(run: (arg0: string) => U): "plain" {
+    return "plain";
+}
+
+const result: "plain" = apply<void>((value: string): void => {});
+
+=== checked ===
+struct Box<T> {
+/// @generic.template symbol=Box parameters=(out T)
+/// @type.symbol symbol=Box type=Box
+/// @definition.struct symbol=Box template=(out T)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T
+/// @type.symbol symbol=Box.T source=T type=T
+
+    value: T;
+    /// @type.symbol symbol=Box.value source="value: T" type=T
+    /// @resolution.name source=T target=Box.T
+
+}
+
+function apply<U>(run: (value: string) => Box<U>): "boxed" {
+/// @generic.template symbol=apply#1 parameters=(U#1)
+/// @type.symbol symbol=apply#1 type=<U#1>(Function<(string,), Box<U#1>>) => "boxed"
+/// @type.symbol symbol=apply.U#1 source=U type=U#1
+/// @type.symbol symbol=apply.run#1 source="run: (value: string) => Box<U>" type=Function<(string,), Box<U#1>>
+/// @resolution.name source=Box target=Box
+/// @resolution.name source=U target=apply.U#1
+
+    return "boxed";
+    /// @type.node source="\"boxed\"" type="boxed"
+
+}
+
+function apply<U>(run: (value: string) => U): "plain" {
+/// @generic.template symbol=apply#2 parameters=(U#2)
+/// @type.symbol symbol=apply#2 type=<U#2>(Function<(string,), U#2>) => "plain"
+/// @type.symbol symbol=apply.U#2 source=U type=U#2
+/// @type.symbol symbol=apply.run#2 source="run: (value: string) => U" type=Function<(string,), U#2>
+/// @resolution.name source=U target=apply.U#2
+
+    return "plain";
+    /// @type.node source="\"plain\"" type="plain"
+
+}
+
+const result = apply((value) => {});
+/// @type.symbol symbol=result source=result type="plain"
+/// @type.node source="apply((value) => {})" type="plain"
+/// @resolution.name source=apply target=[apply#1, apply#2]
+/// @resolution.call source="apply((value) => {})" parameters=(Function<(string,), void>) arguments=(provided((value) => {}) as Function<(string,), void>) return="plain" kind=symbol target=apply#2 instance=apply#2<void>
+/// @generic.instance source="apply((value) => {})" id=apply#2<void>
+/// @type.symbol symbol=symbol13 source="(value) => {}" type=Function<(string,), void>
+/// @type.node source="(value) => {}" type=Function<(string,), void>
+/// @type.symbol symbol=symbol13.value source=value type=string
+
+/// @generic.instance id=Box<U#1> template=Box arguments=(U#1)
+/// @generic.instance id=apply#2<void> template=apply#2 arguments=(void)
+"#,
+    );
+}
+
+#[test]
 fn test_call_with_no_matching_overload_reports_error() {
     let session = TestSession::single(
         r#"

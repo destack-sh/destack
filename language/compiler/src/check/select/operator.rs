@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, CheckState, Constraint, Decision, FlowSite, Obligation, OperatorExpressionResult,
+    Answer, BodyState, Constraint, Decision, FlowSite, Obligation, OperatorExpressionResult,
     Origin, PlaceUse, Relation, ValueUse, WritablePlaceObligation, answer,
     binary_operator_protocols, unary_operator_protocols,
 };
@@ -15,7 +15,7 @@ pub(in crate::check) enum OperatorOperands<'a> {
     Place,
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one binary operator application.
     pub(in crate::check) fn select_binary_operator(
         &mut self,
@@ -68,7 +68,7 @@ impl CheckState<'_> {
         };
         let builtin = match operator {
             // strict identity always produces a boolean; equality
-            // reads values, so views compare their pointees
+            //  reads values, so views compare their pointees
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
                 let left_value = answer!(self.value_beneath_forms(origin, left)?);
                 let right_value = answer!(self.value_beneath_forms(origin, right)?);
@@ -113,7 +113,7 @@ impl CheckState<'_> {
         // dispatch through the operator protocol interfaces
         let protocols = binary_operator_protocols(operator);
         for protocol in protocols {
-            let key = protocol.method.key(&self.module(module).strings);
+            let key = protocol.method.key(self.strings());
             let protocol_type = self.operator_protocol(origin, &protocol, &[right])?;
             let argument_sources = [dir::ArgumentSource::Provided(right_source)];
 
@@ -181,9 +181,12 @@ impl CheckState<'_> {
                 let resolution = place.clone().resolution();
                 self.commit_node_type(place.source, operand)?;
                 self.commit_decision(place.source, Decision::Place(resolution))?;
-                let scope = self.origin_scope(origin);
+                let scope = self.origin_scope(origin)?;
                 self.push_obligation(
-                    Obligation::WritablePlace(WritablePlaceObligation { place, ty: operand }),
+                    Obligation::WritablePlace(Box::new(WritablePlaceObligation {
+                        place,
+                        ty: operand,
+                    })),
                     scope,
                 );
                 self.commit_node_type(node, operand)?;
@@ -247,7 +250,7 @@ impl CheckState<'_> {
         // dispatch through the operator protocol interfaces
         let protocols = unary_operator_protocols(operator, access);
         for protocol in protocols {
-            let key = protocol.method.key(&self.module(module).strings);
+            let key = protocol.method.key(self.strings());
             let protocol_type = self.operator_protocol(origin, &protocol, &[])?;
             let Some(call) = answer!(self.select_protocol_call(
                 origin,
@@ -315,8 +318,8 @@ impl CheckState<'_> {
         let module = origin.module();
 
         // literal operands are static operations: the comptime
-        // reduction folds them exactly and reports overflow, so the
-        // result flows by representability like any written literal
+        //  reduction folds them exactly and reports overflow, so the
+        //  result flows by representability like any written literal
         if numeric
             && matches!(
                 (self.ty(left)?, self.ty(right)?),
@@ -325,13 +328,13 @@ impl CheckState<'_> {
             && let Ok(static_operator) = dir::StaticBinaryOperator::try_from(operator)
             && !static_operator.yields_boolean()
         {
-            let operation = self.intern_type(
+            let operation = self.intern_operation(
                 module,
-                dir::Type::Operation(dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
+                dir::TypeOperation::StaticBinary(dir::StaticBinaryType {
                     operator: static_operator,
                     left,
                     right,
-                })),
+                }),
             )?;
             let folded = answer!(self.reduce_type_head(origin, operation)?);
             if matches!(self.ty(folded)?, dir::Type::Literal(_)) {
@@ -410,9 +413,6 @@ impl CheckState<'_> {
     }
 
     /// Return one builtin unary result.
-    ///
-    /// Scalar families are closed under unary operators, so only
-    /// singleton operands fold through the static operation.
     fn builtin_unary_result(
         &mut self,
         origin: Origin,
@@ -436,6 +436,35 @@ impl CheckState<'_> {
         Ok(Answer::Ready(result))
     }
 
+    /// Return one interval operand widened to its base scalar.
+    fn interval_operand_base(
+        &mut self,
+        origin: Origin,
+        operand: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Range(range) = self.ty(operand)? else {
+            return Ok(operand);
+        };
+        let base = match range.scalar_domain() {
+            Some(dir::ScalarDomain::Integer) => {
+                dir::Type::Primitive(dir::PrimitiveType::Integer(dir::IntegerType::Fixed {
+                    width: 32,
+                    is_signed: true,
+                }))
+            }
+            Some(dir::ScalarDomain::Float) => {
+                dir::Type::Primitive(dir::PrimitiveType::Float(dir::FloatType::Float64))
+            }
+            Some(dir::ScalarDomain::Bigint) => dir::Type::Primitive(dir::PrimitiveType::Bigint),
+            Some(dir::ScalarDomain::Character) => {
+                dir::Type::Primitive(dir::PrimitiveType::Character)
+            }
+            _ => return Ok(operand),
+        };
+
+        self.intern_type(origin.module(), base)
+    }
+
     /// Join two builtin numeric operands into one common operand type.
     fn builtin_numeric_join(
         &mut self,
@@ -443,33 +472,36 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        // interval operands widen to their base scalar under arithmetic
+        let left = self.interval_operand_base(origin, left)?;
+        let right = self.interval_operand_base(origin, right)?;
+
         // literals adapt into the other operand's type
-        let left_literal = matches!(self.ty(left)?, dir::Type::Literal(_));
+        let left_literal = match self.ty(left)? {
+            dir::Type::Literal(literal) => Some(literal),
+            _ => None,
+        };
         let right_literal = matches!(self.ty(right)?, dir::Type::Literal(_));
 
         match (left_literal, right_literal) {
             // literal pairs widen to their base numeric type
-            (true, true) => {
-                let widened = match self.ty(left)? {
-                    dir::Type::Literal(literal) => literal.widen(),
-                    _ => return Ok(Answer::Ready(Some(left))),
-                };
-                let module = origin.module();
+            (Some(literal), true) => {
+                let widened = self.intern_type(origin.module(), literal.widen())?;
 
-                Ok(Answer::Ready(Some(self.intern_type(module, widened)?)))
+                Ok(Answer::Ready(Some(widened)))
             }
-            (true, false) => {
+            (Some(_), false) => {
                 let adapts = self.literal_adapts_to_operand(origin, left, right)?;
 
                 Ok(adapts.then_some(right))
             }
-            (false, true) => {
+            (None, true) => {
                 let adapts = self.literal_adapts_to_operand(origin, right, left)?;
 
                 Ok(adapts.then_some(left))
             }
             // typed operands must agree exactly
-            (false, false) => {
+            (None, false) => {
                 let equal = self.decide_relation(origin, Relation::Equal, left, right)?;
 
                 Ok(equal.then_some(left))
@@ -478,9 +510,6 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one literal adapts into one numeric operand.
-    ///
-    /// Parameters accept literals that fit every element of their
-    /// scalar bound, so the fit holds for every instantiation.
     fn literal_adapts_to_operand(
         &mut self,
         origin: Origin,
@@ -527,7 +556,7 @@ impl CheckState<'_> {
 
                 match self.ty(reduced)? {
                     dir::Type::Form(form)
-                        if matches!(form.form, dir::Form::Borrowed { .. } | dir::Form::Raw) =>
+                        if matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw) =>
                     {
                         form.value
                     }
@@ -575,17 +604,7 @@ impl CheckState<'_> {
         let resolution = dir::CallResolution::new(target, None, Vec::new(), Vec::new(), result);
         self.commit_node_type(node, result)?;
         self.commit_decision(node, Decision::Call(resolution))?;
-
-        // write compound assignment results back into the assigned place
-        if let Some(writeback) = writeback {
-            self.push_constraint(Constraint::value(
-                Relation::Assignable,
-                result,
-                writeback,
-                origin,
-                ValueUse::Store,
-            ));
-        }
+        self.push_operator_writeback(origin, result, writeback);
 
         Ok(Answer::Ready(()))
     }
@@ -617,19 +636,31 @@ impl CheckState<'_> {
         resolution.return_type = result;
         self.commit_node_type(node, result)?;
         self.commit_decision(node, Decision::Call(resolution))?;
-
-        // write compound assignment results back into the assigned place
-        if let Some(writeback) = writeback {
-            self.push_constraint(Constraint::value(
-                Relation::Assignable,
-                result,
-                writeback,
-                origin,
-                ValueUse::Store,
-            ));
-        }
+        self.push_operator_writeback(origin, result, writeback);
 
         Ok(Answer::Ready(()))
+    }
+
+    /// Write one compound assignment result back into the assigned place.
+    fn push_operator_writeback(
+        &mut self,
+        origin: Origin,
+        result: dir::GlobalTypeId,
+        writeback: Option<dir::GlobalTypeId>,
+    ) {
+        let Some(writeback) = writeback else {
+            return;
+        };
+
+        let origin = self.intern_origin(origin);
+        self.push_constraint(Constraint::value(
+            Relation::Assignable,
+            result,
+            writeback,
+            origin,
+            origin,
+            Some(ValueUse::Store),
+        ));
     }
 
     /// Reject one operator application with a diagnostic.

@@ -3,13 +3,13 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, CheckState, ConstructResult, Decision, Dependency, FlowSite, PlaceUse, answer,
+    Answer, BodyState, ConstructResult, Decision, Expectation, FlowSite, PlaceUse, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Infer one expression node.
-    pub(super) fn infer_expression(
+    pub(in crate::check) fn infer_expression(
         &mut self,
         site: FlowSite,
         use_: PlaceUse,
@@ -28,14 +28,33 @@ impl CheckState<'_> {
 
         match expression {
             dir::Expression::Identifier { .. } => {
-                let Some(Decision::Name(resolution)) = self.decision(node.into_any()).cloned()
-                else {
-                    return Ok(Answer::pending([Dependency::Decision(node.into_any())]));
+                // name references decide during the walk
+                let resolution = self
+                    .resolutions(node.module_id)
+                    .name_resolution(node.into_any())
+                    .cloned();
+                let Some(resolution) = resolution else {
+                    return Err(CompilerError::Internal {
+                        message: format!("identifier {node:?} has no name resolution"),
+                    });
                 };
 
                 self.infer_name_expression(site, &resolution)
             }
-            dir::Expression::Label { body, .. } => self.infer_transparent_expression(site, body),
+            dir::Expression::Label { body, .. } => {
+                // labeled blocks own their output; labeled loops forward transparently
+                if let Some(result) = self.check.control_results.get(&node.into_any()).copied() {
+                    let body_site = self.node_site(body.into_global_any(node.module_id))?;
+                    let expectation =
+                        Expectation::assignable(result, body_site.origin(), ValueUse::Output);
+                    self.check_node(body_site, PlaceUse::Read, Some(expectation))?;
+                    self.commit_node_type(node.into_any(), result)?;
+
+                    return Ok(Answer::Ready(()));
+                }
+
+                self.infer_transparent_expression(site, body)
+            }
             dir::Expression::Block(block) => self.infer_block(site, block),
             dir::Expression::Comptime { body } => self.infer_transparent_expression(site, body),
             dir::Expression::MoveOf {
@@ -45,15 +64,25 @@ impl CheckState<'_> {
                 mutability, right, ..
             } => self.infer_borrow_expression(site, mutability, right),
             dir::Expression::If {
+                condition,
                 then_expression,
                 else_expression,
                 ..
-            } => self.infer_if_expression(site, then_expression, else_expression),
+            } => {
+                answer!(self.check_condition_operands(node.module_id, &condition)?);
+
+                self.infer_if_expression(site, then_expression, else_expression)
+            }
             dir::Expression::Try { body, catch, .. } => {
                 self.infer_try_expression(site, body, catch)
             }
             dir::Expression::ScalarLiteral(value) => {
                 let ty = self.scalar_literal_type(node, value)?;
+                let ty = if mode == InferMode::Widen {
+                    self.widen_type(ty)?
+                } else {
+                    ty
+                };
                 self.commit_node_type(node.into_any(), ty)?;
 
                 Ok(Answer::Ready(()))
@@ -61,7 +90,7 @@ impl CheckState<'_> {
             dir::Expression::TemplateExpression { value } => {
                 if let dir::TemplateLiteral::InterpolatedString { arguments, .. } = value {
                     for argument in arguments {
-                        answer!(self.argument_value_type(site, argument)?);
+                        answer!(self.infer_argument_type(site, argument)?);
                     }
                 }
 
@@ -98,20 +127,31 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(()))
             }
-            dir::Expression::Match { cases, .. } => {
-                self.infer_match_expression(site, &cases.into_iter().collect::<SmallVec<[_; 4]>>())
-            }
+            dir::Expression::Match { value, cases, .. } => self.infer_match_expression(
+                site,
+                value,
+                &cases.into_iter().collect::<SmallVec<[_; 4]>>(),
+            ),
             dir::Expression::ForEach {
                 operator,
                 binding,
                 iterator,
+                body,
                 ..
-            } => self.infer_for_each_expression(site, operator, binding, iterator),
-            dir::Expression::Member { left, name } => {
-                if let Some(Decision::Name(resolution)) = self.decision(node.into_any()).cloned() {
+            } => self.infer_for_each_expression(site, operator, binding, iterator, body),
+            dir::Expression::Member {
+                left,
+                name,
+                is_optional,
+            } => {
+                let resolution = self
+                    .resolutions(node.module_id)
+                    .name_resolution(node.into_any())
+                    .cloned();
+                if let Some(resolution) = resolution {
                     self.infer_name_expression(site, &resolution)
                 } else {
-                    self.select_member(site, left, name)
+                    self.select_member(site, left, name, is_optional)
                 }
             }
             dir::Expression::ObjectExpression { properties } => {
@@ -125,26 +165,31 @@ impl CheckState<'_> {
                 Ok(Answer::Ready(()))
             }
             dir::Expression::StructExpression { ty, properties } => {
-                let target = answer!(self.node_type(ty.into_global_any(node.module_id))?);
-
-                self.select_property_merge(
+                let target = answer!(self.select_construct_target(site, ty, None)?);
+                answer!(self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(target),
-                )
+                )?);
+
+                Ok(Answer::Ready(()))
             }
             dir::Expression::Call {
                 left,
                 generic_arguments,
                 arguments,
                 ..
-            } => self.select_call(
-                site,
-                left,
-                &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
-                &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                None,
-            ),
+            } => {
+                answer!(self.select_call(
+                    site,
+                    left,
+                    &generic_arguments.into_iter().collect::<SmallVec<[_; 2]>>(),
+                    &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
+                    None,
+                )?);
+
+                Ok(Answer::Ready(()))
+            }
             dir::Expression::Infer { .. } => {
                 self.report_cannot_infer_node(node.into_any())?;
                 self.commit_error_node(node.into_any())?;
@@ -190,13 +235,19 @@ impl CheckState<'_> {
                 ConstructResult::Direct,
                 None,
             ),
-            dir::Expression::NewMaybe { ty, arguments } => self.select_construct(
-                site,
-                ty,
-                &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
-                ConstructResult::Fallible,
-                None,
-            ),
+            dir::Expression::NewMaybe { ty, arguments } => {
+                let () = answer!(self.select_construct(
+                    site,
+                    ty,
+                    &arguments.into_iter().collect::<SmallVec<[_; 4]>>(),
+                    ConstructResult::Fallible,
+                    None,
+                )?);
+                let value = answer!(self.check.node_type(node.into_any())?);
+                self.propagate_try_residual(node.into_any(), value, site)?;
+
+                Ok(Answer::Ready(()))
+            }
             dir::Expression::Index { left, index, .. } => {
                 self.select_index(site, left, index, use_)
             }
@@ -223,6 +274,7 @@ impl CheckState<'_> {
                 operator,
                 right,
             } => self.infer_assignment_expression(site, left, operator, right),
+            dir::Expression::Chain { expression } => self.infer_chain_expression(site, expression),
             dir::Expression::Maybe { left, .. }
             | dir::Expression::Must { left, .. }
             | dir::Expression::AwaitMaybe { expression: left }
@@ -235,6 +287,16 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(()))
             }
+            expression @ (dir::Expression::Let { .. }
+            | dir::Expression::LetElse { .. }
+            | dir::Expression::Return { .. }
+            | dir::Expression::Yield { .. }
+            | dir::Expression::While { .. }
+            | dir::Expression::Loop { .. }
+            | dir::Expression::For { .. }
+            | dir::Expression::Throw { .. }
+            | dir::Expression::Break { .. }
+            | dir::Expression::Continue { .. }) => self.infer_statement(site, &expression),
             expression => self.reject_expression_without_inference_owner(node, expression),
         }
     }
@@ -257,11 +319,23 @@ impl CheckState<'_> {
         resolution: &dir::NameResolution,
     ) -> CompilerResult<Answer<()>> {
         let [symbol] = resolution.symbols() else {
-            return Ok(Answer::Ready(()));
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "name expression at {:?} resolved to {} symbols",
+                    site.node,
+                    resolution.symbols().len(),
+                ),
+            });
         };
 
         let ty = match self.static_value(*symbol) {
             Some(value) => value,
+            // alias names type as their written reference, matching the
+            //  static lookup that dispatches on them before reduction
+            None if self.symbol_kind(*symbol) == dir::SymbolKind::TypeAlias => self.intern_type(
+                site.node.module_id,
+                dir::Type::Reference(dir::TypeReference { symbol: *symbol }),
+            )?,
             None => answer!(self.symbol_type(*symbol)?),
         };
         let ty = answer!(self.flow_type_at(site, ty)?);
@@ -280,7 +354,7 @@ impl CheckState<'_> {
         let child_site = self.node_site(child.into_global_any(module))?;
         answer!(self.infer_node(child_site, PlaceUse::Read)?);
         // commit the raw child type: both nodes share one flow path,
-        // so the parent read overlays the narrowing itself
+        //  so the parent read overlays the narrowing itself
         let ty = answer!(self.node_type(child_site.node)?);
         self.commit_node_type(site.node, ty)?;
 

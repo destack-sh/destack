@@ -162,7 +162,6 @@ impl CheckState<'_> {
 }
 
 /// Return the ordered protocol candidates for one unary operator.
-/// Dereferences demand the access their place position requires.
 pub(in crate::check) fn unary_operator_protocols(
     operator: dir::UnaryOperator,
     access: dir::Access,
@@ -279,28 +278,27 @@ pub(in crate::check) fn binary_operator_protocols(
                 OperatorExpressionResult::MethodReturn,
             )]
         }
-        dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual => smallvec![OperatorProtocol {
-            item: dir::LanguageItem::PartialEqual,
-            arguments: SmallVec::new(),
-            method: OperatorMethod::Equal,
-            expression_result: OperatorExpressionResult::MethodReturn,
-        }],
+        dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual => {
+            smallvec![OperatorProtocol::new(
+                dir::LanguageItem::PartialEqual,
+                OperatorMethod::Equal,
+                OperatorExpressionResult::MethodReturn,
+            )]
+        }
         dir::BinaryOperator::LessThan
         | dir::BinaryOperator::LessThanOrEqual
         | dir::BinaryOperator::GreaterThan
         | dir::BinaryOperator::GreaterThanOrEqual => smallvec![
-            OperatorProtocol {
-                item: dir::LanguageItem::Compare,
-                arguments: SmallVec::new(),
-                method: OperatorMethod::Compare,
-                expression_result: OperatorExpressionResult::Boolean,
-            },
-            OperatorProtocol {
-                item: dir::LanguageItem::PartialCompare,
-                arguments: SmallVec::new(),
-                method: OperatorMethod::PartialCompare,
-                expression_result: OperatorExpressionResult::Boolean,
-            },
+            OperatorProtocol::new(
+                dir::LanguageItem::Compare,
+                OperatorMethod::Compare,
+                OperatorExpressionResult::Boolean,
+            ),
+            OperatorProtocol::new(
+                dir::LanguageItem::PartialCompare,
+                OperatorMethod::PartialCompare,
+                OperatorExpressionResult::Boolean,
+            ),
         ],
         dir::BinaryOperator::EqualStrict
         | dir::BinaryOperator::NotEqualStrict

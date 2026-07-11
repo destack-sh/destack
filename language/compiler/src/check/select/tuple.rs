@@ -3,10 +3,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, Decision, FlowPointId, Origin, Relation, answer,
+    Answer, BodyState, Constraint, Decision, FlowPointId, Origin, Relation, answer,
 };
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one tuple pattern, projecting elements by position.
     pub(in crate::check) fn select_tuple_pattern(
         &mut self,
@@ -21,17 +21,14 @@ impl CheckState<'_> {
         self.check_pattern_bindings(module, fields)?;
 
         if !self.check_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         }
 
         // reject non-tuple sources before building field projections
         let dir::Type::Tuple(tuple) = self.ty(scrutinee)? else {
             self.report_pattern_source_not_tuple_shaped(origin, scrutinee)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
 
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         };
         let elements = self
             .tuple_elements(scrutinee.module_id, tuple.elements)?
@@ -79,7 +76,8 @@ impl CheckState<'_> {
                     )?;
                 } else {
                     let hole = self.require_node_type(target)?;
-                    self.push_constraint(Constraint::check(
+                    let origin = self.intern_origin(origin);
+                    self.push_constraint(Constraint::r#type(
                         Relation::Equal,
                         projected_value,
                         hole,

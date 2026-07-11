@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
-use crate::check::{Answer, CheckState, Decision, FlowSite, PlaceUse, answer};
+use crate::check::{Answer, BodyState, Decision, FlowSite, PlaceUse, answer};
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one tagged template through its tag's callable value.
     pub(in crate::check) fn select_tagged_template(
         &mut self,
@@ -31,8 +31,8 @@ impl CheckState<'_> {
 
             return Ok(Answer::Ready(()));
         };
-        let return_type = match self.ty(signature)? {
-            dir::Type::FunctionSignature(function) => function.return_type,
+        let return_type = match self.signature_head(signature)? {
+            Some(function) => function.return_type,
             _ => {
                 return Err(CompilerError::Internal {
                     message: format!("tagged template signature {signature:?} is not callable"),

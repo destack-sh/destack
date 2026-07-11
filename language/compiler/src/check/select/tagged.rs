@@ -2,10 +2,11 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, FlowPointId, FlowSite, Opening, Origin, Relation, answer,
+    Answer, BodyState, CandidateOutcome, CandidatePass, Decision, FlowPointId, FlowSite, Origin,
+    Relation, TypeSubstitution, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// One written tagged pattern head.
 #[derive(Debug, Clone)]
@@ -23,8 +24,8 @@ pub(in crate::check) struct TaggedPatternHead {
 struct TaggedCaseSelection {
     /// The tagged case identity.
     case: dir::VariantCase,
-    /// The matched owner generic arguments.
-    generic_arguments: Vec<dir::GenericArgumentBinding>,
+    /// The matched owner arguments, absent when merged arms mix instantiations.
+    generic_arguments: Option<Vec<dir::GenericArgumentBinding>>,
     /// The runtime discriminant value.
     discriminant: dir::ScalarLiteral,
     /// The compact payload type.
@@ -42,7 +43,7 @@ struct TaggedPayloadField {
     ty: dir::GlobalTypeId,
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return the tagged owner and case named by one variant pattern.
     pub(in crate::check) fn tagged_pattern_head(
         &mut self,
@@ -62,7 +63,8 @@ impl CheckState<'_> {
             dir::TypeExpression::Reference { path, .. } => {
                 let reference = self.module(module).resolved.references.get(source).cloned();
                 let Some(dir::Reference::Projected { base, from }) = reference else {
-                    return self.tagged_pattern_head_from_type(origin, source);
+                    // bound references name declarations, never tagged cases
+                    return Ok(Answer::Ready(None));
                 };
                 let Some(name) = path.segments.get(from as usize).copied() else {
                     return Ok(Answer::Ready(None));
@@ -98,13 +100,12 @@ impl CheckState<'_> {
         // otherwise let the written generic owner bind against the input
         let heads = if heads.is_empty() {
             let belongs =
-                answer!(self.constrain(origin, Relation::Assignable, input, head.owner)?);
+                answer!(self.constrain_type(origin, Relation::Assignable, input, head.owner)?);
             let variant = self.format_variant_case(head.owner, head.key);
             if !belongs {
                 self.report_pattern_variant_not_in_type(origin, variant, input)?;
-                self.commit_decision(node.into_any(), Decision::Rejected)?;
 
-                return Ok(Answer::Ready(()));
+                return self.commit_rejected_pattern(node);
             }
 
             vec![head]
@@ -116,9 +117,8 @@ impl CheckState<'_> {
         let Some(case) = answer!(self.tagged_case_selection_from_heads(origin, &heads)?) else {
             let key = self.format_static_key(&heads[0].key);
             self.report_pattern_variant_missing(origin, key, written_owner)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
 
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         };
 
         // project written fields out of the compact payload
@@ -231,12 +231,14 @@ impl CheckState<'_> {
         let first = cases[0].clone();
         let mut payloads = Vec::with_capacity(cases.len());
         let mut fields = Vec::<TaggedPayloadField>::new();
-        let mut generic_arguments = Some(first.generic_arguments.clone());
+        let mut generic_arguments = first.generic_arguments.clone();
 
         // merge payloads and field types at their projected positions
         for case in cases {
             payloads.push(case.payload);
-            if generic_arguments.as_ref() != Some(&case.generic_arguments) {
+
+            // mixed owner instantiations have no single argument list
+            if generic_arguments != case.generic_arguments {
                 generic_arguments = None;
             }
 
@@ -253,7 +255,6 @@ impl CheckState<'_> {
         }
 
         let payload = self.normalized_union_type(origin.module(), payloads)?;
-        let generic_arguments = generic_arguments.unwrap_or_default();
 
         Ok(Answer::Ready(Some(TaggedCaseSelection {
             case: first.case,
@@ -290,31 +291,51 @@ impl CheckState<'_> {
         member: dir::EnumMemberType,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         type_arguments: &[dir::GlobalTypeId],
-        arguments: &[dir::GlobalTypeId],
+        expected_return: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<()>> {
         let module = origin.module();
         let source = self.origin_source_node(origin)?;
-        let argument_sources = self.argument_value_sources(module, argument_nodes);
+        let arguments = self.callable_arguments(module, argument_nodes)?;
 
         // name the case from the variant symbol's declared key
         let owner_head = answer!(self.reduce_type_head(origin, member.owner)?);
         let dir::Type::Instance(owner_instance) = self.ty(owner_head)? else {
-            return self.reject_construct(node, origin, arguments);
+            return self.reject_construct(site, node, origin, argument_nodes);
         };
-        let Some(key) = self.tagged_variant_key(owner_instance.symbol, member.member) else {
-            return self.reject_construct(node, origin, arguments);
+        let Some(key) = self.tagged_variant_key(owner_instance.symbol, member.member)? else {
+            return self.reject_construct(site, node, origin, argument_nodes);
         };
 
         // open the owner at the call site: the return expectation and
-        // the payload arguments bind its holes
+        //  the payload arguments bind its holes
         let owner_static = answer!(self.symbol_type(owner_instance.symbol)?);
         let Some(head) = answer!(self.tagged_pattern_head_from_owner(origin, owner_static, key)?)
         else {
-            return self.reject_construct(node, origin, arguments);
+            return self.reject_construct(site, node, origin, argument_nodes);
         };
         let Some(case) = answer!(self.tagged_case_selection(origin, &head)?) else {
-            return self.reject_construct(node, origin, arguments);
+            return self.reject_construct(site, node, origin, argument_nodes);
         };
+
+        // explicit type arguments bind the opened owner holes directly
+        let mut type_arguments = type_arguments;
+        if !type_arguments.is_empty() {
+            let dir::Type::Instance(owner_open) = self.ty(head.owner)? else {
+                return self.reject_construct(site, node, origin, argument_nodes);
+            };
+            let holes = self
+                .type_ids(head.owner.module_id, owner_open.arguments)?
+                .to_vec();
+            if holes.len() != type_arguments.len() {
+                return self.reject_construct(site, node, origin, argument_nodes);
+            }
+            for (hole, argument) in holes.iter().zip(type_arguments) {
+                if let Some(variable) = self.check.root_variable(*hole)? {
+                    self.check.commit_solution(variable, *argument)?;
+                }
+            }
+            type_arguments = &[];
+        }
 
         // model the constructor: (payload) => owner
         let parameters = if case.fields.is_empty() {
@@ -335,7 +356,8 @@ impl CheckState<'_> {
             return_type: Some(head.owner),
             is_generator: false,
         };
-        let attempt = self.attempt_signature(
+        let attempt = self.match_signature(
+            CandidatePass::Confirm,
             origin,
             module,
             module,
@@ -347,18 +369,27 @@ impl CheckState<'_> {
             &function,
             function.return_type,
             None,
-            arguments,
-            &argument_sources,
+            &arguments,
+            expected_return,
         )?;
         let signature = match answer!(attempt) {
-            Ok(signature) => signature,
-            Err(_) => return self.reject_construct(node, origin, arguments),
+            CandidateOutcome::Accepted(signature) => signature,
+            CandidateOutcome::Rejected(_) => {
+                return self.reject_construct(site, node, origin, argument_nodes);
+            }
+        };
+
+        // construction selects through one written owner instantiation
+        let Some(generic_arguments) = case.generic_arguments else {
+            return Err(CompilerError::Internal {
+                message: format!("variant construction {node:?} merged mixed instantiations"),
+            });
         };
 
         // commit the selected variant construction
         let target = dir::ConstructTarget::Variant(dir::VariantConstructCandidate {
             case: case.case,
-            generic_arguments: case.generic_arguments,
+            generic_arguments,
             discriminant: case.discriminant,
         });
         let resolution = dir::ConstructResolution::new(
@@ -367,7 +398,7 @@ impl CheckState<'_> {
             self.argument_bindings(module, argument_nodes, &signature.parameters),
             signature.return_type,
         );
-        answer!(self.push_argument_constraints(site, argument_nodes, &resolution.arguments)?);
+        self.check_arguments(site, argument_nodes, &resolution.arguments)?;
         self.commit_decision(node, Decision::Construct(resolution))?;
         self.commit_node_type(node, signature.return_type)?;
 
@@ -389,6 +420,7 @@ impl CheckState<'_> {
         let dir::Expression::Member {
             left,
             name: Some(name),
+            ..
         } = self.module(module).view().get(value).clone()
         else {
             return Ok(Answer::Ready(None));
@@ -405,9 +437,8 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<Option<TaggedPatternHead>>> {
         let ty = answer!(self.node_type(source)?);
-        let member = match self.ty(ty)? {
-            dir::Type::Member(member) => member,
-            _ => return Ok(Answer::Ready(None)),
+        let Some(member) = self.member_head(ty)? else {
+            return Ok(Answer::Ready(None));
         };
 
         self.tagged_pattern_head_from_owner(origin, member.owner, member.key)
@@ -424,22 +455,17 @@ impl CheckState<'_> {
         let (owner, instance) = match self.ty(owner)? {
             dir::Type::Instance(instance) => (owner, instance),
             dir::Type::Reference(reference) => {
-                // generic owners open inference holes: the matched
-                // input binds them through the belongs relation
-                let arguments = if let Some(template) = self.symbol_template(reference.symbol)
+                // generic owners open inference holes
+                let arguments = if let Some(template) = self.symbol_template(reference.symbol)?
                     && !self.generic_template_parameters(template).is_empty()
                 {
-                    // the opening owns its holes across polls
                     let parameters = self.generic_template_parameters(template);
-                    let source = self
-                        .origin_source_node(origin)?
-                        .into_global(origin.module());
-                    let opening = Opening {
-                        site: source,
-                        parameter: parameters[0],
-                    };
-                    let Some(substitution) =
-                        self.instantiate_at_opening(origin, opening, &parameters, &[])?
+                    let Some(substitution) = self.instantiate_parameter_arguments(
+                        origin,
+                        &parameters,
+                        &[],
+                        TypeSubstitution::default(),
+                    )?
                     else {
                         return Ok(Answer::Ready(None));
                     };
@@ -473,16 +499,17 @@ impl CheckState<'_> {
         origin: Origin,
         head: &TaggedPatternHead,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(head.instance.symbol)
+        let Some(dir::Definition::Newtype(definition)) = self.definition(head.instance.symbol)?
         else {
             return Ok(Answer::Ready(None));
         };
+        let declared = definition.value;
 
         // reduce the owner backing under its matched arguments
         let substitution = self
             .instance_substitution(head.owner.module_id, &head.instance)?
             .with_receiver(head.owner);
-        let backing = self.substitute_type(origin.module(), definition.value, &substitution)?;
+        let backing = self.substitute_type(origin.module(), declared, &substitution)?;
         let backing = answer!(self.reduce_type_head(origin, backing)?);
 
         // search every union arm, or the backing itself for one-case newtypes
@@ -542,7 +569,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        let tag_key = self.tagged_discriminant_key(origin.module());
+        let tag_key = self.tagged_discriminant_key();
         let Some(discriminant) = answer!(self.tagged_instance_discriminant(origin, arm, tag_key)?)
         else {
             return Ok(Answer::Ready(None));
@@ -550,7 +577,7 @@ impl CheckState<'_> {
 
         let fields = answer!(self.tagged_instance_payload_fields(origin, arm, tag_key)?);
         let payload = self.tagged_payload_type(origin, &fields)?;
-        let Some(case) = self.tagged_variant_case(head.instance.symbol, key) else {
+        let Some(case) = self.tagged_variant_case(head.instance.symbol, key)? else {
             return Ok(Answer::Ready(None));
         };
         let head_arguments = self
@@ -561,7 +588,7 @@ impl CheckState<'_> {
 
         Ok(Answer::Ready(Some(TaggedCaseSelection {
             case,
-            generic_arguments,
+            generic_arguments: Some(generic_arguments),
             discriminant,
             payload,
             fields,
@@ -576,7 +603,7 @@ impl CheckState<'_> {
         arm: dir::GlobalTypeId,
         shape: &dir::ShapeType,
     ) -> CompilerResult<Answer<Option<TaggedCaseSelection>>> {
-        let tag_key = self.tagged_discriminant_key(origin.module());
+        let tag_key = self.tagged_discriminant_key();
         let shape_fields = self.shape_fields(arm.module_id, shape.fields)?.to_vec();
         let Some(tag) = shape_fields.iter().find(|field| field.key == tag_key) else {
             return Ok(Answer::Ready(None));
@@ -586,8 +613,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
 
-        let Some(key) = self.tagged_case_key_from_discriminant(origin.module(), discriminant)
-        else {
+        let Some(key) = self.tagged_case_key_from_discriminant(discriminant) else {
             return Ok(Answer::Ready(None));
         };
         if !key.matches(&head.key) {
@@ -603,7 +629,7 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
         let payload = self.tagged_payload_type(origin, &fields)?;
-        let Some(case) = self.tagged_variant_case(head.instance.symbol, key) else {
+        let Some(case) = self.tagged_variant_case(head.instance.symbol, key)? else {
             return Ok(Answer::Ready(None));
         };
         let head_arguments = self
@@ -614,7 +640,7 @@ impl CheckState<'_> {
 
         Ok(Answer::Ready(Some(TaggedCaseSelection {
             case,
-            generic_arguments,
+            generic_arguments: Some(generic_arguments),
             discriminant,
             payload,
             fields,
@@ -631,7 +657,7 @@ impl CheckState<'_> {
         let dir::Type::Instance(instance) = self.ty(arm)? else {
             return Ok(Answer::Ready(Vec::new()));
         };
-        let Some(definition) = self.definition(instance.symbol) else {
+        let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(Answer::Ready(Vec::new()));
         };
 

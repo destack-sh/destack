@@ -1,9 +1,12 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer};
+use crate::check::{
+    Answer, BodyState, CheckOutcome, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Infer one block from its tail expression.
     pub(in crate::check) fn infer_block(
         &mut self,
@@ -12,25 +15,66 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<()>> {
         let node = site.node;
         let module = node.module_id;
+        self.check_block_statements(module, block)?;
         let tail = self.module(module).view().get(block).value_expression();
         let ty = match tail {
             Some(tail) => {
                 let tail_site = self.node_site(tail.into_global_any(module))?;
                 answer!(self.infer_node_type(tail_site, PlaceUse::Read)?)
             }
-            // walk already typed blocks that cannot reach their end as never
-            None => match self.node_type_maybe(block.into_global_any(module)) {
-                Some(ty) => ty,
-                None => self.intern_type(module, dir::Type::Void)?,
-            },
+            None => self.block_end_type(module, block)?,
         };
         self.commit_node_type(node, ty)?;
 
         Ok(Answer::Ready(()))
     }
 
-    /// Check one block expression under an expected result type.
-    pub(in crate::check) fn check_block_expression(
+    /// Check every leading statement of one block in source order.
+    pub(in crate::check) fn check_block_statements(
+        &mut self,
+        module: ModuleId,
+        block: dir::LocalNodeId<dir::Block>,
+    ) -> CompilerResult<()> {
+        let statements = self
+            .module(module)
+            .view()
+            .get(block)
+            .leading_expressions
+            .clone();
+        for statement in statements {
+            // the binder records no flow site for statically absent nodes
+            let node = statement.into_global_any(module);
+            if !self.check.module(module).node_flows.contains_key(&node) {
+                continue;
+            }
+            let site = self.check.node_site(node)?;
+            self.check_node(site, PlaceUse::Read, None)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return the value type of one block that ends without a tail.
+    fn block_end_type(
+        &mut self,
+        module: ModuleId,
+        block: dir::LocalNodeId<dir::Block>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = match self
+            .check
+            .module(module)
+            .unreachable_ends
+            .contains(&block.into_any())
+        {
+            true => dir::Type::Never,
+            false => dir::Type::Void,
+        };
+
+        self.intern_type(module, ty)
+    }
+
+    /// Check one block under an expected result type.
+    pub(in crate::check) fn check_block(
         &mut self,
         site: FlowSite,
         block: dir::LocalNodeId<dir::Block>,
@@ -38,28 +82,30 @@ impl CheckState<'_> {
         relation: Relation,
         origin: Origin,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<Answer<CheckOutcome>> {
         let module = site.node.module_id;
+        self.check_block_statements(module, block)?;
         let value = self.module(module).view().get(block).value_expression();
-        match value {
+        let check = match value {
             Some(value) => {
                 let value_site = self.node_site(value.into_global_any(module))?;
-                let () = answer!(self.check_node(value_site, target, relation, origin, use_)?);
+                let check =
+                    answer!(self.check_node_expected(value_site, target, relation, origin, use_)?);
                 let value_type = answer!(self.node_type_at(value_site)?);
                 self.commit_node_type(site.node, value_type)?;
+
+                check
             }
             None => {
-                // walk already typed blocks that cannot reach their end as never
-                let verdict = self.node_type_maybe(block.into_global_any(module));
-                let value = match verdict {
-                    Some(ty) => ty,
-                    None => self.intern_type(module, dir::Type::Void)?,
-                };
+                let value = self.block_end_type(module, block)?;
                 self.commit_node_type(site.node, value)?;
-                let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
-            }
-        }
+                let (_, check) =
+                    answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
 
-        Ok(Answer::Ready(true))
+                check
+            }
+        };
+
+        Ok(Answer::Ready(check))
     }
 }

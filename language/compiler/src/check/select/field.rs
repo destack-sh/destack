@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::CheckState;
+use crate::check::BodyState;
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return whether one pattern field list uses rest fields correctly.
     pub(in crate::check) fn check_pattern_rest_fields(
         &mut self,

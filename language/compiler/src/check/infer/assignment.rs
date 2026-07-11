@@ -2,10 +2,11 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CheckOutcome, Decision, FlowSite, Origin, PlaceUse, Relation, ValueUse,
+    answer,
 };
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Infer one assignment expression and check the written value.
     pub(in crate::check) fn infer_assignment_expression(
         &mut self,
@@ -44,14 +45,32 @@ impl CheckState<'_> {
             };
             let target = place.ty;
             let right_site = self.node_site(right_node)?;
-            let () = answer!(self.check_expression(
+            let check = answer!(self.check_expression(
                 right_site,
                 target,
                 Relation::Assignable,
                 Origin::Node(right_node, site.scope),
                 ValueUse::Store,
             )?);
+
+            // a failed store reports but the assignment still resolves
+            if let CheckOutcome::Fails(failure) = check {
+                let source = answer!(self.node_type_at(right_site)?);
+                self.report_constraint_failure(
+                    Origin::Node(right_node, site.scope),
+                    Relation::Assignable,
+                    Some(ValueUse::Store),
+                    source,
+                    target,
+                    failure,
+                )?;
+            }
             let value = answer!(self.node_type_at(right_site)?);
+            if !self.check.solver.is_probing() {
+                let origin = Origin::Node(right_node, site.scope);
+                self.check
+                    .push_solved_constraint(origin, ValueUse::Store, value, target)?;
+            }
             let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
             self.commit_node_type(left_node.into_any(), value)?;
 
@@ -131,13 +150,26 @@ impl CheckState<'_> {
 
         // non-compound update assignments store directly into the target
         let right_site = self.node_site(right_node)?;
-        let () = answer!(self.check_expression(
+        let check = answer!(self.check_expression(
             right_site,
             target_type,
             Relation::Assignable,
             Origin::Node(right_node, site.scope),
             ValueUse::Store,
         )?);
+        if let CheckOutcome::Fails(failure) = check {
+            let source = answer!(self.node_type_at(right_site)?);
+            self.report_constraint_failure(
+                Origin::Node(right_node, site.scope),
+                Relation::Assignable,
+                Some(ValueUse::Store),
+                source,
+                target_type,
+                failure,
+            )?;
+
+            return self.reject_assignment_expression(node, left_node);
+        }
         let _ = answer!(self.commit_assign_pattern_place(site.origin(), left_node, place)?);
         self.commit_node_type(node.into_any(), target_type)?;
 

@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, Decision, FlowSite, MemberCandidate, MemberLookup, Origin,
-    PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
+    Answer, BodyState, Constraint, Decision, FlowSite, MemberCandidate, MemberLookup, Origin,
+    OriginId, PlaceUse, Relation, SubscriptProtocol, ValueUse, answer,
 };
 
 /// One selected subscript operation.
@@ -78,9 +78,8 @@ impl SubscriptSelection {
     /// Return the key constraint required by the selected operator call.
     pub(in crate::check) fn key_constraint(
         &self,
-        scope: Option<dir::GlobalGenericTemplateId>,
+        origin: OriginId,
         index: dir::GlobalTypeId,
-        index_node: dir::GlobalNodeIdAny,
     ) -> Option<Constraint> {
         let parameter = self.key_parameter?;
 
@@ -88,8 +87,9 @@ impl SubscriptSelection {
             Relation::Assignable,
             index,
             parameter,
-            Origin::Node(index_node, scope),
-            ValueUse::Argument,
+            origin,
+            origin,
+            Some(ValueUse::Argument),
         ))
     }
 
@@ -130,7 +130,7 @@ impl SubscriptSelection {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Decide whether one receiver satisfies a structural index signature.
     pub(in crate::check) fn decide_subscript_index_signature_satisfied(
         &mut self,
@@ -188,6 +188,7 @@ impl CheckState<'_> {
         let space = self.member_receiver_space(receiver_node, receiver)?;
         let index = answer!(self.reduce_type_head(origin, index)?);
 
+        // select subscript
         let Some(selection) = answer!(self.select_subscript(
             origin,
             module,
@@ -201,16 +202,18 @@ impl CheckState<'_> {
             return self.reject_operator(node, origin, "[]".to_string(), &[receiver_type, index]);
         };
 
-        if let Some(constraint) =
-            selection.key_constraint(self.origin_scope(origin), index, index_node)
-        {
+        // commit result
+        let key_scope = self.origin_scope(origin)?;
+        let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
+        if let Some(constraint) = selection.key_constraint(key_origin, index) {
             self.push_constraint(constraint);
         }
         let ty = selection.ty();
         if let Some(decision) = selection.into_decision() {
             self.commit_decision(node, decision)?;
         }
-        let ty = answer!(self.flow_type_at(self.node_site(node)?, ty)?);
+        let site = self.node_site(node)?;
+        let ty = answer!(self.flow_type_at(site, ty)?);
         self.commit_node_type(node, ty)?;
 
         Ok(Answer::Ready(()))
@@ -274,7 +277,6 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_) => self.select_protocol_subscript(
                 origin,
-                module,
                 use_,
                 receiver,
                 receiver_type,
@@ -312,9 +314,9 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         };
 
-        if let Some(constraint) =
-            selection.key_constraint(self.origin_scope(origin), index, index_node)
-        {
+        let key_scope = self.origin_scope(origin)?;
+        let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
+        if let Some(constraint) = selection.key_constraint(key_origin, index) {
             self.push_constraint(constraint);
         }
 
@@ -476,23 +478,23 @@ impl CheckState<'_> {
         }
 
         // finite shapes accept computed keys proven within keyof receiver
-        let key_domain = self.intern_type(
+        let key_domain = self.intern_operation(
             origin.module(),
-            dir::Type::Operation(dir::TypeOperation::KeyOf(dir::UnaryType {
+            dir::TypeOperation::KeyOf(dir::UnaryType {
                 target: lookup_receiver,
-            })),
+            }),
         )?;
         let accepts =
             answer!(self.decide_relation(origin, Relation::Assignable, index, key_domain,)?);
         if accepts {
             let target = dir::MemberTarget::Index(index);
             let resolution = dir::MemberResolution::new(receiver, target);
-            let ty = self.intern_type(
+            let ty = self.intern_operation(
                 origin.module(),
-                dir::Type::Operation(dir::TypeOperation::Index(dir::IndexType {
+                dir::TypeOperation::Index(dir::IndexType {
                     left: lookup_receiver,
                     index,
-                })),
+                }),
             )?;
 
             return Ok(Answer::Ready(Some(SubscriptSelection::member(
@@ -507,7 +509,6 @@ impl CheckState<'_> {
     fn select_protocol_subscript(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         use_: PlaceUse,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
@@ -515,30 +516,15 @@ impl CheckState<'_> {
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         match use_ {
-            PlaceUse::Read => self.select_subscript_read(
-                origin,
-                module,
-                receiver,
-                lookup_receiver,
-                index_node,
-                index,
-            ),
-            PlaceUse::Write => self.select_subscript_write(
-                origin,
-                module,
-                receiver,
-                lookup_receiver,
-                index_node,
-                index,
-            ),
-            PlaceUse::Update => self.select_subscript_update(
-                origin,
-                module,
-                receiver,
-                lookup_receiver,
-                index_node,
-                index,
-            ),
+            PlaceUse::Read => {
+                self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)
+            }
+            PlaceUse::Write => {
+                self.select_subscript_write(origin, receiver, lookup_receiver, index_node, index)
+            }
+            PlaceUse::Update => {
+                self.select_subscript_update(origin, receiver, lookup_receiver, index_node, index)
+            }
         }
     }
 
@@ -546,7 +532,6 @@ impl CheckState<'_> {
     fn select_subscript_read(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
@@ -556,7 +541,7 @@ impl CheckState<'_> {
         let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[index]);
         let sources = [dir::ArgumentSource::Provided(index_node)];
         let protocol = method.protocol(self, arguments.to_vec());
-        let key = method.key(&self.module(module).strings);
+        let key = method.key(self.strings());
         let Some(call) = answer!(self.select_protocol_call(
             origin,
             receiver,
@@ -581,13 +566,9 @@ impl CheckState<'_> {
     }
 
     /// Select one subscript update.
-    ///
-    /// Compound assignment reads through `index` and writes the
-    /// operator result back through `indexSet`.
     fn select_subscript_update(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
@@ -595,7 +576,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<SubscriptSelection>>> {
         let read = answer!(self.select_subscript_read(
             origin,
-            module,
             receiver,
             lookup_receiver,
             index_node,
@@ -603,7 +583,6 @@ impl CheckState<'_> {
         )?);
         let write = answer!(self.select_subscript_write(
             origin,
-            module,
             receiver,
             lookup_receiver,
             index_node,
@@ -614,10 +593,11 @@ impl CheckState<'_> {
         };
 
         // the read element and the written value must agree: every
-        // subscript exposes one element type
+        //  subscript exposes one element type
         let element = read.ty;
         let value = write.ty;
-        self.push_constraint(Constraint::check(Relation::Equal, element, value, origin));
+        let origin = self.intern_origin(origin);
+        self.push_constraint(Constraint::r#type(Relation::Equal, element, value, origin));
 
         let key_parameter = read.key_parameter;
 
@@ -633,7 +613,6 @@ impl CheckState<'_> {
     fn select_subscript_write(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         receiver: dir::GlobalTypeId,
         lookup_receiver: dir::GlobalTypeId,
         index_node: dir::GlobalNodeIdAny,
@@ -642,7 +621,7 @@ impl CheckState<'_> {
         let method = SubscriptProtocol::IndexSet;
         let arguments = SmallVec::<[dir::GlobalTypeId; 1]>::from_slice(&[index]);
         let protocol = method.protocol(self, arguments.to_vec());
-        let key = method.key(&self.module(module).strings);
+        let key = method.key(self.strings());
         let Some(member) = answer!(self.select_protocol_member(
             origin,
             receiver,
@@ -671,6 +650,7 @@ impl CheckState<'_> {
         let target = dir::CallTarget::Symbol(dir::CallCandidate {
             receiver: Some(receiver),
             adjustments: Vec::new(),
+            generic_scope: Some(member.owner),
             symbol: member.symbol,
             generic_arguments: member.generic_arguments,
         });
@@ -678,7 +658,7 @@ impl CheckState<'_> {
             target,
             Some(callable),
             Self::parameter_types(&signature_parameters),
-            Self::generated_argument_bindings(&sources, &signature_parameters),
+            Self::source_argument_bindings(&sources, &signature_parameters),
             signature
                 .return_type
                 .unwrap_or(self.intern_type(origin.module(), dir::Type::Void)?),
@@ -702,7 +682,7 @@ impl CheckState<'_> {
         let method = SubscriptProtocol::Index;
         let arguments = SmallVec::<[dir::GlobalTypeId; 2]>::from_slice(&[key_type]);
         let sources = [dir::ArgumentSource::Omitted];
-        let key = method.key(&self.module(origin.module()).strings);
+        let key = method.key(self.strings());
         let protocol = method.protocol(self, arguments.to_vec());
         let read_type = self.index_signature_read_type(origin, value_type)?;
 
@@ -720,7 +700,7 @@ impl CheckState<'_> {
         value_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
         let method = SubscriptProtocol::IndexSet;
-        let key = method.key(&self.module(origin.module()).strings);
+        let key = method.key(self.strings());
         let protocol = method.protocol(self, vec![key_type]);
         let member =
             answer!(self.select_protocol_member(origin, receiver, receiver, key, &protocol)?);

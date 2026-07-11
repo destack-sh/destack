@@ -2,9 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Decision, FlowPointId, Origin, Relation, answer};
+use crate::check::{Answer, BodyState, FlowPointId, Origin, Relation, answer};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one newtype pattern, unwrapping the substituted backing.
     pub(in crate::check) fn select_newtype_pattern(
         &mut self,
@@ -19,9 +19,7 @@ impl CheckState<'_> {
         self.check_pattern_bindings(module, fields)?;
 
         if !self.check_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         }
 
         // select tagged owner.case patterns before ordinary newtype unwraps
@@ -29,9 +27,8 @@ impl CheckState<'_> {
             return self.select_tagged_variant_pattern(node, origin, flow, scope, head, fields);
         }
 
-        // reduce the written nominal tag
-        let tag_node = ty.into_global_any(module);
-        let tag = answer!(self.node_type(tag_node)?);
+        // resolve the written nominal tag like a construction head
+        let tag = answer!(self.written_construct_tag(origin, module, ty)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
             dir::Type::Instance(instance) => instance,
@@ -39,7 +36,7 @@ impl CheckState<'_> {
         };
 
         // unwrap the substituted newtype backing
-        let backing = match self.definition(instance.symbol) {
+        let backing = match self.definition(instance.symbol)? {
             Some(dir::Definition::Newtype(definition)) => definition.value,
             _ => return self.reject_pattern(node, origin, tag),
         };
@@ -60,13 +57,14 @@ impl CheckState<'_> {
         }
 
         let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
+        let generic_arguments =
+            self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(
             node,
             dir::PatternResolution::Project(dir::PatternProjectionResolution {
                 projection: dir::Projection::NewtypePayload {
                     symbol: instance.symbol,
-                    generic_arguments: self
-                        .symbol_generic_argument_bindings(instance.symbol, &arguments)?,
+                    generic_arguments,
                     ty: backing,
                 },
                 pattern: value.map(|value| value.into_global_any(module)),
@@ -88,9 +86,7 @@ impl CheckState<'_> {
         self.check_pattern_bindings(module, fields)?;
 
         if !self.check_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         }
 
         // select tagged owner.case patterns before nominal fields
@@ -98,17 +94,15 @@ impl CheckState<'_> {
             return self.select_tagged_variant_pattern(node, origin, flow, scope, head, fields);
         }
 
-        // reduce the written nominal tag
-        let tag_node = ty.into_global_any(module);
-        let tag = answer!(self.node_type(tag_node)?);
+        // resolve the written nominal tag like a construction head
+        let tag = answer!(self.written_construct_tag(origin, module, ty)?);
         let tag = answer!(self.reduce_type_head(origin, tag)?);
         let instance = match self.ty(tag)? {
             dir::Type::Instance(instance) => instance,
             _ => return self.reject_pattern(node, origin, tag),
         };
 
-        // bind the pattern instantiation from the matched input: the
-        // scrutinee arm with the pattern's head determines its holes
+        // bind the pattern instantiation from the matched input
         let input = answer!(self.node_type(node.into_any())?);
         let input = answer!(self.value_beneath_forms(origin, input)?);
         let mut matched = input;
@@ -126,7 +120,7 @@ impl CheckState<'_> {
             if let dir::Type::Instance(arm_instance) = self.ty(arm)?
                 && arm_instance.symbol == instance.symbol
             {
-                answer!(self.constrain(origin, Relation::Equal, arm, tag)?);
+                answer!(self.constrain_type(origin, Relation::Equal, arm, tag)?);
                 break;
             }
         }
@@ -135,13 +129,14 @@ impl CheckState<'_> {
         let (fields, rest) =
             answer!(self.project_named_fields(node, origin, flow, scope, tag, fields)?);
         let arguments = self.type_ids(tag.module_id, instance.arguments)?.to_vec();
+        let generic_arguments =
+            self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
         self.commit_pattern(
             node,
             dir::PatternResolution::Destructure(dir::PatternDestructureResolution::Nominal(
                 dir::PatternNominalDestructureResolution {
                     symbol: instance.symbol,
-                    generic_arguments: self
-                        .symbol_generic_argument_bindings(instance.symbol, &arguments)?,
+                    generic_arguments,
                     fields,
                     rest,
                 },

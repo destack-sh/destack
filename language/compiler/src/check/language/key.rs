@@ -30,7 +30,10 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
         let module = site.node.module_id;
-        answer!(self.infer_node_type(site, PlaceUse::Read)?);
+        answer!(
+            self.body(site.node.module_id)
+                .infer_node_type(site, PlaceUse::Read)?
+        );
 
         self.select_expression_static_key(module, expression)
     }
@@ -111,31 +114,25 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<Option<dir::StaticKey>>> {
         let source = expression.into_global_any(module);
-        let Some(dir::Reference::Bound(symbols)) =
-            self.module(module).resolved.references.get(source)
-        else {
-            return Ok(Answer::Ready(None));
-        };
-        let symbols = self.present_symbols(symbols);
-        let [symbol] = symbols.as_slice() else {
+        let Some(symbol) = self.reference_symbol(source) else {
             return Ok(Answer::Ready(None));
         };
 
         // prefer static singleton values recorded before solve
-        if let Some(value) = self.static_value(*symbol) {
+        if let Some(value) = self.static_value(symbol) {
             return Ok(Answer::Ready(self.static_key_from_type(value)?));
         }
 
         // ambient unique-symbol declarations key by their binding identity
-        let Some(ty) = self.symbol_type_maybe(*symbol) else {
-            return Ok(Answer::pending([Dependency::SymbolType(*symbol)]));
+        let Some(ty) = self.symbol_type_maybe(symbol) else {
+            return Ok(Answer::pending([Dependency::SymbolType(symbol)]));
         };
         if matches!(
             self.ty(ty)?,
             dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
         ) {
             Ok(Answer::Ready(Some(dir::StaticKey::Symbol(
-                dir::SymbolKey::Unique(*symbol),
+                dir::SymbolKey::Unique(symbol),
             ))))
         } else {
             Ok(Answer::Ready(None))
@@ -149,32 +146,24 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticKey>> {
         let source = expression.into_global_any(module);
-        let Some(dir::Reference::Bound(symbols)) =
-            self.module(module).resolved.references.get(source)
-        else {
-            return Ok(None);
-        };
-        let symbols = self.present_symbols(symbols);
-        let [symbol] = symbols.as_slice() else {
+        let Some(symbol) = self.reference_symbol(source) else {
             return Ok(None);
         };
 
         // prefer static singleton values recorded before solve
-        if let Some(value) = self.static_value(*symbol) {
+        if let Some(value) = self.static_value(symbol) {
             return self.static_key_from_type(value);
         }
 
         // ambient unique-symbol declarations key by their binding identity
-        let Some(ty) = self.symbol_type_maybe(*symbol) else {
+        let Some(ty) = self.symbol_type_maybe(symbol) else {
             return Ok(None);
         };
         if matches!(
             self.ty(ty)?,
             dir::Type::Primitive(dir::PrimitiveType::UniqueSymbol)
         ) {
-            Ok(Some(dir::StaticKey::Symbol(dir::SymbolKey::Unique(
-                *symbol,
-            ))))
+            Ok(Some(dir::StaticKey::Symbol(dir::SymbolKey::Unique(symbol))))
         } else {
             Ok(None)
         }
@@ -193,11 +182,12 @@ impl CheckState<'_> {
         let dir::Expression::Member {
             left,
             name: Some(name),
+            ..
         } = view.get(callee)
         else {
             return Ok(None);
         };
-        if input.strings.get(*name) != "for" {
+        if self.strings().get(*name) != "for" {
             return Ok(None);
         }
 
@@ -228,16 +218,10 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
         let source = expression.into_global_any(module);
-        let Some(dir::Reference::Bound(symbols)) =
-            self.module(module).resolved.references.get(source)
-        else {
-            return false;
-        };
-        let symbols = self.present_symbols(symbols);
-        let [symbol] = symbols.as_slice() else {
+        let Some(symbol) = self.reference_symbol(source) else {
             return false;
         };
 
-        *symbol == self.language_symbol(dir::LanguageItem::Symbol)
+        symbol == self.language_symbol(dir::LanguageItem::Symbol)
     }
 }

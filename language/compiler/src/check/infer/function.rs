@@ -1,0 +1,100 @@
+use destack_dir as dir;
+
+use crate::CompilerResult;
+use crate::check::{Answer, BodyState, Origin};
+
+impl BodyState<'_, '_> {
+    /// Return the callable payload of one owned or placed target for a fresh function value.
+    pub(in crate::check) fn fresh_value_target(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut target = target;
+        loop {
+            // peel settled form heads without waiting on open payloads
+            let root = self.check.settled_root(target)?;
+            let head = match self.ty(root)? {
+                dir::Type::Form(_) => root,
+                _ => match self.check.reduce_type_head(origin, root)? {
+                    Answer::Ready(head) => head,
+                    Answer::Pending(_) => return Ok(Answer::Ready(target)),
+                },
+            };
+            match self.ty(head)? {
+                dir::Type::Form(form)
+                    if matches!(form.form, dir::Form::Owned | dir::Form::Placed { .. }) =>
+                {
+                    target = form.value;
+                }
+                _ => return Ok(Answer::Ready(target)),
+            }
+        }
+    }
+
+    /// Check one function value's body in its receiving context.
+    pub(in crate::check) fn check_function_value(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        target: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<bool>> {
+        let Some(owner) = self.check.lambdas.get(&node).copied() else {
+            return Ok(Answer::Ready(true));
+        };
+
+        // deduce open signature holes from the contextual callable; an
+        //  unresolved context deduces nothing and never waits
+        if let Some(target) = target {
+            let origin = self.check.node_site(node)?.origin();
+            let value = self.check.require_node_type(node)?;
+            let value_signature = match self.callable_signature_type(origin, value)? {
+                Answer::Ready(signature) => signature,
+                Answer::Pending(_) => None,
+            };
+            let target_signature = match self.callable_signature_type(origin, target)? {
+                Answer::Ready(signature) => signature,
+                Answer::Pending(_) => None,
+            };
+            if let (Some((value_type, value_function)), Some((target_type, target_function))) =
+                (value_signature, target_signature)
+            {
+                // parameters deduce pairwise
+                let value_parameters = self
+                    .check
+                    .signature_parameters(value_type.module_id, value_function.parameters)?
+                    .to_vec();
+                let target_parameters = self
+                    .check
+                    .signature_parameters(target_type.module_id, target_function.parameters)?
+                    .to_vec();
+                for (value, target) in value_parameters.iter().zip(&target_parameters) {
+                    if value.is_rest || target.is_rest {
+                        break;
+                    }
+                    let hole = self.check.settled_root(value.ty)?;
+                    if let Some(variable) = self.check.root_variable(hole)? {
+                        self.check.commit_solution(variable, target.ty)?;
+                    }
+                }
+
+                // the signature's return deduces from the target's return
+                if let (Some(ret), Some(target_ret)) =
+                    (value_function.return_type, target_function.return_type)
+                {
+                    let hole = self.check.settled_root(ret)?;
+                    if let Some(variable) = self.check.root_variable(hole)? {
+                        self.check.commit_solution(variable, target_ret)?;
+                    }
+                }
+            }
+        }
+
+        // check the body under the deduced signature
+        let mut holds = true;
+        if self.check.node_type_maybe_body(owner).is_none() {
+            holds = BodyState::run(self.check, owner)?;
+        }
+
+        Ok(Answer::Ready(holds))
+    }
+}

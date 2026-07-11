@@ -18,7 +18,6 @@ impl CheckState<'_> {
     }
 
     /// Return the declaration instance that owns one receiver's apparent members,
-    /// together with the module owning the instance's argument list.
     pub(in crate::check) fn apparent_instance(
         &mut self,
         receiver: dir::GlobalTypeId,

@@ -3,11 +3,11 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowSite, Obligation, Origin, PlaceUse, Relation,
+    Answer, BodyState, Decision, DecisionKind, FlowSite, Obligation, Origin, PlaceUse, Relation,
     RuntimePredicateObligation, answer,
 };
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one `value is T` predicate.
     pub(in crate::check) fn select_type_predicate(
         &mut self,
@@ -57,7 +57,10 @@ impl CheckState<'_> {
         let value = answer!(self.predicate_operand_type(origin, value_site)?);
 
         // reject failed target expressions without a second diagnostic
-        if matches!(self.decision(target_node), Some(Decision::Rejected)) {
+        if matches!(
+            self.decision_kind(target_node),
+            Some(DecisionKind::Rejected)
+        ) {
             self.commit_decision(node, Decision::Rejected)?;
             self.commit_error_node(node)?;
 
@@ -98,28 +101,43 @@ impl CheckState<'_> {
         target: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>>> {
         let module = origin.module();
-        let Some(decision) = self.decision(target).cloned() else {
-            return Ok(Answer::pending([Dependency::Decision(target)]));
-        };
+        let target_node = target;
+        let kind = answer!(self.decide_node(target)?);
 
         // read the selected target symbol and written arguments
-        let target = match decision {
-            Decision::Name(resolution) => match resolution.symbols() {
-                [symbol] => Some((*symbol, None)),
-                _ => None,
+        let resolutions = self.resolutions(target.module_id);
+        let target = match kind {
+            DecisionKind::Name => match resolutions.name_resolution(target) {
+                Some(resolution) => match resolution.symbols() {
+                    [symbol] => Some((*symbol, None)),
+                    _ => None,
+                },
+                None => None,
             },
-            Decision::Instantiation(resolution) => {
-                let arguments = dir::GenericArgumentBinding::values(&resolution.generic_arguments)
-                    .collect::<Vec<_>>();
+            DecisionKind::Instantiation => {
+                resolutions
+                    .instantiation_resolution(target)
+                    .map(|resolution| {
+                        let arguments =
+                            dir::GenericArgumentBinding::values(&resolution.generic_arguments)
+                                .collect::<Vec<_>>();
 
-                Some((resolution.symbol, Some(arguments)))
+                        (resolution.symbol, Some(arguments))
+                    })
             }
-            Decision::Rejected => return Ok(Answer::Ready(None)),
+            DecisionKind::Rejected => return Ok(Answer::Ready(None)),
             _ => None,
         };
         let Some((symbol, arguments)) = target else {
             return Ok(Answer::Ready(None));
         };
+
+        // guard targets read as their declaration reference
+        if self.node_type_maybe(target_node).is_none() {
+            let reference =
+                self.intern_type(module, dir::Type::Reference(dir::TypeReference { symbol }))?;
+            self.commit_node_type(target_node, reference)?;
+        }
         if self.symbol_kind(symbol) != dir::SymbolKind::Class {
             return Ok(Answer::Ready(None));
         }
@@ -144,7 +162,7 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let Some(template) = self.symbol_template(symbol) else {
+        let Some(template) = self.symbol_template(symbol)? else {
             return Ok(Vec::new());
         };
         let parameters = self.generic_template_parameters(template);
@@ -238,6 +256,12 @@ impl CheckState<'_> {
             dir::Type::Any | dir::Type::Unknown | dir::Type::Object => {
                 dir::PredicateCondition::Always
             }
+            // refinements test through their base application
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(target.module_id, refined)?;
+
+                return self.runtime_predicate(origin, value, refined.base);
+            }
             dir::Type::Never => dir::PredicateCondition::Never,
             dir::Type::Null => dir::PredicateCondition::Literal(dir::ScalarLiteral::Null),
             dir::Type::Undefined => dir::PredicateCondition::Literal(dir::ScalarLiteral::Undefined),
@@ -254,24 +278,18 @@ impl CheckState<'_> {
                     dir::RangeEnd::Open
                 },
             }),
-            dir::Type::Instance(instance) => match self.symbol_kind(instance.symbol) {
-                dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
-                    dir::PredicateCondition::Subtype(target)
+            dir::Type::Instance(dir::GenericInstance { symbol, .. })
+            | dir::Type::Reference(dir::TypeReference { symbol }) => {
+                match self.symbol_kind(symbol) {
+                    dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
+                        dir::PredicateCondition::Subtype(target)
+                    }
+                    dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype => {
+                        dir::PredicateCondition::Type(target)
+                    }
+                    _ => return Ok(Answer::Ready(None)),
                 }
-                dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype => {
-                    dir::PredicateCondition::Type(target)
-                }
-                _ => return Ok(Answer::Ready(None)),
-            },
-            dir::Type::Reference(reference) => match self.symbol_kind(reference.symbol) {
-                dir::SymbolKind::Class | dir::SymbolKind::NewtypeInterface => {
-                    dir::PredicateCondition::Subtype(target)
-                }
-                dir::SymbolKind::Struct | dir::SymbolKind::Enum | dir::SymbolKind::Newtype => {
-                    dir::PredicateCondition::Type(target)
-                }
-                _ => return Ok(Answer::Ready(None)),
-            },
+            }
             dir::Type::Tuple(_)
             | dir::Type::Array(_)
             | dir::Type::FixedArray(_)
@@ -450,7 +468,7 @@ impl CheckState<'_> {
             target,
             is_positive: true,
         });
-        let narrowed = self.intern_type(module, dir::Type::Operation(operation))?;
+        let narrowed = self.intern_operation(module, operation)?;
 
         self.reduce_type_head(origin, narrowed)
     }
@@ -549,7 +567,7 @@ impl CheckState<'_> {
         right: dir::GlobalNodeIdAny,
         resolution: dir::GuardResolution,
     ) -> CompilerResult<Answer<()>> {
-        self.push_runtime_predicate_obligation(origin, node, left, right, resolution.clone());
+        self.push_runtime_predicate_obligation(origin, node, left, right, resolution.clone())?;
         self.commit_decision(node, Decision::Guard(resolution))?;
         let boolean = self.intern_type(
             node.module_id,
@@ -568,15 +586,16 @@ impl CheckState<'_> {
         left: dir::GlobalNodeIdAny,
         right: dir::GlobalNodeIdAny,
         predicate: dir::GuardResolution,
-    ) {
+    ) -> CompilerResult<()> {
         let obligation = RuntimePredicateObligation {
             source,
             left,
             right,
             predicate,
         };
-        let scope = self.origin_scope(origin);
+        let scope = self.origin_scope(origin)?;
+        self.push_obligation(Obligation::RuntimePredicate(Box::new(obligation)), scope);
 
-        self.push_obligation(Obligation::RuntimePredicate(obligation), scope);
+        Ok(())
     }
 }
