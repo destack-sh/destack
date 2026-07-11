@@ -76,8 +76,10 @@ pub enum NodeSpanRegion {
     Value,
     /// The type declaration span of a node.
     Type,
-    /// A transparent syntactic wrapper around a node.
-    Wrapper,
+    /// Parentheses around a value or type expression.
+    Parentheses,
+    /// A tree expression container around a value expression.
+    TreeContainer,
 }
 
 /// An indexed source list within one node.
