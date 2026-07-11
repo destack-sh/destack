@@ -3,9 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_dir as dir;
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{
-    expression_target_symbol, expression_unwrap_parenthesized, tuple_type_arity,
-};
+use crate::rules::common::{expression_target_symbol, tuple_type_arity};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -168,12 +166,11 @@ fn tuple_indexed_access(
     }
 
     // keep direct tuple index expressions only
-    let value_id = expression_unwrap_parenthesized(ctx.dir.tree(), value_id);
     let dir::Expression::Index { left, index, .. } = ctx.dir.get(value_id) else {
         return None;
     };
     let index_expression_id = (*index)?;
-    let left_id = expression_unwrap_parenthesized(ctx.dir.tree(), *left);
+    let left_id = *left;
 
     // resolve the direct tuple reference symbol and source text
     let source_symbol = expression_target_symbol(ctx, left_id)?;
@@ -217,7 +214,6 @@ fn integer_literal_index(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<usize> {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     let dir::Expression::ScalarLiteral(dir::ScalarLiteral::Integer(index)) = expression else {
         return None;

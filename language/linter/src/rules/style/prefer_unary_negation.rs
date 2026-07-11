@@ -52,8 +52,8 @@ impl LintRule for PreferUnaryNegation {
             let right_expression = ctx.dir.get(*right);
 
             // check if either side is -1 (can be literal -1 or unary negate of 1)
-            let left_is_neg_one = is_negative_one(ctx, left_expression, *left);
-            let right_is_neg_one = is_negative_one(ctx, right_expression, *right);
+            let left_is_neg_one = is_negative_one(ctx, left_expression);
+            let right_is_neg_one = is_negative_one(ctx, right_expression);
 
             if left_is_neg_one || right_is_neg_one {
                 let severity = ctx.get_effective_severity(meta, node_id);
@@ -91,11 +91,7 @@ impl LintRule for PreferUnaryNegation {
 }
 
 /// Check if an expression represents the value -1.
-fn is_negative_one(
-    ctx: &LintModuleContext<'_>,
-    expression: &dir::Expression,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
+fn is_negative_one(ctx: &LintModuleContext<'_>, expression: &dir::Expression) -> bool {
     // check for literal -1 (some languages might parse it directly as a negative literal)
     if let dir::Expression::ScalarLiteral(ScalarLiteral::Integer(value)) = expression
         && *value == -1
@@ -112,18 +108,6 @@ fn is_negative_one(
             return true;
         }
     }
-
-    // check for parenthesized -1
-    if let dir::Expression::Parenthesized {
-        expression: inner_expression_id,
-    } = expression
-    {
-        let inner = ctx.dir.get(*inner_expression_id);
-        return is_negative_one(ctx, inner, *inner_expression_id);
-    }
-
-    // check the original expression ID for more context
-    let _ = expression_id; // we've already handled this through the expression parameter
 
     false
 }

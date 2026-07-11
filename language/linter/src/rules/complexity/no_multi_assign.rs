@@ -3,9 +3,7 @@ use destack_dir as dir;
 use destack_repository::LintSeverity;
 
 use crate::rules::common::{
-    assign_pattern_expression, expression_outer_parenthesized_source_form,
-    expression_path_segments, expression_statement_ancestor,
-    expression_unwrap_parenthesized_source_form,
+    assign_pattern_expression, expression_path_segments, expression_statement_ancestor,
 };
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -108,12 +106,8 @@ fn assignment_is_declaration_initializer(
     ctx: &LintModuleContext<'_>,
     assignment_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // lift assignment through parenthesized wrappers for parent checks
-    let wrapped_expression_id =
-        expression_outer_parenthesized_source_form(ctx.dir.tree(), assignment_expression_id);
-
     // require one concrete parent node
-    let Some(parent_id) = ctx.dir.get_parent_id(wrapped_expression_id.id) else {
+    let Some(parent_id) = ctx.dir.get_parent_id(assignment_expression_id.id) else {
         return false;
     };
 
@@ -123,7 +117,7 @@ fn assignment_is_declaration_initializer(
             .dir
             .tree()
             .get(dir::LocalNodeId::<dir::Declarator>::new(parent_id));
-        if matches!(declarator, dir::Declarator { value: Some(value_id), .. } if *value_id == wrapped_expression_id)
+        if matches!(declarator, dir::Declarator { value: Some(value_id), .. } if *value_id == assignment_expression_id)
         {
             return true;
         }
@@ -135,7 +129,7 @@ fn assignment_is_declaration_initializer(
             .dir
             .tree()
             .get(dir::LocalNodeId::<dir::Member>::new(parent_id));
-        if matches!(member, dir::Member::Field { default: Some(default_id), .. } if *default_id == wrapped_expression_id)
+        if matches!(member, dir::Member::Field { default: Some(default_id), .. } if *default_id == assignment_expression_id)
         {
             return true;
         }
@@ -147,7 +141,7 @@ fn assignment_is_declaration_initializer(
             .dir
             .tree()
             .get(dir::LocalNodeId::<dir::Property>::new(parent_id));
-        if matches!(property, dir::Property::Field { value, .. } if *value == wrapped_expression_id)
+        if matches!(property, dir::Property::Field { value, .. } if *value == assignment_expression_id)
         {
             return true;
         }
@@ -161,16 +155,14 @@ fn assignment_has_assignment_right(
     ctx: &LintModuleContext<'_>,
     assignment_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    // normalize the assignment expression before right-side checks
-    let assignment_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), assignment_expression_id);
+    // resolve the assignment right side
     let assignment_expression = ctx.dir.get(assignment_expression_id);
     let dir::Expression::Assign { right, .. } = assignment_expression else {
         return false;
     };
 
     // keep only right sides that resolve to another assignment expression
-    let right_expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+    let right_expression_id = *right;
     let right_expression = ctx.dir.get(right_expression_id);
     matches!(right_expression, dir::Expression::Assign { .. })
 }
@@ -225,7 +217,6 @@ fn collect_assignment_chain(
     expression_id: dir::LocalNodeId<dir::Expression>,
     left_ids: &mut Vec<dir::LocalNodeId<dir::Expression>>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     let dir::Expression::Assign { left, right, .. } = expression else {
         return Some(expression_id);

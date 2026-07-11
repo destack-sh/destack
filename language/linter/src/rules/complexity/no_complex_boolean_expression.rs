@@ -2,9 +2,7 @@ use crate::LintMeta;
 use destack_dir::{self as dir, BinaryOperator, Expression, UnaryOperator};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{
-    expression_is_equal, expression_is_type_annotation, expression_unwrap_parenthesized_source_form,
-};
+use crate::rules::common::{expression_is_equal, expression_is_type_annotation};
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -51,7 +49,7 @@ impl LintRule for NoComplexBooleanExpression {
                 right,
             } = expression
             {
-                let inner_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+                let inner_id = *right;
                 let inner = ctx.dir.get(inner_id);
                 if let Expression::Unary {
                     operator: UnaryOperator::Not,
@@ -153,15 +151,13 @@ fn is_negation_of(
     left_id: dir::LocalNodeId<Expression>,
     right_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let right_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), right_id);
     let right = ctx.dir.get(right_id);
     if let Expression::Unary {
         operator: UnaryOperator::Not,
         right: inner_id,
     } = right
     {
-        let left_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), left_id);
-        let inner_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *inner_id);
+        let inner_id = *inner_id;
         expression_is_equal(ctx, left_id, inner_id)
     } else {
         false

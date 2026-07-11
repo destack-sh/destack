@@ -5,8 +5,8 @@ use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    expression_is_promise_like, expression_is_standalone_statement,
-    expression_unwrap_parenthesized, is_function_type, supports_promise_spread_elements,
+    expression_is_promise_like, expression_is_standalone_statement, is_function_type,
+    supports_promise_spread_elements,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -99,7 +99,6 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
     /// Return true when an expression produces a Promise value.
     fn is_promise_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
 
         // preserve Promise checks for explicit void discards
@@ -113,7 +112,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // follow Promise handler chains through member receivers
         if let dir::Expression::Call { left, .. } = expression {
-            let left_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), *left);
+            let left_id = *left;
             let left_expression = self.ctx.dir.get(left_id);
             if let dir::Expression::Member {
                 left: receiver,
@@ -136,7 +135,6 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
 
         // preserve Promise array checks for explicit void discards
@@ -157,7 +155,6 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
     /// Return true when a call is a Promise handler chain.
     fn is_handler_call(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Call {
             left, arguments, ..
@@ -167,7 +164,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         };
 
         // resolve left id
-        let left_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), *left);
+        let left_id = *left;
         let left_expression = self.ctx.dir.get(left_id);
         let dir::Expression::Member { name, .. } = left_expression else {
             return false;
@@ -200,7 +197,6 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
     /// Return true when the Promise expression is handled.
     fn is_handled_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
 
         // branch by expression kind
@@ -280,7 +276,6 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
         }
 
         // do not stack `void` on existing explicit void expressions
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
         if matches!(
             expression,
@@ -294,7 +289,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // preserve replacement span, but normalize redundant parentheses
         let replacement_span = self.ctx.get_span(expression_id);
-        let normalized_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
+        let normalized_id = expression_id;
         let normalized_span = self.ctx.get_span(normalized_id);
         let expression_text = self.ctx.get_span_text(normalized_span);
         if expression_text.trim().is_empty() {

@@ -82,7 +82,6 @@ fn is_ternary(ctx: &LintModuleContext<'_>, expr_id: dir::LocalNodeId<dir::Expres
             form: dir::IfForm::Ternary,
             ..
         } => true,
-        dir::Expression::Parenthesized { expression } => is_ternary(ctx, *expression),
         _ => false,
     }
 }

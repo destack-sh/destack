@@ -4,8 +4,7 @@ use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
 
 use crate::rules::common::{
-    argument_expression_id, expression_candidate_symbols, expression_unwrap_parenthesized,
-    is_string_type, symbol_declaration_for,
+    argument_expression_id, expression_candidate_symbols, is_string_type, symbol_declaration_for,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -231,7 +230,6 @@ fn expression_name_hint(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<StringId> {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     match expression {
         dir::Expression::Identifier { name } => Some(*name),

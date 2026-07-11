@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use destack_dir::{self as dir, Declaration, DependencyBinding, ExportKind, Expression};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_source_form};
+use crate::rules::common::expression_path_segments;
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -110,8 +110,7 @@ impl LintRule for NoAnonymousDefaultExport {
                 else {
                     continue;
                 };
-                let value_id =
-                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *item_value);
+                let value_id = *item_value;
                 let value = ctx.dir.get(value_id);
 
                 // skip named or call expression exports

@@ -3,8 +3,8 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, UnaryOperator, w
 use destack_repository::LintSeverity;
 
 use crate::rules::common::{
-    expression_parent_id, expression_target_symbol, expression_unwrap_parenthesized,
-    expression_unwrap_transparent, source_text_contains_comment_token,
+    expression_parent_id, expression_target_symbol, expression_unwrap_transparent,
+    source_text_contains_comment_token,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -192,7 +192,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) {
-        let inner_expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), right);
+        let inner_expression_id = right;
         let inner_expression = self.ctx.dir.get(inner_expression_id);
         let dir::Expression::Unary {
             operator: UnaryOperator::Not,
@@ -219,7 +219,6 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         self.expression_is_in_flagged_context_inner(
             expression_id,
             self.ctx
@@ -239,11 +238,6 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
             return false;
         };
         let parent_expression = self.ctx.dir.get(parent_id);
-
-        // parenthesized wrappers
-        if matches!(parent_expression, dir::Expression::Parenthesized { .. }) {
-            return self.expression_is_in_flagged_context_inner(parent_id, enforce_inner);
-        }
 
         // direct boolean contexts
         match parent_expression {
@@ -398,7 +392,6 @@ fn replacement_needs_parentheses(
     expression_id: dir::LocalNodeId<dir::Expression>,
     replacement_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let replacement_id = expression_unwrap_parenthesized(tree, replacement_id);
     let replacement_expression = tree.get(replacement_id);
     let Some(parent_id) = expression_parent_id(tree, expression_id) else {
         return false;

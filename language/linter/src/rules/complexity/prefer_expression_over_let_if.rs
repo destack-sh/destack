@@ -2,9 +2,7 @@ use crate::LintMeta;
 use destack_dir::{self as dir, Pattern};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{
-    assign_pattern_is_unqualified_path_name, expression_unwrap_statement_source_form,
-};
+use crate::rules::common::assign_pattern_is_unqualified_path_name;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -105,10 +103,8 @@ impl LintRule for PreferExpressionOverLetIf {
                 let second_id = expression_ids[i + 1];
 
                 // unwrap statement wrappers
-                let let_expression_id =
-                    expression_unwrap_statement_source_form(ctx.dir.tree(), first_id);
-                let if_expression_id =
-                    expression_unwrap_statement_source_form(ctx.dir.tree(), second_id);
+                let let_expression_id = first_id;
+                let if_expression_id = second_id;
                 let first_expr = ctx.dir.get(let_expression_id);
                 let second_expr = ctx.dir.get(if_expression_id);
 
@@ -252,8 +248,7 @@ fn assignment_value_text(
     }
 
     let branch_statement_id = block.first_expression().unwrap();
-    let assignment_expression_id =
-        expression_unwrap_statement_source_form(ctx.dir.tree(), branch_statement_id);
+    let assignment_expression_id = branch_statement_id;
     let assignment_expression = ctx.dir.get(assignment_expression_id);
     let dir::Expression::Assign { left, right, .. } = assignment_expression else {
         return None;

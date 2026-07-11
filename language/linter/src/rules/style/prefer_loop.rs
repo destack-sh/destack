@@ -100,11 +100,6 @@ impl LintRule for PreferLoop {
 fn is_always_true(tree: &dir::Tree, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
     let expression = tree.get(expression_id);
 
-    // unwrap parentheses
-    if let dir::Expression::Parenthesized { expression } = expression {
-        return is_always_true(tree, *expression);
-    }
-
     matches!(
         expression,
         dir::Expression::ScalarLiteral(ScalarLiteral::Boolean(true))

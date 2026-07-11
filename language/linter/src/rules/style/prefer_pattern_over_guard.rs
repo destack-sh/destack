@@ -2,9 +2,7 @@ use destack_dir as dir;
 use destack_repository::LintSeverity;
 use destack_source::Span;
 
-use crate::rules::common::{
-    expression_target_symbol, expression_unwrap_parenthesized, pattern_binding_name_and_symbol,
-};
+use crate::rules::common::{expression_target_symbol, pattern_binding_name_and_symbol};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -101,7 +99,6 @@ fn equality_literal_for_binding(
     binding_symbol: dir::GlobalSymbolId,
     guard_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    let guard_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), guard_expression_id);
     let guard_expression = ctx.dir.get(guard_expression_id);
     let dir::Expression::Binary {
         operator,
@@ -120,8 +117,8 @@ fn equality_literal_for_binding(
         return None;
     }
 
-    let left_id = expression_unwrap_parenthesized(ctx.dir.tree(), *left);
-    let right_id = expression_unwrap_parenthesized(ctx.dir.tree(), *right);
+    let left_id = *left;
+    let right_id = *right;
     let left_is_binding = expression_target_symbol(ctx, left_id) == Some(binding_symbol);
     let right_is_binding = expression_target_symbol(ctx, right_id) == Some(binding_symbol);
     let left_is_literal = expression_is_simple_literal(ctx.dir.tree(), left_id);
@@ -143,7 +140,6 @@ fn expression_is_simple_literal(
     tree: &dir::Tree,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
 
     matches!(

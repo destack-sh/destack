@@ -1,9 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{
-    expression_method_call, expression_unwrap_parenthesized, is_float_type,
-};
+use crate::rules::common::{expression_method_call, is_float_type};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -154,7 +152,6 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
         let expression = self.ctx.dir.get(expression_id);
 
         // unary negation preserves signum semantics

@@ -84,7 +84,7 @@ impl LintRule for NoCondAssign {
                 let condition_text = ctx.get_span_text(condition_span);
                 let replacement = match assignment_style {
                     ConditionAssignmentStyle::Bare => format!("(({condition_text}))"),
-                    ConditionAssignmentStyle::SingleParenthesized => {
+                    ConditionAssignmentStyle::Parenthesized => {
                         format!("({condition_text})")
                     }
                     ConditionAssignmentStyle::None => String::new(),

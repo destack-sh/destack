@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_repository::LintSeverity;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -119,14 +120,19 @@ fn get_negated_inner(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
+    let parentheses = ctx.dir.tree().get_side_range(
+        expression_id,
+        NodeSpanType::Region(NodeSpanRegion::Parentheses),
+    );
+    if parentheses.is_some() {
+        return None;
+    }
+
     let expression = ctx.dir.get(expression_id);
     match expression {
         dir::Expression::Unary { operator, right } if *operator == dir::UnaryOperator::Not => {
             Some(*right)
         }
-        // explicit parenthesized negation: `(!a) in b`
-        // this keeps intent explicit and should not be flagged
-        dir::Expression::Parenthesized { .. } => None,
         _ => None,
     }
 }

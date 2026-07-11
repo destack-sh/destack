@@ -8,7 +8,7 @@ use destack_source::Span;
 
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, expression_starts_nested_declaration_scope,
-    expression_unwrap_statement_source_form, for_each_callable_signature,
+    for_each_callable_signature,
 };
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -279,8 +279,7 @@ impl NodeVisitor for StatementCountVisitor {
     ) {
         // keep nested declaration scopes out of this callable count
         if expression_id != self.root_expression_id {
-            let normalized_expression_id =
-                expression_unwrap_statement_source_form(tree, expression_id);
+            let normalized_expression_id = expression_id;
             let normalized_expression = tree.get(normalized_expression_id);
             if expression_starts_nested_declaration_scope(normalized_expression) {
                 return;

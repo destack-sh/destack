@@ -4,9 +4,9 @@ use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    const_i64, expression_regex_literal, expression_target_symbol, expression_unwrap_parenthesized,
-    is_string_type, regex_suffix_literal, single_quoted_string_literal,
-    string_literal_utf16_length, strip_dot_member_suffix,
+    const_i64, expression_regex_literal, expression_target_symbol, is_string_type,
+    regex_suffix_literal, single_quoted_string_literal, string_literal_utf16_length,
+    strip_dot_member_suffix,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -459,9 +459,6 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
     /// Return the length for a string literal suffix.
     fn string_literal_length(&self, suffix_id: dir::LocalNodeId<dir::Expression>) -> Option<usize> {
-        // unwrap parenthesized expressions
-        let suffix_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), suffix_id);
-
         // match string literals
         let expression = self.ctx.dir.get(suffix_id);
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = expression else {
@@ -478,7 +475,6 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         argument_id: dir::LocalNodeId<dir::Expression>,
         suffix_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let argument_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), argument_id);
         let argument_expression = self.ctx.dir.get(argument_id);
         let dir::Expression::Binary {
             left,
@@ -498,9 +494,6 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), expression_id);
-        let target_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), target_id);
-
         let expression = self.ctx.dir.get(expression_id);
         let dir::Expression::Member { left, name, .. } = expression else {
             return false;

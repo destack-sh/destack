@@ -3,7 +3,7 @@ use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_discarded_call_like_value, expression_has_symbol_decorator,
-    expression_is_standalone_statement, expression_unwrap_parenthesized,
+    expression_is_standalone_statement,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -149,7 +149,7 @@ fn unused_must_use_fix(
 ) -> Option<LintFix> {
     // preserve the full replacement span, but normalize away wrapper parentheses
     let replacement_span = ctx.get_span(statement_expression_id);
-    let normalized_id = expression_unwrap_parenthesized(ctx.dir.tree(), statement_expression_id);
+    let normalized_id = statement_expression_id;
     let normalized_span = ctx.get_span(normalized_id);
     let expression_text = ctx.get_span_text(normalized_span);
     if expression_text.trim().is_empty() {

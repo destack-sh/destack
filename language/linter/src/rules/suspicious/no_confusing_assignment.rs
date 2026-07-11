@@ -57,7 +57,7 @@ impl LintRule for NoConfusingAssignment {
                 let condition_text = ctx.get_span_text(condition_span);
                 let replacement = match assignment_style {
                     ConditionAssignmentStyle::Bare => format!("(({condition_text}))"),
-                    ConditionAssignmentStyle::SingleParenthesized => format!("({condition_text})"),
+                    ConditionAssignmentStyle::Parenthesized => format!("({condition_text})"),
                     ConditionAssignmentStyle::None => unreachable!(),
                 };
                 let edits = ctx

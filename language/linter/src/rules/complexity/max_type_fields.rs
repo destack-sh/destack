@@ -118,8 +118,6 @@ fn object_type_field_count(
     ctx: &LintModuleContext<'_>,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<usize> {
-    let type_expression_id =
-        unwrap_parenthesized_type_expression(ctx.dir.tree(), type_expression_id);
     let TypeExpression::Object { members } = ctx.dir.get(type_expression_id) else {
         return None;
     };
@@ -131,20 +129,6 @@ fn object_type_field_count(
         .count();
 
     Some(field_count)
-}
-
-/// Return the type expression id with parenthesized wrappers removed.
-fn unwrap_parenthesized_type_expression(
-    tree: &dir::Tree,
-    mut type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-) -> dir::LocalNodeId<dir::TypeExpression> {
-    loop {
-        let TypeExpression::Parenthesized { expression } = tree.get(type_expression_id) else {
-            return type_expression_id;
-        };
-
-        type_expression_id = *expression;
-    }
 }
 
 /// Report one field count overflow diagnostic.

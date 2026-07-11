@@ -115,11 +115,6 @@ fn is_negated_condition(
 ) -> bool {
     let expression = ctx.dir.get(expression_id);
 
-    // unwrap parentheses
-    if let dir::Expression::Parenthesized { expression: inner } = expression {
-        return is_negated_condition(ctx, *inner);
-    }
-
     // match unary not
     if let dir::Expression::Unary { operator, right } = expression
         && *operator == UnaryOperator::Not

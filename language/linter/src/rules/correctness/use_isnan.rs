@@ -247,9 +247,6 @@ fn is_nan_identifier(
 ) -> bool {
     let expression = ctx.dir.get(expr_id);
     match expression {
-        // unwrap parenthesized expressions before matching
-        Expression::Parenthesized { expression } => is_nan_identifier(ctx, *expression),
-
         // check reference forms: NaN or Number.NaN
         Expression::Identifier { .. } | Expression::Member { .. } => {
             let Some(segments) = expression_path_segments(ctx.dir.tree(), expr_id) else {

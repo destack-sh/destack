@@ -70,7 +70,6 @@ fn evaluate_const_value(
             dir::ScalarLiteral::Float(value) => Some(ConstValue::Float(*value)),
             _ => None,
         },
-        dir::Expression::Parenthesized { expression } => evaluate_const_value(tree, *expression),
         dir::Expression::Unary { operator, right } => {
             let value = evaluate_const_value(tree, *right)?;
             match operator {

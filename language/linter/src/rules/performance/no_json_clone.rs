@@ -3,9 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{
-    expression_is_symbol, expression_unwrap_parenthesized, expression_unwrap_transparent,
-};
+use crate::rules::common::{expression_is_symbol, expression_unwrap_transparent};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -109,7 +107,6 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         let Some(argument_id) = argument.value() else {
             return;
         };
-        let argument_id = expression_unwrap_parenthesized(self.ctx.dir.tree(), argument_id);
         if !self.is_json_stringify_call(argument_id) {
             return;
         }
@@ -209,10 +206,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
         let argument = self.ctx.dir.get(arguments[0]);
         let argument = argument.value()?;
-        Some(expression_unwrap_parenthesized(
-            self.ctx.dir.tree(),
-            argument,
-        ))
+        Some(argument)
     }
 
     /// Build an unsafe fix that rewrites JSON parse stringify clones.

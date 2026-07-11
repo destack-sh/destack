@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_dir::{self as dir, Block};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_parenthesized_source_form, span_has_comment};
+use crate::rules::common::span_has_comment;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -136,8 +136,7 @@ fn and_condition_operand_text(
     let expression_span = ctx.dir.get_span(expression_id);
     let expression_text = ctx.get_span_text(expression_span);
     let expression_text = strip_one_outer_parentheses(expression_text);
-    let normalized_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let normalized_expression_id = expression_id;
     let normalized_expression = ctx.dir.get(normalized_expression_id);
     if expression_needs_parentheses_for_and_operand(normalized_expression) {
         return format!("({expression_text})");

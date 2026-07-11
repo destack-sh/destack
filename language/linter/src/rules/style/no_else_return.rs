@@ -163,9 +163,6 @@ fn expression_contains_binding_declaration(
         dir::Expression::Let { .. }
         | dir::Expression::Using { .. }
         | dir::Expression::Declaration(_) => true,
-        dir::Expression::Parenthesized { expression } => {
-            expression_contains_binding_declaration(ctx, *expression)
-        }
         _ => false,
     }
 }

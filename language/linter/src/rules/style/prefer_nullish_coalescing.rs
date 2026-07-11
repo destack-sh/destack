@@ -3,9 +3,8 @@ use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_has_equivalent_source_form, assign_pattern_target_expression,
-    expression_reference_path, expression_unwrap_parenthesized,
-    expressions_have_equivalent_source_form, has_non_nullish_falsy_type, is_maybe_nullish_type,
-    is_strict_boolean_type, span_has_comment,
+    expression_reference_path, expressions_have_equivalent_source_form, has_non_nullish_falsy_type,
+    is_maybe_nullish_type, is_strict_boolean_type, span_has_comment,
 };
 use crate::{ConstValue, LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -315,7 +314,6 @@ fn ternary_nullish_candidate(
     dir::LocalNodeId<dir::Expression>,
 )> {
     // keep one binary comparison condition
-    let condition_id = expression_unwrap_parenthesized(ctx.dir.tree(), condition_id);
     let condition = ctx.dir.get(condition_id);
     let dir::Expression::Binary {
         left,
@@ -337,8 +335,6 @@ fn ternary_nullish_candidate(
     }
 
     // normalize branch expressions
-    let then_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), then_expression_id);
-    let else_expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), else_expression_id);
 
     // map comparison polarity to ternary fallback branch
     if is_not_equal_check
@@ -385,7 +381,6 @@ fn expression_is_nullish_literal(
     ctx: &mut LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
     let Some(const_value) = ctx.const_value(expression_id) else {
         return false;
     };
@@ -529,7 +524,6 @@ fn logical_operand_has_other_operator(
     expression_id: dir::LocalNodeId<dir::Expression>,
     root_operator: dir::BinaryOperator,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     let dir::Expression::Binary {
         left,

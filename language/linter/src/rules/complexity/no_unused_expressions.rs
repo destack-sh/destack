@@ -2,9 +2,7 @@ use crate::LintMeta;
 use destack_dir::{self as dir, UnaryOperator};
 use destack_repository::LintSeverity;
 
-use crate::rules::common::{
-    expression_has_side_effects, expression_unwrap_parenthesized_source_form,
-};
+use crate::rules::common::expression_has_side_effects;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -194,7 +192,6 @@ fn expression_is_string_literal_statement(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     matches!(
         ctx.dir.get(expression_id),
         dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
@@ -407,23 +404,19 @@ fn statement_expression_subject_id(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> dir::LocalNodeId<dir::Expression> {
-    let mut current_expression_id =
-        expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
+    let mut current_expression_id = expression_id;
 
     loop {
         let current_expression = ctx.dir.get(current_expression_id);
         match current_expression {
             dir::Expression::Must { left, .. } | dir::Expression::Maybe { left, .. } => {
-                current_expression_id =
-                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+                current_expression_id = *left;
             }
             dir::Expression::Instantiation { left, .. } => {
-                current_expression_id =
-                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+                current_expression_id = *left;
             }
             dir::Expression::BorrowOf { right, .. } | dir::Expression::MoveOf { right, .. } => {
-                current_expression_id =
-                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+                current_expression_id = *right;
             }
             _ => return current_expression_id,
         }

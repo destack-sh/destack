@@ -140,13 +140,6 @@ fn type_expression_complexity_inner(
     let mut max_depth = current_depth;
 
     match type_expression {
-        TypeExpression::Parenthesized { expression } => {
-            max_depth = max_depth.max(type_expression_complexity_inner(
-                tree,
-                *expression,
-                current_depth,
-            ));
-        }
         TypeExpression::Array { element } | TypeExpression::Slice { element } => {
             max_depth = max_depth.max(type_expression_complexity_inner(
                 tree,

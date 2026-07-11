@@ -52,18 +52,6 @@ impl LintDirective {
 }
 
 /// Unwrap transparent expression nodes.
-fn expression_unwrap_transparent(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    match tree.get(expression_id) {
-        dir::Expression::Parenthesized { expression } => {
-            expression_unwrap_transparent(tree, *expression)
-        }
-        _ => expression_id,
-    }
-}
-
 /// The source shape of a decorator expression in the DIR.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct DecoratorCall<'a> {
@@ -324,12 +312,6 @@ impl<'a> LintModuleContext<'a> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalTypeId> {
-        // unwrap parenthesized expressions first
-        let expression = self.dir.get(expression_id);
-        if let dir::Expression::Parenthesized { expression } = expression {
-            return self.expression_type_id(*expression);
-        }
-
         // build a global id for the expression
         let global_id = dir::GlobalNodeIdAny::new(self.module.id, expression_id.into_any());
 
@@ -352,7 +334,6 @@ impl<'a> LintModuleContext<'a> {
             return None;
         }
 
-        let expression_id = expression_unwrap_transparent(self.dir.tree(), expression_id);
         let global_id = expression_id.into_global_any(self.module.id);
         let symbol = self.resolutions.symbol_resolution(global_id)?;
         if !self.symbol_is_active(symbol.local_id) {
@@ -365,18 +346,10 @@ impl<'a> LintModuleContext<'a> {
     /// Resolve the lexical target symbol for one type expression.
     pub fn type_expression_target_symbol(
         &self,
-        mut type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
+        type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> Option<dir::GlobalSymbolId> {
         if !self.dir.is_visible(type_expression_id.into_any()) {
             return None;
-        }
-
-        loop {
-            let type_expression = self.dir.get(type_expression_id);
-            let dir::TypeExpression::Parenthesized { expression } = type_expression else {
-                break;
-            };
-            type_expression_id = *expression;
         }
 
         let global_id = type_expression_id.into_global_any(self.module.id);
@@ -567,12 +540,12 @@ impl<'a> LintModuleContext<'a> {
         decorator_id: dir::LocalNodeId<dir::Decorator>,
     ) -> DecoratorCall<'_> {
         let decorator = self.dir.get(decorator_id);
-        let expression_id = expression_unwrap_transparent(self.dir.tree(), decorator.expression);
+        let expression_id = decorator.expression;
         match self.dir.get(expression_id) {
             dir::Expression::Call {
                 left, arguments, ..
             } => DecoratorCall {
-                callee: expression_unwrap_transparent(self.dir.tree(), *left),
+                callee: *left,
                 arguments: Some(arguments.as_slice()),
             },
             _ => DecoratorCall {

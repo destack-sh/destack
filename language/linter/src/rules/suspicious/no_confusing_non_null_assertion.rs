@@ -1,6 +1,7 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, AssignOperator, BinaryOperator, Expression};
 use destack_repository::LintSeverity;
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::rules::common::{
     assign_pattern_expression, expression_is_optional_chain_target, expression_trailing_bang_span,
@@ -178,8 +179,11 @@ fn has_confusing_non_null_left_operand(
     ctx: &LintModuleContext<'_>,
     left_expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let left_expression = ctx.dir.get(left_expression_id);
-    if matches!(left_expression, Expression::Parenthesized { .. }) {
+    let parentheses = ctx.dir.tree().get_side_range(
+        left_expression_id,
+        NodeSpanType::Region(NodeSpanRegion::Parentheses),
+    );
+    if parentheses.is_some() {
         return false;
     }
 

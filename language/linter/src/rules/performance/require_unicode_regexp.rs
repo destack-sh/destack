@@ -2,9 +2,8 @@ use destack_dir::{self as dir, Expression, ScalarLiteral};
 use destack_repository::{LintSeverity, UnicodeRegexpRequireFlag};
 
 use crate::rules::common::{
-    expression_path_segments, expression_unwrap_parenthesized_source_form,
-    path_is_regexp_constructor, regex_pattern_info, regexp_global_qualifier_names,
-    type_expression_path_segments,
+    expression_path_segments, path_is_regexp_constructor, regex_pattern_info,
+    regexp_global_qualifier_names, type_expression_path_segments,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -124,7 +123,6 @@ fn has_unknown_constructor_flags_argument(
     regexp_name: dir::StringId,
     global_qualifier_names: &[dir::StringId],
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
     let (path_segments, arguments) = match expression {
         Expression::Call {
@@ -180,7 +178,6 @@ fn unicode_regex_fix(
 ) -> Option<LintFix> {
     let required_flag_char = required_flag.as_char();
     let alternate_flag_char = alternate_unicode_flag(required_flag_char);
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     // fix regex literals by appending the required flag

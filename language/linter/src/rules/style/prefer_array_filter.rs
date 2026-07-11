@@ -295,12 +295,6 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
             return true;
         }
 
-        // parenthesized symbol target
-        let expression = self.ctx.dir.get(expression_id);
-        if let dir::Expression::Parenthesized { expression } = expression {
-            return self.ctx.expression_target_symbol(*expression) == Some(symbol);
-        }
-
         false
     }
 

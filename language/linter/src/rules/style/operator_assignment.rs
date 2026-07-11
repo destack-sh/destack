@@ -3,8 +3,7 @@ use destack_dir::{self as dir, AssignOperator, BinaryOperator, ScalarLiteral};
 use destack_repository::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
-    assign_pattern_expression, expression_is_equal, expression_path_segments,
-    expression_unwrap_parenthesized_source_form, span_has_comment,
+    assign_pattern_expression, expression_is_equal, expression_path_segments, span_has_comment,
 };
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -57,8 +56,7 @@ impl LintRule for OperatorAssignment {
             }
 
             // normalize the assignment and binary shapes
-            let normalized_right_id =
-                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *right);
+            let normalized_right_id = *right;
             let dir::Expression::Binary {
                 left: binary_left_id,
                 operator: binary_operator,
@@ -77,12 +75,9 @@ impl LintRule for OperatorAssignment {
             let Some(assignment_left_id) = assign_pattern_expression(ctx.dir.tree(), *left) else {
                 continue;
             };
-            let normalized_assignment_left_id =
-                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), assignment_left_id);
-            let normalized_binary_left_id =
-                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *binary_left_id);
-            let normalized_binary_right_id =
-                expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *binary_right_id);
+            let normalized_assignment_left_id = assignment_left_id;
+            let normalized_binary_left_id = *binary_left_id;
+            let normalized_binary_right_id = *binary_right_id;
 
             // report when assignment target appears on binary left side
             let left_matches_left = expression_is_equal(
@@ -270,7 +265,6 @@ fn can_fix_assignment_target(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
-    let expression_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), expression_id);
     let expression = ctx.dir.get(expression_id);
 
     match expression {
@@ -279,20 +273,18 @@ fn can_fix_assignment_target(
 
         // dot member targets are safe when their receiver is stable
         dir::Expression::Member { left, .. } => {
-            let object_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+            let object_id = *left;
             expression_path_segments(ctx.dir.tree(), object_id).is_some()
                 || matches!(ctx.dir.get(object_id), dir::Expression::This)
         }
 
         // bracket member targets are safe when receiver and index are stable
         dir::Expression::Index { left, index, .. } => {
-            let object_id = expression_unwrap_parenthesized_source_form(ctx.dir.tree(), *left);
+            let object_id = *left;
             let object_is_stable = expression_path_segments(ctx.dir.tree(), object_id).is_some()
                 || matches!(ctx.dir.get(object_id), dir::Expression::This);
 
             let index_is_stable_literal = index.is_some_and(|index_id| {
-                let index_id =
-                    expression_unwrap_parenthesized_source_form(ctx.dir.tree(), index_id);
                 matches!(
                     ctx.dir.get(index_id),
                     dir::Expression::ScalarLiteral(ScalarLiteral::String(_))

@@ -286,9 +286,6 @@ pub fn expression_reference_is_read(
 
         match parent_expression {
             // unwrap transparent wrappers and continue
-            dir::Expression::Parenthesized { expression } if *expression == current_id => {
-                current_id = parent_id;
-            }
             dir::Expression::As {
                 expression: value,
                 target_type: _,

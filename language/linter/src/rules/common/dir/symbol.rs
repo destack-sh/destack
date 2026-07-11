@@ -170,15 +170,12 @@ fn symbol_decorator_from_expression(
     decorator: &dir::Decorator,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Option<SymbolDecorator> {
-    let expression_id = unwrap_parenthesized_expression(tree, decorator.expression);
+    let expression_id = decorator.expression;
     let expression = tree.get(expression_id);
     let (callee_id, arguments) = match expression {
         dir::Expression::Call {
             left, arguments, ..
-        } => (
-            unwrap_parenthesized_expression(tree, *left),
-            Some(arguments.as_slice()),
-        ),
+        } => (*left, Some(arguments.as_slice())),
         _ => (expression_id, None),
     };
 
@@ -195,21 +192,6 @@ fn symbol_decorator_from_expression(
     let arguments = decorator_string_arguments(tree, strings, arguments);
 
     Some(SymbolDecorator { arguments })
-}
-
-/// Unwrap parenthesized decorator expressions.
-fn unwrap_parenthesized_expression(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> dir::LocalNodeId<dir::Expression> {
-    let mut current = expression_id;
-    loop {
-        let expression = tree.get(current);
-        let dir::Expression::Parenthesized { expression } = expression else {
-            return current;
-        };
-        current = *expression;
-    }
 }
 
 /// Check both the decorator call and callee for a resolved decorator symbol.
