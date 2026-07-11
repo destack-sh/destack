@@ -10,5 +10,5 @@ export interface ProcessArgumentBinding {
         requires: ["host.process.arguments"],
         families: ["windows", "unix"],
     })
-    listArguments(): Result<Array<^string>, HostError>;
+    listArguments(): Result<^Array<^string>, HostError>;
 }

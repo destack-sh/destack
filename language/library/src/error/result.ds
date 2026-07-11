@@ -103,7 +103,11 @@ export extension<T, E> of Result<T, E> {
     /// Continue with another result-returning operation.
     andThen<U, F>(f: (value: T) => Result<U, F>): Result<U, E | F> {
         match (this) {
-            Result.Ok { value } => f(value)
+            // rebuild the continuation result at the joined error type
+            Result.Ok { value } => match (f(value)) {
+                Result.Ok { value } => Result.ok(value)
+                Result.Err { error } => Result.err(error)
+            }
             Result.Err { error } => Result.err(error)
         }
     }
@@ -231,9 +235,13 @@ export extension<T, E> of AsyncResult<T, E> {
     /// Continue with another async result-returning operation.
     andThen<U, F>(f: (value: T) => AsyncResult<U, F>): AsyncResult<U, E | F> {
         AsyncResult(
-            this.then(async (result) => {
+            this.then(async (result): Promise<Result<U, E | F>> => {
                 match (result) {
-                    Result.Ok { value } => await f(value)
+                    // rebuild the continuation result at the joined error type
+                    Result.Ok { value } => match (await f(value)) {
+                        Result.Ok { value } => Result.ok(value)
+                        Result.Err { error } => Result.err(error)
+                    }
                     Result.Err { error } => Result.err(error)
                 }
             }),

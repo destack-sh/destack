@@ -64,12 +64,12 @@ export class Topology {
 
     /// Upsert one entity record.
     upsertEntity(entity: EntityRecord): Result<EntityRef, HostError> {
-        Context.current().topology.entity.upsert(this.world, entity)
+        Context.current().topology.entity.upsert(this.world, entity).map((id) => EntityRef(id))
     }
 
     /// Upsert one edge record.
     upsertEdge(edge: EdgeRecord): Result<EdgeRef, HostError> {
-        Context.current().topology.edge.upsert(this.world, edge)
+        Context.current().topology.edge.upsert(this.world, edge).map((id) => EdgeRef(id))
     }
 
     /// Observe one entity-like value.
