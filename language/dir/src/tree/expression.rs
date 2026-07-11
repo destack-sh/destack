@@ -548,15 +548,6 @@ pub enum Expression {
         children: Option<Vec<LocalNodeId<TreeChild>>>,
     },
 
-    /// Parenthesized expression.
-    ///
-    /// Examples:
-    /// ```
-    /// (x)
-    /// (x + y)
-    /// ```
-    Parenthesized { expression: LocalNodeId<Expression> },
-
     /// Type expression used as a runtime type value.
     Type { value: LocalNodeId<TypeExpression> },
 

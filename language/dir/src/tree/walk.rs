@@ -288,10 +288,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::TypeExpression, id.id);
     match type_expression {
-        TypeExpression::Parenthesized { expression } => {
-            let expression_node = tree.get(*expression);
-            visitor.visit_type_expression(tree, *expression, expression_node);
-        }
         TypeExpression::ScalarLiteral { .. } => {}
         TypeExpression::Literal { .. } => {}
         TypeExpression::Intrinsic => {}
@@ -1094,11 +1090,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     visitor.visit_tree_child(tree, *child_id, child);
                 }
             }
-        }
-
-        Expression::Parenthesized { expression } => {
-            let expr = tree.get(*expression);
-            visitor.visit_expression(tree, *expression, expr);
         }
 
         Expression::Type { value } => {
