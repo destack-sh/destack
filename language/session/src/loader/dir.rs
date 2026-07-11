@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependencySet, ArtifactPayload, DirParsed, DirParsedFile};
 use destack_dir::{Expression, ScalarLiteral, Tree};
-use destack_parser::{Parser, ParserOptions};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::{Module, ModuleFile, ProviderContext};
 use destack_source::{File, LanguageType, ModuleId, Span};
 
@@ -123,10 +123,10 @@ impl SessionState {
 
         // parse and forward parser diagnostics
         let tree_in = std::mem::replace(tree, Tree::new(tree.module_id));
-        let mut parser = Parser::lex_into_tree_with_options(
+        let mut parser = Parser::lex_into_tree_with_trivia(
             file.clone(),
             language_type,
-            ParserOptions::default(),
+            ParserTriviaMode::Documentation,
             repository.string_pool().clone(),
             tree_in,
         );
