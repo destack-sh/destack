@@ -6,6 +6,7 @@ use crate::mdtest::MdTestCase;
 use destack_core::StringPool;
 use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
+use destack_fir::format::Allocator;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserTriviaMode, source_colorizer};
 use destack_repository::FormatterOptions;
@@ -179,7 +180,8 @@ fn format_expressions(
     let mut result = if expressions.is_empty() {
         String::new()
     } else {
-        let formatted = fir_format!(context, [statement_list(expressions)]).unwrap();
+        let allocator = Allocator::default();
+        let formatted = fir_format!(&allocator, context, [statement_list(expressions)]).unwrap();
         let printed = formatted.print().unwrap();
         printed.as_str().to_string()
     };

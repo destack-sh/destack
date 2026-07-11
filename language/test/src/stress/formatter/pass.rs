@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format as fir_format;
+use destack_fir::format::Allocator;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::FormatterOptions;
@@ -120,8 +121,9 @@ fn render_profiled<'a>(
 ) -> Result<(String, Duration, Duration, FormatterDocumentStats), String> {
     // build formatter document
     let format_start = Instant::now();
-    let formatted =
-        fir_format!(context, [statement_list(expressions)]).map_err(|error| error.to_string())?;
+    let allocator = Allocator::default();
+    let formatted = fir_format!(&allocator, context, [statement_list(expressions)])
+        .map_err(|error| error.to_string())?;
     let format_elapsed = format_start.elapsed();
     let document = FormatterDocumentStats::from_nodes(formatted.document());
 
