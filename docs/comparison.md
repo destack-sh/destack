@@ -1,3 +1,9 @@
+---
+title: Comparison
+description: How Destack relates to adjacent languages, runtimes, and programming systems.
+order: 11
+---
+
 # Comparison
 
 It's generally helpful to learn a new thing in contrast to things we already know, and in that spirit we have compiled a short comparison overview of what Destack looks like coming from each of these languages.
@@ -403,12 +409,12 @@ async function rename(id: string, name: string): AsyncResult<User, LoadError> {
 
 ### Decorators
 
-Decorators stay, and move to compile time: a decorator is a `comptime` value that may transform its target as a [macro](DESIGN.md#macros).
+Decorators stay, and move to compile time: a decorator is a `comptime` value that may transform its target as a [macro](./language/expressions.md#macros).
 
 | Feature | Example | Ruling |
 | --- | --- | --- |
 | **Class and member decorators** | `@route("/users") class ... ` | supported, evaluated at compile time |
-| **Runtime decorator metadata** | `emitDecoratorMetadata` | not supported, use [reflection](DESIGN.md#reflection) |
+| **Runtime decorator metadata** | `emitDecoratorMetadata` | not supported, use [reflection](./language/types.md#reflection) |
 
 ### Comptime
 
@@ -612,7 +618,7 @@ Blanket implementations are supported with one familiar restriction: an `impleme
 impl<T: Display> Pretty for T { ... } // only valid in the crate that owns Pretty
 ```
 
-```ds
+```ds:unchecked
 extension<T: Show> of T implements Pretty { ... } // same rule, same reason
 ```
 
@@ -626,7 +632,7 @@ Associated types and constants work as in Rust, with positional refinement as su
 fn sum(values: impl Iterator<Item = u8>) -> u32 { ... }
 ```
 
-```ds
+```ds:unchecked
 function sum(values: Iterator<uint8>): uint32 { ... } // sugar for Iterator<type Item = uint8>
 ```
 
@@ -738,7 +744,7 @@ fn draw(shape: impl Shape) { ... }     // argument position: universal
 fn make() -> impl Shape { ... }        // return position: existential
 ```
 
-```ds
+```ds:unchecked
 function draw(shape: Shape): void {}   // same universal, no keyword
 function make(): Shape { ... }         // same existential, no keyword
 ```
@@ -926,7 +932,7 @@ The numeric types correspond one-to-one, spelled out so they read as TypeScript:
 function clamp(value: i32, low: i32, high: i32): i32 { ... }
 ```
 
-```ds
+```ds:unchecked
 function clamp(value: int32, low: int32, high: int32): int32 { ... }
 ```
 
@@ -1094,7 +1100,7 @@ interface Source<out T> {
 T Largest<T>(List<T> values) where T : IComparable<T> { ... }
 ```
 
-```ds
+```ds:unchecked
 function largest<T>(values: T[]): T where T: Comparable<T> { ... }
 ```
 
@@ -1148,6 +1154,6 @@ if (name !== null) {
 async Task<User> LoadUser(string id) { ... }
 ```
 
-```ds
+```ds:unchecked
 async function loadUser(id: string): Promise<User> { ... }
 ```

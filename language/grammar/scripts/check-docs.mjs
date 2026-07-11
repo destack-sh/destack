@@ -8,8 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDirectory, "..", "..", "..");
-const specificationRoot = path.join(repoRoot, "language", "test", "fixtures", "specification");
-const designPath = path.join(repoRoot, "language", "DESIGN.md");
+const docsRoot = path.join(repoRoot, "docs");
 const mirReadmePath = path.join(repoRoot, "language", "mir", "README.md");
 const bridgeVscodeRoot = path.join(repoRoot, "bridge", "vscode");
 const require = createRequire(import.meta.url);
@@ -137,6 +136,9 @@ function collectMarkdownFiles(sourcePath) {
 
 function exampleLanguage(info) {
     const tag = info.trim().split(/\s+/)[0].toLowerCase();
+    if (tag.endsWith(":unchecked")) {
+        return null;
+    }
 
     for (const language of languageList) {
         if (language.matches(tag)) {
@@ -379,8 +381,7 @@ function printTextMateBreakdown(language, examples, failures, limit) {
 async function main() {
     const options = parseArgs(process.argv.slice(2));
     const markdownFiles = [
-        ...collectMarkdownFiles(designPath),
-        ...collectMarkdownFiles(specificationRoot),
+        ...collectMarkdownFiles(docsRoot),
         ...collectMarkdownFiles(mirReadmePath),
     ];
     const examples = markdownFiles.flatMap(collectLanguageExamples).map((example, index) => ({ ...example, index }));

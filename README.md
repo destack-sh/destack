@@ -27,7 +27,8 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 Mechanically, Destack is an integrated stack for building correct and optimal software systems, but conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
 
-- [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
+- [**Destack Manual**](docs/index.md): Design, language, runtime, and technical reference.
+- [**Destack Language**](language/README.md): TypeScript(++) compiler and runtime implementation.
 - [**Destack Library**](library/README.md): Rich standard library for most things most software needs.
 
 The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale, and we accomplish this by making all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
