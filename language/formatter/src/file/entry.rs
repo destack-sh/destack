@@ -5,6 +5,7 @@ use std::sync::Arc;
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
+use destack_fir::format::Allocator;
 use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, LanguageType, Span};
@@ -321,10 +322,14 @@ fn render_program_roots<'a>(
     context: DestackFormatContext<'a>,
     expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<String, FormatFileError> {
+    let allocator = Allocator::default();
+
     // format the parsed roots
     let formatted =
-        fir_format!(context, [statement_list(expressions)]).map_err(|error| FormatFileError {
-            message: error.to_string(),
+        fir_format!(&allocator, context, [statement_list(expressions)]).map_err(|error| {
+            FormatFileError {
+                message: error.to_string(),
+            }
         })?;
     let printed = formatted.print().map_err(|error| FormatFileError {
         message: error.to_string(),

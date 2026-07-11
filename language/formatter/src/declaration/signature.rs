@@ -23,7 +23,7 @@ use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
-impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Visibility {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
@@ -423,7 +423,7 @@ pub(crate) fn should_group_parameters_with_return_type<'ast>(
     generic_parameters: &[LocalNodeId<GenericParameter>],
     parameter_count: usize,
     return_type: Option<LocalNodeId<TypeExpression>>,
-    formatted_return_type: &PreparedFormat,
+    formatted_return_type: &PreparedFormat<'ast>,
 ) -> FormatResult<bool> {
     match generic_parameters {
         [] => {}
@@ -460,9 +460,9 @@ pub(crate) fn write_grouped_parameters_with_return_type<'ast, H, P, R>(
     should_group_return_type: bool,
 ) -> FormatResult<()>
 where
-    H: Format<DestackFormatContext<'ast>>,
-    P: Format<DestackFormatContext<'ast>>,
-    R: Format<DestackFormatContext<'ast>>,
+    H: Format<'ast, DestackFormatContext<'ast>>,
+    P: Format<'ast, DestackFormatContext<'ast>>,
+    R: Format<'ast, DestackFormatContext<'ast>>,
 {
     let format_parameter_head = PreparedFormat::new(f, format_parameter_head)?;
     let format_parameters = PreparedFormat::new(f, format_parameters)?;

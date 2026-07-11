@@ -62,7 +62,7 @@ fn write_if_or_while_test_expression<'ast>(
 /// Format one grouped control head before the closing `)`.
 fn write_grouped_control_head<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    head: &impl Format<DestackFormatContext<'ast>>,
+    head: &impl Format<'ast, DestackFormatContext<'ast>>,
 ) -> FormatResult<()> {
     write!(f, [group(&soft_block_indent(head))])
 }
@@ -522,7 +522,7 @@ fn adjacent_statement_argument_has_leading_comments(
 /// Write one adjacent statement value inside explicit wrapping parentheses.
 fn write_wrapped_adjacent_statement_value<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    content: &impl Format<DestackFormatContext<'ast>>,
+    content: &impl Format<'ast, DestackFormatContext<'ast>>,
 ) -> FormatResult<()> {
     write!(
         f,

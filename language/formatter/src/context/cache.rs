@@ -2,40 +2,40 @@ use rustc_hash::FxHashMap;
 
 use super::context::{DestackFormatContext, DestackFormatter};
 use destack_fir::format::{Buffer, Format, FormatNode as FirNode, FormatNodes, FormatResult};
-use destack_source::Span;
+use destack_source::ByteRange;
 
-/// Formatted FIR nodes cached for one formatter pass.
+/// FIR nodes cached for one formatter pass.
 #[derive(Debug, Default)]
-pub struct FormatElementCache {
-    /// Cached formatted elements keyed by source span.
-    elements: FxHashMap<Span, FirNode>,
+pub struct FormatNodeCache<'a> {
+    /// Cached FIR nodes keyed by file-local range.
+    nodes: FxHashMap<ByteRange, FirNode<'a>>,
 }
 
-impl FormatElementCache {
-    /// Return one cached formatted element for one source span.
-    pub fn get(&self, span: &Span) -> Option<FirNode> {
-        self.elements.get(span).cloned()
+impl<'a> FormatNodeCache<'a> {
+    /// Return one cached FIR node for a file-local range.
+    pub fn get(&self, range: ByteRange) -> Option<FirNode<'a>> {
+        self.nodes.get(&range).cloned()
     }
 
-    /// Cache one formatted element for one source span.
-    pub fn insert(&mut self, span: Span, node: FirNode) {
-        self.elements.insert(span, node);
+    /// Cache one FIR node for a file-local range.
+    pub fn insert(&mut self, range: ByteRange, node: FirNode<'a>) {
+        self.nodes.insert(range, node);
     }
 }
 
 /// Preformatted content that can be inspected and emitted without formatting twice.
-pub(crate) struct PreparedFormat {
-    /// The interned formatted node.
-    node: Option<FirNode>,
+pub(crate) struct PreparedFormat<'a> {
+    /// The formatted node.
+    node: Option<FirNode<'a>>,
 }
 
-impl PreparedFormat {
-    /// Format and intern one payload.
-    pub(crate) fn new<'ast, T>(f: &mut DestackFormatter<'ast, '_>, content: T) -> FormatResult<Self>
+impl<'ast> PreparedFormat<'ast> {
+    /// Capture one formatted payload.
+    pub(crate) fn new<T>(f: &mut DestackFormatter<'ast, '_>, content: T) -> FormatResult<Self>
     where
-        T: Format<DestackFormatContext<'ast>>,
+        T: Format<'ast, DestackFormatContext<'ast>>,
     {
-        let node = f.intern(&content)?;
+        let node = f.capture(&content)?;
 
         Ok(Self { node })
     }
@@ -46,7 +46,7 @@ impl PreparedFormat {
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for PreparedFormat {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for PreparedFormat<'ast> {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(node) = self.node.clone() else {
             return Ok(());

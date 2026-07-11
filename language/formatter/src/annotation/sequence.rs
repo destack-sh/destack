@@ -146,7 +146,7 @@ pub(crate) fn write_vertical_prefix_annotations<'ast>(
 pub(crate) fn block_infix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -165,7 +165,7 @@ where
 pub(crate) fn prefix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -181,7 +181,7 @@ pub(crate) fn prefix_annotations_before_offset<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     end_offset: u32,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -196,7 +196,7 @@ where
 pub(crate) fn prefix_annotations_without_comments<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -209,7 +209,7 @@ pub(crate) fn prefix_annotations_after_offset<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     start_offset: u32,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -225,7 +225,7 @@ pub(crate) fn statement_prefix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     start_offset: Option<u32>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -248,7 +248,7 @@ fn prefix_sequence<'ast>(
     context: &DestackFormatContext<'ast>,
     comments: Vec<Comment>,
     annotation_ids: Vec<LocalNodeId<Decorator>>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast> {
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast> {
     let items = collect_prefix_sequence_items(context, comments, annotation_ids);
 
     format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
@@ -303,7 +303,7 @@ where
 pub(crate) fn prefix_comments_before_decorators<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -330,7 +330,7 @@ where
 pub(crate) fn decorator_prefix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -516,7 +516,7 @@ fn write_decorator_prefix_sequence_items<'ast>(
 pub(crate) fn postfix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -538,7 +538,7 @@ where
 pub(crate) fn infix_or_postfix_annotations<'ast, T>(
     context: &DestackFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,

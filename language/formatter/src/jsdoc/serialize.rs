@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use destack_dir::Comment;
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter};
-use destack_fir::prelude::{hard_line_break, text, token};
+use destack_fir::prelude::{copied_text, hard_line_break, space, token};
 use destack_fir::write;
 use destack_repository::{JsdocCommentLineStrategy, JsdocOptions, QuoteStyle};
 use destack_source::Span;
@@ -25,8 +25,8 @@ pub(super) enum FormattedJsdoc {
     MultiLine(String),
 }
 
-impl<'a> Format<DestackFormatContext<'a>> for FormattedJsdoc {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, DestackFormatContext<'a>> for FormattedJsdoc {
+    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
             FormattedJsdoc::Empty => {}
             FormattedJsdoc::SingleLine(content) => {
@@ -34,9 +34,9 @@ impl<'a> Format<DestackFormatContext<'a>> for FormattedJsdoc {
                     f,
                     [
                         token("/**"),
-                        text(" "),
-                        text(content),
-                        text(" "),
+                        space(),
+                        copied_text(content),
+                        space(),
                         token("*/")
                     ]
                 )?;
@@ -45,21 +45,21 @@ impl<'a> Format<DestackFormatContext<'a>> for FormattedJsdoc {
                 write!(f, [token("/**")])?;
                 for line in content_str.split('\n') {
                     if line.is_empty() {
-                        write!(f, [hard_line_break(), text(" "), token("*")])?;
+                        write!(f, [hard_line_break(), space(), token("*")])?;
                     } else {
                         write!(
                             f,
                             [
                                 hard_line_break(),
-                                text(" "),
+                                space(),
                                 token("*"),
-                                text(" "),
-                                text(line)
+                                space(),
+                                copied_text(line)
                             ]
                         )?;
                     }
                 }
-                write!(f, [hard_line_break(), text(" "), token("*/")])?;
+                write!(f, [hard_line_break(), space(), token("*/")])?;
             }
         }
 

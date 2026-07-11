@@ -21,7 +21,7 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 /// Create a formatter for a list of expression statements.
 pub fn statement_list<'ast>(
     expressions: &'ast [LocalNodeId<Expression>],
-) -> impl Format<DestackFormatContext<'ast>> + 'ast {
+) -> impl Format<'ast, DestackFormatContext<'ast>> + 'ast {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         // respect file-level ignore directives for top-level formatting
         if f.context().options.respect_file_ignore
@@ -154,7 +154,7 @@ pub(crate) fn block_has_internal_comments(
 /// ```
 pub(crate) fn empty_block_with_infix_annotations<'ast, T>(
     node_id: LocalNodeId<T>,
-) -> impl Format<DestackFormatContext<'ast>>
+) -> impl Format<'ast, DestackFormatContext<'ast>>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,

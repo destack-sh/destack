@@ -45,9 +45,9 @@ impl<T> FormatContentWithCacheMode<T> {
     }
 }
 
-impl<'ast, T> Format<DestackFormatContext<'ast>> for FormatContentWithCacheMode<T>
+impl<'ast, T> Format<'ast, DestackFormatContext<'ast>> for FormatContentWithCacheMode<T>
 where
-    T: Format<DestackFormatContext<'ast>>,
+    T: Format<'ast, DestackFormatContext<'ast>>,
 {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         // uncached
@@ -56,18 +56,18 @@ where
         }
 
         // cached
-        if let Some(cached) = f.context().get_cached_element(&self.key) {
+        if let Some(cached) = f.context().cached_node(&self.key) {
             f.write_node(cached);
             return Ok(());
         }
 
         // fresh
-        let Some(interned) = f.intern(&self.content)? else {
+        let Some(node) = f.capture(&self.content)? else {
             return Ok(());
         };
 
-        f.context_mut().cache_element(&self.key, interned.clone());
-        f.write_node(interned);
+        f.context_mut().cache_node(&self.key, node.clone());
+        f.write_node(node);
 
         Ok(())
     }

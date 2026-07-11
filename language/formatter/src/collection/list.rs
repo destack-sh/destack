@@ -32,12 +32,12 @@ pub(crate) struct FormatSeparatedElement<T: Node + Clone> {
     group_id: Option<GroupId>,
 }
 
-impl<'ast, T> Format<DestackFormatContext<'ast>> for FormatSeparatedElement<T>
+impl<'ast, T> Format<'ast, DestackFormatContext<'ast>> for FormatSeparatedElement<T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     Tree: TreeStore<T>,
 {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>) -> FormatResult<()> {
         let element_span = f.context().span(self.element);
         let element_anchor_end = f
             .context()
@@ -246,7 +246,7 @@ fn list_element_following_start(
 
 /// Write one separator token according to list position and trailing-separator mode.
 fn write_separator_token<'ast>(
-    f: &mut Formatter<'_, DestackFormatContext<'ast>>,
+    f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>,
     separator: &'static str,
     is_last: bool,
     trailing_separator: TrailingSeparator,
@@ -274,7 +274,7 @@ fn write_separator_token<'ast>(
 
 /// Write one trailing separator immediately after same-line trailing comments.
 fn write_immediate_trailing_separator<'ast>(
-    f: &mut Formatter<'_, DestackFormatContext<'ast>>,
+    f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>,
     separator: &'static str,
     trailing_separator: TrailingSeparator,
     group_id: Option<GroupId>,
@@ -458,67 +458,69 @@ pub(crate) fn separated_entries<'ast, 'e, T>(
     elements: &'e [LocalNodeId<T>],
     trailing_separator: TrailingSeparator,
     group_id: Option<GroupId>,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, 'e, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     Tree: TreeStore<T>,
 {
-    format_with(move |f: &mut Formatter<'_, DestackFormatContext<'ast>>| {
-        let has_elements = !elements.is_empty();
+    format_with(
+        move |f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>| {
+            let has_elements = !elements.is_empty();
 
-        if !has_elements {
-            return Ok(());
-        }
+            if !has_elements {
+                return Ok(());
+            }
 
-        let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
-            let comment_tokens = f.context().comment_tokens();
-            let ignore_ranges_by_id =
-                ignore_ranges_for_nodes(f.context(), elements, comment_tokens);
-            if ignore_ranges_by_id.is_empty() {
-                None
+            let ignore_ranges_by_id = if f.context().has_ignore_directive_markers() {
+                let comment_tokens = f.context().comment_tokens();
+                let ignore_ranges_by_id =
+                    ignore_ranges_for_nodes(f.context(), elements, comment_tokens);
+                if ignore_ranges_by_id.is_empty() {
+                    None
+                } else {
+                    Some(ignore_ranges_by_id)
+                }
             } else {
-                Some(ignore_ranges_by_id)
+                None
+            };
+            let has_ignore_ranges = ignore_ranges_by_id.is_some();
+            let mut needs_trailing_separator = true;
+            if let Some(ignore_ranges_by_id) = ignore_ranges_by_id.as_ref() {
+                needs_trailing_separator =
+                    format_list_with_ignored_ranges(f, elements, ignore_ranges_by_id, separator)?;
+            } else {
+                let entries = FormatSeparatedIter::new(elements.iter().copied(), separator)
+                    .with_trailing_separator(trailing_separator)
+                    .with_group_id(group_id);
+
+                f.join_with(&soft_line_break_or_space())
+                    .entries(entries)
+                    .finish()?;
             }
-        } else {
-            None
-        };
-        let has_ignore_ranges = ignore_ranges_by_id.is_some();
-        let mut needs_trailing_separator = true;
-        if let Some(ignore_ranges_by_id) = ignore_ranges_by_id.as_ref() {
-            needs_trailing_separator =
-                format_list_with_ignored_ranges(f, elements, ignore_ranges_by_id, separator)?;
-        } else {
-            let entries = FormatSeparatedIter::new(elements.iter().copied(), separator)
-                .with_trailing_separator(trailing_separator)
-                .with_group_id(group_id);
 
-            f.join_with(&soft_line_break_or_space())
-                .entries(entries)
-                .finish()?;
-        }
-
-        if has_ignore_ranges && needs_trailing_separator {
-            match trailing_separator {
-                TrailingSeparator::Allowed => {
-                    write!(
-                        f,
-                        [if_group_breaks(&token(separator)).with_group_id(group_id)]
-                    )?;
+            if has_ignore_ranges && needs_trailing_separator {
+                match trailing_separator {
+                    TrailingSeparator::Allowed => {
+                        write!(
+                            f,
+                            [if_group_breaks(&token(separator)).with_group_id(group_id)]
+                        )?;
+                    }
+                    TrailingSeparator::Mandatory => {
+                        write!(f, [token(separator)])?;
+                    }
+                    TrailingSeparator::Omit => {}
                 }
-                TrailingSeparator::Mandatory => {
-                    write!(f, [token(separator)])?;
-                }
-                TrailingSeparator::Omit => {}
             }
-        }
 
-        Ok(())
-    })
+            Ok(())
+        },
+    )
 }
 
 /// Format a list while preserving any ignore ranges as raw text.
 fn format_list_with_ignored_ranges<'ast, T>(
-    f: &mut Formatter<'_, DestackFormatContext<'ast>>,
+    f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>,
     elements: &[LocalNodeId<T>],
     ignore_ranges: &HashMap<u32, Span>,
     separator: &'static str,

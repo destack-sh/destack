@@ -51,7 +51,7 @@ impl TemplateInterpolationIndentation {
 
 /// Write one template interpolation body with source-derived indentation.
 pub(crate) fn write_template_interpolation_with_indentation<'ast>(
-    content: &impl Format<DestackFormatContext<'ast>>,
+    content: &impl Format<'ast, DestackFormatContext<'ast>>,
     indentation: TemplateInterpolationIndentation,
     f: &mut DestackFormatter<'ast, '_>,
 ) -> FormatResult<()> {

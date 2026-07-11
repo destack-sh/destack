@@ -62,10 +62,10 @@ pub(crate) fn tree_text_is_whitespace_only(
 }
 
 /// Return the raw text for one tree text child.
-pub(crate) fn tree_text_child_text<'context>(
-    context: &'context DestackFormatContext<'_>,
+pub(crate) fn tree_text_child_text<'ast>(
+    context: &DestackFormatContext<'ast>,
     child_id: LocalNodeId<TreeChild>,
-) -> Option<&'context str> {
+) -> Option<&'ast str> {
     let TreeChild::Text { value } = context.tree.get(child_id) else {
         return None;
     };

@@ -472,8 +472,8 @@ impl BinarySide {
     }
 }
 
-impl<'a> Format<DestackFormatContext<'a>> for BinarySide {
-    fn format(&self, f: &mut FirFormatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
+    fn format(&self, f: &mut FirFormatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
             // left side
             Self::Left { parent } => {

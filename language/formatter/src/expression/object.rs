@@ -151,7 +151,7 @@ pub(crate) fn format_fill_array<'ast>(
         let entries = FormatSeparatedIter::new(elements.iter().copied(), ",")
             .with_trailing_separator(trailing_separator)
             .with_group_id(Some(group_id));
-        let mut fill: destack_fir::format::FillBuilder<'_, '_, DestackFormatContext<'ast>> =
+        let mut fill: destack_fir::format::FillBuilder<'_, '_, 'ast, DestackFormatContext<'ast>> =
             f.fill();
 
         for (index, entry) in entries.enumerate() {

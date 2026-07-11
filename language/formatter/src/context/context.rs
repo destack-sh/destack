@@ -1,6 +1,6 @@
 use super::options::DestackFormatOptions;
 use super::source::SourceText;
-use super::{FormatElementCache, FormatSourceIndex};
+use super::{FormatNodeCache, FormatSourceIndex};
 
 use destack_core::{StringPool, ensure_sufficient_stack};
 pub use destack_dir::Decorator;
@@ -19,7 +19,7 @@ use destack_source::{File, MultiSpan, Span};
 use super::comment::Comments;
 
 /// The formatter implementation specialized for the Destack context.
-pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, DestackFormatContext<'ast>>;
+pub type DestackFormatter<'ast, 'buf> = Formatter<'buf, 'ast, DestackFormatContext<'ast>>;
 
 /// Run one formatter callback with a temporary following sibling boundary.
 pub(crate) fn with_following_span_start<'ast>(
@@ -73,8 +73,8 @@ pub struct DestackFormatContext<'a> {
     pub strings: &'a StringPool,
     /// The immutable source index for source-order lookups.
     pub source_index: FormatSourceIndex,
-    /// The formatted element cache for this formatter pass.
-    pub element_cache: FormatElementCache,
+    /// The FIR node cache for this formatter pass.
+    pub node_cache: FormatNodeCache<'a>,
     /// The start position of the following sibling for the node currently being formatted.
     pub current_following_span_start: u32,
     /// Whether tree callback bodies should expand like tree return elements.
@@ -108,7 +108,7 @@ impl<'a> DestackFormatContext<'a> {
             parents,
             strings,
             source_index,
-            element_cache: FormatElementCache::default(),
+            node_cache: FormatNodeCache::default(),
             current_following_span_start: 0,
             should_expand_tree_callback_bodies: false,
             comments: Comments::new(SourceText::new(file.text()), tree.comments()),
@@ -125,14 +125,14 @@ impl<'a> DestackFormatContext<'a> {
         &mut self.comments
     }
 
-    /// Return one cached formatted element for one source span.
-    pub fn get_cached_element(&self, span: &Span) -> Option<FirNode> {
-        self.element_cache.get(span)
+    /// Return one cached FIR node for a source span.
+    pub fn cached_node(&self, span: &Span) -> Option<FirNode<'a>> {
+        self.node_cache.get(span.range())
     }
 
-    /// Cache one formatted element for one source span.
-    pub fn cache_element(&mut self, span: &Span, node: FirNode) {
-        self.element_cache.insert(*span, node);
+    /// Cache one FIR node for a source span.
+    pub fn cache_node(&mut self, span: &Span, node: FirNode<'a>) {
+        self.node_cache.insert(span.range(), node);
     }
 
     /// Return the current following sibling start used for trailing comment ownership.
@@ -178,7 +178,7 @@ pub(crate) trait DestackFormatterSpeculationExt<'ast> {
     fn speculate_will_break_after(
         &mut self,
         start: u32,
-        content: &dyn Format<DestackFormatContext<'ast>>,
+        content: &dyn Format<'ast, DestackFormatContext<'ast>>,
     ) -> FormatResult<bool>;
 }
 
@@ -186,7 +186,7 @@ impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
     fn speculate_will_break_after(
         &mut self,
         start: u32,
-        content: &dyn Format<DestackFormatContext<'ast>>,
+        content: &dyn Format<'ast, DestackFormatContext<'ast>>,
     ) -> FormatResult<bool> {
         // speculation snapshot
         let snapshot = self.context().comments().snapshot();
@@ -196,7 +196,7 @@ impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
             .comments_mut()
             .skip_comments_before(start);
 
-        let content = self.intern(content);
+        let content = self.capture(content);
 
         // restore
         self.context_mut().comments_mut().restore(snapshot);
@@ -223,7 +223,7 @@ where
 pub(crate) struct FormatNodeWithoutTrailingComments<T: Node>(pub LocalNodeId<T>);
 
 /// Format a node.
-impl<'a, T: Node> Format<DestackFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node> Format<'a, DestackFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     Tree: TreeStore<T>,
@@ -241,7 +241,7 @@ where
 }
 
 /// Format a node without trailing comments.
-impl<'a, T: Node> Format<DestackFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
+impl<'a, T: Node> Format<'a, DestackFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
 where
     T: Node + Clone,
     Tree: TreeStore<T>,
@@ -267,7 +267,7 @@ where
 }
 
 /// Format a dynamically typed node.
-impl<'a> Format<DestackFormatContext<'a>> for LocalNodeIdAny {
+impl<'a> Format<'a, DestackFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();

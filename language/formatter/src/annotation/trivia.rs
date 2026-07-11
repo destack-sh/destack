@@ -4,8 +4,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{Comment, CommentContent, LocalNodeId, Node, Tree, TreeStore};
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter, hard_line_break};
 use destack_fir::prelude::{
-    block_indent, empty_line, expand_parent, format_with, group, line_suffix, soft_block_indent,
-    soft_line_break_or_space, space, text,
+    block_indent, copied_text, empty_line, expand_parent, format_with, group, line_suffix,
+    soft_block_indent, soft_line_break_or_space, space, text,
 };
 use destack_fir::write;
 use destack_source::Span;
@@ -73,7 +73,7 @@ pub(crate) fn format_comment<'ast>(
             normalized_comment.push_str(line.trim_end_matches('\r'));
         }
 
-        write!(f, [text(&normalized_comment)])?;
+        write!(f, [copied_text(&normalized_comment)])?;
         return Ok(());
     }
 
@@ -95,8 +95,8 @@ pub(crate) enum FormatLeadingComments<'a> {
     Comments(&'a [Comment]),
 }
 
-impl<'a> Format<DestackFormatContext<'a>> for FormatLeadingComments<'_> {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, DestackFormatContext<'a>> for FormatLeadingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
         fn format_leading_comments_impl<'ast>(
             comments: &[Comment],
             f: &mut DestackFormatter<'ast, '_>,
@@ -369,8 +369,8 @@ impl FormatDanglingComments<'_> {
     }
 }
 
-impl<'a> Format<DestackFormatContext<'a>> for FormatDanglingComments<'_> {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, DestackFormatContext<'a>> for FormatDanglingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
         fn write_dangling_comments<'ast>(
             f: &mut DestackFormatter<'ast, '_>,
             comments: &[Comment],
@@ -446,7 +446,7 @@ pub(crate) fn format_node_with_trailing_comments<'ast, T>(
     enclosing_span: Span,
     node_id: LocalNodeId<T>,
     following_span_start: u32,
-) -> impl Format<DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
 where
     T: FormatNode<'ast, T> + Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -473,8 +473,8 @@ pub(crate) enum FormatTrailingComments<'a> {
     Comments(&'a [Comment]),
 }
 
-impl<'a> Format<DestackFormatContext<'a>> for FormatTrailingComments<'_> {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, DestackFormatContext<'a>> for FormatTrailingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
         match self {
             Self::Node((enclosing_span, preceding_span, following_span_start)) => {
                 let comments = f.context().comments().get_trailing_comments(
