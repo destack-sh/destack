@@ -396,6 +396,14 @@
     },
     {
       "patterns": [
+        "pass*/d2332f9187c6a20a.module"
+      ],
+      "status": "excluded",
+      "reason": "declaration-name",
+      "note": "anonymous declarations are out of scope"
+    },
+    {
+      "patterns": [
         "fail/e82474d52b99f1b7"
       ],
       "status": "excluded",
@@ -1165,10 +1173,11 @@
     },
     {
       "patterns": [
-        "pass-explicit/c412905e229d6f2b",
-        "pass/2e8a88da875f40c7",
-        "pass/c412905e229d6f2b",
-        "pass/cb211fadccb029c7"
+        "pass*/2e8a88da875f40c7",
+        "pass*/5f1e0eff7ac775ee",
+        "pass*/c412905e229d6f2b",
+        "pass*/cb211fadccb029c7",
+        "pass*/f9c201250f225ab9"
       ],
       "status": "excluded",
       "reason": "legacy-delete",
