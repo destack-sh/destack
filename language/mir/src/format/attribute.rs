@@ -14,8 +14,8 @@ fn write_attribute_identifier<'a>(
 ) -> FormatResult<()> {
     match identifier {
         AttributeIdentifier::Identifier(identifier) => {
-            let text_value = f.context().strings.get(identifier);
-            write!(f, [text(text_value)])
+            let strings = f.context().strings;
+            write!(f, [text(strings.get(identifier))])
         }
         AttributeIdentifier::Missing => write!(f, [token("<missing>")]),
         AttributeIdentifier::Error => write!(f, [token("<error>")]),
@@ -142,11 +142,10 @@ pub(crate) fn write_attribute_value<'a>(
     match value {
         AttributeValue::Identifier(name) => write_attribute_identifier(*name, f),
         AttributeValue::Type(ty) => write!(f, [*ty]),
-        AttributeValue::Integer(value) => write!(f, [text(&value.to_string())]),
+        AttributeValue::Integer(value) => write!(f, [copied_text(&value.to_string())]),
         AttributeValue::Float(value) => format_float_literal(*value, f),
         AttributeValue::Boolean(value) => {
-            let text_value = if *value { "true" } else { "false" };
-            write!(f, [text(text_value)])
+            write!(f, [token(if *value { "true" } else { "false" })])
         }
         AttributeValue::String(value) => {
             let text_value = f.context().strings.get(*value);
@@ -174,19 +173,19 @@ fn format_string_literal<'a>(value: &str, f: &mut MirFormatter<'a, '_>) -> Forma
     write!(f, [token("\"")])?;
     for ch in value.chars() {
         if ch == '"' {
-            write!(f, [text("\\\"")])?;
+            write!(f, [token("\\\"")])?;
         } else if ch == '\\' {
-            write!(f, [text("\\\\")])?;
+            write!(f, [token("\\\\")])?;
         } else if ch == '\n' {
-            write!(f, [text("\\n")])?;
+            write!(f, [token("\\n")])?;
         } else if ch == '\r' {
-            write!(f, [text("\\r")])?;
+            write!(f, [token("\\r")])?;
         } else if ch == '\t' {
-            write!(f, [text("\\t")])?;
+            write!(f, [token("\\t")])?;
         } else if ch.is_ascii_graphic() || ch == ' ' {
-            write!(f, [text(&ch.to_string())])?;
+            write!(f, [copied_text(&ch.to_string())])?;
         } else {
-            write!(f, [text(&format!("\\u{{{:x}}}", ch as u32))])?;
+            write!(f, [copied_text(&format!("\\u{{{:x}}}", ch as u32))])?;
         }
     }
     write!(f, [token("\"")])
@@ -199,5 +198,5 @@ fn format_float_literal<'a>(
 ) -> FormatResult<()> {
     // emit a minimal float representation
     let text_value = value.to_f64().to_string();
-    write!(f, [text(&text_value)])
+    write!(f, [copied_text(&text_value)])
 }

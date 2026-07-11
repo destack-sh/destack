@@ -134,7 +134,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("local.get"),
                         space(),
-                        text(&format!("l{local_index}"))
+                        copied_text(&format!("l{local_index}"))
                     ]
                 )
             }
@@ -152,7 +152,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("local.address"),
                         space(),
-                        text(&format!("l{local_index}"))
+                        copied_text(&format!("l{local_index}"))
                     ]
                 )
             }
@@ -164,7 +164,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     [
                         token("local.set"),
                         space(),
-                        text(&format!("l{local_index}")),
+                        copied_text(&format!("l{local_index}")),
                         token(","),
                         space(),
                         value
@@ -384,7 +384,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
-                        text(&index.to_string())
+                        copied_text(&index.to_string())
                     ]
                 )
             }
@@ -407,7 +407,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
-                        text(&index.to_string()),
+                        copied_text(&index.to_string()),
                         token(","),
                         space(),
                         value
@@ -433,7 +433,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
-                        text(&index.to_string())
+                        copied_text(&index.to_string())
                     ]
                 )
             }
@@ -1076,7 +1076,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("axis"),
                         token("("),
-                        text(&axis.to_string()),
+                        copied_text(&axis.to_string()),
                         token(")")
                     ]
                 )
@@ -1382,7 +1382,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         class,
                         token(","),
                         space(),
-                        text(&slot.0.to_string())
+                        copied_text(&slot.0.to_string())
                     ]
                 )?;
                 let args = f.context().tree.get_values(call.arguments);
@@ -1413,7 +1413,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         constraint,
                         token(","),
                         space(),
-                        text(&slot.0.to_string())
+                        copied_text(&slot.0.to_string())
                     ]
                 )?;
                 let args = f.context().tree.get_values(call.arguments);
@@ -1719,7 +1719,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     [
                         token("profile.increment"),
                         space(),
-                        text(&format!("counter({})", counter.0))
+                        copied_text(&format!("counter({})", counter.0))
                     ]
                 )
             }
@@ -1730,7 +1730,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     [
                         token("profile.sample"),
                         space(),
-                        text(&format!("counter({})", counter.0)),
+                        copied_text(&format!("counter({})", counter.0)),
                         token(","),
                         space(),
                         value
@@ -1851,18 +1851,18 @@ fn format_u32_bracket_list<'a>(values: &[u32], f: &mut MirFormatter<'a, '_>) -> 
         if i > 0 {
             write!(f, [token(","), space()])?;
         }
-        write!(f, [text(&val.to_string())])?;
+        write!(f, [copied_text(&val.to_string())])?;
     }
     write!(f, [token("]")])
 }
 
 /// Format a named value list like `name=[v0, v1]`.
 fn format_named_value_group<'a>(
-    name: &str,
+    name: &'static str,
     values: &[Value],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [text(name), token("(")])?;
+    write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
@@ -1874,16 +1874,16 @@ fn format_named_value_group<'a>(
 
 /// Format a named u32 group like `name(0, 1)`.
 fn format_named_u32_group<'a>(
-    name: &str,
+    name: &'static str,
     values: &[u32],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [text(name), token("(")])?;
+    write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        write!(f, [text(&value.to_string())])?;
+        write!(f, [copied_text(&value.to_string())])?;
     }
     write!(f, [token(")")])
 }
@@ -2031,13 +2031,13 @@ fn format_tensor_convolution_groups<'a>(
         [
             token("feature"),
             token("("),
-            text(&feature_group_count.to_string()),
+            copied_text(&feature_group_count.to_string()),
             token(")"),
             token(","),
             space(),
             token("batch"),
             token("("),
-            text(&batch_group_count.to_string()),
+            copied_text(&batch_group_count.to_string()),
             token(")")
         ]
     )?;
@@ -2126,39 +2126,44 @@ fn format_tensor_scatter_immediate<'a>(
 
 /// Format a named u32 value like `name(0)`.
 fn format_named_u32_single<'a>(
-    name: &str,
+    name: &'static str,
     value: u32,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(
         f,
-        [text(name), token("("), text(&value.to_string()), token(")")]
+        [
+            token(name),
+            token("("),
+            copied_text(&value.to_string()),
+            token(")")
+        ]
     )
 }
 
 /// Format a named u64 group like `name(0, 1)`.
 fn format_named_u64_group<'a>(
-    name: &str,
+    name: &'static str,
     values: &[u64],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [text(name), token("(")])?;
+    write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        write!(f, [text(&value.to_string())])?;
+        write!(f, [copied_text(&value.to_string())])?;
     }
     write!(f, [token(")")])
 }
 
 /// Format a named flag group like `name(true, false)`.
 fn format_named_flag_group<'a>(
-    name: &str,
+    name: &'static str,
     values: &[u8],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [text(name), token("(")])?;
+    write!(f, [token(name), token("(")])?;
     for (index, value) in values.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
@@ -2302,7 +2307,7 @@ fn format_fence_context<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -
                 space(),
                 token("storage"),
                 token("("),
-                text(&format_storage_set(access.storage)),
+                copied_text(&format_storage_set(access.storage)),
                 token(")")
             ]
         )?;

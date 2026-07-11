@@ -22,7 +22,7 @@ impl<'a> FormatMirNode<'a, Type> for Type {
 /// Formatter adapter for one nested type reference.
 struct FormatTypeId(TypeId);
 
-impl<'a> Format<MirFormatContext<'a>> for FormatTypeId {
+impl<'a> Format<'a, MirFormatContext<'a>> for FormatTypeId {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         format_type_id(self.0, f)
     }
@@ -84,7 +84,7 @@ pub(super) fn format_type_declaration<'a>(
             format_struct_type_declaration(name, alias_id, &lifetimes, fields, f)
         }
         _ => {
-            write!(f, [token("type"), space(), text(name)])?;
+            write!(f, [token("type"), space(), copied_text(name)])?;
             format_lifetimes(&lifetimes, f)?;
             write!(f, [space(), token("="), space()])?;
             format_type_expanded(f, type_id, ty)?;
@@ -129,7 +129,7 @@ fn format_struct_type_declaration<'a>(
     fields: &[LocalNodeId<Field>],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [token("type"), space(), text(name)])?;
+    write!(f, [token("type"), space(), copied_text(name)])?;
     format_lifetimes(lifetimes, f)?;
     write!(f, [space(), token("{")])?;
 
@@ -148,7 +148,7 @@ fn format_struct_type_declaration<'a>(
     write!(
         f,
         [block_indent(&format_with(
-            |f: &mut Formatter<'_, MirFormatContext<'a>>| {
+            |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
                 format_struct_fields(fields, &field_spans, declaration_spans.as_ref(), f)
             }
         ))]
@@ -161,7 +161,7 @@ fn format_struct_fields<'a>(
     field_ids: &[LocalNodeId<Field>],
     field_spans: &[FieldSpan],
     declaration_spans: Option<&TypeDeclarationSpans>,
-    f: &mut Formatter<'_, MirFormatContext<'a>>,
+    f: &mut Formatter<'_, 'a, MirFormatContext<'a>>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
 
@@ -205,7 +205,7 @@ fn format_struct_fields<'a>(
 fn format_struct_field_entry<'a>(
     field_id: LocalNodeId<Field>,
     field_span: Option<&FieldSpan>,
-    f: &mut Formatter<'_, MirFormatContext<'a>>,
+    f: &mut Formatter<'_, 'a, MirFormatContext<'a>>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
     let field = tree.get(field_id);
@@ -240,7 +240,7 @@ fn format_type_inner<'a>(
 ) -> FormatResult<()> {
     if use_alias && let Some(alias_name) = f.context().type_alias_name(id) {
         let alias_name = alias_name.to_string();
-        return write!(f, [text(&alias_name)]);
+        return write!(f, [copied_text(&alias_name)]);
     }
 
     match ty {
@@ -252,7 +252,7 @@ fn format_type_inner<'a>(
             is_signed: signed,
         } => {
             let prefix = if *signed { "int" } else { "uint" };
-            write!(f, [text(&format!("{prefix}{width}"))])
+            write!(f, [copied_text(&format!("{prefix}{width}"))])
         }
         Type::Isize => write!(f, [token("isize")]),
         Type::Usize => write!(f, [token("usize")]),
@@ -307,7 +307,7 @@ fn format_type_inner<'a>(
                     FormatTypeId(*element),
                     token(";"),
                     space(),
-                    text(&length.to_string()),
+                    copied_text(&length.to_string()),
                     token("]")
                 ]
             )
@@ -349,7 +349,7 @@ fn format_type_inner<'a>(
                 }
                 if let Some(name) = field.name {
                     let field_name = f.context().strings.get(name);
-                    write!(f, [text(field_name), token(":"), space()])?;
+                    write!(f, [copied_text(field_name), token(":"), space()])?;
                     format_type_id(field.ty, f)?;
                 } else {
                     format_type_id(field.ty, f)?;
@@ -417,7 +417,7 @@ fn format_type_inner<'a>(
                     FormatTypeId(*element),
                     token(","),
                     space(),
-                    text(&lanes.to_string()),
+                    copied_text(&lanes.to_string()),
                     token(">")
                 ]
             )
@@ -532,9 +532,9 @@ fn format_shape<'a>(shape: &[TensorDimension], f: &mut MirFormatter<'a, '_>) -> 
         }
         match dim {
             TensorDimension::Static(value) => {
-                write!(f, [text(&value.to_string())])?;
+                write!(f, [copied_text(&value.to_string())])?;
             }
-            TensorDimension::Symbol(name) => write!(f, [text(name)])?,
+            TensorDimension::Symbol(name) => write!(f, [copied_text(name)])?,
             TensorDimension::Dynamic => write!(f, [token("dynamic")])?,
         }
     }
@@ -612,7 +612,7 @@ fn format_tensor_sharding_axis<'a>(
                 [
                     token("shard"),
                     token("("),
-                    text(&axis.to_string()),
+                    copied_text(&axis.to_string()),
                     token(")")
                 ]
             )
@@ -682,7 +682,7 @@ fn format_reference_qualifiers<'a>(
                 space(),
                 token("space"),
                 token("("),
-                text(memory_space.label()),
+                token(memory_space.label()),
                 token(")")
             ]
         )?;
@@ -792,9 +792,9 @@ pub(super) fn format_lifetime_group<'a>(
             LifetimeTerm::Static => write!(f, [token("static")])?,
             LifetimeTerm::Slot(index) => {
                 if let Some(name) = f.context().lifetime_name(*index).map(str::to_string) {
-                    write!(f, [text(&name)])?;
+                    write!(f, [copied_text(&name)])?;
                 } else {
-                    write!(f, [text(&index.0.to_string())])?;
+                    write!(f, [copied_text(&index.0.to_string())])?;
                 }
             }
         }
@@ -821,7 +821,10 @@ fn format_lifetimes<'a>(
             .name
             .map(|name| f.context().strings.get(name).to_string())
             .unwrap_or_else(|| index.to_string());
-        write!(f, [text(&name), token(":"), space(), token("lifetime")])?;
+        write!(
+            f,
+            [copied_text(&name), token(":"), space(), token("lifetime")]
+        )?;
     }
 
     write!(f, [token(">")])
@@ -852,7 +855,7 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
 fn format_struct_field<'a>(field: &Field, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     if let Some(name) = field.name {
         let field_name = f.context().strings.get(name);
-        write!(f, [text(field_name), token(":"), space()])?;
+        write!(f, [copied_text(field_name), token(":"), space()])?;
         format_type_id(field.ty, f)?;
         write!(f, [token(";")])
     } else {

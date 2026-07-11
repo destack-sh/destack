@@ -34,7 +34,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                     space(),
                     token("function"),
                     space(),
-                    text(&name),
+                    copied_text(&name),
                     format_with(|f| format_lifetimes(&self.lifetimes, f))
                 ]
             )?;
@@ -65,7 +65,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         }
 
         // function header
-        write!(f, [token("function"), space(), text(&name)])?;
+        write!(f, [token("function"), space(), copied_text(&name)])?;
         format_lifetimes(&self.lifetimes, f)?;
 
         // parameters
@@ -111,7 +111,10 @@ fn format_lifetimes<'a>(
             .name
             .map(|name| f.context().strings.get(name).to_string())
             .unwrap_or_else(|| index.to_string());
-        write!(f, [text(&name), token(":"), space(), token("lifetime")])?;
+        write!(
+            f,
+            [copied_text(&name), token(":"), space(), token("lifetime")]
+        )?;
     }
     write!(f, [token(">")])
 }
@@ -212,7 +215,7 @@ fn format_function_body<'a>(function: &Function, f: &mut MirFormatter<'a, '_>) -
         write!(
             f,
             [block_indent(&format_with(
-                |f: &mut Formatter<'_, MirFormatContext<'a>>| {
+                |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
                     for (local_index, local_id) in locals.iter().enumerate() {
                         let next_boundary = locals
                             .get(local_index + 1)
@@ -269,11 +272,11 @@ fn format_function_body<'a>(function: &Function, f: &mut MirFormatter<'a, '_>) -
 }
 
 /// Format one local declaration line.
-fn format_local_declaration(
+fn format_local_declaration<'a>(
     local_id: LocalNodeId<Local>,
     local_index: usize,
     next_boundary: u32,
-    f: &mut Formatter<'_, MirFormatContext<'_>>,
+    f: &mut Formatter<'_, 'a, MirFormatContext<'a>>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;
 
@@ -288,7 +291,7 @@ fn format_local_declaration(
         [
             token("local"),
             space(),
-            text(&format!("l{local_index}")),
+            copied_text(&format!("l{local_index}")),
             token(":"),
             space(),
             local.ty
@@ -351,7 +354,7 @@ fn format_function_parameters<'a>(
     write!(
         f,
         [block_indent(&format_with(
-            |f: &mut Formatter<'_, MirFormatContext<'a>>| {
+            |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
                 let tree = f.context().tree;
                 let mut previous_end = header_spans.open_paren.end;
 

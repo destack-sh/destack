@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_fir::format::{
-    Format, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
+    Allocator, Format, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
 };
 use destack_fir::prelude::*;
 use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
@@ -15,7 +15,7 @@ use crate::{
     TargetLayout, Tree, TreeImpl, Type, TypeAlias, Value,
 };
 
-pub type MirFormatter<'a, 'buf> = Formatter<'buf, MirFormatContext<'a>>;
+pub type MirFormatter<'a, 'buf> = Formatter<'buf, 'a, MirFormatContext<'a>>;
 
 /// MIR format options.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -349,7 +349,7 @@ pub trait FormatMirNode<'a, T: Node> {
 }
 
 /// Implement Format for LocalNodeId<T> where T implements FormatMirNode.
-impl<'a, T: Node + Clone> Format<MirFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node + Clone> Format<'a, MirFormatContext<'a>> for LocalNodeId<T>
 where
     Tree: TreeImpl<T>,
     T: FormatMirNode<'a, T>,
@@ -368,9 +368,10 @@ pub fn format_mir(
     options: MirFormatOptions,
 ) -> FormatResult<String> {
     let context = MirFormatContext::new(tree, target_layout, strings, options)?;
+    let allocator = Allocator::default();
 
     // format all globals and functions
-    let document = destack_fir::format!(context, [FormatAllItems])?;
+    let document = destack_fir::format!(&allocator, context, [FormatAllItems])?;
 
     // print the formatted document
     let printed = document.print()?;
@@ -492,7 +493,7 @@ fn write_comment_block<'a>(
             write_blank_line_gap(blank_lines_before, f)?;
         }
 
-        write!(f, [text(&comment.text)])?;
+        write!(f, [copied_text(&comment.text)])?;
     }
 
     if block.trailing_blank_lines > 0 {
@@ -536,7 +537,7 @@ pub(crate) fn write_inline_comment_after<'a>(
     let inline_comment = tree.inline_comment_between(start, end);
 
     if let Some(comment) = inline_comment {
-        write!(f, [space(), text(&comment.text)])?;
+        write!(f, [space(), copied_text(&comment.text)])?;
         return Ok(true);
     }
 
@@ -638,7 +639,7 @@ where
 /// Helper to format all module items.
 struct FormatAllItems;
 
-impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
+impl<'a> Format<'a, MirFormatContext<'a>> for FormatAllItems {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         let tree = f.context().tree;
         let mut has_output = false;

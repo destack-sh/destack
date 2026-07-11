@@ -19,7 +19,7 @@ impl<'a> FormatMirNode<'a, Block> for Block {
     ) -> FormatResult<()> {
         // block label
         let block_name = f.context().block_name(id);
-        write!(f, [text(&block_name)])?;
+        write!(f, [copied_text(&block_name)])?;
 
         // block parameters
         if !self.parameters.is_empty() {
@@ -42,7 +42,7 @@ impl<'a> FormatMirNode<'a, Block> for Block {
         write!(
             f,
             [block_indent(&format_with(
-                |f: &mut Formatter<'_, MirFormatContext<'a>>| {
+                |f: &mut Formatter<'_, 'a, MirFormatContext<'a>>| {
                     let tree = f.context().tree;
                     let block_span = tree.get_span(id);
                     let terminator_span = tree.get_span(terminator_id);
@@ -162,7 +162,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     [
                         token(","),
                         space(),
-                        text(&case.value.to_string()),
+                        copied_text(&case.value.to_string()),
                         space(),
                         token("=>"),
                         space()
@@ -231,7 +231,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     class,
                     token(","),
                     space(),
-                    text(&slot.0.to_string())
+                    copied_text(&slot.0.to_string())
                 ]
             )?;
             format_value_slice(call.arguments, f)?;
@@ -259,7 +259,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     constraint,
                     token(","),
                     space(),
-                    text(&slot.0.to_string())
+                    copied_text(&slot.0.to_string())
                 ]
             )?;
             format_value_slice(call.arguments, f)?;
@@ -382,7 +382,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     class,
                     token(","),
                     space(),
-                    text(&slot.0.to_string())
+                    copied_text(&slot.0.to_string())
                 ]
             )?;
             format_value_slice(call.arguments, f)?;
@@ -407,7 +407,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                     constraint,
                     token(","),
                     space(),
-                    text(&slot.0.to_string())
+                    copied_text(&slot.0.to_string())
                 ]
             )?;
             format_value_slice(call.arguments, f)?;
@@ -500,7 +500,7 @@ fn format_check_constraint<'a>(
                     value,
                     token(","),
                     space(),
-                    text(&bit_width.to_string())
+                    copied_text(&bit_width.to_string())
                 ]
             )
         }
@@ -522,7 +522,7 @@ fn format_check_constraint<'a>(
                     value,
                     token(","),
                     space(),
-                    text(&to_width.to_string())
+                    copied_text(&to_width.to_string())
                 ]
             )
         }
@@ -534,7 +534,17 @@ fn format_check_constraint<'a>(
         } => {
             let suffix = if *is_signed { "s" } else { "u" };
             let name = format!("{}.overflow.{suffix}", overflow_check_family(*operator)?);
-            write!(f, [text(&name), space(), left, token(","), space(), right])
+            write!(
+                f,
+                [
+                    copied_text(&name),
+                    space(),
+                    left,
+                    token(","),
+                    space(),
+                    right
+                ]
+            )
         }
         CheckConstraint::IsType { value, expected } => write!(
             f,
