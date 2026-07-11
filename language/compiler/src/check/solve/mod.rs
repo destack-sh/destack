@@ -1,8 +1,8 @@
 mod answer;
+mod bound;
 mod constraint;
 mod decision;
 mod probe;
-mod propagate;
 mod relation;
 mod solution;
 mod solve;
@@ -11,10 +11,12 @@ mod task;
 mod variable;
 
 pub(in crate::check) use answer::*;
+pub(in crate::check) use bound::*;
 pub(in crate::check) use constraint::*;
 pub(in crate::check) use decision::*;
 pub(in crate::check) use probe::*;
 pub(in crate::check) use relation::*;
+pub(in crate::check) use solve::TaskScope;
 pub(in crate::check) use solver::*;
 pub(in crate::check) use task::*;
 pub(in crate::check) use variable::*;

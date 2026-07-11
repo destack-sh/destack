@@ -22,7 +22,7 @@ impl CheckState<'_> {
     }
 
     /// Return a human readable path label.
-    pub(in crate::check) fn path_label(&self, module: ModuleId, path: &dir::Path) -> String {
+    pub(in crate::check) fn path_label(&self, path: &dir::Path) -> String {
         let mut label = String::new();
 
         // join path segments with dot notation
@@ -31,7 +31,7 @@ impl CheckState<'_> {
                 label.push('.');
             }
 
-            label.push_str(self.module(module).strings.get(*segment));
+            label.push_str(self.strings().get(*segment));
         }
 
         label
@@ -47,14 +47,14 @@ impl CheckState<'_> {
         let [name] = path.segments.as_slice() else {
             return None;
         };
-        let name = self.module(module).strings.get(*name).to_string();
+        let name = self.strings().get(*name).to_string();
 
         let bindings = self.module(module).binding_table();
         let scope = bindings.scope_at(&self.module(module).view(), source);
         let mut candidates = Vec::new();
 
         // collect lexical names visible at the source node
-        self.collect_reference_names(module, &bindings, scope, &mut candidates);
+        self.collect_reference_names(&bindings, scope, &mut candidates);
 
         // collect profile-provided globals visible to unresolved references
         for key in self
@@ -64,7 +64,7 @@ impl CheckState<'_> {
             .global_target_by_key
             .keys()
         {
-            if let Some(candidate) = self.reference_key_text(module, key) {
+            if let Some(candidate) = self.reference_key_text(key) {
                 candidates.push(candidate);
             }
         }
@@ -87,7 +87,7 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::Reference(reference) => {
-                if let Some(definition) = self.definition(reference.symbol) {
+                if let Some(definition) = self.loaded_definition(reference.symbol) {
                     for member in definition.members() {
                         if member.space() == dir::MemberSpace::Static
                             && let Some(key) = member.key()
@@ -98,7 +98,7 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::Instance(instance) => {
-                if let Some(definition) = self.definition(instance.symbol) {
+                if let Some(definition) = self.loaded_definition(instance.symbol) {
                     for member in definition.members() {
                         if let Some(key) = member.key() {
                             keys.push(self.format_static_key(&key));
@@ -115,7 +115,6 @@ impl CheckState<'_> {
     /// Collect named lexical bindings visible from one scope cursor.
     fn collect_reference_names(
         &self,
-        module: ModuleId,
         bindings: &dir::BindingTable<'_>,
         mut scope: dir::LocalScope,
         candidates: &mut Vec<String>,
@@ -130,7 +129,7 @@ impl CheckState<'_> {
                     continue;
                 }
 
-                if let Some(candidate) = self.reference_key_text(module, &key) {
+                if let Some(candidate) = self.reference_key_text(&key) {
                     candidates.push(candidate);
                 }
             }
@@ -144,9 +143,9 @@ impl CheckState<'_> {
     }
 
     /// Return source text for an ordinary reference key.
-    fn reference_key_text(&self, module: ModuleId, key: &dir::StaticKey) -> Option<String> {
+    fn reference_key_text(&self, key: &dir::StaticKey) -> Option<String> {
         match key {
-            dir::StaticKey::Name(name) => Some(self.module(module).strings.get(*name).to_string()),
+            dir::StaticKey::Name(name) => Some(self.strings().get(*name).to_string()),
             dir::StaticKey::Index(_) | dir::StaticKey::Symbol(_) => None,
         }
     }

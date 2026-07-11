@@ -1,7 +1,7 @@
+use destack_core::FxIndexMap;
 use std::sync::Arc;
 
 use destack_dir as dir;
-use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{CheckState, Origin, VariableRole};
@@ -39,11 +39,11 @@ pub(in crate::check) struct InducedLifetimeSite {
 #[derive(Debug)]
 pub(in crate::check) struct GenericIndex {
     /// Template ids keyed by declaring source node.
-    templates_by_source: IndexMap<dir::GlobalNodeIdAny, GenericTemplateId>,
+    templates_by_source: FxIndexMap<dir::GlobalNodeIdAny, GenericTemplateId>,
     /// Template ids keyed by declaring symbol.
-    templates_by_symbol: IndexMap<dir::GlobalSymbolId, GenericTemplateId>,
+    templates_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericTemplateId>,
     /// Parameter ids keyed by parameter symbol.
-    parameters_by_symbol: IndexMap<dir::GlobalSymbolId, GenericParameterId>,
+    parameters_by_symbol: FxIndexMap<dir::GlobalSymbolId, GenericParameterId>,
     /// Declaration types scanned for elided lifetime variables.
     induced_lifetime_sites: Vec<InducedLifetimeSite>,
 }
@@ -52,9 +52,9 @@ impl GenericIndex {
     /// Create an empty generic index.
     pub(in crate::check) fn new() -> Self {
         Self {
-            templates_by_source: IndexMap::new(),
-            templates_by_symbol: IndexMap::new(),
-            parameters_by_symbol: IndexMap::new(),
+            templates_by_source: FxIndexMap::default(),
+            templates_by_symbol: FxIndexMap::default(),
+            parameters_by_symbol: FxIndexMap::default(),
             induced_lifetime_sites: Vec::new(),
         }
     }
@@ -98,8 +98,25 @@ impl GenericIndex {
 
 impl CheckState<'_> {
     /// Return one symbol's generic template, reading the walk index
-    /// over committed definitions for external symbols.
+    /// over committed definitions.
     pub(in crate::check) fn symbol_template(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<GenericTemplateId>> {
+        if let Some(template) = self.generics.template_by_symbol(symbol) {
+            return Ok(Some(template));
+        }
+
+        // committed definitions carry their declared templates
+        let template = self
+            .definition(symbol)?
+            .and_then(|definition| definition.template());
+
+        Ok(template.map(|template| template.into_global(symbol.module_id)))
+    }
+
+    /// Return one symbol's already loaded template, without importing.
+    pub(in crate::check) fn loaded_symbol_template(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericTemplateId> {
@@ -107,8 +124,7 @@ impl CheckState<'_> {
             return Some(template);
         }
 
-        // committed definitions carry their declared templates
-        let template = self.definition(symbol)?.template()?;
+        let template = self.loaded_definition(symbol)?.template()?;
 
         Some(template.into_global(symbol.module_id))
     }
@@ -183,9 +199,9 @@ impl CheckState<'_> {
 
     /// Return the owner parameters enclosing one member template.
     pub(in crate::check) fn owner_template_parameters(
-        &self,
+        &mut self,
         id: GenericTemplateId,
-    ) -> SmallVec<[GenericParameterId; 4]> {
+    ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
         let mut parameters = SmallVec::new();
         let mut current = self
             .generic_template(id)
@@ -196,9 +212,9 @@ impl CheckState<'_> {
         while let Some(id) = current {
             let template = self.generic_template(id);
             let symbol = template.and_then(|template| template.symbol);
-            let is_owner = symbol.is_some_and(|symbol| {
-                matches!(
-                    self.definition(symbol),
+            let is_owner = match symbol {
+                Some(symbol) => matches!(
+                    self.definition(symbol)?,
                     Some(
                         dir::Definition::Extension(_)
                             | dir::Definition::Class(_)
@@ -207,8 +223,9 @@ impl CheckState<'_> {
                             | dir::Definition::Interface(_)
                             | dir::Definition::Newtype(_)
                     )
-                )
-            });
+                ),
+                None => false,
+            };
             if is_owner {
                 parameters.extend(self.generic_template_parameters(id));
             }
@@ -218,7 +235,7 @@ impl CheckState<'_> {
                 .map(|parent| parent.into_global(id.module_id));
         }
 
-        parameters
+        Ok(parameters)
     }
 
     /// Return the generic parameters owned by one callable signature.
@@ -275,7 +292,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
-        let Some(template) = self.symbol_template(symbol) else {
+        let Some(template) = self.symbol_template(symbol)? else {
             if arguments.is_empty() {
                 return Ok(Vec::new());
             }
@@ -302,10 +319,10 @@ impl CheckState<'_> {
 
         // preserve selected declaration parameters that did not receive evidence
         let state = self.solver.variable(variable)?;
-        if !state.lower.is_empty() || state.default.is_some() {
+        if !state.lower.is_empty() {
             return Ok(argument);
         }
-        if state.role.is_inference() {
+        if self.solver.variable_role(variable)?.is_inference() {
             let Some(binding) = self.generic_parameter(parameter) else {
                 return Ok(argument);
             };
@@ -435,10 +452,7 @@ impl CheckState<'_> {
         let number = self
             .generic_template(template)
             .map_or(0, |template| template.parameters.len());
-        let name = self
-            .module_mut(template.module_id)
-            .strings
-            .intern(&format!("L{number}"));
+        let name = self.strings().intern(&format!("L{number}"));
 
         self.push_generic_parameter(
             template,
@@ -516,16 +530,23 @@ impl CheckState<'_> {
     }
 
     /// Return the assuming generic template carried by one work origin.
-    pub(in crate::check) fn origin_scope(&self, origin: Origin) -> Option<GenericTemplateId> {
+    pub(in crate::check) fn origin_scope(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<Option<GenericTemplateId>> {
         match origin {
-            Origin::Node(_, scope) => scope,
+            Origin::Node(_, scope) => Ok(scope),
             Origin::Symbol(symbol) => self.symbol_template(symbol),
         }
     }
 
     /// Return one work origin re-anchored at a node under the same assumptions.
-    pub(in crate::check) fn origin_at(&self, origin: Origin, node: dir::GlobalNodeIdAny) -> Origin {
-        Origin::Node(node, self.origin_scope(origin))
+    pub(in crate::check) fn origin_at(
+        &mut self,
+        origin: Origin,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<Origin> {
+        Ok(Origin::Node(node, self.origin_scope(origin)?))
     }
 
     /// Collect one parameter's declared constraint and assumed bounds.
@@ -545,9 +566,6 @@ impl CheckState<'_> {
     }
 
     /// Collect the where-clause bounds one origin assumes for a parameter.
-    ///
-    /// The scope chain walks enclosing templates, so a method assumes
-    /// its own predicates and those of its enclosing declarations.
     pub(in crate::check) fn assumed_parameter_bounds(
         &mut self,
         origin: Origin,
@@ -565,7 +583,7 @@ impl CheckState<'_> {
         origin: Origin,
         subject: impl Fn(&dir::Type) -> bool,
     ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
-        let scope = self.origin_scope(origin);
+        let scope = self.origin_scope(origin)?;
         let scope = self.generic_scope(scope);
 
         // keep the bounds whose predicate subject matches

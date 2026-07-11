@@ -988,6 +988,61 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Break carries a value outside a `loop` or labeled block.
+    ///
+    /// ```ds
+    /// while (true) { break 1; }
+    /// ```
+    #[diagnostic(
+        code = "EC441",
+        message = "break with a value can only target a `loop` or labeled block"
+    )]
+    BreakValueOutsideLoop {
+        /// Report the break expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Declared generic parameter never occurs in its declaration.
+    ///
+    /// ```ds
+    /// class Tag<T> {}
+    /// ```
+    #[diagnostic(code = "EC442", message = "generic parameter '{name}' is never used")]
+    UnusedGenericParameter {
+        /// Report the parameter declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unused parameter name.
+        name: String,
+    },
+
+    /// Declared variance conflicts with the parameter's derived use.
+    ///
+    /// ```ds
+    /// class Evil<out T> {
+    ///     slot: T;
+    /// }
+    /// ```
+    #[diagnostic(
+        code = "EC443",
+        message = "generic parameter '{name}' is used {usage} and cannot be declared '{declared}'"
+    )]
+    VarianceConflict {
+        /// Report the parameter declaration.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The conflicting parameter name.
+        name: String,
+        /// The derived use spelling, like "invariantly".
+        usage: String,
+        /// The declared modifier spelling, like "out".
+        declared: String,
+    },
+
     /// Pattern matching does not cover every possible value.
     ///
     /// ```ds

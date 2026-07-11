@@ -1,10 +1,9 @@
+use destack_core::FxIndexSet;
 use std::sync::Arc;
 
 use destack_artifact::{DirExpanded, DirParsed, DirResolved};
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
-
-use indexmap::IndexSet;
 
 use super::CheckState;
 use crate::{CompilerError, CompilerResult};
@@ -83,7 +82,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let mut current = symbol;
-        let mut visited = IndexSet::new();
+        let mut visited = FxIndexSet::default();
 
         // hop alias targets until a declaring symbol appears
         loop {
@@ -130,8 +129,8 @@ impl CheckState<'_> {
     }
 
     /// Return external modules that can be named from one component module.
-    fn external_module_ids(&self, module: ModuleId) -> IndexSet<ModuleId> {
-        let mut external_modules = IndexSet::new();
+    fn external_module_ids(&self, module: ModuleId) -> FxIndexSet<ModuleId> {
+        let mut external_modules = FxIndexSet::default();
         let imports = &self.module(module).resolved.imports;
 
         // collect resolved target modules outside the component
@@ -185,7 +184,7 @@ impl CheckState<'_> {
                 ),
             })?
             .checked;
-        let bindings = expanded.binding_table(bound.as_ref());
+        let bindings = checked.binding_table(bound.as_ref(), expanded.as_ref());
         let types = checked.type_table(bound.as_ref(), expanded.as_ref());
         let statics = checked.static_table(bound.as_ref(), expanded.as_ref());
         let generics = checked.generic_table();

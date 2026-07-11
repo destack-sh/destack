@@ -3,16 +3,15 @@ use std::sync::Arc;
 use destack_artifact::{
     DiagnosticBuilder, DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey,
 };
-use destack_core::StringPool;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_repository::Module;
 use destack_source::{ModuleId, Span};
-use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, Capture, CheckError, CheckState, CheckWarning, Constraint, Dependency, FlowPoint,
-    FlowPointId, FlowSite, Origin, Relation, ValueUse, answer,
+    Answer, BodyOwner, Capture, CheckError, CheckOutcome, CheckState, CheckWarning, Constraint,
+    Dependency, FlowPoint, FlowPointId, FlowSite, Origin, Relation, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -23,8 +22,6 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) module: Arc<Module>,
     /// The active target profile.
     pub(in crate::check) profile: ProfileKey,
-    /// The shared string pool.
-    pub(in crate::check) strings: Arc<StringPool>,
     /// The parsed DIR input.
     pub(in crate::check) parsed: Arc<DirParsed>,
     /// The bound DIR input.
@@ -38,7 +35,7 @@ pub(in crate::check) struct CheckModuleState {
     /// Checked symbols synthesized from resolved language features.
     pub(in crate::check) bindings_tail: dir::BindingSegment,
     /// Out-of-component modules visible from this module.
-    pub(in crate::check) external_modules: IndexSet<ModuleId>,
+    pub(in crate::check) external_modules: FxIndexSet<ModuleId>,
 
     // open checked state owned by this module
     /// The committed base type table built once at load.
@@ -62,20 +59,22 @@ pub(in crate::check) struct CheckModuleState {
     /// Checked decorators.
     pub(in crate::check) decorators: dir::DecoratorSegment,
     /// Inferred static symbol values, materialized to statics during write.
-    pub(in crate::check) static_values: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    pub(in crate::check) static_values: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
     /// Durable flow states discovered while walking this module.
     pub(in crate::check) flows: Vec<FlowPoint>,
     /// Entry flow point for each walked source node occurrence.
     pub(in crate::check) node_flows:
-        IndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
+        FxIndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
+    /// Blocks whose end no control path reaches.
+    pub(in crate::check) unreachable_ends: FxIndexSet<dir::LocalNodeIdAny>,
 
     // statically false gates
     /// Presence decisions for decorated source nodes.
-    pub(in crate::check) static_presence: IndexMap<dir::GlobalNodeIdAny, bool>,
+    pub(in crate::check) static_presence: FxIndexMap<dir::GlobalNodeIdAny, bool>,
     /// Declarations whose guards decided statically false.
-    pub(in crate::check) absent_symbols: IndexSet<dir::GlobalSymbolId>,
+    pub(in crate::check) absent_symbols: FxIndexSet<dir::GlobalSymbolId>,
 
     // diagnostics drained during write
     /// Diagnostics reported while walking this module.
@@ -89,7 +88,6 @@ impl CheckModuleState {
     pub(in crate::check) fn new(
         module: Arc<Module>,
         profile: ProfileKey,
-        strings: Arc<StringPool>,
         parsed: Arc<DirParsed>,
         bound: Arc<DirBound>,
         resolved: Arc<DirResolved>,
@@ -112,7 +110,6 @@ impl CheckModuleState {
         Self {
             module,
             profile,
-            strings,
             parsed,
             bound,
             resolved,
@@ -129,13 +126,14 @@ impl CheckModuleState {
             coercions,
             capture_segment,
             decorators,
-            static_values: IndexMap::new(),
-            static_presence: IndexMap::new(),
-            absent_symbols: IndexSet::new(),
-            external_modules: IndexSet::new(),
+            static_values: FxIndexMap::default(),
+            static_presence: FxIndexMap::default(),
+            absent_symbols: FxIndexSet::default(),
+            external_modules: FxIndexSet::default(),
             captures: Vec::new(),
             flows: Vec::new(),
-            node_flows: IndexMap::new(),
+            node_flows: FxIndexMap::default(),
+            unreachable_ends: FxIndexSet::default(),
             diagnostics: Vec::new(),
             warnings: Vec::new(),
         }
@@ -227,6 +225,55 @@ impl CheckModuleState {
         Ok(declaration.local_id)
     }
 
+    /// Return one operation payload visible to check, reading the overlay over the base table.
+    pub(in crate::check) fn operation_maybe(
+        &self,
+        id: dir::TypeOperationId,
+    ) -> Option<dir::TypeOperation> {
+        self.types_tail
+            .operation(id)
+            .or_else(|| self.types.operation_maybe(id))
+            .copied()
+    }
+
+    /// Return one signature payload visible to check, reading the overlay over the base table.
+    pub(in crate::check) fn signature_maybe(
+        &self,
+        id: dir::FunctionSignatureId,
+    ) -> Option<dir::FunctionSignatureType> {
+        self.types_tail
+            .signature(id)
+            .or_else(|| self.types.signature_maybe(id))
+            .copied()
+    }
+
+    /// Return one member payload visible to check, reading the overlay over the base table.
+    pub(in crate::check) fn member_maybe(&self, id: dir::MemberTypeId) -> Option<dir::MemberType> {
+        self.types_tail
+            .member(id)
+            .or_else(|| self.types.member_maybe(id))
+            .copied()
+    }
+
+    /// Return one refined payload visible to check, reading the overlay over the base table.
+    pub(in crate::check) fn refined_maybe(
+        &self,
+        id: dir::RefinedTypeId,
+    ) -> Option<dir::RefinedType> {
+        self.types_tail
+            .refined(id)
+            .or_else(|| self.types.refined_maybe(id))
+            .copied()
+    }
+
+    /// Return one borrow payload visible to check, reading the overlay over the base table.
+    pub(in crate::check) fn borrow_maybe(&self, id: dir::BorrowFormId) -> Option<dir::BorrowForm> {
+        self.types_tail
+            .borrow_form(id)
+            .or_else(|| self.types.borrow_form_maybe(id))
+            .copied()
+    }
+
     /// Return one type visible to check, reading the overlay over the base table.
     pub(in crate::check) fn type_maybe(&self, type_id: dir::LocalTypeId) -> Option<dir::Type> {
         self.types_tail
@@ -292,8 +339,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         let reference = self
-            .module(source.module_id)
-            .resolved
+            .module_resolved(source.module_id)
             .references
             .get(source)?;
         let dir::Reference::Bound(symbols) = reference else {
@@ -337,6 +383,16 @@ impl CheckState<'_> {
             .unwrap_or_else(|| unreachable!("check module {module:?} was not loaded"))
     }
 
+    /// Return one body target's committed type, when its node has one.
+    pub(in crate::check) fn node_type_maybe_body(
+        &self,
+        owner: BodyOwner,
+    ) -> Option<dir::GlobalTypeId> {
+        let node = owner.body.node()?;
+
+        self.node_type_maybe(node.into_global(owner.module))
+    }
+
     /// Return one source node type without flow narrowing, if present.
     pub(in crate::check) fn node_type_maybe(
         &self,
@@ -350,22 +406,19 @@ impl CheckState<'_> {
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if let Some(ty) = self.node_type_maybe(node) {
-            Ok(Answer::Ready(ty))
-        } else {
-            Ok(Answer::pending([Dependency::NodeType(node)]))
-        }
+        Ok(Answer::Ready(self.require_node_type(node)?))
     }
 
     /// Return an invariant label for one source node.
     pub(in crate::check) fn node_label(&self, node: dir::GlobalNodeIdAny) -> String {
         let module = self.module(node.module_id);
+        let uri = module.module.uri.as_ref();
 
         // include source position without inspecting the node's syntax variant
         if let Some(span) = module.diagnostic_span(node.local_id) {
-            format!("node {node:?} at {span:?}")
+            format!("node {node:?} in {uri} at {span:?}")
         } else {
-            format!("node {node:?}")
+            format!("node {node:?} in {uri}")
         }
     }
 
@@ -408,11 +461,6 @@ impl CheckState<'_> {
 
         self.node_types.insert(node, ty);
 
-        // wake tasks parked on the node type
-        for waiter in self.solver.wake(Dependency::NodeType(node)) {
-            self.queue_task(waiter);
-        }
-
         Ok(())
     }
 
@@ -431,26 +479,18 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
-    /// Constrain one source node's runtime value type.
-    pub(in crate::check) fn constrain_node_value(
+    /// Check one source node's runtime value type.
+    pub(in crate::check) fn check_node_value(
         &mut self,
         site: FlowSite,
         relation: Relation,
         target: dir::GlobalTypeId,
         origin: Origin,
-        use_: ValueUse,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<(dir::GlobalTypeId, CheckOutcome)>> {
         let source = answer!(self.node_type_at(site)?);
-        self.push_constraint(Constraint::value(
-            relation,
-            source,
-            target,
-            origin,
-            origin,
-            Some(use_),
-        ));
+        let check = answer!(self.check_value_relation(origin, relation, source, target)?);
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready((source, check)))
     }
 
     /// Return one source node's recorded flow site.
@@ -551,12 +591,8 @@ impl CheckState<'_> {
         };
 
         if let Some(existing) = existing {
-            self.push_constraint(Constraint::r#type(
-                Relation::Equal,
-                existing,
-                ty,
-                Origin::Symbol(symbol),
-            ));
+            let origin = self.intern_origin(Origin::Symbol(symbol));
+            self.push_constraint(Constraint::r#type(Relation::Equal, existing, ty, origin));
 
             return Ok(existing);
         }
@@ -591,16 +627,26 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return one loaded symbol's checked type.
+    /// Return one symbol's checked type, importing its module on demand.
     pub(in crate::check) fn symbol_type(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if let Some(ty) = self.symbol_type_maybe(symbol) {
-            Ok(Answer::Ready(ty))
-        } else {
-            Ok(Answer::pending([Dependency::SymbolType(symbol)]))
+        if !self.modules.contains_key(&symbol.module_id) {
+            self.import_external_module(symbol.module_id)?;
         }
+
+        if let Some(ty) = self.symbol_type_maybe(symbol) {
+            return Ok(Answer::Ready(ty));
+        }
+
+        // run the symbol's recorded initializer body first
+        self.run_initializer(symbol)?;
+        if let Some(ty) = self.symbol_type_maybe(symbol) {
+            return Ok(Answer::Ready(ty));
+        }
+
+        Ok(Answer::pending([Dependency::SymbolType(symbol)]))
     }
 
     /// Return the checked type required for one loaded symbol.
@@ -619,30 +665,17 @@ impl CheckState<'_> {
 
     /// Return one definition member's checked value type.
     pub(in crate::check) fn definition_member_type(
-        &self,
+        &mut self,
         member: &dir::DefinitionMember,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        if let Some(symbol) = member.symbol()
-            && !matches!(member, dir::DefinitionMember::AssociatedType(_))
-        {
+        if let Some(symbol) = member.type_symbol() {
             return match self.symbol_type(symbol)? {
                 Answer::Ready(ty) => Ok(Answer::Ready(Some(ty))),
                 Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
             };
         }
 
-        let ty = match member {
-            dir::DefinitionMember::AssociatedType(associated) => associated.value,
-            dir::DefinitionMember::CallSignature(signature)
-            | dir::DefinitionMember::ConstructSignature(signature)
-            | dir::DefinitionMember::IndexSignature(signature) => Some(signature.ty),
-            dir::DefinitionMember::Field(_)
-            | dir::DefinitionMember::Method(_)
-            | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::Variant(_) => None,
-        };
-
-        Ok(Answer::Ready(ty))
+        Ok(Answer::Ready(member.value_type()))
     }
 
     /// Return the checked value type required for one definition member.
@@ -650,24 +683,11 @@ impl CheckState<'_> {
         &self,
         member: &dir::DefinitionMember,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if let Some(symbol) = member.symbol()
-            && !matches!(member, dir::DefinitionMember::AssociatedType(_))
-        {
+        if let Some(symbol) = member.type_symbol() {
             return Ok(Some(self.require_symbol_type(symbol)?));
         }
 
-        let ty = match member {
-            dir::DefinitionMember::AssociatedType(associated) => associated.value,
-            dir::DefinitionMember::CallSignature(signature)
-            | dir::DefinitionMember::ConstructSignature(signature)
-            | dir::DefinitionMember::IndexSignature(signature) => Some(signature.ty),
-            dir::DefinitionMember::Field(_)
-            | dir::DefinitionMember::Method(_)
-            | dir::DefinitionMember::AssociatedConst(_)
-            | dir::DefinitionMember::Variant(_) => None,
-        };
-
-        Ok(ty)
+        Ok(member.value_type())
     }
 
     /// Return the inferred static value of one source symbol.
@@ -697,6 +717,24 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return one module's resolved names, loaded or external.
+    pub(in crate::check) fn module_resolved(&self, module: ModuleId) -> &DirResolved {
+        if let Some(module) = self.modules.get(&module) {
+            &module.resolved
+        } else {
+            &self.external_module(module).resolved
+        }
+    }
+
+    /// Return one module's tree view, loaded or external.
+    pub(in crate::check) fn module_view(&self, module: ModuleId) -> dir::View<'_> {
+        if let Some(module) = self.modules.get(&module) {
+            module.view()
+        } else {
+            self.external_module(module).view()
+        }
     }
 
     /// Return one binding table by module.

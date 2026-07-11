@@ -1,10 +1,10 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BoundMode, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation, Task,
-    TypeBound, VariableBounds, VariableRole, Widening, answer,
+    Answer, BoundMode, BoundSide, CheckEvent, CheckState, Constraint, Dependency, Origin, Relation,
+    Task, TaskFailures, TypeBound, VariableBounds, VariableRole, Widening, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -12,17 +12,32 @@ impl CheckState<'_> {
     /// Allocate one inference variable.
     pub(in crate::check) fn allocate_variable(
         &mut self,
-        module: ModuleId,
         origin: Origin,
         widening: Widening,
         role: VariableRole,
     ) -> dir::TypeVariableId {
-        let variable = self
-            .solver
-            .allocate_variable(module, origin, widening, role);
+        let variable = self.solver.allocate_variable(origin, widening, role);
         self.record_event(CheckEvent::VariableAllocated { variable, widening });
 
         variable
+    }
+
+    /// Record the declared default completing one variable when inference stays dry.
+    pub(in crate::check) fn set_variable_default(
+        &mut self,
+        variable: dir::TypeVariableId,
+        default: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let representative = self.solver.representative(variable)?;
+        self.solver.set_variable_default(representative, default);
+
+        // the completion runs after regular work drains
+        self.queue_task(Task::Solve {
+            variable: representative,
+            mode: BoundMode::Weak,
+        });
+
+        Ok(())
     }
 
     /// Return one canonical open variable, or none when the variable is solved.
@@ -52,49 +67,10 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
     ) -> CompilerResult<VariableRole> {
         let Some(variable) = self.open_variable(variable)? else {
-            return Ok(VariableRole::Inference);
+            return Ok(VariableRole::Regular);
         };
 
-        Ok(self.solver.variable(variable)?.role)
-    }
-
-    /// Set one variable's default solution.
-    pub(in crate::check) fn set_variable_default(
-        &mut self,
-        variable: dir::TypeVariableId,
-        default: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let representative = self.solver.representative(variable)?;
-        let state = self.solver.variable_mut(representative)?;
-        let previous = state.default;
-        if previous == Some(default) {
-            return Ok(());
-        }
-        if previous.is_some() {
-            return Err(CompilerError::Internal {
-                message: format!("check variable {representative:?} has conflicting defaults"),
-            });
-        }
-        state.default = Some(default);
-        self.wait_for_bound_variables(representative, default)?;
-        self.queue_task(Task::Solve {
-            variable: representative,
-            mode: BoundMode::Strong,
-        });
-
-        Ok(())
-    }
-
-    /// Solve one variable from its bounds.
-    pub(super) fn run_solve(
-        &mut self,
-        variable: dir::TypeVariableId,
-        mode: BoundMode,
-    ) -> CompilerResult<Answer<()>> {
-        match self.solve_variable(variable, mode)? {
-            Answer::Ready(_) => Ok(Answer::Ready(())),
-            Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
-        }
+        self.solver.variable_role(variable)
     }
 
     /// Solve one variable from its bounds.
@@ -102,21 +78,27 @@ impl CheckState<'_> {
         &mut self,
         variable: dir::TypeVariableId,
         mode: BoundMode,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<Answer<TaskFailures>> {
         let can_use_weak = mode.allows_weak();
         let representative = self.solver.representative(variable)?;
+        let state = *self.solver.variable(representative)?;
 
         // skip solved variables
-        if self.solver.variable(representative)?.solution.is_some() {
-            return Ok(Answer::Ready(true));
+        if state.solution.is_some() {
+            return Ok(Answer::Ready(TaskFailures::new()));
         }
 
         // wait for open variables inside the collected bounds
-        let state = self.solver.variable(representative)?;
-        let widening = state.widening;
-        let default = state.default;
-        let lower = state.lower.clone();
-        let upper = state.upper.clone();
+        let lower: SmallVec<[TypeBound; 2]> = self
+            .solver
+            .variables
+            .side_bounds(representative, BoundSide::Lower)?
+            .collect();
+        let upper: SmallVec<[TypeBound; 2]> = self
+            .solver
+            .variables
+            .side_bounds(representative, BoundSide::Upper)?
+            .collect();
         let lower_types = lower
             .iter()
             .map(|bound| bound.ty)
@@ -125,125 +107,248 @@ impl CheckState<'_> {
             .iter()
             .map(|bound| bound.ty)
             .collect::<SmallVec<[_; 2]>>();
-        let origin = self.solver.variable(representative)?.origin;
-        let lower_candidates = Self::candidate_bound_types(&lower, mode);
+        let origin = self.solver.origin(state.origin);
+        let mut lower_candidates = self.lower_solution_candidates(&lower, mode, state.widening)?;
 
         // propagate errors before waiting on contextual holes
         for bound in &lower_types {
             if self.ty(*bound)?.is_error() {
                 self.commit_solution(representative, *bound)?;
 
-                return Ok(Answer::Ready(true));
+                return Ok(Answer::Ready(TaskFailures::new()));
             }
         }
 
-        let blockers = self.bound_blockers(representative, &lower_types, default)?;
+        // solve past open lower bounds when a closed upper candidate can
+        //  choose the solution, letting open lower bounds verify against it
+        let blockers = self.bound_blockers(representative, &lower_types)?;
         if !blockers.is_empty() {
-            self.record_event(CheckEvent::VariableBlocked {
-                variable: representative,
-                bounds: VariableBounds {
-                    lower,
-                    upper,
-                    default,
-                },
-                blockers: blockers.clone(),
-            });
+            if !self.has_closed_upper_bound(&upper)? {
+                // any bound leaf resolving can unblock this solve
+                let mut blockers = blockers;
+                for blocker in self.bound_blockers(representative, &upper_types)? {
+                    if !blockers.contains(&blocker) {
+                        blockers.push(blocker);
+                    }
+                }
+                self.record_event(CheckEvent::VariableBlocked {
+                    variable: representative,
+                    bounds: VariableBounds { lower, upper },
+                    blockers: blockers.clone(),
+                });
 
-            return Ok(Answer::Pending(blockers));
+                return Ok(Answer::Pending(blockers));
+            }
+
+            // keep only closed candidates for upper-driven solving
+            let mut closed_candidates = SmallVec::new();
+            for candidate in lower_candidates {
+                if self.type_variables(candidate)?.is_empty() {
+                    closed_candidates.push(candidate);
+                }
+            }
+            lower_candidates = closed_candidates;
         }
 
-        // weak bounds and defaults wait until regular work drains
-        if !can_use_weak
-            && !self.solver.is_probing()
-            && lower_candidates.is_empty()
-            && (Self::has_weak_bounds(&lower, &upper) || default.is_some())
-        {
+        // weak bounds wait until regular work drains, inside probes too
+        if !can_use_weak && lower_candidates.is_empty() && Self::has_weak_bounds(&lower, &upper) {
             self.queue_task(Task::Solve {
                 variable: representative,
                 mode: BoundMode::Weak,
             });
 
-            return Ok(Answer::Ready(true));
+            return Ok(Answer::Ready(TaskFailures::new()));
         }
 
+        // solve from lower bounds, then contextual upper bounds
         let candidates = self.upper_solution_candidates(representative, &upper)?;
 
-        // solutions derived from every upper bound need no re-check;
-        // dropped recursive bounds still verify against the solution
-        let verify_uppers = candidates.len() != upper_types.len();
-
-        // solve from lower bounds, then contextual upper bounds
-        let (solution, check_upper) = if !lower_candidates.is_empty() {
+        let solution = if !lower_candidates.is_empty() {
             let joined = self.best_common(representative, &lower_candidates)?;
-            let widened = self.widen_solution(joined, widening)?;
             let solution =
-                answer!(self.fit_widened_solution(origin, joined, widened, &upper_types)?);
+                answer!(self.widens_upper_override(origin, joined, &upper, &lower_candidates,)?);
 
-            (Some(solution), true)
-        } else if can_use_weak && default.is_some() {
-            (default, true)
+            Some(solution)
         } else if let [bound] = candidates.as_slice() {
-            (Some(*bound), verify_uppers)
+            Some(*bound)
         } else if !candidates.is_empty() {
-            (
-                Some(self.intersect_bounds(representative, &candidates)?),
-                verify_uppers,
-            )
+            Some(self.intersect_bounds(representative, &candidates)?)
         } else {
-            (None, false)
+            None
+        };
+
+        // dry inference completes from the declared default after regular work
+        let default = self.solver.variables.variable_default(representative);
+        let solution = match (solution, default) {
+            (Some(solution), _) => Some(solution),
+            (None, Some(default)) if can_use_weak => Some(self.settled_root(default)?),
+            (None, Some(_)) => {
+                self.queue_task(Task::Solve {
+                    variable: representative,
+                    mode: BoundMode::Weak,
+                });
+
+                return Ok(Answer::Ready(TaskFailures::new()));
+            }
+            (None, None) => None,
         };
 
         // leave unbounded variables open
         let Some(solution) = solution else {
             self.record_event(CheckEvent::VariableUnsolved {
                 variable: representative,
-                bounds: VariableBounds {
-                    lower,
-                    upper,
-                    default,
-                },
+                bounds: VariableBounds { lower, upper },
             });
 
-            return Ok(Answer::Ready(true));
+            return Ok(Answer::Ready(TaskFailures::new()));
         };
         let solution = answer!(self.reduce_type_head(origin, solution)?);
 
-        // publish the candidate before checking bounds that mention it
+        // sealing discharges the accumulated bounds
         self.commit_solution(representative, solution)?;
 
-        // check ignored weak lower bounds against a strong solution
-        if !can_use_weak {
-            for bound in lower.iter().filter(|bound| bound.mode == BoundMode::Weak) {
-                match self.constrain_type(origin, bound.relation, bound.ty, solution)? {
-                    Answer::Ready(true) => {}
-                    Answer::Ready(false) | Answer::Pending(_) => {
-                        self.push_constraint(Constraint::r#type(
-                            bound.relation,
-                            bound.ty,
-                            solution,
-                            origin,
-                        ));
-                    }
+        Ok(Answer::Ready(TaskFailures::new()))
+    }
+
+    /// Absorb one lower-bound join into an identity-restricted upper.
+    ///
+    /// A join built from argument bounds cannot widen into a `Widens`
+    /// upper unless it already matches it, so when every lower still
+    /// assigns into the upper, the upper decides the solution and the
+    /// arguments convert at their own value positions.
+    fn widens_upper_override(
+        &mut self,
+        origin: Origin,
+        joined: dir::GlobalTypeId,
+        upper: &[TypeBound],
+        lower_candidates: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        for bound in upper {
+            if bound.relation != Relation::Widens || !self.type_variables(bound.ty)?.is_empty() {
+                continue;
+            }
+            if answer!(self.decide_relation(origin, Relation::Widens, joined, bound.ty)?) {
+                continue;
+            }
+
+            // the join misses this upper: absorb when every lower assigns
+            let mut absorbs = true;
+            for candidate in lower_candidates {
+                if !answer!(self.decide_relation(
+                    origin,
+                    Relation::Assignable,
+                    *candidate,
+                    bound.ty,
+                )?) {
+                    absorbs = false;
+
+                    break;
                 }
+            }
+            if absorbs {
+                return Ok(Answer::Ready(self.settled_root(bound.ty)?));
             }
         }
 
-        // check inferred solutions against resolved contextual upper bounds
-        if check_upper {
-            for bound in upper {
-                match self.constrain_bound_relation(origin, solution, bound.ty, &bound)? {
-                    Answer::Ready(true) => {}
-                    Answer::Ready(false) => {
-                        return Ok(Answer::Ready(false));
-                    }
-                    Answer::Pending(blockers) => {
-                        return Ok(Answer::Pending(blockers));
-                    }
-                }
+        Ok(Answer::Ready(joined))
+    }
+
+    /// Choose the lower-bound solution candidates under one widening policy.
+    fn lower_solution_candidates(
+        &mut self,
+        lower: &[TypeBound],
+        mode: BoundMode,
+        widening: Widening,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let mut candidates = Self::candidate_bound_types(lower, mode);
+
+        // let equality-pinned bounds choose the solution outright
+        let pinned: SmallVec<[dir::GlobalTypeId; 2]> = lower
+            .iter()
+            .filter(|bound| bound.relation == Relation::Equal)
+            .map(|bound| bound.ty)
+            .collect();
+        if !pinned.is_empty() {
+            candidates = pinned;
+        }
+
+        // widen fresh literal candidates under the variable's policy
+        for candidate in candidates.iter_mut() {
+            let written = lower
+                .iter()
+                .any(|bound| bound.ty == *candidate && bound.relation == Relation::Writable);
+            let flowed = lower.iter().any(|bound| {
+                bound.ty == *candidate
+                    && matches!(
+                        bound.relation,
+                        Relation::Assignable | Relation::Writable | Relation::Castable
+                    )
+            });
+            let pinned = lower
+                .iter()
+                .any(|bound| bound.ty == *candidate && bound.relation == Relation::Equal);
+            let widens = match widening {
+                Widening::Widen => flowed && !pinned,
+                Widening::WidenWrites => written,
+                Widening::Preserve => false,
+            };
+            if widens {
+                *candidate = self.widen_type(*candidate)?;
             }
         }
 
-        Ok(Answer::Ready(true))
+        Ok(candidates)
+    }
+
+    /// Return whether any non-hypothesis upper bound is fully closed.
+    fn has_closed_upper_bound(&self, upper: &[TypeBound]) -> CompilerResult<bool> {
+        for bound in upper {
+            if bound.relation == Relation::Satisfies {
+                continue;
+            }
+            if self.type_variables(bound.ty)?.is_empty() {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Collect the unsolved variables one type transitively references.
+    pub(in crate::check) fn type_variables(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
+        let mut variables = SmallVec::new();
+        let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+        let mut visited = FxIndexSet::default();
+        pending.push(id);
+
+        // scan the type graph without following symbol references;
+        //  solutions may be cyclic, so every id visits exactly once
+        while let Some(id) = pending.pop() {
+            if !visited.insert(id) {
+                continue;
+            }
+            let ty = self.ty(id)?;
+
+            // follow solved variables and collect open variables once
+            if let dir::Type::Variable(variable) = ty {
+                if let Some(solution) = self.solver.solution(variable)? {
+                    pending.push(solution);
+                } else if let Some(variable) = self.open_variable(variable)?
+                    && !variables.contains(&variable)
+                {
+                    variables.push(variable);
+                }
+
+                continue;
+            }
+
+            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
+        }
+
+        Ok(variables)
     }
 
     /// Return whether one type contains a variable representative.
@@ -259,19 +364,6 @@ impl CheckState<'_> {
         }
 
         Ok(false)
-    }
-
-    /// Check one solved type against one collected upper bound.
-    fn constrain_bound_relation(
-        &mut self,
-        origin: Origin,
-        solution: dir::GlobalTypeId,
-        bound: dir::GlobalTypeId,
-        source: &TypeBound,
-    ) -> CompilerResult<Answer<bool>> {
-        let origin = self.origin_at(origin, source.source);
-
-        self.constrain_type(origin, source.relation, solution, bound)
     }
 
     /// Return bound types that may choose a solution in one solve mode.
@@ -314,41 +406,14 @@ impl CheckState<'_> {
         Ok(candidates)
     }
 
-    /// Keep literal widening only when every exact upper bound still accepts it.
-    fn fit_widened_solution(
-        &mut self,
-        origin: Origin,
-        exact: dir::GlobalTypeId,
-        widened: dir::GlobalTypeId,
-        upper: &[dir::GlobalTypeId],
-    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        if exact == widened || upper.is_empty() {
-            return Ok(Answer::Ready(widened));
-        }
-
-        // test the widened candidate against every upper bound
-        let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        for bound in upper {
-            match self.decide_relation(origin, Relation::Satisfies, widened, *bound)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) => return Ok(Answer::Ready(exact)),
-                Answer::Pending(pending) => blockers.extend(pending),
-            }
-        }
-
-        Ok(Answer::ready_unless_blocked(widened, blockers))
-    }
-
     /// Return open variables that block one variable's solution.
     pub(in crate::check) fn bound_blockers(
         &self,
         variable: dir::TypeVariableId,
         lower: &[dir::GlobalTypeId],
-        default: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<SmallVec<[Dependency; 2]>> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
-        let bounds = lower.iter().chain(default.iter());
-        for bound in bounds {
+        for bound in lower {
             for open in self.type_variables(*bound)? {
                 let open = self.solver.representative(open)?;
                 if open == variable {
@@ -380,20 +445,17 @@ impl CheckState<'_> {
 
         // circular solutions poison the variable with an error type
         if self.type_contains_variable(solution, representative)? {
-            let origin = self.solver.variable(representative)?.origin;
+            let origin_id = self.solver.variable(representative)?.origin;
+            let origin = self.solver.origin(origin_id);
             let error = self.circular_type_error(origin)?;
-            self.module_mut(origin.module())
-                .diagnostics
-                .push(error.into());
+            self.report(origin.module(), error);
             let poisoned = self.intern_type(origin.module(), dir::Type::Error)?;
 
             return self.commit_solution(representative, poisoned);
         }
 
-        let state = self.solver.variable_mut(representative)?;
-
         // require exactly one solution per variable
-        if let Some(previous) = state.solution {
+        if let Some(previous) = self.solver.variable(representative)?.solution {
             if previous != solution {
                 return Err(CompilerError::Internal {
                     message: format!("check variable {representative:?} was solved twice"),
@@ -402,12 +464,21 @@ impl CheckState<'_> {
 
             return Ok(());
         }
+        let origin_id = self.solver.variable(representative)?.origin;
+        let origin = self.solver.origin(origin_id);
         let bounds = VariableBounds {
-            lower: state.lower.clone(),
-            upper: state.upper.clone(),
-            default: state.default,
+            lower: self
+                .solver
+                .variables
+                .side_bounds(representative, BoundSide::Lower)?
+                .collect(),
+            upper: self
+                .solver
+                .variables
+                .side_bounds(representative, BoundSide::Upper)?
+                .collect(),
         };
-        state.solution = Some(solution);
+        self.solver.variable_mut(representative)?.solution = Some(solution);
 
         // wake tasks parked on the solved variable
         let waiters = self.solver.wake(Dependency::Variable(representative));
@@ -417,10 +488,44 @@ impl CheckState<'_> {
 
         self.record_event(CheckEvent::VariableSolved {
             variable: representative,
-            bounds,
+            bounds: bounds.clone(),
             solution,
             waiters: waiters.len(),
         });
+
+        // accumulated bounds discharge against the committed solution
+        for bound in &bounds.lower {
+            self.discharge_bound(origin, BoundSide::Lower, bound, solution)?;
+        }
+        for bound in &bounds.upper {
+            self.discharge_bound(origin, BoundSide::Upper, bound, solution)?;
+        }
+
+        Ok(())
+    }
+
+    /// Discharge one accumulated bound against a committed solution.
+    fn discharge_bound(
+        &mut self,
+        origin: Origin,
+        side: BoundSide,
+        bound: &TypeBound,
+        solution: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (source, target) = match side {
+            BoundSide::Lower => (bound.ty, solution),
+            BoundSide::Upper => (solution, bound.ty),
+        };
+
+        // relations that cannot settle in place park as constraints
+        let anchored = self.origin_at(origin, bound.source)?;
+        match self.constrain_type(anchored, bound.relation, source, target)? {
+            Answer::Ready(true) => {}
+            Answer::Ready(false) | Answer::Pending(_) => {
+                let anchored = self.intern_origin(anchored);
+                self.push_constraint(Constraint::r#type(bound.relation, source, target, anchored));
+            }
+        }
 
         Ok(())
     }
@@ -457,13 +562,19 @@ impl CheckState<'_> {
             return Ok(());
         }
 
-        // move bounds onto the representative
-        let state = self.solver.variable_mut(variable)?;
-        let lower = std::mem::take(&mut state.lower);
-        let upper = std::mem::take(&mut state.upper);
-        let role = state.role;
-        state.role = VariableRole::Inference;
-        state.alias = Some(target);
+        // snapshot the aliased row, then detach its bounds for replay
+        let role = self.solver.variable_role(variable)?;
+        self.solver
+            .set_variable_role(variable, VariableRole::Regular)?;
+        self.solver.variable_mut(variable)?.alias = Some(target);
+        let lower = self
+            .solver
+            .variables
+            .take_bounds(variable, BoundSide::Lower)?;
+        let upper = self
+            .solver
+            .variables
+            .take_bounds(variable, BoundSide::Upper)?;
 
         // push moved bounds through the checked paths
         for bound in lower {
@@ -480,15 +591,19 @@ impl CheckState<'_> {
         }
 
         // move special variable behavior onto the representative
-        if !role.is_inference() {
-            let target = self.solver.variable_mut(target)?;
-            if target.role.is_inference() {
-                target.role = role;
-            } else if target.role != role {
+        if role != VariableRole::Regular {
+            let target_role = self.solver.variable_role(target)?;
+
+            // plain representatives adopt the moved role
+            if target_role == VariableRole::Regular {
+                self.solver.set_variable_role(target, role)?;
+            }
+            // lifetime roles must agree; differing instantiations keep the representative's
+            else if matches!(role, VariableRole::Lifetime { .. }) && target_role != role {
                 return Err(CompilerError::Internal {
                     message: format!(
-                        "variable {variable:?} and {target:?} have conflicting roles: {:?} and {:?}",
-                        role, target.role
+                        "check variables {variable:?} and {target:?} have conflicting roles: \
+                         {role:?} and {target_role:?}",
                     ),
                 });
             }
@@ -511,38 +626,7 @@ impl CheckState<'_> {
         relation: Relation,
         mode: BoundMode,
     ) -> CompilerResult<()> {
-        let representative = self.solver.representative(variable)?;
-        if self.root_variable(bound)? == Some(representative) {
-            return Ok(());
-        }
-
-        // late bounds against a solved variable become relation checks
-        if let Some(solution) = self.solver.variable(representative)?.solution {
-            let origin = self.solver.variable(representative)?.origin;
-            self.push_constraint(Constraint::r#type(relation, bound, solution, origin));
-
-            return Ok(());
-        }
-
-        let bound = TypeBound::new(bound, relation, source, mode);
-        let pushed = {
-            let state = self.solver.variable_mut(representative)?;
-            if state.lower.contains(&bound) {
-                false
-            } else {
-                state.lower.push(bound);
-                true
-            }
-        };
-        if pushed {
-            self.wait_for_bound_variables(representative, bound.ty)?;
-            self.queue_task(Task::Solve {
-                variable: representative,
-                mode: BoundMode::Strong,
-            });
-        }
-
-        Ok(())
+        self.push_variable_bound(variable, BoundSide::Lower, source, bound, relation, mode)
     }
 
     /// Push one upper bound onto a variable and schedule it.
@@ -554,60 +638,51 @@ impl CheckState<'_> {
         relation: Relation,
         mode: BoundMode,
     ) -> CompilerResult<()> {
+        self.push_variable_bound(variable, BoundSide::Upper, source, bound, relation, mode)
+    }
+
+    /// Push one bound onto a variable side and schedule it.
+    fn push_variable_bound(
+        &mut self,
+        variable: dir::TypeVariableId,
+        side: BoundSide,
+        source: dir::GlobalNodeIdAny,
+        bound: dir::GlobalTypeId,
+        relation: Relation,
+        mode: BoundMode,
+    ) -> CompilerResult<()> {
         let representative = self.solver.representative(variable)?;
         if self.root_variable(bound)? == Some(representative) {
             return Ok(());
         }
 
-        // late bounds against a solved variable become relation checks
+        // late bounds against a solved variable discharge as relation checks
         if let Some(solution) = self.solver.variable(representative)?.solution {
-            let origin = self.solver.variable(representative)?.origin;
-            let source = TypeBound::new(bound, relation, source, mode);
-            match self.constrain_bound_relation(origin, solution, bound, &source)? {
-                Answer::Ready(true) => {}
-                Answer::Ready(false) | Answer::Pending(_) => {
-                    self.push_constraint(Constraint::r#type(relation, solution, bound, origin));
-                }
-            }
+            let origin_id = self.solver.variable(representative)?.origin;
+            let origin = self.solver.origin(origin_id);
+            let late = TypeBound::new(bound, relation, source, mode);
+            self.discharge_bound(origin, side, &late, solution)?;
 
             return Ok(());
         }
 
+        // collect the bound and schedule the variable
         let bound = TypeBound::new(bound, relation, source, mode);
-        let pushed = {
-            let state = self.solver.variable_mut(representative)?;
-            if state.upper.contains(&bound) {
-                false
-            } else {
-                state.upper.push(bound);
-                true
-            }
-        };
-        if pushed {
-            self.wait_for_bound_variables(representative, bound.ty)?;
+        if self.solver.push_bound(representative, side, bound)? {
+            self.record_event(match side {
+                BoundSide::Lower => CheckEvent::LowerBoundPushed {
+                    variable: representative,
+                    bound,
+                },
+                BoundSide::Upper => CheckEvent::UpperBoundPushed {
+                    variable: representative,
+                    bound,
+                },
+            });
             self.queue_task(Task::Solve {
                 variable: representative,
                 mode: BoundMode::Strong,
             });
-        }
-
-        Ok(())
-    }
-
-    /// Wake this variable when variables inside one bound solve.
-    fn wait_for_bound_variables(
-        &mut self,
-        variable: dir::TypeVariableId,
-        bound: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        let task = Task::Solve {
-            variable,
-            mode: BoundMode::Strong,
-        };
-        for blocker in self.type_variables(bound)? {
-            if blocker != variable {
-                self.park_task(&task, &[Dependency::Variable(blocker)])?;
-            }
         }
 
         Ok(())

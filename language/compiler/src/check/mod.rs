@@ -24,6 +24,7 @@ pub use warning::*;
 pub(in crate::check) use decorator::*;
 pub(in crate::check) use dump::*;
 pub(in crate::check) use flow::*;
+pub(in crate::check) use infer::*;
 pub(in crate::check) use language::*;
 pub(in crate::check) use obligation::*;
 pub(in crate::check) use reduce::*;

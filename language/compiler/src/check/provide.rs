@@ -1,3 +1,4 @@
+use destack_core::{FxIndexMap, FxIndexSet};
 use std::iter;
 use std::sync::Arc;
 
@@ -7,7 +8,6 @@ use destack_artifact::{
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ComponentId, Content, ModuleId};
-use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{AnnotatedSource, CheckComponentKey, CheckState};
 use crate::{Compiler, CompilerError, CompilerResult};
@@ -113,7 +113,8 @@ impl Compiler {
         check.load(modules.as_slice())?;
         check.walk()?;
         check.propagate()?;
-        check.solve()?;
+        check.solve_bodies()?;
+        check.settle()?;
 
         // emit solver counters and optional trace sidecars
         let stats = check.stats();
@@ -247,9 +248,9 @@ fn external_components(
     graph: &ComponentGraph,
     component: ComponentId,
 ) -> CompilerResult<ExternalComponents> {
-    let mut components = IndexMap::new();
-    let mut modules = IndexMap::new();
-    let mut seen = IndexSet::new();
+    let mut components = FxIndexMap::default();
+    let mut modules = FxIndexMap::default();
+    let mut seen = FxIndexSet::default();
     let mut pending = graph.dependencies(component).to_vec();
 
     // walk component dependencies transitively
@@ -285,9 +286,9 @@ fn external_components(
 /// External checked component inputs reached from one component.
 struct ExternalComponents {
     /// The external component entries reached through the condensation.
-    components: IndexMap<ComponentId, ModuleId>,
+    components: FxIndexMap<ComponentId, ModuleId>,
     /// The external modules keyed to their checked component.
-    modules: IndexMap<ModuleId, CheckComponentKey>,
+    modules: FxIndexMap<ModuleId, CheckComponentKey>,
 }
 
 /// Return one check-phase sidecar.

@@ -10,16 +10,20 @@ impl CheckEvent {
         log: &mut ArtifactEventLog,
     ) {
         let event = match self {
-            Self::ProbeStarted { variables } => ArtifactEvent::new("probe.started")
+            Self::ProbeStarted { reason, variables } => ArtifactEvent::new("probe.started")
                 .debug()
+                .text("reason", format!("{reason:?}"))
                 .usize("variables", *variables),
-            Self::ProbeFinished {
-                is_committed,
-                is_pending,
-            } => ArtifactEvent::new("probe.finished")
-                .debug()
-                .bool("committed", *is_committed)
-                .bool("pending", *is_pending),
+            Self::ProbeFinished { verdict } => {
+                let verdict = match verdict {
+                    Some(verdict) => format!("{verdict:?}"),
+                    None => "Parked".to_string(),
+                };
+
+                ArtifactEvent::new("probe.finished")
+                    .debug()
+                    .text("verdict", verdict)
+            }
             Self::VariableAllocated { variable, widening } => {
                 ArtifactEvent::new("variable.allocated")
                     .debug()

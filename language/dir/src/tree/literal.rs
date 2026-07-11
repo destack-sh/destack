@@ -190,6 +190,24 @@ impl ScalarLiteral {
         }
     }
 
+    /// Return whether this literal's family stores every member identically.
+    ///
+    /// Numeric families span carriers of different widths, so a numeric
+    /// literal names no single storage representation; string-like families
+    /// have exactly one carrier and widen as stored.
+    pub fn has_uniform_carrier(&self) -> bool {
+        match self {
+            Self::String(_)
+            | Self::Character(_)
+            | Self::Boolean(_)
+            | Self::Bigint(_)
+            | Self::RegexString { .. }
+            | Self::Null
+            | Self::Undefined => true,
+            Self::Integer(_) | Self::Float(_) => false,
+        }
+    }
+
     /// Return whether this literal can widen to one primitive type.
     pub fn widens_to_primitive(&self, primitive: PrimitiveType) -> bool {
         match (self, primitive) {

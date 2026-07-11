@@ -1,7 +1,7 @@
-use crate::check::{Origin, Relation};
-use crate::{CompilerError, CompilerResult};
 use destack_dir as dir;
-use indexmap::IndexMap;
+
+use crate::check::{OriginId, Relation};
+use crate::{CompilerError, CompilerResult};
 
 /// Component-global id of one collected constraint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -20,7 +20,7 @@ impl ConstraintId {
 }
 
 /// One solver constraint.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum Constraint {
     /// Pure relation between two types.
     Type(TypeConstraint),
@@ -29,22 +29,22 @@ pub(in crate::check) enum Constraint {
 }
 
 /// Pure relation between two types.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct TypeConstraint {
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
-    /// The left operand, the source for directed relations.
-    pub(in crate::check) left: dir::GlobalTypeId,
-    /// The right operand, the target for directed relations.
-    pub(in crate::check) right: dir::GlobalTypeId,
+    /// The source operand.
+    pub(in crate::check) source: dir::GlobalTypeId,
+    /// The target operand.
+    pub(in crate::check) target: dir::GlobalTypeId,
     /// The source that produced the constraint.
-    pub(in crate::check) origin: Origin,
+    pub(in crate::check) origin: OriginId,
     /// The source subject blamed when this relation fails.
     pub(in crate::check) subject: Option<ConstraintSubject>,
 }
 
 /// Relation between one source value occurrence and one target type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct ValueConstraint {
     /// The relation to enforce.
     pub(in crate::check) relation: Relation,
@@ -53,9 +53,9 @@ pub(in crate::check) struct ValueConstraint {
     /// The target value type.
     pub(in crate::check) target: dir::GlobalTypeId,
     /// The source value occurrence used for value materialization.
-    pub(in crate::check) value_origin: Origin,
+    pub(in crate::check) value_origin: OriginId,
     /// The source that produced the relation.
-    pub(in crate::check) origin: Origin,
+    pub(in crate::check) origin: OriginId,
     /// The checked value role.
     pub(in crate::check) use_: Option<ValueUse>,
 }
@@ -115,61 +115,28 @@ pub(in crate::check) enum ValueUse {
     /// while (condition) {}
     /// ```
     Condition,
-}
 
-/// Reason one closed constraint did not hold.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ConstraintFailure {
-    /// The relation itself did not hold.
-    Relation,
-    /// Direct property literal missed one required key.
-    MissingRequiredProperty {
-        /// The missing key.
-        key: dir::StaticKey,
-    },
-    /// Direct property literal supplied one unknown key.
-    ExcessProperty {
-        /// The excess key.
-        key: dir::StaticKey,
-    },
-    /// Source type cannot satisfy one writable index signature target.
-    WritableIndexRequiresIndexSet {
-        /// The required writable index signature.
-        signature: dir::TypeIndexSignature,
-    },
-}
-
-/// Result of checking one closed constraint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ConstraintCheck {
-    /// The constraint holds.
-    Holds,
-    /// The constraint failed for one known reason.
-    Fails(ConstraintFailure),
-}
-
-impl ConstraintCheck {
-    /// Return the stored state for this completed check.
-    pub(in crate::check) fn state(self) -> ConstraintState {
-        match self {
-            Self::Holds => ConstraintState::Holds,
-            Self::Fails(_) => ConstraintState::Fails,
-        }
-    }
+    /// Value related against a written type without taking it.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value satisfies Shape
+    /// ```
+    Satisfies,
 }
 
 impl Constraint {
     /// Create a pure relation between two types.
     pub(in crate::check) fn r#type(
         relation: Relation,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        origin: OriginId,
     ) -> Self {
         Self::Type(TypeConstraint {
             relation,
-            left,
-            right,
+            source,
+            target,
             origin,
             subject: None,
         })
@@ -180,8 +147,8 @@ impl Constraint {
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        value_origin: Origin,
-        origin: Origin,
+        value_origin: OriginId,
+        origin: OriginId,
         use_: Option<ValueUse>,
     ) -> Self {
         Self::Value(ValueConstraint {
@@ -202,24 +169,24 @@ impl Constraint {
         }
     }
 
-    /// Return the left operand, the source for directed relations.
-    pub(in crate::check) fn left(&self) -> dir::GlobalTypeId {
+    /// Return the source operand.
+    pub(in crate::check) fn source(&self) -> dir::GlobalTypeId {
         match self {
-            Self::Type(constraint) => constraint.left,
+            Self::Type(constraint) => constraint.source,
             Self::Value(constraint) => constraint.source,
         }
     }
 
-    /// Return the right operand, the target for directed relations.
-    pub(in crate::check) fn right(&self) -> dir::GlobalTypeId {
+    /// Return the target operand.
+    pub(in crate::check) fn target(&self) -> dir::GlobalTypeId {
         match self {
-            Self::Type(constraint) => constraint.right,
+            Self::Type(constraint) => constraint.target,
             Self::Value(constraint) => constraint.target,
         }
     }
 
     /// Return the source that produced the relation.
-    pub(in crate::check) fn origin(&self) -> Origin {
+    pub(in crate::check) fn origin(&self) -> OriginId {
         match self {
             Self::Type(constraint) => constraint.origin,
             Self::Value(constraint) => constraint.origin,
@@ -253,45 +220,38 @@ impl ConstraintState {
     }
 }
 
-/// Collected constraints with solver state.
-#[derive(Debug)]
+/// Collected constraints with solver state, in allocation order.
+#[derive(Debug, Default)]
 pub(in crate::check) struct ConstraintTable {
-    /// The collected constraints keyed by absolute constraint id.
-    constraints: IndexMap<ConstraintId, Constraint>,
-    /// Constraint states keyed by absolute constraint id.
-    states: IndexMap<ConstraintId, ConstraintState>,
+    /// The collected constraints indexed by constraint id.
+    constraints: Vec<Constraint>,
+    /// Constraint states indexed by constraint id.
+    states: Vec<ConstraintState>,
 }
 
 impl ConstraintTable {
     /// Create an empty constraint table.
     pub(in crate::check) fn new() -> Self {
-        Self {
-            constraints: IndexMap::new(),
-            states: IndexMap::new(),
-        }
+        Self::default()
     }
 
-    /// Insert one exact constraint id.
+    /// Append one constraint at the next id.
     pub(in crate::check) fn insert(&mut self, id: ConstraintId, constraint: Constraint) {
-        self.constraints.insert(id, constraint);
-        self.states.insert(id, ConstraintState::Pending);
+        debug_assert_eq!(self.constraints.len(), id.index());
+        self.constraints.push(constraint);
+        self.states.push(ConstraintState::Pending);
     }
 
-    /// Remove one exact constraint id.
-    pub(in crate::check) fn remove(
-        &mut self,
-        id: ConstraintId,
-    ) -> (Option<Constraint>, Option<ConstraintState>) {
-        let constraint = self.constraints.swap_remove(&id);
-        let state = self.states.swap_remove(&id);
-
-        (constraint, state)
+    /// Truncate constraints undone by one probe rollback.
+    pub(in crate::check) fn truncate(&mut self, count: usize) {
+        self.constraints.truncate(count);
+        self.states.truncate(count);
     }
 
     /// Return one constraint.
     pub(in crate::check) fn get(&self, id: ConstraintId) -> CompilerResult<&Constraint> {
         self.constraints
-            .get(&id)
+            .get(id.index())
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check constraint {id:?} is not allocated"),
             })
@@ -301,13 +261,14 @@ impl ConstraintTable {
     pub(in crate::check) fn iter(&self) -> impl Iterator<Item = (ConstraintId, &Constraint)> {
         self.constraints
             .iter()
-            .map(|(id, constraint)| (*id, constraint))
+            .enumerate()
+            .map(|(index, constraint)| (ConstraintId::at(index), constraint))
     }
 
     /// Return one constraint state.
     pub(in crate::check) fn state(&self, id: ConstraintId) -> CompilerResult<ConstraintState> {
         self.states
-            .get(&id)
+            .get(id.index())
             .copied()
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check constraint {id:?} has no solver state"),
@@ -316,7 +277,7 @@ impl ConstraintTable {
 
     /// Set one constraint state.
     pub(in crate::check) fn set_state(&mut self, id: ConstraintId, state: ConstraintState) {
-        self.states.insert(id, state);
+        self.states[id.index()] = state;
     }
 
     /// Return whether one constraint finished solving.
@@ -329,3 +290,69 @@ impl ConstraintTable {
         self.constraints.len()
     }
 }
+
+/// Reason one closed check did not hold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum CheckFailure {
+    /// The relation itself did not hold.
+    Relation,
+    /// The failure was already reported at a finer judgment.
+    Reported,
+    /// Direct property literal missed one required key.
+    MissingRequiredProperty {
+        /// The missing key.
+        key: dir::StaticKey,
+    },
+    /// Direct property literal supplied one unknown key.
+    ExcessProperty {
+        /// The excess key.
+        key: dir::StaticKey,
+    },
+    /// Source type cannot satisfy one writable index signature target.
+    WritableIndexRequiresIndexSet {
+        /// The required writable index signature.
+        signature: dir::TypeIndexSignature,
+    },
+}
+
+/// Result of checking one source against one target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum CheckOutcome {
+    /// The check holds.
+    Holds,
+    /// The check failed for one known reason.
+    Fails(CheckFailure),
+}
+
+impl CheckOutcome {
+    /// Return this check followed by another check.
+    pub(in crate::check) fn and(self, next: Self) -> Self {
+        match self {
+            Self::Holds => next,
+            Self::Fails(_) => self,
+        }
+    }
+
+    /// Return the stored state for this completed check.
+    pub(in crate::check) fn state(self) -> ConstraintState {
+        match self {
+            Self::Holds => ConstraintState::Holds,
+            Self::Fails(_) => ConstraintState::Fails,
+        }
+    }
+}
+
+/// Applicability of one target-sensitive check path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum CheckAttempt {
+    /// The expression form does not use this target directly.
+    NotApplicable,
+    /// The expression form checked against this target.
+    Checked(CheckOutcome),
+}
+
+// lock the queued constraint shapes
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<Constraint>() == 80);
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::<ValueConstraint>() == 64);

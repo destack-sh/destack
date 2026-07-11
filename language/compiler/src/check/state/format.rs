@@ -16,7 +16,7 @@ impl CheckState<'_> {
     /// Format one type for diagnostics.
     pub(in crate::check) fn format_type(&self, id: dir::GlobalTypeId) -> String {
         self.format_depth(id, FORMAT_DEPTH)
-            .unwrap_or_else(|_| "<error>".to_string())
+            .unwrap_or_else(|error| unreachable!("check type formatting failed: {error:?}"))
     }
 
     /// Format one type relative to a source module.
@@ -26,7 +26,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> String {
         self.format_depth_at(Some(module), id, FORMAT_DEPTH)
-            .unwrap_or_else(|_| "<error>".to_string())
+            .unwrap_or_else(|error| unreachable!("check type formatting failed: {error:?}"))
     }
 
     /// Format one type up to a nesting depth.
@@ -86,10 +86,19 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::Member(member) => {
+                let member = self.type_member(id.module_id, member)?;
                 let owner = self.format_depth_at(module, member.owner, next)?;
                 let key = self.format_static_key(&member.key);
 
                 format!("{owner}.{key}")
+            }
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(id.module_id, refined)?;
+                let base = self.format_depth_at(module, refined.base, next)?;
+                let key = self.format_static_key(&refined.key);
+                let value = self.format_depth_at(module, refined.value, next)?;
+
+                format!("{base}<type {key} = {value}>")
             }
             dir::Type::EnumMember(member) => {
                 self.format_symbol_path_maybe_at(module, member.member)
@@ -164,6 +173,7 @@ impl CheckState<'_> {
                 }
             }
             dir::Type::FunctionSignature(function) => {
+                let function = self.type_signature(id.module_id, function)?;
                 let signature_parameters =
                     self.signature_parameters(id.module_id, function.parameters)?;
 
@@ -215,7 +225,7 @@ impl CheckState<'_> {
                 elements.join(" & ")
             }
 
-            dir::Type::Form(form) => self.format_form_at(module, &form, next)?,
+            dir::Type::Form(form) => self.format_form_at(module, id.module_id, &form, next)?,
             dir::Type::Dynamic(dynamic) => {
                 format!(
                     "Dynamic<{}>",
@@ -224,7 +234,9 @@ impl CheckState<'_> {
             }
 
             dir::Type::Operation(operation) => {
-                self.format_operation_at(module, &operation, next)?
+                let operation = self.type_operation(id.module_id, operation)?;
+
+                self.format_operation_at(module, id.module_id, &operation, next)?
             }
         };
 
@@ -257,7 +269,7 @@ impl CheckState<'_> {
         depth: usize,
     ) -> CompilerResult<String> {
         let signature_id = self.settled_root(function.signature)?;
-        let dir::Type::FunctionSignature(signature) = self.ty(signature_id)? else {
+        let Some(signature) = self.signature_head(signature_id)? else {
             let signature = self.format_depth_at(module, function.signature, depth)?;
 
             return Ok(format!("FunctionPointer<{signature}>"));
@@ -333,6 +345,7 @@ impl CheckState<'_> {
     fn format_form_at(
         &self,
         module: Option<ModuleId>,
+        owner: ModuleId,
         form: &dir::FormType,
         depth: usize,
     ) -> CompilerResult<String> {
@@ -343,8 +356,9 @@ impl CheckState<'_> {
             dir::Form::Owned => format!("^{value}"),
             dir::Form::Raw => format!("*{value}"),
             dir::Form::Readonly => format!("readonly {value}"),
-            dir::Form::Borrowed { access, .. } => {
-                let access = match self.ty(self.settled_root(*access)?)? {
+            dir::Form::Borrowed(borrow) => {
+                let access = self.type_borrow(owner, *borrow)?.access;
+                let access = match self.ty(self.settled_root(access)?)? {
                     dir::Type::Memory(dir::MemoryLiteral::Access(dir::Access::Readonly)) => {
                         "&readonly "
                     }
@@ -380,6 +394,7 @@ impl CheckState<'_> {
     fn format_operation_at(
         &self,
         module: Option<ModuleId>,
+        owner: ModuleId,
         operation: &dir::TypeOperation,
         depth: usize,
     ) -> CompilerResult<String> {
@@ -454,7 +469,21 @@ impl CheckState<'_> {
                 self.format_depth_at(module, *target, depth)?
             }
             dir::TypeOperation::Mapped(_) => "{ [mapped] }".to_string(),
-            dir::TypeOperation::TemplateLiteral(_) => "`…`".to_string(),
+            dir::TypeOperation::TemplateLiteral(template) => {
+                let strings = self.template_strings(owner, template.strings)?.to_vec();
+                let spans = self.type_ids(owner, template.spans)?.to_vec();
+                let mut rendered = String::from("`");
+                for (index, segment) in strings.iter().enumerate() {
+                    rendered.push_str(&self.text(*segment));
+                    if let Some(span) = spans.get(index) {
+                        let span = self.format_depth_at(module, *span, depth)?;
+                        rendered.push_str(&format!("${{{span}}}"));
+                    }
+                }
+                rendered.push('`');
+
+                rendered
+            }
             dir::TypeOperation::Infer(infer) => match infer.name {
                 Some(name) => format!("infer {}", self.text(name)),
                 None => "infer _".to_string(),
@@ -593,6 +622,7 @@ impl CheckState<'_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => {
                 let left = self.format_assignment_expression(module, *left)?;
                 let name = self.format_static_key(&dir::StaticKey::Name(*name));
@@ -776,16 +806,9 @@ impl CheckState<'_> {
         format!("{owner}.{key}")
     }
 
-    /// Return interned text from any loaded module pool.
+    /// Return interned text from the shared string pool.
     fn text(&self, id: dir::StringId) -> String {
-        // search component pools first
-        for module in self.modules.values() {
-            if let Some(text) = module.strings.get_maybe(id) {
-                return text.to_string();
-            }
-        }
-
-        "<string>".to_string()
+        self.strings().get(id).to_string()
     }
 }
 
