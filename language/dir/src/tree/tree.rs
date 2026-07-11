@@ -3,7 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 
 use destack_core::StringId;
-use destack_source::{ModuleId, MultiSpan, NodeSpanRegion, NodeSpanType, SourceIndex, Span};
+use destack_source::{
+    ByteRange, FileId, ModuleId, MultiSpan, NodeSpanRegion, NodeSpanType, SourceIndex, Span,
+};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -189,20 +191,32 @@ impl Tree {
         self.node_index_by_node_id.len()
     }
 
-    /// Return the next id.
-    #[inline]
-    pub fn next_id(&self) -> u32 {
-        self.next_global_id
-    }
-
     /// Return whether the tree has no nodes.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.node_index_by_node_id.is_empty()
     }
 
-    /// Allocate a parsed node with source metadata.
-    pub fn insert_during_parse<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
+    /// Begin appending parsed nodes from one source file.
+    #[inline]
+    pub fn begin_source_file(&mut self, file: FileId) {
+        self.source_index.begin_source_file(file);
+    }
+
+    /// Allocate one parsed node with its file-local source range.
+    pub fn insert_parsed<T>(&mut self, node: T, range: ByteRange) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: TreeStore<T>,
+    {
+        let node_id = self.allocate_node(node);
+        self.source_index.append_parsed(range);
+
+        node_id
+    }
+
+    /// Allocate one node and register its global node type.
+    fn allocate_node<T>(&mut self, node: T) -> LocalNodeId<T>
     where
         T: Node,
         Self: TreeStore<T>,
@@ -213,7 +227,6 @@ impl Tree {
         let local_id = <Self as TreeStore<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
-        self.source_index.append_during_parse(span);
 
         LocalNodeId::new(global_id)
     }
@@ -406,13 +419,16 @@ impl Tree {
         node_id
     }
 
-    /// Allocate one parsed node with source metadata.
+    /// Allocate one node with its full source span.
     pub fn insert<T>(&mut self, node: T, span: Span) -> LocalNodeId<T>
     where
         T: Node,
         Self: TreeStore<T>,
     {
-        self.insert_during_parse(node, span)
+        let node_id = self.allocate_node(node);
+        self.source_index.append(span);
+
+        node_id
     }
 
     /// Fill in the node data for a previously reserved slot.
@@ -734,6 +750,15 @@ impl Tree {
         self.source_index.get(node_id.id)
     }
 
+    /// Return the file-local source range for one parsed node.
+    #[inline]
+    pub fn get_range<T>(&self, node_id: LocalNodeId<T>) -> ByteRange
+    where
+        T: Node,
+    {
+        self.source_index.get_range(node_id.id)
+    }
+
     /// Return the concrete source extent owned by one parsed node.
     #[inline]
     pub fn get_source_extent<T>(&self, node_id: LocalNodeId<T>) -> Span
@@ -761,6 +786,16 @@ impl Tree {
         T: Node,
     {
         self.source_index.set(node_id.id, span);
+        self.source_span_by_node_id.remove(node_id.id);
+    }
+
+    /// Set the file-local source range for one parsed node.
+    #[inline]
+    pub fn set_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
+    where
+        T: Node,
+    {
+        self.source_index.set_range(node_id.id, range);
         self.source_span_by_node_id.remove(node_id.id);
     }
 
@@ -795,6 +830,16 @@ impl Tree {
         self.source_index.get_main(node_id.id)
     }
 
+    /// Return the file-local main source range for one parsed node.
+    #[inline]
+    pub fn get_main_range<T>(&self, node_id: LocalNodeId<T>) -> Option<ByteRange>
+    where
+        T: Node,
+    {
+        self.source_index
+            .get_side_range(node_id.id, NodeSpanType::Main)
+    }
+
     /// Return the main source span for one parsed node id.
     #[inline]
     pub fn get_main_span_by_id(&self, node_id: u32) -> Option<Span> {
@@ -810,6 +855,16 @@ impl Tree {
         self.source_index.set_main(node_id.id, span);
     }
 
+    /// Set the file-local main source range for one parsed node.
+    #[inline]
+    pub fn set_main_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
+    where
+        T: Node,
+    {
+        self.source_index
+            .set_side_range(node_id.id, NodeSpanType::Main, range);
+    }
+
     /// Return the head source span for one parsed node.
     #[inline]
     pub fn get_head_span<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
@@ -817,6 +872,16 @@ impl Tree {
         T: Node,
     {
         self.source_index.get_side(node_id.id, NodeSpanType::Head)
+    }
+
+    /// Return the file-local head source range for one parsed node.
+    #[inline]
+    pub fn get_head_range<T>(&self, node_id: LocalNodeId<T>) -> Option<ByteRange>
+    where
+        T: Node,
+    {
+        self.source_index
+            .get_side_range(node_id.id, NodeSpanType::Head)
     }
 
     /// Return the head source span for one parsed node id.
@@ -835,6 +900,16 @@ impl Tree {
             .set_side(node_id.id, NodeSpanType::Head, span);
     }
 
+    /// Set the file-local head source range for one parsed node.
+    #[inline]
+    pub fn set_head_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
+    where
+        T: Node,
+    {
+        self.source_index
+            .set_side_range(node_id.id, NodeSpanType::Head, range);
+    }
+
     /// Set one side source span for one parsed node.
     #[inline]
     pub fn set_side_span<T>(&mut self, node_id: LocalNodeId<T>, span_type: NodeSpanType, span: Span)
@@ -842,6 +917,20 @@ impl Tree {
         T: Node,
     {
         self.source_index.set_side(node_id.id, span_type, span);
+    }
+
+    /// Set one file-local side source range for one parsed node.
+    #[inline]
+    pub fn set_side_range<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+        range: ByteRange,
+    ) where
+        T: Node,
+    {
+        self.source_index
+            .set_side_range(node_id.id, span_type, range);
     }
 
     /// Return one side source span for one parsed node.
@@ -853,16 +942,46 @@ impl Tree {
         self.source_index.get_side(node_id.id, span_type)
     }
 
+    /// Return one file-local side source range for one parsed node.
+    #[inline]
+    pub fn get_side_range<T>(
+        &self,
+        node_id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+    ) -> Option<ByteRange>
+    where
+        T: Node,
+    {
+        self.source_index.get_side_range(node_id.id, span_type)
+    }
+
     /// Return one side source span for one parsed node id.
     #[inline]
     pub fn get_side_span_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
         self.source_index.get_side(node_id, span_type)
     }
 
+    /// Return one file-local side source range for one parsed node id.
+    #[inline]
+    pub fn get_side_range_by_id(&self, node_id: u32, span_type: NodeSpanType) -> Option<ByteRange> {
+        self.source_index.get_side_range(node_id, span_type)
+    }
+
     /// Set one side source span for one parsed node id.
     #[inline]
     pub fn set_side_span_by_id(&mut self, node_id: u32, span_type: NodeSpanType, span: Span) {
         self.source_index.set_side(node_id, span_type, span);
+    }
+
+    /// Set one file-local side source range for one parsed node id.
+    #[inline]
+    pub fn set_side_range_by_id(
+        &mut self,
+        node_id: u32,
+        span_type: NodeSpanType,
+        range: ByteRange,
+    ) {
+        self.source_index.set_side_range(node_id, span_type, range);
     }
 
     /// Return the spans for all nodes of a given type.
