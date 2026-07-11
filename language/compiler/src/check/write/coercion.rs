@@ -1,6 +1,6 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 
 use crate::check::{
     Answer, CheckState, Constraint, ConstraintId, ConstraintState, Origin, Relation, ValueUse,
@@ -8,6 +8,30 @@ use crate::check::{
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Record one already accepted value constraint for coercion derivation.
+    pub(in crate::check) fn push_solved_constraint(
+        &mut self,
+        origin: Origin,
+        use_: ValueUse,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let origin = self.intern_origin(origin);
+        let constraint = Constraint::value(
+            Relation::Assignable,
+            source,
+            target,
+            origin,
+            origin,
+            Some(use_),
+        );
+        let id = self.solver.allocate_constraint(constraint);
+        self.solver
+            .set_constraint_state(id, ConstraintState::Holds)?;
+
+        Ok(())
+    }
+
     /// Return implicit coercions from solved value constraints.
     pub(in crate::check) fn implicit_coercions(
         &mut self,
@@ -16,12 +40,14 @@ impl CheckState<'_> {
         let mut constraints = Vec::new();
         for (id, constraint) in self.solver.constraints.iter() {
             let state = self.solver.constraints.state(id)?;
-            if state == ConstraintState::Holds && constraint.origin().module() == module {
+            if state == ConstraintState::Holds
+                && self.solver.origin(constraint.origin()).module() == module
+            {
                 constraints.push(id);
             }
         }
 
-        let mut coercions = IndexMap::new();
+        let mut coercions = FxIndexMap::default();
         for constraint in constraints {
             if let Some(coercion) = self.constraint_coercion(module, constraint)? {
                 self.push_implicit_coercion(&mut coercions, coercion)?;
@@ -34,7 +60,7 @@ impl CheckState<'_> {
     /// Keep one implicit coercion per value node.
     fn push_implicit_coercion(
         &mut self,
-        coercions: &mut IndexMap<dir::GlobalNodeIdAny, dir::Coercion>,
+        coercions: &mut FxIndexMap<dir::GlobalNodeIdAny, dir::Coercion>,
         (node, coercion): (dir::GlobalNodeIdAny, dir::Coercion),
     ) -> CompilerResult<()> {
         let Some(previous) = coercions.get(&node).copied() else {
@@ -93,6 +119,7 @@ impl CheckState<'_> {
             )
         };
 
+        let origin = self.solver.origin(origin);
         let Some(node) = origin.expression() else {
             return Ok(None);
         };
@@ -104,22 +131,70 @@ impl CheckState<'_> {
         }
         if !matches!(
             use_,
-            ValueUse::Store | ValueUse::Argument | ValueUse::Output
+            Some(ValueUse::Store | ValueUse::Argument | ValueUse::Output)
         ) {
             return Ok(None);
         }
 
         let source = self.settled_root(left)?;
+        let source = self.settled_union_root(source)?;
         let target = self.settled_root(right)?;
-        if !self.type_variables(source)?.is_empty() || !self.type_variables(target)?.is_empty() {
+        let target = self.settled_union_root(target)?;
+
+        // guard open leaves on reduced heads, keeping written types for display
+        let origin = self.node_site(node.into_any())?.origin();
+        let Answer::Ready(reduced_source) = self.reduce_type_head(origin, source)? else {
+            return Ok(None);
+        };
+        let Answer::Ready(reduced_target) = self.reduce_type_head(origin, target)? else {
+            return Ok(None);
+        };
+        if !self.type_variables(reduced_source)?.is_empty()
+            || !self.type_variables(reduced_target)?.is_empty()
+        {
             return Ok(None);
         }
 
+        // coercions never create ownership: value forms that reduce away drop
+        let target = self.coercion_target(target, reduced_target)?;
         let Some(coercion) = self.implicit_coercion(origin, source, target)? else {
             return Ok(None);
         };
 
         Ok(Some((node.into_any(), coercion)))
+    }
+
+    /// Return the coercion target, dropping one value form head that reduces away.
+    fn coercion_target(
+        &self,
+        target: dir::GlobalTypeId,
+        reduced_target: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Form(form) = self.ty(target)? else {
+            return Ok(target);
+        };
+        if matches!(self.ty(reduced_target)?, dir::Type::Form(_)) {
+            return Ok(target);
+        }
+
+        Ok(form.value)
+    }
+
+    /// Collapse one union whose elements all settle to the same root.
+    fn settled_union_root(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Union(union) = self.ty(ty)? else {
+            return Ok(ty);
+        };
+        let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+        let mut settled = Vec::with_capacity(elements.len());
+        for element in elements {
+            settled.push(self.settled_root(element)?);
+        }
+
+        match settled.as_slice() {
+            [first, rest @ ..] if rest.iter().all(|element| element == first) => Ok(*first),
+            _ => Ok(ty),
+        }
     }
 
     /// Return the implicit coercion required by one solved source-target pair.
@@ -129,59 +204,31 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Coercion>> {
-        if !self.requires_implicit_coercion(origin, source, target)? {
+        // identical or equal settled types store directly
+        if source == target {
+            return Ok(None);
+        }
+        let judged_source = self.coercion_type(origin, source)?;
+        let judged_target = self.coercion_type(origin, target)?;
+        if judged_source == judged_target
+            || self.types_are_equal(origin, judged_source, judged_target)?
+        {
             return Ok(None);
         }
 
-        let coercion = dir::Coercion::new(source, target, dir::CastOrigin::Implicit);
+        // classify the settled heads at the DIR level
+        let source_head = self.ty(judged_source)?;
+        let target_head = self.ty(judged_target)?;
+        let Some(kind) = dir::Coercion::classify(&source_head, &target_head) else {
+            return Ok(None);
+        };
 
-        Ok(Some(coercion))
-    }
-
-    /// Return whether one accepted value constraint changes stored representation.
-    fn requires_implicit_coercion(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        if source == target {
-            return Ok(false);
-        }
-
-        let source = self.coercion_type(origin, source)?;
-        let target = self.coercion_type(origin, target)?;
-        if source == target {
-            return Ok(false);
-        }
-
-        if self.types_are_equal(origin, source, target)? {
-            return Ok(false);
-        }
-
-        if matches!(self.ty(source)?, dir::Type::Never) {
-            return Ok(false);
-        }
-
-        if self.type_has_runtime_header(source)? || self.type_has_runtime_header(target)? {
-            return Ok(true);
-        }
-
-        if self.memory_representation_changes(source, target)?
-            || self.intrinsic_representation_changes(source, target)?
-        {
-            return Ok(true);
-        }
-
-        if self.scalar_stores_directly(source, target)? {
-            return Ok(false);
-        }
-
-        if self.stored_scalars_convert(source, target)? {
-            return Ok(true);
-        }
-
-        Ok(false)
+        Ok(Some(dir::Coercion::new(
+            source,
+            target,
+            kind,
+            dir::CastOrigin::Implicit,
+        )))
     }
 
     /// Return the type used to judge coercion representation.
@@ -239,122 +286,5 @@ impl CheckState<'_> {
                 })
             }
         }
-    }
-
-    /// Return whether a type stores a runtime header.
-    fn type_has_runtime_header(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let has_header = matches!(
-            self.ty(ty)?,
-            dir::Type::Any
-                | dir::Type::Unknown
-                | dir::Type::Object
-                | dir::Type::Dynamic(_)
-                | dir::Type::Union(_)
-        );
-
-        Ok(has_header)
-    }
-
-    /// Return whether one source-target pair crosses a memory representation.
-    fn memory_representation_changes(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let source = self.ty(source)?;
-        let target = self.ty(target)?;
-        let changes = match (source, target) {
-            // compare two memory forms as source and target
-            (dir::Type::Form(source), dir::Type::Form(target)) => {
-                Self::memory_form_representation_changes(source.form, target.form)
-            }
-
-            // placement and readonly do not create casts to or from their payloads
-            (dir::Type::Form(form), _) | (_, dir::Type::Form(form))
-                if matches!(form.form, dir::Form::Placed { .. } | dir::Form::Readonly) =>
-            {
-                false
-            }
-            // managed is transparent after type reduction in this write path
-            (dir::Type::Form(form), _) | (_, dir::Type::Form(form))
-                if form.form == dir::Form::Managed =>
-            {
-                false
-            }
-
-            // owned, borrowed, and raw cross a value carrier boundary
-            (dir::Type::Form(_), _) | (_, dir::Type::Form(_)) => true,
-
-            // non-form types do not cross a memory representation
-            _ => false,
-        };
-
-        Ok(changes)
-    }
-
-    /// Return whether two memory form constructors have different stored representations.
-    fn memory_form_representation_changes(source: dir::Form, target: dir::Form) -> bool {
-        match (source, target) {
-            // placement, readonly, and managed are static or transparent after reduction
-            (dir::Form::Placed { .. } | dir::Form::Readonly | dir::Form::Managed, _)
-            | (_, dir::Form::Placed { .. } | dir::Form::Readonly | dir::Form::Managed) => false,
-
-            // static borrow parameters do not change the pointer representation
-            (dir::Form::Borrowed { .. }, dir::Form::Borrowed { .. }) => false,
-
-            // equal runtime carriers do not need an emitted conversion
-            (dir::Form::Owned, dir::Form::Owned) | (dir::Form::Raw, dir::Form::Raw) => false,
-
-            // different runtime carriers need an emitted conversion
-            _ => true,
-        }
-    }
-
-    /// Return whether one source-target pair crosses an intrinsic representation.
-    fn intrinsic_representation_changes(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let changes = matches!(
-            (self.ty(source)?, self.ty(target)?),
-            (dir::Type::Array(_), dir::Type::Slice(_))
-                | (dir::Type::FixedArray(_), dir::Type::Slice(_))
-                | (dir::Type::FunctionPointer(_), dir::Type::Function(_))
-        );
-
-        Ok(changes)
-    }
-
-    /// Return whether a scalar singleton stores directly in the target type.
-    fn scalar_stores_directly(
-        &mut self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let target_type = self.ty(target)?;
-        let stores = match self.ty(source)? {
-            dir::Type::Literal(literal) => literal.widens_to(&target_type),
-            dir::Type::Range(range) => range.widens_to(&target_type),
-            _ => false,
-        };
-
-        Ok(stores)
-    }
-
-    /// Return whether stored scalar carriers need conversion instructions.
-    fn stored_scalars_convert(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let converts = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
-                source.widens_to(target)
-            }
-            _ => false,
-        };
-
-        Ok(converts)
     }
 }
