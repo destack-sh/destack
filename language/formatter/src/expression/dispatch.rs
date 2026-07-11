@@ -1,4 +1,4 @@
-use super::parentheses::source_parentheses_span;
+use super::parentheses::{should_preserve_source_parentheses, source_parentheses_span};
 use super::ternary::expression_is_ternary_branch;
 use crate::annotation::{format_leading_comments, format_trailing_comments, prefix_annotations};
 use crate::context::FormatNodeWithoutTrailingComments;
@@ -29,8 +29,9 @@ fn expression_trailing_comment_spans(
     };
 
     // comments before the close token belong inside the parentheses
-    let interior_comments =
-        context.comment_tokens_in_range(expression_span.end, parentheses_span.end);
+    let interior_comments = context
+        .comments()
+        .comments_in_range(expression_span.end, parentheses_span.end);
     if !interior_comments.is_empty() {
         return (parentheses_span, expression_span);
     }
@@ -101,8 +102,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::TupleExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::StructExpression { .. }
-        | Expression::TreeExpression { .. }
-        | Expression::Parenthesized { .. } => {
+        | Expression::TreeExpression { .. } => {
             write_primary_expression_trailing_annotations(f, expression_id, expression)
         }
         Expression::Unary { .. }
@@ -211,7 +211,37 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    write_expression_without_prefix_annotations_inner(f, expression_id)?;
+    write_expression_body_and_trailing_annotations(f, expression_id)
+}
+
+/// Write one expression body and its trailing annotations with required parentheses.
+fn write_expression_body_and_trailing_annotations<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    expression_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let preserves_source_parentheses =
+        should_preserve_source_parentheses(f.context(), expression_id);
+    let needs_parentheses = preserves_source_parentheses
+        || expression_needs_parentheses_in_parent(f.context(), expression_id);
+
+    // keep source owned trailing comments inside their parentheses
+    if preserves_source_parentheses {
+        write!(f, [token("(")])?;
+        write_expression_without_prefix_annotations_inner(f, expression_id)?;
+        write_expression_trailing_node_annotations(f, expression_id)?;
+
+        return write!(f, [token(")")]);
+    }
+
+    // write any parentheses derived from expression structure
+    if needs_parentheses {
+        write!(f, [token("(")])?;
+        write_expression_without_prefix_annotations_inner(f, expression_id)?;
+        write!(f, [token(")")])?;
+    } else {
+        write_expression_without_prefix_annotations_inner(f, expression_id)?;
+    }
+
     write_expression_trailing_node_annotations(f, expression_id)
 }
 
@@ -268,8 +298,7 @@ fn format_expression_body_inner<'ast>(
         | Expression::TupleExpression { .. }
         | Expression::ObjectExpression { .. }
         | Expression::StructExpression { .. }
-        | Expression::TreeExpression { .. }
-        | Expression::Parenthesized { .. } => {
+        | Expression::TreeExpression { .. } => {
             let is_formatted = format_primary_expression(f, node_id, expression)?;
             debug_assert!(is_formatted);
         }
@@ -338,9 +367,6 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
         node_id: LocalNodeId<Expression>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        // derived parentheses
-        let needs_parentheses = expression_needs_parentheses_in_parent(f.context(), node_id);
-
         // tree expressions own leading comments
         if matches!(self, Expression::TreeExpression { .. }) {
             write_expression_prefix_annotations(f, node_id)?;
@@ -355,20 +381,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
             return write_expression_trailing_node_annotations(f, node_id);
         }
 
-        if needs_parentheses {
-            let parenthesized_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [token("(")])?;
-                write_expression_without_prefix_annotations_inner(f, node_id)?;
-                write!(f, [token(")")])
-            });
-
-            write!(f, [parenthesized_body])?;
-        } else {
-            write_expression_without_prefix_annotations_inner(f, node_id)?;
-        }
-
-        // trailing node annotations
-        write_expression_trailing_node_annotations(f, node_id)
+        write_expression_body_and_trailing_annotations(f, node_id)
     }
 }
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
-use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::FormatterOptions;
 use destack_source::{DiagnosticCollection, DiagnosticSeverity, File, LanguageType, Span};
 
@@ -232,13 +232,10 @@ fn parser_file(file: &File, source: &str) -> Arc<File> {
 
 /// Build a parser configured for source formatting.
 fn source_parser(file: Arc<File>, language_type: LanguageType) -> Parser {
-    Parser::lex_file_with_options(
+    Parser::lex_file_with_trivia(
         file,
         language_type,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     )
 }

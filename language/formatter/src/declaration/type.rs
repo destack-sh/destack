@@ -244,9 +244,6 @@ fn type_expression_has_generic_arguments(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
-        TypeExpression::Parenthesized { expression } => {
-            type_expression_has_generic_arguments(context, *expression)
-        }
         TypeExpression::Reference {
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
@@ -265,9 +262,6 @@ fn type_is_qualified_without_type_arguments(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
-        TypeExpression::Parenthesized { expression } => {
-            type_is_qualified_without_type_arguments(context, *expression)
-        }
         TypeExpression::Reference {
             path,
             generic_arguments,

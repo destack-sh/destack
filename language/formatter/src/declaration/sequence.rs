@@ -1208,7 +1208,6 @@ pub(crate) fn expression_is_in_statement_context(
             }
 
             let should_inherit_parent_position = match parent_expression {
-                Expression::Parenthesized { expression } => expression.id == expression_id.id,
                 Expression::If { .. } => false,
                 Expression::While { body, .. }
                 | Expression::ForEach { body, .. }
@@ -1354,9 +1353,6 @@ fn type_expression_is_void(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
-        TypeExpression::Parenthesized { expression } => {
-            type_expression_is_void(context, *expression)
-        }
         TypeExpression::Literal {
             value: TypeLiteral::Void,
         } => true,

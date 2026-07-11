@@ -1,5 +1,4 @@
 use super::object::{format_fill_array, format_outer_comment_array, format_struct_literal};
-use super::parentheses::should_preserve_parenthesized_expression;
 use super::{
     array_elements_are_fill_candidates, array_has_only_outer_comments, is_trivial_argument,
 };
@@ -22,32 +21,6 @@ use destack_fir::prelude::{
 use destack_fir::{format_args, write};
 use destack_repository::TrailingComma;
 use destack_source::Span;
-
-/// One preserved explicit parenthesized wrapper layout.
-enum ParenthesizedExpressionLayout {
-    /// Keep the wrapper inline.
-    Inline,
-    /// Keep the wrapper with an explicit multiline body.
-    Multiline,
-}
-
-/// Return one explicit parenthesized wrapper layout when the wrapper must stay visible.
-fn parenthesized_expression_layout(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    expression_id: LocalNodeId<Expression>,
-) -> Option<ParenthesizedExpressionLayout> {
-    let outer_span = context.span(node_id);
-    if !should_preserve_parenthesized_expression(context, node_id, expression_id) {
-        return None;
-    }
-
-    if context.has_newline(outer_span) {
-        return Some(ParenthesizedExpressionLayout::Multiline);
-    }
-
-    Some(ParenthesizedExpressionLayout::Inline)
-}
 
 /// Return whether any argument in one collection has annotations.
 fn arguments_have_annotations(
@@ -495,26 +468,6 @@ pub(crate) fn format_primary_expression<'ast>(
             )?;
         }
 
-        // grouped expressions keep their wrapper when comments or line breaks depend on it
-        Expression::Parenthesized { expression } => {
-            match parenthesized_expression_layout(f.context(), node_id, *expression) {
-                Some(ParenthesizedExpressionLayout::Inline) => {
-                    write!(f, [token("("), *expression, token(")")])?;
-                }
-                Some(ParenthesizedExpressionLayout::Multiline) => {
-                    write!(
-                        f,
-                        [group(&format_args![
-                            token("("),
-                            block_indent(expression),
-                            hard_line_break(),
-                            token(")")
-                        ])]
-                    )?;
-                }
-                None => write!(f, [*expression])?,
-            }
-        }
         _ => return Ok(false),
     }
 

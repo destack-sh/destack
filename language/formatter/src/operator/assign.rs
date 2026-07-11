@@ -772,9 +772,6 @@ fn declaration_type_expression_has_generic_arguments(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
-        TypeExpression::Parenthesized { expression } => {
-            declaration_type_expression_has_generic_arguments(context, *expression)
-        }
         TypeExpression::Reference {
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
