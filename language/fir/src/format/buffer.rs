@@ -1,315 +1,370 @@
 use crate::format::{
-    Arguments, FormatNode, FormatResult, FormatState, FormatTag, Interned, LineMode, write,
+    Allocator, ArenaVec, Arguments, FormatNode, FormatResult, FormatState, FormatTag, LineMode,
+    NodeSlice, write,
 };
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fmt::Debug;
-use std::num::NonZeroUsize;
 use std::ops::{Deref, DerefMut};
 
-/// A trait for writing or formatting into [`FormatNode`]-accepting buffers or streams.
-pub trait Buffer {
-    /// The context used during formatting
+/// One sink for FIR nodes and formatting state.
+pub trait Buffer<'a> {
+    /// The context used during formatting.
     type Context;
 
-    /// Writes a [`crate::FormatNode`] into this buffer, returning whether the write succeeded.
-    ///
-    /// # Errors
-    /// This function will return an instance of [`crate::FormatError`] on error.
-    fn write_node(&mut self, node: FormatNode);
+    /// Write one FIR node.
+    fn write_node(&mut self, node: FormatNode<'a>);
 
-    /// Returns a slice containing all nodes written into this buffer.
+    /// Return all nodes written so far.
     ///
     /// Prefer using [BufferExtensions::start_recording] over accessing [Buffer::nodes] directly.
     #[doc(hidden)]
-    fn nodes(&self) -> &[FormatNode];
+    fn nodes(&self) -> &[FormatNode<'a>];
 
-    /// Glue for usage of the [`write!`] macro with implementers of this trait.
-    ///
-    /// This method should generally not be invoked manually, but rather through the [`write!`] macro itself.
+    /// Write preconstructed format arguments.
     #[inline]
     fn write_format(
         mut self: &mut Self,
-        arguments: Arguments<'_, Self::Context>,
+        arguments: Arguments<'_, 'a, Self::Context>,
     ) -> FormatResult<()> {
         write(&mut self, arguments)
     }
 
-    /// Returns the formatting state relevant for this formatting program.
-    fn state(&self) -> &FormatState<Self::Context>;
+    /// Return the formatting state.
+    fn state(&self) -> &FormatState<'a, Self::Context>;
 
-    /// Returns the mutable formatting state relevant for this formatting program.
-    fn state_mut(&mut self) -> &mut FormatState<Self::Context>;
+    /// Return the formatting state mutably.
+    fn state_mut(&mut self) -> &mut FormatState<'a, Self::Context>;
 }
 
-/// Implements the `[Buffer]` trait for all mutable references of objects implementing [Buffer].
-impl<W: Buffer<Context = Context> + ?Sized, Context> Buffer for &mut W {
+/// Forward buffer operations through mutable references.
+impl<'a, W: Buffer<'a, Context = Context> + ?Sized, Context> Buffer<'a> for &mut W {
     type Context = Context;
 
-    fn write_node(&mut self, node: FormatNode) {
+    fn write_node(&mut self, node: FormatNode<'a>) {
         (**self).write_node(node);
     }
 
-    fn nodes(&self) -> &[FormatNode] {
+    fn nodes(&self) -> &[FormatNode<'a>] {
         (**self).nodes()
     }
 
-    fn write_format(&mut self, args: Arguments<'_, Context>) -> FormatResult<()> {
+    fn write_format(&mut self, args: Arguments<'_, 'a, Context>) -> FormatResult<()> {
         (**self).write_format(args)
     }
 
-    fn state(&self) -> &FormatState<Self::Context> {
+    fn state(&self) -> &FormatState<'a, Self::Context> {
         (**self).state()
     }
 
-    fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
+    fn state_mut(&mut self) -> &mut FormatState<'a, Self::Context> {
         (**self).state_mut()
     }
 }
 
-/// Vector backed [`Buffer`] implementation.
-///
-/// The buffer writes all nodes into the internal nodes buffer.
+/// Arena-backed FIR buffer.
 #[derive(Debug)]
-pub struct VecBuffer<'a, Context> {
-    state: &'a mut FormatState<Context>,
-    nodes: Vec<FormatNode>,
+pub struct VecBuffer<'state, 'a, Context> {
+    state: &'state mut FormatState<'a, Context>,
+    nodes: ArenaVec<'a, FormatNode<'a>>,
 }
 
-impl<'a, Context> VecBuffer<'a, Context> {
-    pub fn new(state: &'a mut FormatState<Context>) -> Self {
-        Self::new_with_vec(state, Vec::new())
+impl<'state, 'a, Context> VecBuffer<'state, 'a, Context> {
+    /// Create an empty buffer in the formatting arena.
+    pub fn new(state: &'state mut FormatState<'a, Context>) -> Self {
+        let nodes = ArenaVec::new_in(state.allocator());
+
+        Self::new_with_vec(state, nodes)
     }
 
-    pub fn new_with_vec(state: &'a mut FormatState<Context>, nodes: Vec<FormatNode>) -> Self {
+    /// Create a buffer from an existing arena vector.
+    pub fn new_with_vec(
+        state: &'state mut FormatState<'a, Context>,
+        nodes: ArenaVec<'a, FormatNode<'a>>,
+    ) -> Self {
         Self { state, nodes }
     }
 
-    /// Creates a buffer with the specified capacity
-    pub fn with_capacity(capacity: usize, state: &'a mut FormatState<Context>) -> Self {
-        Self {
-            state,
-            nodes: Vec::with_capacity(capacity),
-        }
+    /// Create a buffer with the specified capacity.
+    pub fn with_capacity(capacity: usize, state: &'state mut FormatState<'a, Context>) -> Self {
+        let nodes = ArenaVec::with_capacity_in(capacity, state.allocator());
+
+        Self { state, nodes }
     }
 
-    /// Consumes the buffer and returns the written [`FormatNode]`s as a vector.
-    pub fn into_vec(self) -> Vec<FormatNode> {
+    /// Return the written nodes.
+    pub fn into_vec(self) -> ArenaVec<'a, FormatNode<'a>> {
         self.nodes
     }
 
-    /// Takes the nodes without consuming self
-    pub fn take_vec(&mut self) -> Vec<FormatNode> {
-        std::mem::take(&mut self.nodes)
+    /// Take the written nodes and leave an empty buffer.
+    pub fn take_vec(&mut self) -> ArenaVec<'a, FormatNode<'a>> {
+        let nodes = ArenaVec::new_in(self.state.allocator());
+
+        std::mem::replace(&mut self.nodes, nodes)
     }
 }
 
-impl<Context> Deref for VecBuffer<'_, Context> {
-    type Target = [FormatNode];
+impl<'a, Context> Deref for VecBuffer<'_, 'a, Context> {
+    type Target = [FormatNode<'a>];
 
     fn deref(&self) -> &Self::Target {
         &self.nodes
     }
 }
 
-impl<Context> DerefMut for VecBuffer<'_, Context> {
+impl<Context> DerefMut for VecBuffer<'_, '_, Context> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.nodes
     }
 }
 
-impl<Context> Buffer for VecBuffer<'_, Context> {
+impl<'a, Context> Buffer<'a> for VecBuffer<'_, 'a, Context> {
     type Context = Context;
 
-    fn write_node(&mut self, node: FormatNode) {
+    fn write_node(&mut self, node: FormatNode<'a>) {
         self.nodes.push(node);
     }
 
-    fn nodes(&self) -> &[FormatNode] {
+    fn nodes(&self) -> &[FormatNode<'a>] {
         self
     }
 
-    fn state(&self) -> &FormatState<Self::Context> {
+    fn state(&self) -> &FormatState<'a, Self::Context> {
         self.state
     }
 
-    fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
+    fn state_mut(&mut self) -> &mut FormatState<'a, Self::Context> {
         self.state
     }
 }
 
-/// Buffer that allows you inspecting nodes as they get written to the formatter.
-pub struct Inspect<'inner, Context, Inspector> {
-    inner: &'inner mut dyn Buffer<Context = Context>,
+/// Buffer that inspects each node before forwarding it.
+pub struct Inspect<'inner, 'a, Context, Inspector> {
+    inner: &'inner mut dyn Buffer<'a, Context = Context>,
     inspector: Inspector,
 }
 
-impl<'inner, Context, Inspector> Inspect<'inner, Context, Inspector> {
-    fn new(inner: &'inner mut dyn Buffer<Context = Context>, inspector: Inspector) -> Self {
+impl<'inner, 'a, Context, Inspector> Inspect<'inner, 'a, Context, Inspector> {
+    fn new(inner: &'inner mut dyn Buffer<'a, Context = Context>, inspector: Inspector) -> Self {
         Self { inner, inspector }
     }
 }
 
-impl<Context, Inspector> Debug for Inspect<'_, Context, Inspector> {
+impl<Context, Inspector> Debug for Inspect<'_, '_, Context, Inspector> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Inspect").finish()
     }
 }
 
-impl<Context, Inspector> Buffer for Inspect<'_, Context, Inspector>
+impl<'a, Context, Inspector> Buffer<'a> for Inspect<'_, 'a, Context, Inspector>
 where
-    Inspector: FnMut(&FormatNode),
+    Inspector: FnMut(&FormatNode<'a>),
 {
     type Context = Context;
 
-    fn write_node(&mut self, node: FormatNode) {
+    fn write_node(&mut self, node: FormatNode<'a>) {
         (self.inspector)(&node);
         self.inner.write_node(node);
     }
 
-    fn nodes(&self) -> &[FormatNode] {
+    fn nodes(&self) -> &[FormatNode<'a>] {
         self.inner.nodes()
     }
 
-    fn state(&self) -> &FormatState<Self::Context> {
+    fn state(&self) -> &FormatState<'a, Self::Context> {
         self.inner.state()
     }
 
-    fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
+    fn state_mut(&mut self) -> &mut FormatState<'a, Self::Context> {
         self.inner.state_mut()
     }
 }
 
-/// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) nodes.
-/// - Removes [`lines`](FormatNode::Line) with the mode [`Soft`](LineMode::Soft).
-/// - Replaces [`lines`](FormatNode::Line) with the mode [`Soft`](LineMode::SoftOrSpace) with a [`Space`](FormatNode::Space)
-/// - Removes [`if_group_breaks`](crate::builders::if_group_breaks) and all its content.
-/// - Unwraps the content of [`if_group_fits_on_line`](crate::builders::if_group_fits_on_line) nodes (but retains it).
-pub struct RemoveSoftLinesBuffer<'a, Context> {
-    inner: &'a mut dyn Buffer<Context = Context>,
-
-    /// Caches the interned nodes after the soft line breaks have been removed.
-    ///
-    /// The `key` is the [Interned] node as it has been passed to [`Self::write_node`] or the child of another
-    /// [Interned] node. The `value` is the matching document of the key where all soft line breaks have been removed.
-    ///
-    /// It's fine to not rewind the cache. The worst that can happen is that it holds on interned nodes
-    /// that are now unused. But there's little harm in that and the cache is cleaned when dropping the buffer.
-    interned_cache: HashMap<Interned, Interned>,
-
-    state: RemoveSoftLineBreaksState,
+/// One buffer that removes soft line behavior from forwarded FIR nodes.
+///
+/// Soft lines disappear, soft lines with spaces become spaces, expanded conditional content
+/// disappears, and flat conditional content remains without its tags.
+pub struct RemoveSoftLinesBuffer<'buf, 'a, Context> {
+    inner: &'buf mut dyn Buffer<'a, Context = Context>,
+    rewriter: SoftLineRewriter<'a>,
+    filter: SoftLineFilter,
 }
 
-impl<'a, Context> RemoveSoftLinesBuffer<'a, Context> {
-    /// Creates a new buffer that removes the soft line breaks before writing them into `buffer`.
-    pub fn new(inner: &'a mut dyn Buffer<Context = Context>) -> Self {
+impl<'buf, 'a, Context> RemoveSoftLinesBuffer<'buf, 'a, Context> {
+    /// Create one buffer that removes soft lines.
+    pub fn new(inner: &'buf mut dyn Buffer<'a, Context = Context>) -> Self {
+        let allocator = inner.state().allocator();
+
         Self {
             inner,
-            state: RemoveSoftLineBreaksState::default(),
-            interned_cache: HashMap::default(),
+            rewriter: SoftLineRewriter::new(allocator),
+            filter: SoftLineFilter::default(),
         }
-    }
-
-    /// Removes the soft line breaks from an interned node.
-    fn clean_interned(&mut self, interned: &Interned) -> Interned {
-        clean_interned(interned, &mut self.interned_cache)
     }
 }
 
-impl<Context> Debug for RemoveSoftLinesBuffer<'_, Context> {
+impl<Context> Debug for RemoveSoftLinesBuffer<'_, '_, Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RemoveSoftLinesBuffer").finish()
     }
 }
 
-// Extracted to function to avoid monomorphization
-#[allow(clippy::mutable_key_type)]
-fn clean_interned(
-    interned: &Interned,
-    interned_cache: &mut HashMap<Interned, Interned>,
-) -> Interned {
-    if let Some(cleaned) = interned_cache.get(interned) {
-        cleaned.clone()
-    } else {
-        let mut state = RemoveSoftLineBreaksState::default();
+/// Rewrites nested node slices without soft line behavior.
+struct SoftLineRewriter<'a> {
+    /// The formatter arena.
+    allocator: &'a Allocator,
+    /// Rewritten slices by original pointer identity.
+    slices: FxHashMap<*const FormatNode<'a>, NodeSlice<'a>>,
+}
 
-        // Find the first soft line break node or interned node that must be changed
-        let result = interned
-            .iter()
-            .enumerate()
-            .find_map(|(index, node)| match node {
-                FormatNode::Line(LineMode::SoftOrSpace) => {
-                    let mut cleaned = Vec::new();
-                    let (before, after) = interned.split_at(index);
-                    cleaned.extend_from_slice(before);
-                    cleaned.push(FormatNode::Space);
-                    Some((cleaned, &after[1..]))
-                }
-                FormatNode::Interned(inner) => {
-                    let cleaned_inner = clean_interned(inner, interned_cache);
+impl<'a> SoftLineRewriter<'a> {
+    /// Create one rewriter in a formatter arena.
+    fn new(allocator: &'a Allocator) -> Self {
+        Self {
+            allocator,
+            slices: FxHashMap::default(),
+        }
+    }
 
-                    if &cleaned_inner == inner {
-                        None
-                    } else {
-                        let mut cleaned = Vec::with_capacity(interned.len());
-                        cleaned.extend_from_slice(&interned[..index]);
-                        cleaned.push(FormatNode::Interned(cleaned_inner));
-                        Some((cleaned, &interned[index + 1..]))
-                    }
-                }
+    /// Rewrite one node slice and cache its replacement.
+    fn rewrite(&mut self, slice: NodeSlice<'a>) -> NodeSlice<'a> {
+        let identity = slice.as_ptr();
+        if let Some(rewritten) = self.slices.get(&identity) {
+            return *rewritten;
+        }
 
-                node => {
-                    if state.should_drop(node) {
-                        let mut cleaned = Vec::new();
-                        let (before, after) = interned.split_at(index);
-                        cleaned.extend_from_slice(before);
-                        Some((cleaned, &after[1..]))
-                    } else {
-                        None
-                    }
-                }
-            });
+        // rewrite nested slices from leaves to root
+        let mut frames = vec![SoftLineFrame::new(slice)];
+        loop {
+            let frame_index = frames.len() - 1;
 
-        let result = match result {
-            // Copy the whole interned buffer so that becomes possible to change the necessary nodes.
-            Some((mut cleaned, rest)) => {
-                for node in rest {
-                    if state.should_drop(node) {
-                        continue;
-                    }
+            // complete one slice and publish it for its parent
+            if frames[frame_index].index == frames[frame_index].original.len() {
+                let frame = frames.remove(frame_index);
+                let identity = frame.original.as_ptr();
+                let rewritten = frame.finish();
+                self.slices.insert(identity, rewritten);
 
-                    let node = match node {
-                        FormatNode::Line(LineMode::SoftOrSpace) => FormatNode::Space,
-                        FormatNode::Interned(interned) => {
-                            FormatNode::Interned(clean_interned(interned, interned_cache))
-                        }
-
-                        node => node.clone(),
-                    };
-                    cleaned.push(node);
+                if frames.is_empty() {
+                    return rewritten;
                 }
 
-                Interned::new(cleaned)
+                continue;
             }
-            // No change necessary, return existing interned node
-            None => interned.clone(),
-        };
 
-        interned_cache.insert(interned.clone(), result.clone());
-        result
+            // rewrite one node
+            let frame = &mut frames[frame_index];
+            let node = &frame.original[frame.index];
+            let nested = if !frame.filter.retain(node) {
+                frame.replace(None, self.allocator);
+                None
+            } else {
+                match node {
+                    FormatNode::Line(LineMode::SoftOrSpace) => {
+                        frame.replace(Some(FormatNode::Space), self.allocator);
+                        None
+                    }
+                    FormatNode::Slice(slice) => {
+                        let identity = slice.as_ptr();
+
+                        if let Some(rewritten) = self.slices.get(&identity) {
+                            if *rewritten == *slice {
+                                frame.retain();
+                            } else {
+                                frame.replace(Some(FormatNode::Slice(*rewritten)), self.allocator);
+                            }
+
+                            None
+                        } else {
+                            Some(*slice)
+                        }
+                    }
+                    _ => {
+                        frame.retain();
+                        None
+                    }
+                }
+            };
+
+            // process uncached nested content before advancing its parent
+            if let Some(nested) = nested {
+                frames.push(SoftLineFrame::new(nested));
+            }
+        }
     }
 }
 
-impl<Context> Buffer for RemoveSoftLinesBuffer<'_, Context> {
+/// One active node-slice rewrite.
+struct SoftLineFrame<'a> {
+    /// The original node slice.
+    original: NodeSlice<'a>,
+    /// The next node index.
+    index: usize,
+    /// Conditional-content state at this slice depth.
+    filter: SoftLineFilter,
+    /// Rewritten nodes after the first change.
+    rewritten: Option<ArenaVec<'a, FormatNode<'a>>>,
+}
+
+impl<'a> SoftLineFrame<'a> {
+    /// Create one rewrite frame.
+    fn new(original: NodeSlice<'a>) -> Self {
+        Self {
+            original,
+            index: 0,
+            filter: SoftLineFilter::default(),
+            rewritten: None,
+        }
+    }
+
+    /// Retain the current node and advance this frame.
+    fn retain(&mut self) {
+        if let Some(rewritten) = self.rewritten.as_mut() {
+            rewritten.push(self.original[self.index].clone());
+        }
+
+        self.index += 1;
+    }
+
+    /// Replace or remove the current node and advance this frame.
+    fn replace(&mut self, node: Option<FormatNode<'a>>, allocator: &'a Allocator) {
+        // allocate at the first changed node
+        if self.rewritten.is_none() {
+            let mut rewritten = ArenaVec::with_capacity_in(self.original.len(), allocator);
+            rewritten.extend_from_slice(&self.original[..self.index]);
+            self.rewritten = Some(rewritten);
+        }
+
+        // write the replacement when present
+        if let Some(rewritten) = self.rewritten.as_mut()
+            && let Some(node) = node
+        {
+            rewritten.push(node);
+        }
+
+        self.index += 1;
+    }
+
+    /// Finish this frame as either its original or rewritten slice.
+    fn finish(self) -> NodeSlice<'a> {
+        match self.rewritten {
+            Some(rewritten) => NodeSlice::new(rewritten),
+            None => self.original,
+        }
+    }
+}
+
+impl<'a, Context> Buffer<'a> for RemoveSoftLinesBuffer<'_, 'a, Context> {
     type Context = Context;
 
-    fn write_node(&mut self, node: FormatNode) {
-        if self.state.should_drop(&node) {
+    fn write_node(&mut self, node: FormatNode<'a>) {
+        if !self.filter.retain(&node) {
             return;
         }
 
         let node = match node {
             FormatNode::Line(LineMode::SoftOrSpace) => FormatNode::Space,
-            FormatNode::Interned(interned) => FormatNode::Interned(self.clean_interned(&interned)),
+            FormatNode::Slice(slice) => FormatNode::Slice(self.rewriter.rewrite(slice)),
 
             node => node,
         };
@@ -317,99 +372,80 @@ impl<Context> Buffer for RemoveSoftLinesBuffer<'_, Context> {
         self.inner.write_node(node);
     }
 
-    fn nodes(&self) -> &[FormatNode] {
+    fn nodes(&self) -> &[FormatNode<'a>] {
         self.inner.nodes()
     }
 
-    fn state(&self) -> &FormatState<Self::Context> {
+    fn state(&self) -> &FormatState<'a, Self::Context> {
         self.inner.state()
     }
 
-    fn state_mut(&mut self) -> &mut FormatState<Self::Context> {
+    fn state_mut(&mut self) -> &mut FormatState<'a, Self::Context> {
         self.inner.state_mut()
     }
 }
 
+/// Conditional-content nesting hidden by soft-line removal.
 #[derive(Copy, Clone, Debug, Default)]
-enum RemoveSoftLineBreaksState {
-    #[default]
-    Default,
-    InIfGroupBreaks {
-        conditional_content_level: NonZeroUsize,
-    },
+struct SoftLineFilter {
+    hidden_depth: usize,
 }
 
-impl RemoveSoftLineBreaksState {
-    fn should_drop(&mut self, node: &FormatNode) -> bool {
-        match self {
-            Self::Default => match node {
-                FormatNode::Line(LineMode::Soft) => true,
-
-                // Entered the start of an `if_group_breaks` or `if_group_fits`
-                // For `if_group_breaks`: Remove the start and end tag and all content in between.
-                // For `if_group_fits_on_line`: Unwrap the content. This is important because the enclosing group
-                // might still *expand* if the content exceeds the line width limit, in which case the
-                // `if_group_fits_on_line` content would be removed.
-                FormatNode::Tag(FormatTag::StartConditionalContent(condition)) => {
-                    if condition.mode.is_expanded() {
-                        *self = Self::InIfGroupBreaks {
-                            conditional_content_level: NonZeroUsize::new(1).unwrap(),
-                        };
-                    }
-                    true
+impl SoftLineFilter {
+    /// Advance conditional nesting and return whether one node should remain.
+    fn retain(&mut self, node: &FormatNode<'_>) -> bool {
+        // discard every node inside expanded conditional content
+        if self.hidden_depth > 0 {
+            match node {
+                FormatNode::Tag(FormatTag::StartConditionalContent(_)) => {
+                    self.hidden_depth += 1;
                 }
-                FormatNode::Tag(FormatTag::EndConditionalContent) => true,
-                _ => false,
-            },
-            Self::InIfGroupBreaks {
-                conditional_content_level,
-            } => {
-                match node {
-                    // A nested `if_group_breaks` or `if_group_fits_on_line`
-                    FormatNode::Tag(FormatTag::StartConditionalContent(_)) => {
-                        *conditional_content_level = conditional_content_level.saturating_add(1);
-                    }
-                    // The end of an `if_group_breaks` or `if_group_fits_on_line`.
-                    FormatNode::Tag(FormatTag::EndConditionalContent) => {
-                        if let Some(level) = NonZeroUsize::new(conditional_content_level.get() - 1)
-                        {
-                            *conditional_content_level = level;
-                        } else {
-                            // Found the end tag of the initial `if_group_breaks`. Skip this node but retain
-                            // the nodes coming after
-                            *self = RemoveSoftLineBreaksState::Default;
-                        }
-                    }
-                    _ => {}
+                FormatNode::Tag(FormatTag::EndConditionalContent) => {
+                    self.hidden_depth -= 1;
                 }
-
-                true
+                _ => {}
             }
+
+            return false;
+        }
+
+        // remove soft lines and unwrap flat conditional content
+        match node {
+            FormatNode::Line(LineMode::Soft) => false,
+            FormatNode::Tag(FormatTag::StartConditionalContent(condition)) => {
+                if condition.mode.is_expanded() {
+                    self.hidden_depth = 1;
+                }
+
+                false
+            }
+            FormatNode::Tag(FormatTag::EndConditionalContent) => false,
+            _ => true,
         }
     }
 }
 
-pub trait BufferExtensions: Buffer + Sized {
-    /// Returns a new buffer that calls the passed inspector for every node that gets written to the output
+/// Additional operations supported by every sized buffer.
+pub trait BufferExtensions<'a>: Buffer<'a> + Sized {
+    /// Create a buffer that inspects every written node.
     #[must_use]
-    fn inspect<F>(&mut self, inspector: F) -> Inspect<'_, Self::Context, F>
+    fn inspect<F>(&mut self, inspector: F) -> Inspect<'_, 'a, Self::Context, F>
     where
-        F: FnMut(&FormatNode),
+        F: FnMut(&FormatNode<'a>),
     {
         Inspect::new(self, inspector)
     }
 
-    /// Starts a recording that gives you access to all nodes that have been written between the start
-    /// and end of the recording
+    /// Start recording nodes written to this buffer.
     #[must_use]
-    fn start_recording(&mut self) -> Recording<'_, Self> {
+    fn start_recording(&mut self) -> Recording<'_, 'a, Self> {
         Recording::new(self)
     }
 
-    /// Writes a sequence of nodes into this buffer.
+    /// Write a sequence of nodes into this buffer.
     fn write_nodes<I>(&mut self, nodes: I)
     where
-        I: IntoIterator<Item = FormatNode>,
+        I: IntoIterator<Item = FormatNode<'a>>,
     {
         for node in nodes {
             self.write_node(node);
@@ -417,36 +453,46 @@ pub trait BufferExtensions: Buffer + Sized {
     }
 }
 
-impl<T> BufferExtensions for T where T: Buffer {}
+impl<'a, T> BufferExtensions<'a> for T where T: Buffer<'a> {}
 
+/// One active recording over a buffer.
 #[derive(Debug)]
-pub struct Recording<'buf, Buffer> {
+pub struct Recording<'buf, 'a, Buffer> {
+    /// The first recorded node index.
     start: usize,
+    /// The recorded buffer.
     buffer: &'buf mut Buffer,
+    /// The FIR arena lifetime.
+    lifetime: std::marker::PhantomData<&'a ()>,
 }
 
-impl<'buf, B> Recording<'buf, B>
+impl<'buf, 'a, B> Recording<'buf, 'a, B>
 where
-    B: Buffer,
+    B: Buffer<'a>,
 {
+    /// Start recording at the current buffer position.
     fn new(buffer: &'buf mut B) -> Self {
         Self {
             start: buffer.nodes().len(),
             buffer,
+            lifetime: std::marker::PhantomData,
         }
     }
 
+    /// Write preconstructed format arguments.
     #[inline]
-    pub fn write_format(&mut self, arguments: Arguments<'_, B::Context>) -> FormatResult<()> {
+    pub fn write_format(&mut self, arguments: Arguments<'_, 'a, B::Context>) -> FormatResult<()> {
         self.buffer.write_format(arguments)
     }
 
+    /// Write one FIR node.
     #[inline]
-    pub fn write_node(&mut self, node: FormatNode) {
+    pub fn write_node(&mut self, node: FormatNode<'a>) {
         self.buffer.write_node(node);
     }
 
-    pub fn stop(self) -> Recorded<'buf> {
+    /// Stop recording and return the recorded nodes.
+    pub fn stop(self) -> Recorded<'buf, 'a> {
         let buffer: &'buf B = self.buffer;
         let nodes = buffer.nodes();
 
@@ -461,11 +507,12 @@ where
     }
 }
 
+/// FIR nodes captured by one recording.
 #[derive(Debug, Copy, Clone)]
-pub struct Recorded<'a>(&'a [FormatNode]);
+pub struct Recorded<'buf, 'a>(&'buf [FormatNode<'a>]);
 
-impl Deref for Recorded<'_> {
-    type Target = [FormatNode];
+impl<'a> Deref for Recorded<'_, 'a> {
+    type Target = [FormatNode<'a>];
 
     fn deref(&self) -> &Self::Target {
         self.0
@@ -475,25 +522,30 @@ impl Deref for Recorded<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::format::SimpleFormatContext;
+    use crate::format::{Condition, PrintMode, SimpleFormatContext};
     use crate::prelude::*;
     use crate::{format, format_args, write};
 
-    /// Writes a [`crate::FormatNode`] into this buffer, returning whether the write succeeded.
+    /// Write one FIR node into a vector buffer.
     #[test]
     fn test_buffer_write_node() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
+        let allocator = Allocator::default();
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
         let mut buffer = VecBuffer::new(&mut state);
 
         buffer.write_node(FormatNode::Token { text: "test" });
 
-        assert_eq!(buffer.into_vec(), vec![FormatNode::Token { text: "test" }]);
+        assert_eq!(
+            buffer.into_vec().as_slice(),
+            &[FormatNode::Token { text: "test" }]
+        );
     }
 
-    /// Glue for usage of the [`write!`] macro with implementers of this trait.
+    /// Write format arguments into a vector buffer.
     #[test]
     fn test_buffer_write_format() {
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack());
+        let allocator = Allocator::default();
+        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
         let mut buffer = VecBuffer::new(&mut state);
 
         buffer
@@ -501,17 +553,19 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            buffer.into_vec(),
-            vec![FormatNode::Token {
+            buffer.into_vec().as_slice(),
+            &[FormatNode::Token {
                 text: "Hello World"
             }]
         );
     }
 
-    /// A Buffer that removes any soft line breaks or [`if_group_breaks`](crate::builders::if_group_breaks) nodes.
+    /// Remove soft line behavior while retaining ordinary content.
     #[test]
     fn test_remove_soft_lines_buffer() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [format_with(|f| {
                 let mut buffer = RemoveSoftLinesBuffer::new(f);
@@ -535,11 +589,12 @@ mod tests {
         );
     }
 
-    /// Starts a recording that gives you access to all nodes that have been written between the start
-    /// and end of the recording
+    /// Record nodes written between two buffer positions.
     #[test]
     fn test_buffer_start_recording() {
+        let allocator = Allocator::default();
         let formatted = format!(
+            &allocator,
             SimpleFormatContext::empty_destack(),
             [format_with(|f| {
                 let mut recording = f.start_recording();
@@ -569,5 +624,54 @@ mod tests {
         .unwrap();
 
         assert_eq!(formatted.print().unwrap().as_str(), "ABCD");
+    }
+
+    /// Rewrite deeply nested node slices without consuming call stack.
+    #[test]
+    fn test_rewrite_nested_node_slice_soft_lines() {
+        let allocator = Allocator::default();
+        let nodes = ArenaVec::from_array_in([FormatNode::Line(LineMode::SoftOrSpace)], &allocator);
+        let mut slice = NodeSlice::new(nodes);
+
+        for _ in 0..100_000 {
+            let nodes = ArenaVec::from_array_in([FormatNode::Slice(slice)], &allocator);
+            slice = NodeSlice::new(nodes);
+        }
+
+        let mut rewriter = SoftLineRewriter::new(&allocator);
+        let mut rewritten = rewriter.rewrite(slice);
+
+        for _ in 0..100_000 {
+            let [FormatNode::Slice(inner)] = &*rewritten else {
+                panic!("expected nested node slice");
+            };
+            rewritten = *inner;
+        }
+
+        assert_eq!(&*rewritten, &[FormatNode::Space]);
+    }
+
+    /// Drop nested slices inside expanded conditional content.
+    #[test]
+    fn test_rewrite_nested_expanded_conditional_content() {
+        let allocator = Allocator::default();
+        let child = ArenaVec::from_array_in([FormatNode::Line(LineMode::SoftOrSpace)], &allocator);
+        let child = NodeSlice::new(child);
+        let nodes = ArenaVec::from_array_in(
+            [
+                FormatNode::Tag(FormatTag::StartConditionalContent(Condition::new(
+                    PrintMode::Expanded,
+                ))),
+                FormatNode::Slice(child),
+                FormatNode::Tag(FormatTag::EndConditionalContent),
+            ],
+            &allocator,
+        );
+        let slice = NodeSlice::new(nodes);
+
+        let mut rewriter = SoftLineRewriter::new(&allocator);
+        let rewritten = rewriter.rewrite(slice);
+
+        assert!(rewritten.is_empty());
     }
 }

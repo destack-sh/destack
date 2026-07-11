@@ -1,12 +1,13 @@
-use std::collections::HashMap;
 use std::ops::Deref;
 
-use crate::format::{FitsExpanded, FormatNode, FormatTag, Interned, LineMode, group};
+use rustc_hash::FxHashMap;
+
+use crate::format::{ArenaVec, FitsExpanded, FormatNode, FormatTag, LineMode, NodeSlice, group};
 
 /// A formatted document.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Document {
-    nodes: Vec<FormatNode>,
+pub struct Document<'a> {
+    nodes: &'a [FormatNode<'a>],
 }
 
 /// One active document scope that can receive or bound expansion.
@@ -49,8 +50,8 @@ impl ExpansionScope<'_> {
 enum DocumentFrameOwner<'a> {
     /// The root document frame.
     Root,
-    /// One interned node-slice frame.
-    Interned(&'a Interned),
+    /// One reusable node-slice frame.
+    Slice(&'a NodeSlice<'a>),
     /// One best-fitting variant frame.
     BestFittingVariant,
     /// One best-fitting boundary frame.
@@ -61,7 +62,7 @@ enum DocumentFrameOwner<'a> {
 #[derive(Debug)]
 struct DocumentFrame<'a> {
     /// The node slice being traversed.
-    nodes: &'a [FormatNode],
+    nodes: &'a [FormatNode<'a>],
     /// The next node index inside the slice.
     index: usize,
     /// Whether this frame has expanded.
@@ -72,7 +73,7 @@ struct DocumentFrame<'a> {
 
 impl<'a> DocumentFrame<'a> {
     /// Create one traversal frame for a node slice.
-    fn new(nodes: &'a [FormatNode], owner: DocumentFrameOwner<'a>) -> Self {
+    fn new(nodes: &'a [FormatNode<'a>], owner: DocumentFrameOwner<'a>) -> Self {
         Self {
             nodes,
             index: 0,
@@ -96,7 +97,7 @@ impl<'a> DocumentFrame<'a> {
     }
 }
 
-impl Document {
+impl Document<'_> {
     /// Propagate expanded layout state from line-breaking nodes to their enclosing groups.
     ///
     /// Groups expand if they contain any of:
@@ -110,25 +111,20 @@ impl Document {
     /// [`BestFitting`]: FormatNode::BestFitting
     pub(crate) fn propagate_expand(&mut self) {
         // create traversal state
-        let mut enclosing = Vec::with_capacity(if self.is_empty() {
-            0
-        } else {
-            self.len().ilog2() as usize
-        });
-        let mut interned_expands: HashMap<*const Vec<FormatNode>, bool> = HashMap::new();
+        let mut enclosing = Vec::new();
+        let mut slice_expands: FxHashMap<*const FormatNode<'_>, bool> = FxHashMap::default();
         let mut frames = vec![DocumentFrame::new(self, DocumentFrameOwner::Root)];
 
         while let Some(frame) = frames.last_mut() {
             // complete the current slice
             if frame.index >= frame.nodes.len() {
-                let Some(DocumentFrame { expands, owner, .. }) = frames.pop() else {
-                    break;
-                };
+                let frame_index = frames.len() - 1;
+                let DocumentFrame { expands, owner, .. } = frames.remove(frame_index);
 
                 match owner {
                     DocumentFrameOwner::Root => break,
-                    DocumentFrameOwner::Interned(interned) => {
-                        interned_expands.insert(interned.nodes_ptr(), expands);
+                    DocumentFrameOwner::Slice(slice) => {
+                        slice_expands.insert(slice.as_ptr(), expands);
 
                         if expands && let Some(parent) = frames.last_mut() {
                             parent.expand(&enclosing);
@@ -180,14 +176,11 @@ impl Document {
                     Some(ExpansionScope::ConditionalGroup(group)) => !group.mode().is_flat(),
                     _ => false,
                 },
-                FormatNode::Interned(interned) => {
-                    if let Some(expands) = interned_expands.get(&interned.nodes_ptr()) {
+                FormatNode::Slice(slice) => {
+                    if let Some(expands) = slice_expands.get(&slice.as_ptr()) {
                         *expands
                     } else {
-                        frames.push(DocumentFrame::new(
-                            interned,
-                            DocumentFrameOwner::Interned(interned),
-                        ));
+                        frames.push(DocumentFrame::new(slice, DocumentFrameOwner::Slice(slice)));
                         continue;
                     }
                 }
@@ -240,39 +233,47 @@ impl Document {
     }
 }
 
-impl From<Vec<FormatNode>> for Document {
-    fn from(nodes: Vec<FormatNode>) -> Self {
-        Self { nodes }
+impl<'a> From<ArenaVec<'a, FormatNode<'a>>> for Document<'a> {
+    fn from(nodes: ArenaVec<'a, FormatNode<'a>>) -> Self {
+        Self {
+            nodes: nodes.into_slice(),
+        }
     }
 }
 
-impl Deref for Document {
-    type Target = [FormatNode];
+impl<'a> Deref for Document<'a> {
+    type Target = [FormatNode<'a>];
 
     fn deref(&self) -> &Self::Target {
-        self.nodes.as_slice()
+        self.nodes
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::format::{FormatTag, Group, GroupMode};
+    use crate::format::{Allocator, ArenaVec, FormatTag, Group, GroupMode};
 
     use super::*;
 
-    /// Expansion should propagate through large interned chains.
+    /// Propagate expansion through deeply nested node slices.
     #[test]
-    fn test_propagate_expand_deep_interned_chain() {
+    fn test_propagate_expand_through_nested_node_slices() {
+        let allocator = Allocator::default();
         let mut node = FormatNode::Line(LineMode::Hard);
         for _ in 0..100_000 {
-            node = FormatNode::Interned(Interned::new(vec![node]));
+            let nodes = ArenaVec::from_array_in([node], &allocator);
+            node = FormatNode::Slice(NodeSlice::new(nodes));
         }
 
-        let mut document = Document::from(vec![
-            FormatNode::Tag(FormatTag::StartGroup(Group::new())),
-            node,
-            FormatNode::Tag(FormatTag::EndGroup),
-        ]);
+        let nodes = ArenaVec::from_array_in(
+            [
+                FormatNode::Tag(FormatTag::StartGroup(Group::new())),
+                node,
+                FormatNode::Tag(FormatTag::EndGroup),
+            ],
+            &allocator,
+        );
+        let mut document = Document::from(nodes);
         document.propagate_expand();
 
         let FormatNode::Tag(FormatTag::StartGroup(group)) = &document[0] else {

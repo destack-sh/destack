@@ -1,64 +1,78 @@
 use std::num::NonZeroU32;
-use std::sync::atomic::Ordering;
 
 use destack_source::{File, FileType};
 
-use crate::format::{FormatOptions, GroupId, SimpleFormatOptions};
+use crate::format::{Allocator, FormatOptions, GroupId, SimpleFormatOptions};
 
-/// Stores the state that is relevant for the formatting of the whole document.
-///
-/// This structure is different from [`crate::Formatter`] in that the formatting infrastructure
-/// creates a new [`crate::Formatter`] for every [`crate::write`!] call, whereas this structure stays alive
-/// for the whole process of formatting a root with [`crate::format`!].
-#[derive(Debug, Default)]
-pub struct FormatState<Context> {
+/// Shared state for one formatting pass.
+pub struct FormatState<'a, Context> {
     context: Context,
-    next_group_id: std::sync::atomic::AtomicU32,
+    allocator: &'a Allocator,
+    next_group_id: u32,
 }
 
-impl<Context> FormatState<Context> {
-    /// Create a new state with the given language specific context.
-    pub fn new(context: Context) -> Self {
+impl<Context> std::fmt::Debug for FormatState<'_, Context>
+where
+    Context: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FormatState")
+            .field("context", &self.context)
+            .field("next_group_id", &self.next_group_id)
+            .finish()
+    }
+}
+
+impl<'a, Context> FormatState<'a, Context> {
+    /// Create formatter state over one context and arena.
+    pub fn new(context: Context, allocator: &'a Allocator) -> Self {
         Self {
             context,
-            next_group_id: std::sync::atomic::AtomicU32::new(1),
+            allocator,
+            next_group_id: 1,
         }
     }
 
-    /// Convert this state into its inner context.
+    /// Return the formatter arena.
+    pub fn allocator(&self) -> &'a Allocator {
+        self.allocator
+    }
+
+    /// Return the context and discard the remaining state.
     pub fn into_context(self) -> Context {
         self.context
     }
 
-    /// Get the context specifying how to format the current AST.
+    /// Return the formatting context.
     pub fn context(&self) -> &Context {
         &self.context
     }
 
-    /// Get a mutable reference to the context.
+    /// Return the formatting context mutably.
     pub fn context_mut(&mut self) -> &mut Context {
         &mut self.context
     }
 
-    /// Create a new group id that is unique to this document.
+    /// Create a group ID unique within this document.
     ///
     /// The passed debug name is used in the [`std::fmt::Debug`] of the document if this is a debug build.
     /// The name is unused for production builds and has no meaning on the equality of two group ids.
-    pub fn group_id(&self, debug_name: &'static str) -> GroupId {
-        let id = self.next_group_id.fetch_add(1, Ordering::Relaxed);
+    pub fn group_id(&mut self, debug_name: &'static str) -> GroupId {
+        let id = self.next_group_id;
+        self.next_group_id += 1;
         let id = NonZeroU32::new(id).expect("ID overflowed");
         GroupId::new(id, debug_name)
     }
 }
 
-/// Context object storing data relevant when formatting an object.
+/// Language-specific state required while formatting.
 pub trait FormatContext {
     type Options: FormatOptions;
 
-    /// Get the formatting options.
+    /// Return the formatting options.
     fn options(&self) -> &Self::Options;
 
-    /// Get the file that gets formatted.
+    /// Return the source file.
     fn file(&self) -> &File;
 }
 

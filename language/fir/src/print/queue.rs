@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 /// Queue of [`FormatNode`]s.
 pub(crate) trait Queue<'a> {
-    type Stack: Stack<&'a [FormatNode]>;
+    type Stack: Stack<&'a [FormatNode<'a>]>;
 
     fn stack(&self) -> &Self::Stack;
 
@@ -18,7 +18,7 @@ pub(crate) trait Queue<'a> {
     fn set_next_index(&mut self, index: usize);
 
     /// Pops the node at the end of the queue.
-    fn pop(&mut self) -> Option<&'a FormatNode> {
+    fn pop(&mut self) -> Option<&'a FormatNode<'a>> {
         match self.stack().top() {
             Some(top_slice) => {
                 let next_index = self.next_index();
@@ -37,31 +37,31 @@ pub(crate) trait Queue<'a> {
         }
     }
 
-    /// Returns the next node, not traversing into [`FormatNode::Interned`].
-    fn top_with_interned(&self) -> Option<&'a FormatNode> {
+    /// Return the next node without entering [`FormatNode::Slice`].
+    fn top_shallow(&self) -> Option<&'a FormatNode<'a>> {
         self.stack()
             .top()
             .map(|top_slice| &top_slice[self.next_index()])
     }
 
-    /// Returns the next node, recursively resolving the first node of [`FormatNode::Interned`].
-    fn top(&self) -> Option<&'a FormatNode> {
-        let mut top = self.top_with_interned();
+    /// Return the next node after entering leading [`FormatNode::Slice`] nodes.
+    fn top(&self) -> Option<&'a FormatNode<'a>> {
+        let mut top = self.top_shallow();
 
-        while let Some(FormatNode::Interned(interned)) = top {
-            top = interned.first();
+        while let Some(FormatNode::Slice(slice)) = top {
+            top = slice.first();
         }
 
         top
     }
 
     /// Queues a single node to process before the other nodes in this queue.
-    fn push(&mut self, node: &'a FormatNode) {
+    fn push(&mut self, node: &'a FormatNode<'a>) {
         self.extend_back(std::slice::from_ref(node));
     }
 
     /// Queues a slice of nodes to process before the other nodes in this queue.
-    fn extend_back(&mut self, nodes: &'a [FormatNode]) {
+    fn extend_back(&mut self, nodes: &'a [FormatNode<'a>]) {
         match nodes {
             [] => {}
             slice => {
@@ -79,7 +79,7 @@ pub(crate) trait Queue<'a> {
     }
 
     /// Removes top slice.
-    fn pop_slice(&mut self) -> Option<&'a [FormatNode]> {
+    fn pop_slice(&mut self) -> Option<&'a [FormatNode<'a>]> {
         self.set_next_index(0);
         self.stack_mut().pop()
     }
@@ -107,12 +107,12 @@ pub(crate) trait Queue<'a> {
 /// Queue with the nodes to print.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct PrintQueue<'a> {
-    slices: Vec<&'a [FormatNode]>,
+    slices: Vec<&'a [FormatNode<'a>]>,
     next_index: usize,
 }
 
 impl<'a> PrintQueue<'a> {
-    pub(crate) fn new(slice: &'a [FormatNode]) -> Self {
+    pub(crate) fn new(slice: &'a [FormatNode<'a>]) -> Self {
         let slices = match slice {
             [] => Vec::new(),
             slice => vec![slice],
@@ -126,7 +126,7 @@ impl<'a> PrintQueue<'a> {
 }
 
 impl<'a> Queue<'a> for PrintQueue<'a> {
-    type Stack = Vec<&'a [FormatNode]>;
+    type Stack = Vec<&'a [FormatNode<'a>]>;
 
     fn stack(&self) -> &Self::Stack {
         &self.slices
@@ -152,12 +152,15 @@ impl<'a> Queue<'a> for PrintQueue<'a> {
 #[must_use]
 #[derive(Debug)]
 pub(crate) struct FitsQueue<'a, 'print> {
-    stack: StackedStack<'print, &'a [FormatNode]>,
+    stack: StackedStack<'print, &'a [FormatNode<'a>]>,
     next_index: usize,
 }
 
 impl<'a, 'print> FitsQueue<'a, 'print> {
-    pub(super) fn new(print_queue: &'print PrintQueue<'a>, saved: Vec<&'a [FormatNode]>) -> Self {
+    pub(super) fn new(
+        print_queue: &'print PrintQueue<'a>,
+        saved: Vec<&'a [FormatNode<'a>]>,
+    ) -> Self {
         let stack = StackedStack::with_vec(&print_queue.slices, saved);
 
         Self {
@@ -166,13 +169,13 @@ impl<'a, 'print> FitsQueue<'a, 'print> {
         }
     }
 
-    pub(super) fn finish(self) -> Vec<&'a [FormatNode]> {
+    pub(super) fn finish(self) -> Vec<&'a [FormatNode<'a>]> {
         self.stack.into_vec()
     }
 }
 
 impl<'a, 'print> Queue<'a> for FitsQueue<'a, 'print> {
-    type Stack = StackedStack<'print, &'a [FormatNode]>;
+    type Stack = StackedStack<'print, &'a [FormatNode<'a>]>;
 
     fn stack(&self) -> &Self::Stack {
         &self.stack
@@ -216,7 +219,7 @@ impl<'a, Q> Iterator for QueueContentIterator<'a, '_, Q>
 where
     Q: Queue<'a>,
 {
-    type Item = &'a FormatNode;
+    type Item = &'a FormatNode<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.depth == 0 {
@@ -224,9 +227,9 @@ where
         } else {
             let mut top = self.queue.pop();
 
-            // resolve interned nodes by extending the queue
-            while let Some(FormatNode::Interned(interned)) = top {
-                self.queue.extend_back(interned);
+            // enter nested node slices
+            while let Some(FormatNode::Slice(slice)) = top {
+                self.queue.extend_back(slice);
                 top = self.queue.pop();
             }
 
@@ -259,14 +262,14 @@ impl<'a, Q> FusedIterator for QueueContentIterator<'a, '_, Q> where Q: Queue<'a>
 /// The measuring of the content ends after the first node [`node`](FormatNode) for which this
 /// predicate returns `true` (similar to a take while iterator except that it takes while the predicate returns `false`).
 pub(super) trait FitsEndPredicate {
-    fn is_end(&mut self, node: &FormatNode) -> PrintResult<bool>;
+    fn is_end(&mut self, node: &FormatNode<'_>) -> PrintResult<bool>;
 }
 
 /// Filter that includes all nodes until it reaches the end of the document.
 pub(super) struct AllPredicate;
 
 impl FitsEndPredicate for AllPredicate {
-    fn is_end(&mut self, _node: &FormatNode) -> PrintResult<bool> {
+    fn is_end(&mut self, _node: &FormatNode<'_>) -> PrintResult<bool> {
         Ok(false)
     }
 }
@@ -291,7 +294,7 @@ impl Default for SingleEntryPredicate {
 }
 
 impl FitsEndPredicate for SingleEntryPredicate {
-    fn is_end(&mut self, node: &FormatNode) -> PrintResult<bool> {
+    fn is_end(&mut self, node: &FormatNode<'_>) -> PrintResult<bool> {
         let result = match self {
             SingleEntryPredicate::Done => true,
             SingleEntryPredicate::Entry { depth } => match node {
@@ -315,7 +318,7 @@ impl FitsEndPredicate for SingleEntryPredicate {
 
                     is_end
                 }
-                FormatNode::Interned(_) => false,
+                FormatNode::Slice(_) => false,
                 node if *depth == 0 => {
                     return invalid_start_tag(FormatTagKind::Entry, Some(node));
                 }

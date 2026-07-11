@@ -1,60 +1,48 @@
 use std::iter::FusedIterator;
 use std::num::NonZeroU32;
 use std::ops::Deref;
+use std::slice;
 
 use destack_unicode::UnicodeWidthChar;
 
+use super::ArenaVec;
 use super::label::LabelId;
-use super::node::{FormatNode, Interned};
+use super::node::{FormatNode, NodeSlice};
 use super::tag::{FormatTag, FormatTagKind};
 
-/// Mode used to determine if any variant (except the most expanded) fits for [`BestFittingVariants`].
+/// The measurement policy used to select one best-fitting variant.
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub enum BestFittingMode {
-    /// The variant fits if the content up to the first hard or a soft line break inside a [`Group`] with [`PrintMode::Expanded`] fits on the line.
-    /// The default mode.
-    ///
-    /// [`Group`]: tag::Group
+    /// Measure content through its first effective line break.
     #[default]
     FirstLine,
 
-    /// A variant fits if all lines fit into the configured print width.
-    /// A line ends if by any hard or a soft line break inside a [`Group`] with [`PrintMode::Expanded`].
-    /// The content doesn't fit if there's any hard line break outside a [`Group`] with [`PrintMode::Expanded`] (a hard line break in content that should be considered in [`PrintMode::Flat`].
-    ///
-    /// Use this mode with caution as it requires measuring all content of the variant which is more expensive than using [`BestFittingMode::FirstLine`].
-    ///
-    /// [`Group`]: tag::Group
+    /// Measure every line in the candidate layout.
     AllLines,
 }
 
-/// The different variants for this format node.
-/// The first node is the one that takes up the most space horizontally (the most flat).
-/// The last node takes up the least space horizontally (but most horizontal space).
+/// Alternative layouts ordered from most flat to most expanded.
 #[derive(Clone, PartialEq, Debug)]
-pub struct BestFittingVariants(Box<[Interned]>);
+pub struct BestFittingVariants<'a>(&'a [NodeSlice<'a>]);
 
-impl BestFittingVariants {
-    /// Create a new best fitting IR with the given variants.
-    ///
-    /// Callers are required to ensure that the number of variants given is at least 2 when using `most_expanded` or `most_flag`.
-    /// You're looking for a way to create a `BestFitting` object, use the `best_fitting![least_expanded, most_expanded]` macro.
+impl<'a> BestFittingVariants<'a> {
+    /// Create best-fitting variants without validating their count in release builds.
     #[doc(hidden)]
-    pub fn from_vec_unchecked(variants: Vec<Interned>) -> Self {
+    pub fn from_vec_unchecked(variants: ArenaVec<'a, NodeSlice<'a>>) -> Self {
         debug_assert!(
             variants.len() >= 2,
             "Requires at least the least expanded and most expanded variants"
         );
-        Self(variants.into_boxed_slice())
+        Self(variants.into_slice())
     }
 
-    /// Get the most expanded variant.
+    /// Return the most expanded variant.
     ///
     /// # Panics
     ///
     /// When the number of variants is less than two.
-    pub fn most_expanded(&self) -> &[FormatNode] {
+    pub fn most_expanded(&self) -> &[FormatNode<'a>] {
         assert!(
             self.0.len() >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -62,21 +50,17 @@ impl BestFittingVariants {
         &self.0[self.0.len() - 1]
     }
 
-    pub fn as_slice(&self) -> &[Interned] {
-        &self.0
+    /// Return the variants from most flat to most expanded.
+    pub fn as_slice(&self) -> &[NodeSlice<'a>] {
+        self.0
     }
 
-    /// Consume this value and return the owned variants.
-    pub(crate) fn into_vec(self) -> Vec<Interned> {
-        self.0.into_vec()
-    }
-
-    /// Get the least expanded variant.
+    /// Return the most flat variant.
     ///
     /// # Panics
     ///
     /// When the number of variants is less than two.
-    pub fn most_flat(&self) -> &[FormatNode] {
+    pub fn most_flat(&self) -> &[FormatNode<'a>] {
         assert!(
             self.0.len() >= 2,
             "Requires at least the least expanded and most expanded variants"
@@ -85,21 +69,22 @@ impl BestFittingVariants {
     }
 }
 
-impl Deref for BestFittingVariants {
-    type Target = [Interned];
+impl<'a> Deref for BestFittingVariants<'a> {
+    type Target = [NodeSlice<'a>];
 
     fn deref(&self) -> &Self::Target {
         self.as_slice()
     }
 }
 
+/// An iterator over best-fitting node slices.
 #[derive(Debug)]
 pub struct BestFittingVariantsIter<'a> {
-    nodes: std::slice::Iter<'a, Interned>,
+    nodes: std::slice::Iter<'a, NodeSlice<'a>>,
 }
 
-impl<'a> IntoIterator for &'a BestFittingVariants {
-    type Item = &'a [FormatNode];
+impl<'a> IntoIterator for &'a BestFittingVariants<'a> {
+    type Item = &'a [FormatNode<'a>];
     type IntoIter = BestFittingVariantsIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -110,7 +95,7 @@ impl<'a> IntoIterator for &'a BestFittingVariants {
 }
 
 impl<'a> Iterator for BestFittingVariantsIter<'a> {
-    type Item = &'a [FormatNode];
+    type Item = &'a [FormatNode<'a>];
 
     fn next(&mut self) -> Option<Self::Item> {
         self.nodes.next().map(Deref::deref)
@@ -132,31 +117,24 @@ impl DoubleEndedIterator for BestFittingVariantsIter<'_> {
 
 impl FusedIterator for BestFittingVariantsIter<'_> {}
 
+/// Layout queries over one FIR node or node slice.
 pub trait FormatNodes {
-    /// Check if this [`FormatNode`] is guaranteed to break across multiple lines by the printer.
-    /// This is the case if this format node recursively contains a:
-    /// - [`crate::builders::empty_line`] or [`crate::builders::hard_line_break`]
-    /// - A token containing '\n'
-    ///
-    /// Use this with caution, this is only a heuristic and the printer may print the node over multiple lines if this node is part of a group and the group doesn't fit on a single line.
+    /// Return whether this content is guaranteed to break.
     fn will_break(&self) -> bool;
 
-    /// Check if this [`FormatNode`] directly contains a line that can break in flat mode.
+    /// Return whether this content directly contains a breakable line.
     fn may_directly_break(&self) -> bool;
 
     /// Return the single-line width when every node in this slice is measurable.
     fn single_line_width(&self) -> Option<u32>;
 
-    /// Check if the node has the given label.
+    /// Return whether this content has one label.
     fn has_label(&self, label: LabelId) -> bool;
 
-    /// Get the start tag of `kind` if:
-    /// - the last node is an end tag of `kind`.
-    /// - there's a matching start tag in this document (may not be true if this slice is an interned node and the `start` is in the document storing the interned node).
+    /// Return a leading start tag of one kind.
     fn start_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
 
-    /// Get the end tag if:
-    /// - the last node is an end tag of `kind`
+    /// Return a trailing end tag of one kind.
     fn end_tag(&self, kind: FormatTagKind) -> Option<&FormatTag>;
 }
 
@@ -167,59 +145,17 @@ impl super::node::LineMode {
     }
 }
 
-impl FormatNodes for FormatNode {
+impl FormatNodes for FormatNode<'_> {
     fn will_break(&self) -> bool {
-        match self {
-            FormatNode::ExpandParent => true,
-            FormatNode::Line(line_mode) => line_mode.will_break(),
-            FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
-                width.is_multiline()
-            }
-            FormatNode::Interned(interned) => interned.will_break(),
-            FormatNode::BestFitting { variants, .. } => variants.most_flat().will_break(),
-            FormatNode::Tag(FormatTag::StartGroup(group)) => !group.mode().is_flat(),
-            FormatNode::Tag(FormatTag::StartConditionalGroup(group)) => !group.mode().is_flat(),
-            FormatNode::Space
-            | FormatNode::Token { .. }
-            | FormatNode::SourcePosition { .. }
-            | FormatNode::LineSuffixBoundary
-            | FormatNode::Tag(_) => false,
-        }
+        std::slice::from_ref(self).will_break()
     }
 
     fn may_directly_break(&self) -> bool {
-        match self {
-            FormatNode::Line(_) => true,
-            FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
-                width.is_multiline()
-            }
-            FormatNode::Interned(interned) => interned.may_directly_break(),
-            FormatNode::BestFitting { variants, .. } => variants.most_flat().may_directly_break(),
-            FormatNode::ExpandParent
-            | FormatNode::Space
-            | FormatNode::Token { .. }
-            | FormatNode::SourcePosition { .. }
-            | FormatNode::LineSuffixBoundary
-            | FormatNode::Tag(_) => false,
-        }
+        std::slice::from_ref(self).may_directly_break()
     }
 
     fn single_line_width(&self) -> Option<u32> {
-        match self {
-            FormatNode::Space => Some(1),
-            FormatNode::Token { text } => Some(text.len() as u32),
-            FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
-                Some(width.width()?.value())
-            }
-            FormatNode::Interned(interned) => interned.single_line_width(),
-            FormatNode::BestFitting { variants, .. } => variants.most_flat().single_line_width(),
-            FormatNode::Line(super::node::LineMode::SoftOrSpace) => Some(1),
-            FormatNode::Line(_)
-            | FormatNode::ExpandParent
-            | FormatNode::SourcePosition { .. }
-            | FormatNode::LineSuffixBoundary
-            | FormatNode::Tag(_) => None,
-        }
+        std::slice::from_ref(self).single_line_width()
     }
 
     fn has_label(&self, _label: LabelId) -> bool {
@@ -241,11 +177,12 @@ impl FormatNodes for FormatNode {
     }
 }
 
-impl FormatNodes for [FormatNode] {
+impl FormatNodes for [FormatNode<'_>] {
     fn will_break(&self) -> bool {
         let mut ignore_line_suffix_depth = 0usize;
 
-        for node in self {
+        let mut nodes = NodeTraversal::new(self);
+        while let Some(node) = nodes.next() {
             match node {
                 FormatNode::Tag(FormatTag::StartLineSuffix) => {
                     ignore_line_suffix_depth += 1;
@@ -253,15 +190,31 @@ impl FormatNodes for [FormatNode] {
                 FormatNode::Tag(FormatTag::EndLineSuffix) => {
                     ignore_line_suffix_depth = ignore_line_suffix_depth.saturating_sub(1);
                 }
-                FormatNode::Interned(interned) if ignore_line_suffix_depth == 0 => {
-                    if interned.will_break() {
-                        return true;
-                    }
+                FormatNode::Slice(slice) if ignore_line_suffix_depth == 0 => {
+                    nodes.enter(slice);
+                }
+                FormatNode::BestFitting { variants, .. } if ignore_line_suffix_depth == 0 => {
+                    nodes.enter(variants.most_flat());
                 }
                 FormatNode::Line(line_mode) if line_mode.will_break() => {
                     return true;
                 }
-                node if ignore_line_suffix_depth == 0 && node.will_break() => {
+                FormatNode::ExpandParent if ignore_line_suffix_depth == 0 => {
+                    return true;
+                }
+                FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. }
+                    if ignore_line_suffix_depth == 0 && width.is_multiline() =>
+                {
+                    return true;
+                }
+                FormatNode::Tag(FormatTag::StartGroup(group))
+                    if ignore_line_suffix_depth == 0 && !group.mode().is_flat() =>
+                {
+                    return true;
+                }
+                FormatNode::Tag(FormatTag::StartConditionalGroup(group))
+                    if ignore_line_suffix_depth == 0 && !group.mode().is_flat() =>
+                {
                     return true;
                 }
                 _ => {}
@@ -276,7 +229,8 @@ impl FormatNodes for [FormatNode] {
     fn may_directly_break(&self) -> bool {
         let mut ignore_line_suffix_depth = 0usize;
 
-        for node in self {
+        let mut nodes = NodeTraversal::new(self);
+        while let Some(node) = nodes.next() {
             match node {
                 FormatNode::Tag(FormatTag::StartLineSuffix) => {
                     ignore_line_suffix_depth += 1;
@@ -284,12 +238,18 @@ impl FormatNodes for [FormatNode] {
                 FormatNode::Tag(FormatTag::EndLineSuffix) => {
                     ignore_line_suffix_depth = ignore_line_suffix_depth.saturating_sub(1);
                 }
-                FormatNode::Interned(interned) if ignore_line_suffix_depth == 0 => {
-                    if interned.may_directly_break() {
-                        return true;
-                    }
+                FormatNode::Slice(slice) if ignore_line_suffix_depth == 0 => {
+                    nodes.enter(slice);
                 }
-                node if ignore_line_suffix_depth == 0 && node.may_directly_break() => {
+                FormatNode::BestFitting { variants, .. } if ignore_line_suffix_depth == 0 => {
+                    nodes.enter(variants.most_flat());
+                }
+                FormatNode::Line(_) if ignore_line_suffix_depth == 0 => {
+                    return true;
+                }
+                FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. }
+                    if ignore_line_suffix_depth == 0 && width.is_multiline() =>
+                {
                     return true;
                 }
                 _ => {}
@@ -304,8 +264,29 @@ impl FormatNodes for [FormatNode] {
     fn single_line_width(&self) -> Option<u32> {
         let mut width = 0u32;
 
-        for node in self {
-            width = width.saturating_add(node.single_line_width()?);
+        let mut nodes = NodeTraversal::new(self);
+        while let Some(node) = nodes.next() {
+            let node_width = match node {
+                FormatNode::Space | FormatNode::Line(super::node::LineMode::SoftOrSpace) => 1,
+                FormatNode::Token { text } => text.len() as u32,
+                FormatNode::Text { width, .. } | FormatNode::FileSlice { width, .. } => {
+                    width.width()?.value()
+                }
+                FormatNode::Line(_)
+                | FormatNode::ExpandParent
+                | FormatNode::SourcePosition { .. }
+                | FormatNode::LineSuffixBoundary
+                | FormatNode::Tag(_) => return None,
+                FormatNode::Slice(slice) => {
+                    nodes.enter(slice);
+                    continue;
+                }
+                FormatNode::BestFitting { variants, .. } => {
+                    nodes.enter(variants.most_flat());
+                    continue;
+                }
+            };
+            width = width.saturating_add(node_width);
         }
 
         Some(width)
@@ -321,6 +302,40 @@ impl FormatNodes for [FormatNode] {
 
     fn end_tag(&self, kind: FormatTagKind) -> Option<&FormatTag> {
         self.last().and_then(|node| node.end_tag(kind))
+    }
+}
+
+/// One explicit depth-first traversal over FIR node slices.
+struct NodeTraversal<'nodes, 'arena> {
+    current: slice::Iter<'nodes, FormatNode<'arena>>,
+    parents: Vec<slice::Iter<'nodes, FormatNode<'arena>>>,
+}
+
+impl<'nodes, 'arena: 'nodes> NodeTraversal<'nodes, 'arena> {
+    /// Create one traversal over a node slice.
+    fn new(nodes: &'nodes [FormatNode<'arena>]) -> Self {
+        Self {
+            current: nodes.iter(),
+            parents: Vec::new(),
+        }
+    }
+
+    /// Enter one nested node slice before continuing the current slice.
+    fn enter(&mut self, nodes: &'nodes [FormatNode<'arena>]) {
+        let parent = std::mem::replace(&mut self.current, nodes.iter());
+        self.parents.push(parent);
+    }
+    /// Return the next node without implicitly entering structural nodes.
+    fn next(&mut self) -> Option<&'nodes FormatNode<'arena>> {
+        loop {
+            // read or leave the current slice
+            let Some(node) = self.current.next() else {
+                self.current = self.parents.pop()?;
+                continue;
+            };
+
+            return Some(node);
+        }
     }
 }
 
@@ -417,5 +432,52 @@ impl TextWidth {
 
     pub(crate) const fn is_multiline(self) -> bool {
         matches!(self, TextWidth::Multiline)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::format::{Allocator, ArenaVec, FormatNode, FormatTag, LineMode, NodeSlice};
+
+    use super::FormatNodes;
+
+    /// Query deeply nested FIR slices without consuming call stack.
+    #[test]
+    fn test_query_nested_node_slices() {
+        let allocator = Allocator::default();
+        let mut breaking = FormatNode::Line(LineMode::Hard);
+        let mut flat = FormatNode::Token { text: "x" };
+
+        for _ in 0..100_000 {
+            let breaking_nodes = ArenaVec::from_array_in([breaking], &allocator);
+            breaking = FormatNode::Slice(NodeSlice::new(breaking_nodes));
+
+            let flat_nodes = ArenaVec::from_array_in([flat], &allocator);
+            flat = FormatNode::Slice(NodeSlice::new(flat_nodes));
+        }
+
+        assert!(breaking.will_break());
+        assert!(breaking.may_directly_break());
+        assert_eq!(breaking.single_line_width(), None);
+        assert!(!flat.will_break());
+        assert!(!flat.may_directly_break());
+        assert_eq!(flat.single_line_width(), Some(1));
+    }
+
+    /// Ignore nested line breaks owned by line suffixes.
+    #[test]
+    fn test_queries_skip_nested_line_suffix_content() {
+        let allocator = Allocator::default();
+        let suffix = ArenaVec::from_array_in([FormatNode::Line(LineMode::Hard)], &allocator);
+        let suffix = NodeSlice::new(suffix);
+        let nodes = [
+            FormatNode::Tag(FormatTag::StartLineSuffix),
+            FormatNode::Slice(suffix),
+            FormatNode::Tag(FormatTag::EndLineSuffix),
+        ];
+
+        assert!(!nodes.will_break());
+        assert!(!nodes.may_directly_break());
+        assert_eq!(nodes.single_line_width(), None);
     }
 }
