@@ -1,40 +1,50 @@
-use super::identifier::keyword_from_identifier_bytes;
-use super::lexer::Lexer;
+use super::identifier::classify_keyword_bytes;
 use super::scanner::EOF_CHAR;
+use super::tokenizer::Tokenizer;
 use destack_dir::{Token, TokenLiteral, TokenType, is_identifier_start, is_whitespace};
 use destack_unicode::UnicodeEmoji;
 
-/// Return true when the character is a line terminator.
-#[inline]
-fn is_line_terminator_char(c: char) -> bool {
-    matches!(c, '\n' | '\r' | '\u{0085}' | '\u{2028}' | '\u{2029}')
-}
+impl Tokenizer {
+    /// Return true when the character is a line terminator.
+    #[inline]
+    fn is_line_terminator_char(character: char) -> bool {
+        matches!(
+            character,
+            '\n' | '\r' | '\u{0085}' | '\u{2028}' | '\u{2029}'
+        )
+    }
 
-/// Return true when a byte is non-newline ascii whitespace.
-#[inline]
-fn is_ascii_non_newline_whitespace_byte(byte: u8) -> bool {
-    matches!(byte, b' ' | b'\t' | 0x0B | 0x0C)
-}
+    /// Return true when a byte is non-newline ASCII whitespace.
+    #[inline]
+    fn is_ascii_non_newline_whitespace_byte(byte: u8) -> bool {
+        matches!(byte, b' ' | b'\t' | 0x0B | 0x0C)
+    }
 
-impl Lexer {
     /// Parse one token from the input string.
     pub(super) fn read_source_token(&mut self) -> Token {
-        self.last_side_token_had_line_terminator = false;
+        self.state.last_side_token_has_line_terminator = false;
         let start = self.position() as u32;
 
         if self.scanner.is_end() {
             return Token::eof(start);
         };
 
-        let first_byte = self.scanner.byte();
+        let first_byte = self.scanner.peek_byte();
         if first_byte.is_ascii() {
             return self.read_ascii_source_token(start, first_byte);
         }
 
         let first_char = self.scanner.eat_char().unwrap_or(EOF_CHAR);
-        let (token_type, literal) = self.read_unicode_source_token(first_char);
+        let (token_type, literal, is_identifier_escaped) =
+            self.read_unicode_source_token(first_char);
 
-        self.finish_source_token(start, first_byte, token_type, literal)
+        self.finish_identifier_like_source_token(
+            start,
+            first_byte,
+            token_type,
+            literal,
+            is_identifier_escaped,
+        )
     }
 
     /// Finish one source token from scanner state.
@@ -42,23 +52,40 @@ impl Lexer {
     fn finish_source_token(
         &mut self,
         start: u32,
-        first_byte: u8,
         token_type: TokenType,
         literal: Option<TokenLiteral>,
     ) -> Token {
-        let token = if token_type == TokenType::Identifier {
-            let keyword = if first_byte.is_ascii_lowercase() {
-                keyword_from_identifier_bytes(self.token_bytes())
-            } else {
-                None
-            };
-
-            Token::identifier(start, self.token_len(), keyword)
-        } else if let Some(literal) = literal {
+        debug_assert_ne!(token_type, TokenType::Identifier);
+        let token = if let Some(literal) = literal {
             Token::new(token_type, start, self.token_len(), Some(literal))
         } else {
             Token::simple(token_type, start, self.token_len())
         };
+        self.reset_token_start();
+
+        token
+    }
+
+    /// Finish one identifier-like token after reading its complete source text.
+    #[inline(always)]
+    fn finish_identifier_like_source_token(
+        &mut self,
+        start: u32,
+        first_byte: u8,
+        token_type: TokenType,
+        literal: Option<TokenLiteral>,
+        is_escaped: bool,
+    ) -> Token {
+        if token_type != TokenType::Identifier {
+            return self.finish_source_token(start, token_type, literal);
+        }
+
+        let keyword = if first_byte.is_ascii_lowercase() {
+            classify_keyword_bytes(self.token_bytes())
+        } else {
+            None
+        };
+        let token = Token::identifier(start, self.token_len(), keyword, is_escaped);
         self.reset_token_start();
 
         token
@@ -75,13 +102,13 @@ impl Lexer {
     /// Parse one ASCII token from its first byte.
     fn read_ascii_source_token(&mut self, start: u32, first_byte: u8) -> Token {
         debug_assert!(first_byte.is_ascii());
-        self.scanner.advance_ascii_bytes(1);
+        self.advance_ascii_bytes(1);
 
         match first_byte {
             // newline trivia
             b'\n' => self.finish_simple_source_token(start, TokenType::Newline, 1),
             b'\r' => {
-                if self.scanner.byte() == b'\n' {
+                if self.scanner.peek_byte() == b'\n' {
                     self.scanner.advance_ascii_byte();
 
                     return self.finish_simple_source_token(start, TokenType::Newline, 2);
@@ -94,19 +121,21 @@ impl Lexer {
             b' ' | b'\t' | 0x0B | 0x0C => {
                 let token_type = self.eat_whitespace(first_byte as char);
 
-                self.finish_source_token(start, first_byte, token_type, None)
+                self.finish_source_token(start, token_type, None)
             }
 
             // identifiers and literals
             b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'$' => {
-                let (token_type, literal) = self.eat_ascii_identifier_like(first_byte);
+                let (token_type, literal, is_escaped) = self.eat_ascii_identifier_like(first_byte);
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_identifier_like_source_token(
+                    start, first_byte, token_type, literal, is_escaped,
+                )
             }
             b'0'..=b'9' => {
                 let literal = self.eat_number_literal(first_byte as char);
 
-                self.finish_source_token(start, first_byte, TokenType::Literal, Some(literal))
+                self.finish_source_token(start, TokenType::Literal, Some(literal))
             }
 
             // punctuation
@@ -116,127 +145,129 @@ impl Lexer {
             b'@' => self.finish_simple_source_token(start, TokenType::At, 1),
             b'~' => self.finish_simple_source_token(start, TokenType::ElementwiseNot, 1),
             b'(' => {
-                self.options.parentheses_depth += 1;
+                self.state.enter_delimiter();
 
                 self.finish_simple_source_token(start, TokenType::OpenParenthesis, 1)
             }
             b')' => {
-                self.options.parentheses_depth -= 1;
+                self.state.leave_delimiter();
 
                 self.finish_simple_source_token(start, TokenType::CloseParenthesis, 1)
             }
             b'[' => {
-                self.options.parentheses_depth += 1;
+                self.state.enter_delimiter();
 
                 self.finish_simple_source_token(start, TokenType::OpenBracket, 1)
             }
             b']' => {
-                self.options.parentheses_depth -= 1;
+                self.state.leave_delimiter();
 
                 self.finish_simple_source_token(start, TokenType::CloseBracket, 1)
             }
             b'{' => {
-                self.options.parentheses_depth += 1;
+                self.state.enter_delimiter();
 
                 self.finish_simple_source_token(start, TokenType::OpenBrace, 1)
             }
             b'}' => {
                 let (token_type, literal) = self.read_close_brace_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'.' => {
                 let (token_type, literal) = self.read_dot_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
-            b'#' => self.finish_source_token(start, first_byte, TokenType::Hash, None),
+            b'#' => self.finish_source_token(start, TokenType::Hash, None),
             b'?' => {
                 let (token_type, literal) = self.read_question_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'!' => {
                 let (token_type, literal) = self.read_bang_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'-' => {
                 let (token_type, literal) = self.read_minus_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'&' => {
                 let (token_type, literal) = self.read_ampersand_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'|' => {
                 let (token_type, literal) = self.read_pipe_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'=' => {
                 let (token_type, literal) = self.read_equals_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'<' => {
                 let (token_type, literal) = self.read_less_than_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'>' => {
                 let (token_type, literal) = self.read_greater_than_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'^' => {
                 let (token_type, literal) = self.read_caret_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'+' => {
                 let (token_type, literal) = self.read_plus_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'*' => {
                 let (token_type, literal) = self.read_star_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'%' => {
                 let (token_type, literal) = self.read_percent_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'/' => {
                 let (token_type, literal) = self.read_slash_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
 
             // strings and escape identifiers
             b'\'' => {
                 let (token_type, literal) = self.read_single_quote_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'"' => {
                 let (token_type, literal) = self.read_double_quote_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'`' => {
                 let (token_type, literal) = self.read_template_quote_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_source_token(start, token_type, literal)
             }
             b'\\' => {
-                let (token_type, literal) = self.read_backslash_token();
+                let (token_type, literal, is_escaped) = self.read_backslash_token();
 
-                self.finish_source_token(start, first_byte, token_type, literal)
+                self.finish_identifier_like_source_token(
+                    start, first_byte, token_type, literal, is_escaped,
+                )
             }
 
             _ => self.finish_simple_source_token(start, TokenType::Unknown, 1),
@@ -244,17 +275,20 @@ impl Lexer {
     }
 
     /// Parse one non-ASCII token from its first character.
-    fn read_unicode_source_token(&mut self, first_char: char) -> (TokenType, Option<TokenLiteral>) {
+    fn read_unicode_source_token(
+        &mut self,
+        first_char: char,
+    ) -> (TokenType, Option<TokenLiteral>, bool) {
         if is_whitespace(first_char) {
-            if is_line_terminator_char(first_char) {
-                if first_char == '\r' && self.scanner.byte() == b'\n' {
+            if Self::is_line_terminator_char(first_char) {
+                if first_char == '\r' && self.scanner.peek_byte() == b'\n' {
                     self.scanner.advance_ascii_byte();
                 }
 
-                return (TokenType::Newline, None);
+                return (TokenType::Newline, None, false);
             }
 
-            return (self.eat_whitespace(first_char), None);
+            return (self.eat_whitespace(first_char), None, false);
         }
 
         if is_identifier_start(first_char) {
@@ -262,10 +296,10 @@ impl Lexer {
         }
 
         if first_char.is_emoji_char() {
-            return (self.eat_invalid_identifier(), None);
+            return (self.eat_invalid_identifier(), None, false);
         }
 
-        (TokenType::Unknown, None)
+        (TokenType::Unknown, None, false)
     }
 
     /// Parse one slash token or comment.
@@ -273,26 +307,26 @@ impl Lexer {
         let bytes = self.scanner.remaining_bytes();
 
         if bytes.first().copied() == Some(b'/') {
-            let third_is_slash = bytes.get(1).copied() == Some(b'/');
-            let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
-            let token_type = if third_is_slash && !fourth_is_slash {
+            let is_third_slash = bytes.get(1).copied() == Some(b'/');
+            let is_fourth_slash = bytes.get(2).copied() == Some(b'/');
+            let token_type = if is_third_slash && !is_fourth_slash {
                 TokenType::DocLineComment
             } else {
                 TokenType::LineComment
             };
             self.eat_until(b'\n');
-            self.last_side_token_had_line_terminator = true;
+            self.state.last_side_token_has_line_terminator = true;
 
             return (token_type, None);
         }
 
         if bytes.first().copied() == Some(b'*') {
-            let third_is_star = bytes.get(1).copied() == Some(b'*');
-            let fourth_is_star = bytes.get(2).copied() == Some(b'*');
-            let is_doc_block = third_is_star && !fourth_is_star;
+            let is_third_star = bytes.get(1).copied() == Some(b'*');
+            let is_fourth_star = bytes.get(2).copied() == Some(b'*');
+            let is_doc_block = is_third_star && !is_fourth_star;
             self.scanner.advance_ascii_byte();
             let (is_terminated, has_line_terminator) = self.eat_block_comment();
-            self.last_side_token_had_line_terminator = has_line_terminator;
+            self.state.last_side_token_has_line_terminator = has_line_terminator;
 
             if !is_terminated {
                 return (TokenType::Unknown, None);
@@ -305,7 +339,7 @@ impl Lexer {
             return (TokenType::BlockComment, None);
         }
 
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::DivideAssign, None);
@@ -316,17 +350,17 @@ impl Lexer {
 
     /// Parse one dot token or leading dot number.
     fn read_dot_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'.' && self.scanner.byte_at(1) == b'.' {
+        if self.scanner.peek_byte() == b'.' && self.scanner.peek_byte_at(1) == b'.' {
             self.scanner.advance_ascii_byte();
             self.scanner.advance_ascii_byte();
 
             return (TokenType::Spread, None);
         }
 
-        if self.scanner.byte() == b'.' {
+        if self.scanner.peek_byte() == b'.' {
             self.scanner.advance_ascii_byte();
 
-            if self.scanner.byte() == b'=' {
+            if self.scanner.peek_byte() == b'=' {
                 self.scanner.advance_ascii_byte();
 
                 return (TokenType::RangeInclusive, None);
@@ -335,7 +369,7 @@ impl Lexer {
             return (TokenType::Range, None);
         }
 
-        if self.scanner.byte().is_ascii_digit() {
+        if self.scanner.peek_byte().is_ascii_digit() {
             let literal = self.eat_leading_dot_number_literal();
 
             return (TokenType::Literal, Some(literal));
@@ -346,12 +380,12 @@ impl Lexer {
 
     /// Parse one question token.
     fn read_question_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() != b'?' {
+        if self.scanner.peek_byte() != b'?' {
             return (TokenType::Maybe, None);
         }
 
         self.scanner.advance_ascii_byte();
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::CoalesceAssign, None);
@@ -362,12 +396,12 @@ impl Lexer {
 
     /// Parse one bang token.
     fn read_bang_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() != b'=' {
+        if self.scanner.peek_byte() != b'=' {
             return (TokenType::Not, None);
         }
 
         self.scanner.advance_ascii_byte();
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::NotEqualWide, None);
@@ -378,7 +412,7 @@ impl Lexer {
 
     /// Parse one minus token.
     fn read_minus_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        match self.scanner.byte() {
+        match self.scanner.peek_byte() {
             b'>' => {
                 self.scanner.advance_ascii_byte();
 
@@ -400,10 +434,10 @@ impl Lexer {
 
     /// Parse one ampersand token.
     fn read_ampersand_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'&' {
+        if self.scanner.peek_byte() == b'&' {
             self.scanner.advance_ascii_byte();
 
-            if self.scanner.byte() == b'=' {
+            if self.scanner.peek_byte() == b'=' {
                 self.scanner.advance_ascii_byte();
 
                 return (TokenType::LogicalAndAssign, None);
@@ -412,7 +446,7 @@ impl Lexer {
             return (TokenType::LogicalAnd, None);
         }
 
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::ElementwiseAndAssign, None);
@@ -423,10 +457,10 @@ impl Lexer {
 
     /// Parse one pipe token.
     fn read_pipe_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'|' {
+        if self.scanner.peek_byte() == b'|' {
             self.scanner.advance_ascii_byte();
 
-            if self.scanner.byte() == b'=' {
+            if self.scanner.peek_byte() == b'=' {
                 self.scanner.advance_ascii_byte();
 
                 return (TokenType::LogicalOrAssign, None);
@@ -435,7 +469,7 @@ impl Lexer {
             return (TokenType::LogicalOr, None);
         }
 
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::ElementwiseOrAssign, None);
@@ -446,30 +480,34 @@ impl Lexer {
 
     /// Parse one close brace token or template continuation.
     fn read_close_brace_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        self.options.parentheses_depth -= 1;
-
-        if self.options.template_string_stack.peek() != Some(self.options.parentheses_depth) {
+        if self.state.interpolation_depths.is_empty() {
             return (TokenType::CloseBrace, None);
         }
 
-        self.options.template_string_stack.pop();
+        self.state.delimiter_depth -= 1;
+
+        if self.state.interpolation_depths.last().copied() != Some(self.state.delimiter_depth) {
+            return (TokenType::CloseBrace, None);
+        }
+
+        self.state.interpolation_depths.pop();
         let is_complete = self.eat_template_string();
         if is_complete {
             return (TokenType::TemplateStringEnd, None);
         }
 
         // reopen the interpolation expression after `${`
-        self.options
-            .template_string_stack
-            .push(self.options.parentheses_depth);
-        self.options.parentheses_depth += 1;
+        self.state
+            .interpolation_depths
+            .push(self.state.delimiter_depth);
+        self.state.delimiter_depth += 1;
 
         (TokenType::TemplateStringMiddle, None)
     }
 
     /// Parse one equals token.
     fn read_equals_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        match self.scanner.byte() {
+        match self.scanner.peek_byte() {
             b'>' => {
                 self.scanner.advance_ascii_byte();
 
@@ -478,7 +516,7 @@ impl Lexer {
             b'=' => {
                 self.scanner.advance_ascii_byte();
 
-                if self.scanner.byte() == b'=' {
+                if self.scanner.peek_byte() == b'=' {
                     self.scanner.advance_ascii_byte();
 
                     return (TokenType::EqualWide, None);
@@ -492,11 +530,11 @@ impl Lexer {
 
     /// Parse one less-than token.
     fn read_less_than_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        match self.scanner.byte() {
+        match self.scanner.peek_byte() {
             b'<' => {
                 self.scanner.advance_ascii_byte();
 
-                if self.scanner.byte() == b'=' {
+                if self.scanner.peek_byte() == b'=' {
                     self.scanner.advance_ascii_byte();
 
                     return (TokenType::ShiftLeftAssign, None);
@@ -515,16 +553,16 @@ impl Lexer {
 
     /// Parse one greater-than token.
     fn read_greater_than_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'>' && self.scanner.byte_at(1) == b'=' {
+        if self.scanner.peek_byte() == b'>' && self.scanner.peek_byte_at(1) == b'=' {
             self.scanner.advance_ascii_byte();
             self.scanner.advance_ascii_byte();
 
             return (TokenType::ShiftRightAssign, None);
         }
 
-        if self.scanner.byte() == b'>'
-            && self.scanner.byte_at(1) == b'>'
-            && self.scanner.byte_at(2) == b'='
+        if self.scanner.peek_byte() == b'>'
+            && self.scanner.peek_byte_at(1) == b'>'
+            && self.scanner.peek_byte_at(2) == b'='
         {
             self.scanner.advance_ascii_byte();
             self.scanner.advance_ascii_byte();
@@ -533,20 +571,20 @@ impl Lexer {
             return (TokenType::UnsignedShiftRightAssign, None);
         }
 
-        if self.scanner.byte() == b'>' && self.scanner.byte_at(1) == b'>' {
+        if self.scanner.peek_byte() == b'>' && self.scanner.peek_byte_at(1) == b'>' {
             self.scanner.advance_ascii_byte();
             self.scanner.advance_ascii_byte();
 
             return (TokenType::UnsignedShiftRight, None);
         }
 
-        if self.scanner.byte() == b'>' {
+        if self.scanner.peek_byte() == b'>' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::ShiftRight, None);
         }
 
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::GreaterThanOrEqual, None);
@@ -557,7 +595,7 @@ impl Lexer {
 
     /// Parse one caret token.
     fn read_caret_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::ElementwiseXorAssign, None);
@@ -568,7 +606,7 @@ impl Lexer {
 
     /// Parse one plus token.
     fn read_plus_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        match self.scanner.byte() {
+        match self.scanner.peek_byte() {
             b'=' => {
                 self.scanner.advance_ascii_byte();
 
@@ -585,10 +623,10 @@ impl Lexer {
 
     /// Parse one star token.
     fn read_star_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'*' {
+        if self.scanner.peek_byte() == b'*' {
             self.scanner.advance_ascii_byte();
 
-            if self.scanner.byte() == b'=' {
+            if self.scanner.peek_byte() == b'=' {
                 self.scanner.advance_ascii_byte();
 
                 return (TokenType::ExponentAssign, None);
@@ -597,7 +635,7 @@ impl Lexer {
             return (TokenType::Exponent, None);
         }
 
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::MultiplyAssign, None);
@@ -608,7 +646,7 @@ impl Lexer {
 
     /// Parse one percent token.
     fn read_percent_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
-        if self.scanner.byte() == b'=' {
+        if self.scanner.peek_byte() == b'=' {
             self.scanner.advance_ascii_byte();
 
             return (TokenType::RemainderAssign, None);
@@ -647,21 +685,21 @@ impl Lexer {
         }
 
         // open the interpolation expression after `${`
-        self.options
-            .template_string_stack
-            .push(self.options.parentheses_depth);
-        self.options.parentheses_depth += 1;
+        self.state
+            .interpolation_depths
+            .push(self.state.delimiter_depth);
+        self.state.delimiter_depth += 1;
 
         (TokenType::TemplateStringStart, None)
     }
 
     /// Parse one unicode-escape identifier or unknown token.
-    fn read_backslash_token(&mut self) -> (TokenType, Option<TokenLiteral>) {
+    fn read_backslash_token(&mut self) -> (TokenType, Option<TokenLiteral>, bool) {
         if let Some(token) = self.try_eat_unicode_escape_identifier() {
             return token;
         }
 
-        (TokenType::Unknown, None)
+        (TokenType::Unknown, None, false)
     }
 
     /// Eat non-newline ascii whitespace bytes.
@@ -669,7 +707,7 @@ impl Lexer {
     fn eat_ascii_non_newline_whitespace(&mut self) {
         let bytes = self.scanner.remaining_bytes();
         let mut index = 0usize;
-        while index < bytes.len() && is_ascii_non_newline_whitespace_byte(bytes[index]) {
+        while index < bytes.len() && Self::is_ascii_non_newline_whitespace_byte(bytes[index]) {
             index += 1;
         }
 
@@ -685,8 +723,15 @@ impl Lexer {
         // consume contiguous ascii spaces and tabs in bulk
         self.eat_ascii_non_newline_whitespace();
 
+        // stop before the overwhelmingly common ASCII successor
+        if self.scanner.peek_byte().is_ascii() {
+            return TokenType::Whitespace;
+        }
+
         // unicode whitespace tail
-        self.eat_while(|c| is_whitespace(c) && !is_line_terminator_char(c));
+        self.eat_while(|character| {
+            is_whitespace(character) && !Self::is_line_terminator_char(character)
+        });
         TokenType::Whitespace
     }
 
@@ -735,7 +780,7 @@ impl Lexer {
                 has_line_terminator = true;
             }
 
-            if self.scanner.byte().is_ascii() {
+            if self.scanner.peek_byte().is_ascii() {
                 self.scanner.advance_ascii_byte();
             } else {
                 let _ = self.scanner.eat_char();

@@ -1,20 +1,20 @@
-use super::lexer::Lexer;
+use super::tokenizer::Tokenizer;
 use destack_dir::{Keyword, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
 use destack_unicode::UnicodeEmoji;
 
-/// Return true when a byte can continue an ascii identifier.
-#[inline]
-fn is_ascii_identifier_continue_byte(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
-}
+impl Tokenizer {
+    /// Return true when a byte can continue an ASCII identifier.
+    #[inline]
+    fn is_ascii_identifier_continue_byte(byte: u8) -> bool {
+        byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
+    }
 
-impl Lexer {
     /// Eat ascii identifier continuation bytes.
     #[inline]
     fn eat_ascii_identifier_continue(&mut self) {
         let bytes = self.scanner.remaining_bytes();
         let mut index = 0usize;
-        while index < bytes.len() && is_ascii_identifier_continue_byte(bytes[index]) {
+        while index < bytes.len() && Self::is_ascii_identifier_continue_byte(bytes[index]) {
             index += 1;
         }
 
@@ -27,7 +27,7 @@ impl Lexer {
     pub(super) fn eat_ascii_identifier_like(
         &mut self,
         first_byte: u8,
-    ) -> (TokenType, Option<TokenLiteral>) {
+    ) -> (TokenType, Option<TokenLiteral>, bool) {
         debug_assert!(first_byte.is_ascii());
         debug_assert!(is_identifier_start(first_byte as char));
 
@@ -35,14 +35,14 @@ impl Lexer {
         self.eat_ascii_identifier_continue();
 
         // continue mixed Unicode or escaped identifiers out of line
-        let next_byte = self.scanner.byte();
+        let next_byte = self.scanner.peek_byte();
         if next_byte == b'\\' || !next_byte.is_ascii() {
             return self.eat_identifier_non_ascii_or_escape_tail(first_byte as char);
         }
 
         // preserve invalid literal prefixes as one recovery token
         if next_byte == b'#' {
-            return (TokenType::UnknownLiteralPrefix, None);
+            return (TokenType::UnknownLiteralPrefix, None, false);
         }
 
         self.classify_identifier_token(first_byte as char)
@@ -52,7 +52,7 @@ impl Lexer {
     pub(super) fn eat_unicode_identifier_like(
         &mut self,
         first_char: char,
-    ) -> (TokenType, Option<TokenLiteral>) {
+    ) -> (TokenType, Option<TokenLiteral>, bool) {
         debug_assert!(!first_char.is_ascii());
         debug_assert!(is_identifier_start(first_char));
 
@@ -68,10 +68,10 @@ impl Lexer {
     fn eat_identifier_non_ascii_or_escape_tail(
         &mut self,
         first_char: char,
-    ) -> (TokenType, Option<TokenLiteral>) {
+    ) -> (TokenType, Option<TokenLiteral>, bool) {
         // consume alternating Unicode and ASCII continuation runs
         loop {
-            let next_byte = self.scanner.byte();
+            let next_byte = self.scanner.peek_byte();
             if next_byte == b'\\' {
                 break;
             }
@@ -89,46 +89,54 @@ impl Lexer {
     }
 
     /// Parse an identifier suffix after every regular continuation is consumed.
-    fn eat_identifier_suffix(&mut self, first_char: char) -> (TokenType, Option<TokenLiteral>) {
-        let next_byte = self.scanner.byte();
+    fn eat_identifier_suffix(
+        &mut self,
+        first_char: char,
+    ) -> (TokenType, Option<TokenLiteral>, bool) {
+        let next_byte = self.scanner.peek_byte();
 
         // consume valid Unicode escapes in the identifier tail
         if next_byte == b'\\'
-            && self.scanner.byte_at(1) == b'u'
+            && self.scanner.peek_byte_at(1) == b'u'
             && self.next_unicode_escape_continues_identifier()
         {
             self.eat_identifier_with_unicode_escapes();
 
-            return (TokenType::Identifier, None);
+            return (TokenType::Identifier, None, true);
         }
 
         // preserve invalid suffixes as one recovery token
         if next_byte == b'#' {
-            return (TokenType::UnknownLiteralPrefix, None);
+            return (TokenType::UnknownLiteralPrefix, None, false);
         }
         if !next_byte.is_ascii() && self.scanner.peek_char().is_emoji_char() {
-            return (self.eat_invalid_identifier(), None);
+            return (self.eat_invalid_identifier(), None, false);
         }
 
         self.classify_identifier_token(first_char)
     }
 
     /// Classify one fully consumed identifier-like token.
-    fn classify_identifier_token(&self, first_char: char) -> (TokenType, Option<TokenLiteral>) {
+    fn classify_identifier_token(
+        &self,
+        first_char: char,
+    ) -> (TokenType, Option<TokenLiteral>, bool) {
         let bytes = self.token_bytes();
 
         if first_char == 't' && bytes == b"true" {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::Boolean { value: true }),
+                false,
             )
         } else if first_char == 'f' && bytes == b"false" {
             (
                 TokenType::Literal,
                 Some(TokenLiteral::Boolean { value: false }),
+                false,
             )
         } else {
-            (TokenType::Identifier, None)
+            (TokenType::Identifier, None, false)
         }
     }
 
@@ -149,9 +157,9 @@ impl Lexer {
     /// The leading `\` has already been consumed.
     pub(super) fn try_eat_unicode_escape_identifier(
         &mut self,
-    ) -> Option<(TokenType, Option<TokenLiteral>)> {
+    ) -> Option<(TokenType, Option<TokenLiteral>, bool)> {
         // check for \u
-        if self.scanner.byte() != b'u' {
+        if self.scanner.peek_byte() != b'u' {
             return None;
         }
         self.scanner.advance_ascii_byte();
@@ -165,7 +173,7 @@ impl Lexer {
         // continue eating identifier (including more unicode escapes or regular chars)
         self.eat_identifier_with_unicode_escapes();
 
-        Some((TokenType::Identifier, None))
+        Some((TokenType::Identifier, None, true))
     }
 
     /// Continue eating an identifier that may contain unicode escapes.
@@ -173,8 +181,8 @@ impl Lexer {
         loop {
             self.eat_ascii_identifier_continue();
 
-            let byte = self.scanner.byte();
-            if byte == b'\\' && self.scanner.byte_at(1) == b'u' {
+            let byte = self.scanner.peek_byte();
+            if byte == b'\\' && self.scanner.peek_byte_at(1) == b'u' {
                 // validate the unicode escape before consuming it
                 if !self.next_unicode_escape_continues_identifier() {
                     break;
@@ -270,7 +278,7 @@ impl Lexer {
         };
 
         if consumed > 0 {
-            self.scanner.advance_ascii_bytes(consumed);
+            self.advance_ascii_bytes(consumed);
         }
 
         Some(decoded)
@@ -278,13 +286,12 @@ impl Lexer {
 
     /// Consume the maximal invalid identifier unicode escape prefix after `\u`.
     ///
-    /// This preserves legacy lexer behavior where malformed escapes are grouped
-    /// into a single unknown token prefix like `\u11`.
+    /// Group malformed escapes into one unknown token prefix such as `\u11`.
     pub(super) fn eat_invalid_unicode_escape_body_prefix(&mut self) {
-        if self.scanner.byte() == b'{' {
+        if self.scanner.peek_byte() == b'{' {
             self.scanner.advance_ascii_byte();
             let mut digit_count = 0usize;
-            while self.scanner.byte().is_ascii_hexdigit() {
+            while self.scanner.peek_byte().is_ascii_hexdigit() {
                 self.scanner.advance_ascii_byte();
                 digit_count += 1;
                 if digit_count > 6 {
@@ -295,7 +302,7 @@ impl Lexer {
         }
 
         for _ in 0..4 {
-            if !self.scanner.byte().is_ascii_hexdigit() {
+            if !self.scanner.peek_byte().is_ascii_hexdigit() {
                 break;
             }
             self.scanner.advance_ascii_byte();
@@ -322,14 +329,14 @@ impl Lexer {
 
 /// Return a keyword for an identifier when it can match keyword shape.
 #[inline]
-pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
+pub(crate) fn classify_keyword(identifier: &str) -> Option<Keyword> {
     let bytes = identifier.as_bytes();
-    keyword_from_identifier_bytes(bytes)
+    classify_keyword_bytes(bytes)
 }
 
 /// Return a keyword for identifier bytes when they can match keyword shape.
 #[inline]
-pub(crate) fn keyword_from_identifier_bytes(bytes: &[u8]) -> Option<Keyword> {
+pub(crate) fn classify_keyword_bytes(bytes: &[u8]) -> Option<Keyword> {
     let length = bytes.len();
     if !(2..=11).contains(&length) {
         return None;

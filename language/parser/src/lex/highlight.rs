@@ -1,17 +1,15 @@
-use std::str::FromStr;
 use std::sync::Arc;
 
 use destack_core::Color;
-use destack_dir::{Keyword, TokenLiteral, TokenSpan, TokenType};
+use destack_dir::{TokenLiteral, TokenSpan, TokenType};
 use destack_source::{File, SourceColorizer};
 
-use super::Lexer;
+use super::{Lexer, classify_keyword};
 
-/// Map a token to a color for terminal syntax highlighting.
+/// Return the terminal highlight color for one token.
 ///
-/// This is purely lexical - it doesn't resolve symbols.
-/// For resolved semantic highlighting, use workspace's semantic tokens.
-fn token_to_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color> {
+/// This is purely lexical and does not resolve symbols.
+fn classify_token_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color> {
     let neutral = if bright {
         Color::BrightWhite
     } else {
@@ -25,8 +23,8 @@ fn token_to_color(file: &File, token: &TokenSpan, bright: bool) -> Option<Color>
         TokenType::DocLineComment | TokenType::DocBlockComment => Some(Color::BrightGreen),
 
         TokenType::Identifier | TokenType::InvalidIdentifier | TokenType::UnknownLiteralPrefix => {
-            let span_str = file.get_span_str(token.span).unwrap_or_default();
-            if Keyword::from_str(span_str).is_ok() {
+            let span_str = file.span_str(token.span);
+            if classify_keyword(span_str).is_some() {
                 Some(Color::Magenta)
             } else {
                 Some(neutral)
@@ -66,8 +64,8 @@ pub fn source_colorizer() -> SourceColorizer {
 
 /// Colorize a slice of source code by byte range.
 ///
-/// Takes a file, byte range (start, end), and brightness flag. When `bright`
-/// is true, neutral tokens use BrightWhite; when false, they use dim White.
+/// Takes a file, byte range, and brightness flag.
+/// Neutral tokens use bright white when `bright` is true and dim white otherwise.
 pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool) -> String {
     let source = file.text();
     let start = start_byte as usize;
@@ -77,24 +75,28 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
         return source.get(start..end).unwrap_or("").to_string();
     }
 
-    let (tokens, _side_tokens, _eof) = Lexer::lex(Arc::new(file.clone()));
+    // combine both ordered token partitions for complete source highlighting
+    let mut result = Lexer::lex_file(Arc::new(file.clone()));
+    result.tokens.extend(result.side_tokens);
+    result.tokens.sort_unstable_by_key(|token| token.span.start);
+    let tokens = result.tokens;
 
     let mut result = String::with_capacity((end - start) * 2);
     let mut last_end = start;
 
     for token_span in &tokens {
-        let tok_start = token_span.span.start as usize;
-        let tok_end = token_span.span.end as usize;
+        let token_start = token_span.span.start as usize;
+        let token_end = token_span.span.end as usize;
 
-        if tok_end <= start {
+        if token_end <= start {
             continue;
         }
-        if tok_start >= end {
+        if token_start >= end {
             break;
         }
 
-        let visible_start = tok_start.max(start);
-        let visible_end = tok_end.min(end);
+        let visible_start = token_start.max(start);
+        let visible_end = token_end.min(end);
 
         if visible_start > last_end {
             result.push_str(&source[last_end..visible_start]);
@@ -102,7 +104,7 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
 
         let token_str = &source[visible_start..visible_end];
 
-        if let Some(color) = token_to_color(file, token_span, bright) {
+        if let Some(color) = classify_token_color(file, token_span, bright) {
             result.push_str(&color.apply(token_str));
         } else {
             result.push_str(token_str);
@@ -118,8 +120,7 @@ pub fn colorize_slice(file: &File, start_byte: u32, end_byte: u32, bright: bool)
     result
 }
 
-/// Colorize source code using lexical tokens.
-/// Returns a string with ANSI color codes (using bright colors).
+/// Colorize source code using bright ANSI colors.
 pub fn colorize_source(file: &File) -> String {
     colorize_slice(file, 0, file.text().len() as u32, true)
 }
@@ -127,6 +128,7 @@ pub fn colorize_source(file: &File) -> String {
 #[cfg(test)]
 mod tests {
     use super::colorize_source;
+    use destack_core::Color;
     use destack_source::{File, FileId, FileType, Uri};
 
     #[test]
@@ -143,5 +145,22 @@ mod tests {
         assert!(colorized.contains("\x1b["));
         assert!(colorized.contains("let"));
         assert!(colorized.contains("42"));
+    }
+
+    /// Colorize retained side tokens together with semantic tokens.
+    #[test]
+    fn test_colorize_source_comments() {
+        let file = File::from_text(
+            FileId::new(0),
+            "test.ds".to_string(),
+            Uri::from_string("test.ds"),
+            None,
+            FileType::Destack,
+            "const value = 1; // note".to_string(),
+        );
+        let colorized = colorize_source(&file);
+        let expected_comment = Color::BrightBlue.apply("// note");
+
+        assert!(colorized.contains(&expected_comment));
     }
 }

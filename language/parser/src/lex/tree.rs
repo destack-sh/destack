@@ -1,40 +1,10 @@
 use super::html::HTML_NAMED_ENTITIES;
-use super::lexer::Lexer;
+use super::tokenizer::Tokenizer;
 use destack_dir::{Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
 use destack_source::{File, Span};
 use memchr::memchr;
 
-impl Lexer {
-    /// Return one tree child token from the live lexer cursor.
-    pub(crate) fn next_tree_child_token(&mut self) -> Token {
-        let is_on_new_line = self.pending_line_terminator_before_next;
-        let token = Self::tree_child_token(self.file(), self.position() as u32, is_on_new_line);
-        self.set_position(token.end() as usize);
-
-        self.prepare_semantic_token(token)
-    }
-
-    /// Return one tree tag token from the live lexer cursor.
-    pub(crate) fn next_tree_tag_token(&mut self) -> Token {
-        self.eat_tree_tag_trivia();
-
-        let is_on_new_line = self.pending_line_terminator_before_next;
-        let token = Self::tree_tag_token(self.file(), self.position() as u32, is_on_new_line);
-        self.set_position(token.end() as usize);
-
-        self.prepare_semantic_token(token)
-    }
-
-    /// Return one tree attribute value token from the live lexer cursor.
-    pub(crate) fn next_tree_attribute_value_token(&mut self) -> Option<Token> {
-        let is_on_new_line = self.pending_line_terminator_before_next;
-        let token =
-            Self::tree_attribute_value_token(self.file(), self.position() as u32, is_on_new_line)?;
-        self.set_position(token.end() as usize);
-
-        Some(self.prepare_semantic_token(token))
-    }
-
+impl Tokenizer {
     /// Return one contextual tree child token from source.
     pub(crate) fn tree_child_token(file: &File, start: u32, is_on_new_line: bool) -> Token {
         let source = file.text();
@@ -117,7 +87,7 @@ impl Lexer {
                     Some(literal),
                 )
             }
-            byte if Self::byte_starts_tree_tag_identifier(byte) => {
+            byte if Self::is_tree_tag_identifier_start_byte(byte) => {
                 let end = Self::tree_tag_identifier_end(source, offset);
                 Self::source_token(
                     TokenType::Identifier,
@@ -215,26 +185,8 @@ impl Lexer {
         (offset, literal)
     }
 
-    /// Eat whitespace and comments inside a tree tag.
-    fn eat_tree_tag_trivia(&mut self) {
-        loop {
-            let bytes = self.remaining_text().as_bytes();
-            let starts_trivia = bytes
-                .first()
-                .copied()
-                .is_some_and(|byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r'))
-                || matches!(bytes, [b'/', b'*', ..] | [b'/', b'/', ..]);
-
-            if !starts_trivia {
-                return;
-            }
-
-            self.lex_one();
-        }
-    }
-
     /// Return whether a source byte starts a tree tag identifier.
-    fn byte_starts_tree_tag_identifier(byte: u8) -> bool {
+    fn is_tree_tag_identifier_start_byte(byte: u8) -> bool {
         byte.is_ascii_alphabetic() || matches!(byte, b'_' | b'$')
     }
 
