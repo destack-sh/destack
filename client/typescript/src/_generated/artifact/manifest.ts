@@ -220,7 +220,7 @@ export function fromJsonBuildManifestFileType(value: Json): BuildManifestFileTyp
 }
 
 /** One public build manifest loader name. */
-export type BuildManifestLoader = "js" | "css" | "ts" | "map" | "json" | "dts" | "wasm" | "object" | "asset";
+export type BuildManifestLoader = "js" | "css" | "ts" | "map" | "json" | "wasm" | "object" | "asset";
 
 export const BuildManifestLoader = {
     /** Encode this value. */
@@ -262,17 +262,14 @@ export function encodeBuildManifestLoader(writer: BinaryWriter, value: BuildMani
         case "json":
             writer.writeUnsigned(4);
             return;
-        case "dts":
+        case "wasm":
             writer.writeUnsigned(5);
             return;
-        case "wasm":
+        case "object":
             writer.writeUnsigned(6);
             return;
-        case "object":
-            writer.writeUnsigned(7);
-            return;
         case "asset":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(7);
             return;
     }
 
@@ -295,12 +292,10 @@ export function decodeBuildManifestLoader(reader: BinaryReader): BuildManifestLo
         case 4:
             return "json";
         case 5:
-            return "dts";
-        case 6:
             return "wasm";
-        case 7:
+        case 6:
             return "object";
-        case 8:
+        case 7:
             return "asset";
     }
 
@@ -327,8 +322,6 @@ export function fromJsonBuildManifestLoader(value: Json): BuildManifestLoader {
             return "map";
         case "json":
             return "json";
-        case "dts":
-            return "dts";
         case "wasm":
             return "wasm";
         case "object":

@@ -21,25 +21,6 @@ def to_json_script_language(value: ScriptLanguage) -> Json: ...
 def from_json_script_language(value: Json) -> ScriptLanguage: ...
 
 @dataclass(frozen=True, slots=True)
-class Declaration:
-    """One emitted declaration payload."""
-
-    # the emitted declaration text
-    text: str
-
-    def encode(self, writer: BinaryWriter) -> None: ...
-    @classmethod
-    def decode(cls, reader: BinaryReader) -> Declaration: ...
-    def to_json(self) -> Json: ...
-    @classmethod
-    def from_json(cls, value: Json) -> Declaration: ...
-
-def encode_declaration(writer: BinaryWriter, value: Declaration) -> None: ...
-def decode_declaration(reader: BinaryReader) -> Declaration: ...
-def to_json_declaration(value: Declaration) -> Json: ...
-def from_json_declaration(value: Json) -> Declaration: ...
-
-@dataclass(frozen=True, slots=True)
 class ScriptBodyEcmaScript:
     """ECMAScript-family module IR."""
 
@@ -65,8 +46,6 @@ class Script:
     language: ScriptLanguage
     # the structured script body
     body: ScriptBody
-    # the emitted declaration when one exists
-    declaration: Declaration | None
     # the source map when one exists
     map: destack._generated.artifact.map.SourceMap | None
     # whether this script has top level side effects
@@ -90,11 +69,6 @@ __all__ = [
     "decode_script_language",
     "to_json_script_language",
     "from_json_script_language",
-    "Declaration",
-    "encode_declaration",
-    "decode_declaration",
-    "to_json_declaration",
-    "from_json_declaration",
     "ScriptBody",
     "encode_script_body",
     "decode_script_body",

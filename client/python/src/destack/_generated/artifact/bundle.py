@@ -27,7 +27,6 @@ import destack._generated.source.file.path.uri
 BundleSection: typing.TypeAlias = (
     typing.Literal["module"]
     | typing.Literal["entry"]
-    | typing.Literal["declaration"]
     | typing.Literal["asset"]
     | typing.Literal["manifest"]
     | typing.Literal["sourceMap"]
@@ -41,16 +40,14 @@ def encode_bundle_section(writer: BinaryWriter, value: BundleSection) -> None:
         writer.write_unsigned(0)
     elif value == "entry":
         writer.write_unsigned(1)
-    elif value == "declaration":
-        writer.write_unsigned(2)
     elif value == "asset":
-        writer.write_unsigned(3)
+        writer.write_unsigned(2)
     elif value == "manifest":
-        writer.write_unsigned(4)
+        writer.write_unsigned(3)
     elif value == "sourceMap":
-        writer.write_unsigned(5)
+        writer.write_unsigned(4)
     elif value == "native":
-        writer.write_unsigned(6)
+        writer.write_unsigned(5)
     else:
         raise SerdeError("unknown enum variant")
 
@@ -64,14 +61,12 @@ def decode_bundle_section(reader: BinaryReader) -> BundleSection:
     elif variant == 1:
         return "entry"
     elif variant == 2:
-        return "declaration"
-    elif variant == 3:
         return "asset"
-    elif variant == 4:
+    elif variant == 3:
         return "manifest"
-    elif variant == 5:
+    elif variant == 4:
         return "sourceMap"
-    elif variant == 6:
+    elif variant == 5:
         return "native"
     else:
         raise SerdeError(f"unknown enum variant index: {variant}")
@@ -90,8 +85,6 @@ def from_json_bundle_section(value: Json) -> BundleSection:
         return "module"
     elif variant == "entry":
         return "entry"
-    elif variant == "declaration":
-        return "declaration"
     elif variant == "asset":
         return "asset"
     elif variant == "manifest":

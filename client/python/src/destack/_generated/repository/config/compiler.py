@@ -54,10 +54,6 @@ class CompilerOptions:
     root_dir: str | None
     # output directory for compiled files
     out_dir: str | None
-    # output directory for declaration files. Defaults to out_dir
-    declaration_dir: str | None
-    # emit declaration maps for `.d.ts` output
-    declaration_map: bool
     # do not emit output files
     no_emit: bool
     # emit phase stats sidecars
@@ -140,12 +136,6 @@ def encode_compiler_options(writer: BinaryWriter, value: CompilerOptions) -> Non
     else:
         writer.write_byte(1)
         writer.write_string(value.out_dir)
-    if value.declaration_dir is None:
-        writer.write_byte(0)
-    else:
-        writer.write_byte(1)
-        writer.write_string(value.declaration_dir)
-    writer.write_bool(value.declaration_map)
     writer.write_bool(value.no_emit)
     writer.write_bool(value.emit_stats)
     writer.write_bool(value.emit_events)
@@ -172,8 +162,6 @@ def decode_compiler_options(reader: BinaryReader) -> CompilerOptions:
     restrictions = decode_compiler_restrictions(reader)
     root_dir = reader.read_option(lambda: reader.read_string())
     out_dir = reader.read_option(lambda: reader.read_string())
-    declaration_dir = reader.read_option(lambda: reader.read_string())
-    declaration_map = reader.read_bool()
     no_emit = reader.read_bool()
     emit_stats = reader.read_bool()
     emit_events = reader.read_bool()
@@ -194,8 +182,6 @@ def decode_compiler_options(reader: BinaryReader) -> CompilerOptions:
         restrictions=restrictions,
         root_dir=root_dir,
         out_dir=out_dir,
-        declaration_dir=declaration_dir,
-        declaration_map=declaration_map,
         no_emit=no_emit,
         emit_stats=emit_stats,
         emit_events=emit_events,
@@ -228,12 +214,6 @@ def to_json_compiler_options(value: CompilerOptions) -> Json:
         "restrictions": to_json_compiler_restrictions(value.restrictions),
         **({} if value.root_dir is None else {"rootDir": value.root_dir}),
         **({} if value.out_dir is None else {"outDir": value.out_dir}),
-        **(
-            {}
-            if value.declaration_dir is None
-            else {"declarationDir": value.declaration_dir}
-        ),
-        "declarationMap": value.declaration_map,
         "noEmit": value.no_emit,
         "emitStats": value.emit_stats,
         "emitEvents": value.emit_events,
@@ -284,10 +264,6 @@ def from_json_compiler_options(value: Json) -> CompilerOptions:
         ),
         root_dir=json_optional(object_, "rootDir", lambda value: json_string(value)),
         out_dir=json_optional(object_, "outDir", lambda value: json_string(value)),
-        declaration_dir=json_optional(
-            object_, "declarationDir", lambda value: json_string(value)
-        ),
-        declaration_map=json_bool(json_field(object_, "declarationMap")),
         no_emit=json_bool(json_field(object_, "noEmit")),
         emit_stats=json_bool(json_field(object_, "emitStats")),
         emit_events=json_bool(json_field(object_, "emitEvents")),

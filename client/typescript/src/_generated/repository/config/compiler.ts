@@ -36,10 +36,6 @@ export type CompilerOptions = {
     readonly rootDir?: string;
     /** Output directory for compiled files. */
     readonly outDir?: string;
-    /** Output directory for declaration files. Defaults to out_dir. */
-    readonly declarationDir?: string;
-    /** Emit declaration maps for `.d.ts` output. */
-    readonly declarationMap: boolean;
     /** Do not emit output files. */
     readonly noEmit: boolean;
     /** Emit phase stats sidecars. */
@@ -119,10 +115,6 @@ export function encodeCompilerOptions(writer: BinaryWriter, value: CompilerOptio
     writer.writeOption(value.outDir, (value13) => {
         writer.writeString(value13);
     });
-    writer.writeOption(value.declarationDir, (value14) => {
-        writer.writeString(value14);
-    });
-    writer.writeBool(value.declarationMap);
     writer.writeBool(value.noEmit);
     writer.writeBool(value.emitStats);
     writer.writeBool(value.emitEvents);
@@ -145,8 +137,6 @@ export function decodeCompilerOptions(reader: BinaryReader): CompilerOptions {
     const restrictions = decodeCompilerRestrictions(reader);
     const rootDir = reader.readOption(() => reader.readString());
     const outDir = reader.readOption(() => reader.readString());
-    const declarationDir = reader.readOption(() => reader.readString());
-    const declarationMap = reader.readBool();
     const noEmit = reader.readBool();
     const emitStats = reader.readBool();
     const emitEvents = reader.readBool();
@@ -167,8 +157,6 @@ export function decodeCompilerOptions(reader: BinaryReader): CompilerOptions {
         restrictions,
         ...(rootDir === undefined ? {} : { rootDir }),
         ...(outDir === undefined ? {} : { outDir }),
-        ...(declarationDir === undefined ? {} : { declarationDir }),
-        declarationMap,
         noEmit,
         emitStats,
         emitEvents,
@@ -193,8 +181,6 @@ export function toJsonCompilerOptions(value: CompilerOptions): Json {
         restrictions: toJsonCompilerRestrictions(value.restrictions),
         ...(value.rootDir === undefined ? {} : { rootDir: value.rootDir }),
         ...(value.outDir === undefined ? {} : { outDir: value.outDir }),
-        ...(value.declarationDir === undefined ? {} : { declarationDir: value.declarationDir }),
-        declarationMap: value.declarationMap,
         noEmit: value.noEmit,
         emitStats: value.emitStats,
         emitEvents: value.emitEvents,
@@ -221,8 +207,6 @@ export function fromJsonCompilerOptions(value: Json): CompilerOptions {
         restrictions: fromJsonCompilerRestrictions(jsonField(object, "restrictions")),
         rootDir: jsonOptional(object, "rootDir", (value) => jsonString(value)),
         outDir: jsonOptional(object, "outDir", (value) => jsonString(value)),
-        declarationDir: jsonOptional(object, "declarationDir", (value) => jsonString(value)),
-        declarationMap: jsonBool(jsonField(object, "declarationMap")),
         noEmit: jsonBool(jsonField(object, "noEmit")),
         emitStats: jsonBool(jsonField(object, "emitStats")),
         emitEvents: jsonBool(jsonField(object, "emitEvents")),

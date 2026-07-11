@@ -15,10 +15,6 @@ class TargetOutputOptions:
     directory: str
     # output file for single-file targets
     file: str | None
-    # whether to emit declaration files
-    declaration: bool
-    # separate directory for declaration files
-    declaration_directory: str | None
     # source map emission mode
     source_map: SourceMapMode | None
 
