@@ -2,6 +2,7 @@ use destack_serde::{Reflect, SchemaRef, SchemaRegistry};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::hash_map::Entry;
 use std::fmt::{self, Debug, Formatter};
 use std::mem::size_of;
 use xxhash_rust::xxh3::xxh3_128;
@@ -39,9 +40,11 @@ impl StringId {
     }
 }
 
-/// One byte range in local contiguous string storage.
+/// One string in local contiguous storage.
 #[derive(Debug, Copy, Clone)]
-struct LocalStringRange {
+struct LocalStringEntry {
+    /// The stable content identity.
+    id: StringId,
     /// The byte offset in the string buffer.
     offset: u32,
     /// The string byte length.
@@ -53,10 +56,8 @@ struct LocalStringRange {
 pub struct LocalStringPool {
     /// The contiguous string bytes.
     buffer: String,
-    /// The stable string IDs in insertion order.
-    ids: Vec<StringId>,
-    /// The string byte ranges in insertion order.
-    ranges: Vec<LocalStringRange>,
+    /// The strings in insertion order.
+    entries: Vec<LocalStringEntry>,
     /// The dense string index by stable string ID.
     slot_by_id: FxHashMap<StringId, u32>,
 }
@@ -65,7 +66,7 @@ impl Debug for LocalStringPool {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("LocalStringPool")
-            .field("length", &self.ids.len())
+            .field("length", &self.entries.len())
             .field("buffer_size", &self.buffer.len())
             .finish()
     }
@@ -89,9 +90,9 @@ impl LocalStringPool {
     #[inline]
     pub fn get_maybe(&self, id: StringId) -> Option<&str> {
         let slot = self.slot_by_id.get(&id).copied()? as usize;
-        let range = self.ranges[slot];
-        let start = range.offset as usize;
-        let end = start + range.len as usize;
+        let entry = self.entries[slot];
+        let start = entry.offset as usize;
+        let end = start + entry.len as usize;
 
         Some(&self.buffer[start..end])
     }
@@ -101,63 +102,64 @@ impl LocalStringPool {
     pub fn intern(&mut self, text: &str) -> StringId {
         let id = StringId::for_text(text);
 
-        // return an existing string after checking the content identity
-        if let Some(existing) = self.get_maybe(id) {
-            assert_eq!(
-                existing, text,
-                "string id collision for {id}: existing {existing:?}, new {text:?}",
-            );
+        match self.slot_by_id.entry(id) {
+            // return an existing string after checking the content identity
+            Entry::Occupied(entry) => {
+                let entry = self.entries[*entry.get() as usize];
+                let start = entry.offset as usize;
+                let end = start + entry.len as usize;
+                let existing = &self.buffer[start..end];
+                assert_eq!(
+                    existing, text,
+                    "string id collision for {id}: existing {existing:?}, new {text:?}",
+                );
 
-            return id;
+                id
+            }
+            // append a new string to contiguous storage
+            Entry::Vacant(entry) => {
+                debug_assert!(self.buffer.len() <= u32::MAX as usize);
+                debug_assert!(text.len() <= u32::MAX as usize);
+                debug_assert!(self.entries.len() <= u32::MAX as usize);
+                let offset = self.buffer.len() as u32;
+                let len = text.len() as u32;
+                let slot = self.entries.len() as u32;
+                self.buffer.push_str(text);
+                self.entries.push(LocalStringEntry { id, offset, len });
+                entry.insert(slot);
+
+                id
+            }
         }
-
-        // append the new string to contiguous storage
-        debug_assert!(self.buffer.len() <= u32::MAX as usize);
-        debug_assert!(text.len() <= u32::MAX as usize);
-        debug_assert!(self.ids.len() <= u32::MAX as usize);
-        let offset = self.buffer.len() as u32;
-        let len = text.len() as u32;
-        let slot = self.ids.len() as u32;
-        self.buffer.push_str(text);
-        self.ids.push(id);
-        self.ranges.push(LocalStringRange { offset, len });
-        self.slot_by_id.insert(id, slot);
-
-        id
     }
 
     /// Iterate strings in insertion order.
     pub fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
-        self.ids
-            .iter()
-            .copied()
-            .zip(&self.ranges)
-            .map(|(id, range)| {
-                let start = range.offset as usize;
-                let end = start + range.len as usize;
+        self.entries.iter().map(|entry| {
+            let start = entry.offset as usize;
+            let end = start + entry.len as usize;
 
-                (id, &self.buffer[start..end])
-            })
+            (entry.id, &self.buffer[start..end])
+        })
     }
 
     /// Return the number of unique strings.
     #[inline]
     pub fn len(&self) -> usize {
-        self.ids.len()
+        self.entries.len()
     }
 
     /// Return whether no strings are stored.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.ids.is_empty()
+        self.entries.is_empty()
     }
 
     /// Return the bytes owned by this pool.
     pub fn owned_bytes(&self) -> usize {
         let mut bytes = size_of::<Self>();
         bytes += self.buffer.capacity();
-        bytes += self.ids.capacity() * size_of::<StringId>();
-        bytes += self.ranges.capacity() * size_of::<LocalStringRange>();
+        bytes += self.entries.capacity() * size_of::<LocalStringEntry>();
         bytes += self.slot_by_id.capacity() * size_of::<(StringId, u32)>();
 
         bytes
