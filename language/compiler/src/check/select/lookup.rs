@@ -67,7 +67,7 @@ impl BodyState<'_, '_> {
         let symbol = self.resolve_symbol_alias(symbol)?;
         let kind = self.symbol_kind(symbol);
 
-        // a name that spells a type reaches its static members, so
+        // a name naming a type reaches its static members, so
         //  parameters serve bound statics like rustc's T::default()
         let names_type = kind.is_nominal() || matches!(kind, dir::SymbolKind::GenericTypeParameter);
         let space = if names_type {

@@ -330,7 +330,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<String> {
         let ty = self.settled_root(ty)?;
 
-        // arrays use the source rest spelling
+        // arrays use the written rest form
         match self.ty(ty)? {
             dir::Type::Array(array) => {
                 let element = self.format_depth_at(module, array.element, depth)?;

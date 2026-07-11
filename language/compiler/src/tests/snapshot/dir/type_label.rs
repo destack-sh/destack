@@ -972,7 +972,7 @@ impl DirSnapshotBuilder<'_> {
     }
 }
 
-/// Return one static binary operator spelling.
+/// Return one static binary operator token.
 fn static_binary_operator_label(operator: dir::StaticBinaryOperator) -> &'static str {
     match operator {
         dir::StaticBinaryOperator::Add => "+",
@@ -1000,7 +1000,7 @@ fn static_binary_operator_label(operator: dir::StaticBinaryOperator) -> &'static
     }
 }
 
-/// Return one static unary operator spelling.
+/// Return one static unary operator token.
 fn static_unary_operator_label(operator: dir::StaticUnaryOperator) -> &'static str {
     match operator {
         dir::StaticUnaryOperator::Not => "!",

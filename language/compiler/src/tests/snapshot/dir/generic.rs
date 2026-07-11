@@ -77,7 +77,7 @@ pub(super) fn generic_template_parameter_label(
     parameter: &dir::GenericParameterBinding,
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
-    // spell the parameter head with its modifiers
+    // print the parameter head with its modifiers
     let name = generic_parameter_name(parameter.key, builder);
     let mut name = builder.generic_parameter_binding_head_label(parameter, name);
 
@@ -91,7 +91,7 @@ pub(super) fn generic_template_parameter_label(
         name = format!("{} {name}", derived.as_str());
     }
 
-    // spell the constraint and default suffixes
+    // print the constraint and default suffixes
     let constraint = parameter
         .constraint
         .map(|constraint| format!(": {}", builder.global_type_label(constraint)))

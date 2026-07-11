@@ -190,7 +190,7 @@ declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>(
 /// @generic.instance id="Borrowed<Node, L1, \"mutable\">" template=memory.borrow.Borrowed arguments=(Node, L1, "mutable")
 "#,
         r#"
-/// @diagnostic.error code=EC614 message="ambient signatures must spell result lifetimes explicitly"
+/// @diagnostic.error code=EC614 message="ambient signatures must name result lifetimes explicitly"
 /// @diagnostic.label line=6 column=18 span="choose" line_source="declare function choose<comptime L0: Lifetime, comptime L1: Lifetime>("
 "#,
     );
