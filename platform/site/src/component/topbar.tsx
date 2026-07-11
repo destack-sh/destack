@@ -1,5 +1,7 @@
 import { A } from "@solidjs/router";
 
+import { ThemeToggle } from "./theme-toggle";
+
 /// The primary public navigation destinations.
 const links = [
     ["blog", "/blog/"],
@@ -25,6 +27,7 @@ export function TopBar() {
                             <a href={href}>[{label}]</a>
                         ),
                     )}
+                    <ThemeToggle />
                 </nav>
             </div>
         </header>
