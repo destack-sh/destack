@@ -13,10 +13,6 @@ pub struct TargetOutputOptions {
     pub directory: PathBuf,
     /// Output file for single-file targets.
     pub file: Option<PathBuf>,
-    /// Whether to emit declaration files.
-    pub declaration: bool,
-    /// Separate directory for declaration files.
-    pub declaration_directory: Option<PathBuf>,
     /// Source map emission mode.
     pub source_map: Option<SourceMapMode>,
 }
@@ -26,8 +22,6 @@ impl Default for TargetOutputOptions {
         Self {
             directory: PathBuf::from("dist"),
             file: None,
-            declaration: false,
-            declaration_directory: None,
             source_map: None,
         }
     }
