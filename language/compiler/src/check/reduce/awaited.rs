@@ -1,5 +1,5 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
-use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -12,7 +12,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let mut active = IndexSet::new();
+        let mut active = FxIndexSet::default();
 
         self.reduce_awaited_guarded(origin, target, &mut active)
     }
@@ -22,13 +22,26 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
-        active: &mut IndexSet<dir::GlobalTypeId>,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         let target = answer!(self.reduce_type_head(origin, target)?);
         if !active.insert(target) {
             return Ok(Answer::Ready(Some(target)));
         }
 
+        let reduced = self.reduce_awaited_active(origin, target, active);
+        active.swap_remove(&target);
+
+        reduced
+    }
+
+    /// Reduce one active awaited target with its reduced head.
+    fn reduce_awaited_active(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // distribute awaitedness over unions
         if let dir::Type::Union(union) = self.ty(target)? {
             let module = origin.module();
@@ -39,8 +52,6 @@ impl CheckState<'_> {
             for element in union_elements {
                 let Some(element) = answer!(self.reduce_awaited_guarded(origin, element, active)?)
                 else {
-                    active.swap_remove(&target);
-
                     return Ok(Answer::Ready(None));
                 };
                 elements.push(element);
@@ -51,21 +62,18 @@ impl CheckState<'_> {
                 [single] => *single,
                 _ => self.normalized_union_type(module, elements)?,
             };
-            active.swap_remove(&target);
 
             return Ok(Answer::Ready(Some(joined)));
         }
 
         // preserve nullish values
-        match self.ty(target)? {
+        if matches!(
+            self.ty(target)?,
             dir::Type::Null
-            | dir::Type::Undefined
-            | dir::Type::Literal(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined) => {
-                active.swap_remove(&target);
-
-                return Ok(Answer::Ready(Some(target)));
-            }
-            _ => {}
+                | dir::Type::Undefined
+                | dir::Type::Literal(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)
+        ) {
+            return Ok(Answer::Ready(Some(target)));
         }
 
         // unwrap compiler-recognized promises
@@ -82,25 +90,20 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(inner) = inner {
-            let awaited = self.reduce_awaited_guarded(origin, inner, active)?;
-            active.swap_remove(&target);
-
-            return Ok(awaited);
+            return self.reduce_awaited_guarded(origin, inner, active);
         }
 
         // newtypes await through their backing
-        if let Some(backing) = answer!(self.newtype_backing(origin, target)?) {
+        if let Some(backing) = answer!(self.body(origin.module()).newtype_backing(origin, target)?)
+        {
             let backing = answer!(self.reduce_type_head(origin, backing)?);
             let awaited = answer!(self.reduce_awaited_guarded(origin, backing, active)?);
-            active.swap_remove(&target);
 
             return match awaited {
                 Some(awaited) if awaited != backing => Ok(Answer::Ready(Some(awaited))),
                 _ => Ok(Answer::Ready(Some(target))),
             };
         }
-
-        active.swap_remove(&target);
 
         Ok(Answer::Ready(Some(target)))
     }

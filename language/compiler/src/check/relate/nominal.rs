@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -51,14 +52,13 @@ impl HeritageClosure {
 
 impl CheckState<'_> {
     /// Return the substituted backing type for one newtype instance.
-    /// `instance_module` is the owner of the instance's argument list.
     pub(in crate::check) fn newtype_backing_type(
         &mut self,
         origin: Origin,
-        instance_module: destack_source::ModuleId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol) else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(None);
         };
         let backing = definition.value;
@@ -69,12 +69,10 @@ impl CheckState<'_> {
     }
 
     /// Re-root one instance's argument list into the origin module.
-    /// Nominal decisions pass instances around freely, so one uniform
-    /// list owner keeps the heritage machinery resolvable everywhere.
     pub(in crate::check) fn origin_instance(
         &mut self,
         origin: Origin,
-        instance_module: destack_source::ModuleId,
+        instance_module: ModuleId,
         instance: dir::GenericInstance,
     ) -> CompilerResult<dir::GenericInstance> {
         let module = origin.module();
@@ -133,10 +131,24 @@ impl CheckState<'_> {
             return self.decide_union_membership(origin, relation, decision, source, target);
         }
 
+        // union sources must satisfy the target through every element
+        if let dir::Type::Union(union) = self.ty(source)? {
+            let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
+
+            return self.decide_all_sources(origin, relation, &elements, target);
+        }
+
+        // union targets accept when any element accepts the source
+        if let dir::Type::Union(union) = self.ty(target)? {
+            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
+
+            return self.decide_any_target(origin, relation, source, &elements);
+        }
+
         // comptime scalars inhabit closed enums by member value
         if let dir::Type::Literal(literal) = self.ty(source)?
             && let Some(symbol) = self.type_symbol(target)?
-            && let Some(dir::Definition::Enum(definition)) = self.definition(symbol)
+            && let Some(dir::Definition::Enum(definition)) = self.definition(symbol)?
         {
             let members = definition.members.clone();
             for member in &members {
@@ -157,10 +169,8 @@ impl CheckState<'_> {
 
         // static scalar operations relate through their result type
         if matches!(
-            self.ty(source)?,
-            dir::Type::Operation(
-                dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_)
-            )
+            self.operation_head(source)?,
+            Some(dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_))
         ) && let Some(result) = answer!(self.static_operation_type(origin, source)?)
         {
             let decision = self.decide_relation(origin, relation, result, target)?;
@@ -174,15 +184,8 @@ impl CheckState<'_> {
             let elements = self
                 .type_ids(target.module_id, intersection.elements)?
                 .to_vec();
-            let mut decision = Answer::Ready(true);
-            for element in elements {
-                decision = decision.and(self.decide_relation(origin, relation, source, element)?);
-                if decision.is_ready_false() {
-                    break;
-                }
-            }
 
-            return Ok(decision);
+            return self.decide_all_targets(origin, relation, source, &elements);
         }
 
         // intersection sources satisfy through any element
@@ -190,15 +193,8 @@ impl CheckState<'_> {
             let elements = self
                 .type_ids(source.module_id, intersection.elements)?
                 .to_vec();
-            let mut decision = Answer::Ready(false);
-            for element in elements {
-                decision = decision.or(self.decide_relation(origin, relation, element, target)?);
-                if decision.is_ready_true() {
-                    break;
-                }
-            }
 
-            return Ok(decision);
+            return self.decide_any_source(origin, relation, &elements, target);
         }
 
         // nominal sources meet nominal constraints through their declarations
@@ -232,36 +228,148 @@ impl CheckState<'_> {
             }
 
             // check extension implementations over any receiver form
-            (None, _) if self.is_interface_instance(target_instance.as_ref()) => {
+            (None, _) if self.is_interface_instance(target_instance.as_ref())? => {
                 let Some(target_instance) = target_instance.as_ref() else {
                     return Ok(Answer::Ready(false));
                 };
                 let module = origin.module();
-                let implemented = self.decide_extension_implementation(
+                let implemented = self.body(module).decide_extension_implementation(
                     origin,
                     module,
                     target.module_id,
                     source,
                     target_instance,
+                    None,
                 )?;
                 if !matches!(implemented, Answer::Ready(false)) {
                     return Ok(implemented);
                 }
 
-                self.decide_assignable(origin, source, target)
+                self.decide_assignable(origin, Relation::Assignable, source, target)
             }
 
             // explicit implements requires the heritage relation
             (None, Relation::Implements) => Ok(Answer::Ready(false)),
 
             // everything else satisfies through assignability,
-            // or sits inside a union target as a member
+            //  or sits inside a union target as a member
             (None, _) => {
-                let assignable = self.decide_assignable(origin, source, target)?;
+                // check-only relations read structural pairs covariantly
+                if let (dir::Type::Shape(_), dir::Type::Shape(_)) =
+                    (self.ty(source)?, self.ty(target)?)
+                {
+                    return self.decide_shape_relation(origin, relation, source, target);
+                }
+                let assignable = self.decide_assignable(origin, relation, source, target)?;
 
                 self.decide_union_membership(origin, relation, assignable, source, target)
             }
         }
+    }
+
+    /// Constrain one open nominal application into a required interface.
+    pub(in crate::check) fn constrain_nominal_satisfies(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        source_instance: &dir::GenericInstance,
+        target: dir::GlobalTypeId,
+        target_instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<bool>> {
+        // declared heritage carries the relation and binds open arguments
+        if let Some(heritage) = answer!(self.heritage_instance(
+            origin,
+            source.module_id,
+            source_instance,
+            target_instance.symbol
+        )?) {
+            let heritage_arguments = self.type_ids(origin.module(), heritage.arguments)?.to_vec();
+            let target_arguments = self
+                .type_ids(target.module_id, target_instance.arguments)?
+                .to_vec();
+
+            let context = self.default_symbol_context(target_instance.symbol);
+
+            return self.relate_type_arguments(
+                origin,
+                target_instance.symbol,
+                context,
+                Relation::Assignable,
+                &heritage_arguments,
+                &target_arguments,
+            );
+        }
+
+        // a sole conforming extension binds open arguments through its clause
+        let module = origin.module();
+        let extensions = self
+            .body(module)
+            .visible_receiver_extensions(module, source)?;
+        let mut sole = None;
+        for extension_symbol in extensions {
+            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
+            else {
+                continue;
+            };
+            if !extension.is_visible_from(module) {
+                continue;
+            }
+            let names_target = extension
+                .implements
+                .iter()
+                .any(|heritage| heritage.symbol == target_instance.symbol);
+            if !names_target {
+                continue;
+            }
+            if sole.is_some() {
+                return Ok(Answer::Ready(false));
+            }
+            sole = Some((
+                extension_symbol,
+                extension.target.r#type(),
+                extension.implements.clone(),
+            ));
+        }
+        let Some((extension_symbol, target_type, implements)) = sole else {
+            return Ok(Answer::Ready(false));
+        };
+
+        // bind the extension pattern to the open source
+        let template = self.symbol_template(extension_symbol)?;
+        let Some(substitution) = answer!(self.body(module).match_extension_target(
+            origin,
+            source,
+            template,
+            target_type
+        )?) else {
+            return Ok(Answer::Ready(false));
+        };
+
+        // relate the substituted clause against the required application
+        for heritage in implements {
+            if heritage.symbol != target_instance.symbol {
+                continue;
+            }
+            let applied =
+                answer!(self.substituted_heritage(origin, module, &substitution, &heritage)?);
+            let applied_arguments = self.type_ids(module, applied.arguments)?.to_vec();
+            let target_arguments = self
+                .type_ids(target.module_id, target_instance.arguments)?
+                .to_vec();
+
+            let context = self.default_symbol_context(target_instance.symbol);
+
+            return self.relate_type_arguments(
+                origin,
+                target_instance.symbol,
+                context,
+                Relation::Assignable,
+                &applied_arguments,
+                &target_arguments,
+            );
+        }
+
+        Ok(Answer::Ready(false))
     }
 
     /// Decide whether one nominal application satisfies another.
@@ -276,7 +384,7 @@ impl CheckState<'_> {
         // same-symbol interface applications compare by declared variance
         if source_instance.symbol == target_instance.symbol {
             if matches!(
-                self.definition(target_instance.symbol),
+                self.definition(target_instance.symbol)?,
                 Some(dir::Definition::Interface(_))
             ) {
                 let source_arguments = self
@@ -286,9 +394,13 @@ impl CheckState<'_> {
                     .type_ids(target.module_id, target_instance.arguments)?
                     .to_vec();
 
+                let context = self.default_symbol_context(target_instance.symbol);
+
                 return self.relate_type_arguments(
                     origin,
                     target_instance.symbol,
+                    context,
+                    Relation::Assignable,
                     &source_arguments,
                     &target_arguments,
                 );
@@ -304,7 +416,7 @@ impl CheckState<'_> {
         }
 
         // heritage carries the relation when it names the target;
-        // heritage argument list always land in origin.module()
+        //  heritage argument list always land in origin.module()
         if let Some(heritage) = answer!(self.heritage_instance(
             origin,
             source.module_id,
@@ -312,7 +424,7 @@ impl CheckState<'_> {
             target_instance.symbol
         )?) {
             let is_interface = matches!(
-                self.definition(target_instance.symbol),
+                self.definition(target_instance.symbol)?,
                 Some(dir::Definition::Interface(_))
             );
             let arguments = if is_interface {
@@ -325,6 +437,8 @@ impl CheckState<'_> {
                 self.relate_type_arguments(
                     origin,
                     target_instance.symbol,
+                    self.default_symbol_context(target_instance.symbol),
+                    Relation::Assignable,
                     &heritage_arguments,
                     &target_arguments,
                 )?
@@ -349,16 +463,17 @@ impl CheckState<'_> {
 
         // check visible extension implementations
         if matches!(
-            self.definition(target_instance.symbol),
+            self.definition(target_instance.symbol)?,
             Some(dir::Definition::Interface(_))
         ) {
             let module = origin.module();
-            let implemented = self.decide_extension_implementation(
+            let implemented = self.body(module).decide_extension_implementation(
                 origin,
                 module,
                 target.module_id,
                 source,
                 target_instance,
+                None,
             )?;
             if !matches!(implemented, Answer::Ready(false)) {
                 return Ok(implemented);
@@ -366,7 +481,7 @@ impl CheckState<'_> {
         }
 
         // structural interfaces satisfy member-wise
-        let target_definition = self.definition(target_instance.symbol);
+        let target_definition = self.definition(target_instance.symbol)?;
         let is_structural_interface = matches!(
             target_definition,
             Some(dir::Definition::Interface(interface)) if !interface.is_nominal
@@ -384,15 +499,18 @@ impl CheckState<'_> {
     }
 
     /// Return whether one instance target names an interface.
-    fn is_interface_instance(&self, instance: Option<&dir::GenericInstance>) -> bool {
+    pub(in crate::check) fn is_interface_instance(
+        &mut self,
+        instance: Option<&dir::GenericInstance>,
+    ) -> CompilerResult<bool> {
         let Some(instance) = instance else {
-            return false;
+            return Ok(false);
         };
 
-        matches!(
-            self.definition(instance.symbol),
+        Ok(matches!(
+            self.definition(instance.symbol)?,
             Some(dir::Definition::Interface(_))
-        )
+        ))
     }
 
     /// Decide assignability between different nominal applications.
@@ -411,17 +529,16 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one structural shape satisfies one reference target.
-    /// `target_module` is the owner of `target_instance`'s argument list.
     pub(in crate::check) fn decide_source_against_reference(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
-        target_module: destack_source::ModuleId,
+        target_module: ModuleId,
         target_instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         // shapes satisfy structural interfaces member-wise
         let is_structural_interface = matches!(
-            self.definition(target_instance.symbol),
+            self.definition(target_instance.symbol)?,
             Some(dir::Definition::Interface(interface)) if !interface.is_nominal
         );
         if is_structural_interface {
@@ -432,9 +549,6 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one literal shape constructs one struct.
-    ///
-    /// Construction writes every declared instance field; methods and
-    /// associated members never come from literals.
     pub(in crate::check) fn decide_struct_construction(
         &mut self,
         origin: Origin,
@@ -455,8 +569,8 @@ impl CheckState<'_> {
         // require every declared instance field from the literal
         let module = origin.module();
         let mut decision = Answer::Ready(true);
-        for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol) {
-            let lookup = answer!(self.lookup_member(
+        for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol)? {
+            let lookup = answer!(self.body(module).lookup_member(
                 origin,
                 module,
                 target,
@@ -478,15 +592,23 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(false));
             };
 
-            // written fields must hold an assignable type
+            // written fields write into fresh storage
             decision = decision.and(self.decide_relation(
                 origin,
-                Relation::Assignable,
+                Relation::Writable,
                 *supplied,
                 declared,
             )?);
             if decision.is_ready_false() {
                 return Ok(decision);
+            }
+        }
+
+        // reject written fields that are not declared construction fields
+        let fields = self.nominal_field_keys(target_instance.symbol)?;
+        for (key, _) in written {
+            if !fields.contains(&key) {
+                return Ok(Answer::Ready(false));
             }
         }
 
@@ -512,18 +634,18 @@ impl CheckState<'_> {
         let dir::Type::Instance(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol) else {
+        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol)? else {
             return Ok(None);
         };
 
         // scan declared fields in construction order
         let module = origin.module();
-        for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol) {
+        for (key, has_initializer) in self.nominal_instance_fields(target_instance.symbol)? {
             if source_fields.contains(&key) {
                 continue;
             }
 
-            let lookup = match self.lookup_member(
+            let lookup = match self.body(module).lookup_member(
                 origin,
                 module,
                 target,
@@ -569,12 +691,12 @@ impl CheckState<'_> {
         let dir::Type::Instance(target_instance) = self.ty(target)? else {
             return Ok(None);
         };
-        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol) else {
+        let Some(dir::Definition::Struct(_)) = self.definition(target_instance.symbol)? else {
             return Ok(None);
         };
 
         // compare against declared construction fields
-        let fields = self.nominal_field_keys(target_instance.symbol);
+        let fields = self.nominal_field_keys(target_instance.symbol)?;
         for key in source_fields {
             if !fields.contains(&key) {
                 return Ok(Some(key));
@@ -584,10 +706,61 @@ impl CheckState<'_> {
         Ok(None)
     }
 
+    /// Return substituted direct instance field types for one constructed struct.
+    pub(in crate::check) fn struct_field_types(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<SmallVec<[dir::TypeField; 8]>>> {
+        let target = answer!(self.reduce_type_head(origin, target)?);
+        let dir::Type::Instance(instance) = self.ty(target)? else {
+            return Ok(Answer::Ready(SmallVec::new()));
+        };
+
+        self.struct_instance_field_types(origin, target, target.module_id, &instance)
+    }
+
+    /// Return substituted direct fields for one struct instance.
+    fn struct_instance_field_types(
+        &mut self,
+        origin: Origin,
+        receiver: dir::GlobalTypeId,
+        instance_module: ModuleId,
+        instance: &dir::GenericInstance,
+    ) -> CompilerResult<Answer<SmallVec<[dir::TypeField; 8]>>> {
+        let Some(dir::Definition::Struct(definition)) = self.definition(instance.symbol)?.cloned()
+        else {
+            return Ok(Answer::Ready(SmallVec::new()));
+        };
+        let substitution = self
+            .instance_substitution(instance_module, instance)?
+            .with_receiver(receiver);
+        let mut fields = SmallVec::new();
+
+        // collect direct instance fields through the selected target
+        for member in definition.members {
+            let dir::DefinitionMember::Field(field) = member else {
+                continue;
+            };
+            if field.space != dir::MemberSpace::Instance {
+                continue;
+            }
+            let Some(ty) = self.symbol_type_maybe(field.symbol) else {
+                return Ok(Answer::pending([Dependency::SymbolType(field.symbol)]));
+            };
+            let ty = self.substitute_type(origin.module(), ty, &substitution)?;
+            fields.push(dir::TypeField {
+                key: field.key,
+                ty,
+                is_optional: field.is_optional || field.initializer.is_some(),
+                is_readonly: false,
+            });
+        }
+
+        Ok(Answer::Ready(fields))
+    }
+
     /// Return whether one literal may omit one declared field.
-    ///
-    /// Fields with declared initializers fill themselves, and optional
-    /// fields admit their absence as undefined.
     pub(in crate::check) fn field_may_be_omitted(
         &mut self,
         origin: Origin,
@@ -603,37 +776,19 @@ impl CheckState<'_> {
     }
 
     /// Bound open construction arguments from written literal fields.
-    ///
-    /// The writable relation reports the construction afterwards, so
-    /// this only pushes bounds.
     pub(in crate::check) fn constrain_struct_construction(
         &mut self,
         origin: Origin,
         source_fields: &[dir::TypeField],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
-        let target = answer!(self.reduce_type_head(origin, target)?);
-        let dir::Type::Instance(instance) = self.ty(target)? else {
-            return Ok(Answer::Ready(()));
-        };
-
-        let module = origin.module();
-        for key in self.nominal_field_keys(instance.symbol) {
-            let lookup = answer!(self.lookup_member(
-                origin,
-                module,
-                target,
-                dir::MemberSpace::Instance,
-                key
-            )?);
-            let Some(declared) = lookup.field_type() else {
-                continue;
-            };
-            let Some(field) = source_fields.iter().find(|field| field.key == key) else {
+        let declared_fields = answer!(self.struct_field_types(origin, target)?);
+        for declared in declared_fields {
+            let Some(field) = source_fields.iter().find(|field| field.key == declared.key) else {
                 continue;
             };
 
-            answer!(self.constrain(origin, Relation::Assignable, field.ty, declared)?);
+            answer!(self.constrain_type(origin, Relation::Writable, field.ty, declared.ty)?);
         }
 
         Ok(Answer::Ready(()))
@@ -641,21 +796,21 @@ impl CheckState<'_> {
 
     /// Collect one definition's instance field keys through heritage.
     pub(in crate::check) fn nominal_field_keys(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> SmallVec<[dir::StaticKey; 8]> {
-        self.nominal_instance_fields(symbol)
+    ) -> CompilerResult<SmallVec<[dir::StaticKey; 8]>> {
+        Ok(self
+            .nominal_instance_fields(symbol)?
             .into_iter()
             .map(|(key, _)| key)
-            .collect()
+            .collect())
     }
 
-    /// Collect one definition's instance fields with their initializer
-    /// presence through heritage.
+    /// Collect one definition's instance fields with their initializer presence.
     pub(in crate::check) fn nominal_instance_fields(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> SmallVec<[(dir::StaticKey, bool); 8]> {
+    ) -> CompilerResult<SmallVec<[(dir::StaticKey, bool); 8]>> {
         let mut keys = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -667,7 +822,7 @@ impl CheckState<'_> {
             }
             visited.push(symbol);
 
-            let Some(definition) = self.definition(symbol) else {
+            let Some(definition) = self.definition(symbol)? else {
                 continue;
             };
             for member in definition.members() {
@@ -682,14 +837,14 @@ impl CheckState<'_> {
             }
         }
 
-        keys
+        Ok(keys)
     }
 
     /// Collect one definition's member keys through its heritage chain.
     pub(in crate::check) fn nominal_member_keys(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> SmallVec<[dir::StaticKey; 8]> {
+    ) -> CompilerResult<SmallVec<[dir::StaticKey; 8]>> {
         let mut keys = SmallVec::new();
         let mut pending = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
@@ -701,7 +856,7 @@ impl CheckState<'_> {
             }
             visited.push(symbol);
 
-            let Some(definition) = self.definition(symbol) else {
+            let Some(definition) = self.definition(symbol)? else {
                 continue;
             };
             for member in definition.members() {
@@ -714,15 +869,14 @@ impl CheckState<'_> {
             }
         }
 
-        keys
+        Ok(keys)
     }
 
     /// Decide whether one reference source satisfies one structural shape target.
-    /// `source_module` is the owner of `source_instance`'s argument list.
     pub(in crate::check) fn decide_reference_against_target(
         &mut self,
         origin: Origin,
-        source_module: destack_source::ModuleId,
+        source_module: ModuleId,
         source_instance: &dir::GenericInstance,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
@@ -742,7 +896,7 @@ impl CheckState<'_> {
         let source = self.reference_type(origin, source_module, source_instance)?;
         let mut decision = Answer::Ready(true);
         for (key, field_type, is_optional) in fields {
-            let lookup = answer!(self.lookup_member(
+            let lookup = answer!(self.body(module).lookup_member(
                 origin,
                 module,
                 source,
@@ -784,11 +938,10 @@ impl CheckState<'_> {
     }
 
     /// Return the full heritage closure for one nominal application.
-    /// `instance_module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn heritage_closure(
         &mut self,
         origin: Origin,
-        instance_module: destack_source::ModuleId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<HeritageClosure>> {
         let mut closure = HeritageClosure::default();
@@ -796,9 +949,9 @@ impl CheckState<'_> {
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
         // extensions implement each application independently, so
-        // same-symbol instantiations dispatch by form instead of conflicting
+        //  same-symbol instantiations dispatch by form instead of conflicting
         let independent = matches!(
-            self.definition(instance.symbol),
+            self.definition(instance.symbol)?,
             Some(dir::Definition::Extension(_))
         );
 
@@ -814,18 +967,14 @@ impl CheckState<'_> {
             &mut blockers,
         )?;
 
-        let blockers = self.live_blockers(blockers);
-
         Ok(Answer::ready_unless_blocked(closure, blockers))
     }
 
     /// Collect inherited applications from one nominal application.
-    /// `instance_module` is the owner of `instance`'s argument list; every
-    /// rebuilt application below interns fresh lists into `origin.module()`.
     fn collect_heritage(
         &mut self,
         origin: Origin,
-        instance_module: destack_source::ModuleId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
         branch_source: Option<dir::GlobalNodeIdAny>,
         independent: bool,
@@ -833,7 +982,7 @@ impl CheckState<'_> {
         closure: &mut HeritageClosure,
         blockers: &mut SmallVec<[Dependency; 2]>,
     ) -> CompilerResult<()> {
-        let Some(definition) = self.definition(instance.symbol) else {
+        let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(());
         };
         let heritages = definition
@@ -846,17 +995,17 @@ impl CheckState<'_> {
 
         // walk direct heritage edges with applied arguments
         for heritage in heritages {
-            let mut arguments = heritage.arguments;
-            for argument in &mut arguments {
-                *argument = self.substitute_type(origin.module(), *argument, &substitution)?;
-            }
-            let arguments = self.intern_type_ids(module, &arguments)?;
+            let instance =
+                match self.substituted_heritage(origin, module, &substitution, &heritage)? {
+                    Answer::Ready(instance) => instance,
+                    Answer::Pending(pending) => {
+                        blockers.extend(pending);
+                        continue;
+                    }
+                };
             let application = HeritageApplication {
                 source: branch_source.unwrap_or(heritage.source),
-                instance: dir::GenericInstance {
-                    symbol: heritage.symbol,
-                    arguments,
-                },
+                instance,
             };
 
             // cycles are reported at the branch that exposed the cycle
@@ -868,7 +1017,7 @@ impl CheckState<'_> {
             }
 
             // duplicate applications must use the same arguments,
-            // except under declarations that implement each independently
+            //  except under declarations that implement each independently
             if let Some(previous) = closure.application(application.instance.symbol) {
                 if independent {
                     continue;
@@ -910,12 +1059,10 @@ impl CheckState<'_> {
     }
 
     /// Find one heritage application naming a target symbol, transitively.
-    /// `instance_module` is the owner of `instance`'s argument list; the
-    /// returned application's argument list always live in `origin.module()`.
     pub(in crate::check) fn heritage_instance(
         &mut self,
         origin: Origin,
-        instance_module: destack_source::ModuleId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<Option<dir::GenericInstance>>> {
@@ -931,9 +1078,9 @@ impl CheckState<'_> {
     pub(in crate::check) fn constrain_instance_arguments(
         &mut self,
         origin: Origin,
-        source_module: destack_source::ModuleId,
+        source_module: ModuleId,
         source: &dir::GenericInstance,
-        target_module: destack_source::ModuleId,
+        target_module: ModuleId,
         target: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         if source.arguments.len() != target.arguments.len() {
@@ -952,8 +1099,13 @@ impl CheckState<'_> {
             .collect::<SmallVec<[_; 4]>>();
 
         let mut decision = Answer::Ready(true);
-        for (left, right) in pairs {
-            decision = decision.and(self.constrain(origin, Relation::Equal, left, right)?);
+        for (source_argument, target_argument) in pairs {
+            decision = decision.and(self.constrain_type(
+                origin,
+                Relation::Equal,
+                source_argument,
+                target_argument,
+            )?);
             if decision.is_ready_false() {
                 return Ok(decision);
             }
@@ -963,11 +1115,10 @@ impl CheckState<'_> {
     }
 
     /// Allocate one reference type for a nominal application.
-    /// `instance_module` is the owner of `instance`'s argument list.
     fn reference_type(
         &mut self,
         origin: Origin,
-        instance_module: destack_source::ModuleId,
+        instance_module: ModuleId,
         instance: &dir::GenericInstance,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let instance = self.origin_instance(origin, instance_module, *instance)?;

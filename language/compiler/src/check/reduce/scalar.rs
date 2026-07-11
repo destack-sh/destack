@@ -26,12 +26,7 @@ impl ScalarFamily {
 }
 
 impl CheckState<'_> {
-    /// Return the scalar families one type can hold, or `None` when
-    /// it is not fully scalar.
-    ///
-    /// Leaves classify through their `dir` scalar domain.
-    /// Parameters classify through their bounds in scope and unions
-    /// through every distinct element family.
+    /// Return the scalar families one type can hold, or `None` when it is not scalar.
     pub(in crate::check) fn scalar_families(
         &mut self,
         origin: Origin,
@@ -42,7 +37,7 @@ impl CheckState<'_> {
             dir::Type::EnumMember(member) => Some(smallvec![ScalarFamily::Enum(member.owner)]),
             dir::Type::Instance(instance)
                 if matches!(
-                    self.definition(instance.symbol),
+                    self.definition(instance.symbol)?,
                     Some(dir::Definition::Enum(_))
                 ) =>
             {
@@ -59,6 +54,15 @@ impl CheckState<'_> {
             {
                 Some(smallvec![ScalarFamily::Domain(dir::ScalarDomain::Float)])
             }
+            // template literal patterns live in the string domain
+            dir::Type::Operation(operation)
+                if matches!(
+                    self.type_operation(root.module_id, operation)?,
+                    dir::TypeOperation::TemplateLiteral(_)
+                ) =>
+            {
+                Some(smallvec![ScalarFamily::Domain(dir::ScalarDomain::String)])
+            }
             // classify parameters through their scalar bound
             dir::Type::Parameter(parameter) => {
                 let Some(bound) = answer!(self.scalar_parameter_bound(origin, parameter)?) else {
@@ -68,7 +72,10 @@ impl CheckState<'_> {
                 return self.scalar_families(origin, bound);
             }
             // arithmetic operations stay within their operand families
-            dir::Type::Operation(dir::TypeOperation::StaticBinary(binary)) => {
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::StaticBinary(binary) =
+                    self.type_operation(root.module_id, operation)? =>
+            {
                 if binary.operator.yields_boolean() {
                     return Ok(Answer::Ready(Some(smallvec![ScalarFamily::Domain(
                         dir::ScalarDomain::Boolean
@@ -88,7 +95,10 @@ impl CheckState<'_> {
 
                 Some(families)
             }
-            dir::Type::Operation(dir::TypeOperation::StaticUnary(unary)) => {
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::StaticUnary(unary) =
+                    self.type_operation(root.module_id, operation)? =>
+            {
                 if unary.operator.yields_boolean() {
                     return Ok(Answer::Ready(Some(smallvec![ScalarFamily::Domain(
                         dir::ScalarDomain::Boolean
@@ -127,9 +137,6 @@ impl CheckState<'_> {
     }
 
     /// Return the scalar result type of one static operation.
-    ///
-    /// Mirrors rustc's operator result typing: boolean operators yield
-    /// `boolean` and arithmetic stays within the joined operand type.
     pub(in crate::check) fn static_operation_type(
         &mut self,
         origin: Origin,
@@ -138,7 +145,10 @@ impl CheckState<'_> {
         let root = answer!(self.reduce_type_head(origin, ty)?);
         match self.ty(root)? {
             // binary operators join their operand types
-            dir::Type::Operation(dir::TypeOperation::StaticBinary(binary)) => {
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::StaticBinary(binary) =
+                    self.type_operation(root.module_id, operation)? =>
+            {
                 if binary.operator.yields_boolean() {
                     let boolean = self.intern_type(
                         origin.module(),
@@ -162,7 +172,10 @@ impl CheckState<'_> {
             }
 
             // unary operators keep their operand type
-            dir::Type::Operation(dir::TypeOperation::StaticUnary(unary)) => {
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::StaticUnary(unary) =
+                    self.type_operation(root.module_id, operation)? =>
+            {
                 if unary.operator.yields_boolean() {
                     let boolean = self.intern_type(
                         origin.module(),
@@ -180,8 +193,6 @@ impl CheckState<'_> {
     }
 
     /// Return one operand's concrete scalar type.
-    ///
-    /// Literals return none so they adopt their partner operand.
     fn scalar_operand_type(
         &mut self,
         origin: Origin,
@@ -205,9 +216,14 @@ impl CheckState<'_> {
             }
 
             // nested operations type through their own result
-            dir::Type::Operation(
-                dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_),
-            ) => self.static_operation_type(origin, root),
+            dir::Type::Operation(operation)
+                if matches!(
+                    self.type_operation(root.module_id, operation)?,
+                    dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_)
+                ) =>
+            {
+                self.static_operation_type(origin, root)
+            }
 
             _ => Ok(Answer::Ready(None)),
         }

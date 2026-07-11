@@ -6,7 +6,6 @@ use crate::check::{Answer, CheckState, Origin, answer};
 
 impl CheckState<'_> {
     /// Reduce one compiler-recognized intrinsic application.
-    /// `module` is the owner of `instance`'s argument list.
     pub(in crate::check) fn reduce_intrinsic_reference(
         &mut self,
         origin: Origin,
@@ -138,12 +137,12 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
         };
-        let ty = dir::Type::Operation(dir::TypeOperation::StringMapping {
+        let operation = dir::TypeOperation::StringMapping {
             mapping,
             target: *target,
-        });
+        };
 
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_operation(origin.module(), operation)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -158,11 +157,9 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
         };
-        let ty = dir::Type::Operation(dir::TypeOperation::NoInfer(dir::UnaryType {
-            target: *target,
-        }));
+        let operation = dir::TypeOperation::NoInfer(dir::UnaryType { target: *target });
 
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_operation(origin.module(), operation)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -177,11 +174,9 @@ impl CheckState<'_> {
         let [target] = self.type_ids(module, instance.arguments)? else {
             return Ok(Answer::Ready(None));
         };
-        let ty = dir::Type::Operation(dir::TypeOperation::Awaited(dir::UnaryType {
-            target: *target,
-        }));
+        let operation = dir::TypeOperation::Awaited(dir::UnaryType { target: *target });
 
-        let ty = self.intern_type(origin.module(), ty)?;
+        let ty = self.intern_operation(origin.module(), operation)?;
 
         Ok(Answer::Ready(Some(ty)))
     }
@@ -338,8 +333,7 @@ impl CheckState<'_> {
             return_type: Some(return_type),
             is_generator: false,
         };
-        let signature = dir::Type::FunctionSignature(function);
-        let signature = self.intern_type(origin.module(), signature)?;
+        let signature = self.intern_signature(origin.module(), function)?;
 
         Ok(Answer::Ready(Some(signature)))
     }

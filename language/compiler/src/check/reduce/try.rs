@@ -6,9 +6,6 @@ use crate::check::{Answer, CheckState, MemberLookup, Origin, answer};
 
 impl CheckState<'_> {
     /// Project the success or residual type of one tried value.
-    ///
-    /// Nullish union members propagate directly, the remaining carrier contributes its associated
-    /// `Output` or `Residual` type.
     pub(super) fn reduce_try_projection(
         &mut self,
         origin: Origin,
@@ -49,11 +46,11 @@ impl CheckState<'_> {
 
         // project the requested carrier type
         let name = if residual { "Residual" } else { "Output" };
-        let key = dir::StaticKey::Name(dir::StringId::for_text(name));
+        let key = dir::StaticKey::Name(self.strings().intern(name));
         let projected = match carrier {
             None => None,
             Some(carrier) => {
-                let lookup = answer!(self.lookup_member(
+                let lookup = answer!(self.body(origin.module()).lookup_member(
                     origin,
                     module,
                     carrier,

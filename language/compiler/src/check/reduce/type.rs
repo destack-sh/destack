@@ -1,6 +1,6 @@
+use destack_core::{FxIndexMap, FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -13,14 +13,39 @@ impl CheckState<'_> {
         module: ModuleId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if !self.is_dynamic_storage_constraint(ty)? {
-            return Ok(ty);
+        if self.is_dynamic_storage_constraint(ty)? {
+            return self.intern_type(
+                module,
+                dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
+            );
         }
 
-        self.intern_type(
-            module,
-            dir::Type::Dynamic(dir::DynamicType { constraint: ty }),
-        )
+        match self.ty(ty)? {
+            dir::Type::Union(union) => {
+                let elements = self.type_ids(ty.module_id, union.elements)?.to_vec();
+                let mut normalized = Vec::with_capacity(elements.len());
+                for element in elements {
+                    normalized.push(self.storage_type(module, element)?);
+                }
+
+                self.normalized_union_type(module, normalized)
+            }
+            dir::Type::Form(form) => {
+                let value = self.storage_type(module, form.value)?;
+                if value == form.value {
+                    return Ok(ty);
+                }
+
+                self.intern_type(
+                    module,
+                    dir::Type::Form(dir::FormType {
+                        form: form.form,
+                        value,
+                    }),
+                )
+            }
+            _ => Ok(ty),
+        }
     }
 
     /// Return whether one type has no direct storage representation.
@@ -46,13 +71,61 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let mut memo = indexmap::IndexMap::new();
-        let mut active = IndexSet::new();
+        let mut memo = FxIndexMap::default();
+        let mut active = FxIndexSet::default();
 
         // fold the root, then normalize children with aliases kept symbolic
         let id = answer!(self.reduce_type_head(origin, id)?);
 
         self.reduce_type_graph(origin, id, &mut memo, &mut active)
+    }
+
+    /// Splat one signature's closed tuple rest parameter into positional parameters.
+    fn reduce_signature_rest_splat(
+        &mut self,
+        origin: Origin,
+        id: dir::GlobalTypeId,
+        signature: dir::FunctionSignatureType,
+    ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
+        let parameters = self
+            .signature_parameters(id.module_id, signature.parameters)?
+            .to_vec();
+        let Some((rest_index, rest)) = parameters
+            .iter()
+            .enumerate()
+            .find(|(_, parameter)| parameter.is_rest)
+        else {
+            return Ok(Answer::Ready(None));
+        };
+        let rest_ty = answer!(self.reduce_type_head(origin, rest.ty)?);
+        let dir::Type::Tuple(tuple) = self.ty(rest_ty)? else {
+            return Ok(Answer::Ready(None));
+        };
+
+        // rebuild positional parameters from the tuple elements
+        let mut rebuilt = parameters[..rest_index].to_vec();
+        for element in self
+            .tuple_elements(rest_ty.module_id, tuple.elements)?
+            .to_vec()
+        {
+            rebuilt.push(dir::FunctionParameterType {
+                ty: element.ty,
+                is_optional: element.is_optional,
+                is_rest: false,
+            });
+        }
+        rebuilt.extend(parameters[rest_index + 1..].iter().copied());
+        let module = id.module_id;
+        let parameters = self.intern_parameters(module, &rebuilt)?;
+        let splatted = self.intern_signature(
+            module,
+            dir::FunctionSignatureType {
+                parameters,
+                ..signature
+            },
+        )?;
+
+        Ok(Answer::Ready(Some(splatted)))
     }
 
     /// Reduce the head of one type to its simplest available form.
@@ -65,7 +138,7 @@ impl CheckState<'_> {
 
         // key parameter reductions by their assuming scope
         let scope = match self.type_flags(id)?.has_parameter() {
-            true => self.origin_scope(origin),
+            true => self.origin_scope(origin)?,
             false => None,
         };
 
@@ -74,7 +147,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(*reduced));
         }
 
-        let mut expanding = IndexSet::new();
+        let mut expanding = FxIndexSet::default();
         let answer = self.reduce_type_chain(origin, id, &mut expanding)?;
 
         // memoize changed closed reductions outside probes
@@ -95,11 +168,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-        expanding: &mut IndexSet<dir::GlobalTypeId>,
+        expanding: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        destack_core::ensure_sufficient_stack(|| {
-            self.reduce_type_chain_inner(origin, id, expanding)
-        })
+        ensure_sufficient_stack(|| self.reduce_type_chain_inner(origin, id, expanding))
     }
 
     /// Reduce one type chain on the grown stack.
@@ -107,7 +178,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-        expanding: &mut IndexSet<dir::GlobalTypeId>,
+        expanding: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         // report circular expansions once and poison the chain
         if !expanding.insert(id) {
@@ -122,6 +193,48 @@ impl CheckState<'_> {
             // open variables wait for their solutions
             dir::Type::Variable(variable) => {
                 Ok(Answer::pending([self.variable_dependency(variable)?]))
+            }
+            // closed unions drop structural duplicates, which arise when
+            //  instantiation binds several parameters to one interned type
+            //  from different modules
+            dir::Type::Union(union) if !self.type_flags(id)?.has_variable() => {
+                let elements = self.type_ids(id.module_id, union.elements)?.to_vec();
+                let mut kept = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let element = self.settled_root(element)?;
+                    let mut duplicate = false;
+                    for existing in &kept {
+                        if self.union_element_duplicates(*existing, element)? {
+                            duplicate = true;
+
+                            break;
+                        }
+                    }
+                    if !duplicate {
+                        kept.push(element);
+                    }
+                }
+
+                match kept.as_slice() {
+                    [single] => Ok(Answer::Ready(*single)),
+                    kept if kept.len() == union.elements.len() as usize => Ok(Answer::Ready(id)),
+                    kept => {
+                        let elements = self.intern_type_ids(id.module_id, kept)?;
+
+                        Ok(Answer::Ready(self.intern_type(
+                            id.module_id,
+                            dir::Type::Union(dir::UnionType { elements }),
+                        )?))
+                    }
+                }
+            }
+            // rest parameters with closed tuple types splat positionally
+            dir::Type::FunctionSignature(signature) => {
+                let signature = self.type_signature(id.module_id, signature)?;
+                match answer!(self.reduce_signature_rest_splat(origin, id, signature)?) {
+                    Some(splatted) => Ok(Answer::Ready(splatted)),
+                    None => Ok(Answer::Ready(id)),
+                }
             }
 
             // transparent alias references expand to their substituted bodies
@@ -145,6 +258,7 @@ impl CheckState<'_> {
 
             // member projections resolve through their owners
             dir::Type::Member(member) => {
+                let member = self.type_member(id.module_id, member)?;
                 // members live beneath memory forms, so owners shed them
                 let owner = answer!(self.value_beneath_forms(origin, member.owner)?);
                 // parameter owners qualify through their unique bound
@@ -152,27 +266,30 @@ impl CheckState<'_> {
                 if qualifier.is_none()
                     && let dir::Type::Parameter(parameter) = self.ty(owner)?
                 {
-                    qualifier = answer!(self.projection_qualifier(origin, parameter, member.key)?);
+                    qualifier = answer!(
+                        self.body(origin.module())
+                            .projection_qualifier(origin, parameter, member.key)?
+                    );
                 }
                 if owner != member.owner || qualifier != member.qualifier {
                     let arguments = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
                         self.type_ids(id.module_id, member.arguments)?,
                     );
                     let arguments = self.intern_type_ids(origin.module(), &arguments)?;
-                    let rebuilt = self.intern_type(
+                    let rebuilt = self.intern_member(
                         origin.module(),
-                        dir::Type::Member(dir::MemberType {
+                        dir::MemberType {
                             owner,
                             key: member.key,
                             arguments,
                             qualifier,
-                        }),
+                        },
                     )?;
 
                     return self.reduce_type_chain(origin, rebuilt, expanding);
                 }
 
-                let projection = self.project_member(origin, &member)?;
+                let projection = self.body(origin.module()).project_member(origin, &member)?;
                 let Some(projected) = answer!(projection) else {
                     return Ok(Answer::Ready(id));
                 };
@@ -183,6 +300,7 @@ impl CheckState<'_> {
 
             // reduce type operations once their inputs close
             dir::Type::Operation(operation) => {
+                let operation = self.type_operation(id.module_id, operation)?;
                 let reduction = self.reduce_operation(origin, id, &operation)?;
 
                 let Some(reduced) = answer!(reduction) else {
@@ -194,19 +312,17 @@ impl CheckState<'_> {
             }
 
             // borrows absorb payload placement and close their components
-            dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed { .. }) => {
-                let dir::Form::Borrowed { lifetime, access } = form.form else {
-                    unreachable!("the borrowed arm only matches borrowed forms");
-                };
+            dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
+                let borrow = self.type_borrow(id.module_id, borrow)?;
 
                 // close the lifetime and access components
-                let closed_lifetime = match self.reduce_type_head(origin, lifetime)? {
+                let closed_lifetime = match self.reduce_type_head(origin, borrow.lifetime)? {
                     Answer::Ready(closed) => closed,
-                    Answer::Pending(_) => lifetime,
+                    Answer::Pending(_) => borrow.lifetime,
                 };
-                let closed_access = match self.reduce_type_head(origin, access)? {
+                let closed_access = match self.reduce_type_head(origin, borrow.access)? {
                     Answer::Ready(closed) => closed,
-                    Answer::Pending(_) => access,
+                    Answer::Pending(_) => borrow.access,
                 };
 
                 let value = match self.reduce_type_head(origin, form.value)? {
@@ -216,17 +332,19 @@ impl CheckState<'_> {
                 };
                 let (inner, closed_access) =
                     self.reduce_borrow_payload(origin, value, closed_access)?;
-                if inner == form.value && closed_lifetime == lifetime && closed_access == access {
+                if inner == form.value
+                    && closed_lifetime == borrow.lifetime
+                    && closed_access == borrow.access
+                {
                     return Ok(Answer::Ready(id));
                 }
 
+                let closed_form =
+                    self.intern_borrow(origin.module(), closed_lifetime, closed_access)?;
                 let rebuilt = self.intern_type(
                     origin.module(),
                     dir::Type::Form(dir::FormType {
-                        form: dir::Form::Borrowed {
-                            lifetime: closed_lifetime,
-                            access: closed_access,
-                        },
+                        form: closed_form,
                         value: inner,
                     }),
                 )?;
@@ -246,6 +364,36 @@ impl CheckState<'_> {
                     answer!(self.is_default_ownership_form(origin, form.form, value)?);
                 if is_default_ownership {
                     return self.reduce_type_chain(origin, value, expanding);
+                }
+
+                if form.form == dir::Form::Readonly {
+                    // readonly views distribute over their payload's arms
+                    if let dir::Type::Union(union) = self.ty(value)? {
+                        let elements = self.type_ids(value.module_id, union.elements)?.to_vec();
+                        let mut viewed = Vec::with_capacity(elements.len());
+                        for element in elements {
+                            let arm = self.intern_type(
+                                origin.module(),
+                                dir::Type::Form(dir::FormType {
+                                    form: dir::Form::Readonly,
+                                    value: element,
+                                }),
+                            )?;
+                            match self.reduce_type_head(origin, arm)? {
+                                Answer::Ready(arm) => viewed.push(arm),
+                                Answer::Pending(_) => viewed.push(arm),
+                            }
+                        }
+                        let rebuilt = self.normalized_union_type(origin.module(), viewed)?;
+
+                        return self.reduce_type_chain(origin, rebuilt, expanding);
+                    }
+
+                    // readonly views over immutable payloads grant nothing less
+                    let mut active = SmallVec::new();
+                    if answer!(self.type_is_immutable(origin, value, &mut active)?) {
+                        return self.reduce_type_chain(origin, value, expanding);
+                    }
                 }
 
                 if value == form.value {
@@ -314,8 +462,8 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
-        memo: &mut IndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
-        active: &mut IndexSet<dir::GlobalTypeId>,
+        memo: &mut FxIndexMap<dir::GlobalTypeId, dir::GlobalTypeId>,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         if let Some(done) = memo.get(&id).copied() {
             return Ok(Answer::Ready(done));
@@ -341,7 +489,7 @@ impl CheckState<'_> {
         }
 
         // reduce children first so rebuilt composite roots can reduce
-        let mut replacements = indexmap::IndexMap::new();
+        let mut replacements = FxIndexMap::default();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let root = self.ty(id)?;
@@ -383,13 +531,12 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type is a transparent alias application.
-    /// Compiler-recognized language items reduce intrinsically instead.
     fn is_alias_instance(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
         let dir::Type::Instance(instance) = self.ty(id)? else {
             return Ok(false);
         };
         if !matches!(
-            self.definition(instance.symbol),
+            self.definition(instance.symbol)?,
             Some(dir::Definition::TypeAlias(_))
         ) {
             return Ok(false);
@@ -399,7 +546,6 @@ impl CheckState<'_> {
     }
 
     /// Return the substituted body of one transparent type alias application.
-    /// `instance_module` is the owner of `instance`'s argument list.
     fn type_alias_body(
         &mut self,
         origin: Origin,
@@ -408,7 +554,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
         // expand transparent alias definitions only
         let value = {
-            let Some(definition) = self.definition(instance.symbol) else {
+            let Some(definition) = self.definition(instance.symbol)? else {
                 return Ok(Answer::Ready(None));
             };
             let dir::Definition::TypeAlias(definition) = definition else {
@@ -422,7 +568,7 @@ impl CheckState<'_> {
         let source = self.origin_source_node(origin)?;
         let substitution = self.instance_substitution(instance_module, instance)?;
         let arguments = self.type_ids(instance_module, instance.arguments)?.to_vec();
-        if let Some(template) = self.symbol_template(instance.symbol) {
+        if let Some(template) = self.symbol_template(instance.symbol)? {
             let parameters = self.generic_template_parameters(template);
             let sources = SmallVec::<[dir::GlobalNodeIdAny; 4]>::from_iter(std::iter::repeat_n(
                 source.into_global(origin.module()),

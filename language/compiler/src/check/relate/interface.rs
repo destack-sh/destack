@@ -5,6 +5,17 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, MemberRole, Origin, Relation, TypeSubstitution, answer};
 
+use super::nominal::HeritageApplication;
+
+/// Requirements imposed by one applied interface.
+#[derive(Debug, Clone)]
+pub(in crate::check) struct InterfaceRequirements {
+    /// The members declared directly by the interface.
+    pub(in crate::check) members: SmallVec<[InterfaceMember; 8]>,
+    /// The directly inherited interface applications.
+    pub(in crate::check) inherited: SmallVec<[HeritageApplication; 8]>,
+}
+
 /// One member required by an applied interface.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::check) struct InterfaceMember {
@@ -18,11 +29,14 @@ pub(in crate::check) struct InterfaceMember {
     pub(in crate::check) role: MemberRole,
     /// Whether the member carries a default implementation.
     pub(in crate::check) has_default: bool,
+    /// Whether the member is optional on its declaration.
+    pub(in crate::check) is_optional: bool,
+    /// Whether the member rejects writes after initialization.
+    pub(in crate::check) is_readonly: bool,
 }
 
 impl CheckState<'_> {
     /// Decide whether one source exposes every member of one interface application.
-    /// `target_module` is the owner of `target_instance`'s argument list.
     pub(in crate::check) fn decide_interface_satisfied(
         &mut self,
         origin: Origin,
@@ -31,23 +45,36 @@ impl CheckState<'_> {
         target_instance: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         let module = origin.module();
-        let members =
-            answer!(self.interface_members(origin, target_module, target_instance, source)?);
+        let requirements =
+            answer!(self.interface_requirements(origin, target_module, target_instance, source)?);
 
         // require each member from the source
         let mut decision = Answer::Ready(true);
-        for member in members {
-            let lookup =
-                answer!(self.lookup_member(origin, module, source, member.space, member.key)?);
+        for member in requirements.members {
+            let lookup = answer!(self.body(module).lookup_member(
+                origin,
+                module,
+                source,
+                member.space,
+                member.key
+            )?);
 
-            let found = lookup.value_type();
-            let Some(found) = found else {
-                return Ok(Answer::Ready(false));
+            // require presence when an associated type stays abstract
+            let Some(member_type) = member.ty else {
+                if lookup.is_found() {
+                    continue;
+                } else {
+                    return Ok(Answer::Ready(false));
+                }
             };
 
-            // associated types without values only need presence
-            let Some(member_type) = member.ty else {
-                continue;
+            let Some(found) = lookup.value_type() else {
+                // absent optional and defaulted members satisfy by omission
+                if member.is_optional || member.has_default {
+                    continue;
+                }
+
+                return Ok(Answer::Ready(false));
             };
 
             let relation = member.role.conformance_relation();
@@ -58,60 +85,79 @@ impl CheckState<'_> {
             }
         }
 
+        // require each inherited interface through ordinary interface relation
+        for inherited in requirements.inherited {
+            let interface = self.intern_type(
+                module,
+                dir::Type::Instance(dir::GenericInstance {
+                    symbol: inherited.instance.symbol,
+                    arguments: inherited.instance.arguments,
+                }),
+            )?;
+            decision = decision.and(self.decide_relation(
+                origin,
+                Relation::Implements,
+                source,
+                interface,
+            )?);
+            if decision.is_ready_false() {
+                return Ok(decision);
+            }
+        }
+
         Ok(decision)
     }
 
-    /// Return the members required by one interface application.
-    /// `instance_module` is the owner of `instance`'s argument list.
-    pub(in crate::check) fn interface_members(
+    /// Return requirements imposed by one interface application.
+    pub(in crate::check) fn interface_requirements(
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
         instance: &dir::GenericInstance,
         receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<SmallVec<[InterfaceMember; 8]>>> {
-        let closure = answer!(self.heritage_closure(origin, instance_module, instance)?);
-        let mut members = SmallVec::<[InterfaceMember; 8]>::new();
-
-        // collect inherited members before direct members; heritage_closure
-        // interns every inherited application's argument list into origin.module()
-        for application in closure.applications {
-            answer!(self.collect_interface_members(
-                origin,
-                origin.module(),
-                &application.instance,
-                receiver,
-                &mut members
-            )?);
-        }
-        answer!(self.collect_interface_members(
-            origin,
-            instance_module,
-            instance,
-            receiver,
-            &mut members
-        )?);
-
-        Ok(Answer::Ready(members))
-    }
-
-    /// Collect direct members required by one applied interface.
-    /// `instance_module` is the owner of `instance`'s argument list.
-    fn collect_interface_members(
-        &mut self,
-        origin: Origin,
-        instance_module: ModuleId,
-        instance: &dir::GenericInstance,
-        receiver: dir::GlobalTypeId,
-        required: &mut SmallVec<[InterfaceMember; 8]>,
-    ) -> CompilerResult<Answer<()>> {
-        let Some(dir::Definition::Interface(definition)) = self.definition(instance.symbol) else {
-            return Ok(Answer::Ready(()));
-        };
-        let members = definition.members.clone();
+    ) -> CompilerResult<Answer<InterfaceRequirements>> {
         let substitution = self
             .instance_substitution(instance_module, instance)?
             .with_receiver(receiver);
+
+        self.interface_requirements_with_substitution(origin, instance.symbol, &substitution)
+    }
+
+    /// Return requirements imposed by one interface under an existing substitution.
+    pub(in crate::check) fn interface_requirements_with_substitution(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        substitution: &TypeSubstitution,
+    ) -> CompilerResult<Answer<InterfaceRequirements>> {
+        let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
+            return Ok(Answer::Ready(InterfaceRequirements {
+                members: SmallVec::new(),
+                inherited: SmallVec::new(),
+            }));
+        };
+        let inherited = definition.extends.clone();
+        let mut members = SmallVec::new();
+
+        // collect only the named interface's own members
+        answer!(self.collect_interface_members(origin, symbol, substitution, &mut members)?);
+        let inherited = answer!(self.apply_interface_heritage(origin, substitution, inherited)?);
+
+        Ok(Answer::Ready(InterfaceRequirements { members, inherited }))
+    }
+
+    /// Collect direct members required by one applied interface.
+    fn collect_interface_members(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        substitution: &TypeSubstitution,
+        required: &mut SmallVec<[InterfaceMember; 8]>,
+    ) -> CompilerResult<Answer<()>> {
+        let Some(dir::Definition::Interface(definition)) = self.definition(symbol)? else {
+            return Ok(Answer::Ready(()));
+        };
+        let members = definition.members.clone();
 
         // collect direct interface members with applied arguments
         for member in members {
@@ -122,8 +168,12 @@ impl CheckState<'_> {
                 continue;
             };
             let ty = match answer!(self.definition_member_type(&member)?) {
-                Some(ty) => Some(self.substitute_type(origin.module(), ty, &substitution)?),
+                Some(ty) => Some(self.substitute_type(origin.module(), ty, substitution)?),
                 ty => ty,
+            };
+            let (is_optional, is_readonly) = match &member {
+                dir::DefinitionMember::Field(field) => (field.is_optional, field.is_readonly),
+                _ => (false, false),
             };
             required.push(InterfaceMember {
                 space: member.space(),
@@ -131,14 +181,85 @@ impl CheckState<'_> {
                 ty,
                 role,
                 has_default: member.is_default(),
+                is_optional,
+                is_readonly,
             });
         }
 
         Ok(Answer::Ready(()))
     }
 
+    /// Collect one interface application's instance fields, inherited first.
+    pub(in crate::check) fn interface_instance_fields(
+        &mut self,
+        origin: Origin,
+        instance_module: ModuleId,
+        instance: &dir::GenericInstance,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<Vec<dir::TypeField>>>> {
+        if !matches!(
+            self.symbol_kind(instance.symbol),
+            dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
+        ) {
+            return Ok(Answer::Ready(None));
+        }
+
+        let requirements =
+            answer!(self.interface_requirements(origin, instance_module, instance, receiver)?);
+        let mut fields = Vec::new();
+        for inherited in requirements.inherited {
+            let nested = answer!(self.interface_instance_fields(
+                origin,
+                origin.module(),
+                &inherited.instance,
+                receiver,
+            )?);
+            fields.extend(nested.unwrap_or_default());
+        }
+        for member in requirements.members {
+            if member.space != dir::MemberSpace::Instance {
+                continue;
+            }
+            let Some(ty) = member.ty else {
+                continue;
+            };
+
+            fields.push(dir::TypeField {
+                key: member.key,
+                ty,
+                is_optional: member.is_optional || member.has_default,
+                is_readonly: member.is_readonly,
+            });
+        }
+
+        Ok(Answer::Ready(Some(fields)))
+    }
+
+    /// Apply interface and receiver substitutions to direct heritage clauses.
+    fn apply_interface_heritage(
+        &mut self,
+        origin: Origin,
+        substitution: &TypeSubstitution,
+        heritages: Vec<dir::NominalHeritage>,
+    ) -> CompilerResult<Answer<SmallVec<[HeritageApplication; 8]>>> {
+        let module = origin.module();
+        let mut applied = SmallVec::new();
+
+        // substitute direct inherited interface applications
+        for heritage in heritages {
+            let instance =
+                answer!(self.substituted_heritage(origin, module, substitution, &heritage)?);
+
+            applied.push(HeritageApplication {
+                source: heritage.source,
+                instance,
+            });
+        }
+
+        Ok(Answer::Ready(applied))
+    }
+
     /// Decide whether one member owner satisfies one interface.
-    /// `interface_module` owns the interface instance's argument list.
     pub(in crate::check) fn member_owner_implements_interface(
         &mut self,
         origin: Origin,
@@ -150,7 +271,7 @@ impl CheckState<'_> {
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
         // prove extension owners through their declared implemented interfaces
-        if matches!(self.definition(owner), Some(dir::Definition::Extension(_))) {
+        if matches!(self.definition(owner)?, Some(dir::Definition::Extension(_))) {
             let owner_arguments = owner_arguments
                 .iter()
                 .map(|argument| argument.argument)
@@ -183,7 +304,7 @@ impl CheckState<'_> {
         protocol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<bool>> {
         // prove extension owners through their declared implemented interfaces
-        if matches!(self.definition(owner), Some(dir::Definition::Extension(_))) {
+        if matches!(self.definition(owner)?, Some(dir::Definition::Extension(_))) {
             let owner_arguments = owner_arguments
                 .iter()
                 .map(|argument| argument.argument)
@@ -224,7 +345,6 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one applied extension implements one interface.
-    /// `interface_module` owns the interface instance's argument list.
     fn extension_instance_implements_interface(
         &mut self,
         origin: Origin,
@@ -234,21 +354,11 @@ impl CheckState<'_> {
         extension_arguments: &[dir::GlobalTypeId],
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol) else {
+        let Some((implements, substitution)) =
+            self.applied_extension_implements(module, extension_symbol, extension_arguments)?
+        else {
             return Ok(Answer::Ready(false));
         };
-        let implements = extension.implements.clone();
-        if implements.is_empty() {
-            return Ok(Answer::Ready(false));
-        }
-
-        // substitute applied extension arguments into implemented interfaces
-        let arguments = self.intern_type_ids(module, extension_arguments)?;
-        let extension = dir::GenericInstance {
-            symbol: extension_symbol,
-            arguments,
-        };
-        let substitution = self.instance_substitution(module, &extension)?;
 
         self.extension_implements_interface(
             origin,
@@ -269,12 +379,28 @@ impl CheckState<'_> {
         extension_arguments: &[dir::GlobalTypeId],
         protocol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol) else {
+        let Some((implements, substitution)) =
+            self.applied_extension_implements(module, extension_symbol, extension_arguments)?
+        else {
             return Ok(Answer::Ready(false));
+        };
+
+        self.extension_has_protocol(origin, module, &substitution, &implements, protocol)
+    }
+
+    /// Return one applied extension's implemented heritage and substitution.
+    fn applied_extension_implements(
+        &mut self,
+        module: ModuleId,
+        extension_symbol: dir::GlobalSymbolId,
+        extension_arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<(Vec<dir::NominalHeritage>, TypeSubstitution)>> {
+        let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)? else {
+            return Ok(None);
         };
         let implements = extension.implements.clone();
         if implements.is_empty() {
-            return Ok(Answer::Ready(false));
+            return Ok(None);
         }
 
         // substitute applied extension arguments into implemented interfaces
@@ -285,13 +411,10 @@ impl CheckState<'_> {
         };
         let substitution = self.instance_substitution(module, &extension)?;
 
-        self.extension_has_protocol(origin, module, &substitution, &implements, protocol)
+        Ok(Some((implements, substitution)))
     }
 
     /// Decide whether one extension implementation covers one requested interface.
-    ///
-    /// `interface_module` owns the interface arguments; heritage lists intern
-    /// into `module` and inherited applications into the origin module.
     pub(in crate::check) fn extension_implements_interface(
         &mut self,
         origin: Origin,
@@ -306,13 +429,16 @@ impl CheckState<'_> {
             .type_ids(interface_module, interface.arguments)?
             .to_vec();
         for heritage in implements {
-            let implemented = self.substituted_heritage(module, substitution, heritage)?;
+            let implemented =
+                answer!(self.substituted_heritage(origin, module, substitution, heritage)?);
             let matches = if implemented.symbol == interface.symbol {
                 let implemented_arguments = self.type_ids(module, implemented.arguments)?.to_vec();
 
                 self.relate_type_arguments(
                     origin,
                     interface.symbol,
+                    self.default_symbol_context(interface.symbol),
+                    Relation::Assignable,
                     &implemented_arguments,
                     &interface_arguments,
                 )?
@@ -326,6 +452,8 @@ impl CheckState<'_> {
                 self.relate_type_arguments(
                     origin,
                     interface.symbol,
+                    self.default_symbol_context(interface.symbol),
+                    Relation::Assignable,
                     &inherited_arguments,
                     &interface_arguments,
                 )?
@@ -352,7 +480,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<bool>> {
         // compare each declared interface by protocol symbol
         for heritage in implements {
-            let implemented = self.substituted_heritage(module, substitution, heritage)?;
+            let implemented =
+                answer!(self.substituted_heritage(origin, module, substitution, heritage)?);
             if implemented.symbol == protocol {
                 return Ok(Answer::Ready(true));
             }
@@ -365,23 +494,32 @@ impl CheckState<'_> {
     }
 
     /// Return implemented heritage after extension generic substitution.
-    /// The returned instance's argument list land in `module`.
     pub(in crate::check) fn substituted_heritage(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         substitution: &TypeSubstitution,
         heritage: &dir::NominalHeritage,
-    ) -> CompilerResult<dir::GenericInstance> {
-        let arguments = heritage
-            .arguments
-            .iter()
-            .map(|argument| self.substitute_type(module, *argument, substitution))
-            .collect::<CompilerResult<Vec<_>>>()?;
+    ) -> CompilerResult<Answer<dir::GenericInstance>> {
+        let mut arguments = Vec::new();
+
+        // substitute and normalize each inherited argument; open roots pass
+        //  through raw so bounds can flow into them
+        for argument in heritage.arguments.iter().copied() {
+            let argument = self.substitute_type(module, argument, substitution)?;
+            let argument = self.settled_root(argument)?;
+            let argument = match self.root_variable(argument)? {
+                Some(_) => argument,
+                None => answer!(self.reduce_type_head(origin, argument)?),
+            };
+
+            arguments.push(argument);
+        }
         let arguments = self.intern_type_ids(module, &arguments)?;
 
-        Ok(dir::GenericInstance {
+        Ok(Answer::Ready(dir::GenericInstance {
             symbol: heritage.symbol,
             arguments,
-        })
+        }))
     }
 }

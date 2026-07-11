@@ -1,45 +1,54 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{Answer, CheckState, Origin, answer};
+
+/// Return whether one form is a non-owning view over its payload.
+fn form_is_view(form: dir::Form) -> bool {
+    matches!(
+        form,
+        dir::Form::Borrowed(_) | dir::Form::Readonly | dir::Form::Raw
+    )
+}
 
 impl CheckState<'_> {
     /// Return whether two types can share at least one runtime inhabitant.
     pub(in crate::check) fn types_may_overlap(
         &mut self,
         origin: Origin,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<bool>> {
-        let left = answer!(self.reduce_type_head(origin, left)?);
-        let right = answer!(self.reduce_type_head(origin, right)?);
+        let source = answer!(self.reduce_type_head(origin, source)?);
+        let target = answer!(self.reduce_type_head(origin, target)?);
 
-        let left_type = self.ty(left)?;
-        let right_type = self.ty(right)?;
+        let source_type = self.ty(source)?;
+        let target_type = self.ty(target)?;
 
         // reject empty inhabitants
-        if matches!(left_type, dir::Type::Never) || matches!(right_type, dir::Type::Never) {
+        if matches!(source_type, dir::Type::Never) || matches!(target_type, dir::Type::Never) {
             return Ok(Answer::Ready(false));
         }
 
-        if left == right {
+        if source == target {
             return Ok(Answer::Ready(true));
         }
 
         // split unions on either side
-        if let dir::Type::Union(union) = left_type {
-            let elements = self.type_ids(left.module_id, union.elements)?.to_vec();
+        if let dir::Type::Union(union) = source_type {
+            let elements = self.type_ids(source.module_id, union.elements)?.to_vec();
 
-            return self.any_type_arm_may_overlap(origin, elements, right);
+            return self.any_type_arm_may_overlap(origin, elements, target);
         }
-        if let dir::Type::Union(union) = right_type {
-            let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
+        if let dir::Type::Union(union) = target_type {
+            let elements = self.type_ids(target.module_id, union.elements)?.to_vec();
 
-            return self.any_type_arm_may_overlap(origin, elements, left);
+            return self.any_type_arm_may_overlap(origin, elements, source);
         }
 
         // compare generic parameters through their declared bounds
-        if let dir::Type::Parameter(parameter) = left_type {
+        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = source_type {
             let Some(constraint) = self
                 .generic_parameter(parameter)
                 .and_then(|binding| binding.constraint)
@@ -47,9 +56,9 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(true));
             };
 
-            return self.types_may_overlap(origin, constraint, right);
+            return self.types_may_overlap(origin, constraint, target);
         }
-        if let dir::Type::Parameter(parameter) = right_type {
+        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = target_type {
             let Some(constraint) = self
                 .generic_parameter(parameter)
                 .and_then(|binding| binding.constraint)
@@ -57,32 +66,12 @@ impl CheckState<'_> {
                 return Ok(Answer::Ready(true));
             };
 
-            return self.types_may_overlap(origin, left, constraint);
-        }
-        if let dir::Type::Erased(parameter) = left_type {
-            let Some(constraint) = self
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.constraint)
-            else {
-                return Ok(Answer::Ready(true));
-            };
-
-            return self.types_may_overlap(origin, constraint, right);
-        }
-        if let dir::Type::Erased(parameter) = right_type {
-            let Some(constraint) = self
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.constraint)
-            else {
-                return Ok(Answer::Ready(true));
-            };
-
-            return self.types_may_overlap(origin, left, constraint);
+            return self.types_may_overlap(origin, source, constraint);
         }
 
         // keep indeterminate heads conservative
         let has_indeterminate_head = matches!(
-            left_type,
+            source_type,
             dir::Type::Any
                 | dir::Type::Unknown
                 | dir::Type::Object
@@ -90,7 +79,7 @@ impl CheckState<'_> {
                 | dir::Type::Dynamic(_)
                 | dir::Type::Error
         ) || matches!(
-            right_type,
+            target_type,
             dir::Type::Any
                 | dir::Type::Unknown
                 | dir::Type::Object
@@ -103,71 +92,57 @@ impl CheckState<'_> {
         }
 
         // owning forms materialize to their payload; views only share
-        // inhabitants with other views over an overlapping payload
-        match (&left_type, &right_type) {
-            (dir::Type::Form(left_form), dir::Type::Form(right_form)) => {
-                let left_is_view = matches!(
-                    left_form.form,
-                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
-                );
-                let right_is_view = matches!(
-                    right_form.form,
-                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
-                );
-                if left_is_view != right_is_view {
+        //  inhabitants with other views over an overlapping payload
+        match (&source_type, &target_type) {
+            (dir::Type::Form(source_form), dir::Type::Form(target_form)) => {
+                if form_is_view(source_form.form) != form_is_view(target_form.form) {
                     return Ok(Answer::Ready(false));
                 }
 
-                return self.types_may_overlap(origin, left_form.value, right_form.value);
+                return self.types_may_overlap(origin, source_form.value, target_form.value);
             }
             (dir::Type::Form(form), _) => {
-                if matches!(
-                    form.form,
-                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
-                ) {
+                if form_is_view(form.form) {
                     return Ok(Answer::Ready(false));
                 }
 
-                return self.types_may_overlap(origin, form.value, right);
+                return self.types_may_overlap(origin, form.value, target);
             }
             (_, dir::Type::Form(form)) => {
-                if matches!(
-                    form.form,
-                    dir::Form::Borrowed { .. } | dir::Form::Readonly | dir::Form::Raw
-                ) {
+                if form_is_view(form.form) {
                     return Ok(Answer::Ready(false));
                 }
 
-                return self.types_may_overlap(origin, left, form.value);
+                return self.types_may_overlap(origin, source, form.value);
             }
             _ => {}
         }
 
         // compare exact scalar inhabitant shapes
-        if let Some(overlaps) = Self::scalar_types_may_overlap(&left_type, &right_type) {
+        if let Some(overlaps) = Self::scalar_types_may_overlap(&source_type, &target_type) {
             return Ok(Answer::Ready(overlaps));
         }
 
         // reject disjoint scalar domains
-        let left_domain = left_type.scalar_domain();
-        let right_domain = right_type.scalar_domain();
-        if let (Some(left), Some(right)) = (left_domain, right_domain) {
-            return Ok(Answer::Ready(left == right));
+        let source_domain = source_type.scalar_domain();
+        let target_domain = target_type.scalar_domain();
+        if let (Some(source), Some(target)) = (source_domain, target_domain) {
+            return Ok(Answer::Ready(source == target));
         }
-        if left_domain.is_some() || right_domain.is_some() {
+        if source_domain.is_some() || target_domain.is_some() {
             return Ok(Answer::Ready(false));
         }
 
         // reject distinct concrete runtime identities
-        if let (dir::Type::Instance(left_instance), dir::Type::Instance(right_instance)) =
-            (left_type, right_type)
+        if let (dir::Type::Instance(source_instance), dir::Type::Instance(target_instance)) =
+            (source_type, target_type)
         {
             return self.generic_instances_may_overlap(
                 origin,
-                left.module_id,
-                &left_instance,
-                right.module_id,
-                &right_instance,
+                source.module_id,
+                &source_instance,
+                target.module_id,
+                &target_instance,
             );
         }
 
@@ -191,12 +166,16 @@ impl CheckState<'_> {
     }
 
     /// Return exact overlap for scalar singleton and interval types.
-    fn scalar_types_may_overlap(left: &dir::Type, right: &dir::Type) -> Option<bool> {
-        let overlaps = match (left, right) {
-            (dir::Type::Literal(left), dir::Type::Literal(right)) => left == right,
-            (dir::Type::Literal(left), dir::Type::Range(right)) => right.contains_literal(*left),
-            (dir::Type::Range(left), dir::Type::Literal(right)) => left.contains_literal(*right),
-            (dir::Type::Range(left), dir::Type::Range(right)) => left.overlaps_range(right),
+    fn scalar_types_may_overlap(source: &dir::Type, target: &dir::Type) -> Option<bool> {
+        let overlaps = match (source, target) {
+            (dir::Type::Literal(source), dir::Type::Literal(target)) => source == target,
+            (dir::Type::Literal(source), dir::Type::Range(target)) => {
+                target.contains_literal(*source)
+            }
+            (dir::Type::Range(source), dir::Type::Literal(target)) => {
+                source.contains_literal(*target)
+            }
+            (dir::Type::Range(source), dir::Type::Range(target)) => source.overlaps_range(target),
             (dir::Type::Literal(literal), primitive @ dir::Type::Primitive(_))
             | (primitive @ dir::Type::Primitive(_), dir::Type::Literal(literal)) => {
                 literal.widens_to(primitive)
@@ -211,51 +190,55 @@ impl CheckState<'_> {
     fn generic_instances_may_overlap(
         &mut self,
         origin: Origin,
-        left_module: destack_source::ModuleId,
-        left: &dir::GenericInstance,
-        right_module: destack_source::ModuleId,
-        right: &dir::GenericInstance,
+        source_module: ModuleId,
+        source: &dir::GenericInstance,
+        target_module: ModuleId,
+        target: &dir::GenericInstance,
     ) -> CompilerResult<Answer<bool>> {
-        if left.symbol == right.symbol {
-            let left_arguments = self.type_ids(left_module, left.arguments)?.to_vec();
-            let right_arguments = self.type_ids(right_module, right.arguments)?.to_vec();
+        if source.symbol == target.symbol {
+            let source_arguments = self.type_ids(source_module, source.arguments)?.to_vec();
+            let target_arguments = self.type_ids(target_module, target.arguments)?.to_vec();
 
-            return self.generic_arguments_may_overlap(origin, &left_arguments, &right_arguments);
+            return self.generic_arguments_may_overlap(
+                origin,
+                &source_arguments,
+                &target_arguments,
+            );
         }
 
-        let left_kind = self.symbol_kind(left.symbol);
-        let right_kind = self.symbol_kind(right.symbol);
-        let left_is_concrete = matches!(
-            left_kind,
+        let source_kind = self.symbol_kind(source.symbol);
+        let target_kind = self.symbol_kind(target.symbol);
+        let source_is_concrete = matches!(
+            source_kind,
             dir::SymbolKind::Class
                 | dir::SymbolKind::Struct
                 | dir::SymbolKind::Enum
                 | dir::SymbolKind::Newtype
         );
-        let right_is_concrete = matches!(
-            right_kind,
+        let target_is_concrete = matches!(
+            target_kind,
             dir::SymbolKind::Class
                 | dir::SymbolKind::Struct
                 | dir::SymbolKind::Enum
                 | dir::SymbolKind::Newtype
         );
 
-        Ok(Answer::Ready(!(left_is_concrete && right_is_concrete)))
+        Ok(Answer::Ready(!(source_is_concrete && target_is_concrete)))
     }
 
     /// Return whether two argument lists can describe one shared generic instance.
     fn generic_arguments_may_overlap(
         &mut self,
         origin: Origin,
-        left: &[dir::GlobalTypeId],
-        right: &[dir::GlobalTypeId],
+        source: &[dir::GlobalTypeId],
+        target: &[dir::GlobalTypeId],
     ) -> CompilerResult<Answer<bool>> {
-        if left.len() != right.len() {
+        if source.len() != target.len() {
             return Ok(Answer::Ready(true));
         }
 
-        for (left, right) in left.iter().copied().zip(right.iter().copied()) {
-            if !answer!(self.types_may_overlap(origin, left, right)?) {
+        for (source, target) in source.iter().copied().zip(target.iter().copied()) {
+            if !answer!(self.types_may_overlap(origin, source, target)?) {
                 return Ok(Answer::Ready(false));
             }
         }

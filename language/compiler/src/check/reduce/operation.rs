@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, answer};
+use crate::check::{Answer, CheckState, OperationReduction, Origin, answer};
 
 impl CheckState<'_> {
     /// Return one type operation's reduced value type.
@@ -10,14 +10,13 @@ impl CheckState<'_> {
         origin: Origin,
         operation: dir::TypeOperation,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let ty = self.intern_type(origin.module(), dir::Type::Operation(operation))?;
+        let ty = self.intern_operation(origin.module(), operation)?;
         let ty = answer!(self.reduce_type_head(origin, ty)?);
 
         Ok(Answer::Ready(ty))
     }
 
     /// Reduce one type operation when its inputs allow.
-    /// Returns ready none when the operation must stay symbolic.
     pub(super) fn reduce_operation(
         &mut self,
         origin: Origin,
@@ -39,7 +38,18 @@ impl CheckState<'_> {
             }
 
             // indexed access projects element or member types
-            dir::TypeOperation::Index(index) => self.reduce_index(origin, index),
+            dir::TypeOperation::Index(index) => {
+                match answer!(self.reduce_index(origin, index)?) {
+                    OperationReduction::Projected(ty) => Ok(Answer::Ready(Some(ty))),
+                    OperationReduction::Rigid => Ok(Answer::Ready(None)),
+                    // ill-formed accesses poison consumers; well-formedness reports
+                    OperationReduction::Invalid(_) => {
+                        let error = self.intern_type(origin.module(), dir::Type::Error)?;
+
+                        Ok(Answer::Ready(Some(error)))
+                    }
+                }
+            }
 
             // typeof lifts one stable value-reference type
             dir::TypeOperation::TypeOf(query) => self.reduce_typeof(origin, query.value),
