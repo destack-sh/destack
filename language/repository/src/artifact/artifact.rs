@@ -327,6 +327,54 @@ impl Repository {
         Ok(diagnostics)
     }
 
+    /// Return diagnostics for requested roots and everything they were built from.
+    ///
+    /// Walks each root's dependency closure once, so diagnostics attached to
+    /// shared dependencies, like one checked component under its per-module
+    /// facades, report exactly once.
+    pub fn diagnostics_for_keys(
+        &self,
+        revision: Revision,
+        artifact_keys: &[ArtifactKey],
+    ) -> Result<DiagnosticCollection, RepositoryError> {
+        let _revision = self.revision(revision)?;
+        let mut diagnostics = DiagnosticCollection::new();
+        let mut visited = FxHashSet::default();
+        let mut pending = Vec::new();
+
+        for artifact_key in artifact_keys {
+            if let Some(version) = self.artifact_version(revision, artifact_key)? {
+                pending.push(version);
+            }
+        }
+
+        while let Some(version) = pending.pop() {
+            if !visited.insert(version) {
+                continue;
+            }
+            let artifact_diagnostics = self.artifact_diagnostics(version)?;
+            diagnostics.merge_from(artifact_diagnostics.as_ref());
+
+            let Some(dependencies) = self.artifact_table().dependencies(&version) else {
+                continue;
+            };
+            for dependency in dependencies.iter() {
+                match dependency {
+                    ArtifactDependency::Artifact(version) => pending.push(*version),
+                    ArtifactDependency::Projection(projection) => {
+                        let key = &projection.projection.artifact;
+                        if let Some(version) = self.artifact_version(revision, key)? {
+                            pending.push(version);
+                        }
+                    }
+                    ArtifactDependency::Source(_) => {}
+                }
+            }
+        }
+
+        Ok(diagnostics)
+    }
+
     /// Return sidecars for one revision-scoped artifact key.
     pub fn artifact_sidecars(
         &self,
