@@ -86,8 +86,7 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
         language_type,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     );
@@ -160,7 +159,7 @@ fn format_expressions(
     formatter: FormatterOptions,
 ) -> String {
     // build formatter context
-    let side_span = parser.compute_side_span();
+    let side_span = parser.tree.decorator_span();
     let strings = parser.publish_strings();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
 

@@ -45,8 +45,7 @@ pub(super) fn format_pass(
         language_type,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     );
@@ -64,7 +63,7 @@ pub(super) fn format_pass(
     // materialize token spans and side spans
     let token_spans_start = Instant::now();
     let (tokens, side_tokens) = parser.take_token_spans();
-    let side_span = parser.compute_side_span();
+    let side_span = parser.tree.decorator_span();
     let token_spans_elapsed = token_spans_start.elapsed();
 
     // build parent index
