@@ -14,7 +14,11 @@ pub enum CheckError {
     /// ```ds
     /// const value = _;
     /// ```
-    #[diagnostic(code = "EC100", message = "cannot infer a type here")]
+    #[diagnostic(
+        code = "EC100",
+        message = "cannot infer a type here",
+        help = "annotate the type explicitly"
+    )]
     CannotInferType {
         /// Report the node that requires the solution.
         anchor: DiagnosticAnchor,
@@ -339,7 +343,8 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC212",
-        message = "cannot assign to immutable binding '{name}'"
+        message = "cannot assign to immutable binding '{name}'",
+        help = "declare '{name}' with 'let' to allow reassignment"
     )]
     CannotAssignImmutableBinding {
         /// Report the mutation.
@@ -667,7 +672,11 @@ pub enum CheckError {
     /// declare const user: User | undefined;
     /// user.name;
     /// ```
-    #[diagnostic(code = "EC312", message = "value is possibly {nullish}")]
+    #[diagnostic(
+        code = "EC312",
+        message = "value is possibly {nullish}",
+        help = "narrow the value with a check or access it with '?.'"
+    )]
     PossiblyNullish {
         /// Report the member access.
         anchor: DiagnosticAnchor,
