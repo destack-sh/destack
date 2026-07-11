@@ -26,12 +26,15 @@ impl CheckState<'_> {
                 self.satisfies_scalar_marker(origin, ty, dir::ScalarDomain::Float)
             }
             dir::AutoInterface::Copy => self.satisfies_copy(origin, ty, &mut active),
+            // TODO #Incomplete: the remaining auto interfaces never hold
             dir::AutoInterface::Send
             | dir::AutoInterface::Sync
             | dir::AutoInterface::Unpin
             | dir::AutoInterface::Zeroable => Ok(Answer::Ready(false)),
-            dir::AutoInterface::Concrete
-            | dir::AutoInterface::Clone
+            // concreteness checks through the representation obligation
+            dir::AutoInterface::Concrete => Ok(Answer::Ready(false)),
+            // derivable interfaces hold only through their generated extensions
+            dir::AutoInterface::Clone
             | dir::AutoInterface::Debug
             | dir::AutoInterface::Default
             | dir::AutoInterface::Hash
@@ -45,11 +48,6 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one type holds only scalars of one domain.
-    ///
-    /// The scalar markers derive like rustc's builtin marker traits:
-    /// membership is classified, never declared, so every width of the
-    /// domain satisfies the marker, including parameters through their
-    /// bounds and static operations through their operands.
     fn satisfies_scalar_marker(
         &mut self,
         origin: Origin,

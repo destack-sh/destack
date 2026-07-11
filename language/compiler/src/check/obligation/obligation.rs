@@ -1,11 +1,10 @@
 use destack_dir as dir;
-use indexmap::IndexMap;
 
 use crate::{CompilerError, CompilerResult};
 
 use crate::check::{
     Answer, CheckEvent, CheckState, ExpectedType, FlowBranch, GenericTemplateId, Origin, Task,
-    WriteTarget, answer,
+    TaskFailure, TaskFailures, Variance, WriteTarget, answer,
 };
 
 /// Component-global id of one collected obligation.
@@ -57,11 +56,11 @@ pub(in crate::check) enum Obligation {
     /// A pattern-bearing site must cover the matched value space.
     PatternCoverage(PatternCoverageObligation),
     /// A place assignment must target writable storage.
-    WritablePlace(WritablePlaceObligation),
+    WritablePlace(Box<WritablePlaceObligation>),
     /// A type at a representation slot must have a computed representation.
     Representation(RepresentationObligation),
     /// A runtime predicate must have valid operands.
-    RuntimePredicate(RuntimePredicateObligation),
+    RuntimePredicate(Box<RuntimePredicateObligation>),
     /// A for-in source must be enumerable.
     ForInSource(ForInSourceObligation),
     /// An extension must provide members required by its implemented interfaces.
@@ -72,6 +71,10 @@ pub(in crate::check) enum Obligation {
     DeclarationHeritage(DeclarationHeritageObligation),
     /// A class must initialize required fields on every constructor path.
     ClassInitialization(ClassInitializationObligation),
+    /// A written type operation must be well-formed once its operands close.
+    WellFormedType(WellFormedTypeObligation),
+    /// A declaration's generic parameters must occur in its definition.
+    ParameterUse(ParameterUseObligation),
 }
 
 impl Obligation {
@@ -87,6 +90,8 @@ impl Obligation {
             Self::ImplementationCoherence(obligation) => obligation.source,
             Self::DeclarationHeritage(obligation) => obligation.source,
             Self::ClassInitialization(obligation) => obligation.source,
+            Self::WellFormedType(obligation) => obligation.source,
+            Self::ParameterUse(obligation) => obligation.source,
         }
     }
 }
@@ -185,6 +190,22 @@ pub(in crate::check) enum ObligationFailure {
         /// The receiver type.
         receiver: dir::GlobalTypeId,
     },
+    /// An indexed access has a non-indexable receiver.
+    InvalidIndexReceiver {
+        /// The written index type expression.
+        source: dir::GlobalNodeIdAny,
+        /// The indexed receiver type.
+        receiver: dir::GlobalTypeId,
+    },
+    /// An indexed access key does not project from its receiver.
+    InvalidIndexKey {
+        /// The written index type expression.
+        source: dir::GlobalNodeIdAny,
+        /// The indexed receiver type.
+        receiver: dir::GlobalTypeId,
+        /// The supplied key type.
+        key: dir::GlobalTypeId,
+    },
     /// A value cannot be assigned to an imported binding.
     CannotAssignImportedBinding {
         /// The assignment target expression.
@@ -233,8 +254,8 @@ pub(in crate::check) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// The implementing type.
         ty: dir::GlobalTypeId,
-        /// The required interface.
-        interface: dir::GlobalSymbolId,
+        /// The required interface instantiation.
+        interface: dir::GlobalTypeId,
     },
     /// An implementation pair is outside both relevant packages.
     NonLocalImplementation {
@@ -345,6 +366,24 @@ pub(in crate::check) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// The field symbol.
         field: dir::GlobalSymbolId,
+    },
+    /// Declared generic parameter never occurs in its definition.
+    UnusedGenericParameter {
+        /// The parameter declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The unused parameter symbol.
+        parameter: dir::GlobalSymbolId,
+    },
+    /// Declared variance conflicts with the parameter's derived use.
+    VarianceConflict {
+        /// The parameter declaration source.
+        source: dir::GlobalNodeIdAny,
+        /// The conflicting parameter symbol.
+        parameter: dir::GlobalSymbolId,
+        /// The derived variance the declaration must admit.
+        derived: Variance,
+        /// The declared variance modifier.
+        declared: dir::VarianceModifier,
     },
 }
 
@@ -458,6 +497,19 @@ pub(in crate::check) struct RepresentationObligation {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
+/// Obliges a written type operation to be well-formed once its operands close.
+///
+/// ```ds
+/// type Value = User["name"]
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct WellFormedTypeObligation {
+    /// The written type expression.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The interned operation type.
+    pub(in crate::check) ty: dir::GlobalTypeId,
+}
+
 /// Obliges a runtime predicate to be executable.
 ///
 /// ```ds
@@ -515,6 +567,19 @@ pub(in crate::check) struct ImplementationCoherenceObligation {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
 }
 
+/// Obliges a declaration's generic parameters to occur in its definition.
+///
+/// ```ds
+/// class Box<T> { value: T }
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct ParameterUseObligation {
+    /// The declaration node.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The checked declaration symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+}
+
 /// One collected obligation with its assuming scope.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct ObligationEntry {
@@ -527,32 +592,33 @@ pub(in crate::check) struct ObligationEntry {
 /// Collected obligations in allocation order.
 #[derive(Debug, Clone)]
 pub(in crate::check) struct ObligationTable {
-    /// The collected obligations keyed by absolute obligation id.
-    obligations: IndexMap<ObligationId, ObligationEntry>,
+    /// The collected obligations indexed by obligation id.
+    obligations: Vec<ObligationEntry>,
 }
 
 impl ObligationTable {
     /// Create an empty obligation table.
     pub(in crate::check) fn new() -> Self {
         Self {
-            obligations: IndexMap::new(),
+            obligations: Vec::new(),
         }
     }
 
-    /// Insert one exact obligation id.
+    /// Append one obligation at the next id.
     pub(in crate::check) fn insert(&mut self, id: ObligationId, entry: ObligationEntry) {
-        self.obligations.insert(id, entry);
+        debug_assert_eq!(self.obligations.len(), id.index());
+        self.obligations.push(entry);
     }
 
-    /// Remove one exact obligation id.
-    pub(in crate::check) fn remove(&mut self, id: ObligationId) -> Option<ObligationEntry> {
-        self.obligations.swap_remove(&id)
+    /// Truncate obligations undone by one probe rollback.
+    pub(in crate::check) fn truncate(&mut self, count: usize) {
+        self.obligations.truncate(count);
     }
 
     /// Return one collected obligation.
     pub(in crate::check) fn get(&self, id: ObligationId) -> CompilerResult<&ObligationEntry> {
         self.obligations
-            .get(&id)
+            .get(id.index())
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("check obligation {id:?} does not exist"),
             })
@@ -578,11 +644,11 @@ impl CheckState<'_> {
         id
     }
 
-    /// Check one obligation once.
+    /// Check one obligation once, returning its failed judgments.
     pub(in crate::check) fn run_obligation(
         &mut self,
         id: ObligationId,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<TaskFailures>> {
         // copy the obligation for the borrow-free check
         let entry = self.solver.obligations.get(id)?.clone();
         let origin = Origin::Node(entry.obligation.source(), entry.scope);
@@ -591,15 +657,17 @@ impl CheckState<'_> {
 
         match check {
             Answer::Ready(check) => {
-                for failure in check.into_failures() {
-                    self.report_obligation_failure(failure)?;
-                }
+                let failures = check
+                    .into_failures()
+                    .into_iter()
+                    .map(TaskFailure::Obligation)
+                    .collect();
                 self.record_event(CheckEvent::ObligationChecked {
                     obligation: id,
                     is_finished: true,
                 });
 
-                Ok(Answer::Ready(()))
+                Ok(Answer::Ready(failures))
             }
             Answer::Pending(blockers) => {
                 self.record_event(CheckEvent::ObligationChecked {
@@ -642,6 +710,10 @@ impl CheckState<'_> {
             Obligation::ClassInitialization(obligation) => {
                 self.check_class_initialization(origin, obligation)
             }
+            Obligation::WellFormedType(obligation) => {
+                self.check_well_formed_type(origin, obligation)
+            }
+            Obligation::ParameterUse(obligation) => self.check_parameter_use(obligation.symbol),
         }
     }
 
@@ -651,7 +723,15 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &PatternCoverageObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        let value = answer!(self.resolve_expected_type(&obligation.value)?);
+        // bodies commit their nodes before obligations read them
+        let value = match obligation.value {
+            ExpectedType::Type(ty) => ty,
+            ExpectedType::Node(site) => {
+                let ty = self.require_node_type(site.node)?;
+
+                answer!(self.flow_type_at(site, ty)?)
+            }
+        };
 
         match &obligation.coverage {
             PatternCoverage::Match { cases } => {

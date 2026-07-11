@@ -5,8 +5,10 @@ mod heritage;
 mod initialization;
 mod interface;
 mod obligation;
+mod parameter;
 mod predicate;
 mod representation;
+mod wellformed;
 mod write;
 
 pub(in crate::check) use obligation::*;

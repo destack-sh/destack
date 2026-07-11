@@ -33,8 +33,9 @@ impl CheckState<'_> {
         obligation: &RuntimePredicateObligation,
         predicate: &dir::IsGuardResolution,
     ) -> CompilerResult<Answer<ObligationCheck>> {
+        let anchored = self.origin_at(origin, obligation.right)?;
         match answer!(self.check_auto_interface(
-            self.origin_at(origin, obligation.right),
+            anchored,
             predicate.target_type,
             dir::AutoInterface::DynamicSafe,
         )?) {
