@@ -12,13 +12,20 @@
     {
       "patterns": [
         "js/arguments/empty-lines.js",
-        "js/comments/logical.js",
         "ts/comments/union.ts",
         "ts/variable-declarations/issue-16193.ts"
       ],
       "status": "known-fail-idempotence",
       "reason": "idempotence",
       "note": "source fixture is non-idempotent"
+    },
+    {
+      "patterns": [
+        "js/jsx/ternary-with-comment.jsx"
+      ],
+      "status": "excluded",
+      "reason": "tree-comment-layout",
+      "note": "`.ds` expands tree expression containers with branch line comments independently of print width"
     },
     {
       "patterns": [
