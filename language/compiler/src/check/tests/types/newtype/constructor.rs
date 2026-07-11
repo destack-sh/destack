@@ -232,9 +232,9 @@ const value: Box<int32> = Box(1);
 
 === checked ===
 newtype Box<T> = T;
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box source="newtype Box<T> = T" type=Box
-/// @definition.newtype symbol=Box source="newtype Box<T> = T" template=(T) value=T
+/// @definition.newtype symbol=Box source="newtype Box<T> = T" template=(out T) value=T
 /// @type.symbol symbol=Box.T source=T type=T
 /// @resolution.name source=T target=Box.T
 
@@ -276,9 +276,9 @@ function from<T, E>(value: E): Result<T, E> {
 
 === checked ===
 newtype Result<T, E> = T | E;
-/// @generic.template symbol=Result parameters=(T#1, E#1)
+/// @generic.template symbol=Result parameters=(out T#1, out E#1)
 /// @type.symbol symbol=Result source="newtype Result<T, E> = T | E" type=Result
-/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(T#1, E#1) value=T#1 | E#1
+/// @definition.newtype symbol=Result source="newtype Result<T, E> = T | E" template=(out T#1, out E#1) value=T#1 | E#1
 /// @type.symbol symbol=Result.T source=T type=T#1
 /// @type.symbol symbol=Result.E source=E type=E#1
 /// @resolution.name source=T target=Result.T

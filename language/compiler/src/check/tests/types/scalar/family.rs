@@ -33,9 +33,9 @@ const floats: Vector<float32> = Vector<float32> { x: 1.5 as float32 };
 import { Numeric } from "destack:math";
 
 struct Vector<T: Numeric> {
-/// @generic.template symbol=Vector parameters=(T: math.scalar.Numeric)
+/// @generic.template symbol=Vector parameters=(out T: math.scalar.Numeric)
 /// @type.symbol symbol=Vector type=Vector
-/// @definition.struct symbol=Vector template=(T: math.scalar.Numeric)
+/// @definition.struct symbol=Vector template=(out T: math.scalar.Numeric)
 /// @definition.field symbol=Vector.x source="x: T" key=x type=T
 /// @type.symbol symbol=Vector.T source="T: Numeric" type=T
 /// @resolution.name source=Numeric target=math.scalar.Numeric
@@ -88,9 +88,9 @@ const narrow: Index<int32> = Index<int32> { value: 1 as int32 };
 
 === checked ===
 struct Index<T: int> {
-/// @generic.template symbol=Index parameters=(T: int64)
+/// @generic.template symbol=Index parameters=(out T: int64)
 /// @type.symbol symbol=Index type=Index
-/// @definition.struct symbol=Index template=(T: int64)
+/// @definition.struct symbol=Index template=(out T: int64)
 /// @definition.field symbol=Index.value source="value: T" key=value type=T
 /// @type.symbol symbol=Index.T source="T: int" type=T
 

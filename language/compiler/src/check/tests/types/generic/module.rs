@@ -34,9 +34,9 @@ export interface Box<in out T> {
 
 === checked ===
 export interface Box<T> {
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(in out T)
 /// @type.symbol symbol=Box type=Box
-/// @definition.interface symbol=Box template=(T)
+/// @definition.interface symbol=Box template=(in out T)
 /// @definition.where symbol=Box relation=satisfies left=this right=Box<T>
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T
@@ -108,9 +108,9 @@ export newtype interface Equal<in T = this> extends PartialEqual<T> {}
 
 === checked ===
 export newtype interface PartialEqual<T = this> {
-/// @generic.template symbol=PartialEqual parameters=(T#1 = this)
+/// @generic.template symbol=PartialEqual parameters=(in T#1 = this)
 /// @type.symbol symbol=PartialEqual type=PartialEqual
-/// @definition.interface symbol=PartialEqual template=(T#1 = this) nominal=true
+/// @definition.interface symbol=PartialEqual template=(in T#1 = this) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
 /// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: PartialEqual<T#1>, T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
@@ -123,9 +123,9 @@ export newtype interface PartialEqual<T = this> {
 }
 
 export newtype interface Equal<T = this> extends PartialEqual<T> {}
-/// @generic.template symbol=Equal parameters=(T#2 = this)
+/// @generic.template symbol=Equal parameters=(in T#2 = this)
 /// @type.symbol symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" type=Equal
-/// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(T#2 = this) nominal=true
+/// @definition.interface symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" template=(in T#2 = this) nominal=true
 /// @definition.where symbol=Equal source="export newtype interface Equal<T = this> extends PartialEqual<T> {}" relation=satisfies left=this right=Equal<T#2>
 /// @definition.extends symbol=Equal source=PartialEqual<T> target=PartialEqual arguments=(T#2)
 /// @type.symbol symbol=Equal.T source="T = this" type=T#2
@@ -334,9 +334,9 @@ const value: boolean = probe(todo("iter" as string | undefined));
 
 === checked ===
 interface Iter<T, in out R = unknown> {
-/// @generic.template symbol=Iter parameters=(T, in out R = unknown)
+/// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(T, in out R = unknown)
+/// @definition.interface symbol=Iter template=(out T, in out R = unknown)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
@@ -408,9 +408,9 @@ export newtype interface Iter<out T, in out R = unknown> {
 
 === checked ===
 export newtype interface Iter<T, in out R = unknown> {
-/// @generic.template symbol=Iter parameters=(T, in out R = unknown)
+/// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(T, in out R = unknown) nominal=true
+/// @definition.interface symbol=Iter template=(out T, in out R = unknown) nominal=true
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
 /// @type.symbol symbol=Iter.T source=T type=T
@@ -546,9 +546,9 @@ export interface Iter<out T, in out R = unknown> {
 import { Marker } from "./a.ds";
 
 export interface Iter<T, in out R = unknown> {
-/// @generic.template symbol=Iter parameters=(T, in out R = unknown)
+/// @generic.template symbol=Iter parameters=(out T, in out R = unknown)
 /// @type.symbol symbol=Iter type=Iter
-/// @definition.interface symbol=Iter template=(T, in out R = unknown)
+/// @definition.interface symbol=Iter template=(out T, in out R = unknown)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
 /// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: Iter<T, R>) => a.Marker
 /// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: Iter<T, R>) => T
@@ -609,9 +609,9 @@ const out: float64 = unwrap(built);
 
 === checked ===
 struct Wrap<T> {
-/// @generic.template symbol=Wrap parameters=(T)
+/// @generic.template symbol=Wrap parameters=(out T)
 /// @type.symbol symbol=Wrap type=Wrap
-/// @definition.struct symbol=Wrap template=(T)
+/// @definition.struct symbol=Wrap template=(out T)
 /// @definition.field symbol=Wrap.value source="value: T" key=value type=T
 /// @type.symbol symbol=Wrap.T source=T type=T
 

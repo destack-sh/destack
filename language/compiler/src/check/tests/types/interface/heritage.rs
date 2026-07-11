@@ -216,9 +216,9 @@ interface Both extends Left, Right {}
 
 === checked ===
 interface Base<T> {
-/// @generic.template symbol=Base parameters=(T)
+/// @generic.template symbol=Base parameters=(out T)
 /// @type.symbol symbol=Base type=Base
-/// @definition.interface symbol=Base template=(T)
+/// @definition.interface symbol=Base template=(out T)
 /// @definition.where symbol=Base relation=satisfies left=this right=Base<T>
 /// @definition.method symbol=Base.value source="value(): T" slot=value type=(this: Base<T>) => T
 /// @type.symbol symbol=Base.T source=T type=T

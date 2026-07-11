@@ -135,9 +135,9 @@ const mapped: Box<int32> = box.map<int32, int32>((value: int32): int32 => value)
 
 === checked ===
 declare class Box<T> {
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(T)
+/// @definition.class symbol=Box template=(out T)
 /// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U): Box<U>" slot=map type=<U>(this: Box<T>, Function<(T,), U>) => Box<U>
 /// @type.symbol symbol=Box.T source=T type=T
 
@@ -278,9 +278,9 @@ const value: int32 = box.map<int32, int32>(
 
 === checked ===
 declare class Box<T> {
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(T)
+/// @definition.class symbol=Box template=(out T)
 /// @definition.method symbol=Box.map source="map<U>(callback: (value: T) => U | Box<U>): U" slot=map type=<U>(this: Box<T>, Function<(T,), U | Box<U>>) => U
 /// @type.symbol symbol=Box.T source=T type=T
 

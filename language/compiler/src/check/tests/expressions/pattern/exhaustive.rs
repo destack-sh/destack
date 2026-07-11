@@ -47,9 +47,9 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 
 === checked ===
 struct Ok<T> {
-/// @generic.template symbol=Ok parameters=(T#1)
+/// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
-/// @definition.struct symbol=Ok template=(T#1)
+/// @definition.struct symbol=Ok template=(out T#1)
 /// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Ok.T source=T type=T#1
 
@@ -60,9 +60,9 @@ struct Ok<T> {
 }
 
 struct Err<E> {
-/// @generic.template symbol=Err parameters=(E#1)
+/// @generic.template symbol=Err parameters=(out E#1)
 /// @type.symbol symbol=Err type=Err
-/// @definition.struct symbol=Err template=(E#1)
+/// @definition.struct symbol=Err template=(out E#1)
 /// @definition.field symbol=Err.error source="error: E" key=error type=E#1
 /// @type.symbol symbol=Err.E source=E type=E#1
 
@@ -73,9 +73,9 @@ struct Err<E> {
 }
 
 newtype Outcome<T, E> = Ok<T> | Err<E>;
-/// @generic.template symbol=Outcome parameters=(T#2, E#2)
+/// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(T#2, E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -174,9 +174,9 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
 
 === checked ===
 struct Ok<T> {
-/// @generic.template symbol=Ok parameters=(T#1)
+/// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
-/// @definition.struct symbol=Ok template=(T#1)
+/// @definition.struct symbol=Ok template=(out T#1)
 /// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Ok.T source=T type=T#1
 
@@ -187,9 +187,9 @@ struct Ok<T> {
 }
 
 struct Err<E> {
-/// @generic.template symbol=Err parameters=(E#1)
+/// @generic.template symbol=Err parameters=(out E#1)
 /// @type.symbol symbol=Err type=Err
-/// @definition.struct symbol=Err template=(E#1)
+/// @definition.struct symbol=Err template=(out E#1)
 /// @definition.field symbol=Err.error source="error: E" key=error type=E#1
 /// @type.symbol symbol=Err.E source=E type=E#1
 
@@ -200,9 +200,9 @@ struct Err<E> {
 }
 
 newtype Outcome<T, E> = Ok<T> | Err<E>;
-/// @generic.template symbol=Outcome parameters=(T#2, E#2)
+/// @generic.template symbol=Outcome parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" type=Outcome
-/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(T#2, E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Outcome source="newtype Outcome<T, E> = Ok<T> | Err<E>" template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
 /// @type.symbol symbol=Outcome.T source=T type=T#2
 /// @type.symbol symbol=Outcome.E source=E type=E#2
 /// @resolution.name source=Ok target=Ok
@@ -283,11 +283,11 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
 
 === checked ===
 @derive(Tagged)
-/// @generic.template symbol=Edge parameters=(T#1)
+/// @generic.template symbol=Edge parameters=(in out T#1)
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
 /// @type.symbol symbol=Edge.Open type=Edge.Open
-/// @definition.newtype symbol=Edge template=(T#1) value={ kind: "bounded"; limit: T#1 } | { kind: "open" }
+/// @definition.newtype symbol=Edge template=(in out T#1) value={ kind: "bounded"; limit: T#1 } | { kind: "open" }
 /// @definition.variant symbol=Edge.Bounded key=Bounded
 /// @definition.variant symbol=Edge.Open key=Open
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -381,11 +381,11 @@ const value: string = match (edge) {
 
 === checked ===
 @derive(Tagged)
-/// @generic.template symbol=Edge parameters=(T)
+/// @generic.template symbol=Edge parameters=(in out T)
 /// @type.symbol symbol=Edge type=Edge
 /// @type.symbol symbol=Edge.Bounded type=Edge.Bounded
 /// @type.symbol symbol=Edge.Open type=Edge.Open
-/// @definition.newtype symbol=Edge template=(T) value={ kind: "bounded"; limit: T } | { kind: "open" }
+/// @definition.newtype symbol=Edge template=(in out T) value={ kind: "bounded"; limit: T } | { kind: "open" }
 /// @definition.variant symbol=Edge.Bounded key=Bounded
 /// @definition.variant symbol=Edge.Open key=Open
 /// @resolution.name source=derive target=decorator.derive.derive

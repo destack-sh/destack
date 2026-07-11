@@ -221,9 +221,9 @@ struct TextMeta {}
 /// @definition.struct symbol=TextMeta source="struct TextMeta {}"
 
 class Packet<T> {
-/// @generic.template symbol=Packet parameters=(T)
+/// @generic.template symbol=Packet parameters=(in out T)
 /// @type.symbol symbol=Packet type=Packet
-/// @definition.class symbol=Packet template=(T)
+/// @definition.class symbol=Packet template=(in out T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
 /// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(T) => Packet<T>
 /// @type.symbol symbol=Packet.T source=T type=T

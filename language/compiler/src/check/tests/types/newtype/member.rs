@@ -41,9 +41,9 @@ extension<T> of Sealed<T> {
 
 === checked ===
 class Wrapper<T> {
-/// @generic.template symbol=Wrapper parameters=(T#1)
+/// @generic.template symbol=Wrapper parameters=(out T#1)
 /// @type.symbol symbol=Wrapper type=Wrapper
-/// @definition.class symbol=Wrapper template=(T#1)
+/// @definition.class symbol=Wrapper template=(out T#1)
 /// @definition.method symbol=Wrapper.open slot=open type=(this: Wrapper<T#1>) => T#1
 /// @type.symbol symbol=Wrapper.T source=T type=T#1
 
@@ -56,9 +56,9 @@ class Wrapper<T> {
 }
 
 newtype Sealed<T> = Wrapper<T>;
-/// @generic.template symbol=Sealed parameters=(T#2)
+/// @generic.template symbol=Sealed parameters=(out T#2)
 /// @type.symbol symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" type=Sealed
-/// @definition.newtype symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" template=(T#2) value=Wrapper<T#2>
+/// @definition.newtype symbol=Sealed source="newtype Sealed<T> = Wrapper<T>" template=(out T#2) value=Wrapper<T#2>
 /// @type.symbol symbol=Sealed.T source=T type=T#2
 /// @resolution.name source=Wrapper target=Wrapper
 /// @resolution.name source=T target=Sealed.T

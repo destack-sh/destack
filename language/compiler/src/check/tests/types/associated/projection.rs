@@ -65,9 +65,9 @@ interface Doubles {
 }
 
 struct Pair<T: Numeric> {
-/// @generic.template symbol=Pair parameters=(T#1: math.scalar.Numeric)
+/// @generic.template symbol=Pair parameters=(out T#1: math.scalar.Numeric)
 /// @type.symbol symbol=Pair type=Pair
-/// @definition.struct symbol=Pair template=(T#1: math.scalar.Numeric)
+/// @definition.struct symbol=Pair template=(out T#1: math.scalar.Numeric)
 /// @definition.field symbol=Pair.x source="x: T" key=x type=T#1
 /// @type.symbol symbol=Pair.T source="T: Numeric" type=T#1
 /// @resolution.name source=Numeric target=math.scalar.Numeric

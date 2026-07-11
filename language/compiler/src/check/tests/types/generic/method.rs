@@ -208,9 +208,9 @@ function read<T, comptime L1: Lifetime>(
 
 === checked ===
 declare class Box<T> {
-/// @generic.template symbol=Box parameters=(T#1)
+/// @generic.template symbol=Box parameters=(in out T#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.class symbol=Box template=(T#1)
+/// @definition.class symbol=Box template=(in out T#1)
 /// @definition.method symbol=Box.get source="get(&readonly this): &readonly T" slot=get type=<comptime Box.get.L0: Lifetime>(this: Borrowed<Box<T#1>, Box.get.L0, "readonly">) => Borrowed<T#1, Box.get.L0, "readonly">
 /// @type.symbol symbol=Box.T source=T type=T#1
 

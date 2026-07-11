@@ -84,9 +84,9 @@ function pending<T>(): State<T> {
 
 === checked ===
 interface Pending<T> {
-/// @generic.template symbol=Pending parameters=(T#1)
+/// @generic.template symbol=Pending parameters=(in out T#1)
 /// @type.symbol symbol=Pending type=Pending
-/// @definition.interface symbol=Pending template=(T#1)
+/// @definition.interface symbol=Pending template=(in out T#1)
 /// @definition.where symbol=Pending relation=satisfies left=this right=Pending<T#1>
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.reactions source="reactions: T[]" key=reactions type=Array<T#1>
@@ -102,9 +102,9 @@ interface Pending<T> {
 }
 
 interface Done<T> {
-/// @generic.template symbol=Done parameters=(T#2)
+/// @generic.template symbol=Done parameters=(in out T#2)
 /// @type.symbol symbol=Done type=Done
-/// @definition.interface symbol=Done template=(T#2)
+/// @definition.interface symbol=Done template=(in out T#2)
 /// @definition.where symbol=Done relation=satisfies left=this right=Done<T#2>
 /// @definition.field symbol=Done.kind source="kind: \"done\"" key=kind type="done"
 /// @definition.field symbol=Done.value source="value: T" key=value type=T#2
@@ -256,9 +256,9 @@ declare class Promise<in out T> {
 }
 
 struct Ok<T> {
-/// @generic.template symbol=Ok parameters=(T#4)
+/// @generic.template symbol=Ok parameters=(out T#4)
 /// @type.symbol symbol=Ok type=Ok
-/// @definition.struct symbol=Ok template=(T#4)
+/// @definition.struct symbol=Ok template=(out T#4)
 /// @definition.field symbol=Ok.kind source="kind: \"Ok\" = \"Ok\"" key=kind type="Ok"
 /// @definition.field symbol=Ok.value source="value: T" key=value type=T#4
 /// @type.symbol symbol=Ok.T source=T type=T#4
@@ -274,9 +274,9 @@ struct Ok<T> {
 }
 
 struct Err<E> {
-/// @generic.template symbol=Err parameters=(E#1)
+/// @generic.template symbol=Err parameters=(out E#1)
 /// @type.symbol symbol=Err type=Err
-/// @definition.struct symbol=Err template=(E#1)
+/// @definition.struct symbol=Err template=(out E#1)
 /// @definition.field symbol=Err.error source="error: E" key=error type=E#1
 /// @definition.field symbol=Err.kind source="kind: \"Err\" = \"Err\"" key=kind type="Err"
 /// @type.symbol symbol=Err.E source=E type=E#1
@@ -292,11 +292,11 @@ struct Err<E> {
 }
 
 @derive(Tagged)
-/// @generic.template symbol=Result parameters=(T#5, E#2)
+/// @generic.template symbol=Result parameters=(out T#5, out E#2)
 /// @type.symbol symbol=Result type=Result
 /// @type.symbol symbol=Result.Err type=Result.Err
 /// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result template=(T#5, E#2) value=Ok<T#5> | Err<E#2>
+/// @definition.newtype symbol=Result template=(out T#5, out E#2) value=Ok<T#5> | Err<E#2>
 /// @definition.variant symbol=Result.Err key=Err
 /// @definition.variant symbol=Result.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive
@@ -346,9 +346,9 @@ extension<T, E> of Result<T, E> {
 }
 
 newtype AsyncResult<T, E> = Promise<Result<T, E>>;
-/// @generic.template symbol=AsyncResult parameters=(T#7, E#4)
+/// @generic.template symbol=AsyncResult parameters=(in out T#7, in out E#4)
 /// @type.symbol symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" type=AsyncResult
-/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(T#7, E#4) value=Promise<Result<T#7, E#4>>
+/// @definition.newtype symbol=AsyncResult source="newtype AsyncResult<T, E> = Promise<Result<T, E>>" template=(in out T#7, in out E#4) value=Promise<Result<T#7, E#4>>
 /// @type.symbol symbol=AsyncResult.T source=T type=T#7
 /// @type.symbol symbol=AsyncResult.E source=E type=E#4
 /// @resolution.name source=Promise target=Promise
@@ -464,9 +464,9 @@ extension<T, E> of Result<T, E> {
 
 === checked ===
 struct Ok<T> {
-/// @generic.template symbol=Ok parameters=(T#1)
+/// @generic.template symbol=Ok parameters=(out T#1)
 /// @type.symbol symbol=Ok type=Ok
-/// @definition.struct symbol=Ok template=(T#1)
+/// @definition.struct symbol=Ok template=(out T#1)
 /// @definition.field symbol=Ok.kind source="kind: \"Ok\" = \"Ok\"" key=kind type="Ok"
 /// @definition.field symbol=Ok.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Ok.T source=T type=T#1
@@ -482,9 +482,9 @@ struct Ok<T> {
 }
 
 struct Err<E> {
-/// @generic.template symbol=Err parameters=(E#1)
+/// @generic.template symbol=Err parameters=(out E#1)
 /// @type.symbol symbol=Err type=Err
-/// @definition.struct symbol=Err template=(E#1)
+/// @definition.struct symbol=Err template=(out E#1)
 /// @definition.field symbol=Err.error source="error: E" key=error type=E#1
 /// @definition.field symbol=Err.kind source="kind: \"Err\" = \"Err\"" key=kind type="Err"
 /// @type.symbol symbol=Err.E source=E type=E#1
@@ -500,11 +500,11 @@ struct Err<E> {
 }
 
 @derive(Tagged)
-/// @generic.template symbol=Result parameters=(T#2, E#2)
+/// @generic.template symbol=Result parameters=(out T#2, out E#2)
 /// @type.symbol symbol=Result type=Result
 /// @type.symbol symbol=Result.Err type=Result.Err
 /// @type.symbol symbol=Result.Ok type=Result.Ok
-/// @definition.newtype symbol=Result template=(T#2, E#2) value=Ok<T#2> | Err<E#2>
+/// @definition.newtype symbol=Result template=(out T#2, out E#2) value=Ok<T#2> | Err<E#2>
 /// @definition.variant symbol=Result.Err key=Err
 /// @definition.variant symbol=Result.Ok key=Ok
 /// @resolution.name source=derive target=decorator.derive.derive

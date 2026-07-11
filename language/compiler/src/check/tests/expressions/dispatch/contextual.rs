@@ -21,9 +21,9 @@ class Bag<in out T> {
 
 === checked ===
 class Bag<T> {
-/// @generic.template symbol=Bag parameters=(T)
+/// @generic.template symbol=Bag parameters=(in out T)
 /// @type.symbol symbol=Bag type=Bag
-/// @definition.class symbol=Bag template=(T)
+/// @definition.class symbol=Bag template=(in out T)
 /// @definition.field symbol=Bag.values source="values: T[] = Array.new()" key=values type=Array<T>
 /// @type.symbol symbol=Bag.T source=T type=T
 
@@ -145,9 +145,9 @@ export extension<T: Numeric> of Pair<T> {
 import { Numeric } from "destack:math";
 
 struct Pair<T> {
-/// @generic.template symbol=Pair parameters=(T#1)
+/// @generic.template symbol=Pair parameters=(out T#1)
 /// @type.symbol symbol=Pair type=Pair
-/// @definition.struct symbol=Pair template=(T#1)
+/// @definition.struct symbol=Pair template=(out T#1)
 /// @definition.field symbol=Pair.x source="x: T" key=x type=T#1
 /// @definition.field symbol=Pair.y source="y: T" key=y type=T#1
 /// @type.symbol symbol=Pair.T source=T type=T#1

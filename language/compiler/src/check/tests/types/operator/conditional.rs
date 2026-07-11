@@ -274,9 +274,9 @@ declare const count: Count;
 
 === checked ===
 newtype Vector<T, comptime N: int> = intrinsic;
-/// @generic.template symbol=Vector parameters=(T#1, comptime N#1: int64)
+/// @generic.template symbol=Vector parameters=(in out T#1, comptime N#1: int64)
 /// @type.symbol symbol=Vector source="newtype Vector<T, comptime N: int> = intrinsic" type=Vector
-/// @definition.newtype symbol=Vector source="newtype Vector<T, comptime N: int> = intrinsic" template=(T#1, comptime N#1: int64) value=intrinsic
+/// @definition.newtype symbol=Vector source="newtype Vector<T, comptime N: int> = intrinsic" template=(in out T#1, comptime N#1: int64) value=intrinsic
 /// @type.symbol symbol=Vector.T source=T type=T#1
 /// @type.symbol symbol=Vector.N source="comptime N: int" type=N#1
 

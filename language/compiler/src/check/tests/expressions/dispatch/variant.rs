@@ -120,9 +120,9 @@ extension<T> of Wrapper<T> {
 import { Promise } from "destack:async";
 
 newtype Wrapper<T> = Promise<T>;
-/// @generic.template symbol=Wrapper parameters=(T#1)
+/// @generic.template symbol=Wrapper parameters=(in out T#1)
 /// @type.symbol symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" type=Wrapper
-/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" template=(T#1) value=Promise<T#1>
+/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T> = Promise<T>" template=(in out T#1) value=Promise<T#1>
 /// @type.symbol symbol=Wrapper.T source=T type=T#1
 /// @resolution.name source=Promise target=async.promise.Promise
 /// @resolution.name source=T target=Wrapper.T

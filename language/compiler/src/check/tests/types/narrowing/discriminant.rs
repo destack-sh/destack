@@ -477,9 +477,9 @@ class Cell<in T> {
 
 === checked ===
 struct Waiter<T> {
-/// @generic.template symbol=Waiter parameters=(T#1)
+/// @generic.template symbol=Waiter parameters=(out T#1)
 /// @type.symbol symbol=Waiter type=Waiter
-/// @definition.struct symbol=Waiter template=(T#1)
+/// @definition.struct symbol=Waiter template=(out T#1)
 /// @definition.field symbol=Waiter.next source="next: Waiter<T> | undefined" key=next type=Waiter<T#1> | undefined
 /// @definition.field symbol=Waiter.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Waiter.T source=T type=T#1
@@ -496,9 +496,9 @@ struct Waiter<T> {
 }
 
 struct Pending<T> {
-/// @generic.template symbol=Pending parameters=(T#2)
+/// @generic.template symbol=Pending parameters=(out T#2)
 /// @type.symbol symbol=Pending type=Pending
-/// @definition.struct symbol=Pending template=(T#2)
+/// @definition.struct symbol=Pending template=(out T#2)
 /// @definition.field symbol=Pending.head source="head: Waiter<T> | undefined" key=head type=Waiter<T#2> | undefined
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.tail source="tail: Waiter<T> | undefined" key=tail type=Waiter<T#2> | undefined
@@ -520,9 +520,9 @@ struct Pending<T> {
 }
 
 struct Fulfilled<T> {
-/// @generic.template symbol=Fulfilled parameters=(T#3)
+/// @generic.template symbol=Fulfilled parameters=(out T#3)
 /// @type.symbol symbol=Fulfilled type=Fulfilled
-/// @definition.struct symbol=Fulfilled template=(T#3)
+/// @definition.struct symbol=Fulfilled template=(out T#3)
 /// @definition.field symbol=Fulfilled.kind source="kind: \"fulfilled\"" key=kind type="fulfilled"
 /// @definition.field symbol=Fulfilled.value source="value: T" key=value type=T#3
 /// @type.symbol symbol=Fulfilled.T source=T type=T#3
@@ -547,9 +547,9 @@ type State<T> = Pending<T> | Fulfilled<T>;
 /// @resolution.name source=T target=State.T
 
 class Cell<T> {
-/// @generic.template symbol=Cell parameters=(T#5)
+/// @generic.template symbol=Cell parameters=(in T#5)
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.class symbol=Cell template=(T#5)
+/// @definition.class symbol=Cell template=(in T#5)
 /// @definition.field symbol=Cell.state source="state: State<T>" key=state type=State<T#5>
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(Pending<T#5>) => Cell<T#5>
 /// @definition.method symbol=Cell.consume slot=consume type=(this: Cell<T#5>, T#5) => void

@@ -27,9 +27,9 @@ declare const value: Box<string>.Item;
 
 === checked ===
 struct Box<T> {
-/// @generic.template symbol=Box parameters=(T)
+/// @generic.template symbol=Box parameters=(out T)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(T)
+/// @definition.struct symbol=Box template=(out T)
 /// @definition.associated.type symbol=Box.Item source="type Item = T" key=Item value=T
 /// @definition.field symbol=Box.value source="value: T" key=value type=T
 /// @type.symbol symbol=Box.T source=T type=T

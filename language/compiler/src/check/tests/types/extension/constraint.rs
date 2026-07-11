@@ -69,9 +69,9 @@ interface Readable {
 }
 
 struct Box<T> {
-/// @generic.template symbol=Box parameters=(T#1)
+/// @generic.template symbol=Box parameters=(out T#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(T#1)
+/// @definition.struct symbol=Box template=(out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
 
@@ -196,9 +196,9 @@ interface Readable {
 }
 
 struct Box<T> {
-/// @generic.template symbol=Box parameters=(T#1)
+/// @generic.template symbol=Box parameters=(out T#1)
 /// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(T#1)
+/// @definition.struct symbol=Box template=(out T#1)
 /// @definition.field symbol=Box.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Box.T source=T type=T#1
 
@@ -319,9 +319,9 @@ import { todo } from "destack:error";
 import { Equal, Hash } from "destack:ops";
 
 interface Keyed<I> {
-/// @generic.template symbol=Keyed parameters=(I)
+/// @generic.template symbol=Keyed parameters=(in I)
 /// @type.symbol symbol=Keyed type=Keyed
-/// @definition.interface symbol=Keyed template=(I)
+/// @definition.interface symbol=Keyed template=(in I)
 /// @definition.where symbol=Keyed relation=satisfies left=this right=Keyed<I>
 /// @definition.associated.type symbol=Keyed.Output source="type Output" key=Output
 /// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(this: Keyed<I>, I) => this.Output
@@ -442,9 +442,9 @@ export extension<T> of Pack<T> where T: Copy {
 import { Copy } from "destack:memory";
 
 struct Pack<T> {
-/// @generic.template symbol=Pack parameters=(T#1)
+/// @generic.template symbol=Pack parameters=(out T#1)
 /// @type.symbol symbol=Pack type=Pack
-/// @definition.struct symbol=Pack template=(T#1)
+/// @definition.struct symbol=Pack template=(out T#1)
 /// @definition.field symbol=Pack.value source="value: T" key=value type=T#1
 /// @type.symbol symbol=Pack.T source=T type=T#1
 

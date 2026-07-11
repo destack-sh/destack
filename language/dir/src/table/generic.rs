@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny, LocalGenericParameterId,
-    LocalGenericTemplateId, SegmentView,
+    LocalGenericTemplateId, SegmentView, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -52,6 +52,20 @@ impl<'a> GenericTable<'a> {
             module_id,
             segments,
         }
+    }
+
+    /// Return the derived variance recorded for one parameter.
+    pub fn derived_variance(
+        &self,
+        parameter_id: LocalGenericParameterId,
+    ) -> Option<VarianceModifier> {
+        for segment in self.segments.iter() {
+            if let Some(variance) = segment.derived_variance(parameter_id) {
+                return Some(variance);
+            }
+        }
+
+        None
     }
 
     /// Create a generic table by appending a borrowed tail segment.
@@ -145,6 +159,8 @@ pub struct GenericSegment {
     pub(crate) templates: Arena<GenericTemplate>,
     /// Generic parameters.
     pub(crate) parameters: Arena<GenericParameterBinding>,
+    /// Variances derived by check for unannotated earlier parameters.
+    pub(crate) derived_variances: Vec<(LocalGenericParameterId, VarianceModifier)>,
 }
 
 impl GenericSegment {
@@ -156,6 +172,7 @@ impl GenericSegment {
             first_parameter_id: 0,
             templates: Arena::new(),
             parameters: Arena::new(),
+            derived_variances: Vec::new(),
         }
     }
 
@@ -167,7 +184,28 @@ impl GenericSegment {
             first_parameter_id: base.parameter_count(),
             templates: Arena::new(),
             parameters: Arena::new(),
+            derived_variances: Vec::new(),
         }
+    }
+
+    /// Record one derived variance for an unannotated parameter.
+    pub fn set_derived_variance(
+        &mut self,
+        parameter_id: LocalGenericParameterId,
+        variance: VarianceModifier,
+    ) {
+        self.derived_variances.push((parameter_id, variance));
+    }
+
+    /// Return the derived variance recorded for one parameter.
+    pub fn derived_variance(
+        &self,
+        parameter_id: LocalGenericParameterId,
+    ) -> Option<VarianceModifier> {
+        self.derived_variances
+            .iter()
+            .find(|(recorded, _)| *recorded == parameter_id)
+            .map(|(_, variance)| *variance)
     }
 
     /// Append a generic template to this segment.
