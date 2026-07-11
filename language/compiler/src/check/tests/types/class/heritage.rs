@@ -721,6 +721,43 @@ class FileWriter extends Writer {}
 }
 
 #[test]
+fn test_structural_records_never_assign_into_nominal_classes() {
+    let session = TestSession::single(
+        r#"
+declare const record: Record<string, int32>;
+const map: Map<string, int32> = record;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const record: Record<string, int32>;
+const map: Map<string, int32> = record;
+
+=== checked ===
+declare const record: Record<string, int32>;
+/// @type.symbol symbol=record source=record type=Record<string, int32> reduced={ [P: string]: int32 }
+/// @resolution.name source=Record target=types.object.Record
+
+const map: Map<string, int32> = record;
+/// @type.symbol symbol=map source=map type=Map<string, int32>
+/// @resolution.name source=Map target=collections.map.Map
+/// @resolution.name source=record target=record
+
+/// @generic.instance id="Map<string, int32>" template=collections.map.Map arguments=(string, int32)
+/// @generic.instance id="Record<string, int32>" template=types.object.Record arguments=(string, int32)
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type 'Record<string, int32>' is not assignable to type 'Map<string, int32>'"
+/// @diagnostic.label line=3 column=33 span="record" line_source="const map: Map<string, int32> = record;"
+"#,
+    );
+}
+
+#[test]
 fn test_abstract_class_cannot_be_constructed() {
     let session = TestSession::single(
         r#"
