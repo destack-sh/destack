@@ -36,8 +36,6 @@ pub const DESTACK_TAGS: &str = "DESTACK_TAGS";
 pub const DESTACK_OUT_DIR: &str = "DESTACK_OUT_DIR";
 /// Environment key used to override the output file for single file targets.
 pub const DESTACK_OUT_FILE: &str = "DESTACK_OUT_FILE";
-/// Environment key used to override the declaration output directory.
-pub const DESTACK_DECLARATION_DIR: &str = "DESTACK_DECLARATION_DIR";
 /// Environment key used to override compiler logging filters.
 pub const DESTACK_LOG: &str = "DESTACK_LOG";
 /// Environment key for xdg cache home.

@@ -103,10 +103,7 @@ impl Target {
 
     /// Create a target with default JavaScript output.
     pub fn js() -> Self {
-        let mut target = Self::new(EmitFormat::Js, Host::Browser);
-        target.output.declaration = true;
-
-        target
+        Self::new(EmitFormat::Js, Host::Browser)
     }
 
     /// Create a target with TypeScript output.
