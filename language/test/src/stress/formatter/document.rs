@@ -41,7 +41,7 @@ pub(super) struct FormatterDocumentStats {
 
 impl FormatterDocumentStats {
     /// Count nodes in one completed FIR document.
-    pub(super) fn from_nodes(nodes: &[FormatNode]) -> Self {
+    pub(super) fn from_nodes(nodes: &[FormatNode<'_>]) -> Self {
         let mut stats = Self {
             top_level_nodes: nodes.len() as u64,
             ..Self::default()
@@ -72,7 +72,7 @@ impl FormatterDocumentStats {
     }
 
     /// Add one node slice and its nested payloads to this document stats.
-    fn add_nodes_iterative(&mut self, nodes: &[FormatNode]) {
+    fn add_nodes_iterative(&mut self, nodes: &[FormatNode<'_>]) {
         let mut pending = vec![nodes];
 
         while let Some(nodes) = pending.pop() {

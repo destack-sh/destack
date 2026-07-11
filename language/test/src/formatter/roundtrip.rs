@@ -4,6 +4,7 @@ use crate::core::{Case, CaseResult, RunOptions, check_diagnostic_collection, fix
 use destack_core::StringPool;
 use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
+use destack_fir::format::Allocator;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserTriviaMode};
 use destack_repository::FormatterOptions;
@@ -131,7 +132,8 @@ fn format_expressions(
     );
 
     // ensure a trailing newline
-    let formatted = fir_format!(context, [statement_list(expressions)]).unwrap();
+    let allocator = Allocator::default();
+    let formatted = fir_format!(&allocator, context, [statement_list(expressions)]).unwrap();
     let printed = formatted.print().unwrap();
     let mut result = printed.as_str().to_string();
 

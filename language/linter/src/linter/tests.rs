@@ -1579,7 +1579,9 @@ impl<'a> LintResult<'a> {
         let mut result = if expressions.is_empty() {
             String::new()
         } else {
-            let formatted = destack_fir::format!(context, [statement_list(&expressions)]).unwrap();
+            let allocator = destack_fir::format::Allocator::default();
+            let formatted =
+                destack_fir::format!(&allocator, context, [statement_list(&expressions)]).unwrap();
             let printed = formatted.print().unwrap();
             printed.as_str().to_string()
         };
