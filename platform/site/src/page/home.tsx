@@ -3,7 +3,7 @@ import { Dynamic } from "solid-js/web";
 
 import { Seo } from "../component/seo";
 import { Shell } from "../component/shell";
-import { createSweep, SweepText } from "../component/sweep";
+import { createSweep } from "../component/sweep";
 
 /// The ordered Destack-token luminance ramp for the planet surface.
 const surfaceGlyphRamp = ".:-|=+*&%#@";
@@ -31,12 +31,6 @@ const lastSweepColumn = 110;
 
 /// The horizontal planet offset within the shared sweep.
 const planetSweepOffset = 18;
-
-/// The first sweep column assigned to a capability action.
-const actionSweepFirstColumn = 20;
-
-/// The sweep distance between successive capability actions.
-const actionSweepStride = 9;
 
 /// The width of the ASCII lake.
 const lakeWidth = 140;
@@ -267,13 +261,7 @@ export function HomePage() {
                     <div class="home-hero__body">
                         <div class="home-hero__copy">
                             <div class="home-hero__heading">
-                                <p class="home-hero__label">
-                                    <SweepText
-                                        column={sweepColumn()}
-                                        firstColumn={0}
-                                        text="[destack]"
-                                    />
-                                </p>
+                                <p class="home-hero__label">[destack]</p>
                                 <p class="home-hero__statement">
                                     the absurdly integrated computing stack
                                 </p>
@@ -292,24 +280,19 @@ export function HomePage() {
                                             onClick={() => setSelectedAction(point.action)}
                                         >
                                             <span class="home-points__number">
-                                                {String(index).padStart(2, "0")}
+                                                {pointNumber(
+                                                    index,
+                                                    selectedAction() === point.action,
+                                                )}
                                             </span>
                                             <strong class="home-points__action">
-                                                <SweepText
-                                                    column={sweepColumn()}
-                                                    firstColumn={
-                                                        actionSweepFirstColumn +
-                                                        index * actionSweepStride
-                                                    }
-                                                    text={`[${point.action}]`}
-                                                />
+                                                [{point.action}]
                                             </strong>
                                             <span>{point.description}</span>
                                         </a>
                                     </li>
                                 ))}
                             </ol>
-
                         </div>
 
                         <AsciiPlanet lightColumn={sweepColumn() - planetSweepOffset} />
@@ -338,6 +321,13 @@ export function HomePage() {
             </article>
         </Shell>
     );
+}
+
+/// Format one action index, marking the selected row in place.
+function pointNumber(index: number, isSelected: boolean) {
+    const number = String(index).padStart(2, "0");
+
+    return isSelected ? `>${number.slice(1)}` : number;
 }
 
 /// Render an empty lower section for an action.
