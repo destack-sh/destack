@@ -145,7 +145,9 @@ impl CheckState<'_> {
                 return Ok(Answer::pending([self.variable_dependency(variable)?]));
             }
             dir::Type::Form(form) => match form.form {
-                dir::Form::Borrowed { access, .. } => Some(access),
+                dir::Form::Borrowed(borrow) => {
+                    Some(self.type_borrow(receiver.module_id, borrow)?.access)
+                }
                 _ => None,
             },
             _ => None,
@@ -226,7 +228,10 @@ impl CheckState<'_> {
         let owner = answer!(self.reduce_type_head(origin, owner)?);
 
         // readonly receiver views reject stored field writes
-        if answer!(self.receiver_projects_readonly(origin, owner)?) {
+        if answer!(
+            self.body(origin.module())
+                .receiver_projects_readonly(origin, owner)?
+        ) {
             let failure = ObligationFailure::CannotAssignReadonlyMember {
                 source,
                 member: field,

@@ -1,0 +1,87 @@
+use destack_dir as dir;
+
+use crate::CompilerResult;
+use crate::check::{
+    Answer, CheckState, InvalidOperation, ObligationCheck, ObligationFailure, OperationReduction,
+    Origin, Relation, WellFormedTypeObligation, answer,
+};
+
+impl CheckState<'_> {
+    /// Check that one written type operation is well-formed once solved.
+    pub(in crate::check) fn check_well_formed_type(
+        &mut self,
+        origin: Origin,
+        obligation: &WellFormedTypeObligation,
+    ) -> CompilerResult<Answer<ObligationCheck>> {
+        let Some(operation) = self.operation_head(obligation.ty)? else {
+            return Ok(Answer::Ready(ObligationCheck::holds()));
+        };
+
+        let index = match operation {
+            dir::TypeOperation::Index(index) => index,
+            _ => return Ok(Answer::Ready(ObligationCheck::holds())),
+        };
+        let reduction = answer!(self.reduce_index(origin, &index)?);
+        let invalid = match reduction {
+            // parameter receivers index as their bound would; other rigid
+            //  keys must prove membership in the receiver's key set
+            OperationReduction::Rigid => {
+                let bound = match self.ty(index.left)? {
+                    dir::Type::Parameter(parameter) => self
+                        .generic_parameter(parameter)
+                        .and_then(|binding| binding.constraint),
+                    _ => None,
+                };
+                if let Some(bound) = bound {
+                    let bounded = dir::IndexType {
+                        left: bound,
+                        index: index.index,
+                    };
+                    match answer!(self.reduce_index(origin, &bounded)?) {
+                        OperationReduction::Invalid(_) => {}
+                        _ => return Ok(Answer::Ready(ObligationCheck::holds())),
+                    }
+                } else {
+                    let keys = self.intern_operation(
+                        origin.module(),
+                        dir::TypeOperation::KeyOf(dir::UnaryType { target: index.left }),
+                    )?;
+                    let proven = answer!(self.decide_relation(
+                        origin,
+                        Relation::Satisfies,
+                        index.index,
+                        keys
+                    )?);
+                    if proven {
+                        return Ok(Answer::Ready(ObligationCheck::holds()));
+                    }
+                }
+
+                InvalidOperation::IndexKey {
+                    receiver: index.left,
+                    key: index.index,
+                }
+            }
+            OperationReduction::Invalid(invalid) => invalid,
+            OperationReduction::Projected(_) => {
+                return Ok(Answer::Ready(ObligationCheck::holds()));
+            }
+        };
+
+        let failure = match invalid {
+            InvalidOperation::IndexReceiver { receiver } => {
+                ObligationFailure::InvalidIndexReceiver {
+                    source: obligation.source,
+                    receiver,
+                }
+            }
+            InvalidOperation::IndexKey { receiver, key } => ObligationFailure::InvalidIndexKey {
+                source: obligation.source,
+                receiver,
+                key,
+            },
+        };
+
+        Ok(Answer::Ready(ObligationCheck::fail(failure)))
+    }
+}

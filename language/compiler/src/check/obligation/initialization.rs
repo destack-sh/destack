@@ -14,7 +14,7 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &ClassInitializationObligation,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        let fields = self.class_initialization_fields(obligation.symbol);
+        let fields = self.class_initialization_fields(obligation.symbol)?;
         let mut failures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
@@ -51,22 +51,23 @@ impl CheckState<'_> {
 
     /// Return fields that need class initialization checking.
     fn class_initialization_fields(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> Vec<dir::FieldDefinition> {
-        let Some(dir::Definition::Class(class)) = self.definition(symbol) else {
-            return Vec::new();
+    ) -> CompilerResult<Vec<dir::FieldDefinition>> {
+        let Some(dir::Definition::Class(class)) = self.definition(symbol)? else {
+            return Ok(Vec::new());
         };
 
         // collect instance fields without direct initializers,
-        // skipping definite assignment assertions like `handle!: T`
-        class
+        //  skipping definite assignment assertions like `handle!: T`
+        Ok(class
             .members
             .iter()
             .filter_map(|member| match member {
                 dir::DefinitionMember::Field(field)
                     if field.space == dir::MemberSpace::Instance
                         && field.initializer.is_none()
+                        && !field.is_optional
                         && !field.is_definite
                         && !field.is_abstract =>
                 {
@@ -74,7 +75,7 @@ impl CheckState<'_> {
                 }
                 _ => None,
             })
-            .collect()
+            .collect())
     }
 
     /// Return whether one field still needs constructor initialization.

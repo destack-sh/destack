@@ -39,6 +39,13 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => {
                 Ok(Answer::pending([self.variable_dependency(variable)?]))
             }
+            // refinements constrain members without changing the base
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(ty.module_id, refined)?;
+
+                self.satisfies_copy(origin, refined.base, active)
+            }
+
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Void
@@ -103,9 +110,14 @@ impl CheckState<'_> {
 
                 Ok(decision)
             }
-            dir::Type::Form(role) => match role.form {
+            dir::Type::Form(form) => match form.form {
                 dir::Form::Raw | dir::Form::Readonly => Ok(Answer::Ready(true)),
-                dir::Form::Borrowed { access, .. } => self.access_is_readonly(origin, access),
+                dir::Form::Borrowed(borrow) => {
+                    let access = self.type_borrow(ty.module_id, borrow)?.access;
+
+                    self.body(origin.module())
+                        .access_is_readonly(origin, access)
+                }
                 dir::Form::Managed | dir::Form::Owned | dir::Form::Placed { .. } => {
                     Ok(Answer::Ready(false))
                 }
@@ -172,7 +184,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        let Some(definition) = self.definition(instance.symbol).cloned() else {
+        let Some(definition) = self.definition(instance.symbol)?.cloned() else {
             return Ok(Answer::Ready(false));
         };
 

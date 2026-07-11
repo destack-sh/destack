@@ -39,6 +39,13 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => {
                 Ok(Answer::pending([self.variable_dependency(variable)?]))
             }
+            // refinements constrain members without changing the base
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(ty.module_id, refined)?;
+
+                self.satisfies_dynamic_safe(origin, refined.base, active)
+            }
+
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Any
@@ -57,7 +64,7 @@ impl CheckState<'_> {
             | dir::Type::Range(_) => Ok(Answer::Ready(true)),
             dir::Type::Reference(_) => Ok(Answer::Ready(false)),
             dir::Type::Instance(instance) => {
-                let Some(definition) = self.definition(instance.symbol) else {
+                let Some(definition) = self.definition(instance.symbol)? else {
                     return Ok(Answer::Ready(false));
                 };
                 let is_type_reference = !matches!(definition, dir::Definition::Extension(_));
@@ -90,7 +97,7 @@ impl CheckState<'_> {
                 Ok(decision)
             }
             dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Answer::Ready(false)),
-            dir::Type::Form(role) => self.satisfies_dynamic_safe(origin, role.value, active),
+            dir::Type::Form(form) => self.satisfies_dynamic_safe(origin, form.value, active),
             dir::Type::Dynamic(dynamic) => {
                 self.satisfies_dynamic_safe(origin, dynamic.constraint, active)
             }
@@ -133,6 +140,7 @@ impl CheckState<'_> {
                 self.all_dynamic_safe(origin, ids, active)
             }
             dir::Type::FunctionSignature(function) => {
+                let function = self.type_signature(ty.module_id, function)?;
                 self.satisfies_dynamic_safe_function(origin, ty.module_id, &function, active)
             }
             dir::Type::Function(function) => {

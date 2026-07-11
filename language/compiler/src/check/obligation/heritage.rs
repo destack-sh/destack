@@ -120,7 +120,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
-        let Some(dir::Definition::Class(class)) = self.definition(symbol) else {
+        let Some(dir::Definition::Class(class)) = self.definition(symbol)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         let is_abstract = class.is_abstract;
@@ -139,7 +139,7 @@ impl CheckState<'_> {
         let heritage = answer!(self.class_heritage(origin, extends)?);
 
         // decide every rule before reporting anything
-        // (so pending re-runs never duplicate diagnostics)
+        //  (so pending re-runs never duplicate diagnostics)
         let mut failures = Vec::new();
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
         for member in &own {
@@ -273,7 +273,7 @@ impl CheckState<'_> {
                 arguments,
             };
 
-            let Some(dir::Definition::Class(base)) = self.definition(instance.symbol) else {
+            let Some(dir::Definition::Class(base)) = self.definition(instance.symbol)? else {
                 break;
             };
             let base_members = base.members.clone();
@@ -308,7 +308,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GenericInstance> {
         let parameters = self
-            .symbol_template(symbol)
+            .symbol_template(symbol)?
             .map(|template| self.generic_template_parameters(template))
             .unwrap_or_default();
         let mut arguments = Vec::with_capacity(parameters.len());

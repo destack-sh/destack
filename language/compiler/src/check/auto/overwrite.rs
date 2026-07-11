@@ -39,6 +39,13 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => {
                 Ok(Answer::pending([self.variable_dependency(variable)?]))
             }
+            // refinements constrain members without changing the base
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(ty.module_id, refined)?;
+
+                self.satisfies_overwrite_stable(origin, refined.base, active)
+            }
+
             dir::Type::Error
             | dir::Type::Never
             | dir::Type::Void
@@ -87,13 +94,13 @@ impl CheckState<'_> {
 
                 Ok(decision)
             }
-            dir::Type::Form(role) => match role.form {
-                dir::Form::Managed | dir::Form::Borrowed { .. } | dir::Form::Raw => {
+            dir::Type::Form(form) => match form.form {
+                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
                     Ok(Answer::Ready(true))
                 }
                 dir::Form::Owned => Ok(Answer::Ready(false)),
                 dir::Form::Placed { .. } | dir::Form::Readonly => {
-                    self.satisfies_overwrite_stable(origin, role.value, active)
+                    self.satisfies_overwrite_stable(origin, form.value, active)
                 }
             },
             dir::Type::Instance(instance) => {
@@ -140,7 +147,7 @@ impl CheckState<'_> {
         instance: dir::GenericInstance,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(definition) = self.definition(instance.symbol).cloned() else {
+        let Some(definition) = self.definition(instance.symbol)?.cloned() else {
             return Ok(Answer::Ready(false));
         };
 

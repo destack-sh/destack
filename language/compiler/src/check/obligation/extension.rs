@@ -16,10 +16,11 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
-        let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
+        let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         let members = extension.members.clone();
+        let target = extension.target.r#type();
         let implements = extension
             .implements
             .iter()
@@ -30,14 +31,8 @@ impl CheckState<'_> {
         }
 
         // require each declared implementation to satisfy its interface
-        let failures = answer!(self.check_extension_members(
-            origin,
-            source,
-            symbol,
-            extension.target.r#type(),
-            &members,
-            &implements,
-        )?);
+        let failures =
+            answer!(self.check_extension_members(origin, source, target, &members, &implements)?);
         let check = ObligationCheck::from_failures(failures);
 
         Ok(Answer::Ready(check))
@@ -50,7 +45,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
-        let Some(dir::Definition::Extension(extension)) = self.definition(symbol) else {
+        let Some(dir::Definition::Extension(extension)) = self.definition(symbol)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         let target = extension.target;
@@ -154,7 +149,6 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
         implements: &[dir::NominalHeritage],
@@ -169,14 +163,14 @@ impl CheckState<'_> {
                 symbol: heritage.symbol,
                 arguments,
             };
+            let reported = self.intern_type(source.module_id, dir::Type::Instance(interface))?;
             let result = self.check_extension_interface(
                 origin,
                 source,
                 heritage.source,
-                symbol,
+                reported,
                 target,
                 members,
-                implements,
                 &interface,
             )?;
 
@@ -187,8 +181,6 @@ impl CheckState<'_> {
             }
         }
 
-        let blockers = self.live_blockers(blockers);
-
         Ok(Answer::ready_unless_blocked(failures, blockers))
     }
 
@@ -198,22 +190,20 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalNodeIdAny,
         anchor_source: dir::GlobalNodeIdAny,
-        symbol: dir::GlobalSymbolId,
+        reported: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
         members: &[dir::DefinitionMember],
-        implements: &[dir::NominalHeritage],
         interface: &dir::GenericInstance,
     ) -> CompilerResult<Answer<ObligationCheck>> {
-        let Some(definition) = self.definition(interface.symbol) else {
+        let Some(definition) = self.definition(interface.symbol)? else {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         };
         if !matches!(definition, dir::Definition::Interface(_)) {
             return Ok(Answer::Ready(ObligationCheck::holds()));
         }
 
-        let interface_substitution = self
-            .instance_substitution(source.module_id, interface)?
-            .with_receiver(target);
+        let interface_substitution =
+            self.instance_substitution_with_defaults(source.module_id, interface, Some(target))?;
         let requirements = answer!(self.interface_requirements_with_substitution(
             origin,
             interface.symbol,
@@ -221,12 +211,12 @@ impl CheckState<'_> {
         )?);
 
         // compare each required member with the extension's declared
-        // members, where any matching overload satisfies the contract
+        //  members, where any matching overload satisfies the contract
         let extension_substitution = TypeSubstitution::default().with_receiver(target);
         for interface_member in requirements.members {
             let mut candidates = SmallVec::<[_; 2]>::new();
             for member in members {
-                let member = match self.declared_member(member)? {
+                let member = match self.body(origin.module()).declared_member(member)? {
                     Answer::Ready(Some(member)) => member,
                     Answer::Ready(None) => continue,
                     Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -244,7 +234,7 @@ impl CheckState<'_> {
                 let failure = ObligationFailure::InterfaceNotImplemented {
                     source: anchor_source,
                     ty: target,
-                    interface: interface.symbol,
+                    interface: reported,
                 };
 
                 return Ok(Answer::Ready(ObligationCheck::fail(failure)));
@@ -277,7 +267,7 @@ impl CheckState<'_> {
                 let failure = ObligationFailure::InterfaceNotImplemented {
                     source: anchor_source,
                     ty: target,
-                    interface: interface.symbol,
+                    interface: reported,
                 };
 
                 return Ok(Answer::Ready(ObligationCheck::fail(failure)));
@@ -289,11 +279,10 @@ impl CheckState<'_> {
             let check = self.check_extension_interface(
                 origin,
                 source,
-                application.source,
-                symbol,
+                anchor_source,
+                reported,
                 target,
                 members,
-                implements,
                 &application.instance,
             )?;
             match check {
@@ -328,14 +317,17 @@ impl CheckState<'_> {
                 dir::NominalHeritage,
             ); 2],
         >::new();
-        for other in self.visible_extensions(module, root) {
+        for other in self
+            .body(origin.module())
+            .visible_extensions(module, root)?
+        {
             if other == symbol {
                 continue;
             }
             if !self.is_later_definition(source, other) {
                 continue;
             }
-            let Some(dir::Definition::Extension(extension)) = self.definition(other) else {
+            let Some(dir::Definition::Extension(extension)) = self.definition(other)? else {
                 continue;
             };
             let dir::ExtensionTarget::Rooted {
@@ -359,7 +351,7 @@ impl CheckState<'_> {
         }
 
         // reject overlapping receivers for one unifiable interface
-        // instantiation: distinct interface arguments never conflict
+        //  instantiation: distinct interface arguments never conflict
         for (other, other_ty, heritage, other_heritage) in candidates {
             if !answer!(self.types_may_overlap(origin, ty, other_ty)?) {
                 continue;

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, MatchCase, ObligationCheck, ObligationFailure,
-    Origin, UncoveredValue, answer,
+    Answer, CheckState, DecisionKind, MatchCase, ObligationCheck, ObligationFailure, Origin,
+    UncoveredValue, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -23,19 +23,20 @@ impl CheckState<'_> {
                 MatchCase::Pattern {
                     pattern,
                     is_guarded: false,
-                } => match self.decision(pattern.into_any()) {
-                    Some(Decision::Pattern(_)) => patterns.push(*pattern),
-                    Some(Decision::Rejected) => {
+                } => match self.decision_kind(pattern.into_any()) {
+                    Some(DecisionKind::Pattern) => patterns.push(*pattern),
+                    // rejected patterns already reported and hold vacuously
+                    Some(DecisionKind::Rejected) => {
                         return Ok(Answer::Ready(ObligationCheck::holds()));
                     }
-                    Some(decision) => {
+                    decision => {
+                        let label = self.node_label(pattern.into_any());
                         return Err(CompilerError::Internal {
                             message: format!(
-                                "match coverage pattern {pattern:?} has non-pattern decision {decision:?}"
+                                "match coverage pattern {label} decided as {decision:?}"
                             ),
                         });
                     }
-                    None => return Ok(Answer::pending([Dependency::Decision(pattern.into_any())])),
                 },
                 // guarded cases cannot guarantee coverage
                 MatchCase::Pattern {

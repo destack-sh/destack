@@ -1,6 +1,6 @@
+use destack_core::{FxIndexSet, ensure_sufficient_stack};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -14,7 +14,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<ObligationCheck>> {
         let source = self.origin_source(origin)?;
-        let mut active = IndexSet::new();
+        let mut active = FxIndexSet::default();
         let mut circular = None;
 
         if answer!(self.decide_finite_storage(origin, ty, source, &mut active, &mut circular)?) {
@@ -32,7 +32,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         source: dir::GlobalNodeIdAny,
-        active: &mut IndexSet<dir::GlobalTypeId>,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
         circular: &mut Option<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<Answer<bool>> {
         let ty = answer!(self.reduce_type_head(origin, ty)?);
@@ -43,7 +43,7 @@ impl CheckState<'_> {
 
             return Ok(Answer::Ready(false));
         }
-        let finite = destack_core::ensure_sufficient_stack(|| {
+        let finite = ensure_sufficient_stack(|| {
             self.decide_finite_storage_children(origin, ty, source, active, circular)
         });
         active.swap_remove(&ty);
@@ -57,7 +57,7 @@ impl CheckState<'_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
         source: dir::GlobalNodeIdAny,
-        active: &mut IndexSet<dir::GlobalTypeId>,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
         circular: &mut Option<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<Answer<bool>> {
         let owner = ty.module_id;
@@ -68,7 +68,7 @@ impl CheckState<'_> {
                 dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
                     self.decide_finite_storage(origin, form.value, source, active, circular)
                 }
-                dir::Form::Managed | dir::Form::Borrowed { .. } | dir::Form::Raw => {
+                dir::Form::Managed | dir::Form::Borrowed(_) | dir::Form::Raw => {
                     Ok(Answer::Ready(true))
                 }
             },
@@ -118,7 +118,7 @@ impl CheckState<'_> {
         owner: ModuleId,
         instance: &dir::GenericInstance,
         source: dir::GlobalNodeIdAny,
-        active: &mut IndexSet<dir::GlobalTypeId>,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
         circular: &mut Option<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<Answer<bool>> {
         // vectors store their element inline, other intrinsics store handles
@@ -132,7 +132,7 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(true));
         }
 
-        let storage = match self.definition(instance.symbol).cloned() {
+        let storage = match self.definition(instance.symbol)?.cloned() {
             // newtypes are transparent over their backing
             Some(dir::Definition::Newtype(definition)) => {
                 SmallVec::<[_; 4]>::from_slice(&[(definition.value, source)])
@@ -177,7 +177,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         slots: &[(dir::GlobalTypeId, dir::GlobalNodeIdAny)],
-        active: &mut IndexSet<dir::GlobalTypeId>,
+        active: &mut FxIndexSet<dir::GlobalTypeId>,
         circular: &mut Option<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<Answer<bool>> {
         for (ty, source) in slots {

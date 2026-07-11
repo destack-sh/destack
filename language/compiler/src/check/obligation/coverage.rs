@@ -2,11 +2,11 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, ObligationCheck, ObligationFailure, Origin, Relation,
-    UncoveredValue, answer,
+    Answer, CheckState, ObligationCheck, ObligationFailure, Origin, Relation, UncoveredValue,
+    answer,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Scalar interval coverage represented by one pattern.
 #[derive(Debug, Clone, PartialEq)]
@@ -68,9 +68,10 @@ impl CheckState<'_> {
         let value = answer!(self.reduce_type_head(origin, value)?);
 
         // untagged newtypes match through their backing, like the
-        // narrowing family they belong to
+        //  narrowing family they belong to
         if answer!(self.tagged_discriminant_domain(origin, value)?).is_none()
-            && let Some(backing) = answer!(self.newtype_backing(origin, value)?)
+            && let Some(backing) =
+                answer!(self.body(origin.module()).newtype_backing(origin, value)?)
         {
             return self.decide_patterns_cover(origin, patterns, backing);
         }
@@ -150,11 +151,8 @@ impl CheckState<'_> {
 
         // untagged newtypes witness through their backing
         if let Answer::Ready(None) = self.tagged_discriminant_domain(origin, value)?
-            && let dir::Type::Instance(instance) = self.ty(value)?
-            && self
-                .resolve_symbol_alias(instance.symbol)
-                .is_ok_and(|resolved| self.definition(resolved).is_some())
-            && let Answer::Ready(Some(backing)) = self.newtype_backing(origin, value)?
+            && let Answer::Ready(Some(backing)) =
+                self.body(origin.module()).newtype_backing(origin, value)?
         {
             return self.uncovered_value(origin, patterns, backing);
         }
@@ -186,9 +184,7 @@ impl CheckState<'_> {
                     .decide_patterns_cover_tagged_case(patterns, discriminant)?
                     .is_ready_false()
                 {
-                    if let Some(key) =
-                        self.tagged_case_key_from_discriminant(origin.module(), discriminant)
-                    {
+                    if let Some(key) = self.tagged_case_key_from_discriminant(discriminant) {
                         return Ok(UncoveredValue::TaggedCase { ty: value, key });
                     }
 
@@ -244,7 +240,7 @@ impl CheckState<'_> {
 
     /// Decide whether any pattern alternative covers one tagged discriminant.
     fn decide_patterns_cover_tagged_case(
-        &self,
+        &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
@@ -260,26 +256,32 @@ impl CheckState<'_> {
     }
 
     /// Decide whether one pattern covers one tagged discriminant.
-    /// Undecided patterns park on their decision instead of denying coverage.
     fn decide_pattern_covers_tagged_case(
-        &self,
+        &mut self,
         pattern: dir::GlobalNodeId<dir::Pattern>,
         discriminant: dir::ScalarLiteral,
     ) -> CompilerResult<Answer<bool>> {
-        let Some(decision) = self.decision(pattern.into_any()) else {
-            return Ok(Answer::pending([Dependency::Decision(pattern.into_any())]));
-        };
+        // patterns decide with their covering value before coverage runs
+        if self.decision_kind(pattern.into_any()).is_none() {
+            return Err(CompilerError::Internal {
+                message: format!("coverage pattern {pattern:?} is undecided"),
+            });
+        }
+        let resolution = self
+            .resolutions(pattern.module_id)
+            .pattern_resolution(pattern.into_any())
+            .cloned();
 
-        let covers = match decision {
+        let covers = match &resolution {
             // wildcard shapes cover every discriminant
-            Decision::Pattern(dir::PatternResolution::Ignore)
-            | Decision::Pattern(dir::PatternResolution::Bind(dir::PatternBindingResolution {
+            Some(dir::PatternResolution::Ignore)
+            | Some(dir::PatternResolution::Bind(dir::PatternBindingResolution {
                 pattern: None,
                 ..
             })) => true,
 
             // variant destructures cover their selected discriminant
-            Decision::Pattern(dir::PatternResolution::Destructure(
+            Some(dir::PatternResolution::Destructure(
                 dir::PatternDestructureResolution::Variant(resolution),
             )) => match &resolution.projection {
                 dir::Projection::VariantPayload {
@@ -290,14 +292,14 @@ impl CheckState<'_> {
             },
 
             // defaulted patterns cover through their inner pattern
-            Decision::Pattern(dir::PatternResolution::Default(resolution)) => {
+            Some(dir::PatternResolution::Default(resolution)) => {
                 let inner = resolution.pattern.into_typed();
 
                 answer!(self.decide_pattern_covers_tagged_case(inner, discriminant)?)
             }
 
             // or patterns cover when any branch covers
-            Decision::Pattern(dir::PatternResolution::Or(or)) => {
+            Some(dir::PatternResolution::Or(or)) => {
                 let mut covered = false;
                 for branch in &or.patterns {
                     let branch = branch.into_typed();
@@ -386,11 +388,38 @@ impl CheckState<'_> {
             | dir::Pattern::NominalObject { ty, fields } => {
                 let ty = *ty;
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
-                let tag = answer!(self.node_type(ty.into_global_any(module))?);
-                let tag_decision =
-                    self.decide_relation(origin, Relation::Assignable, value, tag)?;
-                if !tag_decision.is_ready_true() {
-                    return Ok(tag_decision);
+                let tag = answer!(
+                    self.body(origin.module())
+                        .written_construct_tag(origin, module, ty)?
+                );
+
+                // one constructor covers every instantiation of its symbol
+                let tag = answer!(self.reduce_type_head(origin, tag)?);
+                let value_head = answer!(self.reduce_type_head(origin, value)?);
+                match (self.ty(value_head)?, self.ty(tag)?) {
+                    (dir::Type::Instance(value_instance), dir::Type::Instance(tag_instance)) => {
+                        // inherited constructors cover through heritage
+                        if value_instance.symbol != tag_instance.symbol {
+                            let closure = answer!(self.heritage_closure(
+                                origin,
+                                value_head.module_id,
+                                &value_instance,
+                            )?);
+                            let inherits = closure.applications.iter().any(|application| {
+                                application.instance.symbol == tag_instance.symbol
+                            });
+                            if !inherits {
+                                return Ok(Answer::Ready(false));
+                            }
+                        }
+                    }
+                    _ => {
+                        let tag_decision =
+                            self.decide_relation(origin, Relation::Assignable, value, tag)?;
+                        if !tag_decision.is_ready_true() {
+                            return Ok(tag_decision);
+                        }
+                    }
                 }
 
                 // project the newtype payload behind the tag when present
@@ -416,12 +445,13 @@ impl CheckState<'_> {
         pattern: dir::GlobalNodeId<dir::Pattern>,
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Answer<bool>>> {
-        let Some(decision) = self.decision(pattern.into_any()).cloned() else {
-            return Ok(None);
-        };
+        let resolution = self
+            .resolutions(pattern.module_id)
+            .pattern_resolution(pattern.into_any())
+            .cloned();
 
-        match decision {
-            Decision::Pattern(dir::PatternResolution::Test(resolution)) => {
+        match resolution {
+            Some(dir::PatternResolution::Test(resolution)) => {
                 let decision =
                     self.decide_predicate_covers(origin, &resolution.predicate, value)?;
 
@@ -514,7 +544,7 @@ impl CheckState<'_> {
                         self.module(module).view().get(pattern),
                         dir::Pattern::Default { .. }
                     );
-                    let lookup = answer!(self.lookup_member(
+                    let lookup = answer!(self.body(origin.module()).lookup_member(
                         origin,
                         module,
                         value,
@@ -560,7 +590,6 @@ impl CheckState<'_> {
     }
 
     /// Project the substituted newtype payload behind one nominal value.
-    /// Values without a newtype backing keep themselves as the payload.
     fn newtype_payload(
         &mut self,
         origin: Origin,
@@ -570,7 +599,7 @@ impl CheckState<'_> {
             dir::Type::Instance(instance) => instance,
             _ => return Ok(Answer::Ready(value)),
         };
-        let backing = match self.definition(instance.symbol) {
+        let backing = match self.definition(instance.symbol)? {
             Some(dir::Definition::Newtype(definition)) => definition.value,
             _ => return Ok(Answer::Ready(value)),
         };
