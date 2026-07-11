@@ -1,4 +1,4 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_program};
+use crate::{DestackFormatOptions, assert_format, assert_format_program, parse_first_expression};
 use destack_source::FileType;
 
 /// Empty structs should collapse cleanly.
@@ -7,7 +7,7 @@ fn test_format_struct_empty() {
     assert_format!(
         r#"struct Foo { }"#,
         r#"struct Foo {}"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -16,13 +16,10 @@ fn test_format_struct_empty() {
 #[test]
 fn test_format_recovered_property() {
     assert_format!(
-        ": 1, y: 2",
-        ": 1",
-        |parser| {
-            let properties = parser.eat_properties()?;
-            Ok(properties[0])
-        },
-        DestackFormatOptions::default()
+        "const value = { : 1, y: 2 }",
+        "const value = { : 1, y: 2 }",
+        parse_first_expression,
+        DestackFormatOptions::default(),
     );
 }
 
@@ -35,7 +32,7 @@ fn test_format_struct_with_fields() {
 	a: int32;
 	b: boolean;
 }"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -48,7 +45,7 @@ fn test_format_class_with_abstract_override_field() {
         r#"class Foo {
 	abstract override bar: int32;
 }"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -62,7 +59,7 @@ fn test_format_struct_with_decorated_field() {
 	@validate(minLength(1))
 	name: string;
 }"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }

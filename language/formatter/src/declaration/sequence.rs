@@ -753,7 +753,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
     // block body source cursor
     let block_body_start = f
         .context()
-        .first_non_trivia_token_in_span(f.context().span(block_id))
+        .first_token_in_span(f.context().span(block_id))
         .map(|token| (token.span.file, token.span.end));
 
     // import section at the block head

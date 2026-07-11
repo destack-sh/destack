@@ -506,7 +506,7 @@ fn single_parameter_has_paren_comments(
     let parameter_span = context.span(parameter_id);
 
     let has_open_paren_comments = context
-        .previous_non_trivia_token_before_span(parameter_span)
+        .previous_token_before_span(parameter_span)
         .filter(|token| token.token.ty() == TokenType::OpenParenthesis)
         .is_some_and(|token| {
             context
@@ -518,7 +518,7 @@ fn single_parameter_has_paren_comments(
     }
 
     context
-        .next_non_trivia_token_after_span(parameter_span)
+        .next_token_after_span(parameter_span)
         .filter(|token| token.token.ty() == TokenType::CloseParenthesis)
         .is_some_and(|token| {
             context

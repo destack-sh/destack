@@ -12,7 +12,7 @@ use crate::declaration::signature::{
     write_function_header_prefix, write_grouped_parameters_with_return_type,
 };
 use crate::declaration::statement::format_block;
-use crate::expression::ExpressionLeftSide;
+use crate::expression::ExpressionLeftPath;
 use crate::operator::AssignmentLikeLayout;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
@@ -440,12 +440,9 @@ fn lambda_body_needs_parentheses(
         return false;
     }
 
-    let mut leftmost = ExpressionLeftSide::new(body_expression_id);
-    while let Some(next_left) = leftmost.left(context) {
-        leftmost = next_left;
-    }
-
-    let leftmost = leftmost.expression_id();
+    let leftmost = ExpressionLeftPath::new(body_expression_id)
+        .leftmost(context)
+        .expression_id();
 
     !matches!(
         context.tree.get(leftmost),

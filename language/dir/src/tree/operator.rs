@@ -99,7 +99,7 @@ pub enum OperatorPrecedence {
     /// Unary postfix operators.
     /// `x() x[] x{} x? x! x++ x--`
     Postfix,
-    /// Atomic expressions.
+    /// Primary expressions.
     Primary,
 }
 

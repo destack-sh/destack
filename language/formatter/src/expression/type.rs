@@ -321,7 +321,7 @@ fn type_expression_trailing_anchor_end(
     let span = context.span(expression_id);
 
     context
-        .last_non_trivia_token_in_span(span)
+        .last_token_in_span(span)
         .map_or(span.end, |token| token.span.end)
 }
 
@@ -411,9 +411,7 @@ fn write_type_conditional_tail<'ast>(
     else_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let format_then_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let then_leading_comments = f
-            .context()
-            .comments_after_previous_non_trivia_token_for(then_type);
+        let then_leading_comments = f.context().comments_after_previous_token(then_type);
 
         if !then_leading_comments.is_empty() {
             write!(f, [FormatLeadingComments::Comments(&then_leading_comments)])?;
@@ -464,9 +462,7 @@ fn write_type_conditional_tail<'ast>(
 
     let format_else_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         if !type_expression_is_conditional(f.context(), else_type) {
-            let else_leading_comments = f
-                .context()
-                .comments_after_previous_non_trivia_token_for(else_type);
+            let else_leading_comments = f.context().comments_after_previous_token(else_type);
 
             if !else_leading_comments.is_empty() {
                 write!(f, [FormatLeadingComments::Comments(&else_leading_comments)])?;
@@ -2151,10 +2147,7 @@ where
         return Ok(());
     };
 
-    let Some(previous_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(parameters_span)
-    else {
+    let Some(previous_token) = f.context().previous_token_before_span(parameters_span) else {
         write!(f, [space()])?;
         return Ok(());
     };
@@ -2176,7 +2169,7 @@ fn write_type_callable_arrow_return<'ast>(
         if let Some(parameters_span) = function_like_parameters_span(f.context(), node_id)
             && let Some(arrow_token) = f
                 .context()
-                .previous_non_trivia_token_before_span(f.context().span(return_type))
+                .previous_token_before_span(f.context().span(return_type))
             && arrow_token.token.ty() == TokenType::ArrowWide
         {
             write_generated_boundary_comments(f, parameters_span.end, arrow_token.span.start)?;
@@ -2316,7 +2309,7 @@ fn write_type_signature<'ast>(
                 .map_or_else(|| f.context().span(node_id).end, |span| span.start);
             let optional_token = f
                 .context()
-                .first_non_trivia_token_between(key_end, parameter_start)
+                .first_token_between(key_end, parameter_start)
                 .filter(|token| token.token.ty() == TokenType::Maybe);
 
             if let Some(optional_token) = optional_token {
@@ -2528,7 +2521,7 @@ fn mapped_key_remap_as_token(
     key_remap: LocalNodeId<TypeExpression>,
 ) -> Option<TokenSpan> {
     let remap_span = context.span(key_remap);
-    let as_token = context.previous_non_trivia_token_before_span(remap_span)?;
+    let as_token = context.previous_token_before_span(remap_span)?;
 
     if context.token_keyword(as_token) != Some(Keyword::As) {
         return None;

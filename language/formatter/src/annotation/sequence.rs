@@ -572,9 +572,7 @@ fn write_annotation_sequence_with_trailing_break<'ast>(
         let annotation = f.context().annotation(annotation_id);
         let position = annotation.position;
         let starts_on_own_line = f.context().annotation_starts_on_own_line(annotation_id);
-        let next_token_type = f
-            .context()
-            .annotation_next_non_whitespace_token_type(annotation_id);
+        let next_token_type = f.context().annotation_next_token_type(annotation_id);
         let is_last_annotation = annotation_index + 1 == items.len();
 
         let needs_leading_space = position == DecoratorPosition::LinePostfix && !starts_on_own_line;

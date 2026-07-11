@@ -8,7 +8,7 @@ use destack_source::File;
 pub struct FormatSourceIndex {
     /// Newline byte offsets in file text.
     newline_offsets: Vec<u32>,
-    /// Comment tokens sorted by source position.
+    /// Comment tokens in source order.
     comment_tokens: Vec<TokenSpan>,
     /// Whether file text contains formatter ignore directive markers.
     has_ignore_directive_markers: bool,
@@ -16,9 +16,9 @@ pub struct FormatSourceIndex {
 
 impl FormatSourceIndex {
     /// Build source lookups for one parsed file.
-    pub(crate) fn new(file: &File, tokens: &[TokenSpan], side_tokens: &[TokenSpan]) -> Self {
+    pub(crate) fn new(file: &File, side_tokens: &[TokenSpan]) -> Self {
         let newline_offsets = collect_newline_offsets(file);
-        let comment_tokens = collect_comment_tokens(tokens, side_tokens);
+        let comment_tokens = collect_comment_tokens(side_tokens);
         let has_ignore_directive_markers = comment_tokens
             .iter()
             .any(|token| comment_text_has_ignore_directive_marker(file.span_str(token.span)));
@@ -36,7 +36,7 @@ impl FormatSourceIndex {
         &self.newline_offsets
     }
 
-    /// Return comment tokens sorted by source position.
+    /// Return comment tokens in source order.
     #[inline]
     pub(crate) fn comment_tokens(&self) -> &[TokenSpan] {
         &self.comment_tokens
@@ -67,22 +67,17 @@ fn collect_newline_offsets(file: &File) -> Vec<u32> {
         .collect()
 }
 
-/// Collect comment tokens from main and side token streams.
-fn collect_comment_tokens(tokens: &[TokenSpan], side_tokens: &[TokenSpan]) -> Vec<TokenSpan> {
-    let mut comment_tokens = tokens
+/// Collect comment tokens from the side token stream.
+fn collect_comment_tokens(side_tokens: &[TokenSpan]) -> Vec<TokenSpan> {
+    side_tokens
         .iter()
-        .chain(side_tokens)
         .copied()
-        .filter(|token| token_type_is_comment(token.token.ty()))
-        .collect::<Vec<_>>();
-
-    comment_tokens.sort_by_key(|token| token.span.start);
-
-    comment_tokens
+        .filter(|token| is_comment_token_type(token.token.ty()))
+        .collect()
 }
 
 /// Return whether one token type is a comment token.
-fn token_type_is_comment(token_type: TokenType) -> bool {
+fn is_comment_token_type(token_type: TokenType) -> bool {
     matches!(
         token_type,
         TokenType::LineComment

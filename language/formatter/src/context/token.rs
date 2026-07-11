@@ -4,29 +4,8 @@ use destack_dir::{
 };
 use destack_source::Span;
 
-/// Return whether one token type is horizontal or line whitespace.
-fn token_type_is_whitespace(token_type: TokenType) -> bool {
-    matches!(token_type, TokenType::Whitespace | TokenType::Newline)
-}
-
-/// Return whether one token type is a comment token.
-fn token_type_is_comment(token_type: TokenType) -> bool {
-    matches!(
-        token_type,
-        TokenType::LineComment
-            | TokenType::BlockComment
-            | TokenType::DocLineComment
-            | TokenType::DocBlockComment
-    )
-}
-
-/// Return whether one token type is formatter trivia.
-fn token_type_is_trivia(token_type: TokenType) -> bool {
-    token_type_is_whitespace(token_type) || token_type_is_comment(token_type)
-}
-
 impl<'a> DestackFormatContext<'a> {
-    /// Return the first non-trivia token start for one node.
+    /// Return the first token start for one node.
     pub fn node_token_start<T>(&self, node_id: LocalNodeId<T>) -> u32
     where
         T: Node + Clone,
@@ -34,11 +13,11 @@ impl<'a> DestackFormatContext<'a> {
     {
         let node_span = self.span(node_id);
 
-        self.first_non_trivia_token_in_span(node_span)
+        self.first_token_in_span(node_span)
             .map_or(node_span.start, |token| token.span.start)
     }
 
-    /// Return the last non-trivia token end for one node.
+    /// Return the last token end for one node.
     pub fn node_token_end<T>(&self, node_id: LocalNodeId<T>) -> u32
     where
         T: Node + Clone,
@@ -46,11 +25,11 @@ impl<'a> DestackFormatContext<'a> {
     {
         let node_span = self.span(node_id);
 
-        self.last_non_trivia_token_in_span(node_span)
+        self.last_token_in_span(node_span)
             .map_or(node_span.end, |token| token.span.end)
     }
 
-    /// Return the first non-trivia token start for one expression.
+    /// Return the first token start for one expression.
     pub fn expression_token_start(&self, expression_id: LocalNodeId<Expression>) -> u32 {
         self.tree
             .get_head_span(expression_id)
@@ -72,31 +51,18 @@ impl<'a> DestackFormatContext<'a> {
             .and_then(|previous_index| tokens.get(previous_index).copied())
     }
 
-    /// Return the first non-trivia token between two offsets.
-    pub fn first_non_trivia_token_between(&self, start: u32, end: u32) -> Option<TokenSpan> {
+    /// Return the first token between two offsets.
+    pub fn first_token_between(&self, start: u32, end: u32) -> Option<TokenSpan> {
         if end <= start {
             return None;
         }
 
-        let mut token_index = self
+        let token_index = self
             .tokens
             .partition_point(|token| token.span.start < start);
+        let token = self.tokens.get(token_index).copied()?;
 
-        while let Some(token) = self.tokens.get(token_index).copied() {
-            if token.span.start >= end {
-                return None;
-            }
-
-            token_index += 1;
-
-            if token_type_is_trivia(token.token.ty()) {
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
+        (token.span.start < end).then_some(token)
     }
 
     /// Return the start offset of the nth token of one type inside one span.
@@ -134,32 +100,19 @@ impl<'a> DestackFormatContext<'a> {
         None
     }
 
-    /// Return non-trivia tokens that intersect one span.
-    pub fn non_trivia_tokens_in_span(&self, span: Span) -> Vec<TokenSpan> {
+    /// Return tokens that intersect one span.
+    pub fn tokens_in_span(&self, span: Span) -> &[TokenSpan] {
         if span.start >= span.end {
-            return Vec::new();
+            return &[];
         }
 
-        let mut tokens_in_span = Vec::new();
-        let mut token_index = self
+        let start_index = self
             .tokens
             .partition_point(|token| token.span.end <= span.start);
+        let remaining = &self.tokens[start_index..];
+        let end_index = remaining.partition_point(|token| token.span.start < span.end);
 
-        while let Some(token) = self.tokens.get(token_index).copied() {
-            if token.span.start >= span.end {
-                break;
-            }
-
-            token_index += 1;
-
-            if token_type_is_trivia(token.token.ty()) {
-                continue;
-            }
-
-            tokens_in_span.push(token);
-        }
-
-        tokens_in_span
+        &remaining[..end_index]
     }
 
     /// Return the comment token type at one exact comment span.
@@ -177,89 +130,36 @@ impl<'a> DestackFormatContext<'a> {
     }
 
     /// Return comment tokens that intersect one span.
-    pub fn comment_tokens_intersecting_span(&self, span: Span) -> Vec<TokenSpan> {
-        self.comment_tokens()
-            .iter()
-            .copied()
-            .filter(|token| span.intersects(token.span))
-            .collect()
+    pub fn comment_tokens_intersecting_span(&self, span: Span) -> &[TokenSpan] {
+        let tokens = self.comment_tokens();
+        let start_index = tokens.partition_point(|token| token.span.end <= span.start);
+        let remaining = &tokens[start_index..];
+        let end_index = remaining.partition_point(|token| token.span.start < span.end);
+
+        &remaining[..end_index]
     }
 
-    /// Return the nearest non-whitespace token before one span.
-    pub fn previous_non_whitespace_token_before_span(&self, span: Span) -> Option<TokenSpan> {
+    /// Return the nearest token before one span.
+    pub fn previous_token_before_span(&self, span: Span) -> Option<TokenSpan> {
         let tokens = self.tokens;
-        let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+        let index = tokens.partition_point(|token| token.span.end <= span.start);
 
-        while index > 0 {
-            index -= 1;
-
-            let token = tokens[index];
-            if token_type_is_whitespace(token.token.ty()) {
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
+        index
+            .checked_sub(1)
+            .and_then(|index| tokens.get(index).copied())
     }
 
-    /// Return the nearest non-trivia token before one span.
-    pub fn previous_non_trivia_token_before_span(&self, span: Span) -> Option<TokenSpan> {
+    /// Return the nearest token after one span.
+    pub fn next_token_after_span(&self, span: Span) -> Option<TokenSpan> {
         let tokens = self.tokens;
-        let mut index = tokens.partition_point(|token| token.span.end <= span.start);
+        let index = tokens.partition_point(|token| token.span.start < span.end);
 
-        while index > 0 {
-            index -= 1;
-
-            let token = tokens[index];
-            if token_type_is_trivia(token.token.ty()) {
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
+        tokens.get(index).copied()
     }
 
-    /// Return the nearest non-whitespace token after one span.
-    pub fn next_non_whitespace_token_after_span(&self, span: Span) -> Option<TokenSpan> {
-        let tokens = self.tokens;
-        let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-        while let Some(token) = tokens.get(index).copied() {
-            if token_type_is_whitespace(token.token.ty()) {
-                index += 1;
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
-    }
-
-    /// Return the nearest non-trivia token after one span.
-    pub fn next_non_trivia_token_after_span(&self, span: Span) -> Option<TokenSpan> {
-        let tokens = self.tokens;
-        let mut index = tokens.partition_point(|token| token.span.start < span.end);
-
-        while let Some(token) = tokens.get(index).copied() {
-            if token_type_is_trivia(token.token.ty()) {
-                index += 1;
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
-    }
-
-    /// Return whether one span has a newline before the next non-whitespace token.
-    pub fn span_has_newline_before_next_non_whitespace_token(&self, span: Span) -> bool {
-        let Some(next_token) = self.next_non_whitespace_token_after_span(span) else {
+    /// Return whether one span has a newline before the next token.
+    pub fn has_newline_before_next_token(&self, span: Span) -> bool {
+        let Some(next_token) = self.next_token_after_span(span) else {
             return false;
         };
 
@@ -271,68 +171,37 @@ impl<'a> DestackFormatContext<'a> {
             .is_some_and(|between_span| self.has_newline(between_span))
     }
 
-    /// Return the first non-trivia token that intersects one span.
+    /// Return the first token that intersects one span.
     #[inline]
-    pub fn first_non_trivia_token_in_span(&self, span: Span) -> Option<TokenSpan> {
-        self.nth_non_trivia_token_in_span(span, 0)
+    pub fn first_token_in_span(&self, span: Span) -> Option<TokenSpan> {
+        self.nth_token_in_span(span, 0)
     }
 
-    /// Return the nth non-trivia token that intersects one span.
-    pub fn nth_non_trivia_token_in_span(&self, span: Span, nth: usize) -> Option<TokenSpan> {
-        let mut index = self
+    /// Return the zero-based nth token that intersects one span.
+    pub fn nth_token_in_span(&self, span: Span, nth: usize) -> Option<TokenSpan> {
+        let start_index = self
             .tokens
             .partition_point(|token| token.span.end <= span.start);
-        let mut seen = 0usize;
+        let token = self.tokens.get(start_index + nth).copied()?;
 
-        while let Some(token) = self.tokens.get(index).copied() {
-            if token.span.start >= span.end {
-                break;
-            }
-
-            index += 1;
-
-            if token_type_is_trivia(token.token.ty()) {
-                continue;
-            }
-
-            if seen == nth {
-                return Some(token);
-            }
-
-            seen += 1;
-        }
-
-        None
+        (token.span.start < span.end).then_some(token)
     }
 
-    /// Return the last non-trivia token that intersects one span.
-    pub fn last_non_trivia_token_in_span(&self, span: Span) -> Option<TokenSpan> {
+    /// Return the last token that intersects one span.
+    pub fn last_token_in_span(&self, span: Span) -> Option<TokenSpan> {
         let mut index = self
             .tokens
             .partition_point(|token| token.span.start < span.end);
+        index = index.checked_sub(1)?;
+        let token = self.tokens[index];
 
-        while index > 0 {
-            index -= 1;
-
-            let token = self.tokens[index];
-            if token.span.end <= span.start {
-                break;
-            }
-
-            if token_type_is_trivia(token.token.ty()) {
-                continue;
-            }
-
-            return Some(token);
-        }
-
-        None
+        (token.span.end > span.start).then_some(token)
     }
 
     /// Return one literal token lexeme inside one span.
     #[inline]
     pub fn literal_lexeme_in_span(&self, span: Span) -> Option<&'a str> {
-        let token = self.first_non_trivia_token_in_span(span)?;
+        let token = self.first_token_in_span(span)?;
 
         if token.token.ty() != TokenType::Literal {
             return None;
@@ -351,17 +220,14 @@ impl<'a> DestackFormatContext<'a> {
         self.token_str(token).parse::<Keyword>().ok()
     }
 
-    /// Return comments between the previous non-trivia token and one node body.
-    pub fn comments_after_previous_non_trivia_token_for<T>(
-        &self,
-        node_id: LocalNodeId<T>,
-    ) -> Vec<Comment>
+    /// Return comments between the previous token and one node body.
+    pub fn comments_after_previous_token<T>(&self, node_id: LocalNodeId<T>) -> Vec<Comment>
     where
         T: Node + Clone,
         Tree: TreeStore<T>,
     {
         let node_span = self.span(node_id);
-        let Some(previous_token) = self.previous_non_trivia_token_before_span(node_span) else {
+        let Some(previous_token) = self.previous_token_before_span(node_span) else {
             return Vec::new();
         };
 
@@ -372,9 +238,9 @@ impl<'a> DestackFormatContext<'a> {
             .to_vec()
     }
 
-    /// Return comments before the next non-trivia token after one span.
-    pub fn comments_before_next_non_trivia_token_after_span(&self, span: Span) -> Vec<Comment> {
-        let Some(next_token) = self.next_non_trivia_token_after_span(span) else {
+    /// Return comments before the next token after one span.
+    pub fn comments_before_next_token_after_span(&self, span: Span) -> Vec<Comment> {
+        let Some(next_token) = self.next_token_after_span(span) else {
             return Vec::new();
         };
 
@@ -383,7 +249,7 @@ impl<'a> DestackFormatContext<'a> {
             .to_vec()
     }
 
-    /// Get comment tokens sorted by source position.
+    /// Return comment tokens in source order.
     #[inline]
     pub fn comment_tokens(&self) -> &[TokenSpan] {
         self.source_index.comment_tokens()

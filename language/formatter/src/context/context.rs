@@ -59,9 +59,9 @@ pub struct DestackFormatContext<'a> {
     pub options: DestackFormatOptions,
     /// The file.
     pub file: &'a File,
-    /// The main tokens.
+    /// The semantic tokens in source order.
     pub tokens: &'a [TokenSpan],
-    /// The side tokens.
+    /// The trivia tokens in source order.
     pub side_tokens: &'a [TokenSpan],
     /// The side span.
     pub side_span: &'a MultiSpan,
@@ -95,7 +95,8 @@ impl<'a> DestackFormatContext<'a> {
         strings: &'a StringPool,
         parents: &'a NodeParentIndex,
     ) -> Self {
-        let source_index = FormatSourceIndex::new(file, tokens, side_tokens);
+        debug_assert!(tokens.iter().all(|token| token.token.ty().is_semantic()));
+        let source_index = FormatSourceIndex::new(file, side_tokens);
 
         Self {
             options,

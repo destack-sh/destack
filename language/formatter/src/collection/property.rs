@@ -825,7 +825,7 @@ fn method_body_separator_comments<'ast>(
     body_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
     let body_span = f.context().span(body_id);
-    let Some(previous_token) = f.context().previous_non_trivia_token_before_span(body_span) else {
+    let Some(previous_token) = f.context().previous_token_before_span(body_span) else {
         return Vec::new();
     };
     if previous_token.span.file != body_span.file || previous_token.span.end >= body_span.start {
@@ -870,10 +870,7 @@ fn write_method_body<'ast>(
             format_comment(f, comment)?;
 
             let is_last = index + 1 == block_separator_comments.len();
-            if !is_last
-                || f.context()
-                    .span_has_newline_before_next_non_whitespace_token(comment_span)
-            {
+            if !is_last || f.context().has_newline_before_next_token(comment_span) {
                 write!(f, [hard_line_break()])?;
             } else {
                 write!(f, [space()])?;

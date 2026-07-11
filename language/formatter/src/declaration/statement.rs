@@ -73,10 +73,10 @@ pub(crate) fn block_leading_line_comment_nodes(
     block_id: LocalNodeId<Block>,
 ) -> Vec<Comment> {
     let block_span = context.span(block_id);
-    let Some(open_brace_token) = context.first_non_trivia_token_in_span(block_span) else {
+    let Some(open_brace_token) = context.first_token_in_span(block_span) else {
         return Vec::new();
     };
-    let Some(previous_token) = context.previous_non_trivia_token_before_span(block_span) else {
+    let Some(previous_token) = context.previous_token_before_span(block_span) else {
         return Vec::new();
     };
     if previous_token.span.file != block_span.file
@@ -103,14 +103,14 @@ pub(crate) fn block_trailing_comment_nodes(
 ) -> Vec<Comment> {
     let block = context.tree.get(block_id);
     let block_span = context.span(block_id);
-    let Some(close_brace_token) = context.last_non_trivia_token_in_span(block_span) else {
+    let Some(close_brace_token) = context.last_token_in_span(block_span) else {
         return Vec::new();
     };
 
     let gap_start = if let Some(last_expression_id) = block.last_expression() {
         let expression_span = context.span(last_expression_id);
         expression_postfix_end(context, last_expression_id, expression_span.end).saturating_add(1)
-    } else if let Some(open_brace_token) = context.first_non_trivia_token_in_span(block_span) {
+    } else if let Some(open_brace_token) = context.first_token_in_span(block_span) {
         open_brace_token.span.end
     } else {
         block_span.start

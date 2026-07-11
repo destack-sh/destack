@@ -1559,7 +1559,7 @@ impl<'a> LintResult<'a> {
         }
 
         // format context
-        let side_span = parser.compute_side_span();
+        let side_span = parser.tree.decorator_span();
         let parents = NodeParentIndex::from_tree(&parser.tree);
         let (tokens, side_tokens) = parser.take_token_spans();
         let strings = parser.publish_strings();

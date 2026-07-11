@@ -1,6 +1,6 @@
 use crate::{
     DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
-    assert_format_roundtrip,
+    assert_format_roundtrip, parse_first_expression,
 };
 use destack_source::FileType;
 
@@ -24,7 +24,7 @@ fn test_format_recovered_tree_attribute() {
         r#"<Panel broken= next="ok" />"#,
         r#"<Panel broken= next="ok" />"#,
         FileType::Destack,
-        |parser| parser.eat_tree_literal(),
+        parse_first_expression,
     );
 }
 
@@ -38,7 +38,7 @@ fn test_format_recovered_tree_child() {
     <Child />
 </Panel>"#,
         FileType::Destack,
-        |parser| parser.eat_tree_literal(),
+        parse_first_expression,
     );
 }
 
@@ -51,7 +51,7 @@ fn test_format_recovered_tree_closing_tag() {
     <Child />
 </Panel>"#,
         FileType::Destack,
-        |parser| parser.eat_tree_literal(),
+        parse_first_expression,
     );
 }
 

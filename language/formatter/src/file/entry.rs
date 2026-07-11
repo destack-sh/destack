@@ -65,7 +65,7 @@ pub fn format_file_tree(
     strings: &StringPool,
     options: FormatterOptions,
 ) -> Result<String, FormatFileError> {
-    let side_span = Parser::compute_side_span_from_tree(tree);
+    let side_span = tree.decorator_span();
     let language_type = LanguageType::try_from(file.ty).map_err(|_| FormatFileError {
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
@@ -124,7 +124,7 @@ pub fn format_source(
 
     // build the formatter context
     let (tokens, side_tokens) = parser.take_token_spans();
-    let side_span = parser.compute_side_span();
+    let side_span = parser.tree.decorator_span();
     parser.tree.index_parents();
     let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
@@ -190,7 +190,7 @@ pub fn format_source_range(
 
     // build the formatter context
     let (tokens, side_tokens) = parser.take_token_spans();
-    let side_span = parser.compute_side_span();
+    let side_span = parser.tree.decorator_span();
     parser.tree.index_parents();
     let strings = parser.publish_strings();
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
@@ -237,8 +237,7 @@ fn source_parser(file: Arc<File>, language_type: LanguageType) -> Parser {
         language_type,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     )

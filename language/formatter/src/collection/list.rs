@@ -41,13 +41,13 @@ where
         let element_span = f.context().span(self.element);
         let element_anchor_end = f
             .context()
-            .last_non_trivia_token_in_span(element_span)
+            .last_token_in_span(element_span)
             .map_or(element_span.end, |token| token.span.end);
         let next_element_start = self.next_element.map(|next_element| {
             let next_element_span = f.context().span(next_element);
 
             f.context()
-                .first_non_trivia_token_in_span(next_element_span)
+                .first_token_in_span(next_element_span)
                 .map_or(next_element_span.start, |token| token.span.start)
         });
         let element_following_start =
@@ -65,13 +65,13 @@ where
             .or_else(|| {
                 source_separator.and_then(|separator| {
                     f.context()
-                        .next_non_trivia_token_after_span(separator.span)
+                        .next_token_after_span(separator.span)
                         .map(|token| token.span.start)
                 })
             })
             .or_else(|| {
                 f.context()
-                    .next_non_trivia_token_after_span(element_span)
+                    .next_token_after_span(element_span)
                     .map(|token| token.span.start)
             })
             .unwrap_or(element_span.end);
@@ -220,7 +220,7 @@ where
     let next_element = next_element?;
     let next_element_span = context.span(next_element);
     let next_token_start = context
-        .first_non_trivia_token_in_span(next_element_span)
+        .first_token_in_span(next_element_span)
         .map_or(next_element_span.start, |token| token.span.start);
 
     comments.iter().position(|comment| {
@@ -240,7 +240,7 @@ fn list_element_following_start(
     };
 
     context
-        .next_non_trivia_token_after_span(source_separator.span)
+        .next_token_after_span(source_separator.span)
         .map_or(source_separator.span.end, |token| token.span.start)
 }
 
@@ -303,14 +303,14 @@ fn separator_token_after_element(
     separator: &str,
 ) -> Option<TokenSpan> {
     let separator_token_type = separator_token_type(separator)?;
-    let last_token_in_element = context.last_non_trivia_token_in_span(element_span);
+    let last_token_in_element = context.last_token_in_span(element_span);
     if let Some(token) = last_token_in_element
         && token.token.ty() == separator_token_type
     {
         return Some(token);
     }
 
-    let separator_token = context.next_non_trivia_token_after_span(element_span)?;
+    let separator_token = context.next_token_after_span(element_span)?;
     if separator_token.token.ty() != separator_token_type {
         return None;
     }
@@ -383,9 +383,7 @@ fn separator_trailing_comment_count(
     for comment in comments.iter().copied() {
         count += 1;
 
-        if comment.is_line()
-            || context.span_has_newline_before_next_non_whitespace_token(comment.span)
-        {
+        if comment.is_line() || context.has_newline_before_next_token(comment.span) {
             break;
         }
     }
@@ -605,7 +603,7 @@ where
         let next_span = context.span(next_element_id);
 
         context
-            .first_non_trivia_token_in_span(next_span)
+            .first_token_in_span(next_span)
             .map_or(next_span.start, |token| token.span.start)
     })
 }
@@ -633,7 +631,7 @@ fn ignored_range_starts_with_separator(
     };
 
     context
-        .first_non_trivia_token_in_span(range_span)
+        .first_token_in_span(range_span)
         .is_some_and(|token| token.token.ty() == separator_token)
 }
 
@@ -652,7 +650,7 @@ fn ignored_range_ends_with_separator(
     };
 
     context
-        .last_non_trivia_token_in_span(range_span)
+        .last_token_in_span(range_span)
         .is_some_and(|token| token.token.ty() == separator_token)
 }
 

@@ -1,6 +1,7 @@
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
+    parse_first_expression,
 };
 use destack_source::FileType;
 
@@ -12,7 +13,7 @@ fn test_format_match_expression_cases() {
 	1 => 2
 	3 => 4
 }"#,
-        |p| p.eat_match(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -71,7 +72,7 @@ fn test_format_match_with_block_case_and_guard() {
 		const X = 1;
 	}
 }"#,
-        |p| p.eat_match(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -86,7 +87,7 @@ fn test_format_switch_expression_cases() {
 	case 3:
 		4;
 }"#,
-        |p| p.eat_match(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -101,7 +102,7 @@ fn test_format_switch_with_default_case() {
 	default:
 		"other";
 }"#,
-        |p| p.eat_match(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -117,7 +118,7 @@ fn test_format_switch_with_guard() {
 	default:
 		break;
 }"#,
-        |p| p.eat_match(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -131,7 +132,7 @@ fn test_format_switch_with_block() {
 		const x = 1;
 	}
 }"#,
-        |p| p.eat_match(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }

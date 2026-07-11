@@ -181,7 +181,7 @@ fn write_tree_expression_child<'ast>(
             }
         )
     {
-        // break complex expression containers
+        // break the value without forcing its expression container
         write!(
             f,
             [group(&format_args![

@@ -14,7 +14,7 @@ use crate::declaration::{
     empty_block_with_infix_annotations, statement_wrapper_needs_semicolon,
     write_statement_terminator, write_statement_terminator_after_anchor,
 };
-use crate::expression::ExpressionLeftSide;
+use crate::expression::ExpressionLeftPath;
 use crate::file::node_has_ignore_directive;
 use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
@@ -296,7 +296,7 @@ fn control_body_has_leading_comments(
 ) -> bool {
     let expression_span = context.span(expression_id);
     let head_end = context
-        .previous_non_trivia_token_before_span(expression_span)
+        .previous_token_before_span(expression_span)
         .map_or(expression_span.start, |token| token.span.end);
 
     context
@@ -493,10 +493,10 @@ fn adjacent_statement_argument_has_leading_comments(
     argument_id: LocalNodeId<Expression>,
 ) -> bool {
     let is_inside_yield = adjacent_statement_argument_is_inside_yield(ctx, argument_id);
-    let mut left_side = Some(ExpressionLeftSide::new(argument_id));
+    let mut left_path = Some(ExpressionLeftPath::new(argument_id));
 
-    while let Some(current_left_side) = left_side {
-        let expression_id = current_left_side.expression_id();
+    while let Some(current) = left_path {
+        let expression_id = current.expression_id();
         let leading_comments = ctx
             .comments()
             .comments_before(ctx.span(expression_id).start);
@@ -513,7 +513,7 @@ fn adjacent_statement_argument_has_leading_comments(
             return true;
         }
 
-        left_side = current_left_side.left(ctx);
+        left_path = current.next(ctx);
     }
 
     false
@@ -542,7 +542,19 @@ fn write_wrapped_adjacent_statement_expression<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let wrapped_expression_id = adjacent_statement_wrapped_expression(f.context(), expression_id);
+    let leading_expression_id = ExpressionLeftPath::new(expression_id)
+        .leftmost(f.context())
+        .expression_id();
+    let leading_expression_span = f.context().span(leading_expression_id);
+    let leading_token_start = f.context().expression_token_start(leading_expression_id);
+    let leading_token_span = Span::new(
+        leading_expression_span.file,
+        leading_token_start,
+        leading_token_start,
+    );
     let wrapped_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [format_leading_comments(leading_token_span)])?;
+
         if matches!(
             f.context().tree.get(wrapped_expression_id),
             Expression::If {

@@ -1,9 +1,9 @@
-use destack_dir::BlockContext;
 use destack_source::FileType;
 
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
+    parse_first_expression,
 };
 
 /// Semicolons should be inserted for non-tail statement expressions.
@@ -31,7 +31,7 @@ fn test_format_block_insert_semicolon() {
         z()
     }
 }"#,
-        |p| p.eat_block(BlockContext::Expression),
+        parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -326,7 +326,7 @@ fn test_format_block_inline() {
     assert_format!(
         r#"const x = if (y) { z } else { w }"#,
         r#"const x = if (y) { z } else { w }"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -341,7 +341,7 @@ fn test_format_block_statement_like() {
 } else {
 	w;
 }"#,
-        |p| p.eat_if(),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -354,7 +354,7 @@ fn test_format_let_else_statement() {
         r#"let { x } = value else {
     return;
 }"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -368,7 +368,7 @@ fn test_format_block_declaration_after_expression_no_forced_blank_line() {
 	x = 1;
 	class A {}
 }"#,
-        |p| p.eat_block(BlockContext::Expression),
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }

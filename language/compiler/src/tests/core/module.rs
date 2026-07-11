@@ -65,7 +65,7 @@ fn parse_module_file(
 
     // parse the file with the shared tree
     let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
-    let mut parser = Parser::lex_module_tree_with_options(
+    let mut parser = Parser::lex_into_tree_with_options(
         source_file.clone(),
         language_type,
         ParserOptions::default(),

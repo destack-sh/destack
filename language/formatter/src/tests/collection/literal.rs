@@ -1,6 +1,6 @@
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program, assert_format_roundtrip,
-    assert_format_roundtrip_with_file_type,
+    assert_format_roundtrip_with_file_type, parse_first_expression,
 };
 use destack_repository::TrailingComma;
 use destack_source::FileType;
@@ -12,7 +12,7 @@ fn test_format_character_literal_keeps_single_quotes() {
         r#"'a'"#,
         r#"'a'"#,
         FileType::Destack,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
@@ -24,7 +24,7 @@ fn test_format_string_literal_escapes_embedded_target_quote() {
         r#""\"1\"""#,
         r#""\"1\"""#,
         FileType::Destack,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
@@ -36,7 +36,7 @@ fn test_format_destack_string_literal_keeps_double_quotes() {
         r#""say \"hello\"""#,
         r#""say \"hello\"""#,
         FileType::Destack,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default(),
     );
 }
@@ -47,7 +47,7 @@ fn test_format_template_literal_one_interpolation() {
     assert_format!(
         r#"tagged`hello ${name}`"#,
         r#"tagged`hello ${name}`"#,
-        crate::parse_first_expression
+        parse_first_expression
     );
 }
 
@@ -58,7 +58,7 @@ fn test_format_template_literal_ternary_interpolation_stays_inline_roundtrip() {
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
         FileType::Destack,
-        crate::parse_first_expression,
+        parse_first_expression,
     );
 }
 
@@ -68,7 +68,7 @@ fn test_format_long_string_not_broken() {
     assert_format!(
         r#""This is a very long string that exceeds the line width but should not be broken""#,
         r#""This is a very long string that exceeds the line width but should not be broken""#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default_with_line_width(40)
     );
 }
@@ -79,7 +79,7 @@ fn test_format_path_multiple_segments() {
     assert_format!(
         r#"destack.geometry.math"#,
         r#"destack.geometry.math"#,
-        |p| p.eat_path(),
+        |p| p.parse_path(),
         DestackFormatOptions::default()
     );
 }

@@ -788,7 +788,7 @@ fn chain_operation_start(
     let node_span = context.span(node_id);
 
     context
-        .first_non_trivia_token_between(left_end, node_span.end)
+        .first_token_between(left_end, node_span.end)
         .map(|token| token.span.start)
 }
 
@@ -846,7 +846,7 @@ fn chain_structural_trailing_comments(
                 _ => return comments,
             };
 
-            context.comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
+            context.comments_before_next_token_after_span(context.span(receiver_id))
         }
         _ => Vec::new(),
     };
@@ -878,7 +878,7 @@ fn write_chain_operation_leading_comments<'ast>(
     };
     let leading_comments = f
         .context()
-        .comments_before_next_non_trivia_token_after_span(f.context().span(receiver_id))
+        .comments_before_next_token_after_span(f.context().span(receiver_id))
         .into_iter()
         .filter(|comment| comment.preceded_by_newline())
         .collect::<Vec<_>>();
