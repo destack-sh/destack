@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use crate::check::{Answer, CheckState, Origin, answer};
 use crate::{CompilerError, CompilerResult};
@@ -65,15 +64,15 @@ impl CheckState<'_> {
 
     /// Return the case key declared by one tagged variant symbol.
     pub(in crate::check) fn tagged_variant_key(
-        &self,
+        &mut self,
         owner: dir::GlobalSymbolId,
         member: dir::GlobalSymbolId,
-    ) -> Option<dir::StaticKey> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(owner) else {
-            return None;
+    ) -> CompilerResult<Option<dir::StaticKey>> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(owner)? else {
+            return Ok(None);
         };
 
-        definition
+        Ok(definition
             .members
             .iter()
             .find_map(|candidate| match candidate {
@@ -81,51 +80,46 @@ impl CheckState<'_> {
                     Some(variant.key)
                 }
                 _ => None,
-            })
+            }))
     }
 
+    /// Return the variant case declared by one tagged owner and case key.
     pub(in crate::check) fn tagged_variant_case(
-        &self,
+        &mut self,
         owner: dir::GlobalSymbolId,
         key: dir::StaticKey,
-    ) -> Option<dir::VariantCase> {
-        let Some(dir::Definition::Newtype(definition)) = self.definition(owner) else {
-            return None;
+    ) -> CompilerResult<Option<dir::VariantCase>> {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(owner)? else {
+            return Ok(None);
         };
         let variant = definition.members.iter().find_map(|member| match member {
             dir::DefinitionMember::Variant(variant) if variant.key.matches(&key) => Some(variant),
             _ => None,
-        })?;
+        });
 
-        Some(dir::VariantCase {
+        Ok(variant.map(|variant| dir::VariantCase {
             owner,
             key: variant.key,
             member: variant.symbol,
-        })
+        }))
     }
 
     /// Return the default tagged discriminant key.
-    pub(in crate::check) fn tagged_discriminant_key(&mut self, module: ModuleId) -> dir::StaticKey {
-        let name = self
-            .module_mut(module)
-            .strings
-            .intern(TAGGED_DISCRIMINANT_FIELD);
-
-        dir::StaticKey::Name(name)
+    pub(in crate::check) fn tagged_discriminant_key(&self) -> dir::StaticKey {
+        dir::StaticKey::Name(self.strings().intern(TAGGED_DISCRIMINANT_FIELD))
     }
 
     /// Return the default source case key for one tagged discriminant.
     pub(in crate::check) fn tagged_case_key_from_discriminant(
-        &mut self,
-        module: ModuleId,
+        &self,
         discriminant: dir::ScalarLiteral,
     ) -> Option<dir::StaticKey> {
         let dir::ScalarLiteral::String(name) = discriminant else {
             return None;
         };
-        let text = self.module(module).strings.get(name).to_string();
+        let text = self.strings().get(name).to_string();
         let key = dir::StringMapping::Capitalize.apply(&text);
-        let key = self.module_mut(module).strings.intern(&key);
+        let key = self.strings().intern(&key);
 
         Some(dir::StaticKey::Name(key))
     }
@@ -144,13 +138,14 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(None));
         }
 
-        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol) else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(Answer::Ready(None));
         };
+        let declared = definition.value;
 
         // substitute owner arguments through the backing type
         let substitution = self.instance_substitution(value.module_id, &instance)?;
-        let backing = self.substitute_type(origin.module(), definition.value, &substitution)?;
+        let backing = self.substitute_type(origin.module(), declared, &substitution)?;
         let backing = answer!(self.reduce_type_head(origin, backing)?);
 
         // collect every arm discriminant
@@ -184,7 +179,7 @@ impl CheckState<'_> {
         let instance = match self.ty(value)? {
             dir::Type::Instance(instance) => instance,
             dir::Type::Reference(reference) => {
-                if let Some(template) = self.symbol_template(reference.symbol)
+                if let Some(template) = self.symbol_template(reference.symbol)?
                     && !self.generic_template_parameters(template).is_empty()
                 {
                     return Ok(None);
@@ -207,7 +202,7 @@ impl CheckState<'_> {
         origin: Origin,
         arm: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<Option<dir::ScalarLiteral>>> {
-        let tag_key = self.tagged_discriminant_key(origin.module());
+        let tag_key = self.tagged_discriminant_key();
         match self.ty(arm)? {
             dir::Type::Shape(shape) => {
                 let Some(tag) = self
@@ -237,7 +232,7 @@ impl CheckState<'_> {
         arm: dir::GlobalTypeId,
         tag_key: dir::StaticKey,
     ) -> CompilerResult<Answer<Option<dir::ScalarLiteral>>> {
-        let lookup = answer!(self.lookup_member(
+        let lookup = answer!(self.body(origin.module()).lookup_member(
             origin,
             origin.module(),
             arm,

@@ -2,12 +2,13 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, BoundMode, CallableArgument, Expectation, ExpectedType, FlowSite, Origin,
+    PlaceUse, Relation, ValueUse, answer,
 };
+use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return parameter types.
     pub(in crate::check) fn parameter_types(
         parameters: &[dir::FunctionParameterType],
@@ -52,8 +53,8 @@ impl CheckState<'_> {
         bindings
     }
 
-    /// Return generated argument bindings for parameters.
-    pub(in crate::check) fn generated_argument_bindings(
+    /// Return argument bindings from already selected argument sources.
+    pub(in crate::check) fn source_argument_bindings(
         arguments: &[dir::ArgumentSource],
         parameters: &[dir::FunctionParameterType],
     ) -> Vec<dir::ArgumentBinding> {
@@ -75,13 +76,13 @@ impl CheckState<'_> {
             .collect()
     }
 
-    /// Push final argument constraints for one accepted signature.
-    pub(in crate::check) fn push_argument_constraints(
+    /// Queue final argument checks for one accepted signature.
+    pub(in crate::check) fn check_arguments(
         &mut self,
         site: FlowSite,
         argument_nodes: &[dir::LocalNodeId<dir::Argument>],
         bindings: &[dir::ArgumentBinding],
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<()> {
         let module = site.node.module_id;
         for argument in argument_nodes.iter().copied() {
             let argument_node = argument.into_global_any(module);
@@ -96,42 +97,184 @@ impl CheckState<'_> {
             }) else {
                 continue;
             };
-            let Some(value) = self.argument_value_node(module, argument) else {
+            let Some(value) = self.argument_expression(module, argument) else {
                 continue;
             };
-            let source = answer!(self.argument_value_type(site, argument)?);
-
-            self.push_constraint(Constraint::value(
-                Relation::Assignable,
-                source,
-                binding.ty,
-                Origin::Node(value, site.scope),
-                ValueUse::Argument,
-            ));
+            let value_site = self.node_site(value)?;
+            let origin = Origin::Node(value, site.scope);
+            // barred parameters settle from the unbarred arguments alone
+            let mut expected = binding.ty;
+            if self.contains_inference_barrier(expected)? {
+                for variable in self.type_variables(expected)? {
+                    // TODO #Incomplete: a variable still open here leaks the
+                    //  barred argument's bounds once the queued check relates
+                    let _ = self.check.solve_variable(variable, BoundMode::Strong)?;
+                }
+                expected = self.erase_inference_barriers(module, expected)?;
+            }
+            // fresh literal arguments write into their parameter places
+            let relation = match self.argument_is_fresh_literal(module, value) {
+                true => Relation::Writable,
+                false => Relation::Assignable,
+            };
+            let expectation = Expectation {
+                expected: ExpectedType::Type(expected),
+                relation,
+                origin,
+                use_: ValueUse::Argument,
+            };
+            self.check_node(value_site, PlaceUse::Read, Some(expectation))?;
         }
 
-        Ok(Answer::Ready(()))
+        Ok(())
     }
 
-    /// Return the type flowing through one runtime argument value.
-    pub(in crate::check) fn argument_value_type(
+    /// Infer the type supplied by one runtime argument.
+    pub(in crate::check) fn infer_argument_type(
         &mut self,
         site: FlowSite,
         argument: dir::LocalNodeId<dir::Argument>,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let module = site.node.module_id;
-        let Some(value) = self.argument_value_node(module, argument) else {
+        let Some(value) = self.argument_expression(module, argument) else {
             let error = self.intern_type(module, dir::Type::Error)?;
 
             return Ok(Answer::Ready(error));
         };
 
         let site = self.node_site(value)?;
-        self.infer_node_type(site, PlaceUse::Read)
+        let ty = answer!(self.infer_node_type(site, PlaceUse::Read)?);
+
+        Ok(Answer::Ready(ty))
     }
 
-    /// Return the value expression carried by one argument node.
-    pub(in crate::check) fn argument_value_node(
+    /// Infer the types supplied by runtime arguments.
+    pub(in crate::check) fn infer_argument_types(
+        &mut self,
+        site: FlowSite,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<Answer<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        let mut types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        for argument in arguments {
+            let ty = answer!(self.infer_argument_type(site, *argument)?);
+            types.push(ty);
+        }
+
+        Ok(Answer::Ready(types))
+    }
+
+    /// Return callable arguments carried by source argument nodes.
+    pub(in crate::check) fn callable_arguments(
+        &mut self,
+        module: ModuleId,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<SmallVec<[CallableArgument; 4]>> {
+        let mut values = SmallVec::<[CallableArgument; 4]>::new();
+
+        // preserve argument positions even for malformed argument nodes
+        for argument in arguments {
+            let source = argument.into_global_any(module);
+            match self.argument_expression(module, *argument) {
+                Some(value) => values.push(CallableArgument::Expression(value)),
+                None => {
+                    let ty = self.intern_type(module, dir::Type::Error)?;
+                    values.push(CallableArgument::Typed { source, ty });
+                }
+            }
+        }
+
+        Ok(values)
+    }
+
+    /// Return callable arguments carried by selected argument sources.
+    pub(in crate::check) fn source_callable_arguments(
+        &mut self,
+        origin: Origin,
+        arguments: &[dir::GlobalTypeId],
+        sources: &[dir::ArgumentSource],
+    ) -> CompilerResult<SmallVec<[CallableArgument; 4]>> {
+        let source = self
+            .origin_source_node(origin)?
+            .into_global(origin.module());
+        let mut index = 0usize;
+        let mut values = SmallVec::<[CallableArgument; 4]>::new();
+
+        // map each binding source to the type supplied by its caller
+        for argument in sources {
+            match argument {
+                dir::ArgumentSource::Provided(source) => {
+                    if arguments.get(index).is_none() {
+                        return Err(CompilerError::Internal {
+                            message: "typed argument source has no type".to_string(),
+                        });
+                    }
+                    index += 1;
+                    values.push(CallableArgument::Expression(*source));
+                }
+                dir::ArgumentSource::Rest(sources) => {
+                    for source in sources {
+                        if arguments.get(index).is_none() {
+                            return Err(CompilerError::Internal {
+                                message: "typed rest argument source has no type".to_string(),
+                            });
+                        }
+                        index += 1;
+                        values.push(CallableArgument::Expression(*source));
+                    }
+                }
+                dir::ArgumentSource::Static(ty) => {
+                    let ty = match arguments.get(index).copied() {
+                        Some(ty) => {
+                            index += 1;
+                            ty
+                        }
+                        None => *ty,
+                    };
+                    values.push(CallableArgument::Typed { source, ty });
+                }
+                dir::ArgumentSource::Omitted => {
+                    if let Some(ty) = arguments.get(index).copied() {
+                        index += 1;
+                        values.push(CallableArgument::Typed { source, ty });
+                    }
+                }
+            }
+        }
+
+        // reject mismatched typed argument metadata loudly
+        if index != arguments.len() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "typed call supplied {} types but consumed {index}",
+                    arguments.len()
+                ),
+            });
+        }
+
+        Ok(values)
+    }
+
+    /// Return whether one argument expression is a fresh literal.
+    fn argument_is_fresh_literal(&self, module: ModuleId, value: dir::GlobalNodeIdAny) -> bool {
+        let mut current = value.local_id;
+        loop {
+            match self
+                .module(module)
+                .view()
+                .get(current.into_typed::<dir::Expression>())
+            {
+                dir::Expression::ObjectExpression { .. }
+                | dir::Expression::ArrayExpression { .. }
+                | dir::Expression::TupleExpression { .. } => return true,
+                dir::Expression::Parenthesized { expression } => current = expression.into_any(),
+                dir::Expression::Satisfies { expression, .. } => current = expression.into_any(),
+                _ => return false,
+            }
+        }
+    }
+
+    /// Return the expression carried by one argument node.
+    pub(in crate::check) fn argument_expression(
         &self,
         module: ModuleId,
         argument: dir::LocalNodeId<dir::Argument>,
@@ -141,17 +284,5 @@ impl CheckState<'_> {
             .get(argument)
             .value()
             .map(|value| value.into_global_any(module))
-    }
-
-    /// Return value source nodes carried by runtime arguments.
-    pub(in crate::check) fn argument_value_sources(
-        &self,
-        module: ModuleId,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
-    ) -> SmallVec<[dir::GlobalNodeIdAny; 4]> {
-        arguments
-            .iter()
-            .filter_map(|argument| self.argument_value_node(module, *argument))
-            .collect()
     }
 }

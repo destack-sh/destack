@@ -4,10 +4,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Dependency, FlowPointId, FlowSite, Origin, PlaceUse, answer,
+    Answer, BodyState, Dependency, FlowPointId, FlowSite, Origin, PlaceUse, answer,
 };
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one literal pattern from its closed expression value.
     pub(in crate::check) fn select_literal_pattern(
         &mut self,
@@ -151,11 +151,16 @@ impl CheckState<'_> {
                 .map(dir::Type::Range)
                 .unwrap_or(dir::Type::Never),
             // intersect fixed-width integer primitives when their bounds fit DIR ranges
-            dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => integer
-                .finite_interval()
-                .and_then(|domain| domain.intersection(written))
-                .map(dir::Type::Range)
-                .unwrap_or_else(|| dir::Type::Range(*written)),
+            dir::Type::Primitive(dir::PrimitiveType::Integer(integer)) => {
+                match integer.finite_interval() {
+                    Some(domain) => domain
+                        .intersection(written)
+                        .map(dir::Type::Range)
+                        .unwrap_or(dir::Type::Never),
+                    // unrepresentable widths keep the written interval
+                    None => dir::Type::Range(*written),
+                }
+            }
             // otherwise the written interval is the strongest represented test type
             _ => dir::Type::Range(*written),
         };

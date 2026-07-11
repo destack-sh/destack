@@ -1,24 +1,25 @@
-use crate::check::{
-    Answer, CheckState, Decision, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole,
-    Origin, answer,
-};
-use crate::{CompilerError, CompilerResult};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
+
+use crate::check::{
+    Answer, BodyState, Decision, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole,
+    Origin, answer,
+};
+use crate::{CompilerError, CompilerResult};
 
 /// Field lookup result for one object destructuring key.
 #[derive(Debug, Clone)]
 enum ObjectField {
     /// Lowerable field projection.
-    Projection(dir::Projection),
+    Projection(Box<dir::Projection>),
     /// Field lookup found no member.
     Missing,
     /// Field lookup found an invalid member and reported it.
     Rejected,
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one object pattern, projecting fields by key.
     pub(in crate::check) fn select_object_pattern(
         &mut self,
@@ -34,16 +35,13 @@ impl CheckState<'_> {
         self.check_pattern_bindings(module, fields)?;
 
         if !self.check_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         }
 
         if !answer!(self.is_keyed_type(origin, scrutinee)?) {
             self.report_pattern_source_not_object_shaped(origin, scrutinee)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
 
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         }
 
         let (fields, rest) =
@@ -196,7 +194,7 @@ impl CheckState<'_> {
 
             let selected = answer!(self.object_field(field_origin, module, owner, key)?);
             let projection = match selected {
-                ObjectField::Projection(projection) => projection,
+                ObjectField::Projection(projection) => *projection,
                 ObjectField::Missing => {
                     if let Some(pattern) =
                         pattern.filter(|pattern| self.is_defaulted_pattern(module, *pattern))
@@ -221,11 +219,16 @@ impl CheckState<'_> {
                     } else {
                         let key = self.format_static_key(&key);
                         self.report_pattern_field_missing(field_origin, owner, key)?;
+                        self.poison_pattern_field(field.into_global(module))?;
                     }
 
                     continue;
                 }
-                ObjectField::Rejected => continue,
+                ObjectField::Rejected => {
+                    self.poison_pattern_field(field.into_global(module))?;
+
+                    continue;
+                }
             };
             let projected_value = projection.ty();
 
@@ -361,7 +364,7 @@ impl CheckState<'_> {
 
             let selected = answer!(self.object_field(field_origin, module, owner, key)?);
             let projection = match selected {
-                ObjectField::Projection(projection) => projection,
+                ObjectField::Projection(projection) => *projection,
                 ObjectField::Missing => {
                     let Some(pattern) = pattern else {
                         return Err(CompilerError::Internal {
@@ -435,10 +438,12 @@ impl CheckState<'_> {
             answer!(self.lookup_member(origin, module, owner, dir::MemberSpace::Instance, key)?);
 
         let field = match lookup {
-            MemberLookup::Field(ty) => ObjectField::Projection(dir::Projection::FieldGet {
-                field: dir::ProjectionField::Key(key),
-                ty,
-            }),
+            MemberLookup::Field(ty) => {
+                ObjectField::Projection(Box::new(dir::Projection::FieldGet {
+                    field: dir::ProjectionField::Key(key),
+                    ty,
+                }))
+            }
             MemberLookup::Found(candidates) => {
                 self.object_member_field(origin, owner, key, candidates)?
             }
@@ -458,12 +463,16 @@ impl CheckState<'_> {
     ) -> CompilerResult<ObjectField> {
         let field = match candidates.as_slice() {
             [candidate] if candidate.role == MemberRole::Field => {
-                ObjectField::Projection(dir::Projection::FieldGet {
-                    field: candidate
-                        .field(key)
-                        .unwrap_or(dir::ProjectionField::Key(key)),
+                let Some(field) = candidate.field(key) else {
+                    return Err(CompilerError::Internal {
+                        message: "field member candidate has no field projection".to_string(),
+                    });
+                };
+
+                ObjectField::Projection(Box::new(dir::Projection::FieldGet {
+                    field,
                     ty: candidate.ty,
-                })
+                }))
             }
             [candidate] if candidate.role == MemberRole::Getter => {
                 let Some(read) = candidate.getter(owner, key) else {
@@ -472,10 +481,10 @@ impl CheckState<'_> {
                     });
                 };
 
-                ObjectField::Projection(dir::Projection::PropertyGet {
+                ObjectField::Projection(Box::new(dir::Projection::PropertyGet {
                     read,
                     ty: candidate.ty,
-                })
+                }))
             }
             [_candidate] => {
                 let key = self.format_static_key(&key);

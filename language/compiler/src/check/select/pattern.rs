@@ -4,11 +4,11 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, Decision, ExpectedType, FlowPointId, FlowSite, Obligation,
-    Origin, PlaceUse, Relation, Task, ValueUse, WritablePlaceObligation, WriteTarget, answer,
+    Answer, BodyState, Constraint, Decision, Expectation, ExpectedType, FlowPointId, FlowSite,
+    Obligation, Origin, PlaceUse, Relation, ValueUse, WritablePlaceObligation, WriteTarget, answer,
 };
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Check one pattern against its input type.
     pub(in crate::check) fn check_pattern(
         &mut self,
@@ -32,19 +32,12 @@ impl CheckState<'_> {
         origin: Origin,
     ) -> CompilerResult<Answer<()>> {
         self.commit_node_type(node.into_any(), input)?;
-
-        let accepted = answer!(self.select_assign_pattern(node, flow, scope, input, origin)?);
-        if !accepted {
-            return Ok(Answer::Ready(()));
-        }
+        answer!(self.select_assign_pattern(node, flow, scope, input, origin)?);
 
         Ok(Answer::Ready(()))
     }
 
     /// Select the assignment meaning of one assignment pattern node.
-    ///
-    /// Assignment patterns decompose their input like match patterns, then
-    /// flow leaf inputs into writable places.
     pub(in crate::check) fn select_assign_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::AssignPattern>,
@@ -76,12 +69,14 @@ impl CheckState<'_> {
                 };
                 let target =
                     answer!(self.commit_assign_pattern_place(input_origin, node, place)?);
+                let input_origin = self.intern_origin(input_origin);
                 self.push_constraint(Constraint::value(
                     Relation::Assignable,
                     input,
                     target,
                     input_origin,
-                    ValueUse::Store,
+                    input_origin,
+                    Some(ValueUse::Store),
                 ));
 
                 Ok(Answer::Ready(true))
@@ -113,7 +108,7 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(true))
             }
-            // [a, , ...rest] = values
+            // [a, ...rest] = values
             dir::AssignPattern::Sequence { fields } => {
                 let fields = fields.iter().copied().collect::<SmallVec<[_; 4]>>();
 
@@ -154,12 +149,12 @@ impl CheckState<'_> {
         self.commit_node_type(resolution.source, target_type)?;
 
         // require the written place to be writable
-        let scope = self.origin_scope(origin);
+        let scope = self.origin_scope(origin)?;
         self.push_obligation(
-            Obligation::WritablePlace(WritablePlaceObligation {
+            Obligation::WritablePlace(Box::new(WritablePlaceObligation {
                 place,
                 ty: target_type,
-            }),
+            })),
             scope,
         );
 
@@ -172,10 +167,6 @@ impl CheckState<'_> {
     }
 
     /// Select the pattern meaning of one pattern node.
-    ///
-    /// Every pattern node carries its own input: the match
-    /// site flowed the value into the root, and each parent selection
-    /// projects values into its nested pattern holes.
     pub(in crate::check) fn select_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -387,13 +378,142 @@ impl CheckState<'_> {
         tag: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<()>> {
         self.report_invalid_pattern_tag(origin, tag)?;
+
+        self.commit_rejected_pattern(node)
+    }
+
+    /// Commit one rejected pattern, poisoning the bindings it would introduce.
+    pub(in crate::check) fn commit_rejected_pattern(
+        &mut self,
+        node: dir::GlobalNodeId<dir::Pattern>,
+    ) -> CompilerResult<Answer<()>> {
+        self.poison_pattern(node)?;
         self.commit_decision(node.into_any(), Decision::Rejected)?;
 
         Ok(Answer::Ready(()))
     }
+
+    /// Bind every binding beneath one rejected pattern to the error type.
+    fn poison_pattern(&mut self, node: dir::GlobalNodeId<dir::Pattern>) -> CompilerResult<()> {
+        let module = node.module_id;
+        let error = self.intern_type(module, dir::Type::Error)?;
+
+        self.poison_pattern_bindings(module, error, node.local_id)
+    }
+
+    /// Bind every binding beneath one rejected pattern field to the error type.
+    pub(in crate::check) fn poison_pattern_field(
+        &mut self,
+        field: dir::GlobalNodeId<dir::PatternField>,
+    ) -> CompilerResult<()> {
+        let module = field.module_id;
+        let error = self.intern_type(module, dir::Type::Error)?;
+
+        self.poison_pattern_field_bindings(module, error, field.local_id)
+    }
+
+    /// Bind one rejected pattern's subtree to the error type.
+    fn poison_pattern_bindings(
+        &mut self,
+        module: ModuleId,
+        error: dir::GlobalTypeId,
+        node: dir::LocalNodeId<dir::Pattern>,
+    ) -> CompilerResult<()> {
+        if let Some(symbol) = self.module(module).declaration_symbol(node.into_any()) {
+            self.bind_symbol_type(symbol, error)?;
+        }
+
+        // walk pattern binding shape
+        match self.module(module).view().get(node).clone() {
+            // name: pattern
+            dir::Pattern::Binding {
+                pattern: Some(pattern),
+                ..
+            }
+            // pattern!
+            | dir::Pattern::Must(pattern)
+            // &pattern
+            | dir::Pattern::BorrowOf { right: pattern, .. }
+            // move pattern
+            | dir::Pattern::MoveOf { right: pattern, .. }
+            // *pattern
+            | dir::Pattern::DereferenceOf { right: pattern }
+            // pattern = value
+            | dir::Pattern::Default { pattern, .. } => {
+                self.poison_pattern_bindings(module, error, pattern)?;
+            }
+            // [a, b]
+            dir::Pattern::Tuple { fields }
+            // [...items]
+            | dir::Pattern::Sequence { fields }
+            // { name }
+            | dir::Pattern::Object { fields }
+            // T(a, b)
+            | dir::Pattern::NominalTuple { fields, .. }
+            // T { name }
+            | dir::Pattern::NominalObject { fields, .. } => {
+                for field in fields {
+                    self.poison_pattern_field_bindings(module, error, field)?;
+                }
+            }
+            // a | b
+            dir::Pattern::Union { patterns } => {
+                for pattern in patterns {
+                    self.poison_pattern_bindings(module, error, pattern)?;
+                }
+            }
+            // name
+            dir::Pattern::Binding { pattern: None, .. }
+            // _
+            | dir::Pattern::Wildcard
+            // value
+            | dir::Pattern::Expression { .. }
+            // start..end
+            | dir::Pattern::Range { .. } => {}
+        }
+
+        Ok(())
+    }
+
+    /// Bind one rejected pattern field's subtree to the error type.
+    fn poison_pattern_field_bindings(
+        &mut self,
+        module: ModuleId,
+        error: dir::GlobalTypeId,
+        field: dir::LocalNodeId<dir::PatternField>,
+    ) -> CompilerResult<()> {
+        if let Some(symbol) = self.module(module).declaration_symbol(field.into_any()) {
+            self.bind_symbol_type(symbol, error)?;
+        }
+
+        // walk pattern field binding shape
+        match self.module(module).view().get(field).clone() {
+            // { name: pattern }
+            dir::PatternField::Named {
+                pattern: Some(pattern),
+                ..
+            }
+            // { [key]: pattern }
+            | dir::PatternField::Computed { pattern, .. }
+            // T(pattern)
+            | dir::PatternField::Positional { pattern }
+            // { ...pattern }
+            | dir::PatternField::Spread {
+                pattern: Some(pattern),
+            } => {
+                self.poison_pattern_bindings(module, error, pattern)?;
+            }
+            // { name }, ...rest without a pattern and holes bind nothing nested
+            dir::PatternField::Named { pattern: None, .. }
+            | dir::PatternField::Spread { pattern: None }
+            | dir::PatternField::Elision => {}
+        }
+
+        Ok(())
+    }
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return the input type accepted by one pattern on its success branch.
     pub(in crate::check) fn accepted_pattern_input(
         &mut self,
@@ -421,6 +541,7 @@ impl CheckState<'_> {
             target,
             is_positive: true,
         });
+        // disjoint targets keep the raw input so field projection reports the mismatch
         let accepted = answer!(self.reduce_operation_type(origin, operation)?);
         if matches!(self.ty(accepted)?, dir::Type::Never) {
             return Ok(Answer::Ready(input));
@@ -478,17 +599,18 @@ impl CheckState<'_> {
         input: dir::GlobalTypeId,
         pattern: dir::GlobalNodeIdAny,
     ) -> CompilerResult<()> {
-        self.queue_task(Task::Check {
-            site: FlowSite {
-                node: pattern,
-                flow,
-                scope,
-            },
+        let site = FlowSite {
+            node: pattern,
+            flow,
+            scope,
+        };
+        let expectation = Expectation {
             expected: ExpectedType::Type(input),
             relation: Relation::Assignable,
             origin: Origin::Node(pattern, scope),
             use_: ValueUse::Store,
-        });
+        };
+        self.check_node(site, PlaceUse::Read, Some(expectation))?;
 
         Ok(())
     }
@@ -616,7 +738,7 @@ impl CheckState<'_> {
                 key,
                 ty: unknown,
                 is_optional: false,
-                is_readonly: false,
+                is_readonly: true,
             });
         }
         let fields_target = self.intern_fields(module, &fields_target)?;

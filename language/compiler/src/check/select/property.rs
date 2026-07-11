@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, Decision, Dependency, FlowSite, Origin, PlaceUse, Relation,
-    answer,
+    Answer, BodyState, CheckFailure, CheckOutcome, Constraint, Decision, Dependency, FlowSite,
+    Origin, PlaceUse, Relation, ValueUse, answer,
 };
 
 /// One literal property entry collected for merging.
@@ -25,14 +25,14 @@ enum MergeEntry {
     },
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select the merged shape of one literal with spread properties.
     pub(in crate::check) fn select_property_merge(
         &mut self,
         site: FlowSite,
         properties: &[dir::LocalNodeId<dir::Property>],
         target: Option<dir::GlobalTypeId>,
-    ) -> CompilerResult<Answer<()>> {
+    ) -> CompilerResult<Answer<CheckOutcome>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let origin = site.origin();
@@ -71,13 +71,47 @@ impl CheckState<'_> {
             }
         }
 
+        // collect declared fields through the selected construct target
+        let target_fields = match target {
+            Some(target) => answer!(self.struct_field_types(origin, target)?),
+            None => SmallVec::new(),
+        };
+
         // merge entry fields left to right, later keys overriding
+        let mut check = CheckOutcome::Holds;
         let mut fields = IndexMap::<dir::StaticKey, dir::TypeField>::new();
         for entry in entries {
             match entry {
-                // direct fields read their inferred node or method type
+                // direct fields use declared struct field types when available
                 MergeEntry::Field { key, source } => {
-                    let ty = answer!(self.merge_entry_type(source)?);
+                    let expected = target_fields.iter().find(|field| field.key == key);
+                    let ty = match expected {
+                        Some(field) if source.local_id.ty == dir::NodeType::Expression => {
+                            let source_site = self.node_site(source)?;
+                            // optional fields accept their value or undefined
+                            let expected_ty = match field.is_optional {
+                                true => {
+                                    let module = origin.module();
+                                    let undefined =
+                                        self.intern_type(module, dir::Type::Undefined)?;
+
+                                    self.normalized_union_type(module, [field.ty, undefined])?
+                                }
+                                false => field.ty,
+                            };
+                            let field_check = answer!(self.check_node_expected(
+                                source_site,
+                                expected_ty,
+                                Relation::Assignable,
+                                Origin::Node(source, site.scope),
+                                ValueUse::Store,
+                            )?);
+                            check = check.and(field_check);
+
+                            answer!(self.node_type_at(source_site)?)
+                        }
+                        _ => answer!(self.merge_entry_type(source)?),
+                    };
                     fields.insert(
                         key,
                         dir::TypeField {
@@ -126,11 +160,20 @@ impl CheckState<'_> {
                     answer!(self.constrain_struct_construction(origin, &field_list, target)?);
                 }
 
-                // commit the literal before the writable obligation
+                // commit the literal before the writable obligation; a
+                //  failed field judgment already carried the report
                 self.commit_node_type(node.into_any(), target)?;
-                self.push_constraint(Constraint::check(Relation::Writable, shape, target, origin));
+                if matches!(check, CheckOutcome::Holds) {
+                    let origin = self.intern_origin(origin);
+                    self.push_constraint(Constraint::r#type(
+                        Relation::Writable,
+                        shape,
+                        target,
+                        origin,
+                    ));
+                }
 
-                Ok(Answer::Ready(()))
+                Ok(Answer::Ready(check))
             }
             // object literals bind their managed merged shape
             None => {
@@ -143,7 +186,7 @@ impl CheckState<'_> {
                 )?;
                 self.commit_node_type(node.into_any(), managed)?;
 
-                Ok(Answer::Ready(()))
+                Ok(Answer::Ready(check))
             }
         }
     }
@@ -198,7 +241,7 @@ impl CheckState<'_> {
             ))),
             // instances spread their visible fields
             dir::Type::Instance(instance) => {
-                let keys = self.nominal_member_keys(instance.symbol);
+                let keys = self.nominal_member_keys(instance.symbol)?;
                 let mut fields = Vec::with_capacity(keys.len());
                 let mut seen = SmallVec::<[dir::StaticKey; 8]>::new();
                 for key in keys {
@@ -239,11 +282,12 @@ impl CheckState<'_> {
         node: dir::GlobalNodeId<dir::Expression>,
         source: dir::GlobalNodeIdAny,
         spread: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<()>> {
-        self.report_spread_not_object(self.origin_at(origin, source), spread)?;
+    ) -> CompilerResult<Answer<CheckOutcome>> {
+        let anchored = self.origin_at(origin, source)?;
+        self.report_spread_not_object(anchored, spread)?;
         self.commit_decision(node.into_any(), Decision::Rejected)?;
         self.commit_error_node(node.into_any())?;
 
-        Ok(Answer::Ready(()))
+        Ok(Answer::Ready(CheckOutcome::Fails(CheckFailure::Relation)))
     }
 }

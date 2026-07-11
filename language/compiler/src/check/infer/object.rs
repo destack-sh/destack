@@ -4,11 +4,12 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::check::{
-    Answer, CheckState, Decision, FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, CandidateOutcome, CandidateVerdict, CheckAttempt, CheckOutcome, Decision,
+    FlowSite, Origin, PlaceUse, ProbeReason, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Infer one object literal from its properties.
     pub(in crate::check) fn infer_object_expression(
         &mut self,
@@ -106,7 +107,13 @@ impl CheckState<'_> {
             }),
         )?;
 
-        Ok(Answer::Ready(shape))
+        let ty = if mode == InferMode::Widen {
+            self.widen_type(shape)?
+        } else {
+            shape
+        };
+
+        Ok(Answer::Ready(ty))
     }
 
     /// Check one object literal under an expected object type.
@@ -119,7 +126,7 @@ impl CheckState<'_> {
         relation: Relation,
         origin: Origin,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
         let mut target_payload = target_head;
         while let dir::Type::Form(form) = self.ty(target_payload)?
@@ -128,11 +135,55 @@ impl CheckState<'_> {
             target_payload = form.value;
         }
 
-        let dir::Type::Shape(shape) = self.ty(target_payload)? else {
-            return Ok(Answer::Ready(false));
+        // union targets select their first contextually viable arm
+        if let dir::Type::Union(union) = self.ty(target_payload)? {
+            let elements = SmallVec::<[_; 4]>::from_slice(
+                self.type_ids(target_payload.module_id, union.elements)?,
+            );
+            for element in elements {
+                let element_head = answer!(self.reduce_type_head(origin, element)?);
+                let verdict = self.probe_candidate(ProbeReason::UnionArm, |state| {
+                    let checked = state.check_object_expression(
+                        site,
+                        properties,
+                        element,
+                        element_head,
+                        relation,
+                        origin,
+                        use_,
+                    )?;
+
+                    match checked {
+                        Answer::Ready(CheckAttempt::Checked(CheckOutcome::Holds)) => {
+                            Ok(Answer::Ready(CandidateOutcome::<(), ()>::Accepted(())))
+                        }
+                        Answer::Ready(_) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
+                        Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
+                    }
+                })?;
+                if verdict == CandidateVerdict::Viable {
+                    return self.check_object_expression(
+                        site,
+                        properties,
+                        element,
+                        element_head,
+                        relation,
+                        origin,
+                        use_,
+                    );
+                }
+            }
+
+            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+        }
+
+        let Some(target_fields) = answer!(self.expected_object_fields(origin, target_payload)?)
+        else {
+            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
         let mut keys = SmallVec::<[dir::StaticKey; 4]>::new();
         let mut should_relate_result = false;
+        let mut check = CheckOutcome::Holds;
 
         // check present fields against their matching expected fields
         for property in properties {
@@ -140,14 +191,10 @@ impl CheckState<'_> {
             match property {
                 dir::Property::Field { key, value, .. } => {
                     let Some(key) = answer!(self.select_property_key(site, key)?) else {
-                        return Ok(Answer::Ready(false));
+                        return Ok(Answer::Ready(CheckAttempt::NotApplicable));
                     };
                     keys.push(key);
-                    let Some(field) = self
-                        .shape_fields(target_payload.module_id, shape.fields)?
-                        .iter()
-                        .find(|field| field.key == key)
-                        .copied()
+                    let Some(field) = target_fields.iter().find(|field| field.key == key).copied()
                     else {
                         should_relate_result = true;
 
@@ -155,34 +202,78 @@ impl CheckState<'_> {
                     };
                     let child = value.into_global_any(node.module_id);
                     let child_site = self.node_site(child)?;
-                    answer!(self.check_node(
+                    // optional fields accept their value or undefined
+                    let expected = match field.is_optional {
+                        true => {
+                            let module = origin.module();
+                            let undefined = self.intern_type(module, dir::Type::Undefined)?;
+
+                            self.normalized_union_type(module, [field.ty, undefined])?
+                        }
+                        false => field.ty,
+                    };
+                    let child_check = answer!(self.check_node_expected(
                         child_site,
-                        field.ty,
+                        expected,
                         relation,
                         Origin::Node(child, site.scope),
                         use_
                     )?);
+                    check = check.and(child_check);
                 }
                 dir::Property::Spread { .. } => {
-                    return Ok(Answer::Ready(false));
+                    return Ok(Answer::Ready(CheckAttempt::NotApplicable));
                 }
                 dir::Property::Method { .. } | dir::Property::Error => {}
             }
         }
 
         // require the outer value relation when fields are missing or unmatched
-        for field in self.shape_fields(target_payload.module_id, shape.fields)? {
+        for field in &target_fields {
             if !keys.contains(&field.key) {
                 should_relate_result = true;
             }
         }
 
-        let source = answer!(self.infer_object_expression(site, properties, InferMode::Normal)?);
+        let source = answer!(self.infer_object_expression(site, properties, InferMode::Exact)?);
         self.commit_node_type(node.into_any(), source)?;
         if should_relate_result {
-            let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
+            let (_, result_check) =
+                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+            check = check.and(result_check);
         }
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+    }
+
+    /// Return fields expected by an object literal target.
+    fn expected_object_fields(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<Option<SmallVec<[dir::TypeField; 8]>>>> {
+        match self.ty(target)? {
+            dir::Type::Shape(shape) => Ok(Answer::Ready(Some(SmallVec::from_slice(
+                self.shape_fields(target.module_id, shape.fields)?,
+            )))),
+            // structural interfaces type literals contextually; nominal
+            //  interfaces require their declared wrapper
+            dir::Type::Instance(instance)
+                if matches!(
+                    self.definition(instance.symbol)?,
+                    Some(dir::Definition::Interface(interface)) if !interface.is_nominal
+                ) =>
+            {
+                let fields = answer!(self.check.interface_instance_fields(
+                    origin,
+                    target.module_id,
+                    &instance,
+                    target,
+                )?);
+
+                Ok(Answer::Ready(fields.map(SmallVec::from_vec)))
+            }
+            _ => Ok(Answer::Ready(None)),
+        }
     }
 }

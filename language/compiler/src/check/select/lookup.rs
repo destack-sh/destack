@@ -1,12 +1,12 @@
+use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexSet;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Decision, MemberCandidate, MemberLookup, MemberRole, Origin, ReceiverSteps,
-    answer,
+    Answer, BodyState, DecisionKind, MemberCandidate, MemberLookup, MemberRole, Origin,
+    ReceiverSteps, TypeSubstitution, answer,
 };
 
 /// One active member lookup query.
@@ -16,26 +16,26 @@ struct MemberQuery {
     module: ModuleId,
     /// The receiver type retained in selected resolutions.
     receiver: dir::GlobalTypeId,
-    /// The type currently searched for matching members.
-    lookup_type: dir::GlobalTypeId,
+    /// The type currently queried for matching members.
+    subject: dir::GlobalTypeId,
     /// The member namespace.
     space: dir::MemberSpace,
     /// The member key.
     key: dir::StaticKey,
-    /// Whether extension members are searched.
-    extensions: ExtensionSearch,
+    /// Whether extension members are admitted.
+    extensions: ExtensionFilter,
 }
 
-/// Whether member lookup searches extension declarations.
+/// Which member sources one lookup admits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ExtensionSearch {
+enum ExtensionFilter {
     /// Search receiver and base declarations only.
     Inherent,
     /// Search inherent members first, then extensions.
     All,
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return the member space implied by one receiver expression.
     pub(in crate::check) fn member_receiver_space(
         &mut self,
@@ -46,12 +46,18 @@ impl CheckState<'_> {
             return Ok(dir::MemberSpace::Static);
         }
 
-        let symbol = match self.decision(receiver) {
-            Some(Decision::Name(resolution)) => match resolution.symbols() {
-                [symbol] => Some(*symbol),
-                _ => None,
+        let resolutions = self.resolutions(receiver.module_id);
+        let symbol = match self.decision_kind(receiver) {
+            Some(DecisionKind::Name) => match resolutions.name_resolution(receiver) {
+                Some(resolution) => match resolution.symbols() {
+                    [symbol] => Some(*symbol),
+                    _ => None,
+                },
+                None => None,
             },
-            Some(Decision::Instantiation(resolution)) => Some(resolution.symbol),
+            Some(DecisionKind::Instantiation) => resolutions
+                .instantiation_resolution(receiver)
+                .map(|resolution| resolution.symbol),
             _ => None,
         };
         let Some(symbol) = symbol else {
@@ -62,7 +68,7 @@ impl CheckState<'_> {
         let kind = self.symbol_kind(symbol);
 
         // a name that spells a type reaches its static members, so
-        // parameters serve bound statics like rustc's T::default()
+        //  parameters serve bound statics like rustc's T::default()
         let names_type = kind.is_nominal() || matches!(kind, dir::SymbolKind::GenericTypeParameter);
         let space = if names_type {
             dir::MemberSpace::Static
@@ -82,15 +88,16 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let mut active_queries = IndexSet::new();
+        let mut active_queries = FxIndexSet::default();
 
-        self.lookup_member_query(
+        self.lookup_subject_member(
             origin,
             module,
             receiver,
+            receiver,
             space,
             key,
-            ExtensionSearch::All,
+            ExtensionFilter::All,
             &mut active_queries,
         )
     }
@@ -104,65 +111,44 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let mut active_queries = IndexSet::new();
+        let mut active_queries = FxIndexSet::default();
 
-        self.lookup_member_query(
+        self.lookup_subject_member(
             origin,
             module,
             receiver,
+            receiver,
             space,
             key,
-            ExtensionSearch::Inherent,
+            ExtensionFilter::Inherent,
             &mut active_queries,
         )
     }
 
-    /// Look up one member while tracking active receiver queries.
-    fn lookup_member_query(
+    /// Look one member up in `subject` while retaining `receiver` for projection.
+    fn lookup_subject_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
-        active: &mut IndexSet<MemberQuery>,
+        extensions: ExtensionFilter,
+        active: &mut FxIndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        // static space dispatches on the written reference: alias
-        // expansion would erase which declaration the name names
-        let root = self.settled_root(receiver)?;
+        // static names read the written declaration before aliases reduce
+        let root = self.settled_root(subject)?;
         if space == dir::MemberSpace::Static
             && let dir::Type::Reference(reference) = self.ty(root)?
         {
             return self.lookup_declaration_member(
-                origin, module, reference, space, key, extensions, active,
+                origin, module, receiver, reference, space, key, extensions, active,
             );
         }
 
-        let receiver = match self.reduce_type_head(origin, receiver)? {
-            Answer::Ready(receiver) => receiver,
-            Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
-        };
-
-        self.lookup_member_query_at(
-            origin, module, receiver, receiver, space, key, extensions, active,
-        )
-    }
-
-    /// Look up one member while retaining the selected receiver.
-    fn lookup_member_query_at(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        receiver: dir::GlobalTypeId,
-        lookup_type: dir::GlobalTypeId,
-        space: dir::MemberSpace,
-        key: dir::StaticKey,
-        extensions: ExtensionSearch,
-        active: &mut IndexSet<MemberQuery>,
-    ) -> CompilerResult<Answer<MemberLookup>> {
-        let lookup_type = match self.reduce_type_head(origin, lookup_type)? {
-            Answer::Ready(lookup_type) => lookup_type,
+        let subject = match self.reduce_type_head(origin, subject)? {
+            Answer::Ready(subject) => subject,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
         };
 
@@ -170,7 +156,7 @@ impl CheckState<'_> {
         let query = MemberQuery {
             module,
             receiver,
-            lookup_type,
+            subject,
             space,
             key,
             extensions,
@@ -179,49 +165,57 @@ impl CheckState<'_> {
             return Ok(Answer::Ready(MemberLookup::Missing));
         }
 
-        let lookup = self.lookup_member_receiver(
-            origin,
-            module,
-            receiver,
-            lookup_type,
-            space,
-            key,
-            extensions,
-            active,
+        let lookup = self.lookup_settled_member(
+            origin, module, receiver, subject, space, key, extensions, active,
         );
         active.swap_remove(&query);
 
         lookup
     }
 
-    /// Look up one member on an already reduced receiver type.
-    fn lookup_member_receiver(
+    /// Look one member up in one already reduced subject type.
+    fn lookup_settled_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
         receiver: dir::GlobalTypeId,
-        lookup_type: dir::GlobalTypeId,
+        subject: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
-        active: &mut IndexSet<MemberQuery>,
+        extensions: ExtensionFilter,
+        active: &mut FxIndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        match self.ty(lookup_type)? {
+        match self.ty(subject)? {
             // memory forms look through their payloads
-            dir::Type::Form(role) => {
-                let value = role.value;
+            dir::Type::Form(form) => self.lookup_subject_member(
+                origin, module, receiver, form.value, space, key, extensions, active,
+            ),
 
-                self.lookup_member_query_at(
-                    origin, module, receiver, value, space, key, extensions, active,
+            // refinements answer their refined member, then their base
+            dir::Type::Refined(refined) => {
+                let refined = self.type_refined(subject.module_id, refined)?;
+                if refined.key == key {
+                    return Ok(Answer::Ready(MemberLookup::Field(refined.value)));
+                }
+
+                self.lookup_subject_member(
+                    origin,
+                    module,
+                    receiver,
+                    refined.base,
+                    space,
+                    key,
+                    extensions,
+                    active,
                 )
             }
 
-            // declaration references search static members
+            // declaration references read static members
             dir::Type::Reference(reference) => self.lookup_declaration_member(
-                origin, module, reference, space, key, extensions, active,
+                origin, module, receiver, reference, space, key, extensions, active,
             ),
 
-            // applied declarations search their definition members
+            // applied declarations read their definition members
             dir::Type::Instance(_)
             | dir::Type::Literal(_)
             | dir::Type::Primitive(_)
@@ -229,23 +223,17 @@ impl CheckState<'_> {
             | dir::Type::Slice(_)
             | dir::Type::FixedArray(_) => {
                 let lookup = answer!(self.lookup_apparent_instance_member(
-                    origin,
-                    module,
-                    receiver,
-                    lookup_type,
-                    space,
-                    key,
-                    extensions,
+                    origin, module, receiver, subject, space, key, extensions,
                 )?);
 
                 // newtypes dereference to their backing for missing members
                 if matches!(lookup, MemberLookup::Missing)
                     && let Some(projection) =
-                        answer!(self.newtype_backing_projection(origin, lookup_type)?)
+                        answer!(self.newtype_backing_projection(origin, subject)?)
                 {
                     let value = projection.ty();
                     let receiver = answer!(self.replace_beneath_forms(origin, receiver, value)?);
-                    let mut lookup = answer!(self.lookup_member_query_at(
+                    let mut lookup = answer!(self.lookup_subject_member(
                         origin, module, receiver, value, space, key, extensions, active,
                     )?);
 
@@ -276,7 +264,7 @@ impl CheckState<'_> {
             }
 
             // enum members use the owner enum's instance members
-            dir::Type::EnumMember(member) => self.lookup_member_query_at(
+            dir::Type::EnumMember(member) => self.lookup_subject_member(
                 origin,
                 module,
                 receiver,
@@ -287,7 +275,7 @@ impl CheckState<'_> {
                 active,
             ),
 
-            // generic parameters search through their bounds
+            // generic parameters look through their bounds
             dir::Type::Parameter(parameter) => {
                 let bounds = self.parameter_bounds(origin, parameter)?;
 
@@ -296,25 +284,48 @@ impl CheckState<'_> {
                 )
             }
 
-            // erased values expose their constraint's members
-            dir::Type::Dynamic(dynamic) => self.lookup_bound_member(
-                origin,
-                module,
-                receiver,
-                &[dynamic.constraint],
-                space,
-                key,
-                extensions,
-                active,
-            ),
+            // erased values expose members through their dynamic payload
+            dir::Type::Dynamic(dynamic) => {
+                let constraint = dynamic.constraint;
+                let receiver = answer!(self.replace_beneath_forms(origin, receiver, constraint)?);
+                let mut lookup = answer!(self.lookup_bound_member(
+                    origin,
+                    module,
+                    receiver,
+                    &[constraint],
+                    space,
+                    key,
+                    extensions,
+                    active,
+                )?);
+                let projection = dir::Projection::DynamicPayload { ty: receiver };
+
+                if let MemberLookup::Found(candidates) = &mut lookup {
+                    for candidate in candidates {
+                        candidate.steps.insert(0, projection.clone());
+                    }
+                }
+
+                Ok(Answer::Ready(lookup))
+            }
 
             // structural shapes expose their fields
             dir::Type::Shape(shape) => {
                 let field = self
-                    .shape_fields(lookup_type.module_id, shape.fields)?
+                    .shape_fields(subject.module_id, shape.fields)?
                     .iter()
                     .find(|field| field.key == key)
-                    .map(|field| field.ty);
+                    .copied();
+
+                // optional fields read as their value or undefined
+                let field = match field {
+                    Some(field) if field.is_optional => {
+                        let undefined = self.intern_type(module, dir::Type::Undefined)?;
+
+                        Some(self.normalized_union_type(module, [field.ty, undefined])?)
+                    }
+                    field => field.map(|field| field.ty),
+                };
 
                 match field {
                     Some(ty) => match self.projected_member_type(
@@ -333,7 +344,7 @@ impl CheckState<'_> {
             // tuples expose their labeled elements
             dir::Type::Tuple(tuple) => {
                 let element = self
-                    .tuple_elements(lookup_type.module_id, tuple.elements)?
+                    .tuple_elements(subject.module_id, tuple.elements)?
                     .iter()
                     .find(|element| {
                         element
@@ -358,22 +369,22 @@ impl CheckState<'_> {
 
             // unions join member lookups across their elements
             dir::Type::Union(union) => {
-                let elements = self
-                    .type_ids(lookup_type.module_id, union.elements)?
-                    .to_vec();
+                let elements = self.type_ids(subject.module_id, union.elements)?.to_vec();
 
-                self.lookup_union_member(origin, module, &elements, space, key, extensions, active)
+                self.lookup_union_member(
+                    origin, module, receiver, &elements, space, key, extensions, active,
+                )
             }
 
             // intersections expose each element's members
             dir::Type::Intersection(intersection) => {
                 let elements = self
-                    .type_ids(lookup_type.module_id, intersection.elements)?
+                    .type_ids(subject.module_id, intersection.elements)?
                     .to_vec();
                 for element in elements {
                     let element = self.settled_root(element)?;
-                    match self.lookup_member_query(
-                        origin, module, element, space, key, extensions, active,
+                    match self.lookup_subject_member(
+                        origin, module, receiver, element, space, key, extensions, active,
                     )? {
                         Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
                         Answer::Ready(MemberLookup::Missing) => continue,
@@ -397,11 +408,11 @@ impl CheckState<'_> {
         bounds: &[dir::GlobalTypeId],
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
-        active: &mut IndexSet<MemberQuery>,
+        extensions: ExtensionFilter,
+        active: &mut FxIndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         for bound in bounds {
-            let lookup = self.lookup_member_query_at(
+            let lookup = self.lookup_subject_member(
                 origin, module, receiver, *bound, space, key, extensions, active,
             )?;
             match lookup {
@@ -423,7 +434,7 @@ impl CheckState<'_> {
         lookup_type: dir::GlobalTypeId,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
+        extensions: ExtensionFilter,
     ) -> CompilerResult<Answer<MemberLookup>> {
         let Some((instance_module, instance)) = self.apparent_instance(lookup_type)? else {
             return Ok(Answer::Ready(MemberLookup::Missing));
@@ -468,7 +479,7 @@ impl CheckState<'_> {
         if !self.is_component_module(instance.symbol.module_id) {
             self.import_external_module(instance.symbol.module_id)?;
         }
-        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol) else {
+        let Some(dir::Definition::Newtype(definition)) = self.definition(instance.symbol)? else {
             return Ok(Answer::Ready(None));
         };
         let value = definition.value;
@@ -491,11 +502,12 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        receiver: dir::GlobalTypeId,
         reference: dir::TypeReference,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
-        active: &mut IndexSet<MemberQuery>,
+        extensions: ExtensionFilter,
+        active: &mut FxIndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
         if space != dir::MemberSpace::Static {
             return Ok(Answer::Ready(MemberLookup::Missing));
@@ -505,10 +517,10 @@ impl CheckState<'_> {
         let mut symbol = self.resolve_symbol_alias(reference.symbol)?;
 
         // a type alias names its body's root declaration for statics,
-        // and the body's own members serve whatever the root lacks;
-        // head reduction expands the whole alias chain in one step
+        //  and the body's own members serve whatever the root lacks;
+        //  head reduction expands the whole alias chain in one step
         let mut alias_body = None;
-        if let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol) {
+        if let Some(dir::Definition::TypeAlias(alias)) = self.definition(symbol)? {
             let value = alias.value;
             let head = answer!(self.reduce_type_head(origin, value)?);
             alias_body = Some(head);
@@ -523,16 +535,17 @@ impl CheckState<'_> {
         // search declaration members before extensions
         let mut lookup = MemberLookup::Missing;
         if !self.symbol_kind(symbol).is_type_alias() {
-            let inherent = answer!(self.lookup_inherent_declaration_member(origin, symbol, key)?);
+            let inherent =
+                answer!(self.lookup_inherent_declaration_member(origin, receiver, symbol, key)?);
             lookup = match inherent {
                 MemberLookup::Found(_) | MemberLookup::Field(_) => {
                     return Ok(Answer::Ready(inherent));
                 }
                 MemberLookup::Missing => match extensions {
-                    ExtensionSearch::All => {
+                    ExtensionFilter::All => {
                         answer!(self.lookup_static_extension_member(origin, module, symbol, key)?)
                     }
-                    ExtensionSearch::Inherent => MemberLookup::Missing,
+                    ExtensionFilter::Inherent => MemberLookup::Missing,
                 },
             };
         }
@@ -541,7 +554,9 @@ impl CheckState<'_> {
         if matches!(lookup, MemberLookup::Missing)
             && let Some(body) = alias_body
         {
-            return self.lookup_member_query(origin, module, body, space, key, extensions, active);
+            return self.lookup_subject_member(
+                origin, module, receiver, body, space, key, extensions, active,
+            );
         }
 
         Ok(Answer::Ready(lookup))
@@ -552,23 +567,52 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         module: ModuleId,
+        receiver: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
-        active: &mut IndexSet<MemberQuery>,
+        extensions: ExtensionFilter,
+        active: &mut FxIndexSet<MemberQuery>,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let mut candidates = Vec::new();
+        let mut candidates: Vec<MemberCandidate> = Vec::new();
+        let mut arms: Vec<SmallVec<[dir::GlobalTypeId; 2]>> = Vec::new();
         let mut fields = SmallVec::<[dir::GlobalTypeId; 4]>::new();
 
         // every element must expose the member
         for element in elements {
-            match answer!(
-                self.lookup_member_query(origin, module, *element, space, key, extensions, active)?
-            ) {
+            match answer!(self.lookup_subject_member(
+                origin, module, receiver, *element, space, key, extensions, active
+            )?) {
                 MemberLookup::Field(ty) => fields.push(ty),
-                MemberLookup::Found(found) => candidates.extend(found),
+                MemberLookup::Found(found) => {
+                    for candidate in found {
+                        let shared = candidate.symbol.is_some().then(|| {
+                            candidates
+                                .iter()
+                                .position(|existing| existing.symbol == candidate.symbol)
+                        });
+                        match shared.flatten() {
+                            Some(index) => arms[index].push(*element),
+                            None => {
+                                candidates.push(candidate);
+                                arms.push(SmallVec::from_slice(&[*element]));
+                            }
+                        }
+                    }
+                }
                 MemberLookup::Missing => return Ok(Answer::Ready(MemberLookup::Missing)),
+            }
+        }
+
+        // dispatched candidates bind their narrowed runtime receivers;
+        //  one shared candidate keeps the whole union receiver
+        if candidates.len() > 1 {
+            for (candidate, arms) in candidates.iter_mut().zip(&arms) {
+                let arm = match arms.as_slice() {
+                    [single] => *single,
+                    _ => self.normalized_union_type(origin.module(), arms.iter().copied())?,
+                };
+                candidate.receiver.get_or_insert(arm);
             }
         }
 
@@ -595,7 +639,7 @@ impl CheckState<'_> {
         instance: dir::GenericInstance,
         space: dir::MemberSpace,
         key: dir::StaticKey,
-        extensions: ExtensionSearch,
+        extensions: ExtensionFilter,
     ) -> CompilerResult<Answer<MemberLookup>> {
         let mut instance = instance;
         instance.symbol = self.resolve_symbol_alias(instance.symbol)?;
@@ -621,7 +665,7 @@ impl CheckState<'_> {
         }
 
         match extensions {
-            ExtensionSearch::All => {
+            ExtensionFilter::All => {
                 // extension targets name values, so receivers shed memory forms
                 let receiver = answer!(self.value_beneath_forms(origin, receiver)?);
                 let lookup = answer!(
@@ -629,7 +673,7 @@ impl CheckState<'_> {
                 );
 
                 // values also match targets naming their apparent owner,
-                // so primitives reach extensions of their owning class
+                //  so primitives reach extensions of their owning class
                 if matches!(lookup, MemberLookup::Missing) {
                     let apparent = self.apparent_type(receiver)?;
                     if apparent != receiver {
@@ -641,7 +685,7 @@ impl CheckState<'_> {
 
                 Ok(Answer::Ready(lookup))
             }
-            ExtensionSearch::Inherent => Ok(Answer::Ready(MemberLookup::Missing)),
+            ExtensionFilter::Inherent => Ok(Answer::Ready(MemberLookup::Missing)),
         }
     }
 
@@ -649,10 +693,11 @@ impl CheckState<'_> {
     fn lookup_inherent_declaration_member(
         &mut self,
         origin: Origin,
+        receiver: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
-        let Some(definition) = self.definition(symbol) else {
+        let Some(definition) = self.definition(symbol)? else {
             return Ok(Answer::Ready(MemberLookup::Missing));
         };
         let members = definition
@@ -671,22 +716,86 @@ impl CheckState<'_> {
             };
             let ty = member.value_type(self, ty)?;
             let written = member.symbol.and_then(|symbol| self.static_value(symbol));
-            let ty = self.resolve_type_variables(origin.module(), ty)?;
-            let ty = answer!(self.projected_member_type(origin, None, member.role, ty)?);
+            let ty =
+                answer!(self.projected_member_type(origin, Some(receiver), member.role, ty)?);
+
+            // variant singletons instantiate their owner freshly per use
+            let (ty, generic_arguments) = match member.role {
+                MemberRole::Variant => {
+                    answer!(self.instantiate_variant_member(origin, symbol, ty)?)
+                }
+                _ => (ty, Vec::new()),
+            };
 
             candidates.push(MemberCandidate {
                 symbol: member.symbol,
                 owner: symbol,
+                space: dir::MemberSpace::Static,
                 role: member.role,
                 ty,
-                generic_arguments: Vec::new(),
+                generic_arguments,
                 value: member.value,
                 value_type: written,
                 steps: ReceiverSteps::new(),
+                receiver: None,
             });
         }
 
         Ok(Answer::Ready(MemberLookup::from_candidates(candidates)))
+    }
+
+    /// Instantiate one variant singleton's owner with fresh arguments.
+    fn instantiate_variant_member(
+        &mut self,
+        origin: Origin,
+        owner: dir::GlobalSymbolId,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<(dir::GlobalTypeId, Vec<dir::GenericArgumentBinding>)>> {
+        let Some(template) = self.symbol_template(owner)? else {
+            return Ok(Answer::Ready((ty, Vec::new())));
+        };
+        let parameters = self.generic_template_parameters(template);
+        if parameters.is_empty() {
+            return Ok(Answer::Ready((ty, Vec::new())));
+        }
+
+        // open one inference argument per owner parameter
+        let Some(substitution) = self.instantiate_parameter_arguments(
+            origin,
+            &parameters,
+            &[],
+            TypeSubstitution::default(),
+        )?
+        else {
+            return Ok(Answer::Ready((ty, Vec::new())));
+        };
+        let ty = self.substitute_type(origin.module(), ty, &substitution)?;
+
+        // unconstrained singleton arguments settle back to their parameters
+        for (parameter, argument) in substitution
+            .parameters
+            .iter()
+            .copied()
+            .zip(substitution.arguments.iter().copied())
+        {
+            let argument = self.settled_root(argument)?;
+            let Some(variable) = self.root_variable(argument)? else {
+                continue;
+            };
+            if self.solver.variables.variable_default(variable).is_none() {
+                let rigid = self.generic_parameter_type(parameter)?;
+                self.set_variable_default(variable, rigid)?;
+            }
+        }
+        let generic_arguments = substitution
+            .parameters
+            .iter()
+            .copied()
+            .zip(substitution.arguments.iter().copied())
+            .map(|(parameter, argument)| dir::GenericArgumentBinding::new(parameter, argument))
+            .collect();
+
+        Ok(Answer::Ready((ty, generic_arguments)))
     }
 
     /// Look up one inherent member on a declaration, walking its heritage.
@@ -701,7 +810,7 @@ impl CheckState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Answer<MemberLookup>> {
         // collect own members and heritage applications
-        let Some(definition) = self.definition(instance.symbol) else {
+        let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(Answer::Ready(MemberLookup::Missing));
         };
         let members = definition
@@ -720,15 +829,49 @@ impl CheckState<'_> {
             .with_receiver(receiver);
         let mut candidates = Vec::new();
         for member in members {
-            let Some(member) = answer!(self.declared_member(&member)?) else {
+            let Some(declared) = answer!(self.declared_member(&member)?) else {
                 continue;
             };
-            let symbol = member.symbol;
-            let Some(ty) = member.ty else {
-                continue;
+            let symbol = declared.symbol;
+
+            // value-less associated types project through the receiver, and
+            //  defaults stay conformance-only behind rigid owners
+            let is_associated = matches!(member, dir::DefinitionMember::AssociatedType(_));
+            let receiver_root = self.settled_root(receiver)?;
+            let rigid_owner = matches!(
+                self.ty(receiver_root)?,
+                dir::Type::Parameter(_) | dir::Type::This
+            );
+            let ty = match declared.ty {
+                Some(ty) if !(is_associated && rigid_owner) => ty,
+                _ if is_associated => {
+                    let arguments = self.intern_type_ids(origin.module(), &[])?;
+
+                    self.intern_member(
+                        origin.module(),
+                        dir::MemberType {
+                            owner: receiver,
+                            key,
+                            arguments,
+                            qualifier: None,
+                        },
+                    )?
+                }
+                _ => continue,
             };
+            let member_definition = member;
+            let member = declared;
 
             let ty = self.substitute_type(origin.module(), ty, &substitution)?;
+            // optional fields read as their value or undefined
+            let ty = match &member_definition {
+                dir::DefinitionMember::Field(field) if field.is_optional => {
+                    let undefined = self.intern_type(origin.module(), dir::Type::Undefined)?;
+
+                    self.normalized_union_type(origin.module(), [ty, undefined])?
+                }
+                _ => ty,
+            };
             let ty = member.value_type(self, ty)?;
             let ty =
                 answer!(self.projected_member_type(origin, Some(receiver), member.role, ty)?);
@@ -748,12 +891,14 @@ impl CheckState<'_> {
             candidates.push(MemberCandidate {
                 symbol,
                 owner: instance.symbol,
+                space,
                 role: member.role,
                 ty,
                 generic_arguments,
                 value: member.value,
                 value_type: written,
                 steps: ReceiverSteps::new(),
+                receiver: None,
             });
         }
         if !candidates.is_empty() {

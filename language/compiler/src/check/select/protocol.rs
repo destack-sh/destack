@@ -4,8 +4,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, DeclaredMember, Dependency, MemberCandidate, MemberLookup, Origin,
-    Relation, SignatureSelection, TypeSubstitution, answer,
+    Answer, BodyState, CandidateOutcome, CandidatePass, CheckState, DeclaredMember, Dependency,
+    MemberCandidate, MemberLookup, Origin, ProbeReason, Relation, SignatureSelection,
+    TypeSubstitution, answer,
 };
 
 /// Interface protocol required by a generated operation.
@@ -47,6 +48,8 @@ pub(in crate::check) struct ProtocolMember {
     pub(in crate::check) resolution: dir::MemberResolution,
     /// The member type.
     pub(in crate::check) ty: dir::GlobalTypeId,
+    /// The declaration that exposed the member.
+    pub(in crate::check) owner: dir::GlobalSymbolId,
     /// The member symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The generic argument bindings.
@@ -76,7 +79,9 @@ impl CheckState<'_> {
     ) -> Protocol {
         Protocol::new(self.language_symbol(item), arguments)
     }
+}
 
+impl BodyState<'_, '_> {
     /// Select one protocol implementation for a receiver.
     pub(in crate::check) fn select_protocol_implementation(
         &mut self,
@@ -100,7 +105,7 @@ impl CheckState<'_> {
         let Some((instance_module, instance)) = self.apparent_instance(lookup_receiver)? else {
             return Ok(Answer::Ready(None));
         };
-        let Some(definition) = self.definition(instance.symbol) else {
+        let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(Answer::Ready(None));
         };
         let heritages = definition
@@ -134,17 +139,20 @@ impl CheckState<'_> {
 
         // try each visible extension as a protocol implementation candidate
         for extension_symbol in extensions {
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)
+            if self.is_absent_symbol(extension_symbol) {
+                continue;
+            }
+            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
             else {
                 continue;
             };
-            if !extension.is_visible_from(module) || self.is_absent_symbol(extension_symbol) {
+            if !extension.is_visible_from(module) {
                 continue;
             }
 
             let target_type = extension.target.r#type();
             let implements = extension.implements.clone();
-            let template = self.symbol_template(extension_symbol);
+            let template = self.symbol_template(extension_symbol)?;
             let Some(substitution) = answer!(self.match_extension_target(
                 origin,
                 lookup_receiver,
@@ -183,7 +191,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<ProtocolImplementation>>> {
         // compare each implemented interface with the requested protocol
         for heritage in heritages {
-            let implemented = self.substituted_heritage(module, substitution, heritage)?;
+            let implemented =
+                answer!(self.substituted_heritage(origin, module, substitution, heritage)?);
             let instance = if implemented.symbol == protocol {
                 Some(implemented)
             } else {
@@ -314,14 +323,16 @@ impl CheckState<'_> {
             lookup_receiver,
             key,
             protocol,
-            |state, candidates| {
-                state.select_protocol_call_member(
-                    origin,
-                    receiver,
-                    argument_types,
-                    argument_sources,
-                    candidates,
-                )
+            |state, candidates| match state.select_protocol_call_member(
+                origin,
+                receiver,
+                argument_types,
+                argument_sources,
+                candidates,
+            )? {
+                Answer::Ready(Some(call)) => Ok(Answer::Ready(CandidateOutcome::Accepted(call))),
+                Answer::Ready(None) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
+                Answer::Pending(blockers) => Ok(Answer::Pending(blockers)),
             },
         )
     }
@@ -342,10 +353,11 @@ impl CheckState<'_> {
             lookup_receiver,
             key,
             protocol,
-            |state, candidates| {
-                Ok(Answer::Ready(state.select_protocol_member_from_candidates(
-                    receiver, candidates,
-                )))
+            |state, candidates| match state
+                .select_protocol_member_from_candidates(receiver, candidates)
+            {
+                Some(member) => Ok(Answer::Ready(CandidateOutcome::Accepted(member))),
+                None => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
             },
         )
     }
@@ -358,18 +370,24 @@ impl CheckState<'_> {
         lookup_receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
         protocol: &Protocol,
-        mut select: impl FnMut(&mut Self, Vec<MemberCandidate>) -> CompilerResult<Answer<Option<T>>>,
+        mut select: impl FnMut(
+            &mut BodyState<'_, '_>,
+            Vec<MemberCandidate>,
+        ) -> CompilerResult<Answer<CandidateOutcome<T, ()>>>,
     ) -> CompilerResult<Answer<Option<T>>> {
         let extensions = self.visible_receiver_extensions(module, lookup_receiver)?;
         let mut blockers = SmallVec::<[Dependency; 2]>::new();
 
         // try each extension as one candidate transaction
         for extension_symbol in extensions {
-            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)
+            if self.is_absent_symbol(extension_symbol) {
+                continue;
+            }
+            let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
             else {
                 continue;
             };
-            if !extension.is_visible_from(module) || self.is_absent_symbol(extension_symbol) {
+            if !extension.is_visible_from(module) {
                 continue;
             }
 
@@ -381,45 +399,34 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let probe = self.begin_probe();
-            let matched = self.match_extension_protocol_members(
-                origin,
-                module,
-                lookup_receiver,
-                extension_symbol,
-                target_type,
-                &implements,
-                &members,
-                protocol,
-            );
-            let candidates = match matched? {
-                Answer::Ready(Some(candidates)) => candidates,
-                Answer::Ready(None) => {
-                    self.reject_probe(probe);
+            let selected = self.confirm_candidate(ProbeReason::Protocol, |state| {
+                let matched = state.match_extension_protocol_members(
+                    origin,
+                    module,
+                    lookup_receiver,
+                    extension_symbol,
+                    target_type,
+                    &implements,
+                    &members,
+                    protocol,
+                )?;
+                let candidates = match matched {
+                    Answer::Ready(Some(candidates)) => candidates,
+                    Answer::Ready(None) => {
+                        return Ok(Answer::Ready(CandidateOutcome::Rejected(())));
+                    }
+                    Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
+                };
 
-                    continue;
-                }
-                Answer::Pending(pending) => {
-                    self.reject_probe(probe);
-                    blockers.extend(self.live_blockers(pending));
-
-                    continue;
-                }
-            };
-
-            let selected = select(self, candidates)?;
+                select(state, candidates)
+            })?;
             match selected {
                 Answer::Ready(Some(selected)) => {
-                    self.commit_probe(probe);
-
                     return Ok(Answer::Ready(Some(selected)));
                 }
-                Answer::Ready(None) => {
-                    self.reject_probe(probe);
-                }
+                Answer::Ready(None) => {}
                 Answer::Pending(pending) => {
-                    self.reject_probe(probe);
-                    blockers.extend(self.live_blockers(pending));
+                    blockers.extend(pending);
                 }
             }
         }
@@ -439,7 +446,7 @@ impl CheckState<'_> {
         members: &[DeclaredMember],
         protocol: &Protocol,
     ) -> CompilerResult<Answer<Option<Vec<MemberCandidate>>>> {
-        let template = self.symbol_template(extension_symbol);
+        let template = self.symbol_template(extension_symbol)?;
         let Some(mut substitution) =
             answer!(self.match_extension_target(origin, lookup_receiver, template, target_type,)?)
         else {
@@ -499,8 +506,9 @@ impl CheckState<'_> {
 
         // bind missing parameters from direct implemented protocol arguments
         for heritage in implements {
+            // trailing defaulted interface parameters may stay unrequested
             if heritage.symbol != protocol.symbol
-                || heritage.arguments.len() != protocol.arguments.len()
+                || heritage.arguments.len() < protocol.arguments.len()
             {
                 continue;
             }
@@ -533,10 +541,11 @@ impl CheckState<'_> {
             };
             let constraint = self.substitute_type(origin.module(), constraint, substitution)?;
             let source_node = source.into_global(module);
+            let source_origin = self.origin_at(origin, source_node)?;
 
-            decision = decision.and(self.constrain_generic_bound(
-                origin,
-                source_node,
+            decision = decision.and(self.constrain_type(
+                source_origin,
+                Relation::Satisfies,
                 argument,
                 constraint,
             )?);
@@ -624,6 +633,7 @@ impl CheckState<'_> {
         let target = dir::MemberTarget::Symbol(dir::MemberCandidate {
             receiver,
             adjustments: Vec::new(),
+            space: candidate.space,
             owner: candidate.owner,
             symbol,
             ty: candidate.ty,
@@ -634,6 +644,7 @@ impl CheckState<'_> {
         Some(ProtocolMember {
             resolution,
             ty: candidate.ty,
+            owner: candidate.owner,
             symbol,
             generic_arguments,
         })
@@ -714,32 +725,21 @@ impl CheckState<'_> {
         let Some(symbol) = candidate.symbol else {
             return Ok(Answer::Ready(None));
         };
-        let source_node = self
-            .origin_source_node(origin)?
-            .into_global(origin.module());
-        let mut source_nodes = SmallVec::<[dir::GlobalNodeIdAny; 4]>::new();
-        for source in argument_sources {
-            match source {
-                dir::ArgumentSource::Provided(source) => source_nodes.push(*source),
-                dir::ArgumentSource::Rest(sources) => source_nodes.extend(sources.iter().copied()),
-                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Omitted => {
-                    source_nodes.push(source_node)
-                }
-            }
-        }
+        let arguments = self.source_callable_arguments(origin, argument_types, argument_sources)?;
         let attempt = self.attempt_callable(
+            CandidatePass::Confirm,
             origin,
             candidate.ty,
             Some(candidate.owner),
             Some(receiver),
             &candidate.generic_arguments,
             &[],
-            argument_types,
-            &source_nodes,
+            &arguments,
+            None,
         )?;
-        let attempt = answer!(attempt);
-        let Ok(signature) = attempt else {
-            return Ok(Answer::Ready(None));
+        let signature = match answer!(attempt) {
+            CandidateOutcome::Accepted(signature) => signature,
+            CandidateOutcome::Rejected(_) => return Ok(Answer::Ready(None)),
         };
 
         let mut generic_arguments = candidate.generic_arguments.clone();
@@ -747,6 +747,7 @@ impl CheckState<'_> {
 
         let resolution = self.protocol_call_resolution(
             receiver,
+            candidate.owner,
             symbol,
             generic_arguments,
             &signature,
@@ -854,6 +855,7 @@ impl CheckState<'_> {
     fn protocol_call_resolution(
         &self,
         receiver: dir::GlobalTypeId,
+        owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
         generic_arguments: Vec<dir::GenericArgumentBinding>,
         signature: &SignatureSelection,
@@ -866,6 +868,7 @@ impl CheckState<'_> {
                 .as_ref()
                 .map(|steps| steps.to_vec())
                 .unwrap_or_default(),
+            generic_scope: Some(owner),
             symbol,
             generic_arguments,
         });
@@ -874,7 +877,7 @@ impl CheckState<'_> {
             target,
             Some(signature.callable),
             Self::parameter_types(&signature.parameters),
-            Self::generated_argument_bindings(argument_sources, &signature.parameters),
+            Self::source_argument_bindings(argument_sources, &signature.parameters),
             signature.return_type,
         )
     }

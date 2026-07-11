@@ -1,13 +1,13 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 
 use crate::check::{
-    Answer, CheckState, Dependency, FlowSite, MemberCandidate, MemberLookup, Origin, PlaceUse,
+    Answer, BodyState, Dependency, FlowSite, MemberCandidate, MemberLookup, Origin, PlaceUse,
     WriteTarget, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return the lifetime term for a borrowed expression.
     pub(in crate::check) fn borrowed_expression_lifetime(
         &mut self,
@@ -134,8 +134,11 @@ impl CheckState<'_> {
             // value.member
             dir::Expression::Member {
                 left,
-                name: Some(name),
-            } => {
+                name: Some(name), .. }
+            // value.#member
+            | dir::Expression::PrivateMember {
+                left,
+                name: Some(name), .. } => {
                 if let Some(place) = answer!(self.binding_place(source)?) {
                     return Ok(Answer::Ready(Some(place)));
                 }
@@ -180,9 +183,9 @@ impl CheckState<'_> {
                 )?) else {
                     return Ok(Answer::Ready(None));
                 };
-                if let Some(constraint) =
-                    selection.key_constraint(self.origin_scope(origin), index, index_node)
-                {
+                let key_scope = self.origin_scope(origin)?;
+                let key_origin = self.intern_origin(Origin::Node(index_node, key_scope));
+                if let Some(constraint) = selection.key_constraint(key_origin, index) {
                     self.push_constraint(constraint);
                 }
                 let ty = selection.ty();
@@ -301,8 +304,8 @@ impl CheckState<'_> {
         }
 
         // universal writes target every arm's field through the key:
-        // the stored value must satisfy each arm, so the write type
-        // is the intersection of the field types
+        //  the stored value must satisfy each arm, so the write type
+        //  is the intersection of the field types
         if fields.len() > 1 {
             let mut types = fields.iter().map(|(_, ty)| *ty).collect::<Vec<_>>();
             types.dedup();
@@ -382,13 +385,14 @@ impl CheckState<'_> {
         name: dir::StringId,
     ) -> CompilerResult<Answer<Option<WriteTarget>>> {
         let path = dir::Path {
-            segments: smallvec::smallvec![name],
+            segments: smallvec![name],
         };
         let reference = self
             .module(source.module_id)
             .resolved
             .references
-            .get(source);
+            .get(source)
+            .cloned();
 
         match reference {
             Some(dir::Reference::Bound(symbols)) => {
@@ -397,9 +401,7 @@ impl CheckState<'_> {
 
                     return Ok(Answer::Ready(None));
                 };
-                let Some(ty) = self.symbol_type_maybe(*symbol) else {
-                    return Ok(Answer::pending([Dependency::SymbolType(*symbol)]));
-                };
+                let ty = answer!(self.symbol_type(*symbol)?);
 
                 Ok(Answer::Ready(Some(WriteTarget::new(
                     dir::Storage::Binding { symbol: *symbol },

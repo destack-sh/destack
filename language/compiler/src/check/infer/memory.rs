@@ -1,8 +1,9 @@
-use crate::CompilerResult;
-use crate::check::{Answer, CheckState, FlowSite, PlaceUse, answer};
 use destack_dir as dir;
 
-impl CheckState<'_> {
+use crate::CompilerResult;
+use crate::check::{Answer, BodyState, FlowSite, PlaceUse, answer};
+
+impl BodyState<'_, '_> {
     /// Infer one move expression from its moved value.
     pub(in crate::check) fn infer_move_expression(
         &mut self,
@@ -64,12 +65,10 @@ impl CheckState<'_> {
         )?;
 
         // wrap the borrowed value and reduce redundant memory forms
+        let form = self.intern_borrow(node.module_id, lifetime, access)?;
         let borrowed = self.intern_type(
             node.module_id,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Borrowed { lifetime, access },
-                value,
-            }),
+            dir::Type::Form(dir::FormType { form, value }),
         )?;
         let borrowed = answer!(self.reduce_type_head(site.origin(), borrowed)?);
         self.commit_node_type(node.into_any(), borrowed)?;

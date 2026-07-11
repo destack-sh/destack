@@ -1,9 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{
-    Answer, CheckState, Decision, FlowPointId, Origin, answer, unary_operator_protocols,
-};
+use crate::check::{Answer, BodyState, FlowPointId, Origin, answer, unary_operator_protocols};
 
 /// Dereference operation selected for one value.
 pub(in crate::check) struct DereferenceSelection {
@@ -13,7 +11,7 @@ pub(in crate::check) struct DereferenceSelection {
     pub(in crate::check) ty: dir::GlobalTypeId,
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one dereference operation.
     pub(in crate::check) fn select_dereference(
         &mut self,
@@ -21,12 +19,11 @@ impl CheckState<'_> {
         input: dir::GlobalTypeId,
         access: dir::Access,
     ) -> CompilerResult<Answer<Option<DereferenceSelection>>> {
-        let module = origin.module();
         let input = answer!(self.reduce_type_head(origin, input)?);
 
         // direct dereference projects physical pointer forms
         if let dir::Type::Form(form) = self.ty(input)?
-            && matches!(form.form, dir::Form::Borrowed { .. } | dir::Form::Raw)
+            && matches!(form.form, dir::Form::Borrowed(_) | dir::Form::Raw)
         {
             return Ok(Answer::Ready(Some(DereferenceSelection {
                 operation: dir::DereferenceOperation::Direct,
@@ -36,7 +33,7 @@ impl CheckState<'_> {
 
         // protocol dereference handles smart pointer values
         for operator_protocol in unary_operator_protocols(dir::UnaryOperator::Dereference, access) {
-            let key = operator_protocol.method.key(&self.module(module).strings);
+            let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
             let Some(call) = answer!(self.select_protocol_call(
                 origin,
@@ -86,15 +83,10 @@ impl CheckState<'_> {
             module,
             dir::Type::Memory(dir::MemoryLiteral::Lifetime(dir::Lifetime::Frame)),
         )?;
+        let form = self.intern_borrow(module, lifetime, access_type)?;
         let projected = self.intern_type(
             module,
-            dir::Type::Form(dir::FormType {
-                form: dir::Form::Borrowed {
-                    lifetime,
-                    access: access_type,
-                },
-                value: input,
-            }),
+            dir::Type::Form(dir::FormType { form, value: input }),
         )?;
 
         self.project_pattern_input(flow, scope, projected, pattern.into_global_any(module))?;
@@ -149,9 +141,7 @@ impl CheckState<'_> {
         let Some(selection) =
             answer!(self.select_dereference(origin, input, dir::Access::Readonly)?)
         else {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         };
         self.project_pattern_input(flow, scope, selection.ty, pattern.into_global_any(module))?;
 

@@ -1,13 +1,76 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, CheckState, FlowSite, ForInSourceObligation, Obligation, Origin, PlaceUse, Relation,
-    ValueUse, answer,
+    Answer, BodyState, CheckAttempt, Expectation, ExpectedType, FlowSite, ForInSourceObligation,
+    Obligation, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
+    /// Infer one optional chain from its accesses.
+    pub(in crate::check) fn infer_chain_expression(
+        &mut self,
+        site: FlowSite,
+        inner: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<()>> {
+        let node = site.node;
+        let module = node.module_id;
+        let inner_site = self.node_site(inner.into_global_any(module))?;
+        let ty = answer!(self.infer_node_type(inner_site, PlaceUse::Read)?);
+
+        // the short-circuit arm rejoins where the chain ends
+        let result = match answer!(self.chain_short_circuits(site.origin(), module, inner)?) {
+            true => {
+                let undefined = self.check.intern_type(module, dir::Type::Undefined)?;
+                self.check.normalized_union_type(module, [ty, undefined])?
+            }
+            false => ty,
+        };
+        self.check.commit_node_type(node, result)?;
+
+        Ok(Answer::Ready(()))
+    }
+
+    /// Return whether one chain spine drops a nullish receiver arm.
+    fn chain_short_circuits(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        inner: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Answer<bool>> {
+        let mut current = inner;
+        loop {
+            let (left, is_optional) = match self.module(module).view().get(current) {
+                dir::Expression::Member {
+                    left, is_optional, ..
+                }
+                | dir::Expression::PrivateMember {
+                    left, is_optional, ..
+                }
+                | dir::Expression::Index {
+                    left, is_optional, ..
+                }
+                | dir::Expression::Call {
+                    left, is_optional, ..
+                } => (*left, *is_optional),
+                dir::Expression::Instantiation { left, .. }
+                | dir::Expression::Maybe { left, .. }
+                | dir::Expression::Must { left, .. } => (*left, false),
+                _ => return Ok(Answer::Ready(false)),
+            };
+
+            if is_optional {
+                let receiver = answer!(self.node_type(left.into_global_any(module))?);
+                if answer!(self.split_nullish_type(origin, receiver)?).is_some() {
+                    return Ok(Answer::Ready(true));
+                }
+            }
+            current = left;
+        }
+    }
+
     /// Infer one if expression from its branches.
     pub(in crate::check) fn infer_if_expression(
         &mut self,
@@ -42,20 +105,24 @@ impl CheckState<'_> {
         relation: Relation,
         origin: Origin,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<Answer<CheckAttempt>> {
         let module = site.node.module_id;
 
         // check the then branch against the incoming expectation
         let then_site = self.node_site(then_expression.into_global_any(module))?;
-        let () = answer!(self.check_node(then_site, target, relation, origin, use_)?);
+        let then_check =
+            answer!(self.check_node_expected(then_site, target, relation, origin, use_)?);
         let then_type = answer!(self.node_type_at(then_site)?);
         let mut should_relate_result = false;
+        let mut check = then_check;
 
         // check an else branch, or make the missing branch explicit as void
         let result = if let Some(else_expression) = else_expression {
             let else_site = self.node_site(else_expression.into_global_any(module))?;
-            let () = answer!(self.check_node(else_site, target, relation, origin, use_)?);
+            let else_check =
+                answer!(self.check_node_expected(else_site, target, relation, origin, use_)?);
             let else_type = answer!(self.node_type_at(else_site)?);
+            check = check.and(else_check);
 
             self.normalized_union_type(module, [then_type, else_type])?
         } else {
@@ -68,10 +135,12 @@ impl CheckState<'_> {
 
         // relate the result when branch checks did not cover every arm
         if should_relate_result {
-            let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
+            let (_, result_check) =
+                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+            check = check.and(result_check);
         }
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(CheckAttempt::Checked(check)))
     }
 
     /// Infer one try expression from its body and catch branches.
@@ -85,14 +154,17 @@ impl CheckState<'_> {
         let module = node.module_id;
         let body_site = self.node_site(body.into_global_any(module))?;
         let body_type = answer!(self.infer_node_type(body_site, PlaceUse::Read)?);
-        let result = if let Some(catch) = catch {
-            let catch_body = self.module(module).view().get(catch).body;
-            let catch_site = self.node_site(catch_body.into_global_any(module))?;
-            let catch_type = answer!(self.infer_node_type(catch_site, PlaceUse::Read)?);
 
-            self.normalized_union_type(module, [body_type, catch_type])?
-        } else {
-            body_type
+        // handler bodies check deferred, once the caught bindings are typed
+        let catch_type = catch.and_then(|catch| {
+            self.check
+                .catch_results
+                .get(&catch.into_global_any(module))
+                .copied()
+        });
+        let result = match catch_type {
+            Some(catch_type) => self.normalized_union_type(module, [body_type, catch_type])?,
+            None => body_type,
         };
         self.commit_node_type(node.into_any(), result)?;
 
@@ -103,11 +175,33 @@ impl CheckState<'_> {
     pub(in crate::check) fn infer_match_expression(
         &mut self,
         site: FlowSite,
+        value: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::MatchCase>],
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let mut values = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+
+        // type the matched value before its patterns
+        let value_site = self.check.node_site(value.into_global_any(module))?;
+        let scrutinee = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+
+        // check every case pattern and guard against the matched value
+        for case in cases {
+            let selector = self.module(module).view().get(*case).selector().clone();
+            if let dir::MatchSelector::Pattern { pattern, guard } = selector {
+                let pattern_site = self.check.node_site(pattern.into_global_any(module))?;
+                answer!(self.check_pattern(
+                    pattern.into_global(module),
+                    pattern_site.flow,
+                    pattern_site.scope,
+                    scrutinee,
+                )?);
+                if let Some(guard) = guard {
+                    self.check_match_guard(module, guard)?;
+                }
+            }
+        }
 
         for case in cases {
             let body = match self.module(module).view().get(*case) {
@@ -128,6 +222,27 @@ impl CheckState<'_> {
         Ok(Answer::Ready(()))
     }
 
+    /// Check one match guard against boolean.
+    fn check_match_guard(
+        &mut self,
+        module: ModuleId,
+        guard: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        let site = self.check.node_site(guard.into_global_any(module))?;
+        let boolean = self
+            .check
+            .intern_type(module, dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+        let expectation = Expectation {
+            expected: ExpectedType::Type(boolean),
+            relation: Relation::Assignable,
+            origin: Origin::Node(guard.into_global_any(module), site.scope),
+            use_: ValueUse::Condition,
+        };
+        self.check_node(site, PlaceUse::Read, Some(expectation))?;
+
+        Ok(())
+    }
+
     /// Infer one for-in or for-of expression.
     pub(in crate::check) fn infer_for_each_expression(
         &mut self,
@@ -135,6 +250,7 @@ impl CheckState<'_> {
         operator: dir::ForEachOperator,
         binding: dir::ForEachBinding,
         iterator: dir::LocalNodeId<dir::Expression>,
+        body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<Answer<()>> {
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
@@ -149,13 +265,17 @@ impl CheckState<'_> {
             | dir::ForEachBinding::Using { pattern, .. } => pattern,
         };
         let pattern_site = self.node_site(pattern.into_global_any(module))?;
-        answer!(self.check_node(
+        answer!(self.check_node_expected(
             pattern_site,
             target,
             Relation::Assignable,
             site.origin(),
             ValueUse::Store
         )?);
+
+        // check the loop body under the bound pattern
+        let body_site = self.node_site(body.into_global_any(module))?;
+        self.check_node(body_site, PlaceUse::Read, None)?;
 
         // for-in and for-of evaluate to void
         let void = self.intern_type(module, dir::Type::Void)?;
@@ -185,7 +305,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
-        let scope = self.origin_scope(origin);
+        let scope = self.origin_scope(origin)?;
         self.push_obligation(
             Obligation::ForInSource(ForInSourceObligation {
                 source,
@@ -209,8 +329,9 @@ impl CheckState<'_> {
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
         let protocol = self.language_symbol(dir::LanguageItem::Iterable);
+        let anchored = self.origin_at(origin, source)?;
         let implementation = answer!(self.select_protocol_implementation(
-            self.origin_at(origin, source),
+            anchored,
             iterator_type,
             iterator_type,
             protocol,

@@ -4,11 +4,11 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::check::{
-    Answer, CheckState, Constraint, FlowSite, Origin, PlaceUse, Relation, ValueUse, Widening,
-    answer,
+    Answer, BodyState, CheckAttempt, CheckOutcome, Constraint, FlowSite, Origin, PlaceUse,
+    Relation, ValueUse, VariableRole, Widening, answer,
 };
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Infer one array literal from its elements.
     pub(in crate::check) fn infer_array_expression(
         &mut self,
@@ -91,15 +91,18 @@ impl CheckState<'_> {
         // use one element hole when spreads participate in array construction
         else {
             let origin = site.origin();
-            let variable = self.allocate_variable(module, origin, Widening::Preserve);
+            let variable =
+                self.allocate_variable(origin, Widening::Preserve, VariableRole::Regular);
             let element = self.variable_type(variable)?;
 
             for (source, value) in &values {
-                self.push_constraint(Constraint::check(
+                let origin =
+                    self.intern_origin(Origin::Node(source.into_global_any(module), site.scope));
+                self.push_constraint(Constraint::r#type(
                     Relation::Assignable,
                     *value,
                     element,
-                    Origin::Node(source.into_global_any(module), site.scope),
+                    origin,
                 ));
             }
 
@@ -109,15 +112,23 @@ impl CheckState<'_> {
 
         // require spread carriers to be assignable to the inferred array
         for (value, spread) in spreads {
-            self.push_constraint(Constraint::check(
+            let origin =
+                self.intern_origin(Origin::Node(value.into_global_any(module), site.scope));
+            self.push_constraint(Constraint::r#type(
                 Relation::Assignable,
                 spread,
                 array,
-                Origin::Node(value.into_global_any(module), site.scope),
+                origin,
             ));
         }
 
-        Ok(Answer::Ready(array))
+        let ty = if mode == InferMode::Widen {
+            self.widen_type(array)?
+        } else {
+            array
+        };
+
+        Ok(Answer::Ready(ty))
     }
 
     /// Infer one fixed array literal from its repeated value.
@@ -206,6 +217,10 @@ impl CheckState<'_> {
             )?;
 
             Ok(Answer::Ready(readonly))
+        } else if mode == InferMode::Widen {
+            let widened = self.widen_type(tuple)?;
+
+            Ok(Answer::Ready(widened))
         } else {
             Ok(Answer::Ready(tuple))
         }
@@ -221,7 +236,7 @@ impl CheckState<'_> {
         relation: Relation,
         origin: Origin,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
         let element = match self.ty(target_head)? {
             dir::Type::Array(array) => Some((array.element, None, false)),
@@ -230,8 +245,9 @@ impl CheckState<'_> {
             _ => None,
         };
         let Some((element, count, mut should_relate_result)) = element else {
-            return Ok(Answer::Ready(false));
+            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
+        let mut check = CheckOutcome::Holds;
 
         // check every explicit element against the expected element type
         for argument in elements {
@@ -240,17 +256,18 @@ impl CheckState<'_> {
             | dir::Argument::Labeled { value, .. }) =
                 self.module(node.module_id).view().get(*argument)
             else {
-                return Ok(Answer::Ready(false));
+                return Ok(Answer::Ready(CheckAttempt::NotApplicable));
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.node_site(child)?;
-            let () = answer!(self.check_node(
+            let child_check = answer!(self.check_node_expected(
                 child_site,
                 element,
                 relation,
                 Origin::Node(child, site.scope),
                 use_
             )?);
+            check = check.and(child_check);
         }
 
         // publish the source array type represented by this literal
@@ -274,10 +291,61 @@ impl CheckState<'_> {
         // relate the result for empty arrays and non-owned targets
         should_relate_result |= elements.is_empty();
         if should_relate_result {
-            let () = answer!(self.constrain_node_value(site, relation, target, origin, use_)?);
+            let (_, result_check) =
+                answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+            check = check.and(result_check);
         }
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(CheckAttempt::Checked(check)))
+    }
+
+    /// Check one repeated fixed array literal under an expected fixed array.
+    pub(in crate::check) fn check_fixed_array_expression(
+        &mut self,
+        site: FlowSite,
+        value: dir::LocalNodeId<dir::Expression>,
+        length: dir::LocalNodeId<dir::Expression>,
+        target: dir::GlobalTypeId,
+        target_head: dir::GlobalTypeId,
+        relation: Relation,
+        origin: Origin,
+        use_: ValueUse,
+    ) -> CompilerResult<Answer<CheckAttempt>> {
+        let node = site.node.into_typed::<dir::Expression>();
+        let module = node.module_id;
+        let dir::Type::FixedArray(array) = self.ty(target_head)? else {
+            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
+        };
+
+        // check the repeated value against the expected element type
+        let child = value.into_global_any(module);
+        let child_site = self.node_site(child)?;
+        let check = answer!(self.check_node_expected(
+            child_site,
+            array.element,
+            relation,
+            Origin::Node(child, site.scope),
+            use_
+        )?);
+
+        // publish the expected element with the written count
+        let count = answer!(self.node_type(length.into_global_any(module))?);
+        let ty = self.intern_type(
+            module,
+            dir::Type::FixedArray(dir::FixedArrayType {
+                element: array.element,
+                count,
+            }),
+        )?;
+        self.commit_node_type(node.into_any(), ty)?;
+
+        // relate the result to bind the expected count
+        let (_, result_check) =
+            answer!(self.check_node_value(site, relation, target, origin, Some(use_))?);
+
+        Ok(Answer::Ready(CheckAttempt::Checked(
+            check.and(result_check),
+        )))
     }
 
     /// Check one tuple literal under an expected tuple type.
@@ -288,17 +356,18 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         relation: Relation,
         use_: ValueUse,
-    ) -> CompilerResult<Answer<bool>> {
+    ) -> CompilerResult<Answer<CheckAttempt>> {
         let node = site.node.into_typed::<dir::Expression>();
         let dir::Type::Tuple(tuple) = self.ty(target)? else {
-            return Ok(Answer::Ready(false));
+            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         };
         if tuple.elements.len() as usize != elements.len() {
-            return Ok(Answer::Ready(false));
+            return Ok(Answer::Ready(CheckAttempt::NotApplicable));
         }
         let tuple_elements = self
             .tuple_elements(target.module_id, tuple.elements)?
             .to_vec();
+        let mut check = CheckOutcome::Holds;
 
         // check each tuple element against its matching expected element type
         for (argument, element) in elements.iter().zip(tuple_elements.iter()) {
@@ -307,22 +376,23 @@ impl CheckState<'_> {
             | dir::Argument::Labeled { value, .. }) =
                 self.module(node.module_id).view().get(*argument)
             else {
-                return Ok(Answer::Ready(false));
+                return Ok(Answer::Ready(CheckAttempt::NotApplicable));
             };
             let child = value.into_global_any(node.module_id);
             let child_site = self.node_site(child)?;
-            answer!(self.check_node(
+            let child_check = answer!(self.check_node_expected(
                 child_site,
                 element.ty,
                 relation,
                 Origin::Node(child, site.scope),
                 use_
             )?);
+            check = check.and(child_check);
         }
 
-        let source = answer!(self.infer_tuple_expression(site, elements, InferMode::Normal)?);
+        let source = answer!(self.infer_tuple_expression(site, elements, InferMode::Exact)?);
         self.commit_node_type(node.into_any(), source)?;
 
-        Ok(Answer::Ready(true))
+        Ok(Answer::Ready(CheckAttempt::Checked(check)))
     }
 }

@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Origin, Relation, answer};
+use crate::check::{Answer, BodyState, CandidateOutcome, Origin, ProbeReason, Relation, answer};
 
 /// The projection steps picked for one receiver.
 pub(in crate::check) type ReceiverSteps = SmallVec<[dir::Projection; 2]>;
@@ -42,7 +42,7 @@ impl ReceiverAdjustment {
     }
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Match one implicit method receiver against a `this` parameter.
     pub(in crate::check) fn constrain_receiver_argument(
         &mut self,
@@ -53,52 +53,62 @@ impl CheckState<'_> {
     ) -> CompilerResult<Answer<Option<ReceiverSteps>>> {
         let mut steps = ReceiverSteps::new();
         let mut receiver = receiver;
+        let mut readonly_path = false;
         loop {
-            // try the current step under a probe
-            let probe = self.begin_probe();
-            let adjusted = self.receiver_adjustment(origin, module, receiver, this_parameter);
-            let related = match adjusted {
-                Ok(Answer::Ready(Some(adjusted))) => {
-                    match self.constrain(
-                        origin,
-                        Relation::Assignable,
-                        adjusted.source,
-                        adjusted.target,
-                    ) {
-                        Ok(Answer::Ready(true)) => Ok(Answer::Ready(Some(adjusted.projection))),
-                        Ok(Answer::Ready(false)) => Ok(Answer::Ready(None)),
-                        Ok(Answer::Pending(pending)) => Ok(Answer::Pending(pending)),
-                        Err(error) => Err(error),
-                    }
+            // try the current step speculatively
+            let related = self.confirm_candidate(ProbeReason::Receiver, |state| {
+                let adjusted = state.receiver_adjustment(
+                    origin,
+                    module,
+                    receiver,
+                    this_parameter,
+                    readonly_path,
+                )?;
+                let Some(adjusted) = answer!(adjusted) else {
+                    return Ok(Answer::Ready(CandidateOutcome::Rejected(())));
+                };
+
+                match state.constrain_type(
+                    origin,
+                    Relation::Assignable,
+                    adjusted.source,
+                    adjusted.target,
+                )? {
+                    Answer::Ready(true) => Ok(Answer::Ready(CandidateOutcome::Accepted(
+                        adjusted.projection,
+                    ))),
+                    Answer::Ready(false) => Ok(Answer::Ready(CandidateOutcome::Rejected(()))),
+                    Answer::Pending(pending) => Ok(Answer::Pending(pending)),
                 }
-                Ok(Answer::Ready(None)) => Ok(Answer::Ready(None)),
-                Ok(Answer::Pending(pending)) => Ok(Answer::Pending(pending)),
-                Err(error) => Err(error),
-            };
+            })?;
 
             // accept the step, reject it, or poll again
-            match related? {
+            match related {
                 Answer::Ready(Some(borrow)) => {
-                    self.commit_probe(probe);
                     if let Some(borrow) = borrow {
                         steps.push(borrow);
                     }
 
                     return Ok(Answer::Ready(Some(steps)));
                 }
-                // rejected steps roll back before the next dereference
-                Answer::Ready(None) => {
-                    self.reject_probe(probe);
-                }
-                // pending steps keep their progress and poll again
-                Answer::Pending(pending) => {
-                    self.commit_probe(probe);
-
-                    return Ok(Answer::Pending(pending));
-                }
+                Answer::Ready(None) => {}
+                Answer::Pending(pending) => return Ok(Answer::Pending(pending)),
             }
 
             // dereference one step further, or run out of ladder
+            let head = answer!(self.reduce_type_head(origin, receiver)?);
+            if let dir::Type::Form(form) = self.ty(head)? {
+                // places behind readonly forms never re-borrow writable
+                readonly_path |= match form.form {
+                    dir::Form::Readonly => true,
+                    dir::Form::Borrowed(borrow) => {
+                        let access = self.check.type_borrow(head.module_id, borrow)?.access;
+
+                        answer!(self.access_is_readonly(origin, access)?)
+                    }
+                    _ => false,
+                };
+            }
             let Some(step) = answer!(self.receiver_step(origin, receiver)?) else {
                 return Ok(Answer::Ready(None));
             };
@@ -140,12 +150,13 @@ impl CheckState<'_> {
         module: ModuleId,
         receiver: dir::GlobalTypeId,
         this_parameter: dir::GlobalTypeId,
+        readonly_path: bool,
     ) -> CompilerResult<Answer<Option<ReceiverAdjustment>>> {
         // borrowed receivers relate to the declared this directly
         let receiver_head = answer!(self.reduce_type_head(origin, receiver)?);
         if matches!(
             self.ty(receiver_head)?,
-            dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed { .. })
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed(_))
         ) {
             return Ok(Answer::Ready(Some(ReceiverAdjustment::direct(
                 receiver,
@@ -154,14 +165,22 @@ impl CheckState<'_> {
         }
 
         // read borrow requirements from a direct borrowed `this`
-        let this_parameter = answer!(self.reduce_type(origin, this_parameter)?);
+        let this_parameter = answer!(self.reduce_type_head(origin, this_parameter)?);
         if let dir::Type::Form(form) = self.ty(this_parameter)?
-            && let dir::Form::Borrowed { lifetime, access } = form.form
+            && let dir::Form::Borrowed(borrow) = form.form
         {
+            let borrow = self.check.type_borrow(this_parameter.module_id, borrow)?;
+            // places behind readonly forms never re-borrow writable
+            if readonly_path && !answer!(self.access_is_readonly(origin, borrow.access)?) {
+                return Ok(Answer::Ready(None));
+            }
+            let form = self
+                .check
+                .intern_borrow(module, borrow.lifetime, borrow.access)?;
             let borrowed = self.intern_type(
                 module,
                 dir::Type::Form(dir::FormType {
-                    form: dir::Form::Borrowed { lifetime, access },
+                    form,
                     value: receiver,
                 }),
             )?;

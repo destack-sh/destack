@@ -1,13 +1,16 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::CheckState;
+use crate::check::{Answer, BodyState, FlowSite, PlaceUse, answer};
 
-/// Inference mode for literal-preserving expression contexts.
+/// Inference mode for literal materialization contexts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum InferMode {
-    /// Infer ordinary source expression types.
-    Normal,
+    /// Preserve the expression's direct literal precision.
+    Exact,
+    /// Materialize literals through their default widened type.
+    Widen,
     /// Infer under `as const` literal-preserving rules.
     Const,
 }
@@ -19,7 +22,7 @@ impl InferMode {
     }
 }
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Return the type of one scalar literal expression.
     pub(in crate::check) fn scalar_literal_type(
         &mut self,
@@ -34,5 +37,176 @@ impl CheckState<'_> {
             dir::ScalarLiteral::Undefined => self.intern_type(node.module_id, dir::Type::Undefined),
             value => self.intern_type(node.module_id, dir::Type::Literal(value)),
         }
+    }
+
+    /// Return one expression type under const literal materialization.
+    pub(in crate::check) fn const_literal_expression_type(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        ordinary_type: dir::GlobalTypeId,
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let site = self.node_site(source)?;
+        let Ok(expression) = source.try_into_typed::<dir::Expression>() else {
+            return Ok(Answer::Ready(ordinary_type));
+        };
+        let expression = self
+            .module(expression.module_id)
+            .view()
+            .get(expression.local_id)
+            .clone();
+
+        match expression {
+            dir::Expression::ArrayExpression { elements } => {
+                self.const_literal_array_type(site, source.module_id, &elements)
+            }
+            dir::Expression::TupleExpression { elements } => {
+                self.const_literal_tuple_type(source.module_id, &elements)
+            }
+            dir::Expression::ObjectExpression { properties } => {
+                self.const_literal_object_type(site, source.module_id, &properties)
+            }
+            _ => Ok(Answer::Ready(ordinary_type)),
+        }
+    }
+
+    /// Return one array literal type under const literal materialization.
+    fn const_literal_array_type(
+        &mut self,
+        site: FlowSite,
+        module: ModuleId,
+        elements: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut fields = Vec::with_capacity(elements.len());
+
+        // collect positional element types, spreads keep ordinary inference
+        for element in elements {
+            let value = match self.module(module).view().get(*element) {
+                dir::Argument::Positional { value }
+                | dir::Argument::Named { value, .. }
+                | dir::Argument::Labeled { value, .. } => *value,
+                dir::Argument::Spread { .. } | dir::Argument::Error => {
+                    return self.infer_node_type(site, PlaceUse::Read);
+                }
+            };
+            let value_site = self.node_site(value.into_global_any(module))?;
+            let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+            fields.push(dir::TypeElement {
+                label: None,
+                ty,
+                is_optional: false,
+                is_readonly: false,
+                is_rest: false,
+            });
+        }
+
+        // freeze the literal as a readonly array tuple
+        let fields = self.intern_elements(module, &fields)?;
+        let tuple = self.intern_type(
+            module,
+            dir::Type::Tuple(dir::TupleType {
+                form: dir::TupleForm::Array,
+                elements: fields,
+            }),
+        )?;
+        let readonly = self.intern_type(
+            module,
+            dir::Type::Form(dir::FormType {
+                form: dir::Form::Readonly,
+                value: tuple,
+            }),
+        )?;
+
+        Ok(Answer::Ready(readonly))
+    }
+
+    /// Return one tuple literal type under const literal materialization.
+    fn const_literal_tuple_type(
+        &mut self,
+        module: ModuleId,
+        elements: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut fields = Vec::with_capacity(elements.len());
+
+        // collect tuple element types exactly
+        for element in elements {
+            let (label, value, is_rest) = match self.module(module).view().get(*element) {
+                dir::Argument::Positional { value } => (None, *value, false),
+                dir::Argument::Named { value, .. } => (None, *value, false),
+                dir::Argument::Labeled { label, value } => (Some(*label), *value, false),
+                dir::Argument::Spread { value, .. } => (None, *value, true),
+                dir::Argument::Error => continue,
+            };
+            let value_site = self.node_site(value.into_global_any(module))?;
+            let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+            fields.push(dir::TypeElement {
+                label,
+                ty,
+                is_optional: false,
+                is_readonly: false,
+                is_rest,
+            });
+        }
+
+        // freeze the literal as a readonly tuple
+        let fields = self.intern_elements(module, &fields)?;
+        let tuple = self.intern_type(
+            module,
+            dir::Type::Tuple(dir::TupleType {
+                form: dir::TupleForm::Tuple,
+                elements: fields,
+            }),
+        )?;
+        let readonly = self.intern_type(
+            module,
+            dir::Type::Form(dir::FormType {
+                form: dir::Form::Readonly,
+                value: tuple,
+            }),
+        )?;
+
+        Ok(Answer::Ready(readonly))
+    }
+
+    /// Return one object literal type under const literal materialization.
+    fn const_literal_object_type(
+        &mut self,
+        site: FlowSite,
+        module: ModuleId,
+        properties: &[dir::LocalNodeId<dir::Property>],
+    ) -> CompilerResult<Answer<dir::GlobalTypeId>> {
+        let mut fields = Vec::new();
+
+        // collect direct fields exactly, spreads keep ordinary inference
+        for property in properties {
+            let dir::Property::Field { key, value, .. } =
+                self.module(module).view().get(*property).clone()
+            else {
+                return self.infer_node_type(site, PlaceUse::Read);
+            };
+            let Some(key) = answer!(self.select_property_key(site, key)?) else {
+                continue;
+            };
+            let value_site = self.node_site(value.into_global_any(module))?;
+            let ty = answer!(self.infer_node_type(value_site, PlaceUse::Read)?);
+            fields.push(dir::TypeField {
+                key,
+                ty,
+                is_optional: false,
+                is_readonly: true,
+            });
+        }
+
+        let fields = self.intern_fields(module, &fields)?;
+        let shape = self.intern_type(
+            module,
+            dir::Type::Shape(dir::ShapeType {
+                fields,
+                call_signatures: dir::TypeListId::EMPTY,
+                construct_signatures: dir::TypeListId::EMPTY,
+                index_signatures: dir::TypeListId::EMPTY,
+            }),
+        )?;
+
+        Ok(Answer::Ready(shape))
     }
 }

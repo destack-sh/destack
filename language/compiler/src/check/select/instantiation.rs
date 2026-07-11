@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{Answer, CheckState, Decision, Dependency, Relation, answer};
+use crate::check::{Answer, BodyState, Decision, DecisionKind, Dependency, Relation, answer};
 use crate::{CompilerError, CompilerResult};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one explicit instantiation once its target name decides.
     pub(in crate::check) fn select_instantiation(
         &mut self,
@@ -19,8 +19,12 @@ impl CheckState<'_> {
 
         // read the decided target name
         let left_node = left.into_global_any(module);
-        let symbol = match self.decision(left_node) {
-            Some(Decision::Name(resolution)) => match resolution.symbols() {
+        let name = self
+            .resolutions(left_node.module_id)
+            .name_resolution(left_node)
+            .cloned();
+        let symbol = match (self.decision_kind(left_node), name) {
+            (Some(DecisionKind::Name), Some(resolution)) => match resolution.symbols() {
                 [symbol] => *symbol,
                 _ => {
                     let Some(path) = self.module(module).view().tree().reference_path(left) else {
@@ -37,18 +41,23 @@ impl CheckState<'_> {
                     return Ok(Answer::Ready(()));
                 }
             },
-            Some(Decision::Rejected) => {
+            (Some(DecisionKind::Rejected), _) => {
                 self.commit_decision(node, Decision::Rejected)?;
                 self.commit_error_node(node)?;
 
                 return Ok(Answer::Ready(()));
             }
-            Some(other) => {
+            (Some(other), _) => {
                 return Err(CompilerError::Internal {
                     message: format!("instantiation target {left_node:?} decided as {other:?}"),
                 });
             }
-            None => return Ok(Answer::pending([Dependency::Decision(left_node)])),
+            // references decide during the walk
+            (None, _) => {
+                return Err(CompilerError::Internal {
+                    message: format!("instantiation target {left_node:?} has no walk decision"),
+                });
+            }
         };
 
         // collect the written argument types
@@ -60,7 +69,7 @@ impl CheckState<'_> {
         }
 
         // read the selected declaration template
-        let template = self.symbol_template(symbol);
+        let template = self.symbol_template(symbol)?;
         if template.is_none() && !applied.is_empty() {
             let name = self.format_symbol(symbol);
             self.report_wrong_generic_arity(module, source, name, 0, applied.len());
@@ -106,8 +115,9 @@ impl CheckState<'_> {
                     &sources,
                     &substitution,
                 )?) {
+                    let anchored = self.origin_at(origin, rejection.source)?;
                     self.relate(
-                        self.origin_at(origin, rejection.source),
+                        anchored,
                         Relation::Satisfies,
                         None,
                         rejection.argument,

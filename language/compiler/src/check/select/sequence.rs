@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{Answer, CheckState, Decision, FlowPointId, Origin, Protocol, answer};
+use crate::check::{Answer, BodyState, Decision, FlowPointId, Origin, Protocol, answer};
 
-impl CheckState<'_> {
+impl BodyState<'_, '_> {
     /// Select one sequence pattern.
     pub(in crate::check) fn select_sequence_pattern(
         &mut self,
@@ -19,9 +19,7 @@ impl CheckState<'_> {
         self.check_pattern_bindings(module, fields)?;
 
         if !self.check_pattern_rest_fields(module, fields) {
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
-
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         }
 
         let sequence = self.language_protocol(dir::LanguageItem::Sequence, vec![]);
@@ -30,9 +28,8 @@ impl CheckState<'_> {
         let Some(_length) = answer!(self.select_sequence_length(origin, scrutinee, &sequence)?)
         else {
             self.report_pattern_source_not_sequence_shaped(origin, scrutinee)?;
-            self.commit_decision(node.into_any(), Decision::Rejected)?;
 
-            return Ok(Answer::Ready(()));
+            return self.commit_rejected_pattern(node);
         };
 
         // compute the arity requirement introduced by the pattern
@@ -270,8 +267,7 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         sequence: &Protocol,
     ) -> CompilerResult<Answer<Option<dir::MemberResolution>>> {
-        let module = origin.module();
-        let key = self.static_name(module, "length");
+        let key = self.static_name("length");
         let Some(member) =
             answer!(self.select_protocol_member(origin, receiver, receiver, key, sequence)?)
         else {
@@ -290,9 +286,8 @@ impl CheckState<'_> {
         sequence: &Protocol,
         index: usize,
     ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
-        let module = node.module_id;
         let index = self.static_usize_type(node, index)?;
-        let key = self.static_name(module, "index");
+        let key = self.static_name("index");
         let arguments = [index];
         let sources = [dir::ArgumentSource::Static(index)];
         let Some(call) = answer!(self.select_protocol_call(
@@ -313,9 +308,8 @@ impl CheckState<'_> {
         sequence: &Protocol,
         start: usize,
     ) -> CompilerResult<Answer<Option<dir::CallResolution>>> {
-        let module = node.module_id;
         let start_type = self.static_usize_type(node, start)?;
-        let key = self.static_name(module, "rest");
+        let key = self.static_name("rest");
         let arguments = [start_type];
         let sources = [dir::ArgumentSource::Static(start_type)];
         let Some(call) = answer!(self.select_protocol_call(
@@ -360,7 +354,7 @@ impl CheckState<'_> {
     }
 
     /// Return one interned static name key.
-    fn static_name(&mut self, module: ModuleId, name: &str) -> dir::StaticKey {
-        dir::StaticKey::Name(self.module_mut(module).strings.intern(name))
+    fn static_name(&self, name: &str) -> dir::StaticKey {
+        dir::StaticKey::Name(self.strings().intern(name))
     }
 }
