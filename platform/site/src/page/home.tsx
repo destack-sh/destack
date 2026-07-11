@@ -5,8 +5,14 @@ import { Seo } from "../component/seo";
 import { Shell } from "../component/shell";
 import { createSweep, SweepText } from "../component/sweep";
 
-/// The ordered ASCII luminance ramp.
-const asciiRamp = ".:-=+*#%@";
+/// The ordered Destack-token luminance ramp for the planet surface.
+const surfaceGlyphRamp = ".:-|=+*&%#@";
+
+/// The ordered Destack-token luminance ramp for the planet ring.
+const ringGlyphRamp = "-=>";
+
+/// The directional Destack tokens repeated through successive ring rows.
+const ringPatterns = ["->", "=>", ">>", ">>>"] as const;
 
 /// The width of the moving ASCII light.
 const asciiLightWidth = 14;
@@ -30,7 +36,7 @@ const planetSweepOffset = 18;
 const actionSweepFirstColumn = 20;
 
 /// The sweep distance between successive capability actions.
-const actionSweepStride = 10;
+const actionSweepStride = 9;
 
 /// The width of the ASCII lake.
 const lakeWidth = 140;
@@ -44,8 +50,17 @@ const lakeCenterRatio = 0.72;
 /// The interval between small breaks in each lake row.
 const lakeBreakInterval = 37;
 
-/// The ordered lake character ramp.
-const lakeRamp = "~-=+#";
+/// The ordered Destack-token luminance ramp for the lake.
+const lakeGlyphRamp = ".-~|=&#";
+
+/// The Destack token patterns repeated through successive lake rows.
+const lakePatterns = [
+    "... ..= ... ",
+    "..=~==||",
+    "~==||..=",
+    "||==~..=",
+    "..=||==~~",
+] as const;
 
 /// The public installation command.
 const installCommand = "curl -fsSL https://destack.sh/install | sh";
@@ -77,18 +92,18 @@ type Point = {
 /// The current Destack product outline.
 const points = [
     {
-        action: "build",
-        description: "correct and optimal full stack software",
+        action: "install",
+        description: installCommand,
         section: PlaceholderSection,
     },
     {
         action: "write",
-        description: "familiar TypeScript, Node, and Web code",
+        description: "familiar TS / TSX, Node, and Web code",
         section: PlaceholderSection,
     },
     {
-        action: "read",
-        description: "idiomatic modern TS + Rust-y features",
+        action: "use",
+        description: "standardized libraries",
         section: PlaceholderSection,
     },
     {
@@ -103,7 +118,7 @@ const points = [
     },
     {
         action: "check",
-        description: "with strong types and userland lints",
+        description: "strong typing and userland lints",
         section: PlaceholderSection,
     },
     {
@@ -121,10 +136,18 @@ const points = [
         description: "backward, in parallel or slow motion",
         section: PlaceholderSection,
     },
+    {
+        action: "ship",
+        description: "... web and native (really)",
+        section: PlaceholderSection,
+    },
 ] as const satisfies readonly Point[];
 
 /// One public action identifier.
 type Action = (typeof points)[number]["action"];
+
+/// The first non-install action shown when the URL does not select one.
+const defaultPoint = points.find((point) => point.action !== "install") ?? points[0];
 
 /// The real Destack mark sampled into a fixed-width luminance field.
 const planet = [
@@ -198,6 +221,9 @@ const planetRing = [
     "",
 ].join("\n");
 
+/// The ring mask filled with directional Destack operators.
+const tokenizedPlanetRing = fillAsciiMask(planetRing, ringPatterns);
+
 /// Render the public Destack homepage.
 export function HomePage() {
     const sweepColumn = createSweep({
@@ -205,9 +231,9 @@ export function HomePage() {
         lastColumn: lastSweepColumn,
         stepMilliseconds: asciiLightIntervalMilliseconds,
     });
-    const [selectedAction, setSelectedAction] = createSignal<Action>(points[0].action);
+    const [selectedAction, setSelectedAction] = createSignal<Action>(defaultPoint.action);
     const selectedPoint = createMemo(
-        () => points.find((point) => point.action === selectedAction()) ?? points[0],
+        () => points.find((point) => point.action === selectedAction()) ?? defaultPoint,
     );
     const selectedIndex = createMemo(() => points.indexOf(selectedPoint()));
 
@@ -217,7 +243,7 @@ export function HomePage() {
             const action = window.location.hash.slice(1);
             const point = points.find((candidate) => candidate.action === action);
 
-            setSelectedAction(point?.action ?? points[0].action);
+            setSelectedAction(point?.action ?? defaultPoint.action);
         };
 
         selectHash();
@@ -238,21 +264,21 @@ export function HomePage() {
             <article class="home-page">
                 {/* Main pitch */}
                 <section class="home-hero">
-                    <div class="home-hero__heading">
-                        <p class="home-hero__label">
-                            <SweepText
-                                column={sweepColumn()}
-                                firstColumn={0}
-                                text="[destack]"
-                            />
-                        </p>
-                        <p class="home-hero__statement">
-                            the absurdly integrated computing stack
-                        </p>
-                    </div>
-
                     <div class="home-hero__body">
                         <div class="home-hero__copy">
+                            <div class="home-hero__heading">
+                                <p class="home-hero__label">
+                                    <SweepText
+                                        column={sweepColumn()}
+                                        firstColumn={0}
+                                        text="[destack]"
+                                    />
+                                </p>
+                                <p class="home-hero__statement">
+                                    the absurdly integrated computing stack
+                                </p>
+                            </div>
+
                             <ol class="home-points">
                                 {points.map((point, index) => (
                                     <li>
@@ -266,7 +292,7 @@ export function HomePage() {
                                             onClick={() => setSelectedAction(point.action)}
                                         >
                                             <span class="home-points__number">
-                                                {String(index + 1).padStart(2, "0")}
+                                                {String(index).padStart(2, "0")}
                                             </span>
                                             <strong class="home-points__action">
                                                 <SweepText
@@ -284,18 +310,6 @@ export function HomePage() {
                                 ))}
                             </ol>
 
-                            {/* Installation */}
-                            <div class="home-install" id="install">
-                                <code>
-                                    <SweepText
-                                        class="home-install__prompt"
-                                        column={sweepColumn()}
-                                        firstColumn={lastSweepColumn - 5}
-                                        text="$"
-                                    />
-                                    <span>{installCommand}</span>
-                                </code>
-                            </div>
                         </div>
 
                         <AsciiPlanet lightColumn={sweepColumn() - planetSweepOffset} />
@@ -318,7 +332,7 @@ export function HomePage() {
                         action={selectedPoint().action}
                         component={selectedPoint().section}
                         description={selectedPoint().description}
-                        number={String(selectedIndex() + 1).padStart(2, "0")}
+                        number={String(selectedIndex()).padStart(2, "0")}
                     />
                 </section>
             </article>
@@ -346,10 +360,10 @@ function AsciiPlanet(props: { lightColumn: number }) {
         <figure aria-label="The Destack ringed planet" class="ascii-planet" role="img">
             <div aria-hidden="true" class="ascii-planet__art">
                 <pre class="ascii-planet__surface">
-                    {illuminateAscii(planet, props.lightColumn)}
+                    {illuminateAscii(planet, props.lightColumn, surfaceGlyphRamp)}
                 </pre>
                 <pre class="ascii-planet__ring">
-                    {illuminateAscii(planetRing, props.lightColumn)}
+                    {illuminateAscii(tokenizedPlanetRing, props.lightColumn, ringGlyphRamp)}
                 </pre>
             </div>
         </figure>
@@ -365,15 +379,39 @@ function AsciiLake(props: { lightColumn: number }) {
     );
 }
 
+/// Fill each visible mask segment with one repeating token pattern.
+function fillAsciiMask(source: string, patterns: readonly [string, ...string[]]) {
+    return source
+        .split("\n")
+        .map((line, row) => {
+            const pattern = patterns[row % patterns.length];
+            let segmentColumn = 0;
+
+            return Array.from(line, (character) => {
+                if (character === " ") {
+                    segmentColumn = 0;
+
+                    return character;
+                }
+
+                const replacement = pattern[segmentColumn % pattern.length];
+                segmentColumn += 1;
+
+                return replacement;
+            }).join("");
+        })
+        .join("\n");
+}
+
 /// Raise glyph density within one diagonal moving light.
-function illuminateAscii(source: string, lightColumn: number) {
+function illuminateAscii(source: string, lightColumn: number, glyphRamp: string) {
     return source
         .split("\n")
         .map((line, row) => {
             const rowLightColumn = lightColumn - row * asciiLightSlope;
 
             return Array.from(line, (character, column) => {
-                const index = asciiRamp.indexOf(character);
+                const index = glyphRamp.indexOf(character);
                 const distance = Math.abs(column - rowLightColumn);
 
                 if (index < 0 || distance >= asciiLightWidth) {
@@ -382,9 +420,9 @@ function illuminateAscii(source: string, lightColumn: number) {
 
                 const isCenter = distance < asciiLightWidth / 3;
                 const brightness = isCenter ? 2 : 1;
-                const nextIndex = Math.min(asciiRamp.length - 1, index + brightness);
+                const nextIndex = Math.min(glyphRamp.length - 1, index + brightness);
 
-                return asciiRamp[nextIndex];
+                return glyphRamp[nextIndex];
             }).join("");
         })
         .join("\n");
@@ -408,6 +446,7 @@ function renderAsciiLake(lightColumn: number) {
         const centeredStart = Math.round(centerColumn - rowWidth / 2);
         const startColumn = Math.max(0, Math.min(lakeWidth - rowWidth, centeredStart));
         const endColumn = startColumn + rowWidth;
+        const pattern = lakePatterns[row];
 
         return Array.from({ length: lakeWidth }, (_, column) => {
             if (column < startColumn || column >= endColumn) {
@@ -421,13 +460,19 @@ function renderAsciiLake(lightColumn: number) {
                 return " ";
             }
 
-            const patternIndex = (Math.floor(rowColumn / 6) + 2 * row) % 3;
+            const character = pattern[rowColumn % pattern.length];
+            const patternIndex = lakeGlyphRamp.indexOf(character);
+
+            if (patternIndex < 0) {
+                return character;
+            }
+
             const lightDistance = Math.abs(column - lightColumn);
             const isLit = lightDistance < 2 * asciiLightWidth;
             const brightness = isLit ? 2 : 0;
-            const nextIndex = Math.min(lakeRamp.length - 1, patternIndex + brightness);
+            const nextIndex = Math.min(lakeGlyphRamp.length - 1, patternIndex + brightness);
 
-            return lakeRamp[nextIndex];
+            return lakeGlyphRamp[nextIndex];
         }).join("");
     }).join("\n");
 }
