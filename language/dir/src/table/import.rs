@@ -19,6 +19,14 @@ pub struct ImportTable {
 }
 
 impl ImportTable {
+    /// Iterate every resolved import target.
+    pub fn targets(&self) -> impl Iterator<Item = ImportTarget> + '_ {
+        self.target_by_symbol
+            .values()
+            .copied()
+            .chain(self.global_target_by_key.values().flatten().copied())
+    }
+
     /// Create an empty import table.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
