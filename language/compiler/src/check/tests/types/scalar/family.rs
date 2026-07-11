@@ -119,6 +119,59 @@ const narrow = Index { value: 1 as int32 };
 }
 
 #[test]
+fn test_integer_literals_fit_their_annotated_width() {
+    let session = TestSession::single(
+        r#"
+const fits: int8 = 100;
+const overflows: int8 = 300;
+
+type Pair = { 0: string; 1: string };
+declare const key: keyof Pair;
+const index: usize = key;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_node_types(),
+        r#"
+=== annotated ===
+const fits: int8 = 100;
+const overflows: int8 = 300;
+
+type Pair = { 0: string; 1: string };
+declare const key: keyof Pair;
+const index: usize = key as usize;
+
+=== checked ===
+const fits: int8 = 100;
+/// @type.symbol symbol=fits source=fits type=int8
+/// @type.node source=100 type=100
+
+const overflows: int8 = 300;
+/// @type.symbol symbol=overflows source=overflows type=int8
+/// @type.node source=300 type=300
+
+type Pair = { 0: string; 1: string };
+/// @type.symbol symbol=Pair source="type Pair = { 0: string; 1: string }" type={ 0: string; 1: string }
+/// @definition.type symbol=Pair source="type Pair = { 0: string; 1: string }" value={ 0: string; 1: string }
+
+declare const key: keyof Pair;
+/// @type.symbol symbol=key source=key type=keyof Pair reduced=0 | 1
+/// @resolution.name source=Pair target=Pair
+
+const index: usize = key;
+/// @type.symbol symbol=index source=index type=usize
+/// @resolution.name source=key target=key
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type '300' is not assignable to type 'int8'"
+/// @diagnostic.label line=3 column=25 span="300" line_source="const overflows: int8 = 300;"
+"#,
+    );
+}
+
+#[test]
 fn test_comptime_arithmetic_keeps_the_operand_type() {
     let session = TestSession::single(
         r#"
