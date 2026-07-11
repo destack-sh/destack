@@ -7,7 +7,10 @@ use crate::JsonProperty;
 use super::{JsonFormatter, format_string, format_trivia_list, format_value};
 
 /// Format a JSON object.
-pub fn format_object(properties: &[JsonProperty], f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+pub fn format_object(
+    properties: &[JsonProperty],
+    f: &mut JsonFormatter<'_, '_>,
+) -> FormatResult<()> {
     // empty object
     if properties.is_empty() {
         return write!(f, [token("{"), token("}")]);
@@ -29,7 +32,7 @@ pub fn format_object(properties: &[JsonProperty], f: &mut JsonFormatter<'_>) -> 
 /// Format object properties with separators.
 fn format_object_properties(
     properties: &[JsonProperty],
-    f: &mut JsonFormatter<'_>,
+    f: &mut JsonFormatter<'_, '_>,
 ) -> FormatResult<()> {
     let trailing_comma = f.context().trailing_comma();
     let last_index = properties.len().saturating_sub(1);
