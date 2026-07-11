@@ -159,18 +159,10 @@ impl<'a> CommandContext<'a> {
         revision: Revision,
         artifact_keys: &[ArtifactKey],
     ) -> CommandResult<DiagnosticCollection> {
-        let mut diagnostics = DiagnosticCollection::new();
-
-        // merge diagnostics in root order
-        for artifact_key in artifact_keys {
-            let artifact_diagnostics = self
-                .repository
-                .diagnostics(revision, Some(*artifact_key))
-                .map_err(|error| error.to_string())?;
-            diagnostics.merge_from(&artifact_diagnostics);
-        }
-
-        Ok(diagnostics)
+        // include everything the requested roots were built from
+        self.repository
+            .diagnostics_for_keys(revision, artifact_keys)
+            .map_err(|error| error.to_string().into())
     }
 
     /// Resolve the revision used to fork the command session.
