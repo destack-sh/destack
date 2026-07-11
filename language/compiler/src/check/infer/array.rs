@@ -110,14 +110,15 @@ impl BodyState<'_, '_> {
         };
         let array = self.intern_type(module, dir::Type::Array(dir::ArrayType { element }))?;
 
-        // require spread carriers to be assignable to the inferred array
+        // spreads expand item by item into the new array's elements
         for (value, spread) in spreads {
+            let item = self.spread_element_type(spread)?;
             let origin =
                 self.intern_origin(Origin::Node(value.into_global_any(module), site.scope));
             self.push_constraint(Constraint::r#type(
                 Relation::Assignable,
-                spread,
-                array,
+                item,
+                element,
                 origin,
             ));
         }

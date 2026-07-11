@@ -33,6 +33,44 @@ const byte = bytes[1];
 }
 
 #[test]
+fn test_fixed_array_requires_explicit_copy_into_managed_array() {
+    let session = TestSession::single(
+        r#"
+declare const fixed: [int32; 3];
+const grown: int32[] = fixed;
+const copied: int32[] = [...fixed];
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare const fixed: [int32; 3];
+const grown: int32[] = fixed;
+const copied: int32[] = [...fixed];
+
+=== checked ===
+declare const fixed: [int32; 3];
+/// @type.symbol symbol=fixed source=fixed type=FixedArray<int32, 3>
+
+const grown: int32[] = fixed;
+/// @type.symbol symbol=grown source=grown type=Array<int32>
+/// @resolution.name source=fixed target=fixed
+
+const copied: int32[] = [...fixed];
+/// @type.symbol symbol=copied source=copied type=Array<int32>
+/// @resolution.name source=fixed target=fixed
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type 'FixedArray<int32, 3>' is not assignable to type 'Array<int32>'"
+/// @diagnostic.label line=3 column=24 span="fixed" line_source="const grown: int32[] = fixed;"
+"#,
+    );
+}
+
+#[test]
 fn test_fixed_array_member_access_selects_size() {
     let session = TestSession::single(
         r#"

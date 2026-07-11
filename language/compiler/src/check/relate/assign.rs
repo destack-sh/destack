@@ -235,13 +235,12 @@ impl CheckState<'_> {
 
                 element.and(count)
             }
-            // sized sequences convert into their fat mutable carriers
+            // sized sequences view through their fat slice carrier
             (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => {
                 self.decide_relation(origin, Relation::Equal, source.element, target.element)?
             }
-            (dir::Type::FixedArray(source), dir::Type::Array(target)) if !widens => {
-                self.decide_relation(origin, Relation::Widens, source.element, target.element)?
-            }
+            // growing into a managed array allocates and copies: explicit only
+            (dir::Type::FixedArray(_), dir::Type::Array(_)) => Answer::Ready(false),
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.decide_tuple_assignable(origin, relation, source, target)?
             }
