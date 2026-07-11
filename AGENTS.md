@@ -10,14 +10,15 @@
 - As with logic, symmetry in naming across related logic is simpler, and simpler is better.
 - Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
-- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", "boundary", "contract", "surface", "currency", "load bearing", "spine", "spelling", "recipe", "glue", "demand", "truth", "product", .. and such are to be treated with high suspicion and are almost certainly wrong (unlses the topic literally requires it.. but temptation to use them all too often implies conceptual muddiness that should be revisited).
+- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", "boundary", "contract", "surface", "currency", "load bearing", "spine", "spelling", "recipe", "glue", "demand", "truth", "product", "atom", .. and such are to be treated with high suspicion and are almost certainly wrong (unlses the topic literally requires it.. but temptation to use them all too often implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
 - It can be tempting to name things along the lines of "x_for_y" in certain overload-ish situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does *not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue. Sometimes "x_for_y" is fine, commonly in data transcribing, but usually it's just sludge.)
 - The name of a thing should describe its actual behavior or purpose. This sounds trivial, but e.g., when a function creates or updates a variable, it should be called `upsert*`, when a function only conditionally allocates something it should be called `allocate*maybe` (or `allocate*if*`), and so on.
 
 ### Logic
 
-- Less is more, every line of code is a liability, every bit of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
+- Less is more, every line of code is a liability, every bit of state is suspicious. 
+- Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
 - When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to eliminate the need for this whole piece in the first place.
 - Long methods are allowed if the logic isn't meaningfully extractable / reusable.
 - Having many overloads (or quasi-overloads) that just call one another with different arguments and little or no additional logic is almost always a smell and annoying to read (and a bad source of pointless code bloat).
@@ -90,11 +91,33 @@ match extracted {
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 - When a method mutates state it should be obvious by name and signature, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, and performance matters a lot, but when we can have both it's much preferred.
 
+### Boundaries
+
+- Prefer loud failures even and especially for invariants coming from other subsystems, and _especially_ for subsystems we control.
+- For example, if some upstream shape or contract implies a certain field in some state should be there at some point, but it's not, we MUST treat that as an error instead of working around it in any capacity.
+- Attempting to work around issues in upstream / other dependencies is always dangerous, but doing it for dependencies _we control_ is just a recipe for maintenance disaster.
+- Invariants should be clear and crisp, and if they're not, that is a design issue to be surfaced and discussed.
+- Stronger, harder invariants are usually _more_ forgiving than looser ones since they force the consumer into the right model, which is more predictable and crisper for all.
+- The "higher up" / "sooner" we can encode requirements, expectations and invariants, the better, that is, if the compiler fails on bad usages that's ideal, if the linter fails it's still good, if the unit tests fail also good, then we go down the list of less desirable places to find out something is wrong.
+- When we find some part of logic trying to "recover" information or state, or compensate for upstream logic defincies (that we own), or attempt to "bypass" the main owned of state or logic with "side channels" of any kind, that is almost always a bad modeling smell.
+- All of these also apply when we touch or read (!) code during drive-by work, we must always surface (even suspected) boundary violations or suspicious interactions.
+
+### Failures
+
+- Always prefer explicit, loud errors through conventional, idiomatic channels.
+- As a corollary, silent failures of any kind are evil and only ever cause downstream trouble. We must never fail silently in any live code, and it's _especially_ evil to suppress failures in a way that doesn't even look like a failure (silent fallbacks, defaults, null-ish / sentinel values, etc.).
+- Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
+- On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
+- Specifically, being overly defensive and "scared" in some code path is usually a big smell that we haven't really understood and defined the model and its invariants well enough yet. (e.g., handling usize overflows in a modern allocator is just noise)
+- It is rarely acceptable to panic / trap / unreachable, except in certain well guarded cases like tight internal data structures where all invariants are clear and visible (and perhaps where propagating failures "properly" would be too painful - again, rare).
+
+
 ### Refactoring
 
 - Just like writing is editing, programming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
 - If we find that refactors are touching more than it "should"; that is worthy of investigation and maybe we should broaden the refactor or do plan a follow up refactor to crispen the boundaries of the model (if we can, this doesn't always work unfortunately).
+- It is never acceptable, under any circumstance, to "paper over" or hide issues in other systems or subsystems while working. Any issue must be surfaced and discussed, and may only be ignored once explicitly acknowledged, discussed and deferred or dealt with.
 - As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change". This often means we _should_ abandon "intermediate" or "transitional" states and just go straight for the final model / solution we want.
 - Sometimes it is however easier to just rip out a component altogether and rewrite it completely, especially if it's say <5k LoC or so.
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
@@ -196,23 +219,6 @@ else {
 - Hardware awareness and full stack understanding are especially important on targets we do not fully control, like when we codegen to JS or write something to the web, or some foreign graphics API - how does it _actually_ execute? Which low level operations does what we're doing map to, and what do we really need? 
 - Working bottoms up - which bits and cycles do we _really_ need to spend - is the only true way to bound the lower end of performance, and often a great way of demystifying a system and getting order of magnitude improvements.
 
-### Failures
-
-- Always prefer explicit, loud errors through conventional, idiomatic channels.
-- As a corollary, silent failures of any kind are evil and only ever cause downstream trouble. We must never fail silently in any live code, and it's _especially_ evil to suppress failures in a way that doesn't even look like a failure (silent fallbacks, defaults, null-ish / sentinel values, etc.).
-- Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
-- On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
-- Specifically, being overly defensive and "scared" in some code path is usually a big smell that we haven't really understood and defined the model and its invariants well enough yet. (e.g., handling usize overflows in a modern allocator is just noise)
-
-### Boundaries
-
-- Prefer loud failures even and especially for invariants coming from other subsystems, and _especially_ for subsystems we control.
-- For example, if some upstream shape or contract implies a certain field in some state should be there at some point, but it's not, we MUST treat that as an error instead of working around it in any capacity.
-- Attempting to work around issues in upstream / other dependencies is always dangerous, but doing it for dependencies _we control_ is just a recipe for maintenance disaster.
-- Invariants should be clear and crisp, and if they're not, that is a design issue to be surfaced and discussed.
-- Stronger, harder invariants are usually _more_ forgiving than looser ones since they force the consumer into the right model, which is more predictable and crisper for all.
-- The "higher up" / "sooner" we can encode requirements, expectations and invariants, the better, that is, if the compiler fails on bad usages that's ideal, if the linter fails it's still good, if the unit tests fail also good, then we go down the list of less desirable places to find out something is wrong.
-
 ### Dependencies
 
 - Fewer dependencies is better, but sometimes it's worth it, especially when they wrap or define som ebig ugly contract (a la `windows_sys`) that we would just have to redefine and maintain ourselves anyway.
@@ -231,16 +237,18 @@ else {
 - If there is an opportunity to test "the entire thing" vs "part of it", prefer complete exercises and assertions (e.g., if we're generating string output, compare the entire output, not just "contains").
 - More generally, we should always test _specific outcomes_ like "these two errors with that message" rather than "expect failed" or "any two errors".
 - Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
+- For the avoidance of doubt, tests asserting stuff like `x.contains('part of foo')` instead of the full expected string and anything like this are not good.
 - For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment _every_ logic block as with regular/main logic.
 
 ### Formatting
 
-You should always format code before you're "done" with a change.
-Ideally, you should format code _before_ running it (via tests or otherwise), so we don't compile twice.
-(Most directories have a `just fmt` or equivalent command, see the context.)
+- You should always format code before you're "done" with a change.
+- Ideally, you should format code _before_ running it (via tests or otherwise), so we don't compile twice.
+- (Most directories have a `just fmt` or equivalent command, see the context. But only format the stuff in scope, not across other crates / packages.)
 
-## Rust
+## Rust-y
 
+- This also applies to other RUst-like languages (like Rust side of our own Destack / TS++ language)
 - Comments/documentation goes before _all_ attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Place imports at the top, prefer `use std::time::Instant` patterns
