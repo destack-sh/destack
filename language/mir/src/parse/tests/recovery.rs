@@ -32,7 +32,7 @@ b0:
 
     // int32
     let diagnostic = diagnostics.iter().next().unwrap();
-    let primary_span = diagnostic.primary_label().span;
+    let primary_span = diagnostic.primary_label().target.span().unwrap();
     let length = primary_span.end.saturating_sub(primary_span.start);
 
     assert_eq!(length, "int32".len() as u32);

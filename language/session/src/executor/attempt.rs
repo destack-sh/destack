@@ -8,7 +8,8 @@ use destack_repository::{
     ArtifactAttemptRecorder, ArtifactBase, ProviderContext, Repository, Revision,
 };
 use destack_source::{
-    ContentId, DiagnosticCollection, DiagnosticLabel, FileId, ModuleId, PackageId, Span,
+    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId, ModuleId,
+    PackageId, Span,
 };
 use parking_lot::Mutex;
 
@@ -96,33 +97,33 @@ impl ProviderAttempt {
         anchor: &DiagnosticAnchor,
         message: Option<String>,
     ) -> Result<DiagnosticLabel, DiagnosticError> {
-        let span = self.anchor_span(anchor)?;
-        let content = self.file_content_id(span.file)?;
+        let target = self.anchor_target(anchor)?;
+        let content = self.file_content_id(target.file())?;
 
         Ok(DiagnosticLabel {
             content,
-            span,
+            target,
             message,
         })
     }
 
-    /// Resolve one provider diagnostic anchor into a source span.
-    fn anchor_span(&self, anchor: &DiagnosticAnchor) -> Result<Span, DiagnosticError> {
-        let span = match anchor {
-            DiagnosticAnchor::Span(span) => Ok(*span),
-            DiagnosticAnchor::File(file) => Ok(Span::empty(*file)),
-            DiagnosticAnchor::Module(module) => self.module_span(*module),
-            DiagnosticAnchor::Package(package) => self.package_span(*package),
-        }?;
+    /// Resolve one provider diagnostic anchor into a source target.
+    fn anchor_target(
+        &self,
+        anchor: &DiagnosticAnchor,
+    ) -> Result<DiagnosticTarget, DiagnosticError> {
+        let target = match anchor {
+            DiagnosticAnchor::Span(span) => DiagnosticTarget::Span(*span),
+            DiagnosticAnchor::File(file) => DiagnosticTarget::File(*file),
+            DiagnosticAnchor::Module(module) => {
+                DiagnosticTarget::File(self.module_file_id(*module)?)
+            }
+            DiagnosticAnchor::Package(package) => {
+                DiagnosticTarget::File(self.package_span(*package)?.file)
+            }
+        };
 
-        Ok(span)
-    }
-
-    /// Return the span covering one module file.
-    fn module_span(&self, module_id: ModuleId) -> Result<Span, DiagnosticError> {
-        let file = self.module_file_id(module_id)?;
-
-        Ok(Span::empty(file))
+        Ok(target)
     }
 
     /// Return the span covering one package manifest file.

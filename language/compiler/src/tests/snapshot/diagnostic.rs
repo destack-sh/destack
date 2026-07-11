@@ -21,7 +21,7 @@ pub(crate) fn render_diagnostics(
             diagnostic.code,
             quote(&diagnostic.message)
         ));
-        let primary_file = diagnostic.primary.span.file;
+        let primary_file = diagnostic.primary.target.file();
         lines.push(render_label(
             repository,
             revision,
@@ -130,23 +130,27 @@ fn render_label(
     primary_file: FileId,
 ) -> String {
     let file = repository
-        .file(revision, label.span.file)
+        .file(revision, label.target.file())
         .expect("diagnostic snapshot file lookup should work")
         .expect("diagnostic snapshot file should exist");
+    let message = match &label.message {
+        Some(message) if tag != "label" => format!(" message={}", quote(message)),
+        _ => String::new(),
+    };
+
+    // whole-file labels pin by file only
+    let Some(span) = label.target.span() else {
+        return format!("/// @diagnostic.{tag} file={}{message}", quote(&file.name));
+    };
 
     // labels in other files name their file
-    let file_field = match label.span.file == primary_file {
+    let file_field = match label.target.file() == primary_file {
         true => String::new(),
         false => format!(" file={}", quote(&file.name)),
     };
 
     // labels into sources outside the test revision pin by file only
     let Ok(content) = repository.content(label.content) else {
-        let message = match &label.message {
-            Some(message) if tag != "label" => format!(" message={}", quote(message)),
-            _ => String::new(),
-        };
-
         return format!("/// @diagnostic.{tag} file={}{message}", quote(&file.name));
     };
     let file = File::from_content(
@@ -158,18 +162,12 @@ fn render_label(
         content,
     );
     let (line, column) = file
-        .get_position(label.span.start)
+        .get_position(span.start)
         .expect("diagnostic snapshot position should exist");
-    let span = file.get_span_str(label.span).unwrap_or_default().trim();
+    let span = file.get_span_str(span).unwrap_or_default().trim();
     let line_source = file.get_line_str(line).unwrap_or_default().trim();
     let line = line + 1;
     let column = column + 1;
-
-    // related labels carry their own message beside the span
-    let message = match &label.message {
-        Some(message) if tag != "label" => format!(" message={}", quote(message)),
-        _ => String::new(),
-    };
 
     format!(
         "/// @diagnostic.{tag}{file_field} line={line} column={column} span={} line_source={}{message}",

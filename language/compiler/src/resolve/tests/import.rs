@@ -433,8 +433,8 @@ export let value = 2;
         r#"
 /// @diagnostic.error code=ER201 message="ambiguous export 'value' from './mid.ds'"
 /// @diagnostic.label line=2 column=10 span="value" line_source="import { value } from \"./mid.ds\";"
-/// @diagnostic.related file="a.ds" line=1 column=1 span="" line_source="" message="one 'value' comes from this module"
-/// @diagnostic.related file="b.ds" line=1 column=1 span="" line_source="" message="one 'value' comes from this module"
+/// @diagnostic.related file="a.ds" message="one 'value' comes from this module"
+/// @diagnostic.related file="b.ds" message="one 'value' comes from this module"
 /// @diagnostic.help message="import 'value' directly from one origin module"
 "#,
     );

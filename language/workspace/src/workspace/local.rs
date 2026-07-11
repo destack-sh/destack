@@ -285,8 +285,8 @@ fn command_file_images(
 
     // collect every file referenced by labels and suggestion patches
     for diagnostic in diagnostics.iter() {
-        let mut file_ids = vec![diagnostic.primary_label().span.file];
-        file_ids.extend(diagnostic.labels().map(|label| label.span.file));
+        let mut file_ids = vec![diagnostic.primary_label().target.file()];
+        file_ids.extend(diagnostic.labels().map(|label| label.target.file()));
         file_ids.extend(
             diagnostic
                 .suggestions

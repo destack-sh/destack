@@ -1,7 +1,9 @@
 use core::fmt;
 
 use destack_dir::{NodeType, Token, TokenSpan, TokenType};
-use destack_source::{ByteRange, ContentId, Diagnostic, DiagnosticLabel, FileId, Span};
+use destack_source::{
+    ByteRange, ContentId, Diagnostic, DiagnosticLabel, DiagnosticTarget, FileId, Span,
+};
 use std::error::Error;
 
 /// One structural parser error used for recovery and diagnostics.
@@ -138,7 +140,7 @@ impl ParserError {
         // anchor the diagnostic at the parser error range
         let message = format!("parse error: {label}");
         let span = self.span(file_id);
-        let primary = DiagnosticLabel::message(content, span, label);
+        let primary = DiagnosticLabel::message(content, DiagnosticTarget::Span(span), label);
 
         Diagnostic::error("EP001", message, primary)
     }

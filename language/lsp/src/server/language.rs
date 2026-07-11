@@ -552,8 +552,8 @@ impl DestackLanguageServer {
             let mut missing_file_ids = HashSet::new();
             for diagnostic in &snapshot.diagnostics {
                 for label in std::iter::once(&diagnostic.primary).chain(diagnostic.labels.iter()) {
-                    if !files_by_id.contains_key(&label.span.file) {
-                        missing_file_ids.insert(label.span.file);
+                    if !files_by_id.contains_key(&label.target.file()) {
+                        missing_file_ids.insert(label.target.file());
                     }
                 }
             }

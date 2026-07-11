@@ -20,9 +20,10 @@ use destack_repository::{
     Repository, Revision, Settings, open_repository_from_fs,
 };
 use destack_source::{
-    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, File,
-    FileId, FileSystem, FileType, LanguageType, Loader, ModuleId, OverlayFileSystem, Patch,
-    PhysicalFileSystem, PrintOptions, Span, TargetId, Uri, print_diagnostics, print_diff,
+    ContentId, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget,
+    DiffOptions, File, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
+    OverlayFileSystem, Patch, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
+    print_diagnostics, print_diff,
 };
 use parking_lot::Mutex;
 
@@ -321,7 +322,7 @@ impl DiagnosticContext for TestProviderContext {
 
         Ok(DiagnosticLabel {
             content,
-            span,
+            target: DiagnosticTarget::Span(span),
             message,
         })
     }
@@ -1656,7 +1657,7 @@ impl DiagnosticContext for LintResult<'_> {
 
         Ok(DiagnosticLabel {
             content,
-            span,
+            target: DiagnosticTarget::Span(span),
             message,
         })
     }

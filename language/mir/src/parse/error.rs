@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use std::fmt;
 
-use destack_source::{ContentId, Diagnostic, DiagnosticLabel, FileId, Span};
+use destack_source::{ContentId, Diagnostic, DiagnosticLabel, DiagnosticTarget, FileId, Span};
 
 use crate::source::Token;
 
@@ -76,18 +76,22 @@ impl ParseError {
         Diagnostic::error(
             MIR_PARSE_DIAGNOSTIC_CODE,
             format!("parse error: {}", self.message),
-            DiagnosticLabel::message(content, span, label),
+            DiagnosticLabel::message(content, DiagnosticTarget::Span(span), label),
         )
     }
 
     /// Rebuild one parse error from a shared diagnostic.
     pub fn from_diagnostic(diagnostic: &Diagnostic) -> Self {
         let primary = diagnostic.primary_label();
+        let span = primary
+            .target
+            .span()
+            .unwrap_or_else(|| Span::empty(primary.target.file()));
 
         Self::new_with_length(
             primary.message.clone().unwrap_or_default(),
-            primary.span.start as usize,
-            primary.span.end.saturating_sub(primary.span.start) as usize,
+            span.start as usize,
+            span.end.saturating_sub(span.start) as usize,
         )
     }
 }

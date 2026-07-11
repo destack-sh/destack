@@ -358,7 +358,9 @@ impl ModuleQueryContext<'_> {
         let file = self.file_id();
 
         for diagnostic in diagnostics {
-            let diagnostic_span = diagnostic.primary_label().span;
+            let Some(diagnostic_span) = diagnostic.primary_label().target.span() else {
+                continue;
+            };
 
             // skip diagnostics for other files
             if diagnostic_span.file != file {
@@ -402,7 +404,9 @@ impl ModuleQueryContext<'_> {
 
         // scan diagnostics for unresolved symbol codes in the owning repository
         for diagnostic in diagnostics {
-            let diagnostic_span = diagnostic.primary_label().span;
+            let Some(diagnostic_span) = diagnostic.primary_label().target.span() else {
+                continue;
+            };
 
             // skip diagnostics outside of the requested file
             if diagnostic_span.file != file {
@@ -583,7 +587,7 @@ impl ModuleQueryContext<'_> {
     /// Resolve a missing symbol name from a diagnostic label.
     fn missing_symbol_name_from_label(&self, label: &DiagnosticLabel) -> Option<String> {
         // read the source text for the span
-        let span = label.span;
+        let span = label.target.span()?;
         let file = self.read_file(span.file);
         if file.content_id() != label.content {
             return None;

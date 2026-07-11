@@ -22,7 +22,7 @@ impl DiagnosticBatch {
     pub fn group(diagnostics: &[Diagnostic]) -> Vec<Self> {
         let mut by_file = HashMap::new();
         for diagnostic in diagnostics {
-            let file_id = diagnostic.primary_label().span.file;
+            let file_id = diagnostic.primary_label().target.file();
             by_file
                 .entry(file_id)
                 .or_insert_with(Vec::new)

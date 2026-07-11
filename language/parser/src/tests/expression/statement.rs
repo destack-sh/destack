@@ -49,6 +49,28 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
         });
     });
 }
+
+/// Report labeled lexical declarations.
+#[test]
+fn test_report_labeled_lexical_declaration() {
+    // source: a: let a
+    let test = TestParser::new("a: let a");
+    let mut parser = test.prepare();
+    let _ = parser.parse();
+    let diagnostic = parser
+        .diagnostics()
+        .to_vec()
+        .into_iter()
+        .find(|diagnostic| diagnostic.code.starts_with("EP"))
+        .expect("expected parse diagnostic");
+
+    // let a
+    assert_eq!(
+        parser.get_span_str(diagnostic.primary_label().target.span().unwrap()),
+        "let a"
+    );
+}
+
 #[test]
 fn test_parse_elementwise_leading_type_expression() {
     let test = TestParser::new(
