@@ -3,7 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, ConstraintId, Dependency, DumpContext, ObligationId, Task, TypeBound, Widening,
+    CandidateVerdict, CheckState, ConstraintId, Dependency, DumpContext, ObligationId, ProbeReason,
+    Task, TypeBound, Widening,
 };
 
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
@@ -41,15 +42,15 @@ pub(in crate::check) struct VariableBounds {
 pub(in crate::check) enum CheckEvent {
     /// One speculative probe started.
     ProbeStarted {
+        /// The judgment the probe speculates on.
+        reason: ProbeReason,
         /// The number of variables present before the probe.
         variables: usize,
     },
     /// One speculative probe finished.
     ProbeFinished {
-        /// Whether the probe was committed.
-        is_committed: bool,
-        /// Whether the probe returned pending dependencies.
-        is_pending: bool,
+        /// The winnowed verdict, absent when the probe parked externally.
+        verdict: Option<CandidateVerdict>,
     },
     /// One variable was allocated.
     VariableAllocated {
@@ -202,10 +203,9 @@ impl CheckState<'_> {
 
     /// Return derived size counters for this component.
     pub(in crate::check) fn stats(&self) -> CheckStats {
-        let mut bounds = 0;
+        let bounds = self.solver.variables.bound_count();
         let mut solutions = 0;
         for (_, state) in self.solver.variables() {
-            bounds += state.lower.len() + state.upper.len();
             solutions += usize::from(state.solution.is_some());
         }
         // count the types checking interned beyond the committed tables

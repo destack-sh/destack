@@ -10,6 +10,15 @@ pub(in crate::check) enum Answer<T> {
     Pending(SmallVec<[Dependency; 2]>),
 }
 
+/// One dependency that can wake solver work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::check) enum Dependency {
+    /// A variable was solved.
+    Variable(dir::TypeVariableId),
+    /// A symbol type was written.
+    SymbolType(dir::GlobalSymbolId),
+}
+
 impl<T> Answer<T> {
     /// Return the ready value, if this answer has settled.
     pub(in crate::check) fn ready(self) -> Option<T> {
@@ -37,18 +46,9 @@ impl<T> Answer<T> {
         value: T,
         dependencies: impl IntoIterator<Item = Dependency>,
     ) -> Self {
-        let mut pending = SmallVec::new();
-
-        for dependency in dependencies {
-            if !pending.contains(&dependency) {
-                pending.push(dependency);
-            }
-        }
-
-        if pending.is_empty() {
-            Self::Ready(value)
-        } else {
-            Self::Pending(pending)
+        match Self::pending(dependencies) {
+            Self::Pending(pending) if pending.is_empty() => Self::Ready(value),
+            pending => pending,
         }
     }
 }
@@ -110,18 +110,5 @@ macro_rules! answer {
     };
 }
 
-/// The importable solver answer propagation macro.
+/// Export `answer!` to every check module.
 pub(in crate::check) use answer;
-
-/// One dependency that can wake solver work.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) enum Dependency {
-    /// A variable was solved.
-    Variable(dir::TypeVariableId),
-    /// A node type was written.
-    NodeType(dir::GlobalNodeIdAny),
-    /// A symbol type was written.
-    SymbolType(dir::GlobalSymbolId),
-    /// A node decision was made.
-    Decision(dir::GlobalNodeIdAny),
-}

@@ -1,15 +1,16 @@
+use destack_core::{FxIndexMap, FxIndexSet};
 use std::sync::Arc;
 
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext};
 use destack_source::{ComponentId, ModuleId, ProfileId};
-use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex,
-    GenericScope, GenericTemplateId, Origin, Solver, VarianceEntry, should_stream_check_events,
+    BodyOwner, CheckEvent, CheckExternalModuleState, CheckModuleState, DecisionTable, GenericIndex,
+    GenericScope, GenericTemplateId, Origin, OriginId, Solver, TryPropagationTarget,
+    VarianceContext, VarianceState, should_stream_check_events,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -38,19 +39,19 @@ pub(in crate::check) struct CheckState<'a> {
 
     // loaded modules
     /// Loaded component modules keyed by module id.
-    pub(in crate::check) modules: IndexMap<ModuleId, CheckModuleState>,
+    pub(in crate::check) modules: FxIndexMap<ModuleId, CheckModuleState>,
     /// Loaded out-of-component modules keyed by module id.
-    pub(in crate::check) external_modules: IndexMap<ModuleId, CheckExternalModuleState>,
+    pub(in crate::check) external_modules: FxIndexMap<ModuleId, CheckExternalModuleState>,
     /// Checked component artifact containing each external module.
-    pub(in crate::check) external_components: IndexMap<ModuleId, CheckComponentKey>,
+    pub(in crate::check) external_components: FxIndexMap<ModuleId, CheckComponentKey>,
 
     // checked state
     /// Stable declaration symbol types.
-    pub(in crate::check) declaration_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    pub(in crate::check) declaration_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Body-owned binding symbol types.
-    pub(in crate::check) binding_types: IndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
+    pub(in crate::check) binding_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Checked source node occurrence types.
-    pub(in crate::check) node_types: IndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
+    pub(in crate::check) node_types: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
     /// Stable source node decisions.
     pub(in crate::check) decisions: DecisionTable,
 
@@ -58,19 +59,37 @@ pub(in crate::check) struct CheckState<'a> {
     /// Generic instances, argument variables, and induction bookkeeping.
     pub(in crate::check) generics: GenericIndex,
     /// Flattened generic scopes computed once per template.
-    pub(in crate::check) scopes: IndexMap<GenericTemplateId, Arc<GenericScope>>,
-    /// Generic parameter variance derivations.
-    pub(in crate::check) variances: IndexMap<dir::GlobalGenericParameterId, VarianceEntry>,
+    pub(in crate::check) scopes: FxIndexMap<GenericTemplateId, Arc<GenericScope>>,
+    /// Generic parameter variance derivations per handle context.
+    pub(in crate::check) variances:
+        FxIndexMap<(dir::GlobalGenericParameterId, VarianceContext), VarianceState>,
+    /// Elided result lifetimes inferred from their bodies, never induced.
+    pub(in crate::check) body_lifetimes: FxIndexSet<dir::TypeVariableId>,
 
     // reduction state
     /// Memoized closed reduced types keyed by source type.
-    /// Entries are recorded outside probes only, and parameter reductions key by their assuming scope.
     pub(in crate::check) reduced_types:
-        IndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
+        FxIndexMap<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>), dir::GlobalTypeId>,
 
     // solver state
     /// Active component solver state.
     pub(in crate::check) solver: Solver,
+    /// Obligation steps run so far, for trace numbering.
+    pub(in crate::check) solve_steps: usize,
+    /// Module-level bindings whose initializers are checking, for cycles.
+    pub(in crate::check) initializing: FxIndexSet<dir::GlobalSymbolId>,
+    /// Checked bodies recorded by the binder, in source order.
+    pub(in crate::check) bodies: Vec<BodyOwner>,
+    /// Body indexes by their bound symbol, for on-demand initializer reads.
+    pub(in crate::check) initializers: FxIndexMap<dir::GlobalSymbolId, usize>,
+    /// Function value bodies keyed by their value expression.
+    pub(in crate::check) lambdas: FxIndexMap<dir::GlobalNodeIdAny, BodyOwner>,
+    /// Catch result holes keyed by their catch node.
+    pub(in crate::check) catch_results: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
+    /// Try propagation targets keyed by their fallible source node.
+    pub(in crate::check) try_propagations: FxIndexMap<dir::GlobalNodeIdAny, TryPropagationTarget>,
+    /// Control output holes keyed by their loop, label, and break-value nodes.
+    pub(in crate::check) control_results: FxIndexMap<dir::GlobalNodeIdAny, dir::GlobalTypeId>,
 
     // tracing
     /// Trace events recorded while checking.
@@ -82,6 +101,11 @@ pub(in crate::check) struct CheckState<'a> {
 }
 
 impl<'a> CheckState<'a> {
+    /// Return the shared repository string pool.
+    pub(in crate::check) fn strings(&self) -> &'a destack_core::StringPool {
+        self.compiler.repository.string_pool()
+    }
+
     /// Create a component check state.
     pub(in crate::check) fn new(
         compiler: &'a Compiler,
@@ -89,7 +113,7 @@ impl<'a> CheckState<'a> {
         artifacts: &'a ArtifactReader<'a>,
         profile: ProfileId,
         environment: Arc<GlobalEnvironment>,
-        external_components: IndexMap<ModuleId, CheckComponentKey>,
+        external_components: FxIndexMap<ModuleId, CheckComponentKey>,
         emit_events: bool,
     ) -> Self {
         Self {
@@ -98,18 +122,27 @@ impl<'a> CheckState<'a> {
             artifacts,
             profile,
             environment,
-            modules: IndexMap::new(),
-            external_modules: IndexMap::new(),
+            modules: FxIndexMap::default(),
+            external_modules: FxIndexMap::default(),
             external_components,
-            declaration_types: IndexMap::new(),
-            binding_types: IndexMap::new(),
-            node_types: IndexMap::new(),
+            declaration_types: FxIndexMap::default(),
+            binding_types: FxIndexMap::default(),
+            node_types: FxIndexMap::default(),
             decisions: DecisionTable::new(),
             generics: GenericIndex::new(),
-            scopes: IndexMap::new(),
-            variances: IndexMap::new(),
-            reduced_types: IndexMap::new(),
+            scopes: FxIndexMap::default(),
+            variances: FxIndexMap::default(),
+            body_lifetimes: FxIndexSet::default(),
+            reduced_types: FxIndexMap::default(),
             solver: Solver::new(),
+            solve_steps: 0,
+            initializing: FxIndexSet::default(),
+            bodies: Vec::new(),
+            initializers: FxIndexMap::default(),
+            lambdas: FxIndexMap::default(),
+            catch_results: FxIndexMap::default(),
+            try_propagations: FxIndexMap::default(),
+            control_results: FxIndexMap::default(),
             events: Vec::new(),
             emit_events,
             stream_events: should_stream_check_events(),
@@ -134,7 +167,7 @@ impl<'a> CheckState<'a> {
         self.import_component_external_modules()?;
 
         // declare template identities, then walk their bounds, so
-        // declarations resolve in any order across module cycles
+        //  declarations resolve in any order across module cycles
         for module in modules.iter().copied() {
             self.declare_module_templates(module)?;
         }
@@ -182,12 +215,9 @@ impl<'a> CheckState<'a> {
             .artifacts
             .dir_expanded(module_id, self.profile)
             .map_err(CompilerError::from)?;
-        let strings = Arc::clone(self.compiler.repository.string_pool());
-
         let module = CheckModuleState::new(
             module,
             profile,
-            strings,
             parsed,
             bound,
             resolved,
@@ -301,12 +331,14 @@ impl CheckState<'_> {
     }
 
     /// Intern one type into a module's working segment.
-    /// Payload lists must already be interned into the same module.
     pub(in crate::check) fn intern_type(
         &mut self,
         module: ModuleId,
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // memory forms intern in one canonical composition order
+        let ty = self.canonical_form_type(module, ty)?;
+
         // join the structural flags of every child type
         let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         self.for_each_type_child(module, &ty, |child| children.push(child))?;
@@ -315,12 +347,231 @@ impl CheckState<'_> {
             child_flags |= self.type_flags(child)?;
         }
 
+        // operation payloads contribute their own symbolic flags
+        if let dir::Type::Operation(operation) = ty {
+            child_flags |= self.type_operation(module, operation)?.own_flags();
+        }
+
         let local = self
             .working_module_mut(module)?
             .types_tail
             .intern_type(ty, child_flags);
 
         Ok(local.into_global(module))
+    }
+
+    /// Intern one work origin into the solver.
+    pub(in crate::check) fn intern_origin(&mut self, origin: Origin) -> OriginId {
+        self.solver.intern_origin(origin)
+    }
+
+    /// Return one type operation payload by its interned id.
+    pub(in crate::check) fn type_operation(
+        &self,
+        module: ModuleId,
+        id: dir::TypeOperationId,
+    ) -> CompilerResult<dir::TypeOperation> {
+        if let Some(state) = self.modules.get(&module) {
+            state.operation_maybe(id)
+        } else if let Some(external) = self.external_modules.get(&module) {
+            external.types.operation_maybe(id).copied()
+        } else {
+            None
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("check type operation {id:?} is not allocated in {module:?}"),
+        })
+    }
+
+    /// Return one borrow form payload by its interned id.
+    pub(in crate::check) fn type_borrow(
+        &self,
+        module: ModuleId,
+        id: dir::BorrowFormId,
+    ) -> CompilerResult<dir::BorrowForm> {
+        if let Some(state) = self.modules.get(&module) {
+            state.borrow_maybe(id)
+        } else if let Some(external) = self.external_modules.get(&module) {
+            external.types.borrow_form_maybe(id).copied()
+        } else {
+            None
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("check borrow form {id:?} is not allocated in {module:?}"),
+        })
+    }
+
+    /// Intern one borrow form into a module's working segment.
+    pub(in crate::check) fn intern_borrow(
+        &mut self,
+        module: ModuleId,
+        lifetime: dir::GlobalTypeId,
+        access: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::Form> {
+        let id = self
+            .working_module_mut(module)?
+            .types_tail
+            .intern_borrow(dir::BorrowForm { lifetime, access });
+
+        Ok(dir::Form::Borrowed(id))
+    }
+
+    /// Return one member projection payload by its interned id.
+    pub(in crate::check) fn type_member(
+        &self,
+        module: ModuleId,
+        id: dir::MemberTypeId,
+    ) -> CompilerResult<dir::MemberType> {
+        if let Some(state) = self.modules.get(&module) {
+            state.member_maybe(id)
+        } else if let Some(external) = self.external_modules.get(&module) {
+            external.types.member_maybe(id).copied()
+        } else {
+            None
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("check member type {id:?} is not allocated in {module:?}"),
+        })
+    }
+
+    /// Return one type's member payload when its head is a member projection.
+    pub(in crate::check) fn member_head(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::MemberType>> {
+        match self.ty(id)? {
+            dir::Type::Member(member) => Ok(Some(self.type_member(id.module_id, member)?)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Intern one member projection into a module's working segment.
+    pub(in crate::check) fn intern_member(
+        &mut self,
+        module: ModuleId,
+        member: dir::MemberType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let id = self
+            .working_module_mut(module)?
+            .types_tail
+            .intern_member(member);
+
+        self.intern_type(module, dir::Type::Member(id))
+    }
+
+    /// Return one refined application payload by its interned id.
+    pub(in crate::check) fn type_refined(
+        &self,
+        module: ModuleId,
+        id: dir::RefinedTypeId,
+    ) -> CompilerResult<dir::RefinedType> {
+        if let Some(state) = self.modules.get(&module) {
+            state.refined_maybe(id)
+        } else if let Some(external) = self.external_modules.get(&module) {
+            external.types.refined_maybe(id).copied()
+        } else {
+            None
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("check refined type {id:?} is not allocated in {module:?}"),
+        })
+    }
+
+    /// Return one type's refined payload when its head is a refined application.
+    pub(in crate::check) fn refined_head(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::RefinedType>> {
+        match self.ty(id)? {
+            dir::Type::Refined(refined) => Ok(Some(self.type_refined(id.module_id, refined)?)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Intern one refined application into a module's working segment.
+    pub(in crate::check) fn intern_refined(
+        &mut self,
+        module: ModuleId,
+        refined: dir::RefinedType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let id = self
+            .working_module_mut(module)?
+            .types_tail
+            .intern_refined(refined);
+
+        self.intern_type(module, dir::Type::Refined(id))
+    }
+
+    /// Return one function signature payload by its interned id.
+    pub(in crate::check) fn type_signature(
+        &self,
+        module: ModuleId,
+        id: dir::FunctionSignatureId,
+    ) -> CompilerResult<dir::FunctionSignatureType> {
+        if let Some(state) = self.modules.get(&module) {
+            state.signature_maybe(id)
+        } else if let Some(external) = self.external_modules.get(&module) {
+            external.types.signature_maybe(id).copied()
+        } else {
+            None
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("check function signature {id:?} is not allocated in {module:?}"),
+        })
+    }
+
+    /// Return one type's signature payload when its head is a signature.
+    pub(in crate::check) fn signature_head(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::FunctionSignatureType>> {
+        match self.ty(id)? {
+            dir::Type::FunctionSignature(signature) => {
+                Ok(Some(self.type_signature(id.module_id, signature)?))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Intern one function signature into a module's working segment.
+    pub(in crate::check) fn intern_signature(
+        &mut self,
+        module: ModuleId,
+        signature: dir::FunctionSignatureType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let id = self
+            .working_module_mut(module)?
+            .types_tail
+            .intern_signature(signature);
+
+        self.intern_type(module, dir::Type::FunctionSignature(id))
+    }
+
+    /// Return one type's operation payload when its head is an operation.
+    pub(in crate::check) fn operation_head(
+        &self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::TypeOperation>> {
+        match self.ty(id)? {
+            dir::Type::Operation(operation) => {
+                Ok(Some(self.type_operation(id.module_id, operation)?))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Intern one type operation into a module's working segment.
+    pub(in crate::check) fn intern_operation(
+        &mut self,
+        module: ModuleId,
+        operation: dir::TypeOperation,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let id = self
+            .working_module_mut(module)?
+            .types_tail
+            .intern_operation(operation);
+
+        self.intern_type(module, dir::Type::Operation(id))
     }
 
     /// Intern one type id list into a module's working segment.
@@ -568,13 +819,26 @@ impl CheckState<'_> {
         &mut self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let module = self.solver.variable(variable)?.origin.module();
+        let origin = self.solver.variable(variable)?.origin;
+        let module = self.solver.origin(origin).module();
 
         self.intern_type(module, dir::Type::Variable(variable))
     }
 
-    /// Return one definition, reading working segments over external tables.
+    /// Return one definition, importing the symbol's module on demand.
     pub(in crate::check) fn definition(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<&dir::Definition>> {
+        if !self.modules.contains_key(&symbol.module_id) {
+            self.import_external_module(symbol.module_id)?;
+        }
+
+        Ok(self.loaded_definition(symbol))
+    }
+
+    /// Return one already loaded definition, without importing.
+    pub(in crate::check) fn loaded_definition(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<&dir::Definition> {
@@ -621,7 +885,7 @@ impl CheckState<'_> {
 
     /// Report duplicate non-overload member keys in one definition.
     fn report_duplicate_definition_members(&mut self, definition: &dir::Definition) {
-        let mut seen = IndexMap::<(dir::MemberSpace, dir::StaticKey), bool>::new();
+        let mut seen = FxIndexMap::<(dir::MemberSpace, dir::StaticKey), bool>::default();
 
         for member in definition.members() {
             let Some(key) = member.key() else {
@@ -641,9 +905,6 @@ impl CheckState<'_> {
     }
 
     /// Rebuild one type value by mapping every direct child type id.
-    ///
-    /// Payload lists read from the source module that owns the value and
-    /// rebuilt lists intern into the target module that owns the rebuild.
     pub(in crate::check) fn map_type_children(
         &mut self,
         source: ModuleId,
@@ -681,13 +942,29 @@ impl CheckState<'_> {
 
                 dir::Type::Instance(instance)
             }
-            dir::Type::Member(mut member) => {
+            dir::Type::Refined(refined) => {
+                let mut refined = self.type_refined(source, refined)?;
+                refined.base = map(self, refined.base)?;
+                refined.value = map(self, refined.value)?;
+                let refined = self
+                    .working_module_mut(target)?
+                    .types_tail
+                    .intern_refined(refined);
+
+                dir::Type::Refined(refined)
+            }
+            dir::Type::Member(member) => {
+                let mut member = self.type_member(source, member)?;
                 member.owner = map(self, member.owner)?;
                 member.arguments = self.map_type_id_list(source, target, member.arguments, map)?;
                 member.qualifier = member
                     .qualifier
                     .map(|qualifier| map(self, qualifier))
                     .transpose()?;
+                let member = self
+                    .working_module_mut(target)?
+                    .types_tail
+                    .intern_member(member);
 
                 dir::Type::Member(member)
             }
@@ -701,9 +978,14 @@ impl CheckState<'_> {
             dir::Type::Form(mut form) => {
                 form.value = map(self, form.value)?;
                 match &mut form.form {
-                    dir::Form::Borrowed { lifetime, access } => {
-                        *lifetime = map(self, *lifetime)?;
-                        *access = map(self, *access)?;
+                    dir::Form::Borrowed(borrow) => {
+                        let mut resolved = self.type_borrow(source, *borrow)?;
+                        resolved.lifetime = map(self, resolved.lifetime)?;
+                        resolved.access = map(self, resolved.access)?;
+                        *borrow = self
+                            .working_module_mut(target)?
+                            .types_tail
+                            .intern_borrow(resolved);
                     }
                     dir::Form::Placed { place } => *place = map(self, *place)?,
                     dir::Form::Managed
@@ -722,7 +1004,7 @@ impl CheckState<'_> {
 
             // type operations
             dir::Type::Operation(operation) => {
-                let operation = match operation {
+                let operation = match self.type_operation(source, operation)? {
                     dir::TypeOperation::StringMapping { mapping, target } => {
                         dir::TypeOperation::StringMapping {
                             mapping,
@@ -747,6 +1029,9 @@ impl CheckState<'_> {
                         mapped.parameter.constraint = map(self, mapped.parameter.constraint)?;
                         if let Some(key_remap) = &mut mapped.parameter.key_remap {
                             *key_remap = map(self, *key_remap)?;
+                        }
+                        if let Some(modifiers_type) = &mut mapped.parameter.modifiers_type {
+                            *modifiers_type = map(self, *modifiers_type)?;
                         }
                         mapped.value = map(self, mapped.value)?;
 
@@ -805,6 +1090,10 @@ impl CheckState<'_> {
                         dir::TypeOperation::StaticUnary(unary)
                     }
                 };
+                let operation = self
+                    .working_module_mut(target)?
+                    .types_tail
+                    .intern_operation(operation);
 
                 dir::Type::Operation(operation)
             }
@@ -863,7 +1152,8 @@ impl CheckState<'_> {
 
                 dir::Type::Shape(shape)
             }
-            dir::Type::FunctionSignature(mut function) => {
+            dir::Type::FunctionSignature(function) => {
+                let mut function = self.type_signature(source, function)?;
                 if let Some(this_parameter) = &mut function.this_parameter {
                     *this_parameter = map(self, *this_parameter)?;
                 }
@@ -879,6 +1169,10 @@ impl CheckState<'_> {
                 if let Some(return_type) = &mut function.return_type {
                     *return_type = map(self, *return_type)?;
                 }
+                let function = self
+                    .working_module_mut(target)?
+                    .types_tail
+                    .intern_signature(function);
 
                 dir::Type::FunctionSignature(function)
             }

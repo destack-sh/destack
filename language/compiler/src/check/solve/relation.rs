@@ -1,5 +1,5 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
-use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::CheckState;
@@ -9,23 +9,52 @@ use crate::check::CheckState;
 pub(in crate::check) enum Relation {
     /// Both operands solve to the same type.
     Equal,
-    /// The left operand is assignable to the right operand.
+    /// The source operand is assignable to the target operand.
     Assignable,
-    /// The left method signature serves every use of the right one.
+    /// The source operand is assignable to the target operand through
+    /// identity-witnessed widenings only: no coercion may be required.
+    Widens,
+    /// The source method signature serves every use of the target one.
     MethodAssignable,
-    /// The left operand is assignable to the right operand without influencing it.
+    /// The source operand is assignable to the target operand without influencing it.
     Writable,
-    /// The left operand is castable to the right operand.
+    /// The source operand is castable to the target operand.
     Castable,
-    /// The left operand satisfies the right operand without influencing it.
+    /// The source operand satisfies the target operand without influencing it.
     Satisfies,
-    /// The left operand extends the right operand.
+    /// The source operand extends the target operand.
     Extends,
-    /// The left operand implements the right operand.
+    /// The source operand implements the target operand.
     Implements,
 }
 
 impl Relation {
+    /// Return the relation for slots inside one related value.
+    ///
+    /// Value interiors have no store site to witness a conversion, so
+    /// assignability restricts to identity-witnessed widening inside.
+    /// Constraint judgments never move a value and read interior slots
+    /// per use, so their slots relate by full assignability.
+    pub(in crate::check) fn interior(self) -> Relation {
+        match self {
+            Self::Assignable | Self::Widens => Self::Widens,
+            Self::Equal => Self::Equal,
+            _ => Self::Assignable,
+        }
+    }
+
+    /// Return the edge one handle-context payload relates by.
+    ///
+    /// Value relations restrict to identity-witnessed widening.
+    /// Unlike `interior`, constraint judgments pass through unchanged, so
+    /// payloads nested under further forms keep the constraint flavor.
+    pub(in crate::check) fn payload_edge(self) -> Relation {
+        match self {
+            Self::Assignable | Self::Widens => Self::Widens,
+            relation => relation,
+        }
+    }
+
     /// Return whether a union target accepts any successful element relation.
     pub(in crate::check) fn distributes_over_union_target(self) -> bool {
         matches!(
@@ -41,9 +70,6 @@ impl Relation {
 }
 
 /// One relation pair identity over two reduced roots.
-///
-/// Queries that mention generic parameters key by their assuming
-/// scope, so scope-dependent answers never leak across declarations.
 pub(in crate::check) type RelationKey = (
     Relation,
     dir::GlobalTypeId,
@@ -79,7 +105,6 @@ struct RelationStackEntry {
     /// The decided pair.
     key: RelationKey,
     /// The outermost cycle frame this frame's result depends on.
-    /// Equal to the frame's own index when no cycle was used.
     dependency: usize,
 }
 
@@ -87,7 +112,7 @@ struct RelationStackEntry {
 #[derive(Debug)]
 pub(in crate::check) struct RelationCache {
     /// The decisions keyed by relation pair.
-    decisions: IndexMap<RelationKey, RelationDecision>,
+    decisions: FxIndexMap<RelationKey, RelationDecision>,
     /// The active decision frames, outermost first.
     stack: Vec<RelationStackEntry>,
     /// Provisional holds with the cycle frame they depend on.
@@ -122,7 +147,7 @@ impl RelationCache {
     /// Create an empty relation cache.
     pub(in crate::check) fn new() -> Self {
         Self {
-            decisions: IndexMap::new(),
+            decisions: FxIndexMap::default(),
             stack: Vec::new(),
             provisional: Vec::new(),
             undo: Vec::new(),
@@ -164,24 +189,15 @@ impl RelationCache {
         self.snapshot_depth -= 1;
     }
 
-    /// Commit one relation snapshot.
-    pub(in crate::check) fn commit(&mut self, snapshot: RelationCacheSnapshot) {
-        self.snapshot_depth -= 1;
-
-        if self.snapshot_depth == 0 {
-            self.undo.truncate(snapshot.undo);
-        }
-    }
-
     /// Return the memoized answer for one pair, recording cycle use.
     pub(in crate::check) fn lookup(
         &mut self,
         relation: Relation,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
         scope: Option<dir::GlobalGenericTemplateId>,
     ) -> Option<bool> {
-        let verdict = *self.decisions.get(&(relation, left, right, scope))?;
+        let verdict = *self.decisions.get(&(relation, source, target, scope))?;
 
         match verdict {
             RelationDecision::Holds => Some(true),
@@ -201,11 +217,11 @@ impl RelationCache {
     pub(in crate::check) fn enter(
         &mut self,
         relation: Relation,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
         scope: Option<dir::GlobalGenericTemplateId>,
     ) -> RelationFrame {
-        let key = (relation, left, right, scope);
+        let key = (relation, source, target, scope);
         let index = self.stack.len();
 
         self.set_decision(key, RelationDecision::InProgress(index));
@@ -218,7 +234,6 @@ impl RelationCache {
     }
 
     /// Close one frame with its decided answer.
-    /// Returns the pairs whose decisions became unconditional.
     pub(in crate::check) fn finish(
         &mut self,
         frame: RelationFrame,
@@ -228,14 +243,14 @@ impl RelationCache {
         let mut settled = SmallVec::new();
 
         // failure is robust: cycle hypotheses only widen relations,
-        // so a failure reached under one holds without it
+        //  so a failure reached under one holds without it
         if !holds {
             self.resolve_dependents(frame.index, None, &mut settled);
             self.set_decision(frame.key, RelationDecision::Fails);
             settled.push(frame.key);
         }
         // hold through an outer cycle: stay provisional and pass
-        // the dependency on to both dependents and the parent frame
+        //  the dependency on to both dependents and the parent frame
         else if entry.dependency < frame.index {
             self.resolve_dependents(frame.index, Some(entry.dependency), &mut settled);
             self.set_decision(frame.key, RelationDecision::Provisional(entry.dependency));
@@ -245,7 +260,7 @@ impl RelationCache {
             }
         }
         // holds on its own: the hypothesis this frame provided is
-        // justified, settling every dependent along with it
+        //  justified, settling every dependent along with it
         else {
             self.resolve_dependents(frame.index, Some(frame.index), &mut settled);
             self.set_decision(frame.key, RelationDecision::Holds);

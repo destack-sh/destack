@@ -1,24 +1,63 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
-use smallvec::SmallVec;
 
-use crate::check::{
-    Answer, BoundMode, CheckState, Dependency, DumpContext, Relation, SolverSnapshot,
-};
-use crate::{CompilerError, CompilerResult};
+use crate::CompilerResult;
+use crate::check::{Answer, BodyState, CheckEvent, CheckState, SolverSnapshot};
 
-/// Active speculative probe.
-pub(in crate::check) struct Probe<'a, 'check> {
-    /// The checked state under this probe.
-    pub(in crate::check) state: &'a mut CheckState<'check>,
-    /// The check state mark before this probe.
-    mark: &'a ProbeMark,
+/// Result of one speculative candidate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(in crate::check) enum CandidateOutcome<T, R> {
+    /// The candidate applies.
+    Accepted(T),
+    /// The candidate does not apply.
+    Rejected(R),
+}
+
+impl<T, R> Answer<CandidateOutcome<T, R>> {
+    /// Return the accepted value carried by one confirmed candidate.
+    fn accepted(self) -> Answer<Option<T>> {
+        match self {
+            Self::Ready(CandidateOutcome::Accepted(value)) => Answer::Ready(Some(value)),
+            Self::Ready(CandidateOutcome::Rejected(_)) => Answer::Ready(None),
+            Self::Pending(blockers) => Answer::Pending(blockers),
+        }
+    }
+}
+
+/// Verdict of one winnowed candidate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum CandidateVerdict {
+    /// The candidate applies as far as available inference resolves.
+    Viable,
+    /// The candidate is undecidable from unresolved inference.
+    Ambiguous,
+    /// The candidate does not apply.
+    Rejected,
+}
+
+/// The judgment one probe speculates on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum ProbeReason {
+    /// One signature candidate against a call.
+    Signature,
+    /// One extension target against a receiver.
+    Extension,
+    /// One extension's interface declarations against a receiver.
+    Implements,
+    /// One extension against a protocol member set.
+    Protocol,
+    /// One receiver adjustment step.
+    Receiver,
+    /// One conditional type pattern match.
+    Conditional,
+    /// One union arm against a related value.
+    UnionArm,
 }
 
 /// Check state mark before one probe.
 #[derive(Debug)]
-struct ProbeMark {
+pub(in crate::check) struct ProbeMark {
     /// The solver state before the probe.
     solver: SolverSnapshot,
     /// The node type count before the probe.
@@ -28,7 +67,7 @@ struct ProbeMark {
     /// The event count before the probe.
     events: usize,
     /// Module marks before the probe.
-    modules: IndexMap<ModuleId, ModuleProbeMark>,
+    modules: FxIndexMap<ModuleId, ModuleProbeMark>,
 }
 
 /// Per-module check state mark before one probe.
@@ -36,191 +75,99 @@ struct ProbeMark {
 struct ModuleProbeMark {
     /// Working type segment mark before the probe.
     types: dir::TypeMark,
+    /// Resolution segment mark before the probe.
+    resolutions: dir::ResolutionMark,
     /// Diagnostic count before the probe.
     diagnostics: usize,
     /// Warning count before the probe.
     warnings: usize,
 }
 
-impl<'a, 'check> Probe<'a, 'check> {
-    /// Run one probe operation until it is ready or blocked outside this probe.
-    pub(in crate::check) fn settle<T>(
+impl BodyState<'_, '_> {
+    /// Probe one candidate under a rollback, returning its verdict.
+    pub(in crate::check) fn probe_candidate<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<T>>,
-    ) -> CompilerResult<Answer<T>> {
-        loop {
-            let blockers = match attempt(self)? {
-                Answer::Ready(value) => return Ok(Answer::Ready(value)),
-                Answer::Pending(blockers) => blockers,
-            };
+        reason: ProbeReason,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+    ) -> CompilerResult<CandidateVerdict> {
+        let mark = self.check.open_probe(reason);
+        let outcome = attempt(self);
 
-            let local = self.local_variables(&blockers)?;
-            if local.is_empty() {
-                return Ok(Answer::Pending(blockers));
-            }
-
-            self.solve_variables(&local)?;
-        }
+        self.check.settle_probe(mark, outcome)
     }
 
-    /// Relate two types inside this probe.
-    pub(in crate::check) fn constrain(
+    /// Probe one candidate, then confirm a viable outcome in place.
+    pub(in crate::check) fn confirm_candidate<T, R>(
         &mut self,
-        origin: crate::check::Origin,
-        relation: Relation,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
-    ) -> CompilerResult<Answer<bool>> {
-        self.settle(|probe| probe.state.constrain(origin, relation, left, right))
-    }
-
-    /// Return open variables allocated inside this probe.
-    fn local_variables(
-        &self,
-        blockers: &[Dependency],
-    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
-        let mut variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
-
-        for blocker in blockers {
-            let Dependency::Variable(variable) = blocker else {
-                continue;
-            };
-            let variable = self.state.solver.representative(*variable)?;
-            if self.mark.solver.contains_variable(variable) {
-                continue;
-            }
-            if self.state.solver.variable(variable)?.solution.is_none()
-                && !variables.contains(&variable)
-            {
-                variables.push(variable);
-            }
-        }
-
-        Ok(variables)
-    }
-
-    /// Solve probe-local variables once.
-    fn solve_variables(&mut self, variables: &[dir::TypeVariableId]) -> CompilerResult<()> {
-        let mut progressed = false;
-
-        for variable in variables {
-            let before = self.state.open_variable(*variable)?;
-            match self.state.solve_variable(*variable, BoundMode::Weak)? {
-                Answer::Ready(_) => {}
-                Answer::Pending(_) => {}
-            }
-            let after = self.state.open_variable(*variable)?;
-            progressed |= before != after;
-        }
-
-        if progressed {
-            Ok(())
-        } else {
-            Err(self.state.local_probe_blocker_error(&variables))
+        reason: ProbeReason,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+    ) -> CompilerResult<Answer<Option<T>>> {
+        match self.probe_candidate(reason, &mut attempt)? {
+            CandidateVerdict::Rejected => Ok(Answer::Ready(None)),
+            CandidateVerdict::Viable | CandidateVerdict::Ambiguous => Ok(attempt(self)?.accepted()),
         }
     }
 }
 
 impl CheckState<'_> {
-    /// Run one speculative candidate.
-    pub(in crate::check) fn probe_candidate<T>(
+    /// Probe one candidate under a rollback, returning its verdict.
+    pub(in crate::check) fn probe_candidate<T, R>(
         &mut self,
-        mut attempt: impl FnMut(&mut Probe<'_, '_>) -> CompilerResult<Answer<T>>,
-        accept: impl Fn(&T) -> bool,
-    ) -> CompilerResult<Answer<T>> {
+        reason: ProbeReason,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+    ) -> CompilerResult<CandidateVerdict> {
+        let mark = self.open_probe(reason);
+        let outcome = attempt(self);
+
+        self.settle_probe(mark, outcome)
+    }
+
+    /// Probe one candidate, then confirm a viable outcome in place.
+    pub(in crate::check) fn confirm_candidate<T, R>(
+        &mut self,
+        reason: ProbeReason,
+        mut attempt: impl FnMut(&mut Self) -> CompilerResult<Answer<CandidateOutcome<T, R>>>,
+    ) -> CompilerResult<Answer<Option<T>>> {
+        match self.probe_candidate(reason, &mut attempt)? {
+            CandidateVerdict::Rejected => Ok(Answer::Ready(None)),
+            CandidateVerdict::Viable | CandidateVerdict::Ambiguous => Ok(attempt(self)?.accepted()),
+        }
+    }
+
+    /// Begin one probe, recording its start event.
+    fn open_probe(&mut self, reason: ProbeReason) -> ProbeMark {
         let mark = self.begin_probe();
+        self.record_event(CheckEvent::ProbeStarted {
+            reason,
+            variables: self.solver.variable_count(),
+        });
 
-        let answer = {
-            let mut probe = Probe {
-                state: self,
-                mark: &mark,
-            };
+        mark
+    }
 
-            probe.settle(|probe| attempt(probe))
-        };
-        let answer = match answer {
-            Ok(answer) => answer,
+    /// Map one attempted outcome onto its verdict, rolling the probe back.
+    fn settle_probe<T, R>(
+        &mut self,
+        mark: ProbeMark,
+        outcome: CompilerResult<Answer<CandidateOutcome<T, R>>>,
+    ) -> CompilerResult<CandidateVerdict> {
+        let verdict = match outcome {
+            Ok(Answer::Ready(CandidateOutcome::Accepted(_))) => CandidateVerdict::Viable,
+            Ok(Answer::Ready(CandidateOutcome::Rejected(_))) => CandidateVerdict::Rejected,
+            Ok(Answer::Pending(_)) => CandidateVerdict::Ambiguous,
             Err(error) => {
-                self.reject_probe(mark);
+                self.end_probe(mark)?;
 
                 return Err(error);
             }
         };
 
-        match answer {
-            Answer::Ready(value) if accept(&value) => {
-                self.commit_probe(mark);
+        self.record_event(CheckEvent::ProbeFinished {
+            verdict: Some(verdict),
+        });
+        self.end_probe(mark)?;
 
-                Ok(Answer::Ready(value))
-            }
-            Answer::Ready(value) => {
-                self.reject_probe(mark);
-
-                Ok(Answer::Ready(value))
-            }
-            Answer::Pending(blockers) => {
-                self.require_outer_probe_blockers(&mark, &blockers)?;
-
-                self.reject_probe(mark);
-
-                Ok(Answer::Pending(blockers))
-            }
-        }
-    }
-
-    /// Return one internal error for candidate blockers that cannot settle.
-    fn local_probe_blocker_error(&self, variables: &[dir::TypeVariableId]) -> CompilerError {
-        // include bound origins so the failed candidate owner is visible
-        let context = DumpContext::new(self);
-        let variables = variables
-            .iter()
-            .map(|variable| match self.solver.variable(*variable) {
-                Ok(state) => {
-                    let source = context.origin_source_label(state.origin);
-                    let lower = state
-                        .lower
-                        .iter()
-                        .map(|bound| self.format_type(bound.ty))
-                        .collect::<Vec<_>>();
-                    let upper = state
-                        .upper
-                        .iter()
-                        .map(|bound| self.format_type(bound.ty))
-                        .collect::<Vec<_>>();
-                    format!(
-                        "{variable:?}=source({source}) lower({lower:?}) upper({upper:?}) state({state:?})"
-                    )
-                }
-                Err(error) => format!("{variable:?}=<error {error:?}>"),
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        CompilerError::Internal {
-            message: format!("probe could not settle local variables: {variables}"),
-        }
-    }
-
-    /// Require blockers that survive one rejected probe to come from outside it.
-    fn require_outer_probe_blockers(
-        &self,
-        probe: &ProbeMark,
-        blockers: &[Dependency],
-    ) -> CompilerResult<()> {
-        let variables = blockers
-            .iter()
-            .filter_map(|blocker| match blocker {
-                Dependency::Variable(variable) if !probe.solver.contains_variable(*variable) => {
-                    Some(*variable)
-                }
-                _ => None,
-            })
-            .collect::<SmallVec<[dir::TypeVariableId; 2]>>();
-        if variables.is_empty() {
-            Ok(())
-        } else {
-            Err(self.local_probe_blocker_error(&variables))
-        }
+        Ok(verdict)
     }
 
     /// Begin one probe.
@@ -233,6 +180,7 @@ impl CheckState<'_> {
                     *module,
                     ModuleProbeMark {
                         types: state.types_tail.mark(),
+                        resolutions: state.resolutions.mark(),
                         diagnostics: state.diagnostics.len(),
                         warnings: state.warnings.len(),
                     },
@@ -250,32 +198,29 @@ impl CheckState<'_> {
         }
     }
 
-    /// Roll back one rejected probe.
-    fn reject_probe(&mut self, snapshot: ProbeMark) {
+    /// End one probe, rolling its state back.
+    fn end_probe(&mut self, mark: ProbeMark) -> CompilerResult<()> {
         let ProbeMark {
             solver,
             node_types,
             decisions,
             events,
             modules,
-        } = snapshot;
+        } = mark;
 
-        self.solver.rollback(solver);
+        self.solver.rollback(solver)?;
         self.drop_probe_state(node_types, decisions, events, modules);
+
+        Ok(())
     }
 
-    /// Commit one accepted probe.
-    fn commit_probe(&mut self, snapshot: ProbeMark) {
-        self.solver.commit(snapshot.solver);
-    }
-
-    /// Drop state allocated inside a rejected probe.
+    /// Drop state allocated inside a rolled back probe.
     fn drop_probe_state(
         &mut self,
         node_types: usize,
         decisions: usize,
         events: usize,
-        modules: IndexMap<ModuleId, ModuleProbeMark>,
+        modules: FxIndexMap<ModuleId, ModuleProbeMark>,
     ) {
         while self.node_types.len() > node_types {
             self.node_types.pop();
@@ -286,6 +231,7 @@ impl CheckState<'_> {
         for (module, mark) in modules {
             if let Some(state) = self.modules.get_mut(&module) {
                 state.types_tail.truncate_to(mark.types);
+                state.resolutions.truncate_to(mark.resolutions);
                 state.diagnostics.truncate(mark.diagnostics);
                 state.warnings.truncate(mark.warnings);
             }

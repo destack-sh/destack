@@ -55,6 +55,12 @@ impl Obligation {
                     "constructor_branches",
                     obligation.constructor_branches.len(),
                 ),
+            Self::WellFormedType(obligation) => {
+                event.text("type", context.type_label(obligation.ty))
+            }
+            Self::ParameterUse(obligation) => {
+                event.text("symbol", context.symbol_label(obligation.symbol))
+            }
         }
     }
 
@@ -70,6 +76,8 @@ impl Obligation {
             Self::ImplementationCoherence(_) => "implementation.coherence",
             Self::DeclarationHeritage(_) => "declaration.heritage",
             Self::ClassInitialization(_) => "class.initialization",
+            Self::WellFormedType(_) => "wellformed.type",
+            Self::ParameterUse(_) => "parameter.use",
         }
     }
 }

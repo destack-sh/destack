@@ -32,7 +32,8 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     pub(in crate::check) fn variable_label(&self, id: dir::TypeVariableId) -> String {
         match self.check.solver.variable(id) {
             Ok(state) => {
-                let module = self.module_label(state.origin.module());
+                let origin = self.check.solver.origin(state.origin);
+                let module = self.module_label(origin.module());
 
                 format!("{module}:v{}", id.0)
             }
@@ -104,6 +105,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         match widening {
             Widening::Preserve => "preserve",
             Widening::Widen => "widen",
+            Widening::WidenWrites => "widen-writes",
         }
     }
 
@@ -119,9 +121,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     pub(in crate::check) fn dependency_label(&self, dependency: Dependency) -> String {
         match dependency {
             Dependency::Variable(variable) => self.variable_label(variable),
-            Dependency::NodeType(node) => self.node_label(node),
             Dependency::SymbolType(symbol) => self.symbol_label(symbol),
-            Dependency::Decision(node) => self.node_label(node),
         }
     }
 
@@ -144,7 +144,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             return "unknown".to_string();
         };
 
-        self.origin_label(state.origin)
+        self.origin_label(self.check.solver.origin(state.origin))
     }
 
     /// Return one variable's source location.
@@ -153,7 +153,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             return "unknown".to_string();
         };
 
-        self.origin_source_label(state.origin)
+        self.origin_source_label(self.check.solver.origin(state.origin))
     }
 
     /// Return a compact static key label.
@@ -185,6 +185,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         match relation {
             Relation::Equal => "equal",
             Relation::Assignable => "assignable",
+            Relation::Widens => "widens",
             Relation::MethodAssignable => "method-assignable",
             Relation::Writable => "writable",
             Relation::Castable => "castable",
@@ -202,6 +203,7 @@ impl<'a, 'b> DumpContext<'a, 'b> {
             Some(ValueUse::Argument) => "argument",
             Some(ValueUse::Output) => "output",
             Some(ValueUse::Condition) => "condition",
+            Some(ValueUse::Satisfies) => "satisfies",
         }
     }
 
