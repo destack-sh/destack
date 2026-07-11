@@ -392,9 +392,9 @@ pub(crate) fn format_default_call_argument_list<'ast>(
             ]
         )
     });
-    let interned = f.intern(&content)?;
+    let node = f.capture(&content)?;
 
-    if let Some(element) = interned {
+    if let Some(element) = node {
         let should_expand = force_expand || element.will_break();
 
         write!(

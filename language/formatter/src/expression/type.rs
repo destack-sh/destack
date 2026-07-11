@@ -960,7 +960,7 @@ fn prepare_inline_type_object<'ast>(
     node_id: LocalNodeId<TypeExpression>,
     members: &[LocalNodeId<TypeMember>],
     layout: TypeExpressionLayout,
-) -> FormatResult<Option<FirNode>> {
+) -> FormatResult<Option<FirNode<'ast>>> {
     if layout.object_body != ObjectTypeBodyLayout::Local {
         return Ok(None);
     }
@@ -973,7 +973,7 @@ fn prepare_inline_type_object<'ast>(
         format_with(|f: &mut DestackFormatter<'ast, '_>| write_inline_type_object(f, members[0]));
 
     let snapshot = f.context().comments().snapshot();
-    let node = f.intern(&content);
+    let node = f.capture(&content);
     f.context_mut().comments_mut().restore(snapshot);
     let node = node?;
 
@@ -2054,8 +2054,8 @@ fn write_value_callable_parameters_with_return_type<'ast, H, R>(
     should_group_return_type: bool,
 ) -> FormatResult<()>
 where
-    H: Format<DestackFormatContext<'ast>>,
-    R: Format<DestackFormatContext<'ast>>,
+    H: Format<'ast, DestackFormatContext<'ast>>,
+    R: Format<'ast, DestackFormatContext<'ast>>,
 {
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         write_value_parameters(f, this_form, this_parameter, parameters)

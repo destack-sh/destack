@@ -359,10 +359,10 @@ pub(crate) fn format_type_template_literal<'ast>(
 
         let format_span =
             format_with(|f| format_type_template_interpolation_body(f, *span_expression_id));
-        let interned_span = f.intern(&format_span)?;
+        let span_node = f.capture(&format_span)?;
         let span_layout =
             if type_template_interpolation_has_newline_in_range(f.context(), *span_expression_id)
-                || interned_span.as_ref().is_some_and(FormatNodes::will_break)
+                || span_node.as_ref().is_some_and(FormatNodes::will_break)
             {
                 TemplateInterpolationLayout::Fit
             } else {
@@ -372,14 +372,14 @@ pub(crate) fn format_type_template_literal<'ast>(
         let format_inner = format_with(move |f| {
             match span_layout {
                 TemplateInterpolationLayout::SingleLine => {
-                    if let Some(interned_span) = &interned_span {
+                    if let Some(span_node) = &span_node {
                         let mut buffer = RemoveSoftLinesBuffer::new(f);
-                        buffer.write_node(interned_span.clone());
+                        buffer.write_node(span_node.clone());
                     }
                 }
                 TemplateInterpolationLayout::Fit => {
-                    if let Some(interned_span) = &interned_span {
-                        f.write_node(interned_span.clone());
+                    if let Some(span_node) = &span_node {
+                        f.write_node(span_node.clone());
                     }
                 }
             }

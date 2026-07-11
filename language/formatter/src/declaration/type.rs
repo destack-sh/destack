@@ -625,7 +625,7 @@ pub(crate) fn format_class_declaration<'ast>(
                     });
 
                     if parent_is_assignment {
-                        let Some(content) = f.intern(&content)? else {
+                        let Some(content) = f.capture(&content)? else {
                             return Ok(());
                         };
                         let flat_content = format_with({

@@ -103,7 +103,7 @@ impl<'tree> FormatTreeOpeningElement<'tree> {
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let layout = self.compute_layout(f.context());
         let format_open = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -262,7 +262,7 @@ fn format_tree_attributes<'ast>(
     force_break_attributes: bool,
 ) -> FormatResult<()> {
     let single_attribute_per_line = f.context().options.single_attribute_per_line;
-    let attr_separator: &dyn Format<DestackFormatContext<'ast>> =
+    let attr_separator: &dyn Format<'ast, DestackFormatContext<'ast>> =
         if force_break_attributes || (single_attribute_per_line && attributes.len() > 1) {
             &hard_line_break()
         } else {

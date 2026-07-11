@@ -31,8 +31,8 @@ use destack_dir::{
     TokenType, TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
-    FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
-    GroupId, VecBuffer,
+    ArenaVec, FormatError, FormatNode as FirNode, FormatNodes, FormatResult,
+    Formatter as FirFormatter, GroupId, VecBuffer,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
@@ -236,7 +236,7 @@ fn buffer_type_declaration_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
-) -> FormatResult<(Vec<FirNode>, bool, bool)> {
+) -> FormatResult<(ArenaVec<'ast, FirNode<'ast>>, bool, bool)> {
     let mut buffer = VecBuffer::new(f.state_mut());
     let formatter = &mut FirFormatter::new(&mut buffer);
 
@@ -875,7 +875,7 @@ fn format_type_declaration<'ast>(
         buffer_type_declaration_left(f, node_id, declaration)?;
     let layout = type_declaration_layout(f.context(), declaration, is_left_short, left_may_break);
 
-    let left = f.intern_vec(left_nodes);
+    let left = left_nodes.collapse();
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if let Some(left) = &left {
             f.write_node(left.clone());

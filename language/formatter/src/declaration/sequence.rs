@@ -63,7 +63,7 @@ fn expression_has_lines_before(
 /// Format one program-scoped statement sequence.
 pub(crate) fn program_statement_sequence<'ast>(
     expressions: &'ast [LocalNodeId<Expression>],
-) -> impl Format<DestackFormatContext<'ast>> + 'ast {
+) -> impl Format<'ast, DestackFormatContext<'ast>> + 'ast {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         format_program_statement_sequence(f, expressions)
     })
@@ -74,7 +74,7 @@ pub(crate) fn block_statement_sequence<'ast>(
     block_id: LocalNodeId<Block>,
     allow_value_tail: bool,
     leading_prefix_comment_start: Option<u32>,
-) -> impl Format<DestackFormatContext<'ast>> + 'ast {
+) -> impl Format<'ast, DestackFormatContext<'ast>> + 'ast {
     format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         format_block_statement_sequence_for_block(
             f,

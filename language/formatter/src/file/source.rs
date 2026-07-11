@@ -1,5 +1,5 @@
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{Buffer, FormatResult, text};
+use destack_fir::format::{Buffer, FormatResult, copied_text};
 use destack_fir::prelude::{empty_line, hard_line_break};
 use destack_fir::write;
 use destack_source::Span;
@@ -70,13 +70,13 @@ pub(crate) fn write_source_span<'ast>(
     let mut segment_start = 0usize;
     while segment_start < source.len() {
         let Some(relative_newline_index) = source[segment_start..].find('\n') else {
-            write!(f, [text(&source[segment_start..])])?;
+            write!(f, [copied_text(&source[segment_start..])])?;
             break;
         };
 
         let newline_index = segment_start + relative_newline_index;
         if segment_start < newline_index {
-            write!(f, [text(&source[segment_start..newline_index])])?;
+            write!(f, [copied_text(&source[segment_start..newline_index])])?;
         }
 
         let mut newline_run_end = newline_index;

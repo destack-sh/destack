@@ -74,7 +74,7 @@ struct FormatMaybeCachedLambdaBody {
     cache_mode: FunctionCacheMode,
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let body_id = self.body_id;
         let body_span = f.context().span(body_id);

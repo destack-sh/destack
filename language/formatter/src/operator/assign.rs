@@ -19,7 +19,7 @@ use destack_dir::{
     TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
-    Buffer, Format, FormatError, FormatNode as FirFormatNode, FormatNodes, FormatResult,
+    ArenaVec, Buffer, Format, FormatError, FormatNode as FirFormatNode, FormatNodes, FormatResult,
     Formatter as FirFormatter, VecBuffer,
 };
 use destack_fir::prelude::{
@@ -527,7 +527,7 @@ fn buffer_assignment_expression_layout_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     left: LocalNodeId<AssignPattern>,
     operator_span: Span,
-) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+) -> FormatResult<(ArenaVec<'ast, FirFormatNode<'ast>>, bool, bool)> {
     let left_comments =
         assignment_left_trailing_comments(f.context(), f.context().span(left).end, operator_span);
 
@@ -552,7 +552,7 @@ fn buffer_declarator_layout_left<'ast>(
     declarator_id: LocalNodeId<Declarator>,
     pattern_id: LocalNodeId<Pattern>,
     type_id: Option<LocalNodeId<TypeExpression>>,
-) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+) -> FormatResult<(ArenaVec<'ast, FirFormatNode<'ast>>, bool, bool)> {
     let left_comments = if let Some(operator_span) = f.context().tree.get_main_span(declarator_id) {
         let left_end = type_id
             .map(|type_id| f.context().span(type_id).end)
@@ -607,7 +607,7 @@ fn assignment_left_trailing_comments(
 
 /// Write comments that syntactically trail the left side before the assignment operator.
 fn write_assignment_left_trailing_comments<'ast>(
-    f: &mut FirFormatter<'_, DestackFormatContext<'ast>>,
+    f: &mut FirFormatter<'_, 'ast, DestackFormatContext<'ast>>,
     comments: &[Comment],
 ) -> FormatResult<()> {
     write!(f, [FormatTrailingComments::Comments(comments)])
@@ -1107,7 +1107,7 @@ impl AssignmentLike {
     fn buffer_left<'ast>(
         self,
         f: &mut DestackFormatter<'ast, '_>,
-    ) -> FormatResult<(Vec<FirFormatNode>, bool, bool)> {
+    ) -> FormatResult<(ArenaVec<'ast, FirFormatNode<'ast>>, bool, bool)> {
         match self {
             AssignmentLike::Declarator(declarator_id) => {
                 let declarator = f.context().tree.get(declarator_id);
@@ -1518,7 +1518,7 @@ impl AssignmentLike {
         // left side only
         let Some(_) = self.right(f.context()) else {
             let (left_nodes, _, _) = self.buffer_left(f)?;
-            let left_nodes = f.intern_vec(left_nodes);
+            let left_nodes = left_nodes.collapse();
 
             if let Some(left_nodes) = left_nodes {
                 f.write_node(left_nodes);
@@ -1530,7 +1530,7 @@ impl AssignmentLike {
         // buffered left side
         let (left_nodes, is_left_short, left_may_break) = self.buffer_left(f)?;
         let layout = self.layout(f, is_left_short, left_may_break)?;
-        let left_nodes = f.intern_vec(left_nodes);
+        let left_nodes = left_nodes.collapse();
         let formatted_left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
             if let Some(left_nodes) = &left_nodes {
                 f.write_node(left_nodes.clone());
@@ -1564,7 +1564,7 @@ impl AssignmentLike {
 pub(crate) fn write_assignment_like_right<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     layout: AssignmentLikeLayout,
-    right: &impl Format<DestackFormatContext<'ast>>,
+    right: &impl Format<'ast, DestackFormatContext<'ast>>,
 ) -> FormatResult<()> {
     match layout {
         AssignmentLikeLayout::Fluid => {

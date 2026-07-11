@@ -195,8 +195,8 @@ fn format_tree_children_multiline<'ast>(
             continue;
         }
 
-        let text = tree_text_child_text(f.context(), *child_id).map(str::to_owned);
-        let is_inline_punctuation = text.as_deref().is_some_and(tree_text_is_inline_punctuation);
+        let text = tree_text_child_text(f.context(), *child_id);
+        let is_inline_punctuation = text.is_some_and(tree_text_is_inline_punctuation);
         let previous_allows_inline_punctuation =
             previous_emitted_child.is_some_and(|previous_child_id| {
                 tree_child_allows_trailing_inline_punctuation(f.context(), previous_child_id)
@@ -219,7 +219,7 @@ fn format_tree_children_multiline<'ast>(
             }
         }
 
-        let wrote_text = if let Some(text) = text.as_deref() {
+        let wrote_text = if let Some(text) = text {
             write_tree_text_words(f, text)?
         } else {
             false

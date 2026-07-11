@@ -4,7 +4,7 @@ use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
-use destack_fir::format::Format;
+use destack_fir::format::{Allocator, Format};
 use destack_parser::{Parser, ParserResult, ParserTriviaMode};
 use destack_repository::FormatterOptions;
 use destack_source::{
@@ -109,12 +109,13 @@ impl TestFormatter {
     }
 
     /// Format one parsed node.
-    pub(crate) fn format<'a, N>(&'a self, n: &N, options: DestackFormatOptions) -> String
+    pub(crate) fn format<N>(&self, n: &N, options: DestackFormatOptions) -> String
     where
-        N: Format<DestackFormatContext<'a>>,
+        N: for<'a> Format<'a, DestackFormatContext<'a>>,
     {
+        let allocator = Allocator::default();
         let context = self.context(options);
-        let formatted = format!(context, [n]).unwrap();
+        let formatted = format!(&allocator, context, [n]).unwrap();
         let printed = formatted.print();
         printed.unwrap().as_str().to_string()
     }
@@ -211,7 +212,7 @@ pub(crate) fn assert_format_roundtrip_with_file_type<F, N>(
     options: DestackFormatOptions,
 ) where
     F: Fn(&mut Parser) -> ParserResult<N> + Copy,
-    N: for<'a> Format<DestackFormatContext<'a>>,
+    N: for<'a> Format<'a, DestackFormatContext<'a>>,
 {
     let options = normalize_test_options_for_file_type(options, file_type);
 

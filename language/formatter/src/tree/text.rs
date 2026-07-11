@@ -7,7 +7,7 @@ use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{LocalNodeId, TreeChild};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
-    empty_line, format_with, hard_line_break, if_group_breaks, if_group_fits_on_line,
+    copied_text, empty_line, format_with, hard_line_break, if_group_breaks, if_group_fits_on_line,
     soft_line_break, soft_line_break_or_space, space, text, token,
 };
 use destack_fir::{format_args, write};
@@ -123,7 +123,7 @@ fn tree_text_words(text: &str) -> Vec<&str> {
 /// Write tree text words in one child-line position.
 pub(crate) fn write_tree_text_words<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    source: &str,
+    source: &'ast str,
 ) -> FormatResult<bool> {
     let words = tree_text_words(source);
     if words.is_empty() {
@@ -426,7 +426,7 @@ fn write_tree_inline_embedded<'ast>(
 ) -> FormatResult<()> {
     write_tree_child(f, embedded.child_id, None)?;
     if let Some(punctuation) = embedded.trailing_punctuation.as_deref() {
-        write!(f, [text(punctuation)])?;
+        write!(f, [copied_text(punctuation)])?;
     }
 
     Ok(())
@@ -484,7 +484,7 @@ pub(crate) fn format_tree_children_inline_fill<'ast>(
                 let separator =
                     tree_inline_separator(previous_visible.as_ref(), pending_separator, item);
                 let separator = format_with(|f| write_tree_inline_separator(f, separator));
-                fill.entry(&separator, &text(word.as_str()));
+                fill.entry(&separator, &copied_text(word.as_str()));
                 previous_visible = Some(item.clone());
                 pending_separator = TreeInlineSeparator::None;
             }

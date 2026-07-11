@@ -12,14 +12,14 @@ use destack_dir::{
     TemplateLiteral, TokenLiteral, TypeLiteral,
 };
 use destack_fir::format::{
-    Buffer, Format, FormatNodes, FormatResult, RemoveSoftLinesBuffer, text, token,
+    Buffer, Format, FormatNodes, FormatResult, RemoveSoftLinesBuffer, token,
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
 
 /// Format a path with dot separated segments.
-impl<'ast> Format<DestackFormatContext<'ast>> for Path {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Path {
     /// Write every segment with `.` separators.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let mut segments = self.segments.iter().copied();
@@ -108,32 +108,39 @@ pub(crate) fn format_scalar_literal<'ast>(
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Integer(value) => {
             if source_lexeme.is_empty() {
-                text(&value.to_string()).format(f)?;
+                copied_text(&value.to_string()).format(f)?;
             } else {
                 let normalized = normalize_int(&source_lexeme, false);
-                text(normalized.as_ref()).format(f)?;
+                copied_text(normalized.as_ref()).format(f)?;
             }
         }
         ScalarLiteral::Bigint(value) => {
             if source_lexeme.is_empty() {
-                text(&format!("{value}n")).format(f)?;
+                copied_text(&format!("{value}n")).format(f)?;
             } else {
                 let normalized = normalize_int(&source_lexeme, true);
-                text(normalized.as_ref()).format(f)?;
+                copied_text(normalized.as_ref()).format(f)?;
             }
         }
         ScalarLiteral::Float(value) => {
             if source_lexeme.is_empty() {
-                text(&value.to_string()).format(f)?;
+                copied_text(&value.to_string()).format(f)?;
             } else {
                 let normalized = normalize_float(&source_lexeme);
-                text(normalized.as_ref()).format(f)?;
+                copied_text(normalized.as_ref()).format(f)?;
             }
         }
         ScalarLiteral::Character(value) => {
             let content = value.to_string();
             let escaped_content = escape_string_literal_content(content.as_str(), '\'');
-            write!(f, [token("'"), text(escaped_content.as_str()), token("'")])?;
+            write!(
+                f,
+                [
+                    token("'"),
+                    copied_text(escaped_content.as_str()),
+                    token("'")
+                ]
+            )?;
         }
         ScalarLiteral::String(string_id) => {
             let content = f.context().strings.get(*string_id);
@@ -148,11 +155,11 @@ pub(crate) fn format_scalar_literal<'ast>(
                     .any(|character| !is_tree_whitespace_char(character));
                 if !has_non_whitespace {
                     if !has_newline {
-                        write!(f, [text(" ")])?;
+                        write!(f, [space()])?;
                     }
                 } else {
                     let normalized = normalize_tree_text(content);
-                    write!(f, [text(normalized.as_str())])?;
+                    write!(f, [copied_text(normalized.as_str())])?;
                 }
             } else {
                 let quote_str = if quote_char == '"' { "\"" } else { "'" };
@@ -160,7 +167,7 @@ pub(crate) fn format_scalar_literal<'ast>(
                     f,
                     [
                         token(quote_str),
-                        text(escaped_content.as_str()),
+                        copied_text(escaped_content.as_str()),
                         token(quote_str)
                     ]
                 )?;
@@ -208,15 +215,15 @@ fn format_interpolated_template_literal<'ast>(
         let next_segment = strings[index + 1];
 
         let format_argument = format_with(|f| write!(f, [*argument]));
-        let interned_argument = f.intern(&format_argument)?;
-        let layout = template_argument_layout(f.context(), *argument, &interned_argument);
+        let argument_node = f.capture(&format_argument)?;
+        let layout = template_argument_layout(f.context(), *argument, &argument_node);
         let format_inner = format_with(|f| {
             match layout {
                 // single-line layout
                 TemplateElementLayout::SingleLine => {
-                    if let Some(interned_argument) = &interned_argument {
+                    if let Some(argument_node) = &argument_node {
                         let mut buffer = RemoveSoftLinesBuffer::new(f);
-                        buffer.write_node(interned_argument.clone());
+                        buffer.write_node(argument_node.clone());
                     }
                 }
                 // fit layout
@@ -224,18 +231,18 @@ fn format_interpolated_template_literal<'ast>(
                     let should_indent =
                         template_argument_should_indent_fit_layout(f.context(), *argument);
 
-                    match &interned_argument {
-                        Some(interned_argument) if should_indent => {
+                    match &argument_node {
+                        Some(argument_node) if should_indent => {
                             write!(
                                 f,
                                 [soft_block_indent(&format_with(|f| {
-                                    f.write_node(interned_argument.clone());
+                                    f.write_node(argument_node.clone());
                                     Ok(())
                                 }))]
                             )?;
                         }
-                        Some(interned_argument) => {
-                            f.write_node(interned_argument.clone());
+                        Some(argument_node) => {
+                            f.write_node(argument_node.clone());
                         }
                         None => {}
                     }
@@ -281,7 +288,7 @@ enum TemplateElementLayout {
 fn template_argument_layout(
     context: &DestackFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-    interned_argument: &Option<destack_fir::format::FormatNode>,
+    argument_node: &Option<destack_fir::format::FormatNode<'_>>,
 ) -> TemplateElementLayout {
     // preserve multiline interpolation expressions from source
     if template_argument_has_newline_in_range(context, argument_id) {
@@ -289,10 +296,7 @@ fn template_argument_layout(
     }
 
     // keep expressions that break in fit mode expandable
-    if interned_argument
-        .as_ref()
-        .is_some_and(FormatNodes::will_break)
-    {
+    if argument_node.as_ref().is_some_and(FormatNodes::will_break) {
         return TemplateElementLayout::Fit;
     }
 
@@ -420,7 +424,7 @@ fn collapse_tree_whitespace_to_single_spaces(text: &str) -> Option<String> {
     (!collapsed.is_empty()).then_some(collapsed)
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for TypeLiteral {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
@@ -446,14 +450,14 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for IntegerType {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for IntegerType {
+    fn format(&self, f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>) -> FormatResult<()> {
         match self {
             IntegerType::Fixed { width, is_signed } => {
                 if *is_signed {
-                    write!(f, [token("int"), text(&width.to_string())])
+                    write!(f, [token("int"), copied_text(&width.to_string())])
                 } else {
-                    write!(f, [token("uint"), text(&width.to_string())])
+                    write!(f, [token("uint"), copied_text(&width.to_string())])
                 }
             }
             IntegerType::Pointer { is_signed } => {
@@ -467,8 +471,8 @@ impl<'ast> Format<DestackFormatContext<'ast>> for IntegerType {
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for FloatType {
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FloatType {
+    fn format(&self, f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>) -> FormatResult<()> {
         write!(f, [token(self.as_str())])
     }
 }

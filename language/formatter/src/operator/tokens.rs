@@ -5,7 +5,7 @@ use destack_fir::prelude::token;
 use destack_fir::write;
 
 /// Format unary operators as source tokens.
-impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for UnaryOperator {
     /// Write the token form of the unary operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
@@ -27,7 +27,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
 }
 
 /// Format binary operators as source tokens.
-impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for BinaryOperator {
     /// Write the token form of the binary operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
@@ -61,7 +61,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for BinaryOperator {
 }
 
 /// Format assignment operators as source tokens.
-impl<'ast> Format<DestackFormatContext<'ast>> for AssignOperator {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for AssignOperator {
     /// Write the token form of the assignment operator.
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {

@@ -31,7 +31,7 @@ use destack_fir::write;
 use destack_repository::{QuoteProperty, QuoteStyle};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
-impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for StringId {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
@@ -39,21 +39,21 @@ impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for Name {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Name {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         format_name_with_quotes(f, *self, false)
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for Key {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Key {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         format_key_with_quotes(f, *self, false)
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for Keyword {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Keyword {
     #[inline]
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])
@@ -120,7 +120,7 @@ pub(crate) fn format_name_with_quotes<'ast>(
             }
         }
         Name::Index(index) => {
-            write!(f, [text(&index.to_string())])?;
+            write!(f, [copied_text(&index.to_string())])?;
         }
     }
 
@@ -432,7 +432,7 @@ fn format_object_property_value<'ast>(
         .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
     let layout = field_like_layout(f, value, is_left_short, left_may_break)?;
 
-    let left = f.intern_vec(left_nodes);
+    let left = left_nodes.collapse();
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if let Some(left) = &left {
             f.write_node(left.clone());
@@ -629,7 +629,7 @@ where
         .is_some_and(|width| width < (u32::from(f.context().options.indent_width) + 3));
     let layout = field_like_layout(f, default, is_left_short, left_may_break)?;
 
-    let left = f.intern_vec(left_nodes);
+    let left = left_nodes.collapse();
     let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
         if let Some(left) = &left {
             f.write_node(left.clone());

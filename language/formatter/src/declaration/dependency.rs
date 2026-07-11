@@ -80,7 +80,7 @@ fn format_dependency_item_name<'ast>(
             let span = Span::empty(f.context().file.id);
             format_scalar_literal(&literal, span, f)?;
         }
-        Name::Index(index) => write!(f, [text(&index.to_string())])?,
+        Name::Index(index) => write!(f, [copied_text(&index.to_string())])?,
     }
 
     Ok(())

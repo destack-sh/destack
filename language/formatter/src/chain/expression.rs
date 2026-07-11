@@ -488,7 +488,7 @@ fn chain_group_needs_empty_line_before(
     false
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for MemberChain {
+impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         let formatted_root_id = self.chain[self.chain.len() - 1];
         let chain_span_end = f.context().span(formatted_root_id).end;
