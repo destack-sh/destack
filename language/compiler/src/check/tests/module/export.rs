@@ -89,3 +89,53 @@ const namespaced = source.value;
 "#,
     );
 }
+
+#[test]
+fn test_unresolved_reference_names_the_declaring_sibling() {
+    let session = TestSession::builder()
+        .module(
+            "util.ds",
+            r#"
+export const helper: int32 = 1;
+export const sibling: int32 = 2;
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+import { helper } from "./util.ds";
+
+const first = helper;
+const second = sibling;
+"#,
+        )
+        .build();
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { helper } from "./util.ds";
+
+const first: int32 = helper;
+const second = sibling;
+
+=== checked ===
+import { helper } from "./util.ds";
+
+const first = helper;
+/// @type.symbol symbol=first source=first type=int32
+/// @resolution.name source=helper target=util.helper
+
+const second = sibling;
+/// @type.symbol symbol=second source=second type=<error>
+"#,
+        r#"
+/// @diagnostic.error code=EC308 message="cannot find 'sibling'"
+/// @diagnostic.label line=5 column=16 span="sibling" line_source="const second = sibling;"
+/// @diagnostic.related file="util.ds" line=1 column=1 span="" line_source="" message="'sibling' is declared in this module"
+/// @diagnostic.help message="import 'sibling' from that module"
+"#,
+    );
+}
