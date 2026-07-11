@@ -7,7 +7,7 @@ use crate::JsonElement;
 use super::{JsonFormatter, format_trivia_list, format_value};
 
 /// Format a JSON array.
-pub fn format_array(elements: &[JsonElement], f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+pub fn format_array(elements: &[JsonElement], f: &mut JsonFormatter<'_, '_>) -> FormatResult<()> {
     // empty array
     if elements.is_empty() {
         return write!(f, [token("["), token("]")]);
@@ -25,7 +25,10 @@ pub fn format_array(elements: &[JsonElement], f: &mut JsonFormatter<'_>) -> Form
 }
 
 /// Format array elements with separators.
-fn format_array_elements(elements: &[JsonElement], f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+fn format_array_elements(
+    elements: &[JsonElement],
+    f: &mut JsonFormatter<'_, '_>,
+) -> FormatResult<()> {
     let trailing_comma = f.context().trailing_comma();
     let last_index = elements.len().saturating_sub(1);
 

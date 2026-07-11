@@ -636,7 +636,7 @@ fn format_json_content(content: &str, formatter: FormatterOptions) -> CommandRes
     let doc = destack_json::parse(content, file_id).map_err(|e| e.to_string())?;
     let options: JsonFormatOptions = formatter.into();
 
-    Ok(format_json(&doc, &options))
+    format_json(&doc, &options).map_err(|error| CommandError::internal(error.to_string()))
 }
 
 /// Render formatted output for eval mode.

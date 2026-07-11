@@ -4,9 +4,9 @@ mod trivia;
 mod value;
 
 use destack_fir::format::{
-    Document, FormatContext, FormatOptions, FormatResult, FormatState, Formatter, VecBuffer,
+    Format, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
 };
-use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions, Printer};
+use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
 use destack_repository::FormatterOptions;
 use destack_source::{File, FileType, IndentStyle, LineEnding};
 
@@ -18,7 +18,7 @@ pub use trivia::*;
 pub use value::*;
 
 /// JSON formatter type alias.
-pub type JsonFormatter<'buf> = Formatter<'buf, JsonFormatContext>;
+pub type JsonFormatter<'buf, 'a> = Formatter<'buf, 'a, JsonFormatContext>;
 
 /// JSON format options.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -151,34 +151,18 @@ impl FormatContext for JsonFormatContext {
     }
 }
 
-/// Format a JSON document to a string.
-pub fn format_json(document: &JsonDocument, options: &JsonFormatOptions) -> String {
-    // create the format context
+/// Format one JSON document.
+pub fn format_json(document: &JsonDocument, options: &JsonFormatOptions) -> FormatResult<String> {
+    let allocator = destack_fir::format::Allocator::default();
     let context = JsonFormatContext::new(*options);
-    let mut state = FormatState::new(context);
-    let mut buffer = VecBuffer::new(&mut state);
+    let formatted = destack_fir::format!(&allocator, context, [document])?;
+    let printed = formatted.print().map_err(FormatError::from)?;
 
-    // format the document
-    {
-        let mut formatter = Formatter::new(&mut buffer);
-        let _ = format_document(document, &mut formatter);
-    }
-
-    // build the document
-    let fir_document = Document::from(buffer.into_vec());
-
-    // print to string
-    let file = File::empty_text(FileType::Json);
-    let print_options = options.as_print_options();
-
-    match Printer::new(&file, print_options).print(&fir_document) {
-        Ok(printed) => printed.into_str(),
-        Err(_) => String::new(),
-    }
+    Ok(printed.into_str())
 }
 
 /// Format a JSON document.
-fn format_document(document: &JsonDocument, f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+fn format_document(document: &JsonDocument, f: &mut JsonFormatter<'_, '_>) -> FormatResult<()> {
     // format leading trivia
     format_trivia_list(&document.trivia_before, f)?;
 
@@ -189,4 +173,10 @@ fn format_document(document: &JsonDocument, f: &mut JsonFormatter<'_>) -> Format
     format_trivia_list(&document.trivia_after, f)?;
 
     Ok(())
+}
+
+impl<'a> Format<'a, JsonFormatContext> for JsonDocument {
+    fn format(&self, f: &mut JsonFormatter<'_, 'a>) -> FormatResult<()> {
+        format_document(self, f)
+    }
 }

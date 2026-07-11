@@ -6,7 +6,7 @@ use crate::JsonValue;
 use super::{JsonFormatContext, JsonFormatter, format_array, format_object};
 
 /// Format a JSON value.
-pub fn format_value(value: &JsonValue, f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+pub fn format_value(value: &JsonValue, f: &mut JsonFormatter<'_, '_>) -> FormatResult<()> {
     match value {
         JsonValue::Null { .. } => {
             token("null").format(f)?;
@@ -18,7 +18,7 @@ pub fn format_value(value: &JsonValue, f: &mut JsonFormatter<'_>) -> FormatResul
         }
 
         JsonValue::Number { raw, .. } => {
-            text(raw).format(f)?;
+            copied_text(raw).format(f)?;
         }
 
         JsonValue::String { value, .. } => {
@@ -38,12 +38,12 @@ pub fn format_value(value: &JsonValue, f: &mut JsonFormatter<'_>) -> FormatResul
 }
 
 /// Format a JSON string with proper escaping.
-pub fn format_string(value: &str, f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+pub fn format_string<'a>(value: &str, f: &mut JsonFormatter<'_, 'a>) -> FormatResult<()> {
     token("\"").format(f)?;
 
     // escape the string content
     let escaped = escape_json_string(value);
-    text(&escaped).format(f)?;
+    copied_text(&escaped).format(f)?;
 
     token("\"").format(f)?;
 
@@ -74,8 +74,8 @@ fn escape_json_string(s: &str) -> String {
     result
 }
 
-impl Format<JsonFormatContext> for JsonValue {
-    fn format(&self, f: &mut JsonFormatter<'_>) -> FormatResult<()> {
+impl<'a> Format<'a, JsonFormatContext> for JsonValue {
+    fn format(&self, f: &mut JsonFormatter<'_, 'a>) -> FormatResult<()> {
         format_value(self, f)
     }
 }

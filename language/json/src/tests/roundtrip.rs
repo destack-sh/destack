@@ -18,7 +18,7 @@ fn test_roundtrip_primitives() {
 
     for (input, expected) in cases {
         let doc = parse(input, FileId::new(0)).unwrap();
-        let output = format_json(&doc, &options);
+        let output = format_json(&doc, &options).unwrap();
         assert_eq!(output, expected, "roundtrip failed for: {input}");
     }
 }
@@ -29,7 +29,7 @@ fn test_roundtrip_complex() {
     let input = r#"{"users": [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}], "meta": {"total": 2}}"#;
 
     let doc = parse(input, FileId::new(0)).unwrap();
-    let output = format_json(&doc, &JsonFormatOptions::default());
+    let output = format_json(&doc, &JsonFormatOptions::default()).unwrap();
 
     // parse again and compare serde values
     let doc2 = parse(&output, FileId::new(0)).unwrap();
@@ -49,7 +49,7 @@ fn test_serde_roundtrip() {
     let doc1 = parse(input, FileId::new(0)).unwrap();
     let serde_value = to_serde(&doc1);
     let doc2 = from_serde(&serde_value, FileId::new(0));
-    let output = format_json(&doc2, &JsonFormatOptions::default());
+    let output = format_json(&doc2, &JsonFormatOptions::default()).unwrap();
 
     // parse again and verify structure matches
     let doc3 = parse(&output, FileId::new(0)).unwrap();
@@ -65,11 +65,11 @@ fn test_roundtrip_empty() {
 
     // empty object
     let doc = parse("{}", FileId::new(0)).unwrap();
-    assert_eq!(format_json(&doc, &options), "{}");
+    assert_eq!(format_json(&doc, &options).unwrap(), "{}");
 
     // empty array
     let doc = parse("[]", FileId::new(0)).unwrap();
-    assert_eq!(format_json(&doc, &options), "[]");
+    assert_eq!(format_json(&doc, &options).unwrap(), "[]");
 }
 
 /// Roundtrips nested empty containers.
@@ -78,7 +78,7 @@ fn test_roundtrip_nested_empty() {
     let input = r#"{"empty_obj": {}, "empty_arr": [], "nested": {"also_empty": []}}"#;
 
     let doc = parse(input, FileId::new(0)).unwrap();
-    let output = format_json(&doc, &JsonFormatOptions::default());
+    let output = format_json(&doc, &JsonFormatOptions::default()).unwrap();
 
     // verify serde values match
     let doc2 = parse(&output, FileId::new(0)).unwrap();
