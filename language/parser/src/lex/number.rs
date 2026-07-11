@@ -1,18 +1,18 @@
-use super::lexer::Lexer;
+use super::tokenizer::Tokenizer;
 use destack_dir::{NumberBase, TokenLiteral, is_identifier_start};
 
-/// Return whether a byte can start an ASCII identifier.
-#[inline]
-fn is_ascii_identifier_start_byte(byte: u8) -> bool {
-    byte.is_ascii() && is_identifier_start(byte as char)
-}
+impl Tokenizer {
+    /// Return whether a byte can start an ASCII identifier.
+    #[inline]
+    fn is_ascii_identifier_start_byte(byte: u8) -> bool {
+        byte.is_ascii() && is_identifier_start(byte as char)
+    }
 
-impl Lexer {
     /// Return whether `.e` or `.E` starts a decimal exponent after a dot.
     #[inline]
-    fn dot_starts_decimal_exponent(&self) -> bool {
-        let exponent_marker = self.scanner.byte_at(1);
-        let exponent_head = self.scanner.byte_at(2);
+    fn peek_dot_decimal_exponent(&self) -> bool {
+        let exponent_marker = self.scanner.peek_byte_at(1);
+        let exponent_head = self.scanner.peek_byte_at(2);
         matches!(exponent_marker, b'e' | b'E')
             && (exponent_head.is_ascii_digit() || matches!(exponent_head, b'+' | b'-'))
     }
@@ -25,7 +25,7 @@ impl Lexer {
         let mut base = NumberBase::Decimal;
         if first_digit == '0' {
             // parse encoding base
-            match self.scanner.byte() {
+            match self.scanner.peek_byte() {
                 // binary literal
                 b'b' | b'B' => {
                     base = NumberBase::Binary;
@@ -87,24 +87,24 @@ impl Lexer {
             self.eat_decimal_digits();
         }
 
-        match self.scanner.byte() {
+        match self.scanner.peek_byte() {
             // don't be greedy if this is actually an
             // integer literal followed by field or method access
             // (`12.foo()` and `12..toString()`)
-            b'.' if self.scanner.byte_at(1) != b'.'
-                && (!is_ascii_identifier_start_byte(self.scanner.byte_at(1))
-                    || self.dot_starts_decimal_exponent()) =>
+            b'.' if self.scanner.peek_byte_at(1) != b'.'
+                && (!Self::is_ascii_identifier_start_byte(self.scanner.peek_byte_at(1))
+                    || self.peek_dot_decimal_exponent()) =>
             {
                 // might have stuff after the ., and if it does, it starts with a number
                 self.scanner.advance_ascii_byte();
                 let mut is_empty_exponent = false;
 
-                if self.scanner.byte().is_ascii_digit() {
+                if self.scanner.peek_byte().is_ascii_digit() {
                     self.eat_decimal_digits();
                 }
 
                 // allow exponent forms without a fractional part (`1.e1`)
-                if matches!(self.scanner.byte(), b'e' | b'E') {
+                if matches!(self.scanner.peek_byte(), b'e' | b'E') {
                     self.scanner.advance_ascii_byte();
                     is_empty_exponent = !self.eat_float_exponent();
                 }
@@ -143,7 +143,7 @@ impl Lexer {
         let base = NumberBase::Decimal;
         let is_empty_exponent = {
             self.eat_decimal_digits();
-            if matches!(self.scanner.byte(), b'e' | b'E') {
+            if matches!(self.scanner.peek_byte(), b'e' | b'E') {
                 self.scanner.advance_ascii_byte();
                 !self.eat_float_exponent()
             } else {
@@ -176,7 +176,7 @@ impl Lexer {
         }
 
         if index > 0 {
-            self.scanner.advance_ascii_bytes(index);
+            self.advance_ascii_bytes(index);
         }
 
         has_digits
@@ -202,7 +202,7 @@ impl Lexer {
         }
 
         if index > 0 {
-            self.scanner.advance_ascii_bytes(index);
+            self.advance_ascii_bytes(index);
         }
 
         has_digits
@@ -212,7 +212,7 @@ impl Lexer {
     ///
     /// Returns whether the exponent is non-empty.
     pub(crate) fn eat_float_exponent(&mut self) -> bool {
-        if matches!(self.scanner.byte(), b'-' | b'+') {
+        if matches!(self.scanner.peek_byte(), b'-' | b'+') {
             self.scanner.advance_ascii_byte();
         }
         self.eat_decimal_digits()

@@ -1,6 +1,6 @@
-use super::lexer::Lexer;
+use super::tokenizer::Tokenizer;
 
-impl Lexer {
+impl Tokenizer {
     /// Parse a quoted string literal after its opening quote.
     pub(super) fn eat_quoted_string(&mut self, quote: char) -> (bool, bool) {
         debug_assert!(quote.is_ascii());
@@ -31,7 +31,7 @@ impl Lexer {
                 self.scanner.advance_bytes(index);
             }
 
-            match self.scanner.byte() {
+            match self.scanner.peek_byte() {
                 // quotes are terminated, finish parsing
                 byte if byte == quote_byte => {
                     self.scanner.advance_ascii_byte();
@@ -71,7 +71,7 @@ impl Lexer {
             return true;
         }
 
-        let escaped = self.scanner.byte();
+        let escaped = self.scanner.peek_byte();
         match escaped {
             // legacy escaped digits are invalid
             b'8' | b'9' => {
@@ -84,7 +84,7 @@ impl Lexer {
                 if escaped != b'0' {
                     return true;
                 }
-                if self.scanner.byte().is_ascii_digit() {
+                if self.scanner.peek_byte().is_ascii_digit() {
                     return true;
                 }
                 false
@@ -114,15 +114,15 @@ impl Lexer {
     /// Consume a unicode escape sequence body after `\u`.
     /// Return true when the sequence is invalid.
     fn eat_unicode_escape_after_u(&mut self) -> bool {
-        if self.scanner.byte() == b'{' {
+        if self.scanner.peek_byte() == b'{' {
             self.scanner.advance_ascii_byte();
             let mut digits = 0usize;
             let mut value: u32 = 0;
             let mut overflowed = false;
-            while self.scanner.byte().is_ascii_hexdigit() {
+            while self.scanner.peek_byte().is_ascii_hexdigit() {
                 if !overflowed {
                     // convert ascii hex digit
-                    let head = self.scanner.byte();
+                    let head = self.scanner.peek_byte();
                     let digit = if head.is_ascii_digit() {
                         u32::from(head - b'0')
                     } else if (b'a'..=b'f').contains(&head) {
@@ -141,7 +141,7 @@ impl Lexer {
                 digits += 1;
             }
 
-            if digits == 0 || self.scanner.byte() != b'}' {
+            if digits == 0 || self.scanner.peek_byte() != b'}' {
                 return true;
             }
             self.scanner.advance_ascii_byte();
@@ -155,7 +155,7 @@ impl Lexer {
     /// Return true when the sequence is invalid.
     fn eat_fixed_hex_escape(&mut self, width: usize) -> bool {
         for _ in 0..width {
-            if !self.scanner.byte().is_ascii_hexdigit() {
+            if !self.scanner.peek_byte().is_ascii_hexdigit() {
                 return true;
             }
             self.scanner.advance_ascii_byte();
@@ -182,12 +182,12 @@ impl Lexer {
                 self.scanner.advance_bytes(index);
             }
 
-            match self.scanner.byte() {
+            match self.scanner.peek_byte() {
                 b'`' => {
                     self.scanner.advance_ascii_byte();
                     return true;
                 }
-                b'$' if self.scanner.byte_at(1) == b'{' => {
+                b'$' if self.scanner.peek_byte_at(1) == b'{' => {
                     self.scanner.advance_ascii_byte();
                     self.scanner.advance_ascii_byte();
                     return false;

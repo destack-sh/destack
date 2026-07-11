@@ -143,13 +143,13 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
         LanguageType::Destack,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     );
 
     // drive tree child tokenization like production code
-    let _ = parser.parse_without_attaching_comments();
+    let _ = parser.parse_roots();
     let (semantic_tokens, side_tokens) = parser.take_token_spans();
 
     (semantic_tokens, side_tokens, eof_token)

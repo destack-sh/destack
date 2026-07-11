@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use destack_source::{File, FileId, Span};
+use destack_source::File;
 
 use memchr::memchr;
 
@@ -9,10 +7,6 @@ pub(super) const EOF_CHAR: char = '\0';
 /// Byte cursor over source text during lexing.
 #[derive(Debug)]
 pub(super) struct Scanner {
-    /// The source file.
-    file: Arc<File>,
-    /// The source file ID.
-    file_id: FileId,
     /// The source byte pointer.
     source: *const u8,
     /// The source byte length.
@@ -25,15 +19,12 @@ pub(super) struct Scanner {
 
 impl Scanner {
     /// Create a scanner for one file.
-    pub(super) fn new(file: Arc<File>) -> Self {
-        let file_id = file.id;
+    pub(super) fn new(file: &File) -> Self {
         let source = file.text();
         let source_pointer = source.as_ptr();
         let source_len = source.len();
 
         Self {
-            file,
-            file_id,
             source: source_pointer,
             source_len,
             position: 0,
@@ -41,39 +32,10 @@ impl Scanner {
         }
     }
 
-    /// Return the source file ID.
-    #[inline]
-    pub(super) fn file_id(&self) -> FileId {
-        self.file_id
-    }
-
-    /// Return the source file.
-    #[inline]
-    pub(super) fn file(&self) -> &File {
-        self.file.as_ref()
-    }
-
     /// Return the current byte position.
     #[inline]
     pub(super) fn position(&self) -> usize {
         self.position
-    }
-
-    /// Move the scanner to one byte position.
-    #[inline]
-    pub(super) fn set_position(&mut self, position: usize) {
-        debug_assert!(
-            self.text().is_char_boundary(position),
-            "scanner position must be a character boundary"
-        );
-        self.position = position;
-        self.token_start = position;
-    }
-
-    /// Return the source text.
-    #[inline]
-    pub(super) fn text(&self) -> &str {
-        self.file.text()
     }
 
     /// Return the remaining source text.
@@ -94,36 +56,30 @@ impl Scanner {
 
         let length = self.source_len - self.position;
 
-        // scanner owns an Arc<File>, so the cached source pointer stays valid
+        // the owning tokenizer keeps the cached source pointer valid
         unsafe { std::slice::from_raw_parts(self.source.add(self.position), length) }
-    }
-
-    /// Return source text covered by one span.
-    #[inline]
-    pub(super) fn span_str(&self, span: Span) -> &str {
-        self.file.span_str(span)
     }
 
     /// Peek one source byte without consuming it.
     #[inline]
-    pub(super) fn byte(&self) -> u8 {
+    pub(super) fn peek_byte(&self) -> u8 {
         if self.position >= self.source_len {
             return 0;
         }
 
-        // scanner owns an Arc<File>, so the cached source pointer stays valid
+        // the owning tokenizer keeps the cached source pointer valid
         unsafe { *self.source.add(self.position) }
     }
 
     /// Peek one source byte at an offset from the current position.
     #[inline]
-    pub(super) fn byte_at(&self, offset: usize) -> u8 {
+    pub(super) fn peek_byte_at(&self, offset: usize) -> u8 {
         let position = self.position + offset;
         if position >= self.source_len {
             return 0;
         }
 
-        // scanner owns an Arc<File>, so the cached source pointer stays valid
+        // the owning tokenizer keeps the cached source pointer valid
         unsafe { *self.source.add(position) }
     }
 
@@ -142,7 +98,7 @@ impl Scanner {
     /// Return the source bytes covered by the current token.
     #[inline]
     pub(super) fn token_bytes(&self) -> &[u8] {
-        // scanner owns an Arc<File>, so the cached source pointer stays valid
+        // the owning tokenizer keeps the cached source pointer valid
         unsafe {
             std::slice::from_raw_parts(
                 self.source.add(self.token_start),
@@ -180,6 +136,10 @@ impl Scanner {
     #[inline]
     pub(super) fn advance_ascii_bytes(&mut self, count: usize) {
         debug_assert!(count > 0, "ASCII byte run must not be empty");
+        debug_assert!(
+            count <= self.source_len - self.position,
+            "ASCII byte run exceeds source"
+        );
 
         self.position += count;
     }
@@ -196,6 +156,10 @@ impl Scanner {
     /// Advance by a known run of bytes.
     #[inline]
     pub(super) fn advance_bytes(&mut self, count: usize) {
+        debug_assert!(
+            count <= self.source_len - self.position,
+            "byte run exceeds source"
+        );
         self.position += count;
     }
 
@@ -217,7 +181,7 @@ impl Scanner {
             return EOF_CHAR;
         }
 
-        let byte = self.byte();
+        let byte = self.peek_byte();
         if byte.is_ascii() {
             return byte as char;
         }

@@ -2,34 +2,26 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use destack_dir::Token;
-use destack_source::{File, FileId, Span};
+use destack_source::File;
 
-use super::scanner::Scanner;
-use super::trivia::{Trivia, TriviaCheckpoint};
+use super::tokenizer::Tokenizer;
+use super::trivia::Trivia;
 
-const ESTIMATED_TOKEN_BYTES: usize = 4;
-
-/// Lexer over a source string.
+/// Lexer over one source file.
 pub struct Lexer {
-    /// The source scanner.
-    pub(super) scanner: Scanner,
-    /// The options for the lexer.
-    pub(super) options: LexerOptions,
+    /// The raw tokenizer.
+    pub(super) tokenizer: Tokenizer,
     /// Live lexer trivia state.
     pub(super) trivia: Trivia,
-    /// Whether the most recent side token contained a line terminator.
-    pub(super) last_side_token_had_line_terminator: bool,
     /// The trivia retention mode.
     pub(super) trivia_mode: ParserTriviaMode,
     /// The semantic tokens produced so far.
     pub(super) tokens: Vec<Token>,
     /// The side tokens produced so far.
     pub(super) side_tokens: Vec<Token>,
-    /// Whether side trivia since the previous semantic token had a line terminator.
+    /// Whether the next semantic token starts after a line terminator.
     pub(super) pending_line_terminator_before_next: bool,
-    /// Whether EOF has been reached.
-    pub(super) is_finished: bool,
-    /// The cached EOF token, when available.
+    /// The cached EOF token.
     pub(super) eof_token: Option<Token>,
 }
 
@@ -38,163 +30,30 @@ impl Debug for Lexer {
         write!(
             f,
             "<Lexer {{ file_id: {:?}, position: {} }}>",
-            self.file_id(),
-            self.position()
+            self.tokenizer.file_id(),
+            self.tokenizer.position()
         )
     }
 }
 
 impl Lexer {
-    /// Create a new Lexer from a file.
-    pub fn new(file: Arc<File>) -> Lexer {
-        Self::new_with_capacity(file, 0, 0)
-    }
-
-    /// Create a lexer that stores tokens internally.
-    pub(super) fn new_storing_tokens(file: Arc<File>) -> Lexer {
-        let source_len = file.text().len();
-        let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
-        let semantic_token_capacity = estimated_tokens;
-        let side_token_capacity = estimated_tokens / 2;
-
-        Self::new_with_capacity(file, semantic_token_capacity, side_token_capacity)
-    }
-
-    /// Create a lexer with explicit token buffer capacities.
-    fn new_with_capacity(
-        file: Arc<File>,
-        semantic_token_capacity: usize,
-        side_token_capacity: usize,
-    ) -> Lexer {
-        Lexer {
-            scanner: Scanner::new(file),
-            options: LexerOptions::default(),
+    /// Create a lexer for one source file.
+    pub fn new(file: Arc<File>) -> Self {
+        Self {
+            tokenizer: Tokenizer::new(file),
             trivia: Trivia::new(),
-            last_side_token_had_line_terminator: false,
             trivia_mode: ParserTriviaMode::default(),
-            tokens: Vec::with_capacity(semantic_token_capacity),
-            side_tokens: Vec::with_capacity(side_token_capacity),
+            tokens: Vec::new(),
+            side_tokens: Vec::new(),
             pending_line_terminator_before_next: true,
-            is_finished: false,
             eof_token: None,
         }
     }
 
-    /// Create a compact lexer state after a semantic token boundary.
-    pub(crate) fn state(&self) -> LexerState {
-        LexerState {
-            position: self.position(),
-            options: self.options.checkpoint(),
-            last_side_token_had_line_terminator: self.last_side_token_had_line_terminator,
-            pending_line_terminator_before_next: self.pending_line_terminator_before_next,
-            trivia_mode: self.trivia_mode,
-            is_finished: self.is_finished,
-            eof_token: self.eof_token,
-            trivia: self.trivia.checkpoint(),
-        }
-    }
-
-    /// Restore a compact lexer state.
-    pub(crate) fn restore_state(&mut self, state: LexerState) {
-        self.scanner.set_position(state.position);
-        self.options.restore(state.options);
-        self.last_side_token_had_line_terminator = state.last_side_token_had_line_terminator;
-        self.pending_line_terminator_before_next = state.pending_line_terminator_before_next;
-        self.trivia_mode = state.trivia_mode;
-        self.is_finished = state.is_finished;
-        self.eof_token = state.eof_token;
-        self.side_tokens.clear();
-        self.trivia.restore(state.trivia);
-    }
-
-    /// Return the remaining source text.
-    #[inline]
-    pub fn remaining_text(&self) -> &str {
-        self.scanner.remaining()
-    }
-
-    /// Return the string content of a span.
-    #[inline]
-    pub fn get_span_str(&self, span: Span) -> &str {
-        self.scanner.span_str(span)
-    }
-
-    /// Return whether there is nothing more to consume.
-    #[inline]
-    pub fn is_end(&self) -> bool {
-        self.scanner.is_end()
-    }
-
-    /// Return the byte length consumed for the current token.
-    #[inline]
-    pub fn token_len(&self) -> u32 {
-        self.scanner.token_len()
-    }
-
-    /// Return the current token source bytes.
-    #[inline]
-    pub(super) fn token_bytes(&self) -> &[u8] {
-        self.scanner.token_bytes()
-    }
-
-    /// Reset the current token start to the current scanner position.
-    #[inline]
-    pub fn reset_token_start(&mut self) {
-        self.scanner.reset_token_start();
-    }
-
-    /// Advance by a known run of ascii bytes.
-    #[inline]
-    pub(super) fn advance_ascii_bytes(&mut self, count: usize) {
-        self.scanner.advance_ascii_bytes(count);
-    }
-
-    /// Return the source file ID.
-    #[inline]
-    pub fn file_id(&self) -> FileId {
-        self.scanner.file_id()
-    }
-
-    /// Return the source file.
-    #[inline]
-    pub(super) fn file(&self) -> &File {
-        self.scanner.file()
-    }
-
-    /// Return the source text.
-    #[inline]
-    pub fn source_text(&self) -> &str {
-        self.scanner.text()
-    }
-
-    /// Return the current scanner byte position.
-    #[inline]
-    pub fn position(&self) -> usize {
-        self.scanner.position()
-    }
-
-    /// Move the scanner to one byte position.
-    #[inline]
-    pub(crate) fn set_position(&mut self, position: usize) {
-        self.scanner.set_position(position);
-    }
-
     /// Return whether the most recent side token contained a line terminator.
     #[inline]
-    pub(super) fn side_token_had_line_terminator(&self) -> bool {
-        self.last_side_token_had_line_terminator
-    }
-
-    /// Eat symbols while predicate returns true or until the end of file is reached.
-    pub fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        self.scanner.eat_while(&mut predicate);
-    }
-
-    /// Eat symbols until the first occurrence of the given byte is found.
-    /// If the byte is not found, the entire string is consumed.
-    #[inline]
-    pub fn eat_until(&mut self, byte: u8) {
-        self.scanner.eat_until(byte);
+    pub(super) fn side_token_has_line_terminator(&self) -> bool {
+        self.tokenizer.side_token_has_line_terminator()
     }
 }
 
@@ -221,134 +80,5 @@ impl ParserTriviaMode {
     #[inline]
     pub const fn keeps_side_tokens(self) -> bool {
         matches!(self, Self::Full)
-    }
-}
-
-/// Compact lexer state after one semantic token boundary.
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct LexerState {
-    /// The current source byte position.
-    position: usize,
-    /// The contextual lexer options.
-    options: LexerOptionsCheckpoint,
-    /// Whether the most recent side token had a line terminator.
-    last_side_token_had_line_terminator: bool,
-    /// Whether the next semantic token is line-leading.
-    pending_line_terminator_before_next: bool,
-    /// The trivia retention mode.
-    trivia_mode: ParserTriviaMode,
-    /// Whether EOF has been reached.
-    is_finished: bool,
-    /// The EOF token if EOF has been reached.
-    eof_token: Option<Token>,
-    /// The retained trivia state.
-    trivia: TriviaCheckpoint,
-}
-
-/// The options for the lexer.
-#[derive(Debug, Default)]
-pub(super) struct LexerOptions {
-    /// The nested template strings starting parentheses depth stack.
-    pub(super) template_string_stack: LexerStack<i32>,
-    /// The depth of nested template string parentheses.
-    pub(super) parentheses_depth: i32 = 0,
-}
-
-/// A checkpoint for contextual lexer options.
-#[derive(Debug, Copy, Clone)]
-struct LexerOptionsCheckpoint {
-    /// The active template string stack mark.
-    template_string_stack: LexerStackMark,
-    /// The nested delimiter depth.
-    parentheses_depth: i32,
-}
-
-impl LexerOptions {
-    /// Create a checkpoint for speculative contextual lexing.
-    #[inline]
-    fn checkpoint(&self) -> LexerOptionsCheckpoint {
-        LexerOptionsCheckpoint {
-            template_string_stack: self.template_string_stack.mark(),
-            parentheses_depth: self.parentheses_depth,
-        }
-    }
-
-    /// Restore one contextual lexing checkpoint.
-    #[inline]
-    fn restore(&mut self, checkpoint: LexerOptionsCheckpoint) {
-        self.template_string_stack
-            .restore(checkpoint.template_string_stack);
-        self.parentheses_depth = checkpoint.parentheses_depth;
-    }
-}
-
-/// One compact stack.
-#[derive(Debug, Default)]
-pub(super) struct LexerStack<T: Copy> {
-    /// The stack entries.
-    entries: Vec<LexerStackEntry<T>>,
-    /// The active stack head.
-    head: Option<usize>,
-}
-
-/// One linked stack entry.
-#[derive(Debug, Copy, Clone)]
-struct LexerStackEntry<T: Copy> {
-    /// The entry value.
-    value: T,
-    /// The previous stack entry.
-    previous: Option<usize>,
-}
-
-/// One reversible lexer stack position.
-#[derive(Debug, Copy, Clone)]
-struct LexerStackMark {
-    /// The active stack head.
-    head: Option<usize>,
-    /// The stack entry count.
-    entries_len: usize,
-}
-
-impl<T: Copy> LexerStack<T> {
-    /// Push one value onto the stack.
-    #[inline]
-    pub(super) fn push(&mut self, value: T) {
-        self.entries.push(LexerStackEntry {
-            value,
-            previous: self.head,
-        });
-        self.head = Some(self.entries.len() - 1);
-    }
-
-    /// Pop one value from the stack.
-    #[inline]
-    pub(super) fn pop(&mut self) -> Option<T> {
-        let head = self.head?;
-        let entry = self.entries[head];
-        self.head = entry.previous;
-
-        Some(entry.value)
-    }
-
-    /// Peek the current stack head.
-    #[inline]
-    pub(super) fn peek(&self) -> Option<T> {
-        self.head.map(|head| self.entries[head].value)
-    }
-
-    /// Mark the current stack position.
-    #[inline]
-    fn mark(&self) -> LexerStackMark {
-        LexerStackMark {
-            head: self.head,
-            entries_len: self.entries.len(),
-        }
-    }
-
-    /// Restore one marked stack position.
-    #[inline]
-    fn restore(&mut self, mark: LexerStackMark) {
-        self.head = mark.head;
-        self.entries.truncate(mark.entries_len);
     }
 }
