@@ -21,9 +21,6 @@ impl ModuleLowerer<'_> {
         let type_expression = self.dir_tree.get(type_expression_id);
 
         match type_expression {
-            dir::TypeExpression::Parenthesized { expression } => {
-                self.lower_type_callee(*expression)
-            }
             dir::TypeExpression::Reference {
                 path,
                 generic_arguments,
@@ -758,13 +755,6 @@ impl ModuleLowerer<'_> {
                     expression_id.into_global_any(self.module.id),
                     Some("tagged template expressions need explicit JS IR support".to_string()),
                 ));
-            }
-            dir::Expression::Parenthesized { expression } => {
-                let expression = self.lower_expression_as::<js::Expression>(*expression)?;
-                let expression = js::Expression::Parenthesized { expression };
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
             }
             dir::Expression::Unary { operator, right } => self
                 .lower_unary_expression(expression_id, *operator, *right)?

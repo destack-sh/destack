@@ -49,11 +49,6 @@ impl FunctionLowerer<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Space> {
         match self.context.dir_tree.get(expression) {
-            // nested borrows preserve the inner storage space
-            dir::Expression::Parenthesized { expression } => {
-                self.borrow_space(expression_id, *expression)
-            }
-
             // resolved paths borrow from their storage owner
             dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(expression)?;
@@ -262,9 +257,6 @@ impl FunctionLowerer<'_> {
 
         // lower the reference target to an address when possible
         match self.context.dir_tree.get(right) {
-            dir::Expression::Parenthesized { expression } => {
-                self.lower_reference_of_expression(expression_id, mutability, *expression)
-            }
             dir::Expression::Identifier { .. } | dir::Expression::QualifiedReference { .. } => {
                 let target_symbol = self.resolve_expression_symbol(right)?;
                 if let Some(field) = self.capture_field_for_symbol(target_symbol) {

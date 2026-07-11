@@ -21,7 +21,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<usize> {
         // require a compile time integer literal
-        let index_expression = self.unwrap_expression(expression_id);
+        let index_expression = self.strip_type_relations(expression_id);
         match self.context.dir_tree.get(index_expression) {
             dir::Expression::ScalarLiteral(
                 dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value),

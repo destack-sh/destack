@@ -35,10 +35,6 @@ impl WalkState<'_, '_> {
         let source = id.into_any();
 
         match self.tree.get(id) {
-            // (T)
-            dir::TypeExpression::Parenthesized { expression } => {
-                self.walk_type_expression(*expression)
-            }
             // "ok", 42, true
             dir::TypeExpression::ScalarLiteral { value } => {
                 self.intern_type(dir::Type::Literal(*value))

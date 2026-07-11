@@ -85,10 +85,6 @@ impl WalkState<'_, '_> {
         branch: ConditionBranch,
     ) -> CompilerResult<()> {
         match self.tree.get(id) {
-            // (value)
-            dir::Expression::Parenthesized { expression } => {
-                self.narrow_expression(*expression, branch)?;
-            }
             // !value
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Not,

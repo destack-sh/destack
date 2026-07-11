@@ -1244,12 +1244,8 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
-        // peel parenthesized expressions
         let expression = self.context.dir_tree.get(expression_id);
         match expression {
-            dir::Expression::Parenthesized { expression } => {
-                self.concrete_symbol_for_expression(*expression)
-            }
             dir::Expression::As { expression, .. }
             | dir::Expression::Satisfies { expression, .. } => {
                 self.concrete_symbol_for_expression(*expression)

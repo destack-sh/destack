@@ -18,7 +18,6 @@ impl StaticContext<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Result<dir::StaticTerm, StaticError> {
         match self.view.get(expression) {
-            dir::Expression::Parenthesized { expression } => self.evaluate_expression(*expression),
             dir::Expression::ScalarLiteral(value) => Ok((*value).into()),
             dir::Expression::Member { left, name } => {
                 self.evaluate_member(expression, *left, *name)

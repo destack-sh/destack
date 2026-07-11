@@ -49,10 +49,6 @@ impl CheckState<'_> {
         }
 
         match view.get(expression) {
-            // (key)
-            dir::Expression::Parenthesized { expression } => {
-                self.select_expression_static_key(module, *expression)
-            }
             // token
             dir::Expression::Identifier { .. } => self.select_unique_symbol_key(module, expression),
             // Symbol.for("token")
@@ -79,10 +75,6 @@ impl CheckState<'_> {
         }
 
         match view.get(expression) {
-            // (key)
-            dir::Expression::Parenthesized { expression } => {
-                self.static_key_from_expression(module, *expression)
-            }
             // token
             dir::Expression::Identifier { .. } => {
                 self.unique_symbol_key_from_expression(module, expression)

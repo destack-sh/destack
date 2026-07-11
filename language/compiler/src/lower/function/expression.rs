@@ -5,16 +5,15 @@ use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 use super::{FunctionLowerer, RUNTIME_CHECK_MESSAGES};
 
 impl FunctionLowerer<'_> {
-    /// Strip transparent value wrappers around one expression.
-    pub(crate) fn unwrap_expression(
+    /// Strip transparent type relations around one expression.
+    pub(crate) fn strip_type_relations(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> dir::LocalNodeId<dir::Expression> {
-        // walk through wrappers that preserve the same runtime base value
+        // walk through type relations that preserve the same runtime base value
         let mut current_id = expression_id;
         loop {
             match self.context.dir_tree.get(current_id) {
-                dir::Expression::Parenthesized { expression } => current_id = *expression,
                 dir::Expression::As { expression, .. }
                 | dir::Expression::Satisfies { expression, .. } => current_id = *expression,
                 _ => return current_id,
@@ -550,8 +549,8 @@ impl FunctionLowerer<'_> {
         }
 
         // unwrap implicit casts and parens before matching
-        let left = self.unwrap_expression(left);
-        let right = self.unwrap_expression(right);
+        let left = self.strip_type_relations(left);
+        let right = self.strip_type_relations(right);
 
         // match null comparisons
         let (value_id, literal) = match (

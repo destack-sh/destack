@@ -224,10 +224,6 @@ impl WalkState<'_, '_> {
         let binding = bindings.get_symbol(symbol.local_id);
 
         match self.tree.get(value) {
-            // (value)
-            dir::Expression::Parenthesized { expression } => {
-                self.declarator_initializer_widening(symbol, Some(*expression))
-            }
             // value satisfies T
             dir::Expression::Satisfies { .. } => Widening::Preserve,
             // value as const

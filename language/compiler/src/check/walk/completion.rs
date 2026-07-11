@@ -119,7 +119,6 @@ impl WalkState<'_, '_> {
             | dir::Expression::ObjectExpression { .. }
             | dir::Expression::StructExpression { .. }
             | dir::Expression::TreeExpression { .. }
-            | dir::Expression::Parenthesized { .. }
             | dir::Expression::Type { .. }
             | dir::Expression::Comptime { .. }
             | dir::Expression::As { .. }

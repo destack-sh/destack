@@ -260,12 +260,6 @@ impl WalkState<'_, '_> {
         }
 
         match self.tree.get(expression) {
-            // (C)
-            dir::Expression::Parenthesized { expression: nested } => {
-                let ty = self.walk_static_term(*nested)?;
-
-                self.bind_static_term(expression, ty)
-            }
             // type
             dir::Expression::Type { value } => {
                 let ty = if let dir::TypeExpression::Infer {

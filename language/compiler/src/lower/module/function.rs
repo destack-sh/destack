@@ -114,9 +114,6 @@ impl<'a> AddressTakenCollector<'a> {
         // unwrap reference targets that can yield addressable bases
         let expression = tree.get(expression_id);
         match expression {
-            dir::Expression::Parenthesized { expression } => {
-                self.record_reference_target(tree, *expression);
-            }
             dir::Expression::As {
                 expression: value, ..
             }

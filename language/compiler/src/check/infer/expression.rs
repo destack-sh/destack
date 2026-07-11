@@ -37,17 +37,6 @@ impl CheckState<'_> {
             }
             dir::Expression::Label { body, .. } => self.infer_transparent_expression(site, body),
             dir::Expression::Block(block) => self.infer_block(site, block),
-            dir::Expression::Parenthesized { expression } if mode == InferMode::Const => {
-                let expression_site = self.node_site(expression.into_global_any(node.module_id))?;
-                answer!(self.infer_expression(expression_site, PlaceUse::Read, mode)?);
-                let ty = answer!(self.node_type_at(expression_site)?);
-                self.commit_node_type(node.into_any(), ty)?;
-
-                Ok(Answer::Ready(()))
-            }
-            dir::Expression::Parenthesized { expression } => {
-                self.infer_transparent_expression(site, expression)
-            }
             dir::Expression::Comptime { body } => self.infer_transparent_expression(site, body),
             dir::Expression::MoveOf {
                 mutability, right, ..
