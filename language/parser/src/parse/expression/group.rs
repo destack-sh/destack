@@ -2,7 +2,6 @@ use crate::parse::DeclarationHeader;
 use crate::parse::context::ExpressionContext;
 use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
-use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one parenthesized expression, tuple, or arrow head.
@@ -36,7 +35,7 @@ impl Parser {
         }
 
         self.eat_close_token_or_recover_missing(TokenType::CloseParenthesis, NodeType::Expression)?;
-        let expression = self.retain_expression_parentheses(start, expression);
+        self.record_parentheses(start, expression);
 
         Ok((expression, true))
     }
@@ -82,43 +81,5 @@ impl Parser {
         );
 
         Ok((expression, false))
-    }
-
-    /// Retain expression parentheses as a node or source region.
-    fn retain_expression_parentheses(
-        &mut self,
-        start: &ParseStart,
-        expression: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        if self.retains_parentheses() {
-            let parenthesized = self.insert_node(
-                Expression::Parenthesized { expression },
-                self.range_since(start),
-            );
-            self.tree
-                .set_head_range(parenthesized, self.expression_head_range(expression));
-
-            return parenthesized;
-        }
-
-        let expression_range = self.tree.get_range(expression);
-        let leading_range = ByteRange {
-            start: start.token_end(),
-            end: expression_range.start,
-        };
-        if leading_range.start < leading_range.end {
-            self.tree.set_side_range(
-                expression,
-                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
-                leading_range,
-            );
-        }
-        self.extend_node_region_range(
-            expression,
-            NodeSpanRegion::Parentheses,
-            self.range_since(start),
-        );
-
-        expression
     }
 }

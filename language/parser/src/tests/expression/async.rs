@@ -108,7 +108,7 @@ fn test_parse_async_generic_arrow_asi() {
         assert_node!(parser.tree, *left, AssignPattern::Place { expression: value } => {
             assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
                 assert_string!(parser, *name, "b");
-                assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                crate::assert_parenthesized!(parser.tree, *left, expression => {
                     assert_node!(parser.tree, *expression, Expression::As { .. } => {});
                 });
             });

@@ -127,7 +127,7 @@ fn test_parse_parenthesized_cast_in_comparison_right_side() {
         assert_expression_path!(parser, parser.tree.get(*left), "i");
 
         // (this.length as number)
-        assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *right, expression => {
             assert_node!(parser.tree, *expression, Expression::As { expression, target_type } => {
                 // this.length
                 assert_node!(parser.tree, *expression, Expression::Member { left, name, .. } => {
@@ -163,7 +163,7 @@ fn test_parse_logical_or_with_parenthesized_cast_comparison() {
         // i >= (this.length as number)
         assert_node!(parser.tree, *right, Expression::Binary { operator, right, .. } => {
             assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
-            assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *right, expression => {
                 assert_node!(parser.tree, *expression, Expression::As { .. } => {});
             });
         });
@@ -771,7 +771,7 @@ fn test_parse_parenthesized_cast_followed_by_flat_map_call() {
     assert_node!(parser.tree, expr_id, Expression::Call { left, arguments, .. } => {
         assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "flatMap");
-            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *left, expression => {
                 assert_node!(parser.tree, *expression, Expression::As { .. } => {});
             });
         });

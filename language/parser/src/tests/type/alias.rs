@@ -249,7 +249,7 @@ fn test_parse_type_alias_parenthesized_multiline_union_with_comment() {
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "Reflect");
-            assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *value, expression => {
                 assert_node!(parser.tree, *expression, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                 });
@@ -282,7 +282,7 @@ fn test_parse_type_alias_parenthesized_missing_close_parenthesis() {
     // type T = (string
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *value, expression => {
                 assert_node!(parser.tree, *expression, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });

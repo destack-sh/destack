@@ -6,8 +6,8 @@ use destack_dir::{
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
-    ParserOptions, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
-    assert_node, assert_string, block_expression_ids,
+    ParserTriviaMode, TestParser, assert_comment, assert_expression_path, assert_node,
+    assert_string, block_expression_ids,
 };
 
 #[test]
@@ -176,7 +176,7 @@ fn test_break_with_parenthesized_identifier_value() {
     let break_id = parser.parse_break(Default::default()).unwrap();
     assert_node!(parser.tree, break_id, Expression::Break { label: None, value } => {
         assert!(value.is_some());
-        assert_node!(parser.tree, value.unwrap(), Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, value.unwrap(), expression => {
             assert_expression_path!(parser, parser.tree.get(*expression), "value");
         });
     });
@@ -627,14 +627,11 @@ fn test_parse_block_statement_before_close_brace_without_semicolon() {
     assert_node!(parser.tree, tail_expression, Expression::Call { .. });
 }
 
-/// Parse semicolon led parenthesized calls without parenthesized wrappers.
+/// Parse semicolon led parenthesized calls as canonical call expressions.
 #[test]
-fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrappers() {
+fn test_parse_statement_leading_semicolon_parenthesized_arrow_call() {
     let test = TestParser::new("{\n;(()=>{})()\n}");
-    let mut parser = test.prepare_with_options(ParserOptions {
-        trivia_mode: ParserTriviaMode::Full,
-        retain_parentheses: false,
-    });
+    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
     let block_id = parser
         .parse_block(BlockContext::Expression, Default::default())
         .unwrap();
@@ -653,14 +650,11 @@ fn test_parse_statement_leading_semicolon_parenthesized_arrow_call_without_wrapp
     });
 }
 
-/// Record statement source spans when parenthesized wrappers are skipped.
+/// Include written parentheses in statement source spans.
 #[test]
-fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
+fn test_parse_statement_span_includes_parentheses() {
     let test = TestParser::new("(() => value);");
-    let mut parser = test.prepare_with_options(ParserOptions {
-        trivia_mode: ParserTriviaMode::Full,
-        retain_parentheses: false,
-    });
+    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
 
     let expression_id = parser.parse_statement(Default::default());
     let statement_span = parser
@@ -676,12 +670,9 @@ fn test_parse_statement_span_preserves_skipped_parenthesized_wrapper() {
 
 /// Record statement source spans for root tail statements.
 #[test]
-fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
+fn test_parse_root_statement_span_includes_parentheses() {
     let test = TestParser::new("(() => value);");
-    let mut parser = test.prepare_with_options(ParserOptions {
-        trivia_mode: ParserTriviaMode::Full,
-        retain_parentheses: false,
-    });
+    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
 
     let expressions = parser.parse();
     let statement_span = parser
@@ -700,10 +691,7 @@ fn test_parse_root_statement_span_preserves_skipped_parenthesized_wrapper() {
 #[test]
 fn test_parse_root_statement_span_preserves_leading_parenthesized_wrapper() {
     let test = TestParser::new("const a = 1\n\n;(() => {})()");
-    let mut parser = test.prepare_with_options(ParserOptions {
-        trivia_mode: ParserTriviaMode::Full,
-        retain_parentheses: false,
-    });
+    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
 
     let expressions = parser.parse();
     let statement_span = parser
@@ -1300,7 +1288,7 @@ fn test_parse_return_tree_literal_with_close_paren_text_in_ternary_before_tree()
                 let return_id =
                     parser.unwrap_label_expression(block.leading_expressions[0]);
                 assert_node!(parser.tree, return_id, Expression::Return { value: Some(value) } => {
-                    assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    crate::assert_parenthesized!(parser.tree, *value, expression => {
                         assert_node!(parser.tree, *expression, Expression::TreeExpression { .. });
                     });
                 });

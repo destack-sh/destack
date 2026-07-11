@@ -555,7 +555,7 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
                     assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, is_const, constraint: Some(ty), .. } => {
                         assert_string!(parser, *name, "Mapping");
                         assert!(*is_const);
-                        assert_node!(parser.tree, *ty, TypeExpression::Parenthesized { expression } => {
+                        crate::assert_parenthesized!(parser.tree, *ty, expression => {
                             assert_node!(parser.tree, *expression, TypeExpression::Conditional { .. });
                         });
                     });

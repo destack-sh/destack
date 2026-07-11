@@ -509,7 +509,7 @@ fn test_parse_for_in_with_parenthesized_binary_binding_expression() {
         assert_eq!(*operator, ForEachOperator::In);
         assert_eq!(*keyword, None);
         assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
-            assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *value, expression => {
                 assert_node!(parser.tree, *expression, Expression::Binary { .. });
             });
         });

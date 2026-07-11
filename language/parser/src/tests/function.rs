@@ -9,8 +9,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{
-    ParserOptions, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
-    assert_name, assert_node, assert_path, assert_string,
+    ParserTriviaMode, TestParser, assert_comment, assert_expression_path, assert_name, assert_node,
+    assert_path, assert_string,
 };
 
 #[test]
@@ -95,8 +95,7 @@ fn test_parse_arrow_parameter_defaults_with_angle_operators() {
         assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                 assert_node!(parser.tree, signature.parameters[0], Parameter::Named { default: Some(default), .. } => {
-                    let default = parser.strip_expression_parentheses(*default);
-                    assert_node!(parser.tree, default, Expression::Binary { operator, .. } => {
+                    assert_node!(parser.tree, *default, Expression::Binary { operator, .. } => {
                         assert_eq!(*operator, expected_operator);
                     });
                 });
@@ -134,7 +133,7 @@ fn test_parse_parenthesized_optional_arrow_parameter_without_type_call() {
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
@@ -679,7 +678,7 @@ fn test_parse_function_parenthesized_void_return_type() {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(body.is_some());
-            assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, signature.return_type.unwrap(), expression => {
                 assert_node!(parser.tree, *expression, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Void);
                 });
@@ -1514,7 +1513,7 @@ fn test_parse_function_generator_yield_in_computed_keys() {
                 let block = parser.tree.get(*block_id);
                 assert!(block.leading_expressions.is_empty());
                 let tail_expression = block.tail_expression.expect("expected class expression tail");
-                assert_node!(parser.tree, tail_expression, Expression::Parenthesized { .. });
+                crate::assert_parenthesized!(parser.tree, tail_expression);
             });
         });
     });
@@ -1530,7 +1529,7 @@ fn test_parse_function_generator_yield_in_computed_keys() {
                 let block = parser.tree.get(*block_id);
                 assert!(block.leading_expressions.is_empty());
                 let tail_expression = block.tail_expression.expect("expected assignment tail");
-                assert_node!(parser.tree, tail_expression, Expression::Parenthesized { .. });
+                crate::assert_parenthesized!(parser.tree, tail_expression);
             });
         });
     });
@@ -1765,7 +1764,7 @@ fn test_parse_parenthesized_arrow_call() {
 
     // (() => {})()
     assert_node!(parser.tree, expression_id, Expression::Call { left, .. } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
@@ -1780,10 +1779,7 @@ fn test_parse_parenthesized_arrow_call() {
 fn test_parse_parenthesized_arrow_call_without_preserved_wrappers() {
     // source: (() => {})()
     let test = TestParser::new("(() => {})()");
-    let mut parser = test.prepare_with_options(ParserOptions {
-        trivia_mode: ParserTriviaMode::Full,
-        retain_parentheses: false,
-    });
+    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // (() => {})()

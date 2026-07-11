@@ -394,7 +394,7 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *value, expression => {
                 assert_node!(parser.tree, *expression, TypeExpression::Conditional { then_type, else_type, .. } => {
                     assert_node!(parser.tree, *then_type, TypeExpression::Reference { path, generic_arguments } => {
                         assert_path!(parser, path, "B");

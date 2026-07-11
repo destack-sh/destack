@@ -10,8 +10,8 @@ use destack_core::StringPool;
 use destack_source::LanguageType;
 
 use crate::{
-    Lexer, Parser, ParserOptions, ParserTriviaMode, TestParser, assert_comment,
-    assert_expression_path, assert_node,
+    Lexer, Parser, ParserTriviaMode, TestParser, assert_comment, assert_expression_path,
+    assert_node,
 };
 
 /// Parse one whole source string and return the resulting root expressions.
@@ -28,13 +28,10 @@ fn parse_source_with_trivia_mode(
     trivia_mode: ParserTriviaMode,
 ) -> (Parser, Vec<LocalNodeId<Expression>>) {
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         test.file.clone(),
         LanguageType::Destack,
-        ParserOptions {
-            trivia_mode,
-            retain_parentheses: false,
-        },
+        trivia_mode,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -265,10 +262,10 @@ fn test_attach_comments_appends_to_existing_tree() {
     assert_eq!(comment_text(&first_parser, first_comment), "first");
 
     let second_test = TestParser::new("// second\nsecond");
-    let mut second_parser = Parser::lex_into_tree_with_options(
+    let mut second_parser = Parser::lex_into_tree_with_trivia(
         second_test.file.clone(),
         second_test.language,
-        TestParser::options(),
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
         first_parser.tree,
     );
@@ -531,13 +528,13 @@ fn test_comment_after_open_parenthesis_attaches_to_inner_expression_leading() {
     // `(/* keep */ value)`
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression_id, expression => {
         // `/* keep */`
         assert_eq!(comments(&parser).len(), 1);
         let comment = comments(&parser)[0];
         assert_eq!(comment_text(&parser, comment), " keep");
         // `value`
-        assert_ne!(expression_id.id, expression.id);
+        assert_eq!(expression_id.id, expression.id);
         assert_comment_boundary_tokens(
             &parser,
             comment,
@@ -557,20 +554,21 @@ fn test_comment_before_close_parenthesis_attaches_to_inner_expression_trailing()
     // `(value /* keep */)`
     assert_eq!(expressions.len(), 1);
     let expression_id = parser.unwrap_label_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression: _ } => {
-        // `/* keep */`
-        assert_eq!(comments(&parser).len(), 1);
-        let comment = comments(&parser)[0];
-        assert_eq!(comment_text(&parser, comment), " keep");
-        // `value`
-        assert_comment_boundary_tokens(
-            &parser,
-            comment,
-            Some(TokenType::Identifier),
-            Some(TokenType::CloseParenthesis),
-        );
-        assert_comment_newline_shape(comment, false, false);
-    });
+    crate::assert_parenthesized!(parser.tree, expression_id);
+
+    // `/* keep */`
+    assert_eq!(comments(&parser).len(), 1);
+    let comment = comments(&parser)[0];
+    assert_eq!(comment_text(&parser, comment), " keep");
+
+    // `value`
+    assert_comment_boundary_tokens(
+        &parser,
+        comment,
+        Some(TokenType::Identifier),
+        Some(TokenType::CloseParenthesis),
+    );
+    assert_comment_newline_shape(comment, false, false);
 }
 
 #[test]

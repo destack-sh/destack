@@ -288,7 +288,7 @@ fn test_parse_parenthesized_leading_pipe_union_with_array_suffix() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Array { element } => {
-                assert_node!(parser.tree, *element, TypeExpression::Parenthesized { expression } => {
+                crate::assert_parenthesized!(parser.tree, *element, expression => {
                     assert_node!(parser.tree, *expression, TypeExpression::Union { elements } => {
                         assert_eq!(elements.len(), 2);
                     });
@@ -463,7 +463,7 @@ fn test_parse_parenthesized_union_generic_argument() {
                 assert_path!(parser, *path, "Wrap");
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Parenthesized { expression } => {
+                        crate::assert_parenthesized!(parser.tree, *value, expression => {
                             assert_node!(parser.tree, *expression, TypeExpression::Union { elements } => {
                             assert_eq!(elements.len(), 2);
                                 assert_node!(parser.tree, elements[0], TypeExpression::Literal { value } => {

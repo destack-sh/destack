@@ -991,7 +991,7 @@ fn test_parse_tree_in_parenthesis() {
     );
     let mut parser = test.prepare();
     let expression = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, expression, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression, expression => {
         // <div className="font-semibold">
         assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
             assert_expression_path!(parser, parser.tree.get(*left), "div");
@@ -1602,7 +1602,7 @@ fn test_parse_tree_attribute_object_callback_with_fragment_ternary() {
                                 assert_string!(parser, *name, "chunks");
                             });
 
-                            assert_node!(parser.tree, body.expect("expected callback body"), Expression::Parenthesized { expression } => {
+                            crate::assert_parenthesized!(parser.tree, body.expect("expected callback body"), expression => {
                                 assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(button_left), children, .. } => {
                                     assert_expression_path!(parser, parser.tree.get(*button_left), "button");
                                     let children = children.as_ref().expect("expected button children");
@@ -1640,7 +1640,7 @@ fn test_parse_tree_attribute_spread_with_multiline_comments() {
         let attributes = attributes.as_ref().expect("expected attributes");
         assert_eq!(attributes.len(), 1);
         assert_node!(parser.tree, attributes[0], TreeAttribute::Spread { value } => {
-            assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *value, expression => {
                 assert_node!(parser.tree, *expression, Expression::As { .. } => {
                 });
             });
@@ -1662,7 +1662,7 @@ fn test_parse_tree_attribute_spread_with_cast() {
         assert_eq!(attributes.len(), 2);
         // {...(this.props as P & DependentProps)}
         assert_node!(parser.tree, attributes[0], TreeAttribute::Spread { value } => {
-            assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *value, expression => {
                 assert_node!(parser.tree, *expression, Expression::As { .. } => {
                 });
             });
@@ -2206,7 +2206,7 @@ fn test_parse_tree_after_parenthesized_tree_in_expression_container() {
                             assert_eq!(signature.form, FunctionForm::Lambda);
 
                             let body = body.expect("expected lambda body");
-                            assert_node!(parser.tree, body, Expression::Parenthesized { expression } => {
+                            crate::assert_parenthesized!(parser.tree, body, expression => {
                                 assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
                                     assert_expression_path!(parser, parser.tree.get(*left), "option");
                                     assert!(attributes.is_none());
@@ -2568,7 +2568,7 @@ function app() {
                 let return_expression = expressions[0];
                 assert_node!(parser.tree, return_expression, Expression::Return { value } => {
                     let value = value.expect("expected return value");
-                    assert_node!(parser.tree, value, Expression::Parenthesized { expression } => {
+                    crate::assert_parenthesized!(parser.tree, value, expression => {
                         assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), children, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "Box");
                             let children = children.as_ref().expect("expected box children");

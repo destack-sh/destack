@@ -7,7 +7,7 @@ use std::sync::Arc;
 use destack_core::{StringId, StringPool};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
-use crate::{Parser, ParserOptions, ParserTriviaMode};
+use crate::{Parser, ParserTriviaMode};
 
 /// A test wrapper for Parser.
 #[derive(Debug)]
@@ -48,25 +48,17 @@ impl TestParser {
 
     /// Create a parser for this test.
     pub(crate) fn prepare(&self) -> Parser {
-        self.prepare_with_options(Self::options())
+        self.prepare_with_trivia(ParserTriviaMode::Full)
     }
 
-    /// Create a parser with explicit options for this test.
-    pub(crate) fn prepare_with_options(&self, options: ParserOptions) -> Parser {
-        Parser::lex_file_with_options(
+    /// Create a parser with explicit trivia retention for this test.
+    pub(crate) fn prepare_with_trivia(&self, trivia_mode: ParserTriviaMode) -> Parser {
+        Parser::lex_file_with_trivia(
             self.file.clone(),
             self.language,
-            options,
+            trivia_mode,
             Arc::new(StringPool::new()),
         )
-    }
-
-    /// Return parser options used by parser unit tests.
-    pub(crate) fn options() -> ParserOptions {
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: true,
-        }
     }
 
     /// Assert parser errors by node type, actual token, expected token, and source text.
@@ -267,6 +259,29 @@ pub(crate) fn block_expression_ids(block: &Block) -> Vec<LocalNodeId<Expression>
     block.iter_expressions().collect()
 }
 
+/// Assert that one canonical node carries a written parentheses region.
+#[macro_export]
+macro_rules! assert_parenthesized {
+    ($tree:expr, $id:expr) => {{
+        let node_id = $id;
+        let parentheses = $tree.get_side_range(
+            node_id,
+            destack_source::NodeSpanType::Region(destack_source::NodeSpanRegion::Parentheses),
+        );
+        assert!(parentheses.is_some(), "expected written parentheses");
+    }};
+    ($tree:expr, $id:expr, $binding:ident => $body:block) => {{
+        let node_id = $id;
+        let parentheses = $tree.get_side_range(
+            node_id,
+            destack_source::NodeSpanType::Region(destack_source::NodeSpanRegion::Parentheses),
+        );
+        assert!(parentheses.is_some(), "expected written parentheses");
+        let $binding = &node_id;
+        $body
+    }};
+}
+
 /// Assert that `tree.get(id)` matches one node pattern, including type-space nodes.
 ///
 /// If a body is provided (`=> { ... }`), it runs with the pattern bindings.
@@ -375,10 +390,6 @@ pub(crate) trait ExpressionPathLike {
 impl ExpressionPathLike for Expression {
     fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
         match self {
-            Expression::Parenthesized { expression } => {
-                let expression = parser.tree.get(*expression);
-                expression.collect_path_segments(parser, segments)
-            }
             Expression::Type { value } => {
                 let expression = parser.tree.get(*value);
                 expression.collect_path_segments(parser, segments)
@@ -421,12 +432,8 @@ impl ExpressionPathLike for AssignPattern {
 }
 
 impl ExpressionPathLike for TypeExpression {
-    fn collect_path_segments(&self, parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
+    fn collect_path_segments(&self, _parser: &Parser, segments: &mut Vec<StringId>) -> Option<()> {
         match self {
-            TypeExpression::Parenthesized { expression } => {
-                let expression = parser.tree.get(*expression);
-                expression.collect_path_segments(parser, segments)
-            }
             TypeExpression::Reference { path, .. } => {
                 segments.extend_from_slice(&path.segments);
                 Some(())
@@ -460,10 +467,6 @@ fn collect_value_expression_path_segments(
     segments: &mut Vec<StringId>,
 ) -> Option<()> {
     match expression {
-        Expression::Parenthesized { expression } => {
-            let expression = parser.tree.get(*expression);
-            collect_value_expression_path_segments(parser, expression, segments)
-        }
         Expression::Identifier { name } => {
             segments.push(*name);
             Some(())

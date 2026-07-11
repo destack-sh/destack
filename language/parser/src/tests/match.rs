@@ -446,7 +446,7 @@ switch (tag.injectTo) {
                     assert_eq!(arguments.len(), 1);
                             assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
                                 assert_string!(parser, *name, "push");
-                                assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                                crate::assert_parenthesized!(parser.tree, *left, expression => {
                                     assert_node!(parser.tree, *expression, Expression::Assign { left, right, .. } => {
                                 assert_expression_path!(parser, parser.tree.get(*left), "bodyTags");
                                         assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {

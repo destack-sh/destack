@@ -80,7 +80,7 @@ fn test_parse_parenthesized_unary_exponent_operands() {
     for expression in expressions {
         assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::Exponent);
-            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *left, expression => {
                 assert_node!(parser.tree, *expression, Expression::Unary { .. });
             });
             assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
@@ -121,7 +121,7 @@ fn test_parse_unary_negate_preserves_parenthesized_comment_wrapper() {
 
     assert_node!(parser.tree, expression_id, Expression::Unary { operator, right } => {
         assert_eq!(*operator, UnaryOperator::Negate);
-        assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *right, expression => {
             assert_node!(
                 parser.tree,
                 *expression,
@@ -141,7 +141,7 @@ fn test_parse_await_parenthesized_new_expression_with_void_type_argument() {
 
     // await (new Promise<void>(...))
     assert_node!(parser.tree, expression_id, Expression::Await { expression } => {
-        assert_node!(parser.tree, *expression, Expression::Parenthesized { expression: parenthesized_expression } => {
+        crate::assert_parenthesized!(parser.tree, *expression, parenthesized_expression => {
             assert_node!(parser.tree, *parenthesized_expression, Expression::New { ty, arguments } => {
                 assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
                     assert_path!(parser, *path, "Promise");
@@ -161,7 +161,7 @@ fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right, .. } => {
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, ..} => {
                 assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
                     assert_eq!(*operator, UnaryOperator::PostIncrement);
@@ -177,7 +177,7 @@ fn test_parse_mixed_prefix_and_postfix_increment_decrement() {
 
         assert_eq!(*operator, BinaryOperator::Multiply);
 
-        assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *right, expression => {
             assert_node!(parser.tree, *expression, Expression::Binary { left, operator, right, ..} => {
                 assert_node!(parser.tree, *left, Expression::Unary { operator, right } => {
                     assert_eq!(*operator, UnaryOperator::PostDecrement);

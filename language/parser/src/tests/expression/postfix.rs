@@ -347,7 +347,7 @@ fn test_parse_statement_newline_before_parenthesized_assertion_continues_call() 
         assert_eq!(arguments.len(), 1);
 
         // (foo.bar as Baz)
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             // foo.bar as Baz
             assert_node!(parser.tree, *expression, Expression::As { expression, target_type } => {
                 // foo.bar

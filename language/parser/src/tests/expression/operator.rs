@@ -62,17 +62,8 @@ fn long_assignment_chain_source(depth: usize) -> String {
     source
 }
 
-fn assert_assign_or_parenthesized_assign(
-    parser: &crate::Parser,
-    expression: LocalNodeId<Expression>,
-) {
-    match parser.tree.get(expression) {
-        Expression::Assign { .. } => {}
-        Expression::Parenthesized { expression } => {
-            assert_node!(parser.tree, *expression, Expression::Assign { .. });
-        }
-        other => panic!("expected assignment expression, got {other:?}"),
-    }
+fn assert_assign_expression(parser: &crate::Parser, expression: LocalNodeId<Expression>) {
+    assert_node!(parser.tree, expression, Expression::Assign { .. });
 }
 
 #[test]
@@ -94,7 +85,7 @@ foo -= bar;
 
     assert_eq!(expressions.len(), 8);
     for expression in expressions {
-        assert_assign_or_parenthesized_assign(&parser, expression);
+        assert_assign_expression(&parser, expression);
     }
 }
 
@@ -134,7 +125,7 @@ a['b'] = c[d] = "test"
     assert_eq!(expressions.len(), 8);
     assert_node!(parser.tree, expressions[0], Expression::Assign { .. });
     assert_node!(parser.tree, expressions[1], Expression::Assign { .. });
-    assert_node!(parser.tree, expressions[2], Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expressions[2], expression => {
         assert_node!(parser.tree, *expression, Expression::Assign { .. });
     });
     assert_node!(parser.tree, expressions[3], Expression::Assign { .. });
@@ -729,7 +720,7 @@ fn test_parse_object_destructuring_assignment_defaults() {
 
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression_id, expression => {
         assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
             assert_eq!(*operator, AssignOperator::Assign);
             assert_expression_path!(parser, parser.tree.get(*right), "value");
@@ -828,7 +819,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
 
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression_id, expression => {
         assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
             assert_eq!(*operator, AssignOperator::Assign);
             assert_expression_path!(parser, parser.tree.get(*right), "h");
@@ -893,7 +884,7 @@ fn test_parse_destructuring_assignment_member_targets() {
 
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression_id, expression => {
         assert_node!(parser.tree, *expression, Expression::Assign { left, operator, right } => {
             assert_eq!(*operator, AssignOperator::Assign);
             assert_expression_path!(parser, parser.tree.get(*right), "source");

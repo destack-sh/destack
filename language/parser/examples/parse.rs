@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId};
-use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use pprof::ProfilerGuardBuilder;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -41,10 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let options = RunOptions::from_env()?;
     let file = load_file(&options.source_path)?;
     let language = file_language(file.ty)?;
-    let parser_options = ParserOptions {
-        trivia_mode: options.trivia_mode,
-        retain_parentheses: false,
-    };
+    let trivia_mode = options.trivia_mode;
 
     // sample only the parse loop
     let start = Instant::now();
@@ -55,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut parses = 0u64;
     while start.elapsed() < options.duration {
-        black_box(parse_file(file.clone(), language, parser_options));
+        black_box(parse_file(file.clone(), language, trivia_mode));
         parses += 1;
     }
 
@@ -109,13 +106,13 @@ fn load_file(path: &Path) -> Result<Arc<File>, Box<dyn Error>> {
 fn parse_file(
     file: Arc<File>,
     language: LanguageType,
-    options: ParserOptions,
+    trivia_mode: ParserTriviaMode,
 ) -> ParserProfileOutput {
     let strings = Arc::new(StringPool::new());
-    let mut parser = Parser::lex_file_with_options(file, language, options, strings);
+    let mut parser = Parser::lex_file_with_trivia(file, language, trivia_mode, strings);
 
     // attach comments only when retained
-    let roots = if options.trivia_mode.keeps_comments() {
+    let roots = if trivia_mode.keeps_comments() {
         parser.parse()
     } else {
         parser.parse_roots()
