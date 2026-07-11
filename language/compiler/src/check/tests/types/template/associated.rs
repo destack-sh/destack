@@ -18,7 +18,7 @@ channel satisfies `topic:${"orders"}`;
         DirRows::checked(),
         r#"
 === annotated ===
-class Topic<T: string> {
+class Topic<in out T: string> {
     type Channel = `topic:${T}`;
 }
 
@@ -75,13 +75,13 @@ handlers["on-message"] satisfies string;
         DirRows::checked(),
         r#"
 === annotated ===
-interface EventShape<T> {
+interface EventShape<in out T> {
     type Handlers = {
         [K in keyof T as `on-${K}`]: T[K];
     };
 }
 
-class Bus<T> implements EventShape<T> {}
+class Bus<in out T> implements EventShape<T> {}
 
 declare const handlers: Bus<{ ready: boolean; message: string }>.Handlers;
 
@@ -156,7 +156,7 @@ kind satisfies "login";
         DirRows::checked(),
         r#"
 === annotated ===
-class EventName<T: string> {
+class EventName<in out T: string> {
     type Kind = T extends `evt:${infer Name}` ? Name : never;
 }
 

@@ -37,7 +37,7 @@ interface Doubles {
     double(): this.Output;
 }
 
-struct Pair<T: Numeric> {
+struct Pair<out T: Numeric> {
     x: T;
 }
 

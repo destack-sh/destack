@@ -246,7 +246,7 @@ struct Point implements Drawable {
 fn test_struct_implements_rejects_conflicting_generic_heritage() {
     let session = TestSession::single(
         r#"
-interface Base<T> {}
+interface Base<in out T> {}
 interface Left extends Base<string> {}
 interface Right extends Base<int32> {}
 
@@ -259,19 +259,19 @@ struct Point implements Left, Right {}
         DirRows::checked(),
         r#"
 === annotated ===
-interface Base<T> {}
+interface Base<in out T> {}
 interface Left extends Base<string> {}
 interface Right extends Base<int32> {}
 
 struct Point implements Left, Right {}
 
 === checked ===
-interface Base<T> {}
-/// @generic.template symbol=Base parameters=(T)
-/// @type.symbol symbol=Base source="interface Base<T> {}" type=Base
-/// @definition.interface symbol=Base source="interface Base<T> {}" template=(T)
-/// @definition.where symbol=Base source="interface Base<T> {}" relation=satisfies left=this right=Base<T>
-/// @type.symbol symbol=Base.T source=T type=T
+interface Base<in out T> {}
+/// @generic.template symbol=Base parameters=(in out T)
+/// @type.symbol symbol=Base source="interface Base<in out T> {}" type=Base
+/// @definition.interface symbol=Base source="interface Base<in out T> {}" template=(in out T)
+/// @definition.where symbol=Base source="interface Base<in out T> {}" relation=satisfies left=this right=Base<T>
+/// @type.symbol symbol=Base.T source="in out T" type=T
 
 interface Left extends Base<string> {}
 /// @type.symbol symbol=Left source="interface Left extends Base<string> {}" type=Left
@@ -296,6 +296,8 @@ struct Point implements Left, Right {}
 /// @resolution.name source=Right target=Right
 "#,
         r#"
+/// @diagnostic.error code=EC203 message="type 'Point' does not implement interface 'Right'"
+/// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 /// @diagnostic.error code=EC617 message="type 'Point' has conflicting heritage for 'Base'"
 /// @diagnostic.label line=6 column=31 span="Right" line_source="struct Point implements Left, Right {}"
 "#,

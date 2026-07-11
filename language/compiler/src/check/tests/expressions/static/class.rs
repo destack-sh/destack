@@ -204,7 +204,7 @@ class Packet<T> {
 === annotated ===
 struct TextMeta {}
 
-class Packet<T> {
+class Packet<in out T> {
     @if(T extends string)
     meta: TextMeta;
 

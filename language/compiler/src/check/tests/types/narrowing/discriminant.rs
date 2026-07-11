@@ -430,25 +430,25 @@ class Cell<T> {
         DirRows::checked(),
         r#"
 === annotated ===
-struct Waiter<T> {
+struct Waiter<out T> {
     value: T;
     next: Waiter<T> | undefined;
 }
 
-struct Pending<T> {
+struct Pending<out T> {
     kind: "pending";
     head: Waiter<T> | undefined;
     tail: Waiter<T> | undefined;
 }
 
-struct Fulfilled<T> {
+struct Fulfilled<out T> {
     kind: "fulfilled";
     value: T;
 }
 
 type State<T> = Pending<T> | Fulfilled<T>;
 
-class Cell<T> {
+class Cell<in T> {
     state: State<T>;
 
     constructor(pending: Pending<T>): Cell<T> {

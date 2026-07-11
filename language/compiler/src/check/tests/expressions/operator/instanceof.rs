@@ -336,7 +336,7 @@ function adopt<T>(value: T): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Deferred<T> {
+class Deferred<out T> {
     then(callback: (arg0: T) => void): void {}
 }
 
@@ -421,7 +421,7 @@ function adopt<T>(value: T | Deferred<T>): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Deferred<T> {
+class Deferred<out T> {
     then(callback: (arg0: T) => void): void {}
 }
 
@@ -466,14 +466,13 @@ function adopt<T>(value: T | Deferred<T>): void {
 
         value.then((value) => {});
         /// @type.node source="value.then((value) => {})" type=void
-        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
+        /// @type.node source=value type=T#2 & Deferred<*>
         /// @type.node source=value.then type=(this: Deferred<*>, Function<(*,), void>) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> | Deferred<T#2> kind=symbol target=Deferred.then
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> | Deferred<T#2> instance=Deferred<*>.then
+        /// @resolution.member source=value.then receiver=T#2 & Deferred<*> kind=symbol target=Deferred.then
+        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> instance=Deferred<*>.then
         /// @generic.instance source="value.then((value) => {})" id=Deferred<*>.then
         /// @generic.instance source=value id=Deferred<*>
-        /// @generic.instance source=value id=Deferred<T#2>
         /// @generic.instance source=value.then id=Deferred<*>
         /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
         /// @type.node source="(value) => {}" type=Function<(*,), void>

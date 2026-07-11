@@ -38,7 +38,7 @@ interface Readable {
     read(): string;
 }
 
-struct Box<T> {
+struct Box<out T> {
     value: T;
 }
 
@@ -169,7 +169,7 @@ interface Readable {
     read(): string;
 }
 
-struct Box<T> {
+struct Box<out T> {
     value: T;
 }
 
@@ -275,7 +275,7 @@ interface Keyed<I> {
     index(key: I): this.Output;
 }
 
-struct Table<K, V> {
+struct Table<in out K, in out V> {
     size: usize;
 }
 
@@ -296,13 +296,13 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 import { todo } from "destack:error";
 import { Equal, Hash } from "destack:ops";
 
-interface Keyed<I> {
+interface Keyed<in I> {
     type Output;
 
     index(key: I): this.Output;
 }
 
-struct Table<K, V> {
+struct Table<in out K, in out V> {
     size: usize;
 }
 
@@ -336,13 +336,13 @@ interface Keyed<I> {
 
 }
 
-struct Table<K, V> {
-/// @generic.template symbol=Table parameters=(K#1, V#1)
+struct Table<in out K, in out V> {
+/// @generic.template symbol=Table parameters=(in out K#1, in out V#1)
 /// @type.symbol symbol=Table type=Table
-/// @definition.struct symbol=Table template=(K#1, V#1)
+/// @definition.struct symbol=Table template=(in out K#1, in out V#1)
 /// @definition.field symbol=Table.size source="size: usize" key=size type=usize
-/// @type.symbol symbol=Table.K source=K type=K#1
-/// @type.symbol symbol=Table.V source=V type=V#1
+/// @type.symbol symbol=Table.K source="in out K" type=K#1
+/// @type.symbol symbol=Table.V source="in out V" type=V#1
 
     size: usize;
     /// @type.symbol symbol=Table.size source="size: usize" type=usize
@@ -422,7 +422,7 @@ export extension<T> of Pack<T> where T: Copy {
 === annotated ===
 import { Copy } from "destack:memory";
 
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 

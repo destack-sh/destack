@@ -107,7 +107,7 @@ extension<T> of Wrapper<T> {
 === annotated ===
 import { Promise } from "destack:async";
 
-newtype Wrapper<T> = Promise<T>;
+newtype Wrapper<in out T> = Promise<T>;
 
 extension<T> of Wrapper<T> {
     async take(): Promise<T> {

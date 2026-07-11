@@ -489,11 +489,11 @@ class Bucket<K: Equal<K>> {
 
     session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-interface Equal<T> {
+interface Equal<in T> {
     equals(other: T): boolean;
 }
 
-class Bucket<K: Equal<K>> {
+class Bucket<in out K: Equal<K>> {
     key: K;
 
     constructor(key: K): Bucket<K> {
@@ -597,13 +597,13 @@ extension<K> of Box<K> where K: Equal<K> {
 
     session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-interface Equal<T> {
+interface Equal<in T> {
     equals(other: T): boolean;
 }
 
 declare function probe<T: Equal<T>>(value: T): boolean;
 
-class Box<K> {
+class Box<in out K> {
     key: K;
 
     constructor(key: K): Box<K> {
@@ -725,13 +725,13 @@ class Box<K> {
 
     session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-interface Equal<T> {
+interface Equal<in T> {
     equals(other: T): boolean;
 }
 
 declare function probe<T: Equal<T>>(value: T): boolean;
 
-class Box<K> {
+class Box<in out K> {
     key: K;
 
     constructor(key: K): Box<K> {
@@ -841,7 +841,7 @@ extension<K> of Box<K> {
 === annotated ===
 declare function probe<T>(value: T): boolean;
 
-class Box<K> {
+class Box<in out K> {
     key: K;
 
     constructor(key: K): Box<K> {
@@ -951,13 +951,13 @@ interface Hash {
     hash(): float64;
 }
 
-interface Equal<T> {
+interface Equal<in T> {
     equals(other: T): boolean;
 }
 
 declare function probe<T: Equal<T>>(value: T): boolean;
 
-class Box<K> {
+class Box<in out K> {
     key: K;
 
     constructor(key: K): Box<K> {
@@ -1151,7 +1151,7 @@ export extension<T> of Cell<T> {
 === annotated ===
 declare function todo(message: string): never;
 
-newtype Inner<T> = intrinsic;
+newtype Inner<in out T> = intrinsic;
 
 extension<T> of Inner<T> {
     static new(value: T): Inner<T> {
@@ -1159,7 +1159,7 @@ extension<T> of Inner<T> {
     }
 }
 
-export struct Cell<T> {
+export struct Cell<in out T> {
     storage: Inner<T>;
 }
 
@@ -1491,7 +1491,7 @@ extension<T> of Box<T> {
 
     session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-class Box<T> {
+class Box<in out T> {
     value: T;
 
     constructor(value: T): Box<T> {
@@ -1622,7 +1622,7 @@ extension<T> of Outer<T> {
 
     session.assert_dir_checked_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-struct Inner<T> {
+struct Inner<out T> {
     value: T;
 }
 
@@ -1632,7 +1632,7 @@ extension<T> of Inner<T> {
     }
 }
 
-struct Outer<T> {
+struct Outer<out T> {
     inner: Inner<T>;
 }
 

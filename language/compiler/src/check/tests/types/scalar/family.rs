@@ -22,7 +22,7 @@ const floats = Vector { x: 1.5 as float32 };
 === annotated ===
 import { Numeric } from "destack:math";
 
-struct Vector<T: Numeric> {
+struct Vector<out T: Numeric> {
     x: T;
 }
 
@@ -79,7 +79,7 @@ const narrow = Index { value: 1 as int32 };
         DirRows::checked(),
         r#"
 === annotated ===
-struct Index<T: int> {
+struct Index<out T: int> {
     value: T;
 }
 

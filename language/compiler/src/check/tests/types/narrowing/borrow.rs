@@ -229,15 +229,11 @@ struct Text {
     value: string;
 }
 
-struct Number {
-    value: int32;
-}
-
 function value<L: Lifetime, R: Lifetime>(
     left: Borrowed<Text, L>,
-    right: Borrowed<Number, R>,
+    right: Borrowed<Text, R>,
     flag: boolean,
-): Borrowed<string | int32, L | R> {
+): Borrowed<string, L | R> {
     return flag ? (&left.value) : (&right.value);
 }
 "#,
@@ -252,16 +248,12 @@ struct Text {
     value: string;
 }
 
-struct Number {
-    value: int32;
-}
-
 function value<L: Lifetime, R: Lifetime>(
     left: Borrowed<Text, L, "mutable">,
-    right: Borrowed<Number, R, "mutable">,
+    right: Borrowed<Text, R, "mutable">,
     flag: boolean,
-): Borrowed<string | int32, L | R, "mutable"> {
-    return (flag ? &left.value : &right.value) as Borrowed<string | int32, L | R, "mutable">;
+): Borrowed<string, L | R, "mutable"> {
+    return flag ? &left.value : &right.value;
 }
 
 === checked ===
@@ -275,19 +267,9 @@ struct Text {
 
 }
 
-struct Number {
-/// @type.symbol symbol=Number type=Number
-/// @definition.struct symbol=Number
-/// @definition.field symbol=Number.value source="value: int32" key=value type=int32
-
-    value: int32;
-    /// @type.symbol symbol=Number.value source="value: int32" type=int32
-
-}
-
 function value<L: Lifetime, R: Lifetime>(
 /// @generic.template symbol=value parameters=(L: Lifetime, R: Lifetime)
-/// @type.symbol symbol=value type=<L: Lifetime, R: Lifetime>(Borrowed<Text, L, "mutable">, Borrowed<Number, R, "mutable">, boolean) => Borrowed<string | int32, L | R, "mutable">
+/// @type.symbol symbol=value type=<L: Lifetime, R: Lifetime>(Borrowed<Text, L, "mutable">, Borrowed<Text, R, "mutable">, boolean) => Borrowed<string, L | R, "mutable">
 /// @type.symbol symbol=value.L source="L: Lifetime" type=L
 /// @resolution.name source=Lifetime target=memory.lifetime.Lifetime
 /// @type.symbol symbol=value.R source="R: Lifetime" type=R
@@ -299,22 +281,22 @@ function value<L: Lifetime, R: Lifetime>(
     /// @resolution.name source=Text target=Text
     /// @resolution.name source=L target=value.L
 
-    right: Borrowed<Number, R>,
-    /// @type.symbol symbol=value.right source="right: Borrowed<Number, R>" type=Borrowed<Number, R, "mutable">
+    right: Borrowed<Text, R>,
+    /// @type.symbol symbol=value.right source="right: Borrowed<Text, R>" type=Borrowed<Text, R, "mutable">
     /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
-    /// @resolution.name source=Number target=Number
+    /// @resolution.name source=Text target=Text
     /// @resolution.name source=R target=value.R
 
     flag: boolean,
     /// @type.symbol symbol=value.flag source="flag: boolean" type=boolean
 
-): Borrowed<string | int32, L | R> {
+): Borrowed<string, L | R> {
 /// @resolution.name source=Borrowed target=memory.borrow.Borrowed
 /// @resolution.name source=L target=value.L
 /// @resolution.name source=R target=value.R
 
     return flag ? (&left.value) : (&right.value);
-    /// @type.node source="flag ? (&left.value) : (&right.value)" type=Borrowed<string, L, "mutable"> | Borrowed<int32, R, "mutable">
+    /// @type.node source="flag ? (&left.value) : (&right.value)" type=Borrowed<string, L | R, "mutable">
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=value.flag
     /// @type.node source=&left.value type=Borrowed<string, L, "mutable">
@@ -323,17 +305,17 @@ function value<L: Lifetime, R: Lifetime>(
     /// @resolution.name source=left target=value.left
     /// @resolution.member source=left.value receiver=Borrowed<Text, L, "mutable"> kind=symbol target=Text.value
     /// @generic.instance source=left id="Borrowed<Text, L, \"mutable\">"
-    /// @type.node source=&right.value type=Borrowed<int32, R, "mutable">
-    /// @type.node source=right type=Borrowed<Number, R, "mutable">
-    /// @type.node source=right.value type=int32
+    /// @type.node source=&right.value type=Borrowed<string, R, "mutable">
+    /// @type.node source=right type=Borrowed<Text, R, "mutable">
+    /// @type.node source=right.value type=string
     /// @resolution.name source=right target=value.right
-    /// @resolution.member source=right.value receiver=Borrowed<Number, R, "mutable"> kind=symbol target=Number.value
-    /// @generic.instance source=right id="Borrowed<Number, R, \"mutable\">"
+    /// @resolution.member source=right.value receiver=Borrowed<Text, R, "mutable"> kind=symbol target=Text.value
+    /// @generic.instance source=right id="Borrowed<Text, R, \"mutable\">"
 
 }
 
-/// @generic.instance id="Borrowed<Number, R, \"mutable\">" template=memory.borrow.Borrowed arguments=(Number, R, "mutable")
 /// @generic.instance id="Borrowed<Text, L, \"mutable\">" template=memory.borrow.Borrowed arguments=(Text, L, "mutable")
-/// @generic.instance id="Borrowed<string | int32, L | R, \"mutable\">" template=memory.borrow.Borrowed arguments=(string | int32, L | R, "mutable")
+/// @generic.instance id="Borrowed<Text, R, \"mutable\">" template=memory.borrow.Borrowed arguments=(Text, R, "mutable")
+/// @generic.instance id="Borrowed<string, L | R, \"mutable\">" template=memory.borrow.Borrowed arguments=(string, L | R, "mutable")
 "#);
 }

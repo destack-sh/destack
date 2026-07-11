@@ -28,15 +28,15 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Ok<T> {
+struct Ok<out T> {
     value: T;
 }
 
-struct Err<E> {
+struct Err<out E> {
     error: E;
 }
 
-newtype Outcome<T, E> = Ok<T> | Err<E>;
+newtype Outcome<out T, out E> = Ok<T> | Err<E>;
 
 function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     match (outcome) {
@@ -97,7 +97,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
 /// @resolution.name source=T target=unwrapOr.T
 
     match (outcome) {
-    /// @type.node type=T#3 | T#3
+    /// @type.node type=T#3 | T#3 reduced=T#3
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrapOr.outcome
     /// @generic.instance source=outcome id="Outcome<T#3, E#3>"
@@ -156,15 +156,15 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Ok<T> {
+struct Ok<out T> {
     value: T;
 }
 
-struct Err<E> {
+struct Err<out E> {
     error: E;
 }
 
-newtype Outcome<T, E> = Ok<T> | Err<E>;
+newtype Outcome<out T, out E> = Ok<T> | Err<E>;
 
 function unwrap<T, E>(outcome: Outcome<T, E>): T {
     match (outcome) {
@@ -272,7 +272,7 @@ function limitOr<T>(edge: Edge<T>, fallback: T): T {
         r#"
 === annotated ===
 @derive(Tagged)
-newtype Edge<T> = { kind: "bounded"; limit: T } | { kind: "open" };
+newtype Edge<in out T> = { kind: "bounded"; limit: T } | { kind: "open" };
 
 function limitOr<T>(edge: Edge<T>, fallback: T): T {
     match (edge) {
@@ -370,7 +370,7 @@ const value: string = match (edge) {
         r#"
 === annotated ===
 @derive(Tagged)
-newtype Edge<T> = { kind: "bounded"; limit: T } | { kind: "open" };
+newtype Edge<in out T> = { kind: "bounded"; limit: T } | { kind: "open" };
 
 declare const edge: Edge<string> | Edge<int32>;
 

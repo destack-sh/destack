@@ -226,7 +226,7 @@ const value: Box<int32> = _(1);
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-newtype Box<T> = T;
+newtype Box<out T> = T;
 
 const value: Box<int32> = Box(1);
 
@@ -268,7 +268,7 @@ function from<T, E>(value: E): Result<T, E> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-newtype Result<T, E> = T | E;
+newtype Result<out T, out E> = T | E;
 
 function from<T, E>(value: E): Result<T, E> {
     Result(value as T | E)

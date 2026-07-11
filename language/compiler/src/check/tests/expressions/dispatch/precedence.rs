@@ -27,7 +27,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 
@@ -237,15 +237,15 @@ export extension<T, E> of Outcome<T, E> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Ok<T> {
+struct Ok<out T> {
     value: T;
 }
 
-struct Err<E> {
+struct Err<out E> {
     error: E;
 }
 
-newtype Outcome<T, E> = Ok<T> | Err<E>;
+newtype Outcome<out T, out E> = Ok<T> | Err<E>;
 
 export extension<T, E> of Outcome<T, E> {
     static ok(value: T): Outcome<T, E> {
@@ -260,7 +260,7 @@ export extension<T, E> of Outcome<T, E> {
         match (this) {
             Ok { value } => Outcome.ok<U, E>(f(value))
             Err { error } => Outcome.err<U, E>(error)
-        } as Outcome<U, E>
+        }
     }
 }
 
@@ -370,7 +370,7 @@ export extension<T, E> of Outcome<T, E> {
     /// @resolution.name source=E target=E
 
         match (this) {
-        /// @type.node type=Outcome<U, E#3> | Outcome<U, E#3>
+        /// @type.node type=Outcome<U, E#3> | Outcome<U, E#3> reduced=Outcome<U, E#3>
         /// @type.node source=this type=Outcome<T#3, E#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
         /// @generic.instance source=this id="Outcome<T#3, E#3>"
@@ -457,7 +457,7 @@ function wrap(): Packed<string> {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 
@@ -470,7 +470,7 @@ export extension<T> of Pack<T> {
 export type Packed<T> = Pack<T>;
 
 function wrap(): Packed<string> {
-    Packed.of<string>("text")
+    Packed.of<"text">("text")
 }
 
 === checked ===
@@ -525,23 +525,23 @@ function wrap(): Packed<string> {
 /// @resolution.name source=Packed target=Packed
 
     Packed.of("text")
-    /// @type.node source="Packed.of(\"text\")" type=Pack<string>
+    /// @type.node source="Packed.of(\"text\")" type=Pack<"text">
     /// @type.node source=Packed type=Packed
     /// @type.node source=Packed.of type=(T#2) => Pack<T#2>
     /// @resolution.name source=Packed target=Packed
     /// @resolution.member source=Packed.of receiver=Packed kind=symbol target=of
-    /// @resolution.call source="Packed.of(\"text\")" parameters=(string) arguments=(provided("text") as string) return=Pack<string> kind=symbol target=of receiver=Packed instance=Pack<string>.<extension#1>.of
-    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>
-    /// @generic.instance source="Packed.of(\"text\")" id=Pack<string>.<extension#1>.of
+    /// @resolution.call source="Packed.of(\"text\")" parameters=("text") arguments=(provided("text") as "text") return=Pack<"text"> kind=symbol target=of receiver=Packed instance="Pack<\"text\">.<extension#1>.of"
+    /// @generic.instance source="Packed.of(\"text\")" id="Pack<\"text\">"
+    /// @generic.instance source="Packed.of(\"text\")" id="Pack<\"text\">.<extension#1>.of"
     /// @generic.instance source=Packed.of id=Pack<T#2>
     /// @type.node source="\"text\"" type="text"
 
 }
 
+/// @generic.instance id="Pack<\"text\">" template=Pack arguments=("text")
+/// @generic.instance id="Pack<\"text\">.<extension#1>.of" template=of arguments=("text")
 /// @generic.instance id=Pack<T#2> template=Pack arguments=(T#2)
 /// @generic.instance id=Pack<T#3> template=Pack arguments=(T#3)
-/// @generic.instance id=Pack<string> template=Pack arguments=(string)
-/// @generic.instance id=Pack<string>.<extension#1>.of template=of arguments=(string)
 /// @generic.instance id=Packed<string> template=Packed arguments=(string)
 "#,
         r#""#,
@@ -567,7 +567,7 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 
@@ -636,7 +636,7 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-struct Pack<T> {
+struct Pack<out T> {
     value: T;
 }
 

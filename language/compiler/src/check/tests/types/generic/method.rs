@@ -86,7 +86,7 @@ extension Arithmetic<T: Scalar> of T {
 
 /// @generic.instance id=checkedAdd<T#2> template=checkedAdd arguments=(T#2)
 
-/// @check.stats.solve variables=1 types=13 constraints=7 obligations=4 solutions=1 bounds=4 decisions=12
+/// @check.stats.solve variables=1 types=13 constraints=7 obligations=5 solutions=1 bounds=4 decisions=12
 "#,
         r#"
 "#,
@@ -196,7 +196,7 @@ function read<T>(source: &readonly Box<T>): &readonly T {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-declare class Box<T> {
+declare class Box<in out T> {
     get(&readonly this): &readonly T;
 }
 

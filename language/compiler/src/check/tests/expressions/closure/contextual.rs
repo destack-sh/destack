@@ -153,7 +153,7 @@ function capture(): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Cell<T> {
+class Cell<out T> {
     constructor(executor: (arg0: T) => void): Cell<T> {
         executor;
     }

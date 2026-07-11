@@ -217,7 +217,7 @@ struct Payload {
     value: int32;
 }
 
-struct Request<T> {
+struct Request<out T> {
     header: Header;
     body: T;
 }
@@ -290,6 +290,71 @@ request.body satisfies shared Payload;
 /// @resolution.name source=Payload target=Payload
 
 /// @generic.instance id=Request<Payload> template=Request arguments=(Payload)
+"#,
+    );
+}
+
+#[test]
+fn test_handles_do_not_cross_spaces() {
+    let session = TestSession::single(
+        r#"
+struct Point {
+    x: int32;
+}
+
+declare const remote: shared ^Point;
+const nearby: local ^Point = remote;
+
+declare const far: shared int32;
+const near: int32 = far;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+
+declare const remote: shared ^Point;
+const nearby: local ^Point = remote;
+
+declare const far: shared int32;
+const near: int32 = far;
+
+=== checked ===
+struct Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+}
+
+declare const remote: shared ^Point;
+/// @type.symbol symbol=remote source=remote type=Placed<Owned<Point>, "shared"> reduced=Placed<Point, "shared">
+/// @resolution.name source=Point target=Point
+
+const nearby: local ^Point = remote;
+/// @type.symbol symbol=nearby source=nearby type=Placed<Owned<Point>, "local"> reduced=Placed<Point, "local">
+/// @resolution.name source=Point target=Point
+/// @resolution.name source=remote target=remote
+
+declare const far: shared int32;
+/// @type.symbol symbol=far source=far type=Placed<int32, "shared">
+
+const near: int32 = far;
+/// @type.symbol symbol=near source=near type=int32
+/// @resolution.name source=far target=far
+"#,
+        r#"
+/// @diagnostic.error code=EC200 message="type 'shared ^Point' is not assignable to type 'local ^Point'"
+/// @diagnostic.label line=7 column=30 span="remote" line_source="const nearby: local ^Point = remote;"
 "#,
     );
 }

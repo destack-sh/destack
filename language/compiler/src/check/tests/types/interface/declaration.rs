@@ -71,7 +71,7 @@ interface Serializer {
     serializeValue<T: Serialize<this>>(value: T): void;
 }
 
-interface Serialize<S: Serializer> {
+interface Serialize<in S: Serializer> {
     serialize(target: S): void;
 }
 
