@@ -167,6 +167,8 @@ pub struct DirExported {
     pub exports: dir::ExportTable,
     /// Global declarations contributed by this module.
     pub globals: dir::GlobalTable,
+    /// Module-scope binding names, kept for missing-export diagnostics.
+    pub locals: Vec<String>,
 }
 
 impl DirExported {
