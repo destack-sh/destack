@@ -69,7 +69,6 @@ impl Parser {
 
             let item_start = self.mark_parse_start();
             let item = self.parse_type_or_recover_missing(context, NodeType::Declaration)?;
-            let item = self.strip_heritage_parentheses(item);
             let item_range = self.range_since(&item_start);
             self.tree
                 .set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), item_range);
@@ -147,29 +146,5 @@ impl Parser {
             || terminators
                 .iter()
                 .any(|terminator| self.peek_is_keyword(*terminator))
-    }
-
-    /// Strip redundant parentheses from one type heritage entry.
-    fn strip_heritage_parentheses(
-        &mut self,
-        expression_id: LocalNodeId<TypeExpression>,
-    ) -> LocalNodeId<TypeExpression> {
-        let mut expression_id = expression_id;
-
-        // parenthesized declaration heads are not distinct in heritage lists
-        while let TypeExpression::Parenthesized { expression } = self.tree.get(expression_id) {
-            let nested_expression = *expression;
-
-            if !matches!(
-                self.tree.get(nested_expression),
-                TypeExpression::Function(_) | TypeExpression::Constructor(_)
-            ) {
-                break;
-            }
-
-            expression_id = nested_expression;
-        }
-
-        expression_id
     }
 }

@@ -1,7 +1,6 @@
 use crate::parse::context::{ExpressionContext, TypeContext, TypeMode, TypeStops};
 use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one parenthesized type, tuple, or function head.
@@ -36,7 +35,9 @@ impl Parser {
             NodeType::TypeExpression,
         )?;
 
-        Ok(self.retain_type_parentheses(start, ty))
+        self.record_parentheses(start, ty);
+
+        Ok(ty)
     }
 
     /// Parse one empty tuple type after its opening parenthesis.
@@ -80,36 +81,6 @@ impl Parser {
         )?;
 
         Ok(self.insert_node(TypeExpression::Tuple { elements }, self.range_since(start)))
-    }
-
-    /// Retain type parentheses as a node or source region.
-    fn retain_type_parentheses(
-        &mut self,
-        start: &ParseStart,
-        ty: LocalNodeId<TypeExpression>,
-    ) -> LocalNodeId<TypeExpression> {
-        if self.retains_parentheses() {
-            return self.insert_node(
-                TypeExpression::Parenthesized { expression: ty },
-                self.range_since(start),
-            );
-        }
-
-        let type_range = self.tree.get_range(ty);
-        let leading_range = ByteRange {
-            start: start.token_end(),
-            end: type_range.start,
-        };
-        if leading_range.start < leading_range.end {
-            self.tree.set_side_range(
-                ty,
-                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
-                leading_range,
-            );
-        }
-        self.extend_node_region_range(ty, NodeSpanRegion::Parentheses, self.range_since(start));
-
-        ty
     }
 
     /// Return whether the current token starts a constructor type expression.

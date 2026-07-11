@@ -265,7 +265,6 @@ impl Parser {
         left: LocalNodeId<Expression>,
         context: ExpressionContext,
     ) -> ParserResult<Option<LocalNodeId<Expression>>> {
-        let left = self.strip_expression_parentheses(left);
         let Some(ty) = self.promote_static_type_head(left) else {
             return Ok(None);
         };

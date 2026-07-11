@@ -40,19 +40,17 @@ impl Parser {
         &mut self,
         expression: LocalNodeId<Expression>,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let unparenthesized = self.strip_expression_parentheses(expression);
-        let has_parentheses = unparenthesized != expression
-            || self
-                .tree
-                .get_side_range(
-                    expression,
-                    NodeSpanType::Region(NodeSpanRegion::Parentheses),
-                )
-                .is_some();
+        let has_parentheses = self
+            .tree
+            .get_side_range(
+                expression,
+                NodeSpanType::Region(NodeSpanRegion::Parentheses),
+            )
+            .is_some();
 
         // assertions must be parenthesized before assignment
         if matches!(
-            self.tree.get(unparenthesized),
+            self.tree.get(expression),
             Expression::As { .. } | Expression::Satisfies { .. }
         ) && !has_parentheses
         {
@@ -62,7 +60,7 @@ impl Parser {
         // assignments and destructuring cannot be hidden by parentheses
         if has_parentheses
             && matches!(
-                self.tree.get(unparenthesized),
+                self.tree.get(expression),
                 Expression::Assign { .. }
                     | Expression::ArrayExpression { .. }
                     | Expression::TupleExpression { .. }
@@ -73,21 +71,21 @@ impl Parser {
         }
 
         // lower array destructuring recursively
-        if let Expression::ArrayExpression { elements } = self.tree.get(unparenthesized) {
+        if let Expression::ArrayExpression { elements } = self.tree.get(expression) {
             let elements = elements.clone();
 
             return self.lower_sequence_assignment(expression, elements);
         }
 
         // lower tuple destructuring recursively
-        if let Expression::TupleExpression { elements } = self.tree.get(unparenthesized) {
+        if let Expression::TupleExpression { elements } = self.tree.get(expression) {
             let elements = elements.clone();
 
             return self.lower_tuple_assignment(expression, elements);
         }
 
         // lower object destructuring recursively
-        if let Expression::ObjectExpression { properties } = self.tree.get(unparenthesized) {
+        if let Expression::ObjectExpression { properties } = self.tree.get(expression) {
             let properties = properties.clone();
 
             return self.lower_object_assignment(expression, properties);
@@ -98,7 +96,7 @@ impl Parser {
             left,
             operator,
             right,
-        } = self.tree.get(unparenthesized)
+        } = self.tree.get(expression)
         {
             let left = *left;
             let operator = *operator;
@@ -122,10 +120,8 @@ impl Parser {
             return Err(ParserError::unexpected(self.tree.get_range(expression)));
         }
 
-        let place = self.strip_expression_parentheses(expression);
-
         Ok(self.insert_node(
-            AssignPattern::Place { expression: place },
+            AssignPattern::Place { expression },
             self.tree.get_range(expression),
         ))
     }
@@ -314,8 +310,6 @@ impl Parser {
     /// Return whether one expression denotes a writable place.
     fn is_assignment_place(&self, mut expression: LocalNodeId<Expression>) -> bool {
         loop {
-            expression = self.strip_expression_parentheses(expression);
-
             // accept direct writable places
             match self.tree.get(expression) {
                 Expression::Identifier { .. } => return true,
@@ -341,8 +335,6 @@ impl Parser {
     /// Return whether one expression contains optional chaining.
     fn contains_optional_chain(&self, mut expression: LocalNodeId<Expression>) -> bool {
         loop {
-            expression = self.strip_expression_parentheses(expression);
-
             // follow the left edge of the place expression
             match self.tree.get(expression) {
                 Expression::Maybe { .. } => return true,

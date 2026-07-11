@@ -898,7 +898,7 @@ fn test_parse_let_lambda_initializer_before_next_line_expression() {
 
     assert_node!(parser.tree, expressions[1], Expression::Call { left, arguments, .. } => {
             assert!(arguments.is_empty());
-            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *left, expression => {
                 assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                         assert_eq!(signature.form, FunctionForm::Lambda);

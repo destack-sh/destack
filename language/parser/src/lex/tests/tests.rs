@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Lexer, Parser, ParserOptions, ParserTriviaMode};
+use crate::{Lexer, Parser, ParserTriviaMode};
 use destack_core::StringPool;
 use destack_dir::render_tokens;
 pub(in crate::lex) use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
@@ -138,13 +138,10 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
     };
 
     // configure parser driven lexing
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         file,
         LanguageType::Destack,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
 

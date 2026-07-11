@@ -65,7 +65,7 @@ fn test_parse_parenthesized_tree_callback_body() {
                         assert_string!(parser, *name, "item");
                     });
 
-                    assert_node!(parser.tree, *body, Expression::Parenthesized { expression } => {
+                    crate::assert_parenthesized!(parser.tree, *body, expression => {
                         assert_node!(parser.tree, *expression, Expression::TreeExpression { left: Some(left), attributes, children, .. } => {
                             assert_expression_path!(parser, parser.tree.get(*left), "option");
                             assert!(attributes.is_none());
@@ -286,7 +286,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
         assert_node!(parser.tree, condition, Expression::Binary { operator, .. } => {
                 assert_eq!(*operator, BinaryOperator::GreaterThan);
         });
-        assert_node!(parser.tree, *then_expression, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *then_expression, expression => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);
@@ -297,7 +297,7 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
             });
         });
         let else_id = else_expression.expect("expected else branch");
-        assert_node!(parser.tree, else_id, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, else_id, expression => {
             assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
                     assert_eq!(signature.form, FunctionForm::Lambda);

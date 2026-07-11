@@ -2,7 +2,7 @@ use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_core::StringPool;
 use destack_dir::{Expression, TypeExpression};
-use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
+use destack_parser::{Parser, ParserTriviaMode};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
@@ -128,15 +128,7 @@ fn prepare_parser(
     strings: Arc<StringPool>,
 ) -> Parser {
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    Parser::lex_file_with_options(
-        file,
-        language_type,
-        ParserOptions {
-            trivia_mode,
-            retain_parentheses: false,
-        },
-        strings,
-    )
+    Parser::lex_file_with_trivia(file, language_type, trivia_mode, strings)
 }
 
 /// Parse one file through the full parser pipeline.

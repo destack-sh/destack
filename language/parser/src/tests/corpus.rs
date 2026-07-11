@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_core::StringPool;
 use destack_source::{File, FileId, FileType, LanguageType, PrintOptions, Uri, print_diagnostics};
 
-use crate::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
+use crate::{Parser, ParserTriviaMode, source_colorizer};
 
 /// Return the checked-in library corpus root.
 fn library_root() -> PathBuf {
@@ -66,13 +66,10 @@ fn parse_library_source(path: &Path, root: &Path, strings: Arc<StringPool>) -> (
         .strip_prefix(root)
         .expect("expected source below library root");
     let file = library_file(path, logical_path, source);
-    let parser = Parser::lex_file_with_options(
+    let parser = Parser::lex_file_with_trivia(
         file.clone(),
         LanguageType::Destack,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Documentation,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Documentation,
         strings,
     );
 

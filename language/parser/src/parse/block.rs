@@ -319,7 +319,14 @@ impl Parser {
 
         // classify the unseparated expression at its enclosing block position
         let node = self.tree.get(expression);
-        let is_statement = node.is_statement_boundary();
+        let is_parenthesized = self
+            .tree
+            .get_side_range(
+                expression,
+                NodeSpanType::Region(NodeSpanRegion::Parentheses),
+            )
+            .is_some();
+        let is_statement = !is_parenthesized && node.is_statement_boundary();
         let preserves_tail = node.preserves_value_tail_in_expression_block();
         let token_type = self.peek_token_type();
         let is_terminator = token_type == TokenType::End

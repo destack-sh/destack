@@ -487,7 +487,7 @@ fn test_parse_lambda_return_type_tuple_with_nested_lambda_type() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             let return_type = signature.return_type.expect("expected return type");
-            assert_node!(parser.tree, return_type, TypeExpression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, return_type, expression => {
                 assert_node!(parser.tree, *expression, TypeExpression::Tuple { elements } => {
                     assert_eq!(elements.len(), 2);
 

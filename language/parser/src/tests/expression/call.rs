@@ -120,7 +120,7 @@ fn test_parse_parenthesized_member_postfix_missing_name_preserves_outer_close() 
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
 
     // (foo.)
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression_id, expression => {
         assert_node!(parser.tree, *expression, Expression::Member { left, name: None } => {
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
         });
@@ -366,7 +366,7 @@ fn test_parse_parenthesized_index_postfix_missing_expression_preserves_outer_clo
     TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, ")")]);
 
     // (foo[)
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expression_id, expression => {
         assert_node!(parser.tree, *expression, Expression::Index { position, left, index: Some(index) } => {
             assert_eq!(*position, PostfixPosition::Direct);
             assert_expression_path!(parser, parser.tree.get(*left), "foo");
@@ -681,7 +681,7 @@ fn test_parse_shift_left_comparison_not_type_arguments_like_babel() {
             });
 
             // (()=>T)
-            assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+            crate::assert_parenthesized!(parser.tree, *right, expression => {
                 assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
                     assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                         assert!(signature.parameters.is_empty());

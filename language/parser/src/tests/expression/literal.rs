@@ -152,7 +152,7 @@ fn test_parse_parenthesized_object_literal_shorthand_field() {
     let test = TestParser::new("({ value })");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expr_id, expression => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
@@ -170,7 +170,7 @@ fn test_parse_parenthesized_object_literal_explicit_field_is_not_shorthand() {
     let test = TestParser::new("({ value: value })");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expr_id, expression => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
@@ -190,7 +190,7 @@ fn test_parse_parenthesized_object_literal_computed_field_without_value() {
     let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expr_id, expression => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 1);
             assert_node!(parser.tree, properties[0], Property::Error);
@@ -346,7 +346,7 @@ fn test_parse_object_literal_in_parenthesis() {
     let test = TestParser::new("({ x: 1, y })");
     let mut parser = test.prepare();
     let expr_id = parser.parse_expression(Default::default()).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Parenthesized { expression } => {
+    crate::assert_parenthesized!(parser.tree, expr_id, expression => {
         assert_node!(parser.tree, *expression, Expression::ObjectExpression { properties, .. } => {
             assert_eq!(properties.len(), 2);
             assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {

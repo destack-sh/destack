@@ -302,7 +302,7 @@ fn test_parse_parenthesized_integer_member_access() {
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "foo");
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
     });

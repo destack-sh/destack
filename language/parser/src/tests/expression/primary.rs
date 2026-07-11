@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::{
-    Parser, ParserOptions, ParserTriviaMode, assert_expression_path, assert_node, assert_path,
-    assert_string, assert_value_expression_path,
+    Parser, ParserTriviaMode, assert_expression_path, assert_node, assert_path, assert_string,
+    assert_value_expression_path,
 };
 use destack_core::StringPool;
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
@@ -158,36 +158,37 @@ fn test_parse_undefined_literal() {
     );
 }
 
-/// Parse parenthesized expressions with a transparent head span.
+/// Record parentheses around one canonical expression.
 #[test]
-fn test_parse_parenthesized_expression_records_semantic_head_span() {
+fn test_parse_parenthesized_expression_records_source_region() {
     let test = TestParser::new("(value)");
     let mut parser = test.prepare();
     let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    assert_node!(parser.tree, expression_id, Expression::Parenthesized { expression } => {
-        let head_range = parser
-            .tree
-            .get_head_range(expression_id)
-            .expect("missing parenthesized head range");
-        let value_head_range = parser.expression_head_range(*expression);
+    assert_node!(parser.tree, expression_id, Expression::Identifier { .. });
+    crate::assert_parenthesized!(parser.tree, expression_id);
 
-        assert_eq!(head_range, value_head_range);
-        assert_eq!(parser.range_str(head_range), "value");
-    });
+    let expression_range = parser.tree.get_range(expression_id);
+    let parentheses_range = parser
+        .tree
+        .get_side_range(
+            expression_id,
+            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+        )
+        .expect("missing parentheses region");
+
+    assert_eq!(parser.range_str(expression_range), "value");
+    assert_eq!(parser.range_str(parentheses_range), "(value)");
 }
 
-/// Keep inner spans without parenthesized expression wrappers.
+/// Keep comments outside the canonical expression range.
 #[test]
-fn test_parse_without_retained_parentheses_keeps_inner_expression_span() {
+fn test_parse_parenthesized_expression_keeps_inner_expression_span() {
     let test = TestParser::new("(/* keep */ value)");
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         test.file.clone(),
         test.language,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     let expression_id = parser.parse_expression(Default::default()).unwrap();

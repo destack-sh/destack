@@ -15,7 +15,6 @@ use std::sync::Arc;
 use super::TokenMode;
 use super::context::FunctionContext;
 use super::cursor::TokenCursor;
-use super::options::ParserOptions;
 
 /// Recursive descents between nested stack checks.
 const STACK_CHECK_INTERVAL: u16 = 8;
@@ -34,8 +33,6 @@ pub struct Parser {
     trivia_mode: ParserTriviaMode,
     /// Whether the parser is finished.
     is_finished: bool,
-    /// Whether parenthesized expressions remain explicit DIR nodes.
-    retain_parentheses: bool,
     /// The current nested recursive descent depth.
     recursive_descent_depth: u16,
 
@@ -112,12 +109,6 @@ impl Parser {
         false
     }
 
-    /// Return whether explicit parentheses remain in the DIR tree.
-    #[inline]
-    pub(crate) fn retains_parentheses(&self) -> bool {
-        self.retain_parentheses
-    }
-
     /// Run one parser descent under the shared recursion limit.
     #[inline(always)]
     pub(crate) fn with_recursive_descent<T>(
@@ -153,7 +144,7 @@ impl Parser {
         language: LanguageType,
         strings: Arc<StringPool>,
         mut tree: Tree,
-        options: ParserOptions,
+        trivia_mode: ParserTriviaMode,
         cursor: TokenCursor,
     ) -> Self {
         // initialize source-local parser state
@@ -163,9 +154,8 @@ impl Parser {
             file,
             file_id,
             cursor,
-            trivia_mode: options.trivia_mode,
+            trivia_mode,
             is_finished: false,
-            retain_parentheses: options.retain_parentheses,
             recursive_descent_depth: 0,
             is_ambient: language.is_declaration(),
             tree,
@@ -177,23 +167,18 @@ impl Parser {
 
     /// Create a parser for one source file.
     pub fn lex_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
-        let options = ParserOptions {
-            trivia_mode: ParserTriviaMode::Documentation,
-            retain_parentheses: false,
-        };
-
-        Self::lex_file_with_options(file, language, options, strings)
+        Self::lex_file_with_trivia(file, language, ParserTriviaMode::Documentation, strings)
     }
 
-    /// Create a parser for one source file with explicit options.
-    pub fn lex_file_with_options(
+    /// Create a parser for one source file with explicit trivia retention.
+    pub fn lex_file_with_trivia(
         file: Arc<File>,
         language: LanguageType,
-        options: ParserOptions,
+        trivia_mode: ParserTriviaMode,
         strings: Arc<StringPool>,
     ) -> Self {
         let module_id = ModuleId::new(PackageId::new(0), file.id.0);
-        let cursor = TokenCursor::new(&file, options.trivia_mode);
+        let cursor = TokenCursor::new(&file, trivia_mode);
         let capacity = TreeCapacity {
             nodes: cursor.token_count(),
             comments: cursor.comment_count(),
@@ -201,20 +186,20 @@ impl Parser {
         };
         let tree = Tree::with_capacities(module_id, capacity);
 
-        Self::new(file, language, strings, tree, options, cursor)
+        Self::new(file, language, strings, tree, trivia_mode, cursor)
     }
 
     /// Create a parser that appends one module source file to an existing DIR tree.
-    pub fn lex_into_tree_with_options(
+    pub fn lex_into_tree_with_trivia(
         file: Arc<File>,
         language: LanguageType,
-        options: ParserOptions,
+        trivia_mode: ParserTriviaMode,
         strings: Arc<StringPool>,
         tree: Tree,
     ) -> Self {
-        let cursor = TokenCursor::new(&file, options.trivia_mode);
+        let cursor = TokenCursor::new(&file, trivia_mode);
 
-        Self::new(file, language, strings, tree, options, cursor)
+        Self::new(file, language, strings, tree, trivia_mode, cursor)
     }
 
     /// Publish locally interned strings and return the shared pool.
@@ -234,19 +219,6 @@ impl Parser {
             .copied()
             .map(|token| TokenSpan::new(token, self.file_id))
             .collect()
-    }
-
-    /// Return the innermost expression after skipping parenthesized wrappers.
-    #[inline]
-    pub(crate) fn strip_expression_parentheses(
-        &self,
-        mut expression_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        while let Expression::Parenthesized { expression } = self.tree.get(expression_id) {
-            expression_id = *expression;
-        }
-
-        expression_id
     }
 
     /// Eat a tree opening `<`.
@@ -679,6 +651,31 @@ impl Parser {
             });
 
         self.tree.set_side_range_by_id(node_id, span_type, range);
+    }
+
+    /// Record written parentheses around one canonical node.
+    pub(crate) fn record_parentheses<T>(&mut self, start: &ParseStart, node_id: LocalNodeId<T>)
+    where
+        T: Node,
+    {
+        let node_range = self.tree.get_range(node_id);
+        let leading_range = ByteRange {
+            start: start.token_end(),
+            end: node_range.start,
+        };
+        if leading_range.start < leading_range.end {
+            self.tree.set_side_range(
+                node_id,
+                NodeSpanType::Boundary(NodeSpanBoundary::Leading),
+                leading_range,
+            );
+        }
+
+        self.extend_node_region_range(
+            node_id,
+            NodeSpanRegion::Parentheses,
+            self.range_since(start),
+        );
     }
 
     /// Return the file-local byte range since one parse start.

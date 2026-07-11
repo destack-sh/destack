@@ -24,9 +24,9 @@ impl Parser {
 
         match self.tree.get(expression) {
             Expression::Type { value } => self.type_expression_head_range(*value),
-            Expression::Parenthesized { expression }
-            | Expression::As { expression, .. }
-            | Expression::Satisfies { expression, .. } => self.expression_head_range(*expression),
+            Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
+                self.expression_head_range(*expression)
+            }
             _ => match self.tree.get_main_range(expression) {
                 Some(range) => range,
                 None => self.tree.get_range(expression),

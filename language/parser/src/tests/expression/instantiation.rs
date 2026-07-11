@@ -1,9 +1,6 @@
 use crate::parse::{DecoratorContext, ExpressionContext};
 use crate::tests::TestParser;
-use crate::{
-    ParserOptions, ParserTriviaMode, assert_expression_path, assert_node, assert_path,
-    assert_string,
-};
+use crate::{ParserTriviaMode, assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
     Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Key, Name,
     Pattern, PostfixPosition, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
@@ -67,7 +64,7 @@ fn test_parse_instantiation_expression_parenthesized() {
                     assert_eq!(*value, TypeLiteral::Number);
                 });
         });
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::Instantiation { left, generic_arguments } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, *left, Expression::Identifier { name } => {
@@ -86,10 +83,7 @@ fn test_parse_instantiation_expression_parenthesized() {
 #[test]
 fn test_parse_parenthesized_instantiation_expression_statement() {
     let test = TestParser::new("(f<T>)<K>;");
-    let mut parser = test.prepare_with_options(ParserOptions {
-        trivia_mode: ParserTriviaMode::Full,
-        retain_parentheses: false,
-    });
+    let mut parser = test.prepare_with_trivia(ParserTriviaMode::Full);
     let expressions = parser.parse();
 
     TestParser::assert_no_errors(&parser);
@@ -116,7 +110,7 @@ fn test_parse_generic_call_with_parenthesized_instantiation_callee() {
     assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
         assert_eq!(generic_arguments.len(), 1);
         assert_eq!(arguments.len(), 1);
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::Instantiation { left, generic_arguments } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, *left, Expression::Member { .. });
@@ -216,7 +210,7 @@ fn test_parse_instantiation_expression_member_access_with_parentheses() {
 
     assert_node!(parser.tree, expr_id, Expression::Member { left, name } => {
         assert_string!(parser, *name, "x");
-        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+        crate::assert_parenthesized!(parser.tree, *left, expression => {
             assert_node!(parser.tree, *expression, Expression::Instantiation { left, generic_arguments } => {
                 assert_eq!(generic_arguments.len(), 1);
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value, .. } => {

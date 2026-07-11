@@ -6,9 +6,7 @@ use destack_dir::{
 };
 use std::sync::Arc;
 
-use crate::{
-    Parser, ParserOptions, ParserTriviaMode, assert_comment, assert_expression_path, assert_node,
-};
+use crate::{Parser, ParserTriviaMode, assert_comment, assert_expression_path, assert_node};
 use destack_core::StringPool;
 use destack_source::{NodeSpanBoundary, NodeSpanType};
 
@@ -362,14 +360,12 @@ fn test_parse_type_union_doc_comment_before_leading_separator_owner() {
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     let union_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
-            Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
-                TypeExpression::Parenthesized { expression } => *expression,
-                node => panic!("expected parenthesized type, got {node:?}"),
-            },
+            Declaration::Type(TypeDeclaration { value, .. }) => *value,
             node => panic!("expected type declaration, got {node:?}"),
         },
         node => panic!("expected declaration expression, got {node:?}"),
     };
+    crate::assert_parenthesized!(parser.tree, union_id);
 
     assert_node!(parser.tree, union_id, TypeExpression::Union { elements } => {
         assert_eq!(elements.len(), 2);
@@ -423,14 +419,12 @@ fn test_parse_type_comment_after_open_parenthesis_attaches_to_inner_leading() {
     let expression_id = parser.unwrap_label_expression(expressions[0]);
     let inner_type_id = match parser.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => match parser.tree.get(*declaration_id) {
-            Declaration::Type(TypeDeclaration { value, .. }) => match parser.tree.get(*value) {
-                TypeExpression::Parenthesized { expression } => *expression,
-                node => panic!("expected parenthesized type, got {node:?}"),
-            },
+            Declaration::Type(TypeDeclaration { value, .. }) => *value,
             node => panic!("expected type declaration, got {node:?}"),
         },
         node => panic!("expected declaration expression, got {node:?}"),
     };
+    crate::assert_parenthesized!(parser.tree, inner_type_id);
 
     assert_eq!(parser.tree.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " keep");
@@ -784,16 +778,13 @@ fn test_parse_type_union_last_arm_span_stops_before_trailing_line_comment_withou
 }
 
 #[test]
-fn test_parse_without_retained_parentheses_trims_type_union_last_arm() {
+fn test_parse_type_union_trims_last_arm_span() {
     let source = "type Value = First | Second // second-tail\n;";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         test.file.clone(),
         test.language,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -817,16 +808,13 @@ fn test_parse_without_retained_parentheses_trims_type_union_last_arm() {
 }
 
 #[test]
-fn test_parse_without_retained_parentheses_keeps_inner_type_span() {
+fn test_parse_parenthesized_type_keeps_inner_span() {
     let source = "type Box = (/* keep */ string);";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         test.file.clone(),
         test.language,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -852,16 +840,13 @@ fn test_parse_without_retained_parentheses_keeps_inner_type_span() {
 }
 
 #[test]
-fn test_parse_without_retained_parentheses_keeps_leading_union_chain_head() {
+fn test_parse_leading_union_keeps_parenthesized_chain_head() {
     let source = "type Value = | (A | B);";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         test.file.clone(),
         test.language,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
@@ -1091,17 +1076,14 @@ fn test_parse_type_mapped_expression_records_trailing_comment_owner() {
 }
 
 #[test]
-fn test_parse_without_retained_parentheses_trims_mapped_union_last_arm() {
+fn test_parse_mapped_union_trims_last_arm_span() {
     let source =
         "type Value<T> = {\n  [K in keyof T]:\n    | T[K] // arm-a\n    | undefined // arm-b\n}";
     let test = TestParser::new(source);
-    let mut parser = Parser::lex_file_with_options(
+    let mut parser = Parser::lex_file_with_trivia(
         test.file.clone(),
         test.language,
-        ParserOptions {
-            trivia_mode: ParserTriviaMode::Full,
-            retain_parentheses: false,
-        },
+        ParserTriviaMode::Full,
         Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
