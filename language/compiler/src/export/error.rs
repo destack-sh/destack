@@ -11,12 +11,18 @@ pub enum ExportError {
     /// ```ds
     /// export { missing };
     /// ```
-    #[diagnostic(code = "ET100", message = "missing exported local binding '{name}'")]
+    #[diagnostic(
+        code = "ET100",
+        message = "missing exported local binding '{name}'",
+        optional_message = "; did you mean '{suggestion}'?"
+    )]
     MissingExportBinding {
         /// The export clause.
         anchor: DiagnosticAnchor,
         /// The missing local binding name.
         name: String,
+        /// The closest module-scope binding name.
+        suggestion: Option<String>,
     },
 
     /// Module exports the same key twice.

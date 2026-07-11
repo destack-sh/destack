@@ -7,7 +7,7 @@ use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{Content, ModuleId};
 
 use crate::export::state::ExportState;
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult, ExportError};
 
 impl Compiler {
     /// Collect inputs for exported DIR of one module.
@@ -75,7 +75,7 @@ impl Compiler {
             },
         ));
         for diagnostic in diagnostics {
-            self.emit_diagnostic(context, diagnostic)?;
+            self.emit_diagnostic::<ExportError>(context, diagnostic)?;
         }
 
         Ok(ArtifactPayload::DirExported(Arc::new(exported)))

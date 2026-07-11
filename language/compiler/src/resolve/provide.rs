@@ -8,7 +8,7 @@ use destack_source::{Content, ModuleId, ProfileId};
 use indexmap::IndexSet;
 
 use crate::resolve::state::ResolveState;
-use crate::{Compiler, CompilerError, CompilerResult};
+use crate::{Compiler, CompilerError, CompilerResult, ResolveError};
 
 impl Compiler {
     /// Collect inputs for resolved import targets of one module.
@@ -100,7 +100,7 @@ impl Compiler {
 
         // emit recoverable resolve diagnostics
         for diagnostic in state.take_diagnostics() {
-            self.emit_diagnostic(context, diagnostic)?;
+            self.emit_diagnostic::<ResolveError>(context, diagnostic)?;
         }
 
         // publish resolved DIR

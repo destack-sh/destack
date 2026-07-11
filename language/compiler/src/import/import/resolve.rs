@@ -214,7 +214,8 @@ impl Compiler {
             .into());
         };
 
-        // select matching export
+        // select matching export; the export name lives inside the
+        //  specifier string, so no rename patch applies here
         let Some(export) = package.exports.get(&specifier.export) else {
             let suggestion = closest_string(
                 &specifier.export,

@@ -1,14 +1,14 @@
-use destack_artifact::{DiagnosticAnchor, DirResolved};
-use destack_core::{StringPool, closest_string};
+use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved};
+use destack_core::{NameMatch, StringPool, find_best_match};
 use destack_dir as dir;
 use destack_repository::ArtifactReader;
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
 use smallvec::{SmallVec, smallvec};
 
-use crate::export::{ExportLookup, ExportResolver};
+use crate::export::{ExportLookup, ExportResolver, ExportTarget};
 use crate::resolve::stats::ResolveStats;
-use crate::{CompilerResult, ResolveError, diagnostic_suggestion_distance};
+use crate::{CompilerResult, ResolveError, diagnostic_suggestion_distance, rename_suggestion};
 
 /// Resolve phase state for one module.
 pub(in crate::resolve) struct ResolveState<'a> {
@@ -29,7 +29,7 @@ pub(in crate::resolve) struct ResolveState<'a> {
     /// The reference resolutions being built.
     pub(in crate::resolve) references: dir::ReferenceTable,
     /// The recoverable diagnostics produced while resolving.
-    pub(in crate::resolve) diagnostics: Vec<ResolveError>,
+    pub(in crate::resolve) diagnostics: Vec<DiagnosticBuilder<ResolveError>>,
     /// The work stats accumulated while resolving.
     pub(in crate::resolve) stats: ResolveStats,
     /// Import and re-export clauses collected from active roots.
@@ -260,7 +260,7 @@ impl<'a> ResolveState<'a> {
     }
 
     /// Drain recoverable diagnostics.
-    pub(in crate::resolve) fn take_diagnostics(&mut self) -> Vec<ResolveError> {
+    pub(in crate::resolve) fn take_diagnostics(&mut self) -> Vec<DiagnosticBuilder<ResolveError>> {
         std::mem::take(&mut self.diagnostics)
     }
 
@@ -294,13 +294,48 @@ impl<'a> ResolveState<'a> {
         let anchor = self.anchor_node(item_id.id)?;
         let name = self.export_key_text(key);
         let target = self.strings.get(specifier).to_string();
-        let suggestion = self.closest_export_key(target_module, &name)?;
-        let diagnostic = ResolveError::MissingExport {
-            anchor,
+
+        // a matching unexported binding beats any spelling suggestion
+        let exported = self
+            .exports
+            .exported_module(&self.artifacts, target_module)?;
+        if exported.locals.iter().any(|local| *local == name) {
+            let error = ResolveError::NotExported {
+                anchor,
+                name: name.clone(),
+                target: target.clone(),
+            };
+            let diagnostic =
+                DiagnosticBuilder::new(error).help(format!("export '{name}' from '{target}'"));
+            self.diagnostics.push(diagnostic);
+
+            return Ok(());
+        }
+
+        let best = self.closest_export_key(target_module, &name)?;
+        let error = ResolveError::MissingExport {
+            anchor: anchor.clone(),
             name,
             target,
-            suggestion,
+            suggestion: best.as_ref().map(|best| best.candidate.clone()),
         };
+
+        // plain items span the bare name, so the rename patches cleanly
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        let is_plain_name = matches!(
+            self.view.get(item_id),
+            dir::DependencyItem::Binding {
+                alias: None,
+                name: Some(_),
+                ..
+            }
+        );
+        if is_plain_name
+            && let Some(best) = best
+            && let Some(suggestion) = rename_suggestion(&anchor, &best)
+        {
+            diagnostic = diagnostic.suggestion(suggestion);
+        }
 
         // record recoverable error
         self.diagnostics.push(diagnostic);
@@ -314,16 +349,31 @@ impl<'a> ResolveState<'a> {
         item_id: dir::LocalNodeId<dir::DependencyItem>,
         key: dir::ExportKey,
         specifier: dir::StringId,
+        targets: &[ExportTarget],
     ) -> CompilerResult<()> {
         // render diagnostic payload
         let anchor = self.anchor_node(item_id.id)?;
         let name = self.export_key_text(key);
         let target = self.strings.get(specifier).to_string();
-        let diagnostic = ResolveError::AmbiguousExport {
+        let error = ResolveError::AmbiguousExport {
             anchor,
-            name,
+            name: name.clone(),
             target,
         };
+
+        // point at each origin module supplying the name
+        let mut diagnostic = DiagnosticBuilder::new(error);
+        for target in targets {
+            let module = match target {
+                ExportTarget::Symbol(symbol) => symbol.module_id,
+                ExportTarget::Namespace(module) => *module,
+            };
+            diagnostic = diagnostic.label(
+                DiagnosticAnchor::Module(module),
+                format!("one '{name}' comes from this module"),
+            );
+        }
+        diagnostic = diagnostic.help(format!("import '{name}' directly from one origin module"));
 
         // record recoverable error
         self.diagnostics.push(diagnostic);
@@ -365,7 +415,7 @@ impl<'a> ResolveState<'a> {
         &mut self,
         target_module: ModuleId,
         key: &str,
-    ) -> CompilerResult<Option<String>> {
+    ) -> CompilerResult<Option<NameMatch<String>>> {
         let exported = self
             .exports
             .exported_module(&self.artifacts, target_module)?;
@@ -374,7 +424,7 @@ impl<'a> ResolveState<'a> {
             .exports()
             .map(|(key, _)| self.export_key_text(*key));
 
-        Ok(closest_string(
+        Ok(find_best_match(
             key,
             candidates,
             diagnostic_suggestion_distance(key),
