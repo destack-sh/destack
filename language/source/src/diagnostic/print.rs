@@ -4,9 +4,9 @@ use std::sync::Arc;
 use destack_core::{Color, pluralize};
 
 use crate::{
-    AnnotateOptions, Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError,
-    DiagnosticSuggestion, DiffOptions, File, FileId, SourceColorizer, annotate_file,
-    apply_file_patch, format_diff,
+    AnnotateOptions, AnnotateSpan, Applicability, DiagnosticCollection, DiagnosticLabel,
+    DiagnosticRenderError, DiagnosticSeverity, DiagnosticSuggestion, DiffOptions, File, FileId,
+    SourceColorizer, annotate_file, apply_file_patch, format_diff,
 };
 
 /// Write a diagnostic line.
@@ -110,7 +110,7 @@ where
             .clone()
             .with_highlight_color(diagnostic.severity.color());
 
-        // header preamble (severity + code)
+        // header: severity + code + message
         let header_preamble = color_bold(
             &options,
             diagnostic.severity.color(),
@@ -120,48 +120,75 @@ where
                 diagnostic.code,
             ),
         );
+        let header_message = color_bold(&options, Color::BrightWhite, &diagnostic.message);
+        write_line(&options, &format!("{header_preamble}: {header_message}"));
 
-        // header message
-        let header_message = color_text(&options, Color::BrightWhite, &diagnostic.message);
-        let header = format!("{header_preamble}: {header_message}");
-
-        // primary + body
-        let primary = primary.to_labeled_span(&diagnostic.message);
-        let body = annotate_file(&file, &primary, annotate_options.clone())?;
-        write_line(&options, &header);
+        // gather same-file labels into the primary window
+        let mut spans = vec![AnnotateSpan::primary(
+            primary.span,
+            primary.message.clone().unwrap_or_default(),
+        )];
+        let mut detached = Vec::new();
+        for label in diagnostic.labels() {
+            if label.span.file == primary.span.file {
+                spans.push(AnnotateSpan::secondary(
+                    label.span,
+                    label.message.clone().unwrap_or_default(),
+                ));
+            } else {
+                detached.push(label);
+            }
+        }
+        let body = annotate_file(&file, &spans, annotate_options.clone())?;
         write_block(&options, &body);
 
-        // related labels
-        let secondary_options = annotate_options
-            .clone()
-            .with_highlight_color(Color::BrightCyan)
-            .with_context_lines(1, 1);
-        for label in diagnostic.labels() {
-            let related = label.to_labeled_span("related location");
-            let secondary_file = file_for_label(file_for_id, label)?;
-            let secondary_body =
-                annotate_file(&secondary_file, &related, secondary_options.clone())?;
-            write_block(&options, &secondary_body);
+        // labels in other files render their own window
+        let detached_options = annotate_options.clone().with_context_lines(1, 1);
+        for label in detached {
+            let span =
+                AnnotateSpan::secondary(label.span, label.message.clone().unwrap_or_default());
+            let detached_file = file_for_label(file_for_id, label)?;
+            let detached_body = annotate_file(&detached_file, &[span], detached_options.clone())?;
+            write_block(&options, &detached_body);
         }
 
-        // notes
+        // notes and helps align under the window gutter
         for note in diagnostic.notes() {
-            let note = format!("note: {}", note.message);
-            let note = color_text(&options, Color::BrightWhite, &note);
-            write_line(&options, &note);
+            let text = format!(
+                " {} {} {}",
+                color_text(&options, Color::BrightMagenta, "="),
+                color_bold(&options, Color::BrightWhite, "note:"),
+                color_text(&options, Color::BrightWhite, &note.message)
+            );
+            write_line(&options, &text);
         }
-
-        // helps
         for help in diagnostic.helps() {
-            let help = format!("help: {}", help.message);
-            let help = color_text(&options, Color::BrightCyan, &help);
-            write_line(&options, &help);
+            let text = format!(
+                " {} {} {}",
+                color_text(&options, Color::BrightMagenta, "="),
+                color_bold(&options, Color::BrightCyan, "help:"),
+                color_text(&options, Color::BrightCyan, &help.message)
+            );
+            write_line(&options, &text);
         }
 
         // suggestions
         for suggestion in &diagnostic.suggestions {
-            write_suggestion(file_for_id, &options, &annotate_options, suggestion)?;
+            write_suggestion(file_for_id, &options, suggestion)?;
         }
+    }
+
+    // point at the explain command for the reported error codes
+    let mut codes: Vec<&str> = diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        .map(|diagnostic| diagnostic.code.as_str())
+        .collect();
+    codes.sort_unstable();
+    codes.dedup();
+    if let Some(first) = codes.first() {
+        let trailer = format!("for more information about an error, run `destack explain {first}`");
+        write_line(&options, &color_text(&options, Color::White, &trailer));
     }
 
     // summary (skip if caller will print their own)
@@ -235,7 +262,6 @@ where
 fn write_suggestion<F>(
     file_for_id: &F,
     options: &PrintOptions,
-    annotate_options: &AnnotateOptions,
     suggestion: &DiagnosticSuggestion,
 ) -> Result<(), DiagnosticRenderError>
 where
@@ -246,20 +272,13 @@ where
         Applicability::Unsafe => "unsafe",
         Applicability::Dangerous => "requires review",
     };
-    let message = format!("help: {} ({applicability})", suggestion.message);
-    let message = color_text(options, Color::BrightGreen, &message);
+    let message = format!(
+        " {} {} {} ({applicability})",
+        color_text(options, Color::BrightMagenta, "="),
+        color_bold(options, Color::BrightGreen, "help:"),
+        color_text(options, Color::BrightGreen, &suggestion.message)
+    );
     write_line(options, &message);
-
-    let suggestion_options = annotate_options
-        .clone()
-        .with_highlight_color(Color::BrightGreen)
-        .with_context_lines(1, 1);
-    for label in &suggestion.labels {
-        let labeled_span = label.to_labeled_span("suggested change");
-        let file = file_for_label(file_for_id, label)?;
-        let body = annotate_file(&file, &labeled_span, suggestion_options.clone())?;
-        write_block(options, &body);
-    }
 
     for file_patch in &suggestion.patches.files {
         let file = file_for_id(file_patch.file).ok_or(DiagnosticRenderError::MissingFile {
@@ -383,24 +402,66 @@ mod tests {
 
         let expected = concat!(
             "warning W001: variable is never reassigned\n",
-            "──▶ <test>:1:1\n",
-            " │ \n",
-            " │ 1 │ let value = 1;\n",
-            " │   │ ^^^ use const\n",
-            " │ \n",
+            " ──▶ <test>:1:1\n",
+            "  │\n",
+            "1 │ let value = 1;\n",
+            "  │ ^^^ use const\n",
+            "  │\n",
             "\n",
-            "help: use `const` (machine-applicable)\n",
-            "──▶ <test>:1:1\n",
-            " │ \n",
-            " │ 1 │ let value = 1;\n",
-            " │   │ ^^^ replace `let` with `const`\n",
-            " │ \n",
-            "\n",
+            " = help: use `const` (machine-applicable)\n",
             "--- a/<test>\n",
             "+++ b/<test>\n",
             "\n",
             "-   1│ let value = 1;\n",
             "+   1│ const value = 1;\n",
+        );
+        assert_eq!(rendered, expected);
+    }
+
+    /// Render secondary labels, notes, and helps in one window.
+    #[test]
+    fn test_prints_labels_notes_and_helps() {
+        let file_id = FileId::new(1);
+        let file = Arc::new(File::from_text(
+            file_id,
+            "<test>".to_string(),
+            Uri::from_string("<test>"),
+            None,
+            FileType::Destack,
+            "const overflows: int8 = 300;".to_string(),
+        ));
+        let content = file.content_id();
+        let value_span = Span::new(file_id, 24, 27);
+        let annotation_span = Span::new(file_id, 17, 21);
+        let diagnostic = Diagnostic::error(
+            "EC200",
+            "type '300' is not assignable to type 'int8'",
+            DiagnosticLabel::message(content, value_span, "this value does not fit"),
+        )
+        .label(DiagnosticLabel::message(
+            content,
+            annotation_span,
+            "expected `int8` because of this annotation",
+        ))
+        .note("`int8` holds values in -128..=127")
+        .help("widen the annotation or use a fitting value");
+        let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
+
+        let rendered = render(diagnostics, file);
+
+        let expected = concat!(
+            "error EC200: type '300' is not assignable to type 'int8'\n",
+            " ──▶ <test>:1:25\n",
+            "  │\n",
+            "1 │ const overflows: int8 = 300;\n",
+            "  │                  ----   ^^^ this value does not fit\n",
+            "  │                  │\n",
+            "  │                  expected `int8` because of this annotation\n",
+            "  │\n",
+            "\n",
+            " = note: `int8` holds values in -128..=127\n",
+            " = help: widen the annotation or use a fitting value\n",
+            "for more information about an error, run `destack explain EC200`",
         );
         assert_eq!(rendered, expected);
     }

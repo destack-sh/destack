@@ -777,7 +777,8 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             let #formatter_name =
                 destack_artifact::DiagnosticFormatter::new(#context_name);
             let message = self.message(&#formatter_name)?;
-            let primary_label = #context_name.label(&primary_anchor, Some(message.clone()))?;
+            // the header carries the message, so the primary span stays bare
+            let primary_label = #context_name.label(&primary_anchor, None)?;
 
             let __diagnostic = destack_source::Diagnostic::new(
                 self.code(),
