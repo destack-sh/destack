@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
+use crate::{Discriminant, VariantEncoding};
+
 /// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum TraceMap {
@@ -39,12 +41,12 @@ pub enum TraceMap {
         /// The per-element trace map.
         element: Box<TraceMap>,
     },
-    /// The payload stores a tagged variant with variant-specific trace maps.
-    Tagged {
-        /// The byte width of the variant tag.
-        tag_bytes: u8,
-        /// Variant trace maps keyed by normalized tag value.
-        variants: Box<[TraceVariant]>,
+    /// The payload stores a variant with case-specific trace maps.
+    Variant {
+        /// The physical discriminant encoding.
+        encoding: VariantEncoding,
+        /// Variant trace maps in case order.
+        cases: Box<[VariantTrace]>,
     },
 }
 
@@ -72,9 +74,7 @@ impl TraceMap {
             Self::Nested { map, .. } => map.has_local_reference(),
             Self::Composite { maps } => maps.iter().any(Self::has_local_reference),
             Self::Repeated { count, element, .. } => *count > 0 && element.has_local_reference(),
-            Self::Tagged { variants, .. } => variants
-                .iter()
-                .any(|variant| variant.map.has_local_reference()),
+            Self::Variant { cases, .. } => cases.iter().any(|case| case.map.has_local_reference()),
         }
     }
 
@@ -86,9 +86,7 @@ impl TraceMap {
             Self::Nested { map, .. } => map.has_shared_reference(),
             Self::Composite { maps } => maps.iter().any(Self::has_shared_reference),
             Self::Repeated { count, element, .. } => *count > 0 && element.has_shared_reference(),
-            Self::Tagged { variants, .. } => variants
-                .iter()
-                .any(|variant| variant.map.has_shared_reference()),
+            Self::Variant { cases, .. } => cases.iter().any(|case| case.map.has_shared_reference()),
         }
     }
 
@@ -100,31 +98,49 @@ impl TraceMap {
             Self::Nested { map, .. } => map.has_frame_reference(),
             Self::Composite { maps } => maps.iter().any(Self::has_frame_reference),
             Self::Repeated { count, element, .. } => *count > 0 && element.has_frame_reference(),
-            Self::Tagged { variants, .. } => variants
-                .iter()
-                .any(|variant| variant.map.has_frame_reference()),
+            Self::Variant { cases, .. } => cases.iter().any(|case| case.map.has_frame_reference()),
         }
     }
 
-    /// Return whether this map requires reading payload tags while scanning.
-    pub fn has_tagged_reference(&self) -> bool {
+    /// Return whether scanning requires selecting an active variant case.
+    pub fn has_variant_reference(&self) -> bool {
         match self {
             Self::Empty | Self::Fixed { .. } => false,
-            Self::Nested { map, .. } => map.has_tagged_reference(),
-            Self::Composite { maps } => maps.iter().any(Self::has_tagged_reference),
-            Self::Repeated { element, .. } => element.has_tagged_reference(),
-            Self::Tagged { variants, .. } => {
-                variants.iter().any(|variant| variant.map.has_reference())
+            Self::Nested { map, .. } => map.has_variant_reference(),
+            Self::Composite { maps } => maps.iter().any(Self::has_variant_reference),
+            Self::Repeated { element, .. } => element.has_variant_reference(),
+            Self::Variant { cases, .. } => cases.iter().any(|case| case.map.has_reference()),
+        }
+    }
+
+    /// Select the trace map for one physical variant discriminant scalar.
+    pub fn variant(&self, scalar: u128) -> Option<&VariantTrace> {
+        let Self::Variant { encoding, cases } = self else {
+            return None;
+        };
+
+        match *encoding {
+            VariantEncoding::Direct { field } => {
+                let discriminant = field.extract(scalar);
+
+                cases
+                    .iter()
+                    .find(|case| case.discriminant.bits() == discriminant)
+            }
+            encoding @ VariantEncoding::Niche { .. } => {
+                let index = encoding.decode_niche(scalar)? as usize;
+
+                cases.get(index)
             }
         }
     }
 }
 
-/// One tag-selected trace variant.
+/// One discriminant-selected trace variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct TraceVariant {
-    /// The normalized numeric tag value selecting this variant.
-    pub tag: u64,
+pub struct VariantTrace {
+    /// The logical discriminant bits selecting this variant.
+    pub discriminant: Discriminant,
     /// The byte offset of the variant payload.
     pub payload_offset: u32,
     /// The payload trace map for this variant.

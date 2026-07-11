@@ -1317,20 +1317,6 @@ impl Parser {
 
                 Ok(CheckConstraint::IsType { value, expected })
             }
-            "variant" if kind_parts.get(1) == Some(&"tag") => {
-                if kind_parts.len() != 2 {
-                    return Err(ParseError::invalid(
-                        &format!("check kind '{kind_text}'"),
-                        kind_start,
-                    ));
-                }
-
-                let value = self.parse_value()?;
-                self.eat_token(TokenType::Comma)?;
-                let expected = self.parse_constant()?;
-
-                Ok(CheckConstraint::Variant { value, expected })
-            }
             "is" if kind_parts.get(1) == Some(&"subtype") => {
                 if kind_parts.len() != 2 {
                     return Err(ParseError::invalid(

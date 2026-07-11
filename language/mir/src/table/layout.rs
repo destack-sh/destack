@@ -110,14 +110,6 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// Return the byte offset of a dynamic dispatch pointer.
-    pub const fn dynamic_dispatch_offset(&self) -> Option<u32> {
-        match &self.shape {
-            LayoutShape::Dynamic => Some(self.alignment),
-            _ => None,
-        }
-    }
-
     /// Return the byte width of this layout.
     pub const fn byte_len(&self) -> usize {
         self.size as usize
@@ -276,23 +268,197 @@ pub struct TensorViewLayout {
 /// Concrete layout for a variant value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantLayout {
-    /// The tag layout.
-    pub tag: VariantTagLayout,
-    /// The variant payload byte offset.
-    pub payload_offset: u32,
+    /// The logical discriminant type.
+    pub discriminant: LocalNodeId<Type>,
+    /// The logical payload storage type.
+    pub storage: LocalNodeId<Type>,
+    /// The physical discriminant encoding.
+    pub encoding: VariantEncoding,
     /// The variant cases.
-    pub variants: Vec<VariantCaseLayout>,
+    pub cases: Vec<VariantCaseLayout>,
 }
 
-/// Concrete layout for a variant tag.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct VariantTagLayout {
-    /// The tag type when it has been materialized.
-    pub ty: Option<LocalNodeId<Type>>,
-    /// The tag size in bytes.
-    pub size: u32,
-    /// The tag alignment in bytes.
-    pub alignment: u32,
+/// Physical scalar field carrying a variant discriminant.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct DiscriminantField {
+    /// The byte offset from the variant base.
+    pub offset: u32,
+    /// The scalar storage width in bytes.
+    pub byte_len: u8,
+    /// The first discriminant bit inside the scalar.
+    pub bit_offset: u8,
+    /// The discriminant width in bits.
+    pub bit_len: u8,
+}
+
+/// Target-independent logical variant discriminant bits.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct Discriminant {
+    /// Low 64 bits.
+    pub low: u64,
+    /// High 64 bits.
+    pub high: u64,
+}
+
+const _: () = assert!(std::mem::size_of::<Discriminant>() == 16);
+const _: () = assert!(std::mem::align_of::<Discriminant>() == 8);
+
+impl Discriminant {
+    /// Create one discriminant from its logical bits.
+    pub const fn from_bits(bits: u128) -> Self {
+        Self {
+            low: bits as u64,
+            high: (bits >> u64::BITS) as u64,
+        }
+    }
+
+    /// Return the logical discriminant bits.
+    pub const fn bits(self) -> u128 {
+        self.low as u128 | ((self.high as u128) << u64::BITS)
+    }
+}
+
+impl From<u128> for Discriminant {
+    fn from(bits: u128) -> Self {
+        Self::from_bits(bits)
+    }
+}
+
+impl From<Discriminant> for u128 {
+    fn from(discriminant: Discriminant) -> Self {
+        discriminant.bits()
+    }
+}
+
+impl DiscriminantField {
+    /// Create one full-width scalar discriminant field.
+    pub const fn scalar(offset: u32, byte_len: u8) -> Self {
+        Self {
+            offset,
+            byte_len,
+            bit_offset: 0,
+            bit_len: byte_len * 8,
+        }
+    }
+
+    /// Return the unshifted discriminant mask.
+    pub const fn mask(self) -> u128 {
+        let bits = if self.bit_len == u128::BITS as u8 {
+            u128::MAX
+        } else {
+            (1u128 << self.bit_len) - 1
+        };
+
+        bits << self.bit_offset
+    }
+
+    /// Extract the discriminant field from one scalar value.
+    pub const fn extract(self, scalar: u128) -> u128 {
+        (scalar & self.mask()) >> self.bit_offset
+    }
+
+    /// Insert one discriminant field into an existing scalar value.
+    pub const fn insert(self, scalar: u128, discriminant: u128) -> u128 {
+        let mask = self.mask();
+        let discriminant = (discriminant << self.bit_offset) & mask;
+
+        (scalar & !mask) | discriminant
+    }
+
+    /// Return the wrapping mask for extracted discriminant values.
+    pub const fn value_mask(self) -> u128 {
+        if self.bit_len == u128::BITS as u8 {
+            u128::MAX
+        } else {
+            (1u128 << self.bit_len) - 1
+        }
+    }
+}
+
+/// Physical encoding for one variant discriminant.
+#[repr(C, u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum VariantEncoding {
+    /// Store the logical discriminant directly.
+    Direct {
+        /// The physical discriminant field.
+        field: DiscriminantField,
+    },
+    /// Encode selected cases in invalid values of one payload field.
+    Niche {
+        /// The payload field carrying the niche.
+        field: DiscriminantField,
+        /// The case represented by every value outside the niche range.
+        untagged_case: u32,
+        /// The first case represented in the niche range.
+        niche_case_start: u32,
+        /// The last case represented in the niche range.
+        niche_case_end: u32,
+        /// The first physical niche value.
+        niche_start: Discriminant,
+    },
+}
+
+const _: () = assert!(std::mem::size_of::<VariantEncoding>() <= 48);
+
+impl VariantEncoding {
+    /// Return the physical discriminant field.
+    pub const fn field(self) -> DiscriminantField {
+        match self {
+            Self::Direct { field } | Self::Niche { field, .. } => field,
+        }
+    }
+
+    /// Decode one physical scalar into a zero-based case index when niche encoded.
+    pub const fn decode_niche(self, scalar: u128) -> Option<u32> {
+        let Self::Niche {
+            field,
+            untagged_case,
+            niche_case_start,
+            niche_case_end,
+            niche_start,
+        } = self
+        else {
+            return None;
+        };
+        let value = field.extract(scalar);
+        let relative = value.wrapping_sub(niche_start.bits()) & field.value_mask();
+        let niche_count = niche_case_end - niche_case_start;
+
+        if relative <= niche_count as u128 {
+            Some(niche_case_start + relative as u32)
+        } else {
+            Some(untagged_case)
+        }
+    }
+
+    /// Encode one niche case into an existing physical scalar.
+    pub const fn encode_niche(self, scalar: u128, case: u32) -> Option<u128> {
+        let Self::Niche {
+            field,
+            untagged_case,
+            niche_case_start,
+            niche_case_end,
+            niche_start,
+        } = self
+        else {
+            return None;
+        };
+
+        if case == untagged_case {
+            return Some(scalar);
+        }
+        if case < niche_case_start || case > niche_case_end {
+            return None;
+        }
+
+        let relative = (case - niche_case_start) as u128;
+        let value = niche_start.bits().wrapping_add(relative) & field.value_mask();
+
+        Some(field.insert(scalar, value))
+    }
 }
 
 /// Concrete layout for an object.
@@ -331,8 +497,69 @@ pub struct LayoutField {
 /// Concrete layout for one variant case.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct VariantCaseLayout {
+    /// The logical discriminant bits.
+    pub discriminant: Discriminant,
     /// The logical case type.
     pub ty: LocalNodeId<Type>,
-    /// The case layout.
-    pub layout: LayoutId,
+    /// The payload byte offset from the variant base.
+    pub payload_offset: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Discriminant, DiscriminantField, VariantEncoding};
+
+    /// Preserve unrelated scalar bits when inserting one discriminant field.
+    #[test]
+    fn test_insert_discriminant_field() {
+        let field = DiscriminantField {
+            offset: 4,
+            byte_len: 2,
+            bit_offset: 4,
+            bit_len: 3,
+        };
+        let scalar = 0b1010_0001;
+        let encoded = field.insert(scalar, 0b011);
+
+        assert_eq!(encoded, 0b1011_0001);
+        assert_eq!(field.extract(encoded), 0b011);
+    }
+
+    /// Decode niche cases and the untagged payload case.
+    #[test]
+    fn test_decode_niche_variant() {
+        let encoding = VariantEncoding::Niche {
+            field: DiscriminantField::scalar(0, 1),
+            untagged_case: 0,
+            niche_case_start: 1,
+            niche_case_end: 2,
+            niche_start: Discriminant::from_bits(254),
+        };
+
+        assert_eq!(encoding.decode_niche(254), Some(1));
+        assert_eq!(encoding.decode_niche(255), Some(2));
+        assert_eq!(encoding.decode_niche(1), Some(0));
+    }
+
+    /// Encode niche cases without disturbing adjacent payload bits.
+    #[test]
+    fn test_encode_niche_variant() {
+        let encoding = VariantEncoding::Niche {
+            field: DiscriminantField {
+                offset: 0,
+                byte_len: 2,
+                bit_offset: 4,
+                bit_len: 4,
+            },
+            untagged_case: 0,
+            niche_case_start: 1,
+            niche_case_end: 2,
+            niche_start: Discriminant::from_bits(14),
+        };
+        let scalar = 0xA00B;
+
+        assert_eq!(encoding.encode_niche(scalar, 1), Some(0xA0EB));
+        assert_eq!(encoding.encode_niche(scalar, 2), Some(0xA0FB));
+        assert_eq!(encoding.encode_niche(scalar, 3), None);
+    }
 }

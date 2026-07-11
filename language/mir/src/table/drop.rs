@@ -9,7 +9,7 @@ use crate::{Function, LocalNodeId, Type};
 /// Drop table for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Reflect)]
 pub struct DropTable {
-    /// Full drop functions keyed by type id.
+    /// Complete generated drop functions keyed by type id.
     pub functions: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
     /// User-authored drop hooks keyed by type id.
     pub hooks: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
@@ -31,12 +31,12 @@ impl DropTable {
         }
     }
 
-    /// Return the full drop function for a type.
+    /// Return the complete drop function for a type.
     pub fn function(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Function>> {
         self.functions.get(&ty).copied()
     }
 
-    /// Record the full drop function for a type.
+    /// Record the complete drop function for a type.
     pub fn set_function(
         &mut self,
         ty: LocalNodeId<Type>,

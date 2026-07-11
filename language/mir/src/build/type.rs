@@ -386,21 +386,21 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::Struct { fields, copy })
     }
 
-    /// Create a physical variant type with explicit copy.
+    /// Create a sum type with explicit copy.
     pub fn type_variant(
         &mut self,
-        tag: LocalNodeId<Type>,
+        discriminant: LocalNodeId<Type>,
         storage: LocalNodeId<Type>,
         cases: Vec<(Constant, LocalNodeId<Type>)>,
         copy: Copy,
     ) -> LocalNodeId<Type> {
         let cases = cases
             .into_iter()
-            .map(|(tag, ty)| VariantCase { tag, ty })
+            .map(|(discriminant, ty)| VariantCase { discriminant, ty })
             .collect();
 
         self.tree.insert_type(Type::Variant {
-            tag,
+            discriminant,
             storage,
             cases,
             copy,

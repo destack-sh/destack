@@ -170,28 +170,18 @@ entry(v0: ref<void, managed, readonly>):
 fn test_format_check_type_guards() {
     assert_format(
         r#"
-function guard(v0: uint32, v1: ref<void, managed, mutable>): int32 {
-entry(v0: uint32, v1: ref<void, managed, mutable>):
-    v2: boolean = int.eq v0, v0
-    check is.type v0, int32 => b1, b4
+function guard(v0: ref<void, managed, mutable>): int32 {
+entry(v0: ref<void, managed, mutable>):
+    check is.type v0, int32 => b1, b3
 
 b1:
-    v3: boolean = int.eq v0, v0
-    check variant.tag v0, 1uint32 => b4, b5
+    check is.subtype v0, int32 => b2, b3
 
 b2:
-    v4: boolean = int.eq v0, v0
-    check is.type v1, int32 => b2, b4
+    v1: int32 = 0
+    return v1
 
 b3:
-    v5: boolean = int.eq v0, v0
-    check is.subtype v1, int32 => b3, b5
-
-b4:
-    v6: int32 = 0
-    return v6
-
-b5:
     unreachable
 }
 "#,

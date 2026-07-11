@@ -228,8 +228,5 @@ fn format_place_projection<'a>(
                 token(")")
             ]
         ),
-        Projection::Variant { tag } => {
-            write!(f, [token("variant"), token("("), tag, token(")")])
-        }
     }
 }

@@ -454,17 +454,6 @@ fn format_check_constraint<'a>(
                 expected
             ]
         ),
-        CheckConstraint::Variant { value, expected } => write!(
-            f,
-            [
-                token("variant.tag"),
-                space(),
-                value,
-                token(","),
-                space(),
-                expected
-            ]
-        ),
         CheckConstraint::IsSubtype { value, expected } => write!(
             f,
             [

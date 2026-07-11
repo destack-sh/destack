@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Constant, Edge, FunctionId,
+    BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Edge, FunctionId,
     LocalNodeId, Node, NodeType, Successor, Tree, TypeId, Value, ValueSlice,
 };
 
@@ -128,13 +128,6 @@ pub enum CheckConstraint {
         /// The expected concrete runtime type.
         expected: TypeId,
     },
-    /// Variant tag check for a physical tagged sum value.
-    Variant {
-        /// The tag value being checked.
-        value: Value,
-        /// The expected tag constant.
-        expected: Constant,
-    },
     /// Runtime subtype relation check for a value.
     IsSubtype {
         /// The value being checked.
@@ -161,7 +154,6 @@ impl CheckConstraint {
             CheckConstraint::Narrow { value, .. } => smallvec![*value],
             CheckConstraint::Overflow { left, right, .. } => smallvec![*left, *right],
             CheckConstraint::IsType { value, .. } => smallvec![*value],
-            CheckConstraint::Variant { value, .. } => smallvec![*value],
             CheckConstraint::IsSubtype { value, .. } => smallvec![*value],
         }
     }

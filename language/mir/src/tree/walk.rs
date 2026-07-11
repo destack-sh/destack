@@ -172,12 +172,12 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             walk_type_id(visitor, tree, inner);
         }
         Type::Variant {
-            tag,
+            discriminant,
             storage,
             cases,
             copy: _,
         } => {
-            walk_type_id(visitor, tree, tag);
+            walk_type_id(visitor, tree, discriminant);
             walk_type_id(visitor, tree, storage);
             for case in cases {
                 walk_type_id(visitor, tree, &case.ty);

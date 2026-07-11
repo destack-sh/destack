@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{Constant, GlobalId, Lifetime, LocalId, Value};
+use crate::{GlobalId, Lifetime, LocalId, Value};
 
 /// Root storage for one MIR place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -46,7 +46,7 @@ pub enum Projection {
         /// The runtime index value.
         index: Value,
     },
-    /// An unknown element projection.
+    /// Any element of an indexed container for conservative ownership analysis.
     AnyElement,
     /// A runtime slice projection.
     Slice {
@@ -55,19 +55,13 @@ pub enum Projection {
         /// The runtime length value.
         length: Value,
     },
-    /// A variant payload projection.
-    Variant {
-        /// The selected variant tag.
-        tag: Constant,
-    },
 }
 
 impl Projection {
     /// Replace value references inside this projection.
     fn replace_value(&mut self, from: Value, to: Value) {
         match self {
-            Self::Field { .. } | Self::Element { .. } | Self::AnyElement | Self::Variant { .. } => {
-            }
+            Self::Field { .. } | Self::Element { .. } | Self::AnyElement => {}
             Self::Index { index } => replace_value(index, from, to),
             Self::Slice { start, length } => {
                 replace_value(start, from, to);
@@ -79,8 +73,7 @@ impl Projection {
     /// Append values used by this projection.
     fn append_values(&self, values: &mut SmallVec<[Value; 4]>) {
         match self {
-            Self::Field { .. } | Self::Element { .. } | Self::AnyElement | Self::Variant { .. } => {
-            }
+            Self::Field { .. } | Self::Element { .. } | Self::AnyElement => {}
             Self::Index { index } => values.push(*index),
             Self::Slice { start, length } => {
                 values.push(*start);

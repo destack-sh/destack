@@ -332,7 +332,7 @@ pub enum Type {
     Float(FloatType),
     /// Runtime type descriptor handle.
     TypeDescriptor,
-    /// Compact runtime type identity token.
+    /// Compact 32-bit runtime type identity token.
     TypeId,
 
     /// Atomic storage cell for one value type.
@@ -418,13 +418,13 @@ pub enum Type {
         /// Copy of this newtype.
         copy: Copy,
     },
-    /// Physical tagged sum value.
+    /// Sum value with one logical discriminant and payload storage.
     Variant {
-        /// The tag value type.
-        tag: TypeId,
-        /// The physical payload storage type.
+        /// The logical discriminant type.
+        discriminant: TypeId,
+        /// The logical payload storage type.
         storage: TypeId,
-        /// The cases keyed by tag value.
+        /// The cases keyed by discriminant value.
         cases: Vec<VariantCase>,
         /// Copy of this variant type.
         copy: Copy,
@@ -497,11 +497,11 @@ pub enum Type {
     },
 }
 
-/// One physical tagged sum case.
+/// One sum case.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct VariantCase {
-    /// The tag constant selecting this case.
-    pub tag: Constant,
+    /// The discriminant constant selecting this case.
+    pub discriminant: Constant,
     /// The logical payload type.
     pub ty: TypeId,
 }

@@ -801,8 +801,7 @@ impl Parser {
     fn parse_variant_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let tag_type = self.parse_type()?;
-        let tag = tag_type;
+        let discriminant = self.parse_type()?;
         self.eat_token(TokenType::Comma)?;
         let (storage, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
@@ -810,10 +809,10 @@ impl Parser {
 
         let mut cases = Vec::new();
         while !self.peek_token(TokenType::CloseBrace) {
-            let tag = self.parse_constant_for_type(tag_type)?;
+            let discriminant = self.parse_constant_for_type(discriminant)?;
             self.eat_token(TokenType::Equal)?;
             let (ty, _) = self.parse_type_use_part()?;
-            cases.push(VariantCase { tag, ty });
+            cases.push(VariantCase { discriminant, ty });
 
             if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
             {
@@ -830,7 +829,7 @@ impl Parser {
         self.eat_token(TokenType::CloseBrace)?;
 
         Ok(Type::Variant {
-            tag,
+            discriminant,
             storage,
             cases,
             copy: Copy::No,

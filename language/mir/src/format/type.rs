@@ -363,7 +363,7 @@ fn format_type_inner<'a>(
             write!(f, [token(">")])
         }
         Type::Variant {
-            tag,
+            discriminant,
             storage,
             cases,
             copy: _,
@@ -373,7 +373,7 @@ fn format_type_inner<'a>(
                 [
                     token("variant"),
                     token("<"),
-                    FormatTypeId(*tag),
+                    FormatTypeId(*discriminant),
                     token(","),
                     space(),
                     FormatTypeId(*storage)
@@ -390,7 +390,7 @@ fn format_type_inner<'a>(
                 write!(
                     f,
                     [
-                        &case.tag,
+                        &case.discriminant,
                         space(),
                         token("="),
                         space(),

@@ -95,9 +95,9 @@ pub(super) enum TypeKey {
     },
     /// Nominal newtype wrapper.
     Newtype { inner: TypeId, copy: Copy },
-    /// Physical tagged sum.
+    /// Sum value.
     Variant {
-        tag: TypeId,
+        discriminant: TypeId,
         storage: TypeId,
         cases: Vec<VariantCase>,
         copy: Copy,
@@ -224,12 +224,12 @@ impl TypeKey {
                 copy: *copy,
             },
             Type::Variant {
-                tag,
+                discriminant,
                 storage,
                 cases,
                 copy,
             } => TypeKey::Variant {
-                tag: *tag,
+                discriminant: *discriminant,
                 storage: *storage,
                 cases: cases.clone(),
                 copy: *copy,

@@ -327,19 +327,20 @@ impl Tree {
             }
             Type::Uninit { value } => self.type_lifetime_inner(*value, lifetime_args, visited),
             Type::Variant {
-                tag,
+                discriminant,
                 storage,
                 cases,
                 ..
             } => {
-                let tag = self.type_lifetime_inner(*tag, lifetime_args, visited);
+                let discriminant = self.type_lifetime_inner(*discriminant, lifetime_args, visited);
                 let storage = self.type_lifetime_inner(*storage, lifetime_args, visited);
                 let nested_lifetimes = cases
                     .iter()
                     .filter_map(|case| self.type_lifetime_inner(case.ty, lifetime_args, visited));
 
                 Some(Lifetime::new(
-                    tag.into_iter()
+                    discriminant
+                        .into_iter()
                         .chain(storage)
                         .chain(nested_lifetimes)
                         .flat_map(|lifetime| lifetime.terms.into_iter()),
@@ -385,12 +386,12 @@ impl Tree {
             Type::WithLifetimes { base, .. } => self.type_contains_borrowed_refs(*base),
             Type::Uninit { value } => self.type_contains_borrowed_refs(*value),
             Type::Variant {
-                tag,
+                discriminant,
                 storage,
                 cases,
                 ..
             } => {
-                self.type_contains_borrowed_refs(*tag)
+                self.type_contains_borrowed_refs(*discriminant)
                     || self.type_contains_borrowed_refs(*storage)
                     || cases
                         .iter()
@@ -526,12 +527,10 @@ impl Tree {
                     borrowed_paths,
                 );
             }
-            // descend into each variant payload shape
+            // descend into each possible storage shape
             Type::Variant { cases, .. } => {
                 for case in cases {
-                    let path = path.clone().with_projection(Projection::Variant {
-                        tag: case.tag.clone(),
-                    });
+                    let path = path.clone().with_projection(Projection::Field { index: 1 });
 
                     self.collect_type_borrowed_paths(
                         case.ty,

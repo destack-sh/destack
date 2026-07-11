@@ -86,7 +86,7 @@ pub enum TypeKey {
     },
     /// Variant type with ordered cases.
     Variant {
-        tag: Box<TypeKey>,
+        discriminant: Box<TypeKey>,
         storage: Box<TypeKey>,
         cases: Vec<(mir::Constant, TypeKey)>,
         copy: mir::Copy,
@@ -267,19 +267,24 @@ impl TypeKey {
             },
 
             mir::Type::Variant {
-                tag,
+                discriminant,
                 storage,
                 cases,
                 copy,
             } => {
-                let tag = Box::new(Self::from_type_id(tag, tree));
+                let discriminant = Box::new(Self::from_type_id(discriminant, tree));
                 let storage = Box::new(Self::from_type_id(storage, tree));
                 let cases = cases
                     .iter()
-                    .map(|case| (case.tag.clone(), Self::from_type_id(&case.ty, tree)))
+                    .map(|case| {
+                        (
+                            case.discriminant.clone(),
+                            Self::from_type_id(&case.ty, tree),
+                        )
+                    })
                     .collect();
                 TypeKey::Variant {
-                    tag,
+                    discriminant,
                     storage,
                     cases,
                     copy: *copy,
