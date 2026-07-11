@@ -1,5 +1,6 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::check::{
     Answer, BodyPhase, BodyState, CheckEvent, CheckOutcome, CheckState, Constraint,
@@ -234,13 +235,27 @@ impl CheckState<'_> {
                 constraint.source,
                 constraint.target,
             )?,
-            Constraint::Value(constraint) => self.check_value_constraint(
-                self.solver.origin(constraint.origin),
-                self.solver.origin(constraint.value_origin),
-                constraint.relation,
-                constraint.source,
-                constraint.target,
-            )?,
+            Constraint::Value(constraint) => {
+                // park check-only relations until their target closes
+                if constraint.is_check_only {
+                    let target = self.settled_root(constraint.target)?;
+                    let variables = self.type_variables(target)?;
+                    if !variables.is_empty() {
+                        let blockers: SmallVec<[Dependency; 2]> =
+                            variables.into_iter().map(Dependency::Variable).collect();
+
+                        return Ok(Answer::Pending(blockers));
+                    }
+                }
+
+                self.check_value_constraint(
+                    self.solver.origin(constraint.origin),
+                    self.solver.origin(constraint.value_origin),
+                    constraint.relation,
+                    constraint.source,
+                    constraint.target,
+                )?
+            }
         };
 
         match check {

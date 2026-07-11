@@ -58,6 +58,8 @@ pub(in crate::check) struct ValueConstraint {
     pub(in crate::check) origin: OriginId,
     /// The checked value role.
     pub(in crate::check) use_: Option<ValueUse>,
+    /// Whether this relation only verifies and never bounds open variables.
+    pub(in crate::check) is_check_only: bool,
 }
 
 /// Source subject blamed by one type constraint.
@@ -158,6 +160,27 @@ impl Constraint {
             value_origin,
             origin,
             use_,
+            is_check_only: false,
+        })
+    }
+
+    /// Create a value constraint that verifies without bounding open variables.
+    pub(in crate::check) fn check_only_value(
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+        value_origin: OriginId,
+        origin: OriginId,
+        use_: Option<ValueUse>,
+    ) -> Self {
+        Self::Value(ValueConstraint {
+            relation,
+            source,
+            target,
+            value_origin,
+            origin,
+            use_,
+            is_check_only: true,
         })
     }
 

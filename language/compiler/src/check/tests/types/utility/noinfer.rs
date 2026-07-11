@@ -52,6 +52,217 @@ ok satisfies "red" | "blue";
 }
 
 #[test]
+fn test_noinfer_never_binds_open_outer_inference() {
+    let session = TestSession::single(
+        r#"
+declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
+declare function make<T>(): T[];
+
+const values = make();
+const picked = choose(values, "green");
+const reds: "red"[] = values;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
+declare function make<T>(): T[];
+
+const values: "red"[] = make<"red">();
+const picked: "red" = choose<"red">(values, "green");
+const reds: "red"[] = values;
+
+=== checked ===
+declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
+/// @generic.template symbol=choose parameters=(C: string)
+/// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C" type=<C: string>(Array<C>, NoInfer<C>) => C
+/// @type.symbol symbol=choose.C source="C: string" type=C
+/// @type.symbol symbol=choose.values source="values: C[]" type=Array<C>
+/// @resolution.name source=C target=choose.C
+/// @type.symbol symbol=choose.fallback source="fallback: NoInfer<C>" type=NoInfer<C>
+/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=C target=choose.C
+/// @resolution.name source=C target=choose.C
+
+declare function make<T>(): T[];
+/// @generic.template symbol=make parameters=(T)
+/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T>() => Array<T>
+/// @type.symbol symbol=make.T source=T type=T
+/// @resolution.name source=T target=make.T
+
+const values = make();
+/// @type.symbol symbol=values source=values type=Array<"red">
+/// @resolution.name source=make target=make
+/// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
+/// @generic.instance source=make() id="make<\"red\">"
+
+const picked = choose(values, "green");
+/// @type.symbol symbol=picked source=picked type="red"
+/// @resolution.name source=choose target=choose
+/// @resolution.call source="choose(values, \"green\")" parameters=(Array<"red">, NoInfer<"red">) arguments=(provided(values) as Array<"red">, provided("green") as NoInfer<"red">) return="red" kind=symbol target=choose instance="choose<\"red\">"
+/// @generic.instance source="choose(values, \"green\")" id="choose<\"red\">"
+/// @resolution.name source=values target=values
+
+const reds: "red"[] = values;
+/// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @resolution.name source=values target=values
+
+/// @generic.instance id="choose<\"red\">" template=choose arguments=("red")
+/// @generic.instance id="make<\"red\">" template=make arguments=("red")
+/// @generic.instance id=NoInfer<C> template=types.object.NoInfer arguments=(C)
+"#,
+        r#"
+/// @diagnostic.error code=EC209 message="argument of type '\"green\"' is not assignable to parameter of type '\"red\"'"
+/// @diagnostic.label line=6 column=31 span="\"green\"" line_source="const picked = choose(values, \"green\");"
+"#,
+    );
+}
+
+#[test]
+fn test_noinfer_composite_targets_verify_once_closed() {
+    let session = TestSession::single(
+        r#"
+declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
+declare function make<T>(): T[];
+
+const values = make();
+const kept = keep(values, ["green"]);
+const reds: "red"[] = values;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
+declare function make<T>(): T[];
+
+const values: "red"[] = make<"red">();
+const kept: "red" = keep<"red">(values, ["green"]);
+const reds: "red"[] = values;
+
+=== checked ===
+declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
+/// @generic.template symbol=keep parameters=(C: string)
+/// @type.symbol symbol=keep source="declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C" type=<C: string>(Array<C>, NoInfer<Array<C>>) => C
+/// @type.symbol symbol=keep.C source="C: string" type=C
+/// @type.symbol symbol=keep.values source="values: C[]" type=Array<C>
+/// @resolution.name source=C target=keep.C
+/// @type.symbol symbol=keep.extras source="extras: NoInfer<C[]>" type=NoInfer<Array<C>>
+/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=C target=keep.C
+/// @resolution.name source=C target=keep.C
+
+declare function make<T>(): T[];
+/// @generic.template symbol=make parameters=(T)
+/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T>() => Array<T>
+/// @type.symbol symbol=make.T source=T type=T
+/// @resolution.name source=T target=make.T
+
+const values = make();
+/// @type.symbol symbol=values source=values type=Array<"red">
+/// @resolution.name source=make target=make
+/// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
+/// @generic.instance source=make() id="make<\"red\">"
+
+const kept = keep(values, ["green"]);
+/// @type.symbol symbol=kept source=kept type="red"
+/// @resolution.name source=keep target=keep
+/// @resolution.call source="keep(values, [\"green\"])" parameters=(Array<"red">, NoInfer<Array<"red">>) arguments=(provided(values) as Array<"red">, provided(["green"]) as NoInfer<Array<"red">>) return="red" kind=symbol target=keep instance="keep<\"red\">"
+/// @generic.instance source="keep(values, [\"green\"])" id="keep<\"red\">"
+/// @resolution.name source=values target=values
+
+const reds: "red"[] = values;
+/// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @resolution.name source=values target=values
+
+/// @generic.instance id="keep<\"red\">" template=keep arguments=("red")
+/// @generic.instance id="make<\"red\">" template=make arguments=("red")
+/// @generic.instance id=NoInfer<Array<C>> template=types.object.NoInfer arguments=(Array<C>)
+"#,
+        r#"
+/// @diagnostic.error code=EC209 message="argument of type 'Array<\"green\">' is not assignable to parameter of type 'Array<\"red\">'"
+/// @diagnostic.label line=6 column=27 span="[\"green\"]" line_source="const kept = keep(values, [\"green\"]);"
+"#,
+    );
+}
+
+#[test]
+fn test_noinfer_still_contextually_types_lambda_arguments() {
+    let session = TestSession::single(
+        r#"
+declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
+declare function make<T>(): T[];
+
+const seeds = make();
+on(seeds, (value) => {});
+const reds: "red"[] = seeds;
+"#,
+    );
+
+    session.assert_dir_checked_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function on<T>(seeds: T[], callback: NoInfer<(arg0: T) => void>): void;
+declare function make<T>(): T[];
+
+const seeds: "red"[] = make<"red">();
+on<"red">(seeds, (value: "red"): void => {});
+const reds: "red"[] = seeds;
+
+=== checked ===
+declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
+/// @generic.template symbol=on parameters=(T#1)
+/// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(Array<T#1>, NoInfer<Function<(T#1,), void>>) => void
+/// @type.symbol symbol=on.T source=T type=T#1
+/// @type.symbol symbol=on.seeds source="seeds: T[]" type=Array<T#1>
+/// @resolution.name source=T target=on.T
+/// @type.symbol symbol=on.callback source="callback: NoInfer<(value: T) => void>" type=NoInfer<Function<(T#1,), void>>
+/// @resolution.name source=NoInfer target=types.object.NoInfer
+/// @resolution.name source=T target=on.T
+
+declare function make<T>(): T[];
+/// @generic.template symbol=make parameters=(T#2)
+/// @type.symbol symbol=make source="declare function make<T>(): T[]" type=<T#2>() => Array<T#2>
+/// @type.symbol symbol=make.T source=T type=T#2
+/// @resolution.name source=T target=make.T
+
+const seeds = make();
+/// @type.symbol symbol=seeds source=seeds type=Array<"red">
+/// @resolution.name source=make target=make
+/// @resolution.call source=make() parameters=() return=Array<"red"> kind=symbol target=make instance="make<\"red\">"
+/// @generic.instance source=make() id="make<\"red\">"
+
+on(seeds, (value) => {});
+/// @resolution.name source=on target=on
+/// @resolution.call source="on(seeds, (value) => {})" parameters=(Array<"red">, NoInfer<Function<("red",), void>>) arguments=(provided(seeds) as Array<"red">, provided((value) => {}) as NoInfer<Function<("red",), void>>) return=void kind=symbol target=on instance="on<\"red\">"
+/// @generic.instance source="on(seeds, (value) => {})" id="on<\"red\">"
+/// @resolution.name source=seeds target=seeds
+/// @type.symbol symbol=symbol9 source="(value) => {}" type=Function<("red",), void>
+/// @type.symbol symbol=symbol9.value source=value type="red"
+
+const reds: "red"[] = seeds;
+/// @type.symbol symbol=reds source=reds type=Array<"red">
+/// @resolution.name source=seeds target=seeds
+
+/// @generic.instance id="NoInfer<Function<(T#1,), void>>" template=types.object.NoInfer arguments=(Function<(T#1,), void>)
+/// @generic.instance id="make<\"red\">" template=make arguments=("red")
+/// @generic.instance id="on<\"red\">" template=on arguments=("red")
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
 fn test_noinfer_rejects_unrelated_later_arguments() {
     let session = TestSession::single(
         r#"

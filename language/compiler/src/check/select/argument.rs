@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Answer, BodyState, BoundMode, CallableArgument, Expectation, ExpectedType, FlowSite, Origin,
-    PlaceUse, Relation, ValueUse, answer,
+    Answer, BodyState, BoundMode, CallableArgument, Constraint, Expectation, ExpectedType,
+    FlowSite, Origin, PlaceUse, Relation, ValueUse, answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -102,12 +102,12 @@ impl BodyState<'_, '_> {
             };
             let value_site = self.node_site(value)?;
             let origin = Origin::Node(value, site.scope);
+
             // barred parameters settle from the unbarred arguments alone
             let mut expected = binding.ty;
-            if self.contains_inference_barrier(expected)? {
+            let is_barred = self.contains_inference_barrier(expected)?;
+            if is_barred {
                 for variable in self.type_variables(expected)? {
-                    // TODO #Incomplete: a variable still open here leaks the
-                    //  barred argument's bounds once the queued check relates
                     let _ = self.check.solve_variable(variable, BoundMode::Strong)?;
                 }
                 expected = self.erase_inference_barriers(module, expected)?;
@@ -117,6 +117,23 @@ impl BodyState<'_, '_> {
                 true => Relation::Writable,
                 false => Relation::Assignable,
             };
+
+            // verify values against open barred targets once they close
+            if is_barred && !self.type_variables(expected)?.is_empty() {
+                let checked = self.check_node(value_site, PlaceUse::Read, None)?;
+                let value_origin = self.intern_origin(origin);
+                self.push_constraint(Constraint::check_only_value(
+                    relation,
+                    checked.ty,
+                    expected,
+                    value_origin,
+                    value_origin,
+                    Some(ValueUse::Argument),
+                ));
+
+                continue;
+            }
+
             let expectation = Expectation {
                 expected: ExpectedType::Type(expected),
                 relation,
