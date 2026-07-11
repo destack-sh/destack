@@ -9,7 +9,7 @@ use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert
 
 #[test]
 fn test_parse_extension_simple() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension of Foo {
 }
@@ -17,9 +17,9 @@ extension of Foo {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { generic_parameters, implements_types, target_type, .. }) => {
         assert!(generic_parameters.is_empty());
@@ -34,7 +34,7 @@ extension of Foo {
 
 #[test]
 fn test_report_extension_comma_separated_members() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension of Foo {
     value: int32,
@@ -43,22 +43,22 @@ extension of Foo {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let error = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range), ",");
 }
 
 #[test]
 fn test_parse_extension_target_type_span() {
-    let mut test = TestParser::new("extension of Foo.Bar {}");
+    let test = TestParser::new("extension of Foo.Bar {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
 
     // target type span
@@ -67,13 +67,13 @@ fn test_parse_extension_target_type_span() {
             .tree
             .get_side_span(*target_type, NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("expected target type span");
-        assert_eq!(parser.get_span_str(span), "Foo.Bar");
+        assert_eq!(parser.span_str(span), "Foo.Bar");
     });
 }
 
 #[test]
 fn test_parse_extension_with_generic_arguments_and_alias() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension MyExt of Foo<int32> {
 }
@@ -81,9 +81,9 @@ extension MyExt of Foo<int32> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
         assert_string!(parser, name.unwrap().string(), "MyExt");
@@ -108,7 +108,7 @@ extension MyExt of Foo<int32> {
 
 #[test]
 fn test_parse_extension_with_implements_type() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension of Bar<int32> implements Baz {
 }
@@ -116,9 +116,9 @@ extension of Bar<int32> implements Baz {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { generic_parameters, implements_types, target_type, .. }) => {
         assert!(generic_parameters.is_empty());
@@ -147,7 +147,7 @@ extension of Bar<int32> implements Baz {
 
 #[test]
 fn test_parse_extension_with_generic_parameters() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension<U> of Bar<T> implements Baz<T> {
 }
@@ -155,9 +155,9 @@ extension<U> of Bar<T> implements Baz<T> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
         assert!(name.is_none()); // anonymous
@@ -205,12 +205,12 @@ extension<U> of Bar<T> implements Baz<T> {
             NodeSpanType::Region(NodeSpanRegion::GenericParameters),
         )
         .expect("missing extension generic parameter span");
-    assert_eq!(parser.get_span_str(generic_parameter_span), "<U>");
+    assert_eq!(parser.span_str(generic_parameter_span), "<U>");
 }
 
 #[test]
 fn test_parse_extension_named_with_generic_parameters() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension MyExt<U> of Bar<T> implements Baz<T> {
 }
@@ -218,9 +218,9 @@ extension MyExt<U> of Bar<T> implements Baz<T> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { name, generic_parameters, implements_types, target_type, .. }) => {
         assert_string!(parser, name.unwrap().string(), "MyExt"); // named
@@ -268,12 +268,12 @@ extension MyExt<U> of Bar<T> implements Baz<T> {
             NodeSpanType::Region(NodeSpanRegion::GenericParameters),
         )
         .expect("missing named extension generic parameter span");
-    assert_eq!(parser.get_span_str(generic_parameter_span), "<U>");
+    assert_eq!(parser.span_str(generic_parameter_span), "<U>");
 }
 
 #[test]
 fn test_parse_extension_with_path_name_and_where() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension of Foo where Guard: Limit {
 }
@@ -281,9 +281,9 @@ extension of Foo where Guard: Limit {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { where_clauses, target_type, .. }) => {
         assert_eq!(where_clauses.len(), 1);
@@ -303,7 +303,7 @@ extension of Foo where Guard: Limit {
 
 #[test]
 fn test_parse_extension_method_with_explicit_this_parameter() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension<T> of Slice<T> {
     indexSet(this: &Slice<T>, i: number, value: T): void {
@@ -314,9 +314,9 @@ extension<T> of Slice<T> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
 
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { members, .. }) => {
@@ -344,7 +344,7 @@ extension<T> of Slice<T> {
 
 #[test]
 fn test_parse_extension_method_with_exclusive_this_parameter() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 extension<T> of Slice<T> {
     indexSet(&exclusive this, i: number, value: T): void {
@@ -355,9 +355,9 @@ extension<T> of Slice<T> {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let extension_id = parser
-        .eat_extension(&start, DeclarationHeader::default())
+        .parse_extension(&start, DeclarationHeader::default(), Default::default())
         .unwrap();
 
     // indexSet(&exclusive this, i: number, value: T): void

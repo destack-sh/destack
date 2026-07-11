@@ -8,9 +8,9 @@ use crate::{TestParser, assert_comment, assert_expression_path, assert_node, ass
 
 #[test]
 fn test_parse_where_type_assertion() {
-    let mut test = TestParser::new("where T: int32");
+    let test = TestParser::new("where T: int32");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
     // where T: int32
     assert_eq!(clauses.len(), 1);
@@ -29,11 +29,11 @@ fn test_parse_where_type_assertion() {
 
 #[test]
 fn test_parse_where_negative_capability() {
-    let mut test = TestParser::new("where T: !Unpin");
+    let test = TestParser::new("where T: !Unpin");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
@@ -48,11 +48,11 @@ fn test_parse_where_negative_capability() {
 
 #[test]
 fn test_parse_where_equality_constraint() {
-    let mut test = TestParser::new("where T.Output == U");
+    let test = TestParser::new("where T.Output == U");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation, left, right } => {
@@ -61,19 +61,19 @@ fn test_parse_where_equality_constraint() {
         assert_expression_path!(parser, parser.tree.get(*right), "U");
     });
 
-    let type_span = parser
+    let type_range = parser
         .tree
         .get_side_span(clauses[0], NodeSpanType::Region(NodeSpanRegion::Type))
         .expect("expected where type span");
-    assert_eq!(parser.get_span_str(type_span), "== U");
+    assert_eq!(parser.span_str(type_range), "== U");
 }
 
 #[test]
 fn test_parse_where_multiple_clauses() {
     let input = "where T: Numeric, U: Copy, V: Comparable";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
     assert_eq!(clauses.len(), 3);
 
@@ -104,9 +104,9 @@ fn test_parse_where_parenthesized_multiline() {
   U: Copy,
   V: Comparable
 )"##;
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
     assert_eq!(clauses.len(), 3);
 
@@ -132,11 +132,11 @@ fn test_parse_where_parenthesized_multiline() {
 
 #[test]
 fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
-    let mut test = TestParser::new("where (T: Numeric, U: Copy");
+    let test = TestParser::new("where (T: Numeric, U: Copy");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::WhereClause),
@@ -167,9 +167,9 @@ fn test_parse_parenthesized_where_with_missing_close_parenthesis() {
 /// Ensure where clauses record main and type spans.
 #[test]
 fn test_where_clause_spans() {
-    let mut test = TestParser::new("where T: Numeric");
+    let test = TestParser::new("where T: Numeric");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
     let clause_id = clauses[0];
 
     // main span
@@ -177,22 +177,22 @@ fn test_where_clause_spans() {
         .tree
         .get_main_span(clause_id)
         .expect("expected main span");
-    assert_eq!(parser.get_span_str(main_span), "T");
+    assert_eq!(parser.span_str(main_span), "T");
 
     // type span
-    let type_span = parser
+    let type_range = parser
         .tree
         .get_side_span(clause_id, NodeSpanType::Region(NodeSpanRegion::Type))
         .expect("expected type span");
-    assert_eq!(parser.get_span_str(type_span), ": Numeric");
+    assert_eq!(parser.span_str(type_range), ": Numeric");
 }
 
 #[test]
 fn test_where_clause_constraint_with_boundary_comment() {
     let source = "where T: // bound-note\nNumeric";
-    let mut test = TestParser::new(source);
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
     parser.attach_comments();
 
     assert_eq!(clauses.len(), 1);
@@ -206,11 +206,11 @@ fn test_where_clause_constraint_with_boundary_comment() {
     });
 
     // : // bound-note\nNumeric
-    let type_span = parser
+    let type_range = parser
         .tree
         .get_side_span(clauses[0], NodeSpanType::Region(NodeSpanRegion::Type))
         .expect("expected where type span");
-    assert_eq!(parser.get_span_str(type_span), ": // bound-note\nNumeric");
+    assert_eq!(parser.span_str(type_range), ": // bound-note\nNumeric");
 
     // // bound-note
     assert_eq!(parser.tree.comments().len(), 1);
@@ -219,11 +219,11 @@ fn test_where_clause_constraint_with_boundary_comment() {
 
 #[test]
 fn test_parse_where_type_expression_left() {
-    let mut test = TestParser::new("where BaseOf<Borrowed>: Clone");
+    let test = TestParser::new("where BaseOf<Borrowed>: Clone");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
@@ -234,12 +234,12 @@ fn test_parse_where_type_expression_left() {
 
 #[test]
 fn test_recover_where_implements_separator() {
-    let mut test = TestParser::new("where T implements Clone");
+    let test = TestParser::new("where T implements Clone");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "implements");
+    assert_eq!(parser.range_str(parser.errors[0].range), "implements");
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {
@@ -250,12 +250,12 @@ fn test_recover_where_implements_separator() {
 
 #[test]
 fn test_recover_where_extends_separator() {
-    let mut test = TestParser::new("where T extends Clone");
+    let test = TestParser::new("where T extends Clone");
     let mut parser = test.prepare();
-    let clauses = parser.eat_where().unwrap();
+    let clauses = parser.parse_where(Default::default()).unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "extends");
+    assert_eq!(parser.range_str(parser.errors[0].range), "extends");
 
     assert_eq!(clauses.len(), 1);
     assert_node!(parser.tree, clauses[0], WhereClause { relation: _, left, right } => {

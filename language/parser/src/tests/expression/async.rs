@@ -10,11 +10,11 @@ use destack_dir::{
 #[test]
 fn test_parse_async_generic_arrow_assignment_with_extends_default() {
     // source: pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // pollContext.getCredentials = async <T extends object = ICredentialDataDecryptedObject>() => (options.credential ?? {}) as T
     assert_node!(parser.tree, expr_id, Expression::Assign { left, operator, right } => {
@@ -50,11 +50,11 @@ fn test_parse_async_generic_arrow_assignment_with_extends_default() {
 /// Parse async comparisons and generic calls without async function false positives.
 #[test]
 fn test_parse_async_generic_false_positive() {
-    let mut test = TestParser::new("async < 1;\nasync<T>() == 0;");
+    let test = TestParser::new("async < 1;\nasync<T>() == 0;");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 2);
 
     assert_node!(parser.tree, expressions[0], Expression::Binary { left, operator, right } => {
@@ -82,7 +82,7 @@ fn test_parse_async_generic_false_positive() {
 /// Parse async generic arrow ASI.
 #[test]
 fn test_parse_async_generic_arrow_asi() {
-    let mut test = TestParser::new("let a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n");
+    let test = TestParser::new("let a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 

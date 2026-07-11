@@ -5,13 +5,14 @@ use destack_dir::{
     GenericParameter, IfForm, NodeType, Parameter, Pattern, ScalarLiteral, TreeAttribute,
     TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
+use destack_source::{NodeSpanRegion, NodeSpanType};
 
 /// Parse a constrained generic arrow whose body is a tree literal.
 #[test]
 fn test_parse_constrained_generic_arrow_before_tree() {
-    let mut test = TestParser::new("<P: Model>(x: P) => <Foo />");
+    let test = TestParser::new("<P: Model>(x: P) => <Foo />");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -40,15 +41,15 @@ fn test_parse_constrained_generic_arrow_before_tree() {
         });
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_parenthesized_tree_callback_body() {
-    let mut test = TestParser::new("items.map((item) => (<option>{item}</option>))");
+    let test = TestParser::new("items.map((item) => (<option>{item}</option>))");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-    test.assert_no_errors(&parser);
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "items.map");
@@ -73,6 +74,24 @@ fn test_parse_parenthesized_tree_callback_body() {
                             assert_eq!(children.len(), 1);
                             assert_node!(parser.tree, children[0], TreeChild::Expression { value } => {
                                 assert_expression_path!(parser, parser.tree.get(*value), "item");
+
+                                let container_span = parser
+                                    .tree
+                                    .get_side_span(
+                                        *value,
+                                        NodeSpanType::Region(NodeSpanRegion::TreeContainer),
+                                    )
+                                    .expect("missing tree expression container span");
+                                assert_eq!(parser.span_str(container_span), "{item}");
+                                assert!(
+                                    parser
+                                        .tree
+                                        .get_side_span(
+                                            *value,
+                                            NodeSpanType::Region(NodeSpanRegion::Parentheses),
+                                        )
+                                        .is_none()
+                                );
                             });
                         });
                     });
@@ -85,11 +104,11 @@ fn test_parse_parenthesized_tree_callback_body() {
 /// Recover an ambiguous generic arrow as an unterminated tree literal.
 #[test]
 fn test_recover_generic_arrow_without_tree_disambiguator() {
-    let mut test = TestParser::new("<R>(x: R) => x");
+    let test = TestParser::new("<R>(x: R) => x");
     let mut parser = test.prepare();
-    let expression = parser.eat_expression(parser.flags).unwrap();
+    let expression = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
     assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), children: Some(children), .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "R");
         assert_eq!(children.len(), 2);
@@ -105,13 +124,13 @@ fn test_recover_generic_arrow_without_tree_disambiguator() {
 /// Recover a malformed generic constraint without losing the next declaration.
 #[test]
 fn test_recover_generic_arrow_constraint_member() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "const broken = <T extends { item: ; }>(value: T) => value;\nconst recovered = 1;",
     );
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_errors(&parser, &[(Some(NodeType::TypeMember), None, None, ";")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::TypeMember), None, None, ";")]);
     assert_eq!(expressions.len(), 2);
     assert_node!(parser.tree, expressions[1], Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -124,9 +143,9 @@ fn test_recover_generic_arrow_constraint_member() {
 
 #[test]
 fn test_parse_generic_arrow_with_trailing_comma() {
-    let mut test = TestParser::new("<T,>() => 1");
+    let test = TestParser::new("<T,>() => 1");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -137,14 +156,14 @@ fn test_parse_generic_arrow_with_trailing_comma() {
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_generic_arrow_with_extends_disambiguator() {
-    let mut test = TestParser::new("<T extends unknown>(x) => 1");
+    let test = TestParser::new("<T extends unknown>(x) => 1");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -158,14 +177,14 @@ fn test_parse_generic_arrow_with_extends_disambiguator() {
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_generic_arrow_with_default_disambiguator() {
-    let mut test = TestParser::new("<T = unknown,>(x) => 1");
+    let test = TestParser::new("<T = unknown,>(x) => 1");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -179,17 +198,17 @@ fn test_parse_generic_arrow_with_default_disambiguator() {
             });
         });
     });
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 /// Parse a trailing comma as a generic arrow tree disambiguator.
 #[test]
 fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
-    let mut test = TestParser::new("<T,>(x: T): T => x");
+    let test = TestParser::new("<T,>(x: T): T => x");
     let mut parser = test.prepare();
 
     // <T,>(x: T): T => x
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.form, FunctionForm::Lambda);
@@ -214,18 +233,18 @@ fn test_parse_generic_arrow_with_trailing_comma_disambiguator() {
         });
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_ternary_typed_arrow_function_before_tree() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"Math.random() > 0.5
     ? (): void => foo()
     : (): void => bar()"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         let condition = condition.as_expression().expect("expected expression condition");
@@ -254,13 +273,13 @@ fn test_parse_ternary_typed_arrow_function_before_tree() {
 
 #[test]
 fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"Math.random() > 0.5
     ? ((): void => foo())
     : ((): void => bar())"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, condition, then_expression, else_expression } => {
         assert_eq!(*form, IfForm::Ternary);
         let condition = condition.as_expression().expect("expected expression condition");
@@ -293,11 +312,11 @@ fn test_parse_ternary_parenthesized_typed_arrow_function_before_tree() {
 
 #[test]
 fn test_parse_tree_attribute_typed_arrow_value() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected attributes");
         let class_name_attribute = attributes.iter().copied().find(|attribute_id| {
@@ -323,10 +342,10 @@ fn test_parse_tree_attribute_typed_arrow_value() {
 /// Parse a fixed array repeat literal inside a tree attribute expression.
 #[test]
 fn test_parse_tree_attribute_fixed_array_expression_value() {
-    let mut test = TestParser::new("<Buffer data={[0; count]} />");
+    let test = TestParser::new("<Buffer data={[0; count]} />");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-    test.assert_no_errors(&parser);
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
@@ -345,11 +364,11 @@ fn test_parse_tree_attribute_fixed_array_expression_value() {
 /// Recover a fixed array repeat literal inside a tree attribute expression.
 #[test]
 fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_length() {
-    let mut test = TestParser::new("<Buffer data={[0; ]} next />");
+    let test = TestParser::new("<Buffer data={[0; ]} next />");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "]")]);
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
         assert_eq!(attributes.len(), 2);
@@ -370,11 +389,11 @@ fn test_parse_tree_attribute_fixed_array_expression_value_recovers_missing_lengt
 
 #[test]
 fn test_parse_ternary_tree_attribute_typed_arrow() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::If { form, then_expression, else_expression, .. } => {
         assert_eq!(*form, IfForm::Ternary);
         assert_node!(parser.tree, *then_expression, Expression::TreeExpression { attributes, .. } => {
@@ -403,9 +422,9 @@ fn test_parse_ternary_tree_attribute_typed_arrow() {
 
 #[test]
 fn test_parse_tree_attribute_nested_tree_expression_value() {
-    let mut test = TestParser::new("<Foo prop={<Bar><Baz /></Bar>} />;");
+    let test = TestParser::new("<Foo prop={<Bar><Baz /></Bar>} />;");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { attributes, .. } => {
         let attributes = attributes.as_ref().expect("expected tree attributes");
@@ -437,9 +456,9 @@ fn test_parse_tree_attribute_nested_tree_expression_value() {
 
 #[test]
 fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
-    let mut test = TestParser::new("<a></a // line\n>;");
+    let test = TestParser::new("<a></a // line\n>;");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left, .. } => {
         let left = left.expect("expected tag path");
@@ -449,11 +468,11 @@ fn test_parse_closing_tag_with_trailing_line_comment_before_greater_than() {
 
 #[test]
 fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tree() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "(signal: AbortSignal, addInspectorRequest: <Data>(result: FetcherResult<Data>) => void): AutoAbortedAPMClient => signal",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
         assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
@@ -490,7 +509,7 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
 
 #[test]
 fn test_parse_tree_text_after_comment_expression_container() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"<test>
     {/* comment */}
      some
@@ -498,9 +517,9 @@ fn test_parse_tree_text_after_comment_expression_container() {
 </test>"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), children, .. } => {
         assert_expression_path!(parser, parser.tree.get(*left), "test");

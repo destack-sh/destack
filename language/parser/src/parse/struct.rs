@@ -1,8 +1,7 @@
-#![allow(clippy::type_complexity)]
-
 use crate::parse::DeclarationHeader;
+use crate::parse::context::FunctionContext;
 use crate::parse::error::ParserResultExt;
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
@@ -10,127 +9,104 @@ use destack_dir::{
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
-    /// Eat a struct or class declaration.
+    /// Parse one struct or class declaration.
     ///
-    /// The parser accepts `extends` for classes and `implements` for structs.
-    /// Class declarations treat `extends` as one superclass type.
-    /// Struct declarations require a name.
-    ///
-    /// Struct forms:
+    /// Examples:
+    /// ```ds
+    /// struct Point<T> { x: T; y: T }
+    /// class Widget extends View {}
     /// ```
-    /// struct Bar {
-    ///     myField: int32;
-    ///     myOtherField: boolean;
-    /// };
-    ///
-    /// struct Foo<T> implements Drawable { // structs can implement interfaces
-    ///     myField: int32;
-    ///     myOtherField: T;
-    ///
-    ///     static x: int32 = 7; // constant
-    ///
-    ///     myFunc() { }
-    /// };
-    /// ```
-    ///
-    /// Class forms:
-    /// ```
-    /// class Foo extends Bar { // classes can extend
-    ///     myField: int32;
-    /// };
-    /// ```
-    pub(crate) fn eat_struct_or_class(
+    pub(crate) fn parse_struct_or_class(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         header: DeclarationHeader,
         allow_anonymous_class: bool,
+        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        // keyword
+        // struct or class
         let keyword = self
             .eat_keyword_in(&[Keyword::Struct, Keyword::Class])
-            .for_node_type(NodeType::Declaration)?;
+            .in_node(NodeType::Declaration)?;
         let is_class = keyword == Keyword::Class;
 
-        // optional name / key
+        // struct|class Name
         let has_heritage_keyword =
-            self.is_keyword(Keyword::Extends) || self.is_keyword(Keyword::Implements);
+            self.peek_is_keyword(Keyword::Extends) || self.peek_is_keyword(Keyword::Implements);
 
         // require a name for class and struct declarations
         let allow_anonymous = is_class && allow_anonymous_class;
-        let (name, name_span) = if !allow_anonymous {
-            let (name, span) = self.eat_name_with_span()?;
-            (Some(name), Some(span))
+        let (name, name_range) = if !allow_anonymous {
+            let (name, range) = self.eat_name_with_range()?;
+            (Some(name), Some(range))
         } else if has_heritage_keyword {
             (None, None)
-        } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
-            (Some(name), Some(span))
+        } else if let Some((name, range)) = self.eat_name_with_range_if_present()? {
+            (Some(name), Some(range))
         } else {
             (None, None)
         };
 
-        // optional generic parameters: < ... >
-        let generic_parameter_container_start = self.span_start();
+        // <parameters>
+        let generic_parameter_container_start = self.mark_parse_start();
         let generic_parameters = self
-            .eat_generic_parameters_maybe(false)
-            .for_node_type(NodeType::Declaration)?;
-        let generic_parameter_container_span = generic_parameters
+            .parse_generic_parameters_if_present(false, function)
+            .in_node(NodeType::Declaration)?;
+        let generic_parameter_container_range = generic_parameters
             .as_ref()
-            .map(|_| self.get_span_from(&generic_parameter_container_start));
+            .map(|_| self.range_since(&generic_parameter_container_start));
 
-        // optional extends clause
-        let unexpected_extends_span = if !is_class && self.is_keyword(Keyword::Extends) {
-            Some(self.peek().span)
+        // extends Base
+        let unexpected_extends_range = if !is_class && self.peek_is_keyword(Keyword::Extends) {
+            Some(self.peek_token().range())
         } else {
             None
         };
         let extends_clause = if is_class {
-            self.eat_extends_types_if_present()
-                .for_node_type(NodeType::Declaration)?
-        } else if unexpected_extends_span.is_some() {
-            self.eat_extends_types_if_present()
-                .for_node_type(NodeType::Declaration)?;
+            self.parse_extends_types_if_present(function)
+                .in_node(NodeType::Declaration)?
+        } else if unexpected_extends_range.is_some() {
+            self.parse_extends_types_if_present(function)
+                .in_node(NodeType::Declaration)?;
             None
         } else {
             None
         };
-        if let Some(span) = unexpected_extends_span {
-            self.report_error(&ParserError::unexpected_for(span, NodeType::Declaration));
+        if let Some(range) = unexpected_extends_range {
+            self.report_error(ParserError::unexpected(range).in_node(NodeType::Declaration));
         }
 
-        // optional implements types
+        // implements Trait
         let implements_types = self
-            .eat_implements_types_if_present()
-            .for_node_type(NodeType::Declaration)?;
+            .parse_implements_types_if_present(function)
+            .in_node(NodeType::Declaration)?;
 
-        // where
+        // where constraints
         let where_clauses = self
-            .eat_where_maybe()
-            .for_node_type(NodeType::Declaration)?;
+            .parse_where_clauses(function)
+            .in_node(NodeType::Declaration)?;
 
-        // body
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::Declaration)?;
-        let member_flags = self.flags.nested().in_variant();
-        let members = self.with_flags(member_flags, |parser| parser.eat_members(false))?;
+        // { members }
+        self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
+            .in_node(NodeType::Declaration)?;
+        let members = self.parse_members(function)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         // struct or class
         let declaration = if is_class {
             let extends_type = extends_clause.and_then(|mut types| {
                 if types.is_empty() {
-                    None
-                } else {
-                    if let Some(extra_type) = types.get(1) {
-                        let span = self.tree.get_span(*extra_type);
-
-                        self.report_error(&ParserError::unexpected_for(
-                            span,
-                            NodeType::Declaration,
-                        ));
-                    }
-
-                    Some(types.remove(0))
+                    return None;
                 }
+
+                // report every unsupported extra base from its first occurrence
+                if let Some(extra_type) = types.get(1) {
+                    let range = self.tree.get_range(*extra_type);
+                    self.report_error(
+                        ParserError::unexpected(range).in_node(NodeType::Declaration),
+                    );
+                }
+
+                Some(types.remove(0))
             });
 
             Declaration::Class(ClassDeclaration {
@@ -141,14 +117,14 @@ impl Parser {
                 is_abstract: header.is_abstract,
                 is_final: header.is_final,
                 generic_parameters: generic_parameters.unwrap_or_default(),
-                where_clauses: where_clauses.unwrap_or_default(),
+                where_clauses,
                 extends_type,
                 implements_types: implements_types.unwrap_or_default(),
                 members,
             })
         } else {
             let Some(name) = name else {
-                return Err(ParserError::unexpected(self.get_span_from(start)));
+                return Err(ParserError::unexpected(self.range_since(start)));
             };
 
             Declaration::Struct(StructDeclaration {
@@ -157,22 +133,22 @@ impl Parser {
                 place: header.place,
                 is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
-                where_clauses: where_clauses.unwrap_or_default(),
+                where_clauses,
                 implements_types: implements_types.unwrap_or_default(),
                 members,
             })
         };
-        let declaration_id = self.insert_node(declaration, self.get_span_from(start));
+        let declaration_id = self.insert_node(declaration, self.range_since(start));
 
-        // set main span to the name identifier
-        if let Some(span) = name_span {
-            self.tree.set_main_span(declaration_id, span);
+        // set the name identifier as the main source range
+        if let Some(range) = name_range {
+            self.tree.set_main_range(declaration_id, range);
         }
-        if let Some(span) = generic_parameter_container_span {
-            self.tree.set_side_span(
+        if let Some(range) = generic_parameter_container_range {
+            self.tree.set_side_range(
                 declaration_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
-                span,
+                range,
             );
         }
 

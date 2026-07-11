@@ -1,132 +1,100 @@
 use crate::parse::DeclarationHeader;
+use crate::parse::context::{FunctionContext, TypeContext, TypeStops};
 use crate::parse::error::ParserResultExt;
-use crate::{Parser, ParserResult, ParserSpanStart};
+use crate::{ParseStart, Parser, ParserResult};
 
 use destack_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
-    /// Eat an extension (incl. `extension` keyword).
+    /// Parse one extension declaration.
     ///
     /// Examples:
+    /// ```ds
+    /// extension<T> of Vector<T> implements Iterable<T> {}
     /// ```
-    /// extension of Foo {
-    ///     ...
-    /// }
-    ///
-    /// extension MyExt of Foo<int32> {
-    ///     ...
-    /// }
-    ///
-    /// extension of Bar<int32> implements Baz {
-    ///     ...
-    /// }
-    ///
-    /// extension MyExt<T> of Bar<T> implements Baz {
-    ///     ...
-    /// }
-    ///
-    /// extension<T> of Bar<T> implements Baz {
-    ///     ...
-    /// }
-    /// ```
-    pub(crate) fn eat_extension(
+    pub(crate) fn parse_extension(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         header: DeclarationHeader,
+        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
-        // keyword
+        // extension
         self.eat_keyword(Keyword::Extension)?;
 
-        // name and generic parameters
-        let (generic_parameters, generic_parameter_container_span, name, name_span) =
-            // named extension
-            if self.peek_name_is() && !self.is_keyword(Keyword::Of) {
-                let (name, span) = self.eat_name_with_span()?;
+        // extension Name
+        let (name, name_range) = if self.peek_name_start() && !self.peek_is_keyword(Keyword::Of) {
+            let (name, range) = self.eat_name_with_range()?;
 
-                // `<T>`, only the generic parameter container belongs to this span
-                let generic_parameter_container_start = self.span_start();
-                let generic_parameters = self.eat_generic_parameters_maybe(false)?;
-                let generic_parameter_container_span = generic_parameters
-                    .as_ref()
-                    .map(|_| self.get_span_from(&generic_parameter_container_start));
+            (Some(name), Some(range))
+        } else {
+            (None, None)
+        };
 
-                (
-                    generic_parameters,
-                    generic_parameter_container_span,
-                    Some(name),
-                    Some(span),
-                )
-            }
-            // anonymous extension
-            else {
-                // `<T>`, anonymous extensions may start with generic parameters
-                let generic_parameter_container_start = self.span_start();
-                let generic_parameters = self.eat_generic_parameters_maybe(false)?;
-                let generic_parameter_container_span = generic_parameters
-                    .as_ref()
-                    .map(|_| self.get_span_from(&generic_parameter_container_start));
+        // <parameters>
+        let generic_parameter_container_start = self.mark_parse_start();
+        let generic_parameters = self.parse_generic_parameters_if_present(false, function)?;
+        let generic_parameter_container_range = generic_parameters
+            .as_ref()
+            .map(|_| self.range_since(&generic_parameter_container_start));
 
-                (generic_parameters, generic_parameter_container_span, None, None)
-            };
-
-        // `of` keyword
+        // of
         self.eat_keyword(Keyword::Of)?;
 
-        // target type
-        let target_start = self.span_start();
-        let target_type = self.eat_type_expression_or_recover_missing(
-            self.flags
-                .nested()
-                .in_super_type()
-                .in_before_block()
-                .in_type(),
+        // target
+        let target_start = self.mark_parse_start();
+        let target_type = self.parse_type_or_recover_missing(
+            TypeContext {
+                function,
+                stops: TypeStops::IMPLEMENTS,
+                ..TypeContext::default()
+            },
             NodeType::Declaration,
         )?;
 
-        // record the full type span for the target type
-        self.tree.set_side_span(
+        // record the full type source range for the target type
+        self.tree.set_side_range(
             target_type,
             NodeSpanType::Region(NodeSpanRegion::Type),
-            self.get_span_from(&target_start),
+            self.range_since(&target_start),
         );
 
         // implements types
-        let implements_types = self.eat_implements_types_if_present()?;
+        let implements_types = self.parse_implements_types_if_present(function)?;
 
-        // where
-        let where_clauses = self.eat_where_maybe()?;
+        // where constraints
+        let where_clauses = self.parse_where_clauses(function)?;
 
-        // body
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::Declaration)?;
-        let members = self.eat_members(false)?;
+        // { members }
+        self.eat_token_before(TokenType::OpenBrace, TokenType::CloseBrace)
+            .in_node(NodeType::Declaration)?;
+        let members = self.parse_members(function)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
-        // extension
+        // retain the complete declaration
         let extension_id = self.insert_node(
             Declaration::Extension(ExtensionDeclaration {
                 name,
                 export: header.export,
                 is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
-                where_clauses: where_clauses.unwrap_or_default(),
+                where_clauses,
                 target_type,
                 implements_types: implements_types.unwrap_or_default(),
                 members,
             }),
-            self.get_span_from(start),
+            self.range_since(start),
         );
 
-        // set main span to the name identifier
-        if let Some(span) = name_span {
-            self.tree.set_main_span(extension_id, span);
+        // set the main source range to the name identifier
+        if let Some(range) = name_range {
+            self.tree.set_main_range(extension_id, range);
         }
-        if let Some(span) = generic_parameter_container_span {
-            self.tree.set_side_span(
+        if let Some(range) = generic_parameter_container_range {
+            self.tree.set_side_range(
                 extension_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
-                span,
+                range,
             );
         }
 

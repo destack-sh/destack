@@ -4,7 +4,7 @@ use crate::{TestParser, assert_expression_path, assert_node};
 
 #[test]
 fn test_parse_module_newline_as_identifiers() {
-    let mut test = TestParser::new("module\nFoo\n{}");
+    let test = TestParser::new("module\nFoo\n{}");
     let mut parser = test.prepare();
 
     let expressions = parser.parse();
@@ -22,7 +22,7 @@ fn test_parse_module_newline_as_identifiers() {
 
 #[test]
 fn test_parse_module_declaration() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 module {
     const tree = HtmlTree
@@ -44,7 +44,7 @@ module {
 
 #[test]
 fn test_parse_module_declaration_decorators() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 @noManaged
 @noHeap

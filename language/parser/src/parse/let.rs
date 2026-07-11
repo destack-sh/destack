@@ -1,18 +1,56 @@
-use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
+use crate::parse::context::{
+    ExpressionContext, ExpressionStops, FunctionContext, PatternContext, TypeContext,
+};
+use crate::{ParseStart, Parser, ParserError, ParserResult};
 
 use destack_dir::{
     Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId, Mutability,
-    NodeType, Pattern, TokenType,
+    NodeType, OperatorPrecedence, Pattern, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use super::DeclarationHeader;
 
+/// Value requirements for one declarator.
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum DeclaratorValue {
+    /// Allow the declarator to omit its value.
+    Optional,
+    /// Require a value parsed above the given enclosing precedence.
+    Required(OperatorPrecedence),
+}
+
+/// The declaration form represented by one let-like keyword.
+#[derive(Debug, Copy, Clone)]
+pub(super) struct LetHead {
+    /// The declaration kind.
+    pub(super) kind: LetKind,
+    /// The binding mutability.
+    pub(super) mutability: Mutability,
+}
+
+impl LetHead {
+    /// Classify one let-like declaration keyword.
+    pub(super) const fn from_keyword(keyword: Keyword) -> Option<Self> {
+        match keyword {
+            Keyword::Let => Some(Self {
+                kind: LetKind::Let,
+                mutability: Mutability::Mutable,
+            }),
+            Keyword::Const | Keyword::Readonly => Some(Self {
+                kind: LetKind::Const,
+                mutability: Mutability::Immutable,
+            }),
+            _ => None,
+        }
+    }
+}
+
 impl Parser {
-    /// Eat a let or const binding.
+    /// Parse a let or const binding.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// const x = 1
     /// const x: int32 = 1
     /// let a: T1 = v1, b: T2  // multiple declarators
@@ -24,28 +62,30 @@ impl Parser {
     ///     ...
     /// }
     /// ```
-    pub(crate) fn eat_let(
+    pub(crate) fn parse_let(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         header: DeclarationHeader,
+        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let (kind, mutability) = self.eat_let_kind()?;
-        self.eat_let_after_keyword(start, header, kind, mutability)
+        let head = self.parse_let_head()?;
+        self.parse_let_declarators(start, header, head.kind, head.mutability, function)
     }
 
-    /// Eat a using binding (incl. `using` keyword and optional `await`).
+    /// Parse a using binding (incl. `using` keyword and optional `await`).
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// using file = openFile(path)
     /// await using conn = openConnection()
     /// using a = openA(), b = openB()
     /// ```
-    pub(crate) fn eat_using(
+    pub(crate) fn parse_using(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         header: DeclarationHeader,
         asynchrony: Asynchrony,
+        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
         // optional await
         if asynchrony == Asynchrony::Async {
@@ -58,11 +98,14 @@ impl Parser {
         // parse declarators
         let mut declarators = Vec::new();
         loop {
-            let declarator_id = self.eat_declarator(true, None)?;
+            let declarator_id = self.parse_declarator(
+                function,
+                DeclaratorValue::Required(OperatorPrecedence::Lowest),
+            )?;
             declarators.push(declarator_id);
 
             if self.peek_is(TokenType::Comma) {
-                self.bump(); // eat comma
+                self.bump();
                 continue;
             }
 
@@ -76,7 +119,7 @@ impl Parser {
                 is_ambient: header.is_ambient,
                 declarators,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
 
         Ok(using_id)
@@ -84,21 +127,22 @@ impl Parser {
 
     /// Return true when an async or sync using head starts at the current position.
     #[inline]
-    pub(crate) fn using_keyword_is(&mut self, asynchrony: Asynchrony) -> bool {
+    pub(crate) fn peek_using(&self, asynchrony: Asynchrony) -> bool {
         if asynchrony == Asynchrony::Async {
-            return self.is_keyword(Keyword::Await)
-                && self.keyword_at_offset(1) == Some(Keyword::Using)
-                && !self.token_at_offset(1).is_on_new_line();
+            return self.peek_is_keyword(Keyword::Await)
+                && self.peek_keyword_at(1) == Some(Keyword::Using)
+                && !self.peek_token_at(1).is_on_new_line();
         }
 
-        self.is_keyword(Keyword::Using)
+        self.peek_is_keyword(Keyword::Using)
     }
 
     /// Return the offset of the first binding token after `using`.
     #[inline]
-    pub(crate) fn using_binding_head_offset(&mut self, asynchrony: Asynchrony) -> Option<usize> {
+    pub(crate) fn peek_using_binding_head_offset(&self, asynchrony: Asynchrony) -> Option<usize> {
         if asynchrony == Asynchrony::Async {
-            if !self.is_keyword(Keyword::Await) || self.keyword_at_offset(1) != Some(Keyword::Using)
+            if !self.peek_is_keyword(Keyword::Await)
+                || self.peek_keyword_at(1) != Some(Keyword::Using)
             {
                 return None;
             }
@@ -106,21 +150,24 @@ impl Parser {
             return Some(2);
         }
 
-        self.is_keyword(Keyword::Using).then_some(1)
+        self.peek_is_keyword(Keyword::Using).then_some(1)
     }
 
     /// Return the first declarator token after `using` when it stays on the same line.
     #[inline]
-    pub(crate) fn using_binding_head_token(&mut self, asynchrony: Asynchrony) -> Option<TokenType> {
-        let offset = self.using_binding_head_offset(asynchrony)?;
-        let token = self.token_at_offset(offset);
+    pub(crate) fn peek_using_binding_head_token(
+        &self,
+        asynchrony: Asynchrony,
+    ) -> Option<TokenType> {
+        let offset = self.peek_using_binding_head_offset(asynchrony)?;
+        let token = self.peek_token_at(offset);
 
         (!token.is_on_new_line()).then_some(token.ty())
     }
 
     /// Return true when a token can start a `using` binding pattern.
     #[inline]
-    pub(crate) fn token_can_start_using_binding_pattern(&self, token_type: TokenType) -> bool {
+    pub(crate) const fn can_start_using_binding_pattern(token_type: TokenType) -> bool {
         matches!(
             token_type,
             TokenType::Identifier
@@ -130,53 +177,45 @@ impl Parser {
         )
     }
 
-    /// Return let kind and mutability for a declaration keyword.
-    #[inline]
-    pub(super) fn let_kind_and_mutability_for_keyword(
-        keyword: Keyword,
-    ) -> Option<(LetKind, Mutability)> {
-        match keyword {
-            Keyword::Let => Some((LetKind::Let, Mutability::Mutable)),
-            Keyword::Const | Keyword::Readonly => Some((LetKind::Const, Mutability::Immutable)),
-            _ => None,
-        }
-    }
-
     /// Parse declarators for a consumed let-like keyword.
-    fn eat_let_after_keyword(
+    fn parse_let_declarators(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
         header: DeclarationHeader,
         kind: LetKind,
         mutability: Mutability,
+        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Expression>> {
-        let first_declarator = self.eat_declarator(false, None)?;
+        let first_declarator = self.parse_declarator(function, DeclaratorValue::Optional)?;
 
         // let else
-        if self.is_keyword(Keyword::Else) {
+        if self.peek_is_keyword(Keyword::Else) {
             if header.export.is_some() || header.is_ambient {
-                return Err(ParserError::unexpected(self.peek()));
+                return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
             let declarator = self.tree.get(first_declarator);
             if declarator.value.is_none() {
-                return Err(ParserError::expected(self.peek(), TokenType::Assign));
+                return Err(ParserError::expected(
+                    self.peek_token_span(),
+                    TokenType::Assign,
+                ));
             }
 
-            let else_span = self.eat_keyword(Keyword::Else)?.span;
+            let else_range = self.eat_keyword(Keyword::Else)?.token.range();
 
             // else { ... }
             if !self.peek_is(TokenType::OpenBrace) {
-                return Err(ParserError::unexpected(self.peek()));
+                return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
             let else_branch = {
-                let branch_start = self.span_start();
-                let else_block = self.eat_block(BlockContext::Statement)?;
+                let branch_start = self.mark_parse_start();
+                let else_block = self.parse_block(BlockContext::Statement, function)?;
 
                 self.insert_node(
                     Expression::Block(else_block),
-                    self.get_span_from(&branch_start),
+                    self.range_since(&branch_start),
                 )
             };
 
@@ -187,12 +226,12 @@ impl Parser {
                     declarator: first_declarator,
                     else_branch,
                 },
-                self.get_span_from(start),
+                self.range_since(start),
             );
-            self.tree.set_side_span(
+            self.tree.set_side_range(
                 let_else_id,
                 NodeSpanType::Region(NodeSpanRegion::Clause),
-                else_span,
+                else_range,
             );
 
             return Ok(let_else_id);
@@ -202,14 +241,14 @@ impl Parser {
         let mut declarators = vec![first_declarator];
         loop {
             if self.peek_is(TokenType::Comma) {
-                self.bump(); // eat comma
-                let declarator_id = self.eat_declarator(false, None)?;
+                self.bump();
+                let declarator_id = self.parse_declarator(function, DeclaratorValue::Optional)?;
                 declarators.push(declarator_id);
                 continue;
             }
 
-            if !self.declarator_has_statement_boundary() {
-                return Err(ParserError::unexpected(self.peek()));
+            if !self.peek_declarator_statement_boundary() {
+                return Err(ParserError::unexpected(self.peek_token_span()));
             }
 
             break;
@@ -224,93 +263,71 @@ impl Parser {
                 mutability,
                 declarators,
             },
-            self.get_span_from(start),
+            self.range_since(start),
         );
 
         Ok(let_id)
     }
 
-    /// Eat a let or const keyword and return the kind and mutability.
-    pub fn eat_let_kind(&mut self) -> ParserResult<(LetKind, Mutability)> {
+    /// Parse a let or const head.
+    pub(super) fn parse_let_head(&mut self) -> ParserResult<LetHead> {
         let keyword = self.peek_any_keyword()?;
-        if let Some((kind, mutability)) = Self::let_kind_and_mutability_for_keyword(keyword) {
+        if let Some(head) = LetHead::from_keyword(keyword) {
             self.bump();
-            Ok((kind, mutability))
+            Ok(head)
         } else {
             Err(ParserError::expected(
-                self.peek_token(TokenType::Identifier)?.span,
+                self.require_token(TokenType::Identifier)?.span.range(),
                 TokenType::Identifier,
             ))
         }
     }
 
-    /// Eat a let-like binding when the caller already resolved the keyword.
-    pub(crate) fn eat_let_from_keyword(
-        &mut self,
-        start: &ParserSpanStart,
-        header: DeclarationHeader,
-        keyword: Keyword,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        if Self::let_kind_and_mutability_for_keyword(keyword).is_none() {
-            return Err(ParserError::expected(
-                self.peek_token(TokenType::Identifier)?.span,
-                TokenType::Identifier,
-            ));
-        }
-
-        self.eat_let(start, header)
-    }
-
-    /// Eat a reference mutability modifier, defaulting to mutable.
-    pub fn eat_reference_mutability_maybe(&mut self) -> ParserResult<Option<Mutability>> {
+    /// Parse a reference mutability modifier, defaulting to mutable.
+    pub(crate) fn parse_reference_mutability(&mut self) -> Mutability {
         let Ok(keyword) = self.peek_any_keyword() else {
-            return Ok(Some(Mutability::Mutable));
+            return Mutability::Mutable;
         };
 
         // readonly
         if keyword == Keyword::Readonly || keyword == Keyword::Const {
-            self.bump(); // eat readonly
-            Ok(Some(Mutability::Immutable))
+            self.bump();
+            Mutability::Immutable
         }
         // exclusive
         else if keyword == Keyword::Exclusive {
-            self.bump(); // eat exclusive
-            Ok(Some(Mutability::Exclusive))
+            self.bump();
+            Mutability::Exclusive
         }
         // mutable by default
         else {
-            Ok(Some(Mutability::Mutable))
+            Mutability::Mutable
         }
     }
 
-    /// Eat a single declarator with an optional value unless `require_value` is set.
+    /// Parse a single declarator with an optional value unless `require_value` is set.
     ///
     /// Examples:
-    /// ```
+    /// ```ds
     /// value
     /// value = 1
     /// { x, y }: Point = point
     /// [head, ...tail] = values
     /// readonly buffer: Buffer
     /// ```
-    pub(super) fn eat_declarator(
+    pub(super) fn parse_declarator(
         &mut self,
-        require_value: bool,
-        value_minimum_precedence: Option<u16>,
+        function: FunctionContext,
+        value: DeclaratorValue,
     ) -> ParserResult<LocalNodeId<Declarator>> {
-        let start = self.span_start();
-        let pattern_flags = self
-            .flags
-            .not_in_position()
-            .in_before_type()
-            .not_in_before_block();
+        let start = self.mark_parse_start();
 
         // recognize identifier heads that cannot continue into richer patterns
         let parses_plain_binding = if self.peek_is(TokenType::Identifier) {
-            let next_token_type = self.token_type_at_offset(1);
-            let has_binding_boundary = self.token_at_offset_is_on_new_line(1)
+            let peek_next_token_type = self.peek_token_type_at(1);
+            let has_binding_boundary = self.peek_token_at_is_on_new_line(1)
                 || matches!(
-                    next_token_type,
+                    peek_next_token_type,
                     TokenType::Colon
                         | TokenType::Assign
                         | TokenType::Comma
@@ -322,10 +339,10 @@ impl Parser {
                 );
 
             // reserve mutability markers and the Destack wildcard for pattern parsing
-            let keyword = self.current_keyword();
+            let keyword = self.peek_keyword();
             let is_mutability_keyword = matches!(keyword, Some(Keyword::Const | Keyword::Let))
                 || keyword == Some(Keyword::Readonly);
-            let is_wildcard = self.current_identifier_str_is("_");
+            let is_wildcard = self.peek_identifier_is("_");
 
             has_binding_boundary && !is_mutability_keyword && !is_wildcard
         } else {
@@ -334,49 +351,67 @@ impl Parser {
 
         // parse the selected binding or pattern form
         let pattern_id = if parses_plain_binding {
-            let (name, name_span) = self.eat_binding_identifier_with_span()?;
+            let (name, name_range) = self.eat_binding_identifier_with_range(function)?;
             let pattern_id = self.insert_node(
                 Pattern::Binding {
                     name,
                     pattern: None,
                 },
-                self.get_span_from(&start),
+                self.range_since(&start),
             );
-            self.tree.set_main_span(pattern_id, name_span);
+            self.tree.set_main_range(pattern_id, name_range);
 
             pattern_id
         } else {
-            self.with_flags(pattern_flags, |parser| parser.eat_pattern())?
+            self.parse_pattern(PatternContext {
+                function,
+                is_before_type: true,
+                ..PatternContext::default()
+            })?
         };
 
         // type
-        let (ty, ty_span) = if self.peek_colon_is() {
-            let type_start = self.span_start();
-            self.bump(); // eat colon
-            let type_flags = self.flags.not_in_position().in_type();
-            let ty =
-                self.eat_type_expression_or_recover_missing(type_flags, NodeType::Declarator)?;
-            (Some(ty), Some(self.get_span_from(&type_start)))
+        let (ty, type_range) = if self.peek_is(TokenType::Colon) {
+            let type_start = self.mark_parse_start();
+            self.bump();
+            let ty = self.parse_type_or_recover_missing(
+                TypeContext {
+                    function,
+                    ..TypeContext::default()
+                },
+                NodeType::Declarator,
+            )?;
+            (Some(ty), Some(self.range_since(&type_start)))
         } else {
             (None, None)
         };
 
         // value
-        let (value, value_operator_span) = if self.peek_is(TokenType::Assign) {
-            let operator_start = self.span_start();
-            self.bump(); // eat assign
-            let operator_span = self.get_span_from(&operator_start);
+        let (value, value_operator_range) = if self.peek_is(TokenType::Assign) {
+            let operator_start = self.mark_parse_start();
+            self.bump();
+            let operator_range = self.range_since(&operator_start);
 
-            let value_flags = self.flags.not_in_position();
-            let value = if let Some(value_minimum_precedence) = value_minimum_precedence {
-                self.eat_expression_at_precedence(value_flags, value_minimum_precedence)?
-            } else {
-                self.eat_expression_or_recover_missing(value_flags, NodeType::Declarator)?
+            let minimum_precedence = match value {
+                DeclaratorValue::Optional => OperatorPrecedence::Lowest,
+                DeclaratorValue::Required(precedence) => precedence,
             };
+            let value = self.parse_expression_or_recover_missing(
+                ExpressionContext {
+                    function,
+                    stops: ExpressionStops::NEWLINE_CALL,
+                    minimum_precedence,
+                    ..ExpressionContext::default()
+                },
+                NodeType::Declarator,
+            )?;
 
-            (Some(value), Some(operator_span))
-        } else if require_value {
-            return Err(ParserError::expected(self.peek(), TokenType::Assign));
+            (Some(value), Some(operator_range))
+        } else if matches!(value, DeclaratorValue::Required(_)) {
+            return Err(ParserError::expected(
+                self.peek_token_span(),
+                TokenType::Assign,
+            ));
         } else {
             (None, None)
         };
@@ -388,32 +423,32 @@ impl Parser {
                 ty,
                 value,
             },
-            self.get_span_from(&start),
+            self.range_since(&start),
         );
 
-        // set type span for the type annotation
-        if let Some(span) = ty_span {
-            self.tree.set_side_span(
+        // set the type source range for the type annotation
+        if let Some(range) = type_range {
+            self.tree.set_side_range(
                 declarator_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
-                span,
+                range,
             );
         }
 
         // value operator
-        if let Some(span) = value_operator_span {
-            self.tree.set_main_span(declarator_id, span);
+        if let Some(range) = value_operator_range {
+            self.tree.set_main_range(declarator_id, range);
         }
 
         Ok(declarator_id)
     }
 
     /// Return true when the current token can terminate a declaration statement.
-    fn declarator_has_statement_boundary(&mut self) -> bool {
-        self.is_statement_stop()
-            || self.current_token_is_on_new_line()
+    fn peek_declarator_statement_boundary(&self) -> bool {
+        self.peek_statement_stop()
+            || self.peek_is_on_new_line()
             || self.peek_is(TokenType::CloseBrace)
             || self.peek_is(TokenType::CloseParenthesis)
-            || self.is_keyword(Keyword::Else)
+            || self.peek_is_keyword(Keyword::Else)
     }
 }

@@ -1,3 +1,4 @@
+use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -6,9 +7,14 @@ use destack_dir::{
 
 #[test]
 fn test_parse_type_infer_span() {
-    let mut test = TestParser::new("type T = infer Value");
+    let test = TestParser::new("type T = infer Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -22,16 +28,21 @@ fn test_parse_type_infer_span() {
                 .tree
                 .get_main_span(infer_id)
                 .expect("expected infer main span");
-            assert_eq!(parser.get_span_str(main_span), "Value");
+            assert_eq!(parser.span_str(main_span), "Value");
         });
     });
 }
 
 #[test]
 fn test_parse_type_unary_prefix_operator_span() {
-    let mut test = TestParser::new("type T = keyof Value");
+    let test = TestParser::new("type T = keyof Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -47,16 +58,21 @@ fn test_parse_type_unary_prefix_operator_span() {
                 .tree
                 .get_main_span(unary_id)
                 .expect("expected type unary operator span");
-            assert_eq!(parser.get_span_str(main_span), "keyof");
+            assert_eq!(parser.span_str(main_span), "keyof");
         });
     });
 }
 
 #[test]
 fn test_parse_static_value_call_type_expression() {
-    let mut test = TestParser::new("type T = sizeOf<Header>()");
+    let test = TestParser::new("type T = sizeOf<Header>()");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -74,14 +90,19 @@ fn test_parse_static_value_call_type_expression() {
         });
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_local_type_expression() {
-    let mut test = TestParser::new("type T = local Value");
+    let test = TestParser::new("type T = local Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -97,9 +118,14 @@ fn test_parse_local_type_expression() {
 
 #[test]
 fn test_parse_local_type_operator_precedence() {
-    let mut test = TestParser::new("type T = local Value | undefined");
+    let test = TestParser::new("type T = local Value | undefined");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -121,9 +147,14 @@ fn test_parse_local_type_operator_precedence() {
 
 #[test]
 fn test_parse_local_owned_type_expression() {
-    let mut test = TestParser::new("type T = local ^Value");
+    let test = TestParser::new("type T = local ^Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -141,9 +172,14 @@ fn test_parse_local_owned_type_expression() {
 
 #[test]
 fn test_parse_owned_local_type_expression() {
-    let mut test = TestParser::new("type T = ^local Value");
+    let test = TestParser::new("type T = ^local Value");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -161,9 +197,14 @@ fn test_parse_owned_local_type_expression() {
 
 #[test]
 fn test_parse_type_not_operator_span() {
-    let mut test = TestParser::new("type T = !Unpin");
+    let test = TestParser::new("type T = !Unpin");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -179,16 +220,21 @@ fn test_parse_type_not_operator_span() {
                 .tree
                 .get_main_span(unary_id)
                 .expect("expected type unary operator span");
-            assert_eq!(parser.get_span_str(main_span), "!");
+            assert_eq!(parser.span_str(main_span), "!");
         });
     });
 }
 
 #[test]
 fn test_parse_readonly_type_operator_precedence() {
-    let mut test = TestParser::new("type T = readonly string[] | undefined");
+    let test = TestParser::new("type T = readonly string[] | undefined");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -211,9 +257,14 @@ fn test_parse_readonly_type_operator_precedence() {
 
 #[test]
 fn test_parse_type_unary_postfix_operator_span() {
-    let mut test = TestParser::new("Value as const");
+    let test = TestParser::new("Value as const");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     let unary_id = expr_id;
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -225,14 +276,19 @@ fn test_parse_type_unary_postfix_operator_span() {
         .tree
         .get_main_span(unary_id)
         .expect("expected type unary postfix operator span");
-    assert_eq!(parser.get_span_str(main_span), "as const");
+    assert_eq!(parser.span_str(main_span), "as const");
 }
 
 #[test]
 fn test_parse_type_binary_operator_span() {
-    let mut test = TestParser::new("Value as Other");
+    let test = TestParser::new("Value as Other");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     let binary_id = expr_id;
     assert_node!(parser.tree, expr_id, Expression::As { expression, target_type } => {
@@ -247,14 +303,19 @@ fn test_parse_type_binary_operator_span() {
         .tree
         .get_main_span(binary_id)
         .expect("expected type binary operator span");
-    assert_eq!(parser.get_span_str(main_span), "as");
+    assert_eq!(parser.span_str(main_span), "as");
 }
 
 #[test]
 fn test_parse_type_binary_extends_operator_span() {
-    let mut test = TestParser::new("type T = Left extends Right");
+    let test = TestParser::new("type T = Left extends Right");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -274,16 +335,21 @@ fn test_parse_type_binary_extends_operator_span() {
                 .tree
                 .get_main_span(binary_id)
                 .expect("expected type binary operator span");
-            assert_eq!(parser.get_span_str(main_span), "extends");
+            assert_eq!(parser.span_str(main_span), "extends");
         });
     });
 }
 
 #[test]
 fn test_parse_type_binary_satisfies_operator_span() {
-    let mut test = TestParser::new("Value satisfies Constraint");
+    let test = TestParser::new("Value satisfies Constraint");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     let binary_id = expr_id;
     assert_node!(parser.tree, expr_id, Expression::Satisfies { expression, target_type } => {
@@ -298,14 +364,19 @@ fn test_parse_type_binary_satisfies_operator_span() {
         .tree
         .get_main_span(binary_id)
         .expect("expected type binary operator span");
-    assert_eq!(parser.get_span_str(main_span), "satisfies");
+    assert_eq!(parser.span_str(main_span), "satisfies");
 }
 
 #[test]
 fn test_parse_type_binary_implements_operator_span() {
-    let mut test = TestParser::new("type T = Value implements Trait");
+    let test = TestParser::new("type T = Value implements Trait");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -325,30 +396,22 @@ fn test_parse_type_binary_implements_operator_span() {
 
 #[test]
 fn test_parse_type_expression_stops_before_in() {
-    let mut test = TestParser::new("Key in Record");
+    let test = TestParser::new("Key in Record");
     let mut parser = test.prepare();
-    let type_id = parser
-        .with_flags(parser.flags.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
-        .unwrap();
+    let type_id = parser.parse_type(Default::default()).unwrap();
 
     assert_expression_path!(parser, parser.tree.get(type_id), "Key");
 
-    let next_span = parser.peek().span;
-    assert_eq!(parser.get_span_str(next_span), "in");
-    test.assert_no_errors(&parser);
+    let next_span = parser.peek_token_span().span;
+    assert_eq!(parser.span_str(next_span), "in");
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_type_expression_stops_before_instanceof() {
-    let mut test = TestParser::new("Value instanceof Other");
+    let test = TestParser::new("Value instanceof Other");
     let mut parser = test.prepare();
-    let type_id = parser
-        .with_flags(parser.flags.in_type(), |parser| {
-            parser.eat_type_expression()
-        })
-        .unwrap();
+    let type_id = parser.parse_type(Default::default()).unwrap();
 
     // Value
     assert_node!(parser.tree, type_id, TypeExpression::Reference { path, generic_arguments } => {
@@ -357,9 +420,9 @@ fn test_parse_type_expression_stops_before_instanceof() {
     });
 
     // leftover token: instanceof
-    let next_span = parser.peek().span;
-    assert_eq!(parser.get_span_str(next_span), "instanceof");
+    let next_span = parser.peek_token_span().span;
+    assert_eq!(parser.span_str(next_span), "instanceof");
 
     // no implicit recovery
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }

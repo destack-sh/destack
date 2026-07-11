@@ -1,3 +1,4 @@
+use crate::parse::{ExpressionContext, StatementPosition};
 use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_dir::{
@@ -175,9 +176,14 @@ fn assert_expected_nested_conditional_constraint(
 
 #[test]
 fn test_parse_type_template_literal_with_generic_arguments() {
-    let mut test = TestParser::new("type T = `foo-${Capitalize<K>}`");
+    let test = TestParser::new("type T = `foo-${Capitalize<K>}`");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = `foo-${Capitalize<K>}`
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -204,11 +210,16 @@ fn test_parse_type_template_literal_with_generic_arguments() {
 
 #[test]
 fn test_parse_type_template_literal_with_union_interpolation_after_outer_union() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "type Issuer =\n  | \"https://oauth.battlenet.com.cn\"\n  | `https://${\"us\" | \"eu\"}.battle.net/oauth`",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type Issuer = | "https://oauth.battlenet.com.cn" | `https://${"us" | "eu"}.battle.net/oauth`
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -244,9 +255,14 @@ fn test_parse_type_template_literal_with_union_interpolation_after_outer_union()
 
 #[test]
 fn test_parse_type_mapped_expression() {
-    let mut test = TestParser::new("type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }");
+    let test = TestParser::new("type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -286,14 +302,19 @@ fn test_parse_type_mapped_expression() {
 
 #[test]
 fn test_parse_type_literal_call_signature_with_parameters() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type T = {
 (num: number): number
 (str: string): string
 }"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { (num: number): number (str: string): string }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -333,9 +354,14 @@ fn test_parse_type_literal_call_signature_with_parameters() {
 
 #[test]
 fn test_parse_type_literal_construct_signature() {
-    let mut test = TestParser::new("type T = { new (x: number): Foo }");
+    let test = TestParser::new("type T = { new (x: number): Foo }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { new (x: number): Foo }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -360,14 +386,19 @@ fn test_parse_type_literal_construct_signature() {
 /// Parse type literal overloads with generic call signatures.
 #[test]
 fn test_parse_type_literal_generic_call_overloads() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type Tmp = {
 <N extends number>(num: N): typeof num
 <S extends string>(str: S): typeof str
 }"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type Tmp = { <N extends number>(num: N): typeof num <S extends string>(str: S): typeof str }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -381,13 +412,13 @@ fn test_parse_type_literal_generic_call_overloads() {
                         .tree
                         .get_side_span(properties[0], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                         .expect("missing generic parameter span");
-                    assert_eq!(parser.get_span_str(generic_parameter_span), "<N extends number>");
+                    assert_eq!(parser.span_str(generic_parameter_span), "<N extends number>");
 
                     let parameter_span = parser
                         .tree
                         .get_side_span(properties[0], NodeSpanType::Region(NodeSpanRegion::Parameters))
                         .expect("missing parameter span");
-                    assert_eq!(parser.get_span_str(parameter_span), "(num: N)");
+                    assert_eq!(parser.span_str(parameter_span), "(num: N)");
 
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
@@ -415,13 +446,13 @@ fn test_parse_type_literal_generic_call_overloads() {
                         .tree
                         .get_side_span(properties[1], NodeSpanType::Region(NodeSpanRegion::GenericParameters))
                         .expect("missing generic parameter span");
-                    assert_eq!(parser.get_span_str(generic_parameter_span), "<S extends string>");
+                    assert_eq!(parser.span_str(generic_parameter_span), "<S extends string>");
 
                     let parameter_span = parser
                         .tree
                         .get_side_span(properties[1], NodeSpanType::Region(NodeSpanRegion::Parameters))
                         .expect("missing parameter span");
-                    assert_eq!(parser.get_span_str(parameter_span), "(str: S)");
+                    assert_eq!(parser.span_str(parameter_span), "(str: S)");
 
                     let generic_parameters = &signature.generic_parameters;
                     assert_eq!(generic_parameters.len(), 1);
@@ -450,14 +481,19 @@ fn test_parse_type_literal_generic_call_overloads() {
 /// Parse type literal overloads with generic call signatures returning paths.
 #[test]
 fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type Tmp = {
 <N extends number>(num: N): MyType
 <S extends string>(str: S): MyType
 }"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type Tmp = { <N extends number>(num: N): MyType <S extends string>(str: S): MyType }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -482,7 +518,7 @@ fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
 /// Parse generic call signatures with a const type parameter and conditional mapped bound.
 #[test]
 fn test_parse_type_literal_call_signature_with_const_parameter_conditional_bound() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type T = {
   <
 Value extends Field<any> | Field.ValueAny,
@@ -491,7 +527,12 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -535,7 +576,7 @@ const Mapping extends (Value extends Field<infer S> ? { readonly [K in keyof S]?
 /// Parse const type parameters when `extends` starts on the next line.
 #[test]
 fn test_parse_type_literal_call_signature_const_parameter_newline_extends() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type T = {
   <
 const Mapping
@@ -544,7 +585,12 @@ const Mapping
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
@@ -569,11 +615,16 @@ const Mapping
 /// Parse typeof queries that target readonly named values.
 #[test]
 fn test_parse_typeof_query_with_readonly_identifier() {
-    let mut test = TestParser::new("type T = typeof readonly");
+    let test = TestParser::new("type T = typeof readonly");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = typeof readonly
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -588,11 +639,16 @@ fn test_parse_typeof_query_with_readonly_identifier() {
 /// Parse typeof queries that target type named values.
 #[test]
 fn test_parse_typeof_query_with_type_identifier() {
-    let mut test = TestParser::new("type T = typeof type");
+    let test = TestParser::new("type T = typeof type");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = typeof type
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -607,11 +663,16 @@ fn test_parse_typeof_query_with_type_identifier() {
 /// Parse typeof queries over instantiated value references.
 #[test]
 fn test_parse_typeof_query_with_instantiation() {
-    let mut test = TestParser::new("type A<U> = InstanceType<typeof Array<U>>");
+    let test = TestParser::new("type A<U> = InstanceType<typeof Array<U>>");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type A<U> = InstanceType<typeof Array<U>>
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -637,11 +698,16 @@ fn test_parse_typeof_query_with_instantiation() {
 /// Parse a typeof query with generic instantiation.
 #[test]
 fn test_parse_typeof_query_instantiation_in_generic_argument() {
-    let mut test = TestParser::new("type T = Callback<typeof something<Type1, Type2>>");
+    let test = TestParser::new("type T = Callback<typeof something<Type1, Type2>>");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = Callback<typeof something<Type1, Type2>>
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -668,11 +734,16 @@ fn test_parse_typeof_query_instantiation_in_generic_argument() {
 /// Parse typeof query instantiations on member references.
 #[test]
 fn test_parse_typeof_query_with_member_instantiation() {
-    let mut test = TestParser::new("type T<U> = typeof namespace.Factory<U>");
+    let test = TestParser::new("type T<U> = typeof namespace.Factory<U>");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T<U> = typeof namespace.Factory<U>
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -695,11 +766,16 @@ fn test_parse_typeof_query_with_member_instantiation() {
 #[test]
 fn test_parse_typeof_query_missing_operand() {
     // type T = typeof
-    let mut test = TestParser::new("type T = typeof");
+    let test = TestParser::new("type T = typeof");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::Expression), None, None, "")]);
 
     // type T = typeof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -714,11 +790,16 @@ fn test_parse_typeof_query_missing_operand() {
 #[test]
 fn test_parse_keyof_query_missing_operand() {
     // type T = keyof
-    let mut test = TestParser::new("type T = keyof");
+    let test = TestParser::new("type T = keyof");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_errors(&parser, &[(Some(NodeType::TypeExpression), None, None, "")]);
+    TestParser::assert_errors(&parser, &[(Some(NodeType::TypeExpression), None, None, "")]);
 
     // type T = keyof
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -732,9 +813,14 @@ fn test_parse_keyof_query_missing_operand() {
 
 #[test]
 fn test_parse_type_literal_abstract_construct_signature() {
-    let mut test = TestParser::new("type T = { abstract new (x: number): Foo }");
+    let test = TestParser::new("type T = { abstract new (x: number): Foo }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { abstract new (x: number): Foo }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -751,9 +837,14 @@ fn test_parse_type_literal_abstract_construct_signature() {
 
 #[test]
 fn test_parse_type_literal_index_signature() {
-    let mut test = TestParser::new("type T = { readonly [k: string]?: Foo }");
+    let test = TestParser::new("type T = { readonly [k: string]?: Foo }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { readonly [k: string]?: Foo }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -776,9 +867,14 @@ fn test_parse_type_literal_index_signature() {
 
 #[test]
 fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
-    let mut test = TestParser::new("type T = string | { [x: string | number | symbol]: unknown }");
+    let test = TestParser::new("type T = string | { [x: string | number | symbol]: unknown }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = string | { [x: string | number | symbol]: unknown }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -816,7 +912,7 @@ fn test_parse_type_literal_index_signature_union_key_on_union_rhs() {
 
 #[test]
 fn test_parse_type_literal_index_signature_with_multiline_brackets() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type T = {
   [
 topic: string
@@ -824,7 +920,12 @@ topic: string
 }"#,
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { [topic: string]: number }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -847,9 +948,14 @@ topic: string
 
 #[test]
 fn test_parse_type_literal_readonly_property_name() {
-    let mut test = TestParser::new("type T = { readonly?: boolean }");
+    let test = TestParser::new("type T = { readonly?: boolean }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { readonly?: boolean }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -876,14 +982,19 @@ fn test_parse_type_literal_readonly_property_name() {
 
 #[test]
 fn test_parse_type_literal_static_members() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"type T = {
     static value: string
     static call(): number
 }"#,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { static value: string; static call(): number }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -925,9 +1036,14 @@ fn test_parse_type_literal_static_members() {
 
 #[test]
 fn test_parse_type_literal_static_property_name() {
-    let mut test = TestParser::new("type T = { static?: boolean }");
+    let test = TestParser::new("type T = { static?: boolean }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { static?: boolean }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -954,9 +1070,14 @@ fn test_parse_type_literal_static_property_name() {
 
 #[test]
 fn test_parse_type_literal_computed_key() {
-    let mut test = TestParser::new("type T = { [mismatch]: string }");
+    let test = TestParser::new("type T = { [mismatch]: string }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { [mismatch]: string }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -981,11 +1102,16 @@ fn test_parse_type_literal_computed_key() {
 
 #[test]
 fn test_parse_intrinsic_type_alias() {
-    let mut test = TestParser::new("type Uppercase<S extends string> = intrinsic");
+    let test = TestParser::new("type Uppercase<S extends string> = intrinsic");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type Uppercase<S extends string> = intrinsic
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -997,11 +1123,16 @@ fn test_parse_intrinsic_type_alias() {
 
 #[test]
 fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
-    let mut test = TestParser::new("type Uppercase<S extends string> = intrinsic<string>");
+    let test = TestParser::new("type Uppercase<S extends string> = intrinsic<string>");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type Uppercase<S extends string> = intrinsic<string>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1022,11 +1153,16 @@ fn test_parse_intrinsic_type_alias_keeps_non_bare_intrinsic_as_reference() {
 /// Generic arrow function types work in declaration files.
 #[test]
 fn test_parse_generic_arrow_function_type() {
-    let mut test = TestParser::declaration(
+    let test = TestParser::declaration(
         "type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type ClassDecorator = <TFunction extends Function>(target: TFunction) => TFunction | void
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1039,9 +1175,14 @@ fn test_parse_generic_arrow_function_type() {
 /// Arrow function type with conditional return.
 #[test]
 fn test_parse_type_arrow_with_conditional_return() {
-    let mut test = TestParser::declaration("type T = <X>() => X extends A | B ? true : false");
+    let test = TestParser::declaration("type T = <X>() => X extends A | B ? true : false");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = <X>() => X extends A | B ? true : false
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1062,9 +1203,14 @@ fn test_parse_type_nested_conditional_with_arrows() {
   ? true
   : false
 : false"#;
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type StrictEqual<L, R> = ... ? IsNever<L> extends IsNever<R> ? true : false : false
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1085,9 +1231,14 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
     let input = r#"type T = {
   method: <Expected extends IsUnion<Expected> extends true ? "error" : SomeType>(arg: Expected) => true;
 }"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { method: <...>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1108,11 +1259,16 @@ fn test_parse_type_member_generic_arrow_complex_constraint() {
 #[test]
 fn test_parse_nested_generic_reference_with_literal_argument() {
     let input = r#"type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1137,11 +1293,16 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
     ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
   ) => true;
 }"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = { method: <Expected>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1199,11 +1360,13 @@ fn test_parse_generic_parameter_nested_conditional_constraint_with_trailing_comm
         ? unknown
         : MismatchInfo<DeepPick<Actual, Expected>, Expected>,
 >"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let generic_parameters = parser.eat_generic_parameters(false).unwrap();
+    let generic_parameters = parser
+        .parse_generic_parameter_list(false, Default::default())
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // <Expected extends IsUnion<Expected> extends true ? ...>
     assert_eq!(generic_parameters.len(), 1);
@@ -1229,11 +1392,16 @@ fn test_parse_function_type_nested_conditional_constraint() {
 >(
   ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
 ) => true"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = <Expected extends ...>(...MISMATCH) => true
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1284,11 +1452,16 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
     ...MISMATCH: MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
   ) => true;
 }"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type Expect<Actual> = { toMatchObjectType: <...>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1349,11 +1522,16 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
     let input = r#"type T = {
   f: <U extends A<B>>(x: U) => true;
 }"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = { f: <U extends A<B>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1416,11 +1594,16 @@ fn test_parse_type_member_generic_arrow_conditional_constraint_before_parameter_
     let input = r#"type T = {
   f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true;
 }"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     // type T = { f: <U extends A<B> extends true ? unknown : C<D>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1469,9 +1652,14 @@ fn test_parse_type_literal_where_field_after_function_type() {
   setSelectedFields: (fields: FieldOption[]) => void
   where?: Where
 }"#;
-    let mut test = TestParser::declaration(input);
+    let test = TestParser::declaration(input);
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { setSelectedFields: (fields: FieldOption[]) => void; where?: Where }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
@@ -1502,9 +1690,14 @@ fn test_parse_type_literal_where_field_after_function_type() {
 #[test]
 fn test_parse_type_generic_arrow_in_generic_arguments() {
     let input = "type T = Extends<<T>() => T extends X ? true : false, <T>() => T extends Y ? true : false>";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = Extends<arrow1, arrow2>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1520,9 +1713,14 @@ fn test_parse_type_generic_arrow_in_generic_arguments() {
 #[test]
 fn test_parse_type_path_empty_generic_arguments_recovers_error_slot() {
     // type T = Container<>
-    let mut test = TestParser::new("type T = Container<>");
+    let test = TestParser::new("type T = Container<>");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
 
@@ -1540,9 +1738,14 @@ fn test_parse_type_path_empty_generic_arguments_recovers_error_slot() {
 
 #[test]
 fn test_parse_type_literal_call_signature() {
-    let mut test = TestParser::new("type T = { (): string }");
+    let test = TestParser::new("type T = { (): string }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = { (): string }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -1561,9 +1764,14 @@ fn test_parse_type_literal_call_signature() {
 
 #[test]
 fn test_parse_type_template_literal() {
-    let mut test = TestParser::new("type T = `foo-${Bar}`");
+    let test = TestParser::new("type T = `foo-${Bar}`");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser
+        .parse_expression(ExpressionContext {
+            statement: StatementPosition::Direct,
+            ..ExpressionContext::default()
+        })
+        .unwrap();
 
     // type T = `foo-${Bar}`
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

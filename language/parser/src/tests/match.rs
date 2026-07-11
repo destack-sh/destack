@@ -11,7 +11,7 @@ use crate::{
 
 #[test]
 fn test_parse_match_simple_arms() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 match (x) {
     1 => 10
@@ -23,7 +23,7 @@ match (x) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
 
     assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value, cases } => {
         // value: path x
@@ -68,7 +68,7 @@ match (x) {
 
 #[test]
 fn test_parse_match_object_pattern_arms_with_expression_bodies() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 match (shape) {
     { kind: "circle", radius } => radius
@@ -77,9 +77,9 @@ match (shape) {
 "#,
     );
     let mut parser = test.prepare();
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, match_id, Expression::Match { cases, .. } => {
         assert_eq!(cases.len(), 2);
@@ -106,7 +106,7 @@ match (shape) {
 
 #[test]
 fn test_parse_match_with_guard() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 match (x) {
     2 if (true) => 20
@@ -115,7 +115,7 @@ match (x) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value: _, cases } => {
         assert_eq!(cases.len(), 1);
 
@@ -125,7 +125,7 @@ match (x) {
                 .tree
                 .get_side_span(cases[0], NodeSpanType::Region(NodeSpanRegion::Clause))
                 .expect("expected guard clause span");
-            assert_eq!(parser.get_span_str(guard_clause_span), "if (true)");
+            assert_eq!(parser.span_str(guard_clause_span), "if (true)");
 
             // guard: true
             let guard_id = guard.expect("expected guard");
@@ -144,7 +144,7 @@ match (x) {
 
 #[test]
 fn test_parse_match_tuple_guard_with_comparison() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 match (pair) {
     (_, count) if (count > 0) => count
@@ -154,7 +154,7 @@ match (pair) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value: _, cases } => {
         assert_eq!(cases.len(), 2);
 
@@ -190,7 +190,7 @@ match (pair) {
 
 #[test]
 fn test_parse_match_with_paths() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 match (self) {
     TetrisPieceShape.I => Color.Blue
@@ -201,7 +201,7 @@ match (self) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
 
     // match (self) { ... }
     assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value, cases } => {
@@ -244,7 +244,7 @@ match (self) {
 
 #[test]
 fn test_parse_match_parenthesized_value_keeps_inner_span() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 match (value) {
     _ => result
@@ -253,7 +253,7 @@ match (value) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, match_id, Expression::Match { value, .. } => {
         assert_expression_path!(parser, parser.tree.get(*value), "value");
 
@@ -265,7 +265,7 @@ match (value) {
 
 #[test]
 fn test_parse_match_arm_keeps_if_else_branch_semicolons_as_statements() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 match (result) {
     Ok(value) => {
@@ -277,7 +277,7 @@ match (result) {
     );
     let mut parser = test.prepare();
 
-    let match_id = parser.eat_match().unwrap();
+    let match_id = parser.parse_match(Default::default()).unwrap();
 
     assert_node!(parser.tree, match_id, Expression::Match { cases, .. } => {
         assert_eq!(cases.len(), 2);
@@ -310,7 +310,7 @@ match (result) {
 /// Parse a switch-case statement.
 #[test]
 fn test_parse_match_from_switch_case() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 switch (left.type) {
     case "static":
@@ -331,7 +331,7 @@ switch (left.type) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.eat_match().unwrap();
+    let switch_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, value: _, cases } => {
         assert_eq!(cases.len(), 4);
 
@@ -396,7 +396,7 @@ switch (left.type) {
 /// Parse a switch case with a block statement followed by a regex expression statement.
 #[test]
 fn test_parse_switch_case_block_then_regex_expression_statement() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 switch(a) { case 1: {}
 /foo/ }
@@ -405,7 +405,7 @@ switch(a) { case 1: {}
     let mut parser = test.prepare();
 
     // switch(a) { case 1: {} /foo/ }
-    let switch_id = parser.eat_match().unwrap();
+    let switch_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
@@ -422,7 +422,7 @@ switch(a) { case 1: {}
 /// Parse switch case statements that begin with a semicolon before a parenthesized call.
 #[test]
 fn test_parse_switch_case_leading_semicolon_parenthesized_call() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 switch (tag.injectTo) {
   case "body":
@@ -433,7 +433,7 @@ switch (tag.injectTo) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.eat_match().unwrap();
+    let switch_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
@@ -467,7 +467,7 @@ switch (tag.injectTo) {
 /// Parse a switch case with an if block, following assignments, then fallthrough case.
 #[test]
 fn test_parse_switch_case_if_block_then_assignments_then_fallthrough_case() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 switch (tag) {
   case dataViewTag:
@@ -485,7 +485,7 @@ switch (tag) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.eat_match().unwrap();
+    let switch_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
         assert_eq!(cases.len(), 2);
 
@@ -531,7 +531,7 @@ switch (tag) {
 /// Parse switch case statements that continue after one break statement.
 #[test]
 fn test_parse_switch_case_with_multiple_break_statements() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 switch (value) {
   case 1:
@@ -542,7 +542,7 @@ switch (value) {
     );
     let mut parser = test.prepare();
 
-    let switch_id = parser.eat_match().unwrap();
+    let switch_id = parser.parse_match(Default::default()).unwrap();
     assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
         assert_eq!(cases.len(), 1);
         assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
@@ -559,7 +559,7 @@ switch (value) {
 /// Recover a switch case body that reaches EOF before the switch closes.
 #[test]
 fn test_parse_switch_case_body_recovers_at_eof() {
-    let mut test = TestParser::new("switch (cond) { case 10: let a = 20;");
+    let test = TestParser::new("switch (cond) { case 10: let a = 20;");
     let mut parser = test.prepare();
     let roots = parser.parse();
 
@@ -594,7 +594,7 @@ fn test_parse_switch_case_body_recovers_at_eof() {
         });
     });
 
-    test.assert_errors(
+    TestParser::assert_errors(
         &parser,
         &[(
             Some(NodeType::MatchCase),
@@ -608,11 +608,11 @@ fn test_parse_switch_case_body_recovers_at_eof() {
 /// Parse minified switch cases where `continue` is followed by `}` and another `if`.
 #[test]
 fn test_parse_switch_case_minified_if_continue_then_if() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "switch(op[0]){default:if(!(t=_.trys,t=t.length>0&&t[t.length-1])&&(op[0]===6||op[0]===2)){_=0;continue}if(op[0]===3&&(!t||op[1]>t[0]&&op[1]<t[3])){_.label=op[1];break}}",
     );
     let mut parser = test.prepare();
-    let switch_id = parser.eat_match().unwrap();
+    let switch_id = parser.parse_match(Default::default()).unwrap();
 
     // switch(op[0]) { default: if (...) { _ = 0; continue } if (...) { _.label = op[1]; break } }
     assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
@@ -633,7 +633,7 @@ fn test_parse_switch_case_minified_if_continue_then_if() {
 
 #[test]
 fn test_parse_switch_case_boundary_comment_ownership() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"switch (state) {
   // before-ready
   case "ready":

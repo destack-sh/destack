@@ -11,10 +11,10 @@ use crate::{
 
 #[test]
 fn test_parse_if_basic() {
-    let mut test = TestParser::new("if (true) {}");
+    let test = TestParser::new("if (true) {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         // condition is boolean true
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -31,11 +31,11 @@ fn test_parse_if_basic() {
 
 #[test]
 fn test_parse_if_else_with_empty_blocks() {
-    let mut test = TestParser::new("if (false) {} else {}");
+    let test = TestParser::new("if (false) {} else {}");
     let mut parser = test.prepare();
 
     // if (false) { } else { }
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // false
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -59,7 +59,7 @@ fn test_parse_if_else_with_empty_blocks() {
 
 #[test]
 fn test_parse_if_else_records_else_clause_span() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"
 if (ready) {
     run()
@@ -72,22 +72,22 @@ else {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     let else_span = parser
         .tree
         .get_side_span(if_id, NodeSpanType::Region(NodeSpanRegion::Clause))
         .expect("expected else clause span");
 
-    assert_eq!(parser.get_span_str(else_span), "else");
+    assert_eq!(parser.span_str(else_span), "else");
 }
 
 #[test]
 fn test_parse_if_else_parenthesized_with_trivial_blocks() {
-    let mut test = TestParser::new("if (cond) { a } else { b }");
+    let test = TestParser::new("if (cond) { a } else { b }");
     let mut parser = test.prepare();
 
     // if (cond) { a } else { b }
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // cond
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -115,10 +115,10 @@ fn test_parse_if_else_parenthesized_with_trivial_blocks() {
 
 #[test]
 fn test_parse_if_parenthesized_condition_keeps_inner_span() {
-    let mut test = TestParser::new("if (cond) {}");
+    let test = TestParser::new("if (cond) {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, .. } => {
         let condition_id = condition.as_expression().expect("expected expression condition");
 
@@ -133,7 +133,7 @@ fn test_parse_if_parenthesized_condition_keeps_inner_span() {
 
 #[test]
 fn test_parse_if_with_nested_parenthesized_condition() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 if (cond) {
     if (cond) {
@@ -147,7 +147,7 @@ if (cond) {
     let mut parser = test.prepare();
 
     // if (cond) { if (cond) { a } else { b } }
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // cond
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -190,10 +190,10 @@ if (cond) {
 
 #[test]
 fn test_parse_if_else_if_with_empty_blocks() {
-    let mut test = TestParser::new("if (true) {} else if (false) {}");
+    let test = TestParser::new("if (true) {} else if (false) {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // true
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -223,7 +223,7 @@ fn test_parse_if_else_if_with_empty_blocks() {
 fn test_parse_if_else_if_ambiguous() {
     // ambiguous because y and z could be interpreted as struct literals
     // this is disambiguated in a condition / guard clause
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 if (x > y) {
     y
@@ -233,7 +233,7 @@ if (x > y) {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if x > y
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -275,10 +275,10 @@ if (x > y) {
 
 #[test]
 fn test_parse_if_else_if_else_with_empty_blocks() {
-    let mut test = TestParser::new("if (true) {} else if (false) {} else {}");
+    let test = TestParser::new("if (true) {} else if (false) {} else {}");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if true
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -315,7 +315,7 @@ fn test_parse_if_else_if_else_with_empty_blocks() {
 
 #[test]
 fn test_parse_if_else_if_else_multiline() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 if (v < lo) { lo }
 else if (v > hi) { hi }
@@ -324,7 +324,7 @@ else { v }
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if (v < lo)
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -373,7 +373,7 @@ else { v }
 
 #[test]
 fn test_parse_if_with_expression_condition() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 if (x > y) {
     print("positive")
@@ -382,7 +382,7 @@ if (x > y) {
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         // condition is binary expression x > y
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -400,7 +400,7 @@ if (x > y) {
 /// If the then expression is not a block, it should be coerced to a block.
 #[test]
 fn test_parse_if_else_if_coerce_to_block() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 if (x)
     x
@@ -412,7 +412,7 @@ else
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         // if (x)
         let condition_id = condition.as_expression().expect("expected expression condition");
@@ -446,7 +446,7 @@ else
 
 #[test]
 fn test_parse_if_else_with_typed_parenthesized_arrow_statement() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 if (payments) res.status(200).json({ payments });
 else
@@ -459,7 +459,7 @@ else
     );
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { else_expression, .. } => {
         let else_expression_id = else_expression.expect("expected else expression");
         assert_node!(parser.tree, else_expression_id, Expression::Block(block_id) => {
@@ -483,10 +483,10 @@ else
 
 #[test]
 fn test_parse_if_let_condition() {
-    let mut test = TestParser::new("if (let (x, _) = value) { x } else { 0 }");
+    let test = TestParser::new("if (let (x, _) = value) { x } else { 0 }");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
         let (kind, _, declarator_id) = condition
             .as_binding()
@@ -507,10 +507,10 @@ fn test_parse_if_let_condition() {
 
 #[test]
 fn test_parse_if_const_condition() {
-    let mut test = TestParser::new("if (const value = maybe) { value }");
+    let test = TestParser::new("if (const value = maybe) { value }");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let (kind, mutability, declarator_id) = condition
             .as_binding()
@@ -529,10 +529,10 @@ fn test_parse_if_const_condition() {
 
 #[test]
 fn test_parse_if_let_tagged_object_pattern() {
-    let mut test = TestParser::new("if (let Point { x, y } = value) { x }");
+    let test = TestParser::new("if (let Point { x, y } = value) { x }");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let (kind, _, declarator_id) = condition
             .as_binding()
@@ -562,10 +562,10 @@ fn test_parse_if_let_tagged_object_pattern() {
 /// Logical conditions without bindings should stay regular expressions.
 #[test]
 fn test_parse_if_logical_condition_as_expression() {
-    let mut test = TestParser::new("if (ready && enabled) { run() }");
+    let test = TestParser::new("if (ready && enabled) { run() }");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         let condition = condition.as_expression().expect("expected expression condition");
         assert_node!(parser.tree, condition, Expression::Binary { left, operator, right } => {
@@ -577,16 +577,15 @@ fn test_parse_if_logical_condition_as_expression() {
         assert_node!(parser.tree, *then_expression, Expression::Block(_));
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_if_condition_chain() {
-    let mut test =
-        TestParser::new("if (ready && let (count, label) = pair && count > 0) { label }");
+    let test = TestParser::new("if (ready && let (count, label) = pair && count > 0) { label }");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         assert_eq!(condition.operands.len(), 3);
 
@@ -619,10 +618,10 @@ fn test_parse_if_condition_chain() {
 /// Binding condition chains should allow expression operands before bindings.
 #[test]
 fn test_parse_if_condition_chain_after_comparison() {
-    let mut test = TestParser::new("if (value < limit && let item = maybe) { item }");
+    let test = TestParser::new("if (value < limit && let item = maybe) { item }");
     let mut parser = test.prepare();
 
-    let if_id = parser.eat_if().unwrap();
+    let if_id = parser.parse_if(Default::default()).unwrap();
     assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
         assert_eq!(condition.operands.len(), 2);
 
@@ -647,12 +646,12 @@ fn test_parse_if_condition_chain_after_comparison() {
         assert_node!(parser.tree, *then_expression, Expression::Block(_));
     });
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_if_head_trailing_comment_on_condition_owner() {
-    let mut test = TestParser::new("if (ready) // if-head\n    run()");
+    let test = TestParser::new("if (ready) // if-head\n    run()");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -688,8 +687,7 @@ fn test_parse_if_head_trailing_comment_on_condition_owner() {
 
 #[test]
 fn test_parse_if_else_boundary_comment_on_else_owner() {
-    let mut test =
-        TestParser::new("if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n");
+    let test = TestParser::new("if (ready) {\n  run()\n}\n// else-boundary\nelse {\n  stop()\n}\n");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -714,7 +712,7 @@ fn test_parse_if_else_boundary_comment_on_else_owner() {
 #[test]
 fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
     let input = "if (foo) a = b;\n/* foo */ else foo.split;";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
@@ -729,7 +727,7 @@ fn test_parse_if_else_after_then_semicolon_with_leading_boundary_comment() {
 #[test]
 fn test_parse_if_else_after_then_semicolon_with_trailing_boundary_comment() {
     let input = "if (foo) a = b;\nelse /* foo */ foo.split;";
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 

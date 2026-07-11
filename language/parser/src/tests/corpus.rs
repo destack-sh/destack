@@ -71,7 +71,7 @@ fn parse_library_source(path: &Path, root: &Path, strings: Arc<StringPool>) -> (
         LanguageType::Destack,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Documentation,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         strings,
     );

@@ -9,9 +9,9 @@ use destack_dir::{
 };
 #[test]
 fn test_parse_member_expression_as_member_chain() {
-    let mut test = TestParser::new("foo.bar");
+    let test = TestParser::new("foo.bar");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
         assert_string!(parser, *name, "bar");
@@ -30,10 +30,10 @@ keyof.nested.ok satisfies string;
 readonly.nested.ok satisfies number;
 shared?.nested.ok satisfies boolean;
 "#;
-    let mut test = TestParser::new(input);
+    let test = TestParser::new(input);
     let mut parser = test.prepare();
     let expressions = parser.parse();
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_eq!(expressions.len(), 3);
     assert_node!(parser.tree, expressions[0], Expression::Satisfies { expression, target_type } => {
@@ -67,9 +67,9 @@ shared?.nested.ok satisfies boolean;
 /// Parse super member access.
 #[test]
 fn test_parse_super_member_expression() {
-    let mut test = TestParser::new("super.value");
+    let test = TestParser::new("super.value");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // super.value
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
@@ -80,9 +80,9 @@ fn test_parse_super_member_expression() {
 
 #[test]
 fn test_parse_member_expression_with_newline_after_dot() {
-    let mut test = TestParser::new("receiver.\nnext");
+    let test = TestParser::new("receiver.\nnext");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // receiver.\nnext
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
@@ -93,9 +93,9 @@ fn test_parse_member_expression_with_newline_after_dot() {
 
 #[test]
 fn test_parse_call_chain_with_newline_after_dot() {
-    let mut test = TestParser::new("receiver().\nthen(value)");
+    let test = TestParser::new("receiver().\nthen(value)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // receiver().\nthen(value)
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -118,9 +118,9 @@ fn test_parse_call_chain_with_newline_after_dot() {
 /// Keep member-hop boundary comments on the hop owner expressions.
 #[test]
 fn test_parse_member_hop_comments_attach_to_boundary_owners() {
-    let mut test = TestParser::new("source /* hop-a */ .first() /* hop-b */ .second()");
+    let test = TestParser::new("source /* hop-a */ .first() /* hop-b */ .second()");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
     assert_node!(parser.tree, expression_id, Expression::Call { left, arguments, .. } => {
@@ -171,9 +171,9 @@ fn test_parse_member_hop_comments_attach_to_boundary_owners() {
 /// Attach call-boundary comments to the call separator owner.
 #[test]
 fn test_parse_call_boundary_comment_attaches_to_call_separator() {
-    let mut test = TestParser::new("run /* callee-note */ (first, second)");
+    let test = TestParser::new("run /* callee-note */ (first, second)");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
     assert_eq!(parser.tree.comments().len(), 1);
@@ -183,12 +183,12 @@ fn test_parse_call_boundary_comment_attaches_to_call_separator() {
 
 #[test]
 fn test_parse_member_expression_with_line_comment_before_dot() {
-    let mut test = TestParser::new("container // marker\n.left as PropertyAccessExpression");
+    let test = TestParser::new("container // marker\n.left as PropertyAccessExpression");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(
         parser.tree,
         expression_id,
@@ -206,14 +206,14 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
     assert_comment!(parser, 0, CommentKind::Line, "marker");
 
     let token_before = parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .rev()
         .find(|token| token.span.end <= comment.span.start)
         .copied()
         .expect("line comment should have one preceding token");
     let token_after = parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .find(|token| {
             token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
@@ -227,27 +227,27 @@ fn test_parse_member_expression_with_line_comment_before_dot() {
 /// Keep full-function line comments before member dots attached to the dot boundary.
 #[test]
 fn test_parse_function_member_comment_boundary_before_dot() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "function f(container) { return ((container // marker\n.left as PropertyAccessExpression).expression as PropertyAccessExpression).expression; }",
     );
     let mut parser = test.prepare();
-    let _ = parser.eat_expression(parser.flags).unwrap();
+    let _ = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(parser.tree.comments().len(), 1);
     let comment = parser.tree.comments()[0];
     assert_comment!(parser, 0, CommentKind::Line, "marker");
 
     let token_before = parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .rev()
         .find(|token| token.span.end <= comment.span.start)
         .copied()
         .expect("line comment should have one preceding token");
     let token_after = parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .find(|token| {
             token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
@@ -261,21 +261,21 @@ fn test_parse_function_member_comment_boundary_before_dot() {
 /// Attach block comments before member continuations to the dot boundary.
 #[test]
 fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "(activeService as unknown as QuickInputController) /* boundary note */ .pick()",
     );
     let mut parser = test.prepare();
-    let _ = parser.eat_expression(parser.flags).unwrap();
+    let _ = parser.parse_expression(Default::default()).unwrap();
     parser.attach_comments();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(parser.tree.comments().len(), 1);
 
     let comment = parser.tree.comments()[0];
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " boundary note");
 
     let token_after = parser
-        .tokens()
+        .consumed_tokens()
         .iter()
         .find(|token| {
             token.span.start >= comment.span.end && !matches!(token.token.ty(), TokenType::End)
@@ -287,18 +287,18 @@ fn test_parse_parenthesized_member_comment_attaches_to_dot_boundary() {
 
 #[test]
 fn test_report_decimal_integer_member_access_without_separator() {
-    let mut test = TestParser::new("1.foo");
+    let test = TestParser::new("1.foo");
     let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
+    let error = parser.parse_expression(Default::default()).unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), ".");
+    assert_eq!(parser.range_str(error.range), ".");
 }
 
 #[test]
 fn test_parse_parenthesized_integer_member_access() {
-    let mut test = TestParser::new("(1).foo");
+    let test = TestParser::new("(1).foo");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "foo");
@@ -310,11 +310,11 @@ fn test_parse_parenthesized_integer_member_access() {
 
 #[test]
 fn test_parse_destack_double_dot_as_range() {
-    let mut test = TestParser::new("0..a");
+    let test = TestParser::new("0..a");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, expression_id, Expression::RangeExpression { start, end, end_kind } => {
         assert_eq!(*end_kind, RangeEnd::Open);
@@ -326,10 +326,9 @@ fn test_parse_destack_double_dot_as_range() {
 }
 #[test]
 fn test_parse_this_member_expression_in_variant_context() {
-    let mut test = TestParser::new("this.port1.onmessage");
+    let test = TestParser::new("this.port1.onmessage");
     let mut parser = test.prepare();
-    parser.flags = parser.flags.in_variant();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // this.port1.onmessage
     assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
@@ -344,10 +343,9 @@ fn test_parse_this_member_expression_in_variant_context() {
 /// Parse this member access in call arguments in variant context.
 #[test]
 fn test_parse_call_argument_this_member_expression_in_variant_context() {
-    let mut test = TestParser::new("setTimeout(this.port1.onmessage, 0)");
+    let test = TestParser::new("setTimeout(this.port1.onmessage, 0)");
     let mut parser = test.prepare();
-    parser.flags = parser.flags.in_variant();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // setTimeout(this.port1.onmessage, 0)
     assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
@@ -368,7 +366,7 @@ fn test_parse_call_argument_this_member_expression_in_variant_context() {
 /// Parse multi-line member and calls.
 #[test]
 fn test_parse_member_multiline() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 self
     .foo()
@@ -376,7 +374,7 @@ self
 ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Call { left: baz_recv, .. } => {
         assert_node!(parser.tree, *baz_recv, Expression::Member { left, name, .. } => {
             assert_string!(parser, *name, "baz");
@@ -390,9 +388,9 @@ self
 /// Parse boolean IdentifierName member access.
 #[test]
 fn test_parse_member_boolean_identifier_name() {
-    let mut test = TestParser::new("a.true");
+    let test = TestParser::new("a.true");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
         assert_string!(parser, *name, "true");
@@ -402,9 +400,9 @@ fn test_parse_member_boolean_identifier_name() {
 /// Parse null IdentifierName path access.
 #[test]
 fn test_parse_path_null_identifier_name() {
-    let mut test = TestParser::new("a.null");
+    let test = TestParser::new("a.null");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { left, name, .. } => {
         assert_string!(parser, *name, "null");
@@ -417,9 +415,9 @@ fn test_parse_path_null_identifier_name() {
 /// Parse default IdentifierName member access.
 #[test]
 fn test_parse_member_default_identifier_name_after_parenthesized_await_call() {
-    let mut test = TestParser::new(r#"(await load(join("file://", process.argv[2]))).default"#);
+    let test = TestParser::new(r#"(await load(join("file://", process.argv[2]))).default"#);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Member { name, .. } => {
         assert_string!(parser, *name, "default");

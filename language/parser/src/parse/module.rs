@@ -1,24 +1,31 @@
+use crate::parse::context::FunctionContext;
 use crate::parse::error::ParserResultExt;
-use crate::{Parser, ParserResult, ParserSpanStart};
+use crate::{ParseStart, Parser, ParserResult};
 
 use destack_dir::{
     BlockContext, BlockForm, Declaration, LocalNodeId, ModuleDeclaration, NodeType, TokenType,
 };
 
 impl Parser {
-    /// Eat a module declaration after its `module` head.
-    pub(crate) fn eat_module_body(
+    /// Parse a module declaration after its `module` head.
+    ///
+    /// Examples:
+    /// ```ds
+    /// module Network {}
+    /// ```
+    pub(crate) fn parse_module(
         &mut self,
-        start: &ParserSpanStart,
+        start: &ParseStart,
+        function: FunctionContext,
     ) -> ParserResult<LocalNodeId<Declaration>> {
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
-            .eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)
-            .for_node_type(NodeType::Block)?;
+            .parse_block_body(BlockForm::Explicit, BlockContext::Statement, function)
+            .in_node(NodeType::Block)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         let declaration = Declaration::Module(ModuleDeclaration { expressions });
-        let declaration_id = self.insert_node(declaration, self.get_span_from(start));
+        let declaration_id = self.insert_node(declaration, self.range_since(start));
 
         Ok(declaration_id)
     }

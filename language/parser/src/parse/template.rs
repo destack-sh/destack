@@ -1,0 +1,281 @@
+use destack_dir::{
+    Argument, Expression, LocalNodeId, StringId, TemplateLiteral, TokenSpan, TokenType,
+    TypeExpression,
+};
+use destack_source::ByteRange;
+
+use crate::parse::context::{ExpressionContext, FunctionContext, TypeContext};
+use crate::{Parser, ParserError, ParserResult};
+
+impl Parser {
+    /// Peek a template literal.
+    #[inline]
+    pub fn peek_template_literal(&self) -> ParserResult<TokenSpan> {
+        if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
+            Ok(self.peek_token_span())
+        } else {
+            Err(ParserError::unexpected(self.peek_token_span()))
+        }
+    }
+
+    /// Parse a template literal.
+    ///
+    /// Examples:
+    /// ```ds
+    /// `hello`
+    /// `hello ${name}`
+    /// `SELECT * FROM users`
+    /// `${stmt}`
+    /// `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
+    /// ```
+    pub(crate) fn parse_template_literal(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<TemplateLiteral> {
+        self.parse_expression_template(false, function)
+    }
+
+    /// Parse a tagged template literal.
+    ///
+    /// Examples:
+    /// ```ds
+    /// sql`SELECT * FROM users WHERE id = ${id}`
+    /// ```
+    pub(crate) fn parse_tagged_template_literal(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<TemplateLiteral> {
+        self.parse_expression_template(true, function)
+    }
+
+    /// Parse a value-space template with the selected escape rules.
+    fn parse_expression_template(
+        &mut self,
+        allow_legacy_octal_escapes: bool,
+        function: FunctionContext,
+    ) -> ParserResult<TemplateLiteral> {
+        let (strings, arguments) = self
+            .parse_template_chunks(allow_legacy_octal_escapes, |parser| {
+                parser.parse_template_argument(function)
+            })?;
+
+        if arguments.is_empty() && strings.len() == 1 {
+            Ok(TemplateLiteral::String { string: strings[0] })
+        } else {
+            Ok(TemplateLiteral::InterpolatedString { strings, arguments })
+        }
+    }
+
+    /// Parse a type template literal.
+    ///
+    /// Examples:
+    /// ```ds
+    /// `${K}`
+    /// `foo-${Bar}`
+    /// ```
+    pub(crate) fn parse_type_template_literal(
+        &mut self,
+        context: TypeContext,
+    ) -> ParserResult<LocalNodeId<TypeExpression>> {
+        let start = self.mark_parse_start();
+        let (strings, spans) =
+            self.parse_template_chunks(false, |parser| parser.parse_type(context.nested()))?;
+
+        let expression = TypeExpression::TemplateLiteral { strings, spans };
+        let expression_id = self.insert_node(expression, self.range_since(&start));
+
+        // the template head is the first interpolation head when present
+        if let TypeExpression::TemplateLiteral { spans, .. } = self.tree.get(expression_id)
+            && let Some(first_span_expression_id) = spans.first()
+        {
+            let head_span = self.type_expression_head_range(*first_span_expression_id);
+            self.tree.set_head_range(expression_id, head_span);
+        }
+
+        Ok(expression_id)
+    }
+
+    /// Parse a template literal body.
+    fn parse_template_chunks<T>(
+        &mut self,
+        allow_legacy_octal_escapes: bool,
+        mut parse_span: impl FnMut(&mut Parser) -> ParserResult<T>,
+    ) -> ParserResult<(Vec<StringId>, Vec<T>)> {
+        let next = self.eat();
+        let next_str = self.file.span_str(next.span);
+
+        // template string without interpolation
+        if next.token.ty() == TokenType::TemplateString {
+            let string = Self::template_chunk_body(next, next_str, 1, 1)?;
+            Self::validate_template_chunk(next.span.range(), string, allow_legacy_octal_escapes)?;
+
+            let string_id = self.strings.intern(string);
+            return Ok((vec![string_id], Vec::new()));
+        }
+
+        // template string with interpolation
+        if next.token.ty() == TokenType::TemplateStringStart {
+            let mut strings: Vec<StringId> = Vec::new();
+            let mut spans: Vec<T> = Vec::new();
+
+            // start chunk: remove ` prefix and ${ suffix
+            let string = Self::template_chunk_body(next, next_str, 1, 2)?;
+            Self::validate_template_chunk(next.span.range(), string, allow_legacy_octal_escapes)?;
+
+            let string_id = self.strings.intern(string);
+            strings.push(string_id);
+
+            // eat until the end
+            while !self.peek_is(TokenType::TemplateStringEnd) {
+                // middle chunk: remove } prefix and ${ suffix
+                if self.peek_is(TokenType::TemplateStringMiddle) {
+                    let token = self.eat();
+                    let token_str = self.file.span_str(token.span);
+                    let string = Self::template_chunk_body(token, token_str, 1, 2)?;
+                    Self::validate_template_chunk(
+                        token.span.range(),
+                        string,
+                        allow_legacy_octal_escapes,
+                    )?;
+
+                    let string_id = self.strings.intern(string);
+                    strings.push(string_id);
+                }
+                // interpolation expression
+                else {
+                    let span = parse_span(self)?;
+                    if !self.peek_is(TokenType::TemplateStringMiddle)
+                        && !self.peek_is(TokenType::TemplateStringEnd)
+                    {
+                        return Err(ParserError::unexpected(self.peek_token_span()));
+                    }
+                    spans.push(span);
+                }
+            }
+
+            // end chunk: remove } prefix and ` suffix
+            let token = self.eat_token(TokenType::TemplateStringEnd)?;
+            let token_str = self.file.span_str(token.span);
+            let string = Self::template_chunk_body(token, token_str, 1, 1)?;
+            Self::validate_template_chunk(token.span.range(), string, allow_legacy_octal_escapes)?;
+
+            let string_id = self.strings.intern(string);
+            strings.push(string_id);
+
+            return Ok((strings, spans));
+        }
+
+        Err(ParserError::unexpected(next))
+    }
+
+    /// Return the body of one lexer-shaped template chunk.
+    fn template_chunk_body(
+        token: TokenSpan,
+        token_str: &str,
+        prefix_len: usize,
+        suffix_len: usize,
+    ) -> ParserResult<&str> {
+        let Some(end) = token_str.len().checked_sub(suffix_len) else {
+            return Err(ParserError::unexpected(token));
+        };
+        let Some(body) = token_str.get(prefix_len..end) else {
+            return Err(ParserError::unexpected(token));
+        };
+
+        Ok(body)
+    }
+
+    /// Return true when the template chunk contains legacy octal escapes.
+    fn contains_legacy_octal_template_escape(string: &str) -> bool {
+        let bytes = string.as_bytes();
+        if !bytes.contains(&b'\\') {
+            return false;
+        }
+
+        let mut index = 0;
+
+        while index < bytes.len() {
+            if bytes[index] != b'\\' {
+                index += 1;
+                continue;
+            }
+
+            index += 1;
+            if index >= bytes.len() {
+                break;
+            }
+
+            let escaped = bytes[index];
+
+            // invalid legacy octal: \1 through \9
+            if escaped.is_ascii_digit() && escaped != b'0' {
+                return true;
+            }
+
+            // invalid legacy octal: \0 followed by another digit
+            if escaped == b'0' {
+                index += 1;
+                if index < bytes.len() && bytes[index].is_ascii_digit() {
+                    return true;
+                }
+                continue;
+            }
+
+            // skip escaped code unit
+            index += 1;
+        }
+
+        false
+    }
+
+    /// Reject template chunks with legacy octal escapes when the mode does not allow them.
+    fn validate_template_chunk(
+        range: ByteRange,
+        string: &str,
+        allow_legacy_octal_escapes: bool,
+    ) -> ParserResult<()> {
+        if allow_legacy_octal_escapes {
+            return Ok(());
+        }
+
+        if Self::contains_legacy_octal_template_escape(string) {
+            return Err(ParserError::unexpected(range));
+        }
+
+        Ok(())
+    }
+
+    /// Parse a template literal interpolation argument.
+    ///
+    /// Template literal interpolations parse as full expressions (no named args).
+    pub(crate) fn parse_template_argument(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Argument>> {
+        let start = self.mark_parse_start();
+
+        let value = self.parse_template_interpolation(function)?;
+
+        let argument_id =
+            self.insert_node(Argument::Positional { value }, self.range_since(&start));
+
+        Ok(argument_id)
+    }
+
+    /// Parse one template interpolation expression.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value
+    /// condition ? yes : no
+    /// ```
+    fn parse_template_interpolation(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        self.parse_expression(ExpressionContext {
+            function,
+            ..ExpressionContext::default()
+        })
+    }
+}

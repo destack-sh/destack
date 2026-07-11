@@ -12,81 +12,101 @@ use crate::{
 
 #[test]
 fn test_parse_struct_requires_name() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 struct { public x: int32, readonly y: boolean }
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let error = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), "{");
+    assert_eq!(parser.range_str(error.range), "{");
 }
 
 #[test]
 fn test_parse_class_requires_name_in_statement_position() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 class {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let error = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), "{");
+    assert_eq!(parser.range_str(error.range), "{");
 }
 
 #[test]
 fn test_report_class_comma_separated_members() {
     // source: class Foo { x: int32, y: int32 }
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 class Foo { x: int32, y: int32 }
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let error = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range), ",");
 }
 
 #[test]
 fn test_report_struct_comma_separated_members() {
     // source: struct Foo { x: int32, y: int32 }
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 struct Foo { x: int32, y: int32 }
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let error = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap_err();
 
-    assert_eq!(parser.get_range_str(error.range), ",");
+    assert_eq!(parser.range_str(error.range), ",");
 }
 
 #[test]
 fn test_parse_local_class_declaration() {
-    let mut test = TestParser::new("local class Promise {}");
+    let test = TestParser::new("local class Promise {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -99,11 +119,11 @@ fn test_parse_local_class_declaration() {
 
 #[test]
 fn test_parse_exported_local_class_declaration() {
-    let mut test = TestParser::new("export local class Promise {}");
+    let test = TestParser::new("export local class Promise {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -117,11 +137,11 @@ fn test_parse_exported_local_class_declaration() {
 
 #[test]
 fn test_parse_export_default_local_class_declaration() {
-    let mut test = TestParser::new("export default local class Promise {}");
+    let test = TestParser::new("export default local class Promise {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -135,11 +155,11 @@ fn test_parse_export_default_local_class_declaration() {
 
 #[test]
 fn test_parse_shared_struct_declaration() {
-    let mut test = TestParser::new("shared struct Channel<T> {}");
+    let test = TestParser::new("shared struct Channel<T> {}");
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -153,7 +173,7 @@ fn test_parse_shared_struct_declaration() {
 /// Parse comptime and fixed-array forms together inside a struct.
 #[test]
 fn test_parse_struct_comptime_forms() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"struct StaticBuffer<comptime Size: uint> {
     comptime {
         assert(Size > 0 && Size <= 65536);
@@ -165,7 +185,7 @@ fn test_parse_struct_comptime_forms() {
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -180,7 +200,7 @@ fn test_parse_struct_comptime_forms() {
 
 #[test]
 fn test_report_struct_extends() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 struct Foo extends Bar implements Baz {
     value: int32;
@@ -189,13 +209,18 @@ struct Foo extends Bar implements Baz {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let struct_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "extends");
+    assert_eq!(parser.range_str(parser.errors[0].range), "extends");
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, members, .. }) => {
         assert_eq!(implements_types.len(), 1);
         assert_eq!(members.len(), 1);
@@ -204,20 +229,25 @@ struct Foo extends Bar implements Baz {
 
 #[test]
 fn test_parse_class_with_multiple_extends_for_lineage_validation() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 class Combined extends First, Second {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let class_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
 
     assert_eq!(parser.errors.len(), 1);
-    assert_eq!(parser.get_range_str(parser.errors[0].range), "Second");
+    assert_eq!(parser.range_str(parser.errors[0].range), "Second");
     assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type: Some(extends_type), .. }) => {
         assert_string!(parser, name.expect("expected class name").string(), "Combined");
         assert_expression_path!(parser, parser.tree.get(*extends_type), "First");
@@ -226,16 +256,21 @@ class Combined extends First, Second {}
 
 #[test]
 fn test_parse_class_with_empty_extends_for_lineage_validation() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 class Counter extends {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let class_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, class_id, Declaration::Class(ClassDeclaration { name, extends_type, .. }) => {
         assert_string!(parser, name.expect("expected class name").string(), "Counter");
@@ -245,7 +280,7 @@ class Counter extends {}
 
 #[test]
 fn test_parse_class_member_method_parameter_type_then_default_value() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r#"class LicensingStore {
   usersLimitReached(userCount: number, userLimit = get(this.store).userLimit) {
     return userCount >= userLimit
@@ -254,9 +289,14 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let class_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
 
     // parse one class method that mixes typed and defaulted parameters
@@ -282,12 +322,12 @@ fn test_parse_class_member_method_parameter_type_then_default_value() {
     });
 
     // this class parses without recovery diagnostics
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_class_superclass_boundary_comment_on_super_type() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"class Child extends Base // extends-tail
 {
   value = 1
@@ -312,12 +352,12 @@ fn test_parse_class_superclass_boundary_comment_on_super_type() {
     assert_eq!(parser.tree.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::Line, "extends-tail");
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_class_implement_list_comments_on_interface_types() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"class Child implements First, // impl-first
 Second // impl-second
 {
@@ -357,7 +397,7 @@ Second // impl-second
 
 #[test]
 fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"declare class Box // box-head
 <T> implements Item<T>, Other {
   value: T
@@ -389,7 +429,7 @@ fn test_parse_declare_class_head_comment_before_generics_on_declaration_owner() 
 
 #[test]
 fn test_parse_struct_with_implements() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 struct Foo<T: Numeric> implements Quux {
     a: T
@@ -401,9 +441,14 @@ struct Foo<T: Numeric> implements Quux {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let struct_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { name, generic_parameters, implements_types, members, .. }) => {
         assert_string!(parser, name.string(), "Foo");
@@ -460,17 +505,22 @@ struct Foo<T: Numeric> implements Quux {
 }
 
 #[test]
-fn test_parse_class_records_generic_parameter_container_span() {
-    let mut test = TestParser::new(
+fn test_parse_class_records_generic_parameter_container_range() {
+    let test = TestParser::new(
         r###"
 class Box<T> {}
 "###,
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let class_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
 
     let generic_parameter_span = parser
@@ -481,12 +531,12 @@ class Box<T> {}
         )
         .expect("missing class generic parameter span");
 
-    assert_eq!(parser.get_span_str(generic_parameter_span), "<T>");
+    assert_eq!(parser.span_str(generic_parameter_span), "<T>");
 }
 
 #[test]
 fn test_parse_struct_with_where_clause() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 struct Foo where Guard: Limit {
 }
@@ -494,9 +544,14 @@ struct Foo where Guard: Limit {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let struct_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { generic_parameters, where_clauses, members, .. }) => {
         assert!(members.is_empty());
@@ -513,7 +568,7 @@ struct Foo where Guard: Limit {
 
 #[test]
 fn test_parse_struct_with_private_member_function() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 struct Foo {
     private enqueue<M extends F<"mutation">>() {
@@ -524,9 +579,14 @@ struct Foo {
     );
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let struct_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { members, .. }) => {
         assert_eq!(members.len(), 1);
@@ -535,12 +595,17 @@ struct Foo {
 
 #[test]
 fn test_parse_struct_implements_type_spans() {
-    let mut test = TestParser::new("struct Foo implements Qux {}");
+    let test = TestParser::new("struct Foo implements Qux {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let struct_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
 
     // spans on implements types
@@ -550,21 +615,26 @@ fn test_parse_struct_implements_type_spans() {
             .tree
             .get_side_span(implements_types[0], NodeSpanType::Region(NodeSpanRegion::Type))
             .expect("expected implements type span");
-        assert_eq!(parser.get_span_str(implements_span), "Qux");
+        assert_eq!(parser.span_str(implements_span), "Qux");
     });
 }
 
 #[test]
 fn test_parse_struct_negative_implements_type() {
-    let mut test = TestParser::new("struct Node implements !Unpin {}");
+    let test = TestParser::new("struct Node implements !Unpin {}");
     let mut parser = test.prepare();
 
-    let start = parser.span_start();
+    let start = parser.mark_parse_start();
     let struct_id = parser
-        .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+        .parse_struct_or_class(
+            &start,
+            DeclarationHeader::default(),
+            false,
+            Default::default(),
+        )
         .unwrap();
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
 
     assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, .. }) => {
         assert_eq!(implements_types.len(), 1);

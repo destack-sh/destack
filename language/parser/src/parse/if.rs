@@ -1,99 +1,85 @@
-use crate::parse::flags::ParserFlags;
-use crate::parse::scan::DelimiterDepth;
-use crate::{Parser, ParserResult, ParserSpanStart};
+use crate::parse::context::{ExpressionContext, FunctionContext};
+use crate::parse::r#let::DeclaratorValue;
+use crate::parse::lookahead::DelimiterDepth;
+use crate::{ParseStart, Parser, ParserResult};
 use destack_dir::{
     Condition, ConditionOperand, Expression, IfForm, Keyword, LocalNodeId, NodeType,
     OperatorPrecedence, TokenType,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
-/// The parsed head of one if expression.
-pub(crate) struct IfHead {
+/// The head of one if expression.
+struct IfHead {
     /// The source start for the if expression.
-    pub(crate) start: ParserSpanStart,
-    /// The parsed if condition.
-    pub(crate) condition: Condition,
+    start: ParseStart,
+    /// The if condition.
+    condition: Condition,
+}
+
+/// One optional else clause.
+struct ElseClause {
+    /// The else branch expression.
+    expression: LocalNodeId<Expression>,
+    /// The `else` keyword range.
+    range: ByteRange,
 }
 
 impl Parser {
-    /// Parse an if / else expression.
+    /// Parse one if expression.
     ///
     /// Examples:
+    /// ```ds
+    /// if (ready) run() else wait()
     /// ```
-    /// // ternary
-    /// cond ? a : b
-    ///
-    /// // if
-    /// if (x > 0) {
-    ///     print("positive")
-    /// }
-    ///
-    /// // if else
-    /// if (x > 0) {
-    ///     print("positive")
-    /// } else {
-    ///     print("not positive")
-    /// }
-    ///
-    /// // if else if
-    /// if (x > 0) {
-    ///     print("positive")
-    /// } else if (x == 0) {
-    ///     print("zero")
-    /// } else {
-    ///     print("negative")
-    /// }
-    /// ```
-    pub fn eat_if(&mut self) -> ParserResult<LocalNodeId<Expression>> {
-        let head = self.eat_if_head()?;
-
-        self.eat_if_after_head(head)
-    }
-
-    /// Return parser flags for `if` conditions.
-    #[inline]
-    fn if_condition_flags(&self) -> ParserFlags {
-        let ambient_context = self.flags.nested().with_before_block(true);
-        let expression_context = self.flags.nested();
-
-        self.flags
-            .with_ambient_context(ambient_context)
-            .with_expression_context(expression_context)
-    }
-
-    /// Eat an optional else expression for an if expression.
-    pub(crate) fn eat_if_else_expression_maybe(
+    pub(crate) fn parse_if(
         &mut self,
-    ) -> ParserResult<Option<(LocalNodeId<Expression>, Span)>> {
-        // save state so missing else can rewind cleanly
-        let else_mark = self.checkpoint();
+        function: FunctionContext,
+    ) -> ParserResult<LocalNodeId<Expression>> {
+        let head = self.parse_if_head(function)?;
+        let then_expression = self.parse_control_body(function)?;
+        let else_clause = self.parse_else_clause(function)?;
 
-        // allow a terminated branch expression before else
-        while self.peek_is(TokenType::Semicolon) {
-            self.bump();
-        }
+        Ok(self.insert_if_expression(head, then_expression, else_clause))
+    }
 
-        // no else: restore speculative state
-        if !self.is_keyword(Keyword::Else) {
-            self.restore(else_mark);
+    /// Parse an optional else expression for an if expression.
+    fn parse_else_clause(&mut self, function: FunctionContext) -> ParserResult<Option<ElseClause>> {
+        if !self.peek_else_after_semicolons() {
             return Ok(None);
         }
 
-        // else keyword
-        let else_span = self.peek().span;
+        // consume branch terminators only when they lead to else
+        while self.eat_token_if(TokenType::Semicolon) {}
+
+        let else_range = self.peek_token_span().span.range();
         self.eat_keyword(Keyword::Else)?;
+        let expression = if self.peek_is_keyword(Keyword::If) {
+            self.parse_if(function)?
+        } else {
+            self.parse_control_body(function)?
+        };
 
-        // else body
-        let else_expression_id = self.eat_control_body_expression()?;
-
-        Ok(Some((else_expression_id, else_span)))
+        Ok(Some(ElseClause {
+            expression,
+            range: else_range,
+        }))
     }
 
-    /// Eat one if head.
-    pub(crate) fn eat_if_head(&mut self) -> ParserResult<IfHead> {
-        let start = self.span_start();
+    /// Return whether optional semicolons are followed by `else`.
+    fn peek_else_after_semicolons(&self) -> bool {
+        let mut probe = self.cursor.probe(&self.file);
+        while probe.peek_token_type() == TokenType::Semicolon {
+            probe.bump();
+        }
 
-        // NOTE: ternary if is parsed in expression loop, not in eat_if
+        probe.peek_keyword() == Some(Keyword::Else)
+    }
+
+    /// Parse one if head.
+    fn parse_if_head(&mut self, function: FunctionContext) -> ParserResult<IfHead> {
+        let start = self.mark_parse_start();
+
+        // NOTE: leave ternary if to the expression loop
 
         // keyword
         self.eat_keyword(Keyword::If)?;
@@ -101,39 +87,39 @@ impl Parser {
         // open parenthesis
         self.eat_token(TokenType::OpenParenthesis)?;
 
-        // condition
-        let condition: Condition = self.with_flags(self.if_condition_flags(), |parser| {
-            parser.eat_if_condition()
-        })?;
+        let condition = self.parse_if_condition(function)?;
 
         // close the condition
         self.eat_close_token_or_recover_missing_with(
             TokenType::CloseParenthesis,
             NodeType::Expression,
             |parser, token_type| {
-                Self::is_close_delimiter_boundary_token(token_type) || parser.is_block_start()
+                Self::is_close_delimiter_boundary_token(token_type) || parser.peek_block()
             },
         )?;
 
         Ok(IfHead { start, condition })
     }
 
-    /// Eat one if condition.
-    fn eat_if_condition(&mut self) -> ParserResult<Condition> {
-        if !self.if_condition_has_binding_operand() {
-            let condition = self.eat_expression(self.flags)?;
+    /// Parse one if condition.
+    fn parse_if_condition(&mut self, function: FunctionContext) -> ParserResult<Condition> {
+        if !self.peek_if_condition_binding_operand() {
+            let condition = self.parse_expression(ExpressionContext {
+                function,
+                ..ExpressionContext::default()
+            })?;
 
             return Ok(Condition::expression(condition));
         }
 
-        let first = self.eat_if_condition_operand()?;
+        let first = self.parse_if_condition_operand(function)?;
         let mut operands = vec![first];
 
         // collect top-level logical-and operands
         while self.peek_is(TokenType::LogicalAnd) {
             self.bump();
 
-            let operand = self.eat_if_condition_operand()?;
+            let operand = self.parse_if_condition_operand(function)?;
             operands.push(operand);
         }
 
@@ -141,33 +127,35 @@ impl Parser {
     }
 
     /// Return whether the current if condition contains a top-level binding operand.
-    fn if_condition_has_binding_operand(&mut self) -> bool {
-        self.lookahead(|parser| parser.scan_if_condition_has_binding_operand())
-    }
-
-    /// Scan for a top-level binding operand in the current if condition.
-    fn scan_if_condition_has_binding_operand(&mut self) -> bool {
+    fn peek_if_condition_binding_operand(&self) -> bool {
+        let mut probe = self.cursor.probe(&self.file);
         let mut depth = DelimiterDepth::value();
         let mut is_operand_start = true;
 
-        // walk the condition until the matching condition parenthesis
-        while self.has_more_tokens() {
-            let token_type = self.peek_token_type();
+        // scan the condition once without mutating parser state
+        loop {
+            let token_type = probe.peek_token_type();
             if depth.is_top_level() && token_type == TokenType::CloseParenthesis {
+                break;
+            }
+            if token_type == TokenType::End {
                 break;
             }
 
             // binding condition chains split only at top-level logical-and
             if depth.is_top_level() && token_type == TokenType::LogicalAnd {
                 is_operand_start = true;
-                self.bump();
+                probe.bump();
                 continue;
             }
 
             // accept binding operands only at operand starts
             if is_operand_start
                 && depth.is_top_level()
-                && self.current_token_starts_binding_condition()
+                && probe
+                    .peek_keyword()
+                    .and_then(super::r#let::LetHead::from_keyword)
+                    .is_some()
             {
                 return true;
             }
@@ -182,84 +170,74 @@ impl Parser {
                 is_operand_start = false;
             }
 
-            self.bump();
+            probe.bump();
         }
 
         false
     }
 
-    /// Return whether the current token starts an if condition binding.
-    fn current_token_starts_binding_condition(&self) -> bool {
-        self.current_keyword()
-            .and_then(Self::let_kind_and_mutability_for_keyword)
-            .is_some()
-    }
-
-    /// Eat one operand in an if condition chain.
-    fn eat_if_condition_operand(&mut self) -> ParserResult<ConditionOperand> {
-        let is_binding = self.current_token_starts_binding_condition();
+    /// Parse one operand in an if condition chain.
+    fn parse_if_condition_operand(
+        &mut self,
+        function: FunctionContext,
+    ) -> ParserResult<ConditionOperand> {
+        let is_binding = self
+            .peek_keyword()
+            .and_then(super::r#let::LetHead::from_keyword)
+            .is_some();
 
         if is_binding {
-            let (kind, mutability) = self.eat_let_kind()?;
-            let minimum_precedence = OperatorPrecedence::LogicalAnd as u16 + 1;
-            let declarator = self.eat_declarator(true, Some(minimum_precedence))?;
+            let head = self.parse_let_head()?;
+            let declarator = self.parse_declarator(
+                function,
+                DeclaratorValue::Required(OperatorPrecedence::LogicalAnd),
+            )?;
 
             Ok(ConditionOperand::Binding {
-                kind,
-                mutability,
+                kind: head.kind,
+                mutability: head.mutability,
                 declarator,
             })
         } else {
-            let minimum_precedence = OperatorPrecedence::LogicalAnd as u16 + 1;
-            let condition = self.eat_expression_at_precedence(self.flags, minimum_precedence)?;
+            let condition = self.parse_expression(ExpressionContext {
+                function,
+                minimum_precedence: OperatorPrecedence::LogicalAnd,
+                ..ExpressionContext::default()
+            })?;
 
             Ok(ConditionOperand::Expression { condition })
         }
     }
 
     /// Insert one if expression.
-    pub(crate) fn insert_if_expression(
+    fn insert_if_expression(
         &mut self,
         head: IfHead,
         then_expression: LocalNodeId<Expression>,
-        else_expression: Option<(LocalNodeId<Expression>, Span)>,
+        else_clause: Option<ElseClause>,
     ) -> LocalNodeId<Expression> {
-        let else_expression_id = else_expression
-            .as_ref()
-            .map(|(else_expression_id, _)| *else_expression_id);
+        let else_expression = else_clause.as_ref().map(|clause| clause.expression);
 
-        // build the expression node
+        // insert the expression node
         let if_id = self.insert_node(
             Expression::If {
                 form: IfForm::If,
                 condition: head.condition,
                 then_expression,
-                else_expression: else_expression_id,
+                else_expression,
             },
-            self.get_span_from(&head.start),
+            self.range_since(&head.start),
         );
 
         // attach the else clause span
-        if let Some((_, else_span)) = else_expression {
-            self.tree.set_side_span(
+        if let Some(clause) = else_clause {
+            self.tree.set_side_range(
                 if_id,
                 NodeSpanType::Region(NodeSpanRegion::Clause),
-                else_span,
+                clause.range,
             );
         }
 
         if_id
-    }
-
-    /// Finish one if after its then block has been parsed.
-    pub(crate) fn finish_if_after_then_block(
-        &mut self,
-        head: IfHead,
-        then_expression: LocalNodeId<Expression>,
-    ) -> ParserResult<LocalNodeId<Expression>> {
-        // optional else branch
-        let else_expression = self.eat_if_else_expression_maybe()?;
-
-        Ok(self.insert_if_expression(head, then_expression, else_expression))
     }
 }

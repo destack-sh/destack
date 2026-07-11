@@ -10,9 +10,9 @@ use destack_source::{NodeSpanBoundary, NodeSpanType};
 /// Parse labeled statements when the target statement starts on a new line.
 #[test]
 fn test_parse_labeled_statement_with_newline_before_target() {
-    let mut test = TestParser::new("outer:\nwhile (true) {}");
+    let test = TestParser::new("outer:\nwhile (true) {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Label { label, body } => {
         assert_string!(parser, *label, "outer");
@@ -23,7 +23,7 @@ fn test_parse_labeled_statement_with_newline_before_target() {
 /// Parse newline guarded parenthesized statements after continue as separate statements.
 #[test]
 fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_separate() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "for (;;) {\n  if (condition) continue\n\n  // breaking comment\n  (possibleArray || []).sort()\n}",
     );
     let mut parser = test.prepare();
@@ -51,7 +51,7 @@ fn test_parse_statement_newline_before_parenthesized_guard_after_continue_stays_
 }
 #[test]
 fn test_parse_elementwise_leading_type_expression() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "
 type Value =
   | string
@@ -60,7 +60,7 @@ type Value =
         ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     // type Value = | string | number | boolean
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -86,7 +86,7 @@ type Value =
 /// Keep the leading separator in the container leading span, not the main span.
 #[test]
 fn test_parse_elementwise_leading_type_expression_keeps_root_span() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "
 type Value =
   | string
@@ -94,7 +94,7 @@ type Value =
         ",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // type Value = ...
     assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
@@ -104,14 +104,14 @@ type Value =
 
             // `string\n  | number`
             let value_span = parser.tree.get_span(*value);
-            assert_eq!(parser.get_span_str(value_span), "string\n  | number");
+            assert_eq!(parser.span_str(value_span), "string\n  | number");
 
             // `| `
             let leading_span = parser
                 .tree
                 .get_side_span(*value, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
                 .expect("expected leading separator span");
-            assert_eq!(parser.get_span_str(leading_span), "| ");
+            assert_eq!(parser.span_str(leading_span), "| ");
         });
     });
 }
@@ -119,7 +119,7 @@ type Value =
 /// Parse a leading elementwise operator in a type expression with doc comments.
 #[test]
 fn test_parse_elementwise_leading_type_expression_with_docs() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r###"
 type Target =
   /**
@@ -137,7 +137,7 @@ type Target =
             "###,
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     // type Target = | "bun" | "node" | "browser"
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
@@ -170,7 +170,7 @@ type Target =
 /// Parse a leading elementwise operator in a value expression.
 #[test]
 fn test_parse_elementwise_leading_value_expression() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "
 const value =
   | 1
@@ -178,7 +178,7 @@ const value =
   | 3",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     // const value = | 1 | 2 | 3
     assert_node!(parser.tree, expr_id, Expression::Let { mutability: _, declarators, .. } => {
         assert_eq!(declarators.len(), 1);
@@ -204,7 +204,7 @@ const value =
 /// Preserve the leading separator inside one value expression span.
 #[test]
 fn test_parse_elementwise_leading_value_expression_keeps_root_span() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         "
 const value =
   | 1
@@ -212,7 +212,7 @@ const value =
   | 3",
     );
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     // const value = ...
     assert_node!(parser.tree, expression_id, Expression::Let { mutability: _, declarators, .. } => {
@@ -222,7 +222,7 @@ const value =
         // `| 1\n  | 2\n  | 3`
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
             let value_span = parser.tree.get_span(value.unwrap());
-            assert_eq!(parser.get_span_str(value_span), "| 1\n  | 2\n  | 3");
+            assert_eq!(parser.span_str(value_span), "| 1\n  | 2\n  | 3");
         });
     });
 }
@@ -230,20 +230,20 @@ const value =
 /// Parse a statement expression.
 #[test]
 fn test_parse_statement_expression() {
-    let mut test = TestParser::new("a;");
+    let test = TestParser::new("a;");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_statement_expression_or_recover();
+    let expr_id = parser.parse_statement(Default::default());
     // a;
     assert_expression_path!(parser, parser.tree.get(expr_id), "a");
 }
 
 #[test]
 fn test_parse_new_type_arguments_with_spaces_in_statement() {
-    let mut test = TestParser::new("new A < T >;");
+    let test = TestParser::new("new A < T >;");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_statement_expression_or_recover();
+    let expression_id = parser.parse_statement(Default::default());
 
-    test.assert_no_errors(&parser);
+    TestParser::assert_no_errors(&parser);
     assert_node!(parser.tree, expression_id, Expression::New { ty, arguments } => {
         assert_node!(parser.tree, *ty, TypeExpression::Reference { path, generic_arguments } => {
             assert_path!(parser, *path, "A");
@@ -259,9 +259,9 @@ fn test_parse_new_type_arguments_with_spaces_in_statement() {
 /// Parse multiline logical chains with comment-only lines between operators.
 #[test]
 fn test_parse_multiline_logical_chain_after_comment_lines() {
-    let mut test = TestParser::new("a == 1\n// keep chaining\n&& b == 0\n&& c == 1");
+    let test = TestParser::new("a == 1\n// keep chaining\n&& b == 0\n&& c == 1");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     // a == 1 && b == 0 && c == 1
     assert_node!(parser.tree, expr_id, Expression::Binary { left, operator, right } => {
@@ -283,9 +283,9 @@ fn test_parse_multiline_logical_chain_after_comment_lines() {
 
 #[test]
 fn test_parse_export_const_type_identifier_with_struct_value() {
-    let mut test = TestParser::new("export const type = struct");
+    let test = TestParser::new("export const type = struct");
     let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    let expression_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Let { export, declarators, .. } => {
         assert_eq!(*export, Some(ExportKind::Named));
@@ -303,9 +303,9 @@ fn test_parse_export_const_type_identifier_with_struct_value() {
 /// Test const enum declaration.
 #[test]
 fn test_parse_const_enum() {
-    let mut test = TestParser::new("const enum Foo { A, B }");
+    let test = TestParser::new("const enum Foo { A, B }");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     // const enum Foo { A, B }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Enum(EnumDeclaration { name, kind, fields, .. }) => {
@@ -328,7 +328,7 @@ fn test_parse_const_enum() {
 #[test]
 fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
     let source = "for (a of b) foo\n\n// 11\n;[]\n\nfor (a of b) foo\n\n// 21\n;foo\n\n// prettier-ignore\nfor (   a of   b)   foo (   )\n\n;[]\n\nfor (a of b) foo; /* comment */\n\n// prettier-ignore\nfor (   a of   b) while   (   1)   foo (   )\n\n;[]\n";
-    let mut test = TestParser::new(source);
+    let test = TestParser::new(source);
     let mut parser = test.prepare();
     let _ = parser.parse();
     parser.attach_comments();
@@ -342,7 +342,7 @@ fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
                 return false;
             }
 
-            parser.get_span_str(comment.span) == "/* comment */"
+            parser.span_str(comment.span) == "/* comment */"
         })
         .count();
     assert_eq!(trailing_block_comment_count, 1);
@@ -351,7 +351,7 @@ fn test_parse_no_semi_for_of_slice_trailing_block_comment_is_not_duplicated() {
 /// Parse a multi-line let with multi-line infix.
 #[test]
 fn test_parse_let_multiline_infix() {
-    let mut test = TestParser::new(
+    let test = TestParser::new(
         r"
 const x =
     foo.parse()
@@ -360,7 +360,7 @@ const x =
 ",
     );
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
     assert_node!(parser.tree, expr_id, Expression::Let { mutability: _, declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
@@ -392,9 +392,9 @@ const x =
 /// Parse labeled statements with a label span.
 #[test]
 fn test_parse_labeled_statement_span() {
-    let mut test = TestParser::new("label: loop {}");
+    let test = TestParser::new("label: loop {}");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
+    let expr_id = parser.parse_expression(Default::default()).unwrap();
 
     assert_node!(parser.tree, expr_id, Expression::Label { label, .. } => {
         assert_string!(parser, *label, "label");
@@ -404,5 +404,5 @@ fn test_parse_labeled_statement_span() {
         .tree
         .get_main_span(expr_id)
         .expect("expected label main span");
-    assert_eq!(parser.get_span_str(main_span), "label");
+    assert_eq!(parser.span_str(main_span), "label");
 }
