@@ -3,77 +3,117 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Keyword, TokenType};
 
-/// The operator group (for precedence).
+/// One operator precedence level.
 ///
-/// Precedence:
+/// Ordered from weakest to strongest:
 /// ```
-/// x() x[] x{} x? x! x++ x--        // postfix
-/// !x -x ~x *x &x ..x ++x --x       // prefix
-/// **                               // exponentiation
-/// * / %                            // multiplication
-/// + -                              // addition
-/// << >>                            // shift
-/// < > <= >= in instanceof          // comparison
-/// .. ..=                           // range
-/// == != === !==                    // equality
-/// &                                // bitwise and
-/// ^                                // bitwise xor
-/// |                                // bitwise or
-/// &&                               // logical and
-/// ||                               // logical or
-/// ??                               // nullish coalescing
 /// = += -= *= /= %= **= <<= >>= >>>= &= ^= |= &&= ||= ??= // assignment
+/// condition ? then : else          // conditional
+/// extends implements               // type relation
+/// ??                               // nullish coalescing
+/// ||                               // logical or
+/// &&                               // logical and
+/// |                                // bitwise or
+/// ^                                // bitwise xor
+/// &                                // bitwise and
+/// == != === !==                    // equality
+/// .. ..=                           // range
+/// < > <= >= in instanceof          // comparison
+/// << >>                            // shift
+/// + -                              // addition
+/// * / %                            // multiplication
+/// **                               // exponentiation
+/// !x -x ~x *x &x ..x ++x --x       // prefix
+/// x() x[] x{} x? x! x++ x--        // postfix
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+    Reflect,
+)]
+#[repr(u8)]
 pub enum OperatorPrecedence {
-    /// Unary postfix operators.
-    /// `x() x[] x{} x? x! x++ x--`
-    Postfix = 2000,
-    /// Unary prefix operators.
-    /// `!x -x ~x &x *x ..x ++x --x`
-    Prefix = 1900,
-    /// Exponentiation-related binary operators.
-    /// `**`
-    Exponentiation = 1800,
-    /// Multiplication-related binary operators.
-    /// `* / %`
-    Multiplication = 1700,
-    /// Addition-related binary operators.
-    /// `+ -`
-    Addition = 1600,
-    /// Shift-related binary operators.
-    /// `<< >>`
-    Shift = 1500,
-    /// Comparison-related binary operators.
-    /// `< > <= >= in instanceof`
-    Comparison = 1400,
-    /// Range expressions.
-    /// `.. ..=`
-    Range = 1350,
-    /// Equality-related binary operators.
-    /// `== != === !==`
-    Equality = 1300,
-    /// Bitwise-and binary operator.
-    /// `&`
-    BitwiseAnd = 1250,
-    /// Bitwise-xor binary operator.
-    /// `^`
-    BitwiseXor = 1240,
-    /// Bitwise-or binary operator.
-    /// `|`
-    BitwiseOr = 1230,
-    /// Logical-and binary operator.
-    /// `&&`
-    LogicalAnd = 1200,
-    /// Logical-or binary operator.
-    /// `||`
-    LogicalOr = 1190,
-    /// Nullish-coalescing binary operator.
-    /// `??`
-    NullishCoalescing = 1180,
+    /// No enclosing operation.
+    #[default]
+    Lowest,
     /// Assignment-related binary operators.
     /// `= += -= *= /= %= **= <<= >>= >>>= &= ^= |= &&= ||= ??=`
-    Assignment = 800,
+    Assignment,
+    /// Conditional expressions.
+    /// `condition ? then : else`
+    Conditional,
+    /// Type relation operators.
+    /// `extends implements`
+    TypeRelation,
+    /// Nullish-coalescing binary operator.
+    /// `??`
+    NullishCoalescing,
+    /// Logical-or binary operator.
+    /// `||`
+    LogicalOr,
+    /// Logical-and binary operator.
+    /// `&&`
+    LogicalAnd,
+    /// Bitwise-or binary operator.
+    /// `|`
+    BitwiseOr,
+    /// Bitwise-xor binary operator.
+    /// `^`
+    BitwiseXor,
+    /// Bitwise-and binary operator.
+    /// `&`
+    BitwiseAnd,
+    /// Equality-related binary operators.
+    /// `== != === !==`
+    Equality,
+    /// Range expressions.
+    /// `.. ..=`
+    Range,
+    /// Comparison-related binary operators.
+    /// `< > <= >= in instanceof`
+    Comparison,
+    /// Shift-related binary operators.
+    /// `<< >>`
+    Shift,
+    /// Addition-related binary operators.
+    /// `+ -`
+    Addition,
+    /// Multiplication-related binary operators.
+    /// `* / %`
+    Multiplication,
+    /// Exponentiation-related binary operators.
+    /// `**`
+    Exponentiation,
+    /// Unary prefix operators.
+    /// `!x -x ~x &x *x ..x ++x --x`
+    Prefix,
+    /// Unary postfix operators.
+    /// `x() x[] x{} x? x! x++ x--`
+    Postfix,
+    /// Atomic expressions.
+    Primary,
+}
+
+impl OperatorPrecedence {
+    /// Return whether operators at this precedence group from right to left.
+    #[inline]
+    pub const fn is_right_associative(self) -> bool {
+        matches!(
+            self,
+            OperatorPrecedence::Assignment
+                | OperatorPrecedence::Conditional
+                | OperatorPrecedence::Exponentiation
+        )
+    }
 }
 
 /// The end-bound spelling of one range.
@@ -85,34 +125,33 @@ pub enum RangeEnd {
     Inclusive,
 }
 
-/// A UnaryOperator is unary operator.
-/// Relative order matches precedence. Also see OperatorPrecedence.
+/// One unary operator.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum UnaryOperator {
     /// `++`
-    PostIncrement = 2010,
+    PostIncrement,
     /// `--`
-    PostDecrement = 2009,
+    PostDecrement,
     /// `++`
-    PreIncrement = 1909,
+    PreIncrement,
     /// `--`
-    PreDecrement = 1908,
+    PreDecrement,
     /// `!`
-    Not = 1907,
+    Not,
     /// `+`
-    Plus = 1906,
+    Plus,
     /// `-`
-    Negate = 1905,
+    Negate,
     /// `~`
-    ElementwiseNot = 1903,
+    ElementwiseNot,
     /// `typeof`
-    Typeof = 1900,
+    Typeof,
     /// `void`
-    Void = 1899,
+    Void,
     /// `*`
-    Dereference = 1902,
+    Dereference,
     /// `...`
-    Spread = 1901,
+    Spread,
 }
 
 impl UnaryOperator {
@@ -137,15 +176,12 @@ impl UnaryOperator {
 
     /// Get the precedence of the unary operator.
     #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
-        OperatorPrecedence::Prefix
-    }
-
-    /// Get the precedence of the unary operator.
-    #[inline]
-    pub fn precedence(self) -> u16 {
-        // just transmute the enum value to an u16
-        self as u16
+    pub fn precedence(self) -> OperatorPrecedence {
+        if self.is_prefix() {
+            OperatorPrecedence::Prefix
+        } else {
+            OperatorPrecedence::Postfix
+        }
     }
 
     /// Whether the unary operator is a prefix operator.
@@ -209,72 +245,71 @@ impl UnaryOperator {
     }
 }
 
-/// A BinaryOperator is an infix binary operator.
-/// Relative order matches precedence. Also see OperatorPrecedence.
+/// One infix binary operator.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum BinaryOperator {
     // exponentiation
     /// `**`
-    Exponent = 1802,
+    Exponent,
     // multiplication
     /// `*`
-    Multiply = 1703,
+    Multiply,
     /// `/`
-    Divide = 1704,
+    Divide,
     /// `%`
-    Remainder = 1700,
+    Remainder,
 
     // addition
     /// `+`
-    Add = 1605,
+    Add,
     /// `-`
-    Subtract = 1602,
+    Subtract,
 
     // shift
     /// `<<`
-    ShiftLeft = 1502,
+    ShiftLeft,
     /// `>>`
-    ShiftRight = 1500,
+    ShiftRight,
     /// `>>>`
-    UnsignedShiftRight = 1503,
+    UnsignedShiftRight,
 
     // bitwise
     /// `&`
-    ElementwiseAnd = 1250,
+    ElementwiseAnd,
     /// `^`
-    ElementwiseXor = 1240,
+    ElementwiseXor,
     /// `|`
-    ElementwiseOr = 1230,
+    ElementwiseOr,
 
     // comparison
     /// `==`
-    Equal = 1303,
+    Equal,
     /// `!=`
-    NotEqual = 1302,
+    NotEqual,
     /// `===`
-    EqualStrict = 1301,
+    EqualStrict,
     /// `!==`
-    NotEqualStrict = 1300,
+    NotEqualStrict,
     /// `<`
-    LessThan = 1403,
+    LessThan,
     /// `<=`
-    LessThanOrEqual = 1402,
+    LessThanOrEqual,
     /// `>`
-    GreaterThan = 1401,
+    GreaterThan,
     /// `>=`
-    GreaterThanOrEqual = 1400,
+    GreaterThanOrEqual,
 
     // boolean
     /// `&&`
-    And = 1200,
+    And,
     /// `||`
-    Or = 1190,
+    Or,
     /// `??`
-    Coalesce = 1180,
+    Coalesce,
 
     // comparison
     /// `in`
-    In = 1404,
+    In,
 }
 
 impl BinaryOperator {
@@ -309,9 +344,9 @@ impl BinaryOperator {
         }
     }
 
-    /// Get the precedence of the binary operator.
+    /// Return the precedence of this operator.
     #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
+    pub const fn precedence(self) -> OperatorPrecedence {
         match self {
             // exponentiation
             BinaryOperator::Exponent => OperatorPrecedence::Exponentiation,
@@ -353,12 +388,6 @@ impl BinaryOperator {
             BinaryOperator::Or => OperatorPrecedence::LogicalOr,
             BinaryOperator::Coalesce => OperatorPrecedence::NullishCoalescing,
         }
-    }
-
-    /// Get the precedence of the binary operator.
-    pub fn precedence(self) -> u16 {
-        // just transmute the enum value to an u16
-        self as u16
     }
 
     /// Return whether this operator tests equality.
@@ -585,16 +614,10 @@ impl AssignOperator {
         }
     }
 
-    /// Return the shared assignment precedence.
+    /// Return the precedence shared by assignment operators.
     #[inline]
-    pub fn precedence_group(&self) -> OperatorPrecedence {
+    pub const fn precedence(self) -> OperatorPrecedence {
         OperatorPrecedence::Assignment
-    }
-
-    /// Return the shared assignment precedence value.
-    #[inline]
-    pub fn precedence(self) -> u16 {
-        self.precedence_group() as u16
     }
 
     /// Convert a TokenType to an AssignOperator (if a direct mapping exists).
@@ -629,39 +652,6 @@ impl AssignOperator {
             TokenType::CoalesceAssign => Some(AssignOperator::CoalesceAssign),
 
             _ => None,
-        }
-    }
-
-    /// Convert an AssignOperator to a TokenType (if a direct mapping exists).
-    #[inline]
-    pub fn as_token_type(&self) -> TokenType {
-        match self {
-            AssignOperator::Assign => TokenType::Assign,
-
-            // addition
-            AssignOperator::AddAssign => TokenType::AddAssign,
-            AssignOperator::SubtractAssign => TokenType::SubtractAssign,
-
-            // multiplication
-            AssignOperator::MultiplyAssign => TokenType::MultiplyAssign,
-            AssignOperator::ExponentAssign => TokenType::ExponentAssign,
-            AssignOperator::DivideAssign => TokenType::DivideAssign,
-            AssignOperator::RemainderAssign => TokenType::RemainderAssign,
-
-            // shift
-            AssignOperator::ShiftLeftAssign => TokenType::ShiftLeftAssign,
-            AssignOperator::ShiftRightAssign => TokenType::ShiftRightAssign,
-            AssignOperator::UnsignedShiftRightAssign => TokenType::UnsignedShiftRightAssign,
-
-            // elementwise
-            AssignOperator::ElementwiseAndAssign => TokenType::ElementwiseAndAssign,
-            AssignOperator::ElementwiseOrAssign => TokenType::ElementwiseOrAssign,
-            AssignOperator::ElementwiseXorAssign => TokenType::ElementwiseXorAssign,
-
-            // logical
-            AssignOperator::AndAssign => TokenType::LogicalAndAssign,
-            AssignOperator::OrAssign => TokenType::LogicalOrAssign,
-            AssignOperator::CoalesceAssign => TokenType::CoalesceAssign,
         }
     }
 }
