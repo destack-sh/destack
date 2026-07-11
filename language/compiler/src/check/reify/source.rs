@@ -6,7 +6,7 @@ use destack_repository::{FormatterOptions, Module};
 use destack_source::ModuleId;
 
 use crate::check::reify::r#type::TypeReifier;
-use crate::check::{CheckModuleState, CheckState, Decision};
+use crate::check::{CheckModuleState, CheckState, VarianceState};
 use crate::{CompilerError, CompilerResult};
 
 /// One module rendered with solved checked types.
@@ -19,10 +19,6 @@ pub(in crate::check) struct AnnotatedSource {
 
 impl CheckState<'_> {
     /// Render every member module's source with solved checked types.
-    ///
-    /// Each render clones the parsed tree, writes checked types into
-    /// annotation sites, and prints the amended tree through the
-    /// canonical formatter.
     pub(in crate::check) fn render_annotated_sources(
         &mut self,
     ) -> CompilerResult<Vec<AnnotatedSource>> {
@@ -63,7 +59,7 @@ impl CheckState<'_> {
             &tokens,
             &parsed_file.comments,
             roots,
-            state.strings.as_ref(),
+            self.strings(),
             FormatterOptions::default(),
         )
         .map_err(|error| CompilerError::Internal {
@@ -91,7 +87,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
     /// Create a source reifier for one module.
     fn new(check: &'a CheckState<'b>, state: &'a CheckModuleState) -> Self {
         let tree = state.source_tree().clone();
-        let types = TypeReifier::new(check, tree, state.strings.as_ref());
+        let types = TypeReifier::new(check, tree, check.strings());
 
         Self {
             check,
@@ -149,7 +145,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 continue;
             };
 
-            // replace the hole in place with the reified spelling
+            // replace the hole in place with the reified annotation
             *self.types.tree.get_mut(hole_id) = self.types.tree.get(filled).clone();
         }
 
@@ -168,7 +164,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify induced lifetime parameters for one declaration.
+    /// Reify induced lifetimes and derived variance for one declaration.
     fn reify_declaration_generic_parameters(
         &mut self,
         module_id: ModuleId,
@@ -198,6 +194,14 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             };
             parameters.push(parameter);
         }
+
+        let symbol = template.symbol;
+        self.reify_declared_parameter_variance(
+            module_id,
+            declaration_id,
+            symbol,
+            &template.parameters,
+        )?;
         if parameters.is_empty() {
             return Ok(());
         }
@@ -211,6 +215,62 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             return Ok(());
         };
         generic_parameters.extend(parameters);
+
+        Ok(())
+    }
+
+    /// Fill derived variance onto written type parameters.
+    fn reify_declared_parameter_variance(
+        &mut self,
+        module_id: ModuleId,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        symbol: Option<dir::GlobalSymbolId>,
+        parameters: &[dir::LocalGenericParameterId],
+    ) -> CompilerResult<()> {
+        // only nominal type parameters carry a relating variance
+        let written = match self.types.tree.get(declaration_id) {
+            dir::Declaration::Struct(_)
+            | dir::Declaration::Class(_)
+            | dir::Declaration::Enum(_)
+            | dir::Declaration::Interface(_) => self.types.tree.get(declaration_id),
+            dir::Declaration::Type(declaration) if declaration.is_nominal => {
+                self.types.tree.get(declaration_id)
+            }
+            _ => return Ok(()),
+        };
+        let Some(written) = written.generic_parameters() else {
+            return Ok(());
+        };
+        let written = written.to_vec();
+
+        let Some(symbol) = symbol else {
+            return Ok(());
+        };
+        let context = self.check.default_symbol_context(symbol);
+        for (node, parameter) in written.iter().zip(parameters.iter()) {
+            let parameter = dir::GlobalGenericParameterId::new(module_id, *parameter);
+
+            // written modifiers and unmeasured parameters stay as written
+            let Some(VarianceState::Derived(derived)) =
+                self.check.variances.get(&(parameter, context))
+            else {
+                continue;
+            };
+            let Some(modifier) = derived.modifier() else {
+                continue;
+            };
+
+            // fill the derived modifier onto unannotated type parameters
+            match self.types.tree.get_mut(*node) {
+                dir::GenericParameter::Type { variance, .. }
+                | dir::GenericParameter::VariadicType { variance, .. }
+                    if variance.is_none() =>
+                {
+                    *variance = Some(modifier);
+                }
+                _ => {}
+            }
+        }
 
         Ok(())
     }
@@ -266,7 +326,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         let view = dir::View::new(self.state.source_tree());
         for (parameter_id, parameter) in view.iter_nodes_of_type::<dir::Parameter>() {
             if let Some(dir::StaticKey::Name(name)) = parameter.symbol_key()
-                && self.state.strings.get(name) == "this"
+                && self.check.strings().get(name) == "this"
             {
                 continue;
             }
@@ -385,9 +445,10 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         ) {
             return Ok(());
         }
-        let Some(Decision::Construct(resolution)) = self
+        let Some(resolution) = self
             .check
-            .decision(expression_id.into_global_any(module_id))
+            .resolutions(module_id)
+            .construct_resolution(expression_id.into_global_any(module_id))
         else {
             return Ok(());
         };
@@ -431,9 +492,10 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         ) {
             return Ok(());
         }
-        let Some(Decision::Call(resolution)) = self
+        let Some(resolution) = self
             .check
-            .decision(expression_id.into_global_any(module_id))
+            .resolutions(module_id)
+            .call_resolution(expression_id.into_global_any(module_id))
         else {
             return Ok(());
         };
@@ -463,24 +525,34 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         Ok(())
     }
 
-    /// Reify one omitted struct expression target from its checked type.
+    /// Reify one struct expression target from its selected type.
     fn reify_struct_expression_target(
         &mut self,
         module_id: ModuleId,
         expression_id: dir::LocalNodeId<dir::Expression>,
         ty: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
-        if !matches!(
-            self.types.tree.get(ty),
+        let can_reify = match self.types.tree.get(ty) {
             dir::TypeExpression::Infer {
                 form: dir::InferForm::Hole,
                 ..
-            }
-        ) {
+            } => true,
+            dir::TypeExpression::Reference {
+                generic_arguments, ..
+            } => generic_arguments.is_empty(),
+            _ => false,
+        };
+        if !can_reify {
             return Ok(());
-        }
+        };
+
+        let source = ty.into_global_any(module_id);
         let node = expression_id.into_global_any(module_id);
-        let Some(target) = self.check.node_type_maybe(node) else {
+        let target = self
+            .check
+            .node_type_maybe(source)
+            .or_else(|| self.check.node_type_maybe(node));
+        let Some(target) = target else {
             return Ok(());
         };
 
@@ -506,7 +578,7 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             _ => return Ok(()),
         };
         let node = expression_id.into_global_any(module_id);
-        let Some(Decision::Construct(resolution)) = self.check.decision(node) else {
+        let Some(resolution) = self.check.resolutions(module_id).construct_resolution(node) else {
             return Ok(());
         };
 
@@ -545,14 +617,14 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
                 _ => return Ok(None),
             }
         }
-        let dir::Type::FunctionSignature(function) = self.check.ty(signature)? else {
+        let Some(function) = self.check.signature_head(signature)? else {
             unreachable!("the signature loop stops on function signatures");
         };
 
         self.anchor(site);
         match function.return_type {
             Some(return_type) => self.types.reify(return_type),
-            // omitted returns spell void
+            // omitted returns print as void
             None => Ok(Some(self.types.insert_keyword(dir::TypeLiteral::Void))),
         }
     }

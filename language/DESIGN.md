@@ -660,25 +660,50 @@ Type inference (including generics) works across modules, even when modules circ
 
 ### Variance
 
-Variance describes how typing and subtyping relations work for generic types, including for all the types that managed language users may not even usually think of as being "generic" (like `Array` or `Record`).
-Mutable covariance - the fact that we can assign `Circle[]` to `Shape[]` and then mutate `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes and a classic footgun, so we only support this sort of widening when it is unambiguously safe:
+Variance describes how subtyping relates generic types, including the types that managed language users may not usually think of as "generic" (like `Array` or `Record`).
+Mutable covariance - the fact that TypeScript lets us assign `Circle[]` to `Shape[]` and then mutate the `Circle[]` _through_ the widened `Shape[]` alias - is one of TypeScript's best known soundness holes, so Destack derives variance from one principle: **a position is invariant exactly when a widened value and the original can reach the same mutable storage.**
 
-| Position | Variance | Example |
+Widening compiles to nothing.
+An implicit conversion that must rewrite the representation - injecting a value into a tagged union, erasing behind `Dynamic<T>`, widening a numeric literal into a concrete carrier - only happens where a fresh value materializes: an assignment, an argument, a return.
+Inside an existing value there is no site to convert at, so type arguments only relate along **identity-witnessed** edges:
+
+```ds
+declare const circles: Holder<Circle>;
+
+const shapes: Holder<Shape> = circles;           // OK: class upcasts change nothing physical
+const either: Holder<Circle | Square> = circles; // ERROR: the payload would need a union tag
+const boxed: Holder<unknown> = circles;          // ERROR: the payload would need an existential box
+```
+
+The rejected widenings still flow value by value: constructing `Holder<Circle | Square>` from a `Circle` tags the payload at the construction, and rebuilding an existing value arm by arm converts each payload at its own value position.
+
+The memory form of a handle decides how much of this its payload needs:
+
+| Handle | Payload arguments | Reason |
 | --- | --- | --- |
-| Readonly positions | covariant | `readonly Circle[]` is assignable to `readonly Shape[]` |
-| Mutable positions | invariant | `Circle[]` is _not_ assignable to `Shape[]` |
-| Function parameters | contravariant | `(shape: Shape) => void` is assignable to `(circle: Circle) => void` |
-| Function returns | covariant | `() => Circle` is assignable to `() => Shape` |
+| managed `T` | by derived variance under aliasing | other writable aliases persist |
+| owned `^T` | by derived variance, storage covariant | a move leaves no alias behind |
+| `readonly T`, `&readonly T` | by derived variance, storage covariant | the view strips every write path, deeply |
+| `&T`, `&exclusive T` | exact | writes flow through the borrow |
+| `*T` | exact | raw pointers promise nothing |
 
-For generic types, variance is derived per parameter from each generic parameter's usage in the declaration (like in TypeScript): a parameter that only comes "_out_" (returns, readable fields) is covariant, one that only goes "_in_" (parameters, writable fields) is contravariant, and one that does both - a mutable field counts as both at once - is invariant.
+Placement (`local`/`shared`) is orthogonal to ownership and plays no variance role.
+
+For generic declarations, variance is derived per parameter from usage.
+Storage drives it: a readonly field is covariant, a mutable field is invariant under aliasing and covariant for owned copies and readonly views (container elements and managed payloads stay reachable through other aliases even from owned copies, so only a readonly view relaxes them).
+Methods split by dispatch:
+
+- **Class and interface definition methods are carried.** A constructed instance travels with its own method instantiations, so a widened handle would execute code compiled at the old arguments. Definition methods therefore constrain every handle context by their function-position variance, owned moves included.
+- **Extension methods and value-type methods dispatch statically.** Every call instantiates at the receiver's static type, so nothing stale is carried and they never constrain variance - the same rule as Rust, where only fields drive variance and `impl` blocks do not.
 
 ```ds
 class Source<T> { take(): T }                      // T only comes out -> covariant
 class Sink<T>   { put(value: T): void }            // T only goes in   -> contravariant
-class Pipe<T>   { take(): T; put(value: T): void } // both             -> invariant
+class Pipe<T>   { take(): T; put(value: T): void } // both             -> invariant, even as ^Pipe<T>
 ```
 
-And because `Array<T>` is just a regular (well known) standard library type, and it has both readable and writable positions for its generic parameter, `Array<T>` is invariant in `T`:
+A userland collection becomes view-covariant the same way: keep the fields in the class and the methods in extensions.
+`Array<T>` itself is written this way, so a mutable array is invariant while a readonly view widens:
 
 ```ds
 declare const circles: Circle[];
@@ -688,7 +713,12 @@ const view: readonly Shape[] = circles; // OK: readonly views are covariant
 const copies: Shape[] = [...circles];   // OK: explicit copy reifies Shape elements
 ```
 
-For the other spellings of "a collection of shapes", the element representation decides everything:
+Declared variance closes the gaps derivation cannot reach.
+A generic parameter that never occurs in its declaration is an error (`EC442`); an explicit modifier like `out T` keeps a deliberate marker parameter.
+Declared modifiers on derivable declarations are checked against usage - `class Evil<out T> { slot: T }` is rejected (`EC443`) because the mutable field uses `T` invariantly.
+On an intrinsic newtype the compiler cannot derive anything, so the modifier is a trusted assertion about the opaque storage, composed with the handle context like a field: `Unique<out T>` is covariant for owned and viewed storage and still invariant behind a writable alias.
+
+For the other ways to write "a collection of shapes", the element representation decides everything:
 
 | Element type | `Shape[]` means | Holds |
 | --- | --- | --- |
@@ -696,6 +726,9 @@ For the other spellings of "a collection of shapes", the element representation 
 | `type` / `newtype` union | array of tagged variant layouts | the listed variants, closed set |
 | `interface Shape` | array of `Dynamic<Shape>` | any implementor, open set |
 | `Dynamic<Shape>` | array of erased fat pointers | any implementor, open set |
+
+An array of `class Shape` holds subclasses because upcast references are physically identical; an array of a union holds exactly the listed variants because each element carries the union layout.
+The same reasoning as everywhere else: representation-changing widenings happen at value positions, never inside storage.
 
 ### Static
 

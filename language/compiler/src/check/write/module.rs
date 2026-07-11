@@ -1,14 +1,14 @@
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
 
-use crate::check::{Answer, CheckState, Decision, FlowSite, Origin};
+use crate::check::{Answer, CheckError, CheckState, FlowSite, Origin, VarianceState};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Write one solved module into its checked DIR segments.
     pub(in crate::check) fn write_module(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let mut sealed = IndexMap::new();
+        let mut sealed = FxIndexMap::default();
         let node_types = self.resolved_node_types(module, &mut sealed)?;
         let symbol_types = self.resolved_symbol_types(module, &mut sealed)?;
         let reduced_types = self.resolved_reduced_types(module, &node_types, &symbol_types)?;
@@ -50,11 +50,11 @@ impl CheckState<'_> {
                 .set_symbol_static(symbol, id.into_global(module));
         }
 
-        // drain decided node meanings into resolutions
-        self.drain_decisions(module);
-
         // write closure capture frames and bindings
         self.write_captures(module)?;
+
+        // record derived parameter variances beside their declarations
+        self.write_derived_variances(module)?;
 
         // seal every type id embedded in the output segments
         self.seal_output_segments(module, &mut sealed)?;
@@ -62,14 +62,64 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Record derived parameter variances on the checked generic segment.
+    ///
+    /// Declared modifiers stay as written; unannotated nominal type
+    /// parameters record the default-context derivation the reifier and
+    /// dumps show.
+    fn write_derived_variances(&mut self, module: ModuleId) -> CompilerResult<()> {
+        // collect the module's cached derivations first
+        let derivations = self
+            .variances
+            .iter()
+            .filter_map(|((parameter, context), state)| match state {
+                VarianceState::Derived(derived) if parameter.module_id == module => {
+                    Some((*parameter, *context, *derived))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        // keep only unannotated nominal type parameters at their own context
+        let mut filled = Vec::new();
+        for (parameter, context, derived) in derivations {
+            if Some(context) != self.parameter_owner_context(parameter)? {
+                continue;
+            }
+            let Some(binding) = self.generic_parameter(parameter) else {
+                continue;
+            };
+            if binding.variance.is_some()
+                || binding.origin != dir::GenericParameterOrigin::Explicit
+                || binding.is_comptime
+                || binding.is_const
+            {
+                continue;
+            }
+            if !self.parameter_owner_is_nominal(parameter)? {
+                continue;
+            }
+            let Some(modifier) = derived.modifier() else {
+                continue;
+            };
+            filled.push((parameter.local_id, modifier));
+        }
+
+        // record the derivations on the checked tail
+        for (parameter, modifier) in filled {
+            self.module_mut(module)
+                .generics
+                .set_derived_variance(parameter, modifier);
+        }
+
+        Ok(())
+    }
+
     /// Seal every type id written into this module's output segments.
-    /// Definitions and generics are built during the walk, and resolutions,
-    /// captures, and statics during solving, so their embedded types may
-    /// still reference variables that only solved later.
     fn seal_output_segments(
         &mut self,
         module: ModuleId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<()> {
         let mut result = Ok(());
 
@@ -110,7 +160,7 @@ impl CheckState<'_> {
     fn seal_or_record(
         &mut self,
         id: dir::GlobalTypeId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
         result: &mut CompilerResult<()>,
     ) -> dir::GlobalTypeId {
         match self.seal_type(id, sealed) {
@@ -129,7 +179,7 @@ impl CheckState<'_> {
     fn resolved_node_types(
         &mut self,
         module: ModuleId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)>> {
         let node_types = self
             .node_types
@@ -177,7 +227,7 @@ impl CheckState<'_> {
     fn resolved_symbol_types(
         &mut self,
         module: ModuleId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
         let mut symbol_types = Vec::new();
         symbol_types.extend(
@@ -234,7 +284,7 @@ impl CheckState<'_> {
                 }),
         );
 
-        let mut seen = IndexSet::new();
+        let mut seen = FxIndexSet::default();
         let mut resolved = Vec::new();
         for (origin, ty) in sources {
             if !seen.insert(ty) {
@@ -271,54 +321,11 @@ impl CheckState<'_> {
         Ok(literals)
     }
 
-    /// Drain decided node meanings into output resolutions.
-    fn drain_decisions(&mut self, module: ModuleId) {
-        let decisions = self.decisions.take_module(module);
-        let resolutions = &mut self.module_mut(module).resolutions;
-        for (node, decision) in decisions {
-            match decision {
-                Decision::Name(resolution) => {
-                    resolutions.set_name_resolution(node, resolution);
-                }
-                Decision::Instantiation(resolution) => {
-                    resolutions.set_instantiation_resolution(node, resolution);
-                }
-                Decision::Receiver(resolution) => {
-                    resolutions.set_receiver_resolution(node, resolution);
-                }
-                Decision::Member(resolution) => {
-                    resolutions.set_member_resolution(node, resolution);
-                }
-                Decision::Call(resolution) => {
-                    resolutions.set_call_resolution(node, resolution);
-                }
-                Decision::Place(resolution) => {
-                    resolutions.set_place_resolution(node, resolution);
-                }
-                Decision::Guard(resolution) => {
-                    resolutions.set_guard_resolution(node, resolution);
-                }
-                Decision::Construct(resolution) => {
-                    resolutions.set_construct_resolution(node, resolution);
-                }
-                Decision::Pattern(resolution) => {
-                    resolutions.set_pattern_resolution(node, resolution);
-                }
-                Decision::AssignPattern(resolution) => {
-                    resolutions.set_assign_pattern_resolution(node, resolution);
-                }
-                // rejections already carry their diagnostics
-                Decision::Rejected => {}
-            }
-        }
-    }
-
     /// Seal one written type by replacing every variable with its solution.
-    /// Unsolved variables seal as error because their diagnostics come from the unsolved sweep.
     pub(in crate::check) fn seal_type(
         &mut self,
         id: dir::GlobalTypeId,
-        sealed: &mut IndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
+        sealed: &mut FxIndexMap<dir::GlobalTypeId, Option<dir::GlobalTypeId>>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // keep variable-free types as they are
         if !self.type_flags(id)?.has_variable() {
@@ -340,7 +347,7 @@ impl CheckState<'_> {
         }
         sealed.insert(id, None);
 
-        // seal a variable through its solved root, or error when unsolved
+        // seal a variable through its solved root, or report and poison
         let ty = self.ty(id)?;
         let result = if let dir::Type::Variable(variable) = ty {
             match self.solver.solution(variable)? {
@@ -349,7 +356,20 @@ impl CheckState<'_> {
 
                     self.seal_type(solution, sealed)?
                 }
-                None => self.intern_type(id.module_id, dir::Type::Error)?,
+                None => {
+                    // written unsolved variables in clean modules are missed judgments
+                    let origin = self.solver.variable(variable)?.origin;
+                    let origin = self.solver.origin(origin);
+                    let module = origin.module();
+                    if self.is_component_module(module)
+                        && self.module(module).diagnostics.is_empty()
+                    {
+                        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+                        self.report(module, CheckError::CannotInferType { anchor, module });
+                    }
+
+                    self.intern_type(id.module_id, dir::Type::Error)?
+                }
             }
         }
         // rebuild a composite around its sealed children, in place in its module
