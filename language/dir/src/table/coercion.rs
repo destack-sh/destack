@@ -208,6 +208,10 @@ impl Coercion {
         let stores_directly = match source {
             Type::Literal(literal) => literal.widens_to(target),
             Type::Range(range) => range.widens_to(target),
+            // exact keys store as their key-domain carrier
+            Type::Key(key) => {
+                matches!(target, Type::Primitive(primitive) if key.widens_to_primitive(*primitive))
+            }
             _ => false,
         };
         if stores_directly {

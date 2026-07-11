@@ -84,7 +84,7 @@ impl CheckState<'_> {
                 if !widens
                     && self
                         .static_key_from_type(source)?
-                        .is_some_and(|key| primitive_accepts_key(primitive, key)) =>
+                        .is_some_and(|key| key.widens_to_primitive(primitive)) =>
             {
                 Answer::Ready(true)
             }
@@ -468,18 +468,5 @@ impl CheckState<'_> {
         }
 
         Ok(decision)
-    }
-}
-
-/// Return whether one primitive key domain accepts one exact property key.
-fn primitive_accepts_key(primitive: dir::PrimitiveType, key: dir::StaticKey) -> bool {
-    match primitive {
-        dir::PrimitiveType::String => key.is_string_like(),
-        dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => key.is_symbol_like(),
-        dir::PrimitiveType::Integer(_) => key.is_number_like(),
-        dir::PrimitiveType::Boolean
-        | dir::PrimitiveType::Character
-        | dir::PrimitiveType::Float(_)
-        | dir::PrimitiveType::Bigint => false,
     }
 }

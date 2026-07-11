@@ -64,6 +64,27 @@ impl StaticKey {
         matches!(self, StaticKey::Symbol(_))
     }
 
+    /// Return whether this exact key stores directly in one primitive carrier.
+    pub fn widens_to_primitive(&self, primitive: crate::PrimitiveType) -> bool {
+        match primitive {
+            crate::PrimitiveType::String => self.is_string_like(),
+            crate::PrimitiveType::Symbol | crate::PrimitiveType::UniqueSymbol => {
+                self.is_symbol_like()
+            }
+            // index keys are exact values and must fit the integer width
+            crate::PrimitiveType::Integer(integer) => match self {
+                StaticKey::Index(index) => {
+                    i64::try_from(*index).is_ok_and(|value| integer.fits_literal(value))
+                }
+                _ => false,
+            },
+            crate::PrimitiveType::Boolean
+            | crate::PrimitiveType::Character
+            | crate::PrimitiveType::Float(_)
+            | crate::PrimitiveType::Bigint => false,
+        }
+    }
+
     /// Get the debug string given a mutable string pool.
     pub fn debug_string(&self, strings: &StringPool) -> String {
         match self {
