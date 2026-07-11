@@ -18,12 +18,6 @@ const TOKEN_IDENTIFIER_ESCAPE_BIT: u32 = 0x0001_0000;
 const TOKEN_LITERAL_SHIFT: u32 = 16;
 const TOKEN_NON_KEYWORD_CODE: u8 = 0x7f;
 const TOKEN_TYPE_MAX: u8 = TokenType::CoalesceAssign as u8;
-const TOKEN_NEWLINE_CODE: u8 = TokenType::Newline as u8;
-const TOKEN_WHITESPACE_CODE: u8 = TokenType::Whitespace as u8;
-const TOKEN_LINE_COMMENT_CODE: u8 = TokenType::LineComment as u8;
-const TOKEN_BLOCK_COMMENT_CODE: u8 = TokenType::BlockComment as u8;
-const TOKEN_DOC_LINE_COMMENT_CODE: u8 = TokenType::DocLineComment as u8;
-const TOKEN_DOC_BLOCK_COMMENT_CODE: u8 = TokenType::DocBlockComment as u8;
 const LITERAL_KIND_BITS: u16 = 0x000f;
 const LITERAL_FLAG_A: u16 = 0x0010;
 const LITERAL_FLAG_B: u16 = 0x0020;
@@ -203,7 +197,7 @@ impl Token {
 
     /// Return the token tag.
     #[inline(always)]
-    pub fn ty(self) -> TokenType {
+    pub const fn ty(self) -> TokenType {
         let code = (self.bits & TOKEN_TYPE_BITS) as u8;
         debug_assert!(
             code <= TOKEN_TYPE_MAX,
@@ -223,17 +217,7 @@ impl Token {
     /// Return whether this token is semantic source content.
     #[inline]
     pub const fn is_semantic(self) -> bool {
-        let code = (self.bits & TOKEN_TYPE_BITS) as u8;
-
-        !matches!(
-            code,
-            TOKEN_NEWLINE_CODE
-                | TOKEN_WHITESPACE_CODE
-                | TOKEN_LINE_COMMENT_CODE
-                | TOKEN_BLOCK_COMMENT_CODE
-                | TOKEN_DOC_LINE_COMMENT_CODE
-                | TOKEN_DOC_BLOCK_COMMENT_CODE
-        )
+        self.ty().is_semantic()
     }
 
     /// Return the start byte in the source file.
@@ -595,6 +579,20 @@ impl TryFrom<u8> for TokenType {
 }
 
 impl TokenType {
+    /// Return whether this token type is semantic source content.
+    #[inline]
+    pub const fn is_semantic(self) -> bool {
+        !matches!(
+            self,
+            Self::Newline
+                | Self::Whitespace
+                | Self::LineComment
+                | Self::BlockComment
+                | Self::DocLineComment
+                | Self::DocBlockComment
+        )
+    }
+
     /// Convert a dense token type code into a token type.
     #[inline(always)]
     pub fn from_code(code: u8) -> Option<Self> {
