@@ -5,7 +5,7 @@ use destack_fir::write;
 
 use crate::{JsFormatContext, JsFormatter};
 
-impl<'ast> Format<JsFormatContext<'ast>> for Key {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for Key {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {

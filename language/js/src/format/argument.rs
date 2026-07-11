@@ -72,13 +72,13 @@ where
     }
 }
 
-impl<'ast, 'e, T> Format<JsFormatContext<'ast>> for ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> Format<'ast, JsFormatContext<'ast>> for ListLike<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     Tree: TreeImpl<T>,
 {
     #[inline]
-    fn format(&self, f: &mut Formatter<'_, JsFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'ast, JsFormatContext<'ast>>) -> FormatResult<()> {
         let body = &format_with(|f| {
             // leading space
             if self.include_space {

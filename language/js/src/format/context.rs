@@ -11,7 +11,7 @@ use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
 use destack_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
 
 /// The formatter type for one JS formatting pass.
-pub type JsFormatter<'context, 'buffer> = Formatter<'buffer, JsFormatContext<'context>>;
+pub type JsFormatter<'context, 'buffer> = Formatter<'buffer, 'context, JsFormatContext<'context>>;
 
 /// One source span provider for JS formatting and printing.
 pub trait JsSourceMap: std::fmt::Debug {
@@ -251,7 +251,7 @@ where
     -> FormatResult<()>;
 }
 
-impl<'a, T: Node> Format<JsFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node> Format<'a, JsFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     Tree: TreeImpl<T>,
@@ -278,7 +278,7 @@ where
     }
 }
 
-impl<'a> Format<JsFormatContext<'a>> for LocalNodeIdAny {
+impl<'a> Format<'a, JsFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'a, '_>) -> FormatResult<()> {
         match self.ty {
@@ -311,7 +311,7 @@ impl<'a> Format<JsFormatContext<'a>> for LocalNodeIdAny {
     }
 }
 
-impl<'a> Format<JsFormatContext<'a>> for JsFormatContext<'a> {
+impl<'a> Format<'a, JsFormatContext<'a>> for JsFormatContext<'a> {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'a, '_>) -> FormatResult<()> {
         f.join_with(hard_line_break())

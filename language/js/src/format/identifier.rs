@@ -6,7 +6,7 @@ use destack_fir::write;
 
 use crate::{JsFormatContext, JsFormatter};
 
-impl<'ast> Format<JsFormatContext<'ast>> for StringId {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for StringId {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
@@ -14,7 +14,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for StringId {
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for Name {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for Name {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
@@ -23,7 +23,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for Name {
         }
     }
 }
-impl<'ast> Format<JsFormatContext<'ast>> for Keyword {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for Keyword {
     #[inline]
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])

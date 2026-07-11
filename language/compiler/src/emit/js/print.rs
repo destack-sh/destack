@@ -125,25 +125,16 @@ fn print_js_module_pretty(
         strings: &module.strings,
         source_map: &source_map,
     };
-    let mut state = fir::format::FormatState::new(context);
-    let mut buffer = fir::format::VecBuffer::new(&mut state);
+    let allocator = fir::format::Allocator::default();
+    let roots = fir::format::format_with(|formatter| js::format_roots(formatter, roots));
+    let formatted = fir::format!(&allocator, context, [roots]).map_err(|error| {
+        print_internal_error(parsed, format!("failed to format JS module: {error}"))
+    })?;
 
-    // format the root list through the pure JS formatter
-    {
-        let mut formatter = fir::format::Formatter::new(&mut buffer);
-        js::format_roots(&mut formatter, roots).map_err(|error| {
-            print_internal_error(parsed, format!("failed to format JS module: {error}"))
-        })?;
-    }
-
-    // build and print the fir document
-    let document = fir::format::Document::from(buffer.into_vec());
-
-    let printed = fir::print::Printer::new(source_file, state.context().options.as_print_options())
-        .print(&document)
-        .map_err(|error| {
-            print_internal_error(parsed, format!("failed to print JS module: {error}"))
-        })?;
+    // print the completed FIR document
+    let printed = formatted.print().map_err(|error| {
+        print_internal_error(parsed, format!("failed to print JS module: {error}"))
+    })?;
 
     Ok(PrintedJsModule {
         code: printed.as_str().to_string(),

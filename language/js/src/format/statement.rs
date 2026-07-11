@@ -40,8 +40,8 @@ fn root_is_elided(context: &JsFormatContext<'_>, root: LocalNodeIdAny) -> bool {
 }
 
 /// Format root-level statements with semicolons and trailing newline.
-pub fn format_roots(
-    f: &mut Formatter<'_, JsFormatContext<'_>>,
+pub fn format_roots<'a>(
+    f: &mut Formatter<'_, 'a, JsFormatContext<'a>>,
     roots: &[LocalNodeIdAny],
 ) -> FormatResult<()> {
     // emit each root with the pretty statement separator

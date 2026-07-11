@@ -5,7 +5,7 @@ use crate::{AssignOperator, BinaryOperator, UnaryOperator};
 
 use crate::{JsFormatContext, JsFormatter};
 
-impl<'ast> Format<JsFormatContext<'ast>> for UnaryOperator {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for UnaryOperator {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
@@ -23,7 +23,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for UnaryOperator {
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for BinaryOperator {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for BinaryOperator {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             // multiplication
@@ -69,7 +69,7 @@ impl<'ast> Format<JsFormatContext<'ast>> for BinaryOperator {
     }
 }
 
-impl<'ast> Format<JsFormatContext<'ast>> for AssignOperator {
+impl<'ast> Format<'ast, JsFormatContext<'ast>> for AssignOperator {
     fn format(&self, f: &mut JsFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             // addition
