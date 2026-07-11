@@ -206,8 +206,6 @@
         },
         "rootDir": null,
         "outDir": null,
-        "declarationDir": null,
-        "declarationMap": false,
         "noEmit": false,
         "emitStats": false,
         "emitEvents": false,
@@ -1290,19 +1288,6 @@
             "null"
           ],
           "default": null
-        },
-        "declarationDir": {
-          "description": "Output directory for declaration files. Defaults to out_dir.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "declarationMap": {
-          "description": "Emit declaration maps for `.d.ts` output.",
-          "type": "boolean",
-          "default": false
         },
         "noEmit": {
           "description": "Do not emit output files.",
@@ -4662,8 +4647,6 @@
           "default": {
             "directory": "dist",
             "file": null,
-            "declaration": true,
-            "declarationDirectory": null,
             "sourceMap": null
           }
         },
@@ -5113,19 +5096,6 @@
         },
         "file": {
           "description": "Output file for single-file targets.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "declaration": {
-          "description": "Whether to emit declaration files.",
-          "type": "boolean",
-          "default": false
-        },
-        "declarationDirectory": {
-          "description": "Separate directory for declaration files.",
           "type": [
             "string",
             "null"
