@@ -122,17 +122,14 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::SliceLength {
                     slice: argument, ..
                 }
+                | Instruction::DynamicBind {
+                    payload: argument, ..
+                }
                 | Instruction::DynamicPayload {
                     dynamic: argument, ..
                 }
                 | Instruction::DynamicType {
                     dynamic: argument, ..
-                }
-                | Instruction::VariantTag {
-                    variant: argument, ..
-                }
-                | Instruction::VariantPayload {
-                    variant: argument, ..
                 }
                 | Instruction::Free { value: argument }
                 | Instruction::Pin {
@@ -278,7 +275,13 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::FieldGet { aggregate, .. } => {
                     Self::replace_value_in_slot(aggregate, from, to);
                 }
+                Instruction::ElementGet { aggregate, .. } => {
+                    Self::replace_value_in_slot(aggregate, from, to);
+                }
                 Instruction::FieldSet {
+                    aggregate, value, ..
+                }
+                | Instruction::ElementSet {
                     aggregate, value, ..
                 } => {
                     Self::replace_value_in_slot(aggregate, from, to);
@@ -287,8 +290,8 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::FieldAddr { aggregate, .. } => {
                     Self::replace_value_in_slot(aggregate, from, to);
                 }
-                Instruction::ElementAddr { array, index, .. } => {
-                    Self::replace_value_in_slot(array, from, to);
+                Instruction::ElementAddr { base, index, .. } => {
+                    Self::replace_value_in_slot(base, from, to);
                     Self::replace_value_in_slot(index, from, to);
                 }
                 Instruction::SliceView {
@@ -340,9 +343,7 @@ impl<'a> FunctionBuilder<'a> {
                 }
 
                 // arguments stored externally
-                Instruction::Struct { .. }
-                | Instruction::Tuple { .. }
-                | Instruction::Array { .. }
+                Instruction::Aggregate { .. }
                 | Instruction::TensorConcat { .. }
                 | Instruction::Intrinsic { .. } => {}
             }

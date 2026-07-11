@@ -5,6 +5,15 @@ use crate::{
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
+    /// Insert one typed constant.
+    pub fn constant(&mut self, value: Constant, ty: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Const { destination, value });
+        self.define_value(destination, ty);
+
+        destination
+    }
+
     /// Insert a null reference constant.
     pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();

@@ -301,76 +301,23 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::Struct {
+            Instruction::Aggregate {
                 destination,
-                ty,
-                fields,
+                values,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("struct"),
-                        space(),
-                        ty,
-                        space()
-                    ]
+                    [space(), token("="), space(), token("aggregate"), space()]
                 )?;
-                let args = f.context().tree.get_values(*fields);
-                format_value_list(args, f)
-            }
-
-            Instruction::Tuple {
-                destination,
-                ty,
-                elements,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("tuple"),
-                        space(),
-                        ty,
-                        space()
-                    ]
-                )?;
-                let args = f.context().tree.get_values(*elements);
-                format_value_list(args, f)
-            }
-
-            Instruction::Array {
-                destination,
-                ty,
-                elements,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("array"),
-                        space(),
-                        ty,
-                        space()
-                    ]
-                )?;
-                let args = f.context().tree.get_values(*elements);
+                let args = f.context().tree.get_values(*values);
                 format_value_list(args, f)
             }
 
             Instruction::FieldGet {
                 destination,
                 aggregate,
-                index,
+                field,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -384,7 +331,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
-                        copied_text(&index.to_string())
+                        copied_text(&field.to_string())
                     ]
                 )
             }
@@ -392,7 +339,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::FieldSet {
                 destination,
                 aggregate,
-                index,
+                field,
                 value,
             } => {
                 format_typed_destination(*destination, f)?;
@@ -407,7 +354,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
-                        copied_text(&index.to_string()),
+                        copied_text(&field.to_string()),
                         token(","),
                         space(),
                         value
@@ -418,7 +365,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::FieldAddr {
                 destination,
                 aggregate,
-                index,
+                field,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -433,14 +380,62 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
+                        copied_text(&field.to_string())
+                    ]
+                )
+            }
+
+            Instruction::ElementGet {
+                destination,
+                aggregate,
+                index,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("element.get"),
+                        space(),
+                        aggregate,
+                        token(","),
+                        space(),
                         copied_text(&index.to_string())
+                    ]
+                )
+            }
+
+            Instruction::ElementSet {
+                destination,
+                aggregate,
+                index,
+                value,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("element.set"),
+                        space(),
+                        aggregate,
+                        token(","),
+                        space(),
+                        copied_text(&index.to_string()),
+                        token(","),
+                        space(),
+                        value
                     ]
                 )
             }
 
             Instruction::ElementAddr {
                 destination,
-                array,
+                base,
                 index,
                 ..
             } => {
@@ -453,7 +448,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("element.address"),
                         space(),
-                        array,
+                        base,
                         token(","),
                         space(),
                         index
@@ -503,6 +498,28 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::DynamicBind {
+                destination,
+                payload,
+                concrete,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("dynamic.bind"),
+                        space(),
+                        payload,
+                        token(","),
+                        space(),
+                        concrete
+                    ]
+                )
+            }
+
             Instruction::DynamicPayload {
                 destination,
                 dynamic,
@@ -536,46 +553,6 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token("dynamic.type"),
                         space(),
                         dynamic
-                    ]
-                )
-            }
-
-            Instruction::VariantTag {
-                destination,
-                variant,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("variant.tag"),
-                        space(),
-                        variant
-                    ]
-                )
-            }
-
-            Instruction::VariantPayload {
-                destination,
-                variant,
-                tag,
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("variant.payload"),
-                        space(),
-                        variant,
-                        token(","),
-                        space(),
-                        tag
                     ]
                 )
             }

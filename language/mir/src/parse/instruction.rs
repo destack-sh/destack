@@ -428,34 +428,12 @@ impl Parser {
                     }
 
                     // aggregate construction
-                    "struct" => {
-                        let ty = self.parse_type_segment(&mut segment_spans)?;
-                        let fields = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let fields = self.tree.add_values(&fields);
-                        Instruction::Struct {
+                    "aggregate" => {
+                        let values = self.parse_call_argument_segments(&mut segment_spans)?;
+                        let values = self.tree.add_values(&values);
+                        Instruction::Aggregate {
                             destination,
-                            ty,
-                            fields,
-                        }
-                    }
-                    "tuple" => {
-                        let ty = self.parse_type_segment(&mut segment_spans)?;
-                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let elements = self.tree.add_values(&elements);
-                        Instruction::Tuple {
-                            destination,
-                            ty,
-                            elements,
-                        }
-                    }
-                    "array" => {
-                        let ty = self.parse_type_segment(&mut segment_spans)?;
-                        let elements = self.parse_call_argument_segments(&mut segment_spans)?;
-                        let elements = self.tree.add_values(&elements);
-                        Instruction::Array {
-                            destination,
-                            ty,
-                            elements,
+                            values,
                         }
                     }
 
@@ -463,50 +441,77 @@ impl Parser {
                     "field.get" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)?;
-                        let index = u32::try_from(index)
+                        let field = self.parse_int_segment(&mut segment_spans)?;
+                        let field = u32::try_from(field)
                             .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         Instruction::FieldGet {
                             destination,
                             aggregate,
-                            index,
+                            field,
                         }
                     }
                     "field.set" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)?;
-                        let index = u32::try_from(index)
+                        let field = self.parse_int_segment(&mut segment_spans)?;
+                        let field = u32::try_from(field)
                             .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         self.eat_token(TokenType::Comma)?;
                         let value = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::FieldSet {
                             destination,
                             aggregate,
-                            index,
+                            field,
                             value,
                         }
                     }
                     "field.address" => {
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
-                        let index = self.parse_int_segment(&mut segment_spans)?;
-                        let index = u32::try_from(index)
+                        let field = self.parse_int_segment(&mut segment_spans)?;
+                        let field = u32::try_from(field)
                             .map_err(|_| ParseError::invalid("field index", self.pos()))?;
                         Instruction::FieldAddr {
                             destination,
                             aggregate,
-                            index,
+                            field,
                             result_type: destination_type,
                         }
                     }
+                    "element.get" => {
+                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("element index", self.pos()))?;
+                        Instruction::ElementGet {
+                            destination,
+                            aggregate,
+                            index,
+                        }
+                    }
+                    "element.set" => {
+                        let aggregate = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let index = self.parse_int_segment(&mut segment_spans)?;
+                        let index = u32::try_from(index)
+                            .map_err(|_| ParseError::invalid("element index", self.pos()))?;
+                        self.eat_token(TokenType::Comma)?;
+                        let value = self.parse_value_segment(&mut segment_spans)?;
+                        Instruction::ElementSet {
+                            destination,
+                            aggregate,
+                            index,
+                            value,
+                        }
+                    }
                     "element.address" => {
-                        let array = self.parse_value_segment(&mut segment_spans)?;
+                        let base = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let index = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::ElementAddr {
                             destination,
-                            array,
+                            base,
                             index,
                             result_type: destination_type,
                         }
@@ -532,7 +537,17 @@ impl Parser {
                         Instruction::SliceLength { destination, slice }
                     }
 
-                    // dynamic descriptors
+                    // dynamic values
+                    "dynamic.bind" => {
+                        let payload = self.parse_value_segment(&mut segment_spans)?;
+                        self.eat_token(TokenType::Comma)?;
+                        let concrete = self.parse_type_segment(&mut segment_spans)?;
+                        Instruction::DynamicBind {
+                            destination,
+                            payload,
+                            concrete,
+                        }
+                    }
                     "dynamic.payload" => {
                         let dynamic = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::DynamicPayload {
@@ -546,25 +561,6 @@ impl Parser {
                         Instruction::DynamicType {
                             destination,
                             dynamic,
-                        }
-                    }
-
-                    // variant representation
-                    "variant.tag" => {
-                        let variant = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::VariantTag {
-                            destination,
-                            variant,
-                        }
-                    }
-                    "variant.payload" => {
-                        let variant = self.parse_value_segment(&mut segment_spans)?;
-                        self.eat_token(TokenType::Comma)?;
-                        let tag = self.parse_constant()?;
-                        Instruction::VariantPayload {
-                            destination,
-                            variant,
-                            tag,
                         }
                     }
 

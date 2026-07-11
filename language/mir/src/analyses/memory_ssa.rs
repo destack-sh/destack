@@ -1038,19 +1038,18 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::FunctionPointer { .. }
             | mir::Instruction::FunctionEnvironmentCurrent { .. }
             | mir::Instruction::LocalAddr { .. }
-            | mir::Instruction::Struct { .. }
-            | mir::Instruction::Tuple { .. }
-            | mir::Instruction::Array { .. }
+            | mir::Instruction::Aggregate { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldSet { .. }
+            | mir::Instruction::ElementGet { .. }
+            | mir::Instruction::ElementSet { .. }
             | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::ElementAddr { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
-            | mir::Instruction::VariantTag { .. }
-            | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
             | mir::Instruction::VectorInsert { .. }

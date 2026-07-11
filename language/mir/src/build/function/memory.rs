@@ -1,6 +1,6 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    Access, Constant, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
+    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
     ReferenceKind, Space, Type, Value,
 };
 
@@ -127,7 +127,7 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Resolve a static layout slot type for an aggregate.
+    /// Resolve one structural field type from an aggregate.
     pub(super) fn field_type_for_aggregate(
         &self,
         aggregate_type: LocalNodeId<Type>,
@@ -155,55 +155,37 @@ impl<'a> FunctionBuilder<'a> {
 
                 Ok(*element)
             }
-            Type::Variant { tag, storage, .. } => match index {
-                0 => Ok(*tag),
+            Type::Variant {
+                discriminant,
+                storage,
+                ..
+            } => match index {
+                0 => Ok(*discriminant),
                 1 => Ok(*storage),
                 _ => Err(BuildError::InvalidFieldIndex {
                     aggregate: aggregate_type,
                     index,
                 }),
             },
-            Type::FixedArray {
-                element, length, ..
-            } => {
-                if u64::from(index) < *length {
-                    Ok(*element)
-                } else {
-                    Err(BuildError::InvalidFieldIndex {
-                        aggregate: aggregate_type,
-                        index,
-                    })
-                }
-            }
-            Type::Function { .. } => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
             _ => Err(BuildError::InvalidFieldOwner { ty: aggregate_type }),
         }
     }
 
-    /// Resolve the tag type for one variant aggregate.
-    pub(super) fn variant_tag_type(
+    /// Resolve one statically selected fixed-array element type.
+    pub(super) fn element_type_for_array(
         &self,
-        variant_type: LocalNodeId<Type>,
+        aggregate_type: LocalNodeId<Type>,
+        index: u32,
     ) -> BuildResult<LocalNodeId<Type>> {
-        match self.tree.get(variant_type) {
-            Type::Variant { tag, .. } => Ok(*tag),
-            _ => Err(BuildError::InvalidFieldOwner { ty: variant_type }),
-        }
-    }
-
-    /// Resolve the payload type for one variant case.
-    pub(super) fn variant_payload_type(
-        &self,
-        variant_type: LocalNodeId<Type>,
-        tag: &Constant,
-    ) -> BuildResult<LocalNodeId<Type>> {
-        match self.tree.get(variant_type) {
-            Type::Variant { cases, .. } => cases
-                .iter()
-                .find(|case| case.tag == *tag)
-                .map(|case| case.ty)
-                .ok_or(BuildError::InvalidFieldOwner { ty: variant_type }),
-            _ => Err(BuildError::InvalidFieldOwner { ty: variant_type }),
+        match self.tree.get(aggregate_type) {
+            Type::FixedArray {
+                element, length, ..
+            } if u64::from(index) < *length => Ok(*element),
+            Type::FixedArray { .. } => Err(BuildError::InvalidElementIndex {
+                array: aggregate_type,
+                index,
+            }),
+            _ => Err(BuildError::InvalidElementOwner { ty: aggregate_type }),
         }
     }
 
@@ -338,7 +320,7 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Drop one value through its concrete runtime type descriptor.
+    /// Drop one value.
     pub fn drop_value(&mut self, value: Value) {
         self.insert_instruction(Instruction::Drop { value });
     }

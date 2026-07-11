@@ -43,8 +43,10 @@ pub enum PureExpression {
         then_value: mir::Value,
         else_value: mir::Value,
     },
-    /// Field access from aggregate.
-    FieldGet { aggregate: mir::Value, index: u32 },
+    /// Static field access from an aggregate.
+    FieldGet { aggregate: mir::Value, field: u32 },
+    /// Static element access from a fixed array.
+    ElementGet { aggregate: mir::Value, index: u32 },
 }
 
 impl PureExpression {
@@ -139,8 +141,14 @@ impl PureExpression {
 
             // pure field access
             mir::Instruction::FieldGet {
-                aggregate, index, ..
+                aggregate, field, ..
             } => Some(Self::FieldGet {
+                aggregate: *aggregate,
+                field: *field,
+            }),
+            mir::Instruction::ElementGet {
+                aggregate, index, ..
+            } => Some(Self::ElementGet {
                 aggregate: *aggregate,
                 index: *index,
             }),
@@ -164,9 +172,7 @@ impl PureExpression {
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::FrameAllocZeroed { .. }
             | mir::Instruction::FrameAllocUninit { .. }
-            | mir::Instruction::Struct { .. }
-            | mir::Instruction::Tuple { .. }
-            | mir::Instruction::Array { .. }
+            | mir::Instruction::Aggregate { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
             | mir::Instruction::VectorInsert { .. }
@@ -203,6 +209,7 @@ impl PureExpression {
             | mir::Instruction::AtomicFence { .. }
             | mir::Instruction::BarrierWrite { .. }
             | mir::Instruction::FieldSet { .. }
+            | mir::Instruction::ElementSet { .. }
             | mir::Instruction::SliceView { .. }
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::FunctionAddr { .. }
@@ -215,10 +222,9 @@ impl PureExpression {
             | mir::Instruction::ElementAddr { .. }
             | mir::Instruction::Assume { .. }
             | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
-            | mir::Instruction::VariantTag { .. }
-            | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Breakpoint => None,
@@ -280,10 +286,15 @@ impl PureExpression {
                     else_value,
                 }
             }
-            Self::FieldGet { aggregate, index } => {
+            Self::FieldGet { aggregate, field } => {
                 let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
 
-                Self::FieldGet { aggregate, index }
+                Self::FieldGet { aggregate, field }
+            }
+            Self::ElementGet { aggregate, index } => {
+                let aggregate = *substitutions.get(&aggregate).unwrap_or(&aggregate);
+
+                Self::ElementGet { aggregate, index }
             }
         }
     }
@@ -511,70 +522,67 @@ impl<'a> ValueEquivalence<'a> {
                     && self.equivalent(left_else, right_else)
             }
             (
-                mir::Instruction::Struct {
-                    ty: left_type,
-                    fields: left_fields,
+                mir::Instruction::Aggregate {
+                    destination: left_destination,
+                    values: left_values,
                     ..
                 },
-                mir::Instruction::Struct {
-                    ty: right_type,
-                    fields: right_fields,
-                    ..
-                },
-            ) => {
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
-
-                left_key == right_key && self.arguments_equivalent(*left_fields, *right_fields)
-            }
-            (
-                mir::Instruction::Tuple {
-                    ty: left_type,
-                    elements: left_elements,
-                    ..
-                },
-                mir::Instruction::Tuple {
-                    ty: right_type,
-                    elements: right_elements,
-                    ..
-                },
-            )
-            | (
-                mir::Instruction::Array {
-                    ty: left_type,
-                    elements: left_elements,
-                    ..
-                },
-                mir::Instruction::Array {
-                    ty: right_type,
-                    elements: right_elements,
+                mir::Instruction::Aggregate {
+                    destination: right_destination,
+                    values: right_values,
                     ..
                 },
             ) => {
-                let left_key = self.type_key(*left_type);
-                let right_key = self.type_key(*right_type);
+                let Some(function) = self.function else {
+                    return false;
+                };
+                let Some(left_type) = function.value_type(*left_destination) else {
+                    return false;
+                };
+                let Some(right_type) = function.value_type(*right_destination) else {
+                    return false;
+                };
+                let left_key = self.type_key(left_type);
+                let right_key = self.type_key(right_type);
 
-                left_key == right_key && self.arguments_equivalent(*left_elements, *right_elements)
+                left_key == right_key && self.arguments_equivalent(*left_values, *right_values)
             }
             (
                 mir::Instruction::FieldGet {
                     aggregate: left_aggregate,
-                    index: left_index,
+                    field: left_field,
                     ..
                 },
                 mir::Instruction::FieldGet {
                     aggregate: right_aggregate,
-                    index: right_index,
+                    field: right_field,
                     ..
                 },
             )
             | (
                 mir::Instruction::FieldAddr {
                     aggregate: left_aggregate,
-                    index: left_index,
+                    field: left_field,
                     ..
                 },
                 mir::Instruction::FieldAddr {
+                    aggregate: right_aggregate,
+                    field: right_field,
+                    ..
+                },
+            ) => {
+                let left_aggregate = *left_aggregate;
+                let right_aggregate = *right_aggregate;
+
+                left_field == right_field && self.equivalent(left_aggregate, right_aggregate)
+            }
+            (
+                mir::Instruction::ElementGet {
+                    aggregate: left_aggregate,
+                    index: left_index,
+                    ..
+                },
+                mir::Instruction::ElementGet {
                     aggregate: right_aggregate,
                     index: right_index,
                     ..
@@ -587,22 +595,22 @@ impl<'a> ValueEquivalence<'a> {
             }
             (
                 mir::Instruction::ElementAddr {
-                    array: left_array,
+                    base: left_base,
                     index: left_index,
                     ..
                 },
                 mir::Instruction::ElementAddr {
-                    array: right_array,
+                    base: right_base,
                     index: right_index,
                     ..
                 },
             ) => {
-                let left_array = *left_array;
-                let right_array = *right_array;
+                let left_base = *left_base;
+                let right_base = *right_base;
                 let left_index = *left_index;
                 let right_index = *right_index;
 
-                self.equivalent(left_array, right_array) && self.equivalent(left_index, right_index)
+                self.equivalent(left_base, right_base) && self.equivalent(left_index, right_index)
             }
             _ => false,
         }

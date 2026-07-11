@@ -174,8 +174,8 @@ impl ValueDefinitions {
                 mir::Instruction::FieldAddr { aggregate, .. } => {
                     current = *aggregate;
                 }
-                mir::Instruction::ElementAddr { array, .. } => {
-                    current = *array;
+                mir::Instruction::ElementAddr { base, .. } => {
+                    current = *base;
                 }
                 mir::Instruction::Cast { argument, .. } => {
                     current = *argument;
@@ -233,13 +233,8 @@ impl ValueDefinitions {
         // walk through aggregate and local projections
         let instruction = tree.get(instruction_id);
         match instruction {
-            mir::Instruction::Struct { fields, .. } => {
-                for arg in tree.get_values(*fields).iter().copied() {
-                    self.collect_frame_alloc_bases(arg, tree, frame_allocs, visited, bases);
-                }
-            }
-            mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
-                for arg in tree.get_values(*elements).iter().copied() {
+            mir::Instruction::Aggregate { values, .. } => {
+                for arg in tree.get_values(*values).iter().copied() {
                     self.collect_frame_alloc_bases(arg, tree, frame_allocs, visited, bases);
                 }
             }
@@ -251,7 +246,8 @@ impl ValueDefinitions {
                 self.collect_frame_alloc_bases(*then_value, tree, frame_allocs, visited, bases);
                 self.collect_frame_alloc_bases(*else_value, tree, frame_allocs, visited, bases);
             }
-            mir::Instruction::FieldGet { aggregate, .. } => {
+            mir::Instruction::FieldGet { aggregate, .. }
+            | mir::Instruction::ElementGet { aggregate, .. } => {
                 self.collect_frame_alloc_bases(*aggregate, tree, frame_allocs, visited, bases);
             }
             mir::Instruction::LocalGet { local, .. } => {

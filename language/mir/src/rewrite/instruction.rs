@@ -27,17 +27,16 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::Assume { .. } => true,
 
         // pure aggregate operations
-        mir::Instruction::Struct { .. }
-        | mir::Instruction::Tuple { .. }
-        | mir::Instruction::Array { .. }
+        mir::Instruction::Aggregate { .. }
         | mir::Instruction::FieldGet { .. }
         | mir::Instruction::FieldSet { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementSet { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::DynamicBind { .. }
         | mir::Instruction::DynamicPayload { .. }
         | mir::Instruction::DynamicType { .. }
-        | mir::Instruction::VariantTag { .. }
-        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
@@ -203,19 +202,18 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::Unary { .. }
         | mir::Instruction::Cast { .. }
         | mir::Instruction::Select { .. }
-        | mir::Instruction::Struct { .. }
-        | mir::Instruction::Tuple { .. }
-        | mir::Instruction::Array { .. }
+        | mir::Instruction::Aggregate { .. }
         | mir::Instruction::FieldGet { .. }
         | mir::Instruction::FieldSet { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementSet { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::SliceView { .. }
         | mir::Instruction::SliceLength { .. }
+        | mir::Instruction::DynamicBind { .. }
         | mir::Instruction::DynamicPayload { .. }
         | mir::Instruction::DynamicType { .. }
-        | mir::Instruction::VariantTag { .. }
-        | mir::Instruction::VariantPayload { .. }
         | mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
@@ -641,18 +639,38 @@ pub fn instruction_substitute_uses(
         mir::Instruction::FieldGet {
             destination,
             aggregate,
-            index,
+            field,
         } => mir::Instruction::FieldGet {
             destination: *destination,
             aggregate: substitute(aggregate),
-            index: *index,
+            field: *field,
         },
         mir::Instruction::FieldSet {
             destination,
             aggregate,
-            index,
+            field,
             value,
         } => mir::Instruction::FieldSet {
+            destination: *destination,
+            aggregate: substitute(aggregate),
+            field: *field,
+            value: substitute(value),
+        },
+        mir::Instruction::ElementGet {
+            destination,
+            aggregate,
+            index,
+        } => mir::Instruction::ElementGet {
+            destination: *destination,
+            aggregate: substitute(aggregate),
+            index: *index,
+        },
+        mir::Instruction::ElementSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        } => mir::Instruction::ElementSet {
             destination: *destination,
             aggregate: substitute(aggregate),
             index: *index,
@@ -661,22 +679,22 @@ pub fn instruction_substitute_uses(
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
-            index,
+            field,
             result_type,
         } => mir::Instruction::FieldAddr {
             destination: *destination,
             aggregate: substitute(aggregate),
-            index: *index,
+            field: *field,
             result_type: *result_type,
         },
         mir::Instruction::ElementAddr {
             destination,
-            array,
+            base,
             index,
             result_type,
         } => mir::Instruction::ElementAddr {
             destination: *destination,
-            array: substitute(array),
+            base: substitute(base),
             index: substitute(index),
             result_type: *result_type,
         },
@@ -697,6 +715,15 @@ pub fn instruction_substitute_uses(
             destination: *destination,
             slice: substitute(slice),
         },
+        mir::Instruction::DynamicBind {
+            destination,
+            payload,
+            concrete,
+        } => mir::Instruction::DynamicBind {
+            destination: *destination,
+            payload: substitute(payload),
+            concrete: *concrete,
+        },
         mir::Instruction::DynamicPayload {
             destination,
             dynamic,
@@ -712,22 +739,6 @@ pub fn instruction_substitute_uses(
         } => mir::Instruction::DynamicType {
             destination: *destination,
             dynamic: substitute(dynamic),
-        },
-        mir::Instruction::VariantTag {
-            destination,
-            variant,
-        } => mir::Instruction::VariantTag {
-            destination: *destination,
-            variant: substitute(variant),
-        },
-        mir::Instruction::VariantPayload {
-            destination,
-            variant,
-            tag,
-        } => mir::Instruction::VariantPayload {
-            destination: *destination,
-            variant: substitute(variant),
-            tag: tag.clone(),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: *destination,
@@ -1096,9 +1107,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::LocalAddr { .. }
-        | mir::Instruction::Struct { .. }
-        | mir::Instruction::Tuple { .. }
-        | mir::Instruction::Array { .. }
+        | mir::Instruction::Aggregate { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
@@ -1149,32 +1158,12 @@ pub fn instruction_substitute_uses_in_tree(
 
     // rebuild the instruction using substituted operands
     match instruction {
-        mir::Instruction::Struct {
+        mir::Instruction::Aggregate {
             destination,
-            ty,
-            fields,
-        } => mir::Instruction::Struct {
+            values,
+        } => mir::Instruction::Aggregate {
             destination: *destination,
-            ty: *ty,
-            fields: substitute_arguments(*fields),
-        },
-        mir::Instruction::Tuple {
-            destination,
-            ty,
-            elements,
-        } => mir::Instruction::Tuple {
-            destination: *destination,
-            ty: *ty,
-            elements: substitute_arguments(*elements),
-        },
-        mir::Instruction::Array {
-            destination,
-            ty,
-            elements,
-        } => mir::Instruction::Array {
-            destination: *destination,
-            ty: *ty,
-            elements: substitute_arguments(*elements),
+            values: substitute_arguments(*values),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: *destination,
@@ -1994,18 +1983,38 @@ pub fn instruction_map(
         mir::Instruction::FieldGet {
             destination,
             aggregate,
-            index,
+            field,
         } => mir::Instruction::FieldGet {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
-            index: *index,
+            field: *field,
         },
         mir::Instruction::FieldSet {
             destination,
             aggregate,
-            index,
+            field,
             value,
         } => mir::Instruction::FieldSet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            field: *field,
+            value: remap(*value),
+        },
+        mir::Instruction::ElementGet {
+            destination,
+            aggregate,
+            index,
+        } => mir::Instruction::ElementGet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+        },
+        mir::Instruction::ElementSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        } => mir::Instruction::ElementSet {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             index: *index,
@@ -2014,22 +2023,22 @@ pub fn instruction_map(
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
-            index,
+            field,
             result_type,
         } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
-            index: *index,
+            field: *field,
             result_type: *result_type,
         },
         mir::Instruction::ElementAddr {
             destination,
-            array,
+            base,
             index,
             result_type,
         } => mir::Instruction::ElementAddr {
             destination: remap(*destination),
-            array: remap(*array),
+            base: remap(*base),
             index: remap(*index),
             result_type: *result_type,
         },
@@ -2050,6 +2059,15 @@ pub fn instruction_map(
             destination: remap(*destination),
             slice: remap(*slice),
         },
+        mir::Instruction::DynamicBind {
+            destination,
+            payload,
+            concrete,
+        } => mir::Instruction::DynamicBind {
+            destination: remap(*destination),
+            payload: remap(*payload),
+            concrete: *concrete,
+        },
         mir::Instruction::DynamicPayload {
             destination,
             dynamic,
@@ -2065,22 +2083,6 @@ pub fn instruction_map(
         } => mir::Instruction::DynamicType {
             destination: remap(*destination),
             dynamic: remap(*dynamic),
-        },
-        mir::Instruction::VariantTag {
-            destination,
-            variant,
-        } => mir::Instruction::VariantTag {
-            destination: remap(*destination),
-            variant: remap(*variant),
-        },
-        mir::Instruction::VariantPayload {
-            destination,
-            variant,
-            tag,
-        } => mir::Instruction::VariantPayload {
-            destination: remap(*destination),
-            variant: remap(*variant),
-            tag: tag.clone(),
         },
         mir::Instruction::LocalGet { destination, local } => mir::Instruction::LocalGet {
             destination: remap(*destination),
@@ -2146,32 +2148,12 @@ pub fn instruction_map(
             local: *local,
             result_type: *result_type,
         },
-        mir::Instruction::Struct {
+        mir::Instruction::Aggregate {
             destination,
-            ty,
-            fields,
-        } => mir::Instruction::Struct {
+            values,
+        } => mir::Instruction::Aggregate {
             destination: remap(*destination),
-            ty: *ty,
-            fields: remap_arguments(*fields),
-        },
-        mir::Instruction::Tuple {
-            destination,
-            ty,
-            elements,
-        } => mir::Instruction::Tuple {
-            destination: remap(*destination),
-            ty: *ty,
-            elements: remap_arguments(*elements),
-        },
-        mir::Instruction::Array {
-            destination,
-            ty,
-            elements,
-        } => mir::Instruction::Array {
-            destination: remap(*destination),
-            ty: *ty,
-            elements: remap_arguments(*elements),
+            values: remap_arguments(*values),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: remap(*destination),
@@ -2790,32 +2772,12 @@ pub fn instruction_map_with_locals(
             local: *local,
             result_type: *result_type,
         },
-        mir::Instruction::Struct {
+        mir::Instruction::Aggregate {
             destination,
-            ty,
-            fields,
-        } => mir::Instruction::Struct {
+            values,
+        } => mir::Instruction::Aggregate {
             destination: remap(*destination),
-            ty: *ty,
-            fields: remap_arguments(*fields),
-        },
-        mir::Instruction::Tuple {
-            destination,
-            ty,
-            elements,
-        } => mir::Instruction::Tuple {
-            destination: remap(*destination),
-            ty: *ty,
-            elements: remap_arguments(*elements),
-        },
-        mir::Instruction::Array {
-            destination,
-            ty,
-            elements,
-        } => mir::Instruction::Array {
-            destination: remap(*destination),
-            ty: *ty,
-            elements: remap_arguments(*elements),
+            values: remap_arguments(*values),
         },
         mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
             destination: remap(*destination),
@@ -3129,18 +3091,38 @@ pub fn instruction_map_with_locals(
         mir::Instruction::FieldGet {
             destination,
             aggregate,
-            index,
+            field,
         } => mir::Instruction::FieldGet {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
-            index: *index,
+            field: *field,
         },
         mir::Instruction::FieldSet {
             destination,
             aggregate,
-            index,
+            field,
             value,
         } => mir::Instruction::FieldSet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            field: *field,
+            value: remap(*value),
+        },
+        mir::Instruction::ElementGet {
+            destination,
+            aggregate,
+            index,
+        } => mir::Instruction::ElementGet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+        },
+        mir::Instruction::ElementSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        } => mir::Instruction::ElementSet {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             index: *index,
@@ -3149,22 +3131,22 @@ pub fn instruction_map_with_locals(
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
-            index,
+            field,
             result_type,
         } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
-            index: *index,
+            field: *field,
             result_type: *result_type,
         },
         mir::Instruction::ElementAddr {
             destination,
-            array,
+            base,
             index,
             result_type,
         } => mir::Instruction::ElementAddr {
             destination: remap(*destination),
-            array: remap(*array),
+            base: remap(*base),
             index: remap(*index),
             result_type: *result_type,
         },
@@ -3185,6 +3167,15 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             slice: remap(*slice),
         },
+        mir::Instruction::DynamicBind {
+            destination,
+            payload,
+            concrete,
+        } => mir::Instruction::DynamicBind {
+            destination: remap(*destination),
+            payload: remap(*payload),
+            concrete: *concrete,
+        },
         mir::Instruction::DynamicPayload {
             destination,
             dynamic,
@@ -3200,22 +3191,6 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::DynamicType {
             destination: remap(*destination),
             dynamic: remap(*dynamic),
-        },
-        mir::Instruction::VariantTag {
-            destination,
-            variant,
-        } => mir::Instruction::VariantTag {
-            destination: remap(*destination),
-            variant: remap(*variant),
-        },
-        mir::Instruction::VariantPayload {
-            destination,
-            variant,
-            tag,
-        } => mir::Instruction::VariantPayload {
-            destination: remap(*destination),
-            variant: remap(*variant),
-            tag: tag.clone(),
         },
         mir::Instruction::NewZeroed {
             destination,
@@ -3472,9 +3447,6 @@ pub fn terminator_remap(
                     remap_value(right);
                 }
                 mir::CheckConstraint::IsType { value, .. } => {
-                    remap_value(value);
-                }
-                mir::CheckConstraint::Variant { value, .. } => {
                     remap_value(value);
                 }
                 mir::CheckConstraint::IsSubtype { value, .. } => {

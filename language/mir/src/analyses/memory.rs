@@ -871,14 +871,14 @@ impl<'a> MemoryRegionBuilder<'a> {
             mir::Instruction::FieldAddr {
                 destination,
                 aggregate,
-                index,
+                field,
                 ..
             } if *destination == reference => {
                 let aggregate = *aggregate;
 
                 let mut region = self.region(aggregate);
                 if let MemoryRegion::Place(place) = &mut region {
-                    place.add_field(*index);
+                    place.add_field(*field);
                 }
 
                 region
@@ -887,16 +887,16 @@ impl<'a> MemoryRegionBuilder<'a> {
             // extend precise region with an indexed offset
             mir::Instruction::ElementAddr {
                 destination,
-                array,
+                base,
                 index,
                 ..
             } if *destination == reference => {
-                let array = *array;
+                let base = *base;
                 let index = *index;
 
-                let mut region = self.region(array);
+                let mut region = self.region(base);
 
-                let scale = self.expect_element_size(array);
+                let scale = self.expect_element_size(base);
                 if let MemoryRegion::Place(place) = &mut region {
                     place.add_indexed_offset(index, scale);
                 }

@@ -158,7 +158,7 @@ impl<'a, 'b> EscapePropagation<'a, 'b> {
             }
             | mir::Instruction::ElementAddr {
                 destination,
-                array: value,
+                base: value,
                 ..
             } => self.copy_root(*destination, *value),
             mir::Instruction::Select {

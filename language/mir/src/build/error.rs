@@ -49,6 +49,18 @@ pub enum BuildError {
         /// The type being accessed.
         ty: LocalNodeId<Type>,
     },
+    /// An element index does not exist on a fixed-array type.
+    InvalidElementIndex {
+        /// The fixed-array type being indexed.
+        array: LocalNodeId<Type>,
+        /// The requested element index.
+        index: u32,
+    },
+    /// An element operation was applied to a non-array type.
+    InvalidElementOwner {
+        /// The type being accessed.
+        ty: LocalNodeId<Type>,
+    },
     /// A vector operation was applied to a non-vector type.
     InvalidVectorOwner {
         /// The type being accessed.
@@ -159,6 +171,18 @@ impl std::fmt::Display for BuildError {
                 write!(
                     formatter,
                     "field access expects an aggregate type, got {ty:?}"
+                )
+            }
+            Self::InvalidElementIndex { array, index } => {
+                write!(
+                    formatter,
+                    "element index {index} is out of bounds for fixed-array type {array:?}"
+                )
+            }
+            Self::InvalidElementOwner { ty } => {
+                write!(
+                    formatter,
+                    "element access expects a fixed-array type, got {ty:?}"
                 )
             }
             Self::InvalidVectorOwner { ty } => {

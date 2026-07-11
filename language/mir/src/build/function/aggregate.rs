@@ -1,119 +1,117 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    BinaryOperator, Constant, Instruction, LocalNodeId, TensorConvertMode,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value,
-    VectorConvertMode, VectorReduceOperator,
+    BinaryOperator, Instruction, LocalNodeId, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeId, Value, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
-    /// Construct a struct from field values.
-    ///
-    /// Fields must be provided in layout order.
-    pub fn struct_(&mut self, ty: LocalNodeId<Type>, field_values: Vec<Value>) -> Value {
+    /// Construct an aggregate from values in logical slot order.
+    pub fn aggregate(&mut self, ty: LocalNodeId<Type>, values: Vec<Value>) -> Value {
         let destination = self.allocate_value();
-        let field_values = field_values.into_iter().collect::<Vec<_>>();
-        let fields = self.tree.add_values(&field_values);
-        self.insert_instruction(Instruction::Struct {
+        let values = self.tree.add_values(&values);
+        self.insert_instruction(Instruction::Aggregate {
             destination,
-            ty: TypeId::from(ty),
-            fields,
+            values,
         });
         self.define_value(destination, ty);
+
         destination
     }
 
-    /// Construct a tuple from element values.
-    ///
-    /// Elements must be provided in order.
-    pub fn tuple(&mut self, ty: LocalNodeId<Type>, element_values: Vec<Value>) -> Value {
-        let destination = self.allocate_value();
-        let element_values = element_values.into_iter().collect::<Vec<_>>();
-        let elements = self.tree.add_values(&element_values);
-        self.insert_instruction(Instruction::Tuple {
-            destination,
-            ty: TypeId::from(ty),
-            elements,
-        });
-        self.define_value(destination, ty);
-        destination
-    }
-
-    /// Construct an array from element values.
-    ///
-    /// Elements must be provided in index order.
-    pub fn array(&mut self, ty: LocalNodeId<Type>, element_values: Vec<Value>) -> Value {
-        let destination = self.allocate_value();
-        let element_values = element_values.into_iter().collect::<Vec<_>>();
-        let elements = self.tree.add_values(&element_values);
-        self.insert_instruction(Instruction::Array {
-            destination,
-            ty: TypeId::from(ty),
-            elements,
-        });
-        self.define_value(destination, ty);
-        destination
-    }
-
-    /// Extract a static layout slot from an aggregate.
-    pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
+    /// Extract one structural field from an aggregate.
+    pub fn field_get(&mut self, aggregate: Value, field: u32) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
-        let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, index));
+        let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, field));
         self.insert_instruction(Instruction::FieldGet {
             destination,
             aggregate,
-            index,
+            field,
         });
         self.define_value(destination, field_type);
+
         destination
     }
 
-    /// Insert a value into a static layout slot.
-    pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
+    /// Replace one structural field in an aggregate.
+    pub fn field_set(&mut self, aggregate: Value, field: u32, value: Value) -> Value {
         let destination = self.allocate_value();
         let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
         self.insert_instruction(Instruction::FieldSet {
             destination,
             aggregate,
-            index,
+            field,
             value,
         });
         self.define_value(destination, aggregate_type);
+
         destination
     }
 
-    /// Get the address of a static layout slot from an aggregate.
+    /// Get the address of one structural field in an aggregate.
     pub fn field_addr(
         &mut self,
         aggregate: Value,
-        index: u32,
+        field: u32,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FieldAddr {
             destination,
             aggregate,
-            index,
+            field,
             result_type,
         });
         self.define_value(destination, result_type);
         destination
     }
 
+    /// Extract one statically selected fixed-array element.
+    pub fn element_get(&mut self, aggregate: Value, index: u32) -> Value {
+        let destination = self.allocate_value();
+        let aggregate_type = self.expect_value_type(aggregate, "element.get aggregate");
+        let element_type = self.expect_build(self.element_type_for_array(aggregate_type, index));
+        self.insert_instruction(Instruction::ElementGet {
+            destination,
+            aggregate,
+            index,
+        });
+        self.define_value(destination, element_type);
+
+        destination
+    }
+
+    /// Insert one value into a statically selected fixed-array element.
+    pub fn element_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
+        let destination = self.allocate_value();
+        let aggregate_type = self.expect_value_type(aggregate, "element.set aggregate");
+        self.expect_build(self.element_type_for_array(aggregate_type, index));
+        self.insert_instruction(Instruction::ElementSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        });
+        self.define_value(destination, aggregate_type);
+
+        destination
+    }
+
     /// Get the address of an element from an array.
     pub fn element_addr(
         &mut self,
-        array: Value,
+        base: Value,
         index: Value,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ElementAddr {
             destination,
-            array,
+            base,
             index,
             result_type,
         });
@@ -150,6 +148,24 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Bind an erased payload to its concrete runtime type.
+    pub fn dynamic_bind(
+        &mut self,
+        dynamic_type: LocalNodeId<Type>,
+        payload: Value,
+        concrete: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::DynamicBind {
+            destination,
+            payload,
+            concrete: TypeId::from(concrete),
+        });
+        self.define_value(destination, dynamic_type);
+
+        destination
+    }
+
     /// Read the erased payload from a dynamic value.
     pub fn dynamic_payload(&mut self, dynamic: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
@@ -171,33 +187,6 @@ impl<'a> FunctionBuilder<'a> {
             dynamic,
         });
         self.define_value(destination, type_id);
-        destination
-    }
-
-    /// Read the active tag from a physical tagged sum value.
-    pub fn variant_tag(&mut self, variant: Value) -> Value {
-        let destination = self.allocate_value();
-        let variant_type = self.expect_value_type(variant, "variant.tag variant");
-        let tag_type = self.expect_build(self.variant_tag_type(variant_type));
-        self.insert_instruction(Instruction::VariantTag {
-            destination,
-            variant,
-        });
-        self.define_value(destination, tag_type);
-        destination
-    }
-
-    /// Extract the payload selected by a concrete variant tag.
-    pub fn variant_payload(&mut self, variant: Value, tag: Constant) -> Value {
-        let destination = self.allocate_value();
-        let variant_type = self.expect_value_type(variant, "variant.payload variant");
-        let payload_type = self.expect_build(self.variant_payload_type(variant_type, &tag));
-        self.insert_instruction(Instruction::VariantPayload {
-            destination,
-            variant,
-            tag,
-        });
-        self.define_value(destination, payload_type);
         destination
     }
 

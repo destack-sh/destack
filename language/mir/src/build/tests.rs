@@ -1126,9 +1126,9 @@ entry:
     assert_eq!(output, expected);
 }
 
-/// Struct instruction for building structs.
+/// Build one struct aggregate.
 #[test]
-fn test_build_struct() {
+fn test_build_struct_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -1150,7 +1150,7 @@ fn test_build_struct() {
 
     let x = builder.function_parameter(0);
     let y = builder.function_parameter(1);
-    let point = builder.struct_(struct_type, vec![x, y]);
+    let point = builder.aggregate(struct_type, vec![x, y]);
     builder.return_(Some(point));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1161,15 +1161,15 @@ fn test_build_struct() {
     let expected = "\
 function makePoint(v0: int32, v1: float64): { int32, float64 } {
 entry(v0: int32, v1: float64):
-    v2: { int32, float64 } = struct { int32, float64 } (v0, v1)
+    v2: { int32, float64 } = aggregate (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
 }
 
-/// Tuple instruction for building tuples.
+/// Build one tuple aggregate.
 #[test]
-fn test_build_tuple() {
+fn test_build_tuple_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -1187,7 +1187,7 @@ fn test_build_tuple() {
 
     let a = builder.function_parameter(0);
     let b = builder.function_parameter(1);
-    let pair = builder.tuple(tuple_type, vec![a, b]);
+    let pair = builder.aggregate(tuple_type, vec![a, b]);
     builder.return_(Some(pair));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1198,15 +1198,15 @@ fn test_build_tuple() {
     let expected = "\
 function makePair(v0: int32, v1: boolean): (int32, boolean) {
 entry(v0: int32, v1: boolean):
-    v2: (int32, boolean) = tuple (int32, boolean) (v0, v1)
+    v2: (int32, boolean) = aggregate (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
 }
 
-/// Array instruction for building arrays.
+/// Build one fixed-array aggregate.
 #[test]
-fn test_build_array() {
+fn test_build_array_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -1221,7 +1221,7 @@ fn test_build_array() {
     let v0 = builder.iconst_i32(1);
     let v1 = builder.iconst_i32(2);
     let v2 = builder.iconst_i32(3);
-    let arr = builder.array(array_type, vec![v0, v1, v2]);
+    let arr = builder.aggregate(array_type, vec![v0, v1, v2]);
     builder.return_(Some(arr));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1235,7 +1235,7 @@ entry:
     v0: int32 = 1
     v1: int32 = 2
     v2: int32 = 3
-    v3: [int32; 3] = array [int32; 3] (v0, v1, v2)
+    v3: [int32; 3] = aggregate (v0, v1, v2)
     return v3
 }";
     assert_eq!(output, expected);
@@ -1315,9 +1315,9 @@ entry(v0: (int32, boolean)):
     assert_eq!(output, expected);
 }
 
-/// Extract a fixed array slot with field_get.
+/// Extract a fixed-array element with element_get.
 #[test]
-fn test_build_field_get_array() {
+fn test_build_element_get_array() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -1334,7 +1334,7 @@ fn test_build_field_get_array() {
     builder.switch_to_block(entry_block);
 
     let arr = builder.function_parameter(0);
-    let element = builder.field_get(arr, 1);
+    let element = builder.element_get(arr, 1);
     builder.return_(Some(element));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -1345,7 +1345,7 @@ fn test_build_field_get_array() {
     let expected = "\
 function getElement(v0: [int32; 3], v1: int64): int32 {
 entry(v0: [int32; 3], v1: int64):
-    v2: int32 = field.get v0, 1
+    v2: int32 = element.get v0, 1
     return v2
 }";
     assert_eq!(output, expected);

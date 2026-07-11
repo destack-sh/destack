@@ -14,7 +14,7 @@ pub struct OperationCost {
     pub terminators: usize,
     /// Arithmetic, conversion, selection, and scalar descriptor operations.
     pub arithmetic: usize,
-    /// Aggregate construction, projection, variant, vector, and tensor value operations.
+    /// Aggregate construction, projection, vector, and tensor value operations.
     pub aggregate: usize,
     /// Address computation operations.
     pub address: usize,
@@ -313,6 +313,7 @@ impl CostModel {
             | mir::Instruction::Select { .. }
             | mir::Instruction::Const { .. }
             | mir::Instruction::SliceLength { .. }
+            | mir::Instruction::DynamicBind { .. }
             | mir::Instruction::DynamicPayload { .. }
             | mir::Instruction::DynamicType { .. }
             | mir::Instruction::FunctionPointer { .. }
@@ -322,17 +323,14 @@ impl CostModel {
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Assume { .. } => cost.arithmetic += 1,
             mir::Instruction::Breakpoint => cost.branch += 1,
-            mir::Instruction::Struct { fields, .. } => {
-                cost.aggregate += 1 + tree.get_values(*fields).len();
-            }
-            mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
-                cost.aggregate += 1 + tree.get_values(*elements).len();
+            mir::Instruction::Aggregate { values, .. } => {
+                cost.aggregate += 1 + tree.get_values(*values).len();
             }
             mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldSet { .. }
+            | mir::Instruction::ElementGet { .. }
+            | mir::Instruction::ElementSet { .. }
             | mir::Instruction::SliceView { .. }
-            | mir::Instruction::VariantTag { .. }
-            | mir::Instruction::VariantPayload { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }
             | mir::Instruction::VectorInsert { .. }
