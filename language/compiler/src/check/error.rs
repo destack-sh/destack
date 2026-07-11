@@ -1037,9 +1037,9 @@ pub enum CheckError {
         module: ModuleId,
         /// The conflicting parameter name.
         name: String,
-        /// The derived use spelling, like "invariantly".
+        /// The derived use wording, like "invariantly".
         usage: String,
-        /// The declared modifier spelling, like "out".
+        /// The declared modifier text, like "out".
         declared: String,
     },
 
@@ -1839,7 +1839,7 @@ pub enum CheckError {
     ///     name() {}
     /// }
     /// ```
-    #[diagnostic(code = "EC603", message = "method must spell its receiver explicitly")]
+    #[diagnostic(code = "EC603", message = "method must name its receiver explicitly")]
     MissingExplicitReceiver {
         /// Report the method declaration.
         anchor: DiagnosticAnchor,
@@ -2066,7 +2066,7 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         code = "EC614",
-        message = "ambient signatures must spell result lifetimes explicitly"
+        message = "ambient signatures must name result lifetimes explicitly"
     )]
     AmbientLifetimeElided {
         /// Report the ambient declaration.

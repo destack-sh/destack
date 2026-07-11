@@ -44,7 +44,7 @@ impl CheckState<'_> {
             (dir::Type::Primitive(source), dir::Type::Primitive(target)) => {
                 Answer::Ready(source == target)
             }
-            // memory singleton values compare against their authored string spelling
+            // memory singleton values compare against their authored string text
             (dir::Type::Memory(memory), dir::Type::Literal(dir::ScalarLiteral::String(text)))
             | (dir::Type::Literal(dir::ScalarLiteral::String(text)), dir::Type::Memory(memory)) => {
                 Answer::Ready(text == dir::StringId::for_text(memory.text()))
