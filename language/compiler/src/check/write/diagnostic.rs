@@ -1,6 +1,6 @@
 use destack_artifact::{DiagnosticBuilder, ToDiagnostic};
+use destack_core::FxIndexSet;
 use destack_source::DiagnosticCollection;
-use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{CheckError, CheckState, CheckWarning};
@@ -29,8 +29,9 @@ impl CheckState<'_> {
         }
 
         // report each unsolved anchor once
-        let mut reported = IndexSet::new();
+        let mut reported = FxIndexSet::default();
         for origin in unresolved_origins {
+            let origin = self.solver.origin(origin);
             let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
             if reported.insert((module, anchor.clone())) {
                 errors.push(CheckError::CannotInferType { anchor, module }.into());

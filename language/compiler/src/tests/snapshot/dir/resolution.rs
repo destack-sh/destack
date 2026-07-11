@@ -422,7 +422,10 @@ fn projection_label(builder: &DirSnapshotBuilder<'_>, projection: &dir::Projecti
             ty,
             ..
         } => {
-            let arguments = projection_generic_arguments_label(builder, generic_arguments);
+            let arguments = generic_arguments
+                .as_deref()
+                .map(|arguments| projection_generic_arguments_label(builder, arguments))
+                .unwrap_or_default();
 
             format!(
                 "variant.payload({}.{}{arguments}, {})",
@@ -1340,7 +1343,7 @@ fn add_projection_generic_instance(
         }
         dir::Projection::VariantPayload {
             case,
-            generic_arguments,
+            generic_arguments: Some(generic_arguments),
             ..
         } => {
             add_generic_instance(builder, anchor, source, case.owner, generic_arguments);

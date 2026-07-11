@@ -305,7 +305,7 @@ fn add_members(
                 add_signature(builder, owner, "construct", signature);
             }
             dir::DefinitionMember::IndexSignature(signature) => {
-                add_signature(builder, owner, "index", signature);
+                add_index_signature(builder, owner, signature);
             }
         }
     }
@@ -434,6 +434,21 @@ fn add_signature(
         .field("kind", kind)
         .optional_field("source", builder.node_source(signature.source))
         .type_field("type", builder.global_type_label(signature.ty));
+
+    builder.push(row);
+}
+
+/// Add one index signature row.
+fn add_index_signature(
+    builder: &mut DirSnapshotBuilder<'_>,
+    owner: dir::GlobalSymbolId,
+    signature: &dir::IndexSignatureDefinition,
+) {
+    let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "signature")
+        .field("kind", "index")
+        .optional_field("source", builder.node_source(signature.source))
+        .type_field("key", builder.global_type_label(signature.key_type))
+        .type_field("type", builder.global_type_label(signature.value_type));
 
     builder.push(row);
 }
