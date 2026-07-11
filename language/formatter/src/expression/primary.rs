@@ -1,5 +1,5 @@
 use super::object::{format_fill_array, format_outer_comment_array, format_struct_literal};
-use super::parentheses::parenthesized_expression_needs_preserved_wrapper;
+use super::parentheses::should_preserve_parenthesized_expression;
 use super::{
     array_elements_are_fill_candidates, array_has_only_outer_comments, is_trivial_argument,
 };
@@ -38,7 +38,7 @@ fn parenthesized_expression_layout(
     expression_id: LocalNodeId<Expression>,
 ) -> Option<ParenthesizedExpressionLayout> {
     let outer_span = context.span(node_id);
-    if !parenthesized_expression_needs_preserved_wrapper(context, node_id, expression_id) {
+    if !should_preserve_parenthesized_expression(context, node_id, expression_id) {
         return None;
     }
 
@@ -244,7 +244,7 @@ fn fixed_array_source_separator(
 ) -> Option<TokenSpan> {
     let value_span = context.span(value);
     let length_start = context.expression_token_start(length);
-    let separator = context.next_non_trivia_token_after_span(value_span)?;
+    let separator = context.next_token_after_span(value_span)?;
 
     if separator.token.ty() != TokenType::Semicolon || separator.span.end > length_start {
         return None;
@@ -263,7 +263,7 @@ fn format_primary_fixed_array_expression<'ast>(
         let context = f.context();
         let value_span = context.span(value);
         let value_anchor_end = context
-            .last_non_trivia_token_in_span(value_span)
+            .last_token_in_span(value_span)
             .map_or(value_span.end, |token| token.span.end);
         let length_start = context.expression_token_start(length);
         let separator = fixed_array_source_separator(context, value, length);

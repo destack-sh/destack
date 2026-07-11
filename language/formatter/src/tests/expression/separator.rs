@@ -1,5 +1,8 @@
 use crate::expression::expression_needs_parentheses_in_parent;
-use crate::{DestackFormatOptions, TestFormatter, assert_format_program_roundtrip_with_file_type};
+use crate::{
+    DestackFormatOptions, TestFormatter, assert_format_program_roundtrip_with_file_type,
+    parse_first_expression,
+};
 use destack_dir::{
     CommentKind, CommentPosition, Declaration, Declarator, Expression, TypeExpression,
 };
@@ -31,6 +34,17 @@ fn test_format_template_member_separator_comments() {
     );
 }
 
+/// Trailing comments inside explicit parentheses should remain before the close token.
+#[test]
+fn test_format_parenthesized_trailing_comment() {
+    assert_format_program_roundtrip_with_file_type(
+        "code || (!escapeless && (true /* 1 */ || false /* 2 */))\n",
+        "code || (!escapeless && (true /* 1 */ || false) /* 2 */);\n",
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
 /// Unary separator block comments should stay inside the grouped operand.
 #[test]
 fn test_format_unary_negative_separator_block_comments() {
@@ -53,7 +67,7 @@ fn test_unary_negative_separator_comment_attaches_before_operand_token() {
     let literal_start = input.find('1').unwrap() as u32;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
-            crate::parse_first_expression(parser)
+            parse_first_expression(parser)
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -81,7 +95,7 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
     let literal_start = input.rfind('1').unwrap() as u32;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
-            crate::parse_first_expression(parser)
+            parse_first_expression(parser)
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -111,7 +125,7 @@ fn test_format_unary_negative_expression_separator_block_comments() {
     let (test, expression_id) = TestFormatter::parse_with_file_type(
         "-/* unary-note */ 1",
         FileType::Destack,
-        crate::parse_first_expression,
+        parse_first_expression,
     )
     .unwrap();
 
@@ -183,7 +197,7 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     let inner_start = 27;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
-            crate::parse_first_expression(parser)
+            parse_first_expression(parser)
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -232,7 +246,7 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
     a as any) + 1"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
-            crate::parse_first_expression(parser)
+            parse_first_expression(parser)
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -342,7 +356,7 @@ fn test_format_type_template_remap_comment_stays_on_remap_boundary() {
 }"#;
     let (test, expression_id) =
         TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
-            crate::parse_first_expression(parser)
+            parse_first_expression(parser)
         })
         .unwrap();
     let context = test.context(DestackFormatOptions::default_with_line_width(100));
@@ -372,7 +386,7 @@ fn test_format_type_template_remap_comment_stays_on_remap_boundary() {
         panic!("expected reference interpolation type");
     };
     let generic_argument_leading_comments =
-        context.comments_after_previous_non_trivia_token_for(generic_arguments[0]);
+        context.comments_after_previous_token(generic_arguments[0]);
     let formatted_expression = test.format(
         &expression_id,
         DestackFormatOptions::default_with_line_width(100),
