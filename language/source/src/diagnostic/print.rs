@@ -142,14 +142,30 @@ where
         let body = annotate_file(&file, &spans, annotate_options.clone())?;
         write_block(&options, &body);
 
-        // labels in other files render their own window
+        // labels in other files render their own window; labels whose
+        //  source is unavailable degrade to a bare note instead of
+        //  aborting the whole collection
         let detached_options = annotate_options.clone().with_context_lines(1, 1);
         for label in detached {
             let span =
                 AnnotateSpan::secondary(label.span, label.message.clone().unwrap_or_default());
-            let detached_file = file_for_label(file_for_id, label)?;
-            let detached_body = annotate_file(&detached_file, &[span], detached_options.clone())?;
-            write_block(&options, &detached_body);
+            match file_for_label(file_for_id, label) {
+                Ok(detached_file) => {
+                    let detached_body =
+                        annotate_file(&detached_file, &[span], detached_options.clone())?;
+                    write_block(&options, &detached_body);
+                }
+                Err(_) => {
+                    let message = label.message.clone().unwrap_or_default();
+                    let text = format!(
+                        " {} {} {}",
+                        color_text(&options, Color::BrightMagenta, "="),
+                        color_bold(&options, Color::BrightWhite, "note:"),
+                        color_text(&options, Color::BrightWhite, &message),
+                    );
+                    write_block(&options, &text);
+                }
+            }
         }
 
         // notes and helps align under the window gutter
