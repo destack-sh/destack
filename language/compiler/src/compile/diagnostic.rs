@@ -6,6 +6,8 @@ use crate::{
     ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
     MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
 };
+use destack_core::{NameMatch, NameMatchTier};
+use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
 
 /// Registry of all compiler diagnostic codes.
 ///
@@ -180,4 +182,30 @@ impl DiagnosticRegistry {
 /// Return the maximum edit distance for one diagnostic suggestion.
 pub(crate) fn diagnostic_suggestion_distance(value: &str) -> usize {
     (value.chars().count() / 3).max(1)
+}
+
+/// Return the rename suggestion for one matched misspelled name.
+pub(crate) fn rename_suggestion(
+    anchor: &DiagnosticAnchor,
+    best: &NameMatch<String>,
+) -> Option<DiagnosticSuggestion> {
+    let DiagnosticAnchor::Span(span) = anchor else {
+        return None;
+    };
+
+    // only a unique same-name match applies without review
+    let applicability = match (best.tier, best.is_unique) {
+        (NameMatchTier::Case | NameMatchTier::Separators, true) => Applicability::Automatic,
+        _ => Applicability::Dangerous,
+    };
+    let patches = PatchSet::from_files(vec![FilePatch {
+        file: span.file,
+        patches: vec![Patch::replace(*span, best.candidate.clone())],
+    }]);
+
+    Some(DiagnosticSuggestion::new(
+        format!("rename to '{}'", best.candidate),
+        patches,
+        applicability,
+    ))
 }
