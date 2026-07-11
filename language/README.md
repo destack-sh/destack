@@ -1,7 +1,7 @@
 # Language
 
 The Destack language toolchain, written in Rust.
-See [DESIGN.md](DESIGN.md) for language design and semantics.
+See the [manual](../docs/language/index.md) for language design and semantics.
 
 ## Commands
 
