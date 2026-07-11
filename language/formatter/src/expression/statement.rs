@@ -99,20 +99,19 @@ pub(crate) fn format_statement_expression<'ast>(
         // labeled statement
         Expression::Label { label, body } => {
             let body_span = f.context().span(*body);
-            let separator_comments = if let Some(separator_token) =
-                f.context().previous_non_trivia_token_before_span(body_span)
-            {
-                if separator_token.token.ty() == TokenType::Colon {
-                    let comments = f.context().comments();
-                    comments
-                        .comments_in_range(separator_token.span.end, body_span.start)
-                        .to_vec()
+            let separator_comments =
+                if let Some(separator_token) = f.context().previous_token_before_span(body_span) {
+                    if separator_token.token.ty() == TokenType::Colon {
+                        let comments = f.context().comments();
+                        comments
+                            .comments_in_range(separator_token.span.end, body_span.start)
+                            .to_vec()
+                    } else {
+                        Vec::<Comment>::new()
+                    }
                 } else {
                     Vec::<Comment>::new()
-                }
-            } else {
-                Vec::<Comment>::new()
-            };
+                };
             let has_line_comment = separator_comments.iter().any(|comment| comment.is_line());
 
             if has_line_comment {

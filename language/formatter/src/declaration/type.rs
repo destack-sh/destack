@@ -71,7 +71,7 @@ fn write_heritage_type_list<'ast>(
             let next_type_start = f.context().span(next_type).start;
             let comma_token = f
                 .context()
-                .next_non_trivia_token_after_span(type_span)
+                .next_token_after_span(type_span)
                 .filter(|token| token.token.ty() == TokenType::Comma)
                 .ok_or(FormatError::SyntaxError {
                     message: "expected comma between heritage types",
@@ -166,22 +166,18 @@ fn class_body_open_brace_token<'ast>(
             first_member_prefix_start,
             first_member_prefix_start,
         );
-        let open_token = f
-            .context()
-            .previous_non_trivia_token_before_span(first_member_start)?;
+        let open_token = f.context().previous_token_before_span(first_member_start)?;
 
         return (open_token.token.ty() == TokenType::OpenBrace).then_some(open_token);
     }
 
     let node_span = f.context().span(node_id);
-    let close_token = f.context().last_non_trivia_token_in_span(node_span)?;
+    let close_token = f.context().last_token_in_span(node_span)?;
     if close_token.token.ty() != TokenType::CloseBrace {
         return None;
     }
 
-    let open_token = f
-        .context()
-        .previous_non_trivia_token_before_span(close_token.span)?;
+    let open_token = f.context().previous_token_before_span(close_token.span)?;
 
     (open_token.token.ty() == TokenType::OpenBrace).then_some(open_token)
 }

@@ -9,7 +9,7 @@ use crate::chain::{
 };
 use crate::declaration::statement::format_block_wide;
 use crate::expression::{
-    ExpressionLeftSide, expression_needs_parentheses_in_parent, format_index_expression,
+    ExpressionLeftPath, expression_needs_parentheses_in_parent, format_index_expression,
     format_member_expression,
 };
 use crate::file::write_source_span;
@@ -82,20 +82,6 @@ fn await_expression_ancestor(
     }
 }
 
-/// Return the leftmost expression reachable from one expression.
-fn expression_leftmost(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-) -> LocalNodeId<Expression> {
-    let mut leftmost = ExpressionLeftSide::new(node_id);
-
-    while let Some(next_leftmost) = leftmost.left(context) {
-        leftmost = next_leftmost;
-    }
-
-    leftmost.expression_id()
-}
-
 /// Return whether one await-like expression needs grouped object indentation.
 fn await_expression_groups_object_indent(
     context: &DestackFormatContext<'_>,
@@ -113,7 +99,10 @@ fn await_expression_groups_object_indent(
         return false;
     };
 
-    expression_leftmost(context, argument_id) != node_id
+    ExpressionLeftPath::new(argument_id)
+        .leftmost(context)
+        .expression_id()
+        != node_id
 }
 
 /// Write one await-like expression.

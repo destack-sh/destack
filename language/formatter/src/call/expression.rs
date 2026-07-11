@@ -60,7 +60,7 @@ pub(crate) fn format_call_expression<'ast>(
                     .to_vec()
             } else if arguments.is_empty() {
                 f.context()
-                    .comments_before_next_non_trivia_token_after_span(f.context().span(callee_id))
+                    .comments_before_next_token_after_span(f.context().span(callee_id))
             } else {
                 Vec::new()
             };

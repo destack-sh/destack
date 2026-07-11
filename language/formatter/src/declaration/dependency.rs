@@ -17,7 +17,7 @@ use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 use destack_repository::{ImportSortOrder, QuoteProperty, TrailingComma};
-use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use std::cmp::Ordering;
 
 /// The import group category for declaration ordering.
@@ -590,17 +590,11 @@ fn write_dependency_item_alias_clause<'ast>(
         return Ok(());
     };
 
-    let Some(as_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(alias_span)
-    else {
+    let Some(as_token) = f.context().previous_token_before_span(alias_span) else {
         write!(f, [space(), Keyword::As, space(), alias])?;
         return Ok(());
     };
-    let Some(anchor_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(as_token.span)
-    else {
+    let Some(anchor_token) = f.context().previous_token_before_span(as_token.span) else {
         write!(f, [space(), Keyword::As, space(), alias])?;
         return Ok(());
     };
@@ -824,15 +818,6 @@ fn dependency_gap_has_comments(context: &DestackFormatContext<'_>, start: u32, e
     !context.comments().comments_in_range(start, end).is_empty()
 }
 
-/// Return the previous non-trivia token before one offset.
-fn previous_non_trivia_token_before_offset(
-    context: &DestackFormatContext<'_>,
-    file_id: FileId,
-    offset: u32,
-) -> Option<TokenSpan> {
-    context.previous_non_trivia_token_before_span(Span::new(file_id, offset, offset))
-}
-
 /// Return one dependency item collection close-brace token.
 fn dependency_item_collection_close_brace_token(
     context: &DestackFormatContext<'_>,
@@ -840,9 +825,9 @@ fn dependency_item_collection_close_brace_token(
     items: &[LocalNodeId<DependencyItem>],
 ) -> Option<TokenSpan> {
     if let Some(last_item_id) = items.last().copied() {
-        let mut candidate = context.next_non_trivia_token_after_span(context.span(last_item_id))?;
+        let mut candidate = context.next_token_after_span(context.span(last_item_id))?;
         if candidate.token.ty() == TokenType::Comma {
-            candidate = context.next_non_trivia_token_after_span(candidate.span)?;
+            candidate = context.next_token_after_span(candidate.span)?;
         }
 
         return (candidate.token.ty() == TokenType::CloseBrace).then_some(candidate);
@@ -854,7 +839,7 @@ fn dependency_item_collection_close_brace_token(
         .get_main_span(node_id)
         .and_then(|target_span| {
             context
-                .previous_non_trivia_token_before_span(target_span)
+                .previous_token_before_span(target_span)
                 .map(|token| {
                     if context.token_keyword(token) == Some(Keyword::From) {
                         token.span.start
@@ -867,8 +852,9 @@ fn dependency_item_collection_close_brace_token(
     let clause_span = Span::new(expression_span.file, expression_span.start, clause_end);
 
     context
-        .non_trivia_tokens_in_span(clause_span)
-        .into_iter()
+        .tokens_in_span(clause_span)
+        .iter()
+        .copied()
         .rev()
         .find(|token| token.token.ty() == TokenType::CloseBrace)
 }
@@ -880,8 +866,7 @@ fn dependency_item_collection_open_brace_token(
     items: &[LocalNodeId<DependencyItem>],
 ) -> Option<TokenSpan> {
     if let Some(first_item_id) = items.first().copied() {
-        let candidate =
-            context.previous_non_trivia_token_before_span(context.span(first_item_id))?;
+        let candidate = context.previous_token_before_span(context.span(first_item_id))?;
         return (candidate.token.ty() == TokenType::OpenBrace).then_some(candidate);
     }
 
@@ -894,8 +879,9 @@ fn dependency_item_collection_open_brace_token(
     );
 
     context
-        .non_trivia_tokens_in_span(clause_span)
-        .into_iter()
+        .tokens_in_span(clause_span)
+        .iter()
+        .copied()
         .find(|token| token.token.ty() == TokenType::OpenBrace)
 }
 
@@ -939,7 +925,7 @@ fn dependency_item_collection_has_interior_signal(
     }
 
     let trailing_start = context
-        .previous_non_trivia_token_before_span(close_brace.span)
+        .previous_token_before_span(close_brace.span)
         .filter(|token| token.token.ty() == TokenType::Comma)
         .map_or_else(
             || context.span(*items.last().expect("items is not empty")).end,
@@ -1006,7 +992,7 @@ fn write_dependency_item_entries<'ast>(
         let next_item_start = dependency_item_prefix_start(f.context(), next_item_id);
         let gap_start = f
             .context()
-            .next_non_trivia_token_after_span(item_span)
+            .next_token_after_span(item_span)
             .filter(|token| {
                 token.token.ty() == TokenType::Comma && token.span.end <= next_item_start
             })
@@ -1072,11 +1058,11 @@ fn write_dependency_item_collection<'ast>(
         dependency_item_collection_close_brace_token(f.context(), node_id, source_items);
 
     if let Some(open_brace) = open_brace
-        && let Some(anchor_token) = previous_non_trivia_token_before_offset(
-            f.context(),
+        && let Some(anchor_token) = f.context().previous_token_before_span(Span::new(
             open_brace.span.file,
             open_brace.span.start,
-        )
+            open_brace.span.start,
+        ))
     {
         if anchor_token.span.end >= open_brace.span.start {
             write!(f, [space()])?;
@@ -1105,7 +1091,7 @@ fn write_dependency_item_collection<'ast>(
                             let trailing_start = if trailing_separator == TrailingSeparator::Allowed
                             {
                                 f.context()
-                                    .previous_non_trivia_token_before_span(close_brace.span)
+                                    .previous_token_before_span(close_brace.span)
                                     .filter(|token| token.token.ty() == TokenType::Comma)
                                     .map_or(last_item_end, |token| token.span.end)
                             } else {
@@ -1211,17 +1197,11 @@ fn write_dependency_from_target_clause<'ast>(
         write!(f, [space(), Keyword::From, space()])?;
         return write_dependency_target(f, target);
     };
-    let Some(from_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(target_span)
-    else {
+    let Some(from_token) = f.context().previous_token_before_span(target_span) else {
         write!(f, [space(), Keyword::From, space()])?;
         return write_dependency_target(f, target);
     };
-    let Some(anchor_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(from_token.span)
-    else {
+    let Some(anchor_token) = f.context().previous_token_before_span(from_token.span) else {
         write!(f, [space(), Keyword::From, space()])?;
         return write_dependency_target(f, target);
     };
@@ -1244,10 +1224,7 @@ fn write_dependency_direct_target_clause<'ast>(
         write!(f, [space()])?;
         return write_dependency_target(f, target);
     };
-    let Some(anchor_token) = f
-        .context()
-        .previous_non_trivia_token_before_span(target_span)
-    else {
+    let Some(anchor_token) = f.context().previous_token_before_span(target_span) else {
         write!(f, [space()])?;
         return write_dependency_target(f, target);
     };

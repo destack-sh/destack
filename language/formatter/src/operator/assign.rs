@@ -10,7 +10,7 @@ use crate::chain::{
 };
 use crate::context::DestackFormatterSpeculationExt;
 use crate::declaration::{FormatLambdaDeclarationOptions, format_lambda_declaration_with_options};
-use crate::expression::{ExpressionLeftSide, write_expression_without_prefix_annotations};
+use crate::expression::{ExpressionLeftPath, write_expression_without_prefix_annotations};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
@@ -162,7 +162,7 @@ fn is_complex_generic_arguments<'ast>(
     let argument_span = f.context().span(argument_id);
     let start = f
         .context()
-        .previous_non_trivia_token_before_span(argument_span)
+        .previous_token_before_span(argument_span)
         .map_or(argument_span.start, |token| token.span.start);
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         super::r#type::format_generic_argument_list(f, generic_arguments)
@@ -312,20 +312,19 @@ pub(crate) fn assignment_rhs_has_inline_operator_prefix_comment(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
-    let mut left_side = Some(ExpressionLeftSide::new(transparent_inner_expression(
+    let mut left_path = Some(ExpressionLeftPath::new(transparent_inner_expression(
         context,
         expression_id,
     )));
 
-    while let Some(current_left_side) = left_side {
-        let current_expression_id = current_left_side.expression_id();
+    while let Some(current) = left_path {
+        let current_expression_id = current.expression_id();
 
         let has_inline_prefix_comment =
             assignment_rhs_operator_comment_nodes(context, current_expression_id)
                 .into_iter()
                 .any(|comment| {
-                    let Some(previous_token) =
-                        context.previous_non_trivia_token_before_span(comment.span)
+                    let Some(previous_token) = context.previous_token_before_span(comment.span)
                     else {
                         return false;
                     };
@@ -346,13 +345,13 @@ pub(crate) fn assignment_rhs_has_inline_operator_prefix_comment(
                     }
 
                     !context.has_newline(comment.span)
-                        && !context.span_has_newline_before_next_non_whitespace_token(comment.span)
+                        && !context.has_newline_before_next_token(comment.span)
                 });
         if has_inline_prefix_comment {
             return true;
         }
 
-        left_side = current_left_side.left(context);
+        left_path = current.next(context);
     }
 
     false
@@ -382,7 +381,7 @@ pub(crate) fn assignment_operator_has_line_comment_between(
         return false;
     };
     let comment_tokens = context.comment_tokens_intersecting_span(between_span);
-    comment_tokens.into_iter().any(|comment_token| {
+    comment_tokens.iter().copied().any(|comment_token| {
         if !matches!(
             comment_token.token.ty(),
             TokenType::LineComment | TokenType::DocLineComment
@@ -391,7 +390,7 @@ pub(crate) fn assignment_operator_has_line_comment_between(
         }
 
         context
-            .previous_non_whitespace_token_before_span(comment_token.span)
+            .previous_token_before_span(comment_token.span)
             .is_some_and(|token| is_assignment_operator_token(token.token.ty()))
     })
 }
@@ -403,9 +402,9 @@ fn assignment_rhs_operator_comment_nodes(
 ) -> Vec<Comment> {
     let right_span = context.span(right);
     let right_token_start = context
-        .first_non_trivia_token_in_span(right_span)
+        .first_token_in_span(right_span)
         .map_or(right_span.start, |token| token.span.start);
-    let mut previous_token = context.previous_non_whitespace_token_before_span(Span::new(
+    let mut previous_token = context.previous_token_before_span(Span::new(
         right_span.file,
         right_token_start,
         right_token_start,
@@ -424,7 +423,7 @@ fn assignment_rhs_operator_comment_nodes(
             break;
         }
 
-        previous_token = context.previous_non_whitespace_token_before_span(token.span);
+        previous_token = context.previous_token_before_span(token.span);
     }
 
     let Some(previous_token) = previous_token else {
@@ -864,7 +863,7 @@ pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
 
     let Some(previous_token) = f
         .context()
-        .previous_non_trivia_token_before_span(comment_nodes[0].span)
+        .previous_token_before_span(comment_nodes[0].span)
     else {
         return Ok(());
     };
@@ -915,9 +914,7 @@ pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
         return Ok(());
     };
 
-    let next_token = f
-        .context()
-        .next_non_whitespace_token_after_span(last_comment.span);
+    let next_token = f.context().next_token_after_span(last_comment.span);
     let gap_span = next_token.and_then(|next_token| last_comment.span.gap_to(next_token.span));
 
     if last_comment.is_line() || gap_span.is_some_and(|gap_span| f.context().has_newline(gap_span))

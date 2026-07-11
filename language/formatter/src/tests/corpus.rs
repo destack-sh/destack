@@ -175,8 +175,7 @@ fn print_parse_diagnostics(path: &Path, logical_path: &Path, source: &str) {
         LanguageType::Destack,
         ParserOptions {
             trivia_mode: ParserTriviaMode::Full,
-            preserve_parenthesized_wrappers: false,
-            ..ParserOptions::default()
+            retain_parentheses: false,
         },
         Arc::new(StringPool::new()),
     );

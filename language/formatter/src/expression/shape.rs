@@ -6,15 +6,15 @@ use destack_dir::{
 };
 use destack_source::Span;
 
-/// One expression together with access to its left spine.
+/// A cursor over the successive left operands of one expression.
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct ExpressionLeftSide {
-    /// The current expression on the left spine.
+pub(crate) struct ExpressionLeftPath {
+    /// The current expression.
     expression_id: LocalNodeId<Expression>,
 }
 
-impl ExpressionLeftSide {
-    /// Create one left-side cursor for an expression.
+impl ExpressionLeftPath {
+    /// Create one cursor at an expression.
     #[inline]
     pub(crate) fn new(expression_id: LocalNodeId<Expression>) -> Self {
         Self { expression_id }
@@ -26,8 +26,8 @@ impl ExpressionLeftSide {
         self.expression_id
     }
 
-    /// Return the next expression on the left spine.
-    pub(crate) fn left(self, context: &DestackFormatContext<'_>) -> Option<Self> {
+    /// Advance to the current expression's left operand.
+    pub(crate) fn next(self, context: &DestackFormatContext<'_>) -> Option<Self> {
         let expression_id = match context.tree.get(self.expression_id) {
             Expression::Parenthesized { expression } => Some(*expression),
             Expression::Member { left, .. }
@@ -58,6 +58,15 @@ impl ExpressionLeftSide {
         }?;
 
         Some(Self::new(expression_id))
+    }
+
+    /// Return the leftmost expression reachable from this expression.
+    pub(crate) fn leftmost(mut self, context: &DestackFormatContext<'_>) -> Self {
+        while let Some(left) = self.next(context) {
+            self = left;
+        }
+
+        self
     }
 }
 

@@ -9,7 +9,7 @@ fn test_format_parameter() {
     assert_format!(
         "x: int32",
         "x: int32",
-        |p| p.eat_parameter(),
+        |p| p.parse_parameter_fragment(),
         DestackFormatOptions::default()
     );
 }
@@ -21,7 +21,7 @@ fn test_format_recovered_parameter() {
         "(x, =, y)",
         "=",
         |parser| {
-            let parameters = parser.eat_dynamic_parameters()?;
+            let parameters = parser.parse_parameter_list_fragment()?;
             Ok(parameters[1])
         },
         DestackFormatOptions::default()
@@ -45,7 +45,7 @@ fn test_format_parameter_with_default() {
     assert_format!(
         "x: int32 = 1",
         "x: int32 = 1",
-        |p| p.eat_parameter(),
+        |p| p.parse_parameter_fragment(),
         DestackFormatOptions::default()
     );
 }
@@ -55,7 +55,7 @@ fn test_format_comptime_parameter() {
     assert_format!(
         "comptime value: T",
         "comptime value: T",
-        |p| p.eat_parameter(),
+        |p| p.parse_parameter_fragment(),
         DestackFormatOptions::default()
     );
 }

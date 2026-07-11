@@ -127,23 +127,13 @@ pub(crate) fn tree_child_should_inline_braced_expression(
     let child_span = context.span(child_id);
     let value_span = context.span(value_id);
 
-    if child_span.file == value_span.file {
-        if child_span.start < value_span.start
-            && !context
-                .comment_tokens_in_range(child_span.start, value_span.start)
-                .is_empty()
-        {
-            return false;
-        }
-
-        if value_span.end < child_span.end
-            && context
-                .comment_tokens_in_range(value_span.end, child_span.end)
-                .iter()
-                .any(|comment| context.comment_is_line(*comment))
-        {
-            return false;
-        }
+    if child_span.file == value_span.file
+        && child_span.start < value_span.start
+        && !context
+            .comment_tokens_in_range(child_span.start, value_span.start)
+            .is_empty()
+    {
+        return false;
     }
 
     if tree_child_has_outer_line_comment(context, child_id, value_id) {
@@ -227,8 +217,7 @@ fn expression_has_prefix_star_comment(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_span = context.span(expression_id);
-    let Some(previous_token) = context.previous_non_trivia_token_before_span(expression_span)
-    else {
+    let Some(previous_token) = context.previous_token_before_span(expression_span) else {
         return false;
     };
     if previous_token.span.end >= expression_span.start {

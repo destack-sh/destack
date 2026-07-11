@@ -1,6 +1,6 @@
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
-    assert_format_program_reference_widths,
+    assert_format_program_reference_widths, parse_first_expression,
 };
 use destack_source::FileType;
 
@@ -9,7 +9,7 @@ fn test_format_enum_empty() {
     assert_format!(
         "enum { }",
         "enum {}",
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -20,7 +20,7 @@ fn test_format_recovered_generic_argument() {
     assert_format!(
         "type Value=Container<>",
         "type Value = Container<>;",
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default()
     );
 }
@@ -29,13 +29,10 @@ fn test_format_recovered_generic_argument() {
 #[test]
 fn test_format_recovered_type_member() {
     assert_format!(
-        "+\ny: int32",
-        "+",
-        |parser| {
-            let members = parser.eat_members(false)?;
-            Ok(members[0])
-        },
-        DestackFormatOptions::default()
+        "interface Value {\n+\ny: int32\n}",
+        "interface Value {\n    +;\n    y: int32;\n}",
+        parse_first_expression,
+        DestackFormatOptions::default(),
     );
 }
 
@@ -76,7 +73,7 @@ fn test_format_enum_with_simple_fields() {
 	A,
 	B,
 }"#,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default_tab()
     );
 }
@@ -106,7 +103,7 @@ fn test_format_enum_with_generic_parameters() {
     assert_format!(
         source,
         source,
-        crate::parse_first_expression,
+        parse_first_expression,
         DestackFormatOptions::default()
     );
 }

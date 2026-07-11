@@ -46,10 +46,10 @@ fn member_block_initial_gap(
     );
     let open_brace_token = f
         .context()
-        .previous_non_trivia_token_before_span(first_member_start_span)?;
+        .previous_token_before_span(first_member_start_span)?;
     let gap_start = f
         .context()
-        .previous_non_trivia_token_before_span(open_brace_token.span)
+        .previous_token_before_span(open_brace_token.span)
         .filter(|token| token.span.file == first_member_span.file)
         .map_or(open_brace_token.span.end, |token| token.span.end);
 

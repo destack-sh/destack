@@ -76,7 +76,7 @@ fn declaration_export_head_comments(
     let mut comment_ids: Vec<Comment> = Vec::new();
 
     // export separator
-    if let Some(next_token) = context.next_non_whitespace_token_after_span(export_token.span)
+    if let Some(next_token) = context.next_token_after_span(export_token.span)
         && next_token.span.file == export_token.span.file
         && next_token.span.start > export_token.span.end
     {
@@ -101,8 +101,7 @@ fn declaration_export_head_comments(
             .min_by_key(|token| token.span.start);
 
         if let Some(default_token) = default_token
-            && let Some(next_token) =
-                context.next_non_whitespace_token_after_span(default_token.span)
+            && let Some(next_token) = context.next_token_after_span(default_token.span)
             && next_token.span.file == default_token.span.file
             && next_token.span.start > default_token.span.end
         {

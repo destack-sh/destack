@@ -246,7 +246,7 @@ pub(crate) fn chain_member_has_leading_gap_comment(
     let left_end = expression_trivia_anchor_end(context, left_id);
     let operation_end = context.span(node_id).end;
     let Some(operation_start) = context
-        .first_non_trivia_token_between(left_end, operation_end)
+        .first_token_between(left_end, operation_end)
         .map(|token| token.span.start)
     else {
         return false;

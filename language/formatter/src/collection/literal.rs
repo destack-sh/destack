@@ -42,7 +42,7 @@ fn scalar_literal_source_info(
     context: &DestackFormatContext<'_>,
     span: Span,
 ) -> (Option<String>, Option<TokenLiteral>) {
-    let token = context.first_non_trivia_token_in_span(span);
+    let token = context.first_token_in_span(span);
 
     (
         context.literal_lexeme_in_span(span).map(ToOwned::to_owned),

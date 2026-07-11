@@ -21,20 +21,19 @@ fn binary_expression_postfix_gap(
     expression_id: LocalNodeId<Expression>,
 ) -> Option<Span> {
     let expression_span = context.span(expression_id);
-    let gap_end =
-        if let Some(next_token) = context.next_non_trivia_token_after_span(expression_span) {
-            if next_token.span.file != expression_span.file
-                || next_token.span.start <= expression_span.end
-            {
-                return None;
-            }
+    let gap_end = if let Some(next_token) = context.next_token_after_span(expression_span) {
+        if next_token.span.file != expression_span.file
+            || next_token.span.start <= expression_span.end
+        {
+            return None;
+        }
 
-            next_token.span.start
-        } else {
-            let (line_index, _) = context.file.get_position(expression_span.end)?;
-            let line_span = context.file.get_line_span(line_index)?;
-            line_span.end
-        };
+        next_token.span.start
+    } else {
+        let (line_index, _) = context.file.get_position(expression_span.end)?;
+        let line_span = context.file.get_line_span(line_index)?;
+        line_span.end
+    };
 
     (gap_end > expression_span.end)
         .then(|| Span::new(expression_span.file, expression_span.end, gap_end))
@@ -115,24 +114,14 @@ fn binary_operator_is_remainder(operator: BinaryOperator) -> bool {
     operator == BinaryOperator::Remainder
 }
 
-/// Return the precedence value used by binary expression formatting.
-#[inline]
-pub(crate) fn binary_operator_format_precedence(operator: BinaryOperator) -> u16 {
-    if is_logical_binary_operator(operator) {
-        return operator.precedence();
-    }
-
-    operator.precedence_group() as u16
-}
-
 /// Return whether nested binaries should flatten into one chain.
 #[inline]
 pub(crate) fn should_flatten_binary(
     parent_operator: BinaryOperator,
     operator: BinaryOperator,
 ) -> bool {
-    let parent_precedence = binary_operator_format_precedence(parent_operator);
-    let precedence = binary_operator_format_precedence(operator);
+    let parent_precedence = parent_operator.precedence();
+    let precedence = operator.precedence();
 
     if parent_precedence != precedence {
         return false;
@@ -184,9 +173,9 @@ fn expression_is_same_binary_kind(expression: &Expression, operator: BinaryOpera
     )
 }
 
-/// Return precedence value for an expression.
+/// Return the precedence of one expression.
 #[inline]
-pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
+pub(crate) fn expression_precedence(expr: &Expression) -> OperatorPrecedence {
     match expr {
         // postfix operators
         Expression::Call { .. }
@@ -194,15 +183,13 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         | Expression::Index { .. }
         | Expression::Instantiation { .. }
         | Expression::Maybe { .. }
-        | Expression::Must { .. } => OperatorPrecedence::Postfix as u16,
+        | Expression::Must { .. } => OperatorPrecedence::Postfix,
 
         // postfix unary
-        Expression::Unary { operator, .. } if operator.is_postfix() => {
-            OperatorPrecedence::Postfix as u16
-        }
+        Expression::Unary { operator, .. } if operator.is_postfix() => OperatorPrecedence::Postfix,
 
         // prefix unary
-        Expression::Unary { .. } => OperatorPrecedence::Prefix as u16,
+        Expression::Unary { .. } => OperatorPrecedence::Prefix,
 
         // prefix expressions
         Expression::Await { .. }
@@ -213,14 +200,14 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
         | Expression::Throw { .. }
-        | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,
+        | Expression::Return { .. } => OperatorPrecedence::Prefix,
 
         // binary
-        Expression::Binary { operator, .. } => binary_operator_format_precedence(*operator),
-        Expression::As { .. } | Expression::Satisfies { .. } => u16::MAX,
-        Expression::Is { .. } | Expression::InstanceOf { .. } => {
-            OperatorPrecedence::Comparison as u16
-        }
+        Expression::Binary { operator, .. } => operator.precedence(),
+        Expression::As { .. }
+        | Expression::Satisfies { .. }
+        | Expression::Is { .. }
+        | Expression::InstanceOf { .. } => OperatorPrecedence::Comparison,
 
         // assignment
         Expression::Assign { operator, .. } => operator.precedence(),
@@ -229,10 +216,10 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         Expression::If {
             form: IfForm::Ternary,
             ..
-        } => OperatorPrecedence::Assignment as u16 - 1,
+        } => OperatorPrecedence::Conditional,
 
-        // atomic/primary expressions
-        _ => u16::MAX,
+        // primary expressions
+        _ => OperatorPrecedence::Primary,
     }
 }
 
@@ -631,10 +618,10 @@ fn collect_binary_chain_sides(
 /// Write one collected binary chain.
 fn write_binary_chain_sides<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    parts: &[BinarySide],
+    sides: &[BinarySide],
 ) -> FormatResult<()> {
-    for part in parts {
-        write!(f, [*part])?;
+    for side in sides {
+        write!(f, [*side])?;
     }
 
     Ok(())
@@ -712,12 +699,12 @@ pub(crate) fn format_binary_expression<'ast>(
 ) -> FormatResult<()> {
     let binary = BinaryLikeExpression::new(node_id);
     let is_inside_condition = binary.is_inside_condition(f.context());
-    let mut parts = BinarySideList::new();
-    collect_binary_chain_sides(binary, is_inside_condition, f.context(), &mut parts);
+    let mut sides = BinarySideList::new();
+    collect_binary_chain_sides(binary, is_inside_condition, f.context(), &mut sides);
 
     // condition position
     if is_inside_condition {
-        return write_binary_chain_sides(f, &parts);
+        return write_binary_chain_sides(f, &sides);
     }
 
     // parenthesized callee or object position
@@ -725,7 +712,7 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&soft_block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| { write_binary_chain_sides(f, &parts) }
+                |f: &mut DestackFormatter<'ast, '_>| { write_binary_chain_sides(f, &sides) }
             )))]
         );
     }
@@ -735,7 +722,7 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write_binary_chain_sides(f, &parts)
+                write_binary_chain_sides(f, &sides)
             }))]
         );
     }
@@ -743,7 +730,7 @@ pub(crate) fn format_binary_expression<'ast>(
     let should_inline_logical = binary.should_inline_logical_expression(f.context());
     let should_indent_if_parent_inlines =
         binary_parent_inlines_flattened_layout(f.context(), node_id);
-    let is_flattened = parts.len() > 2;
+    let is_flattened = sides.len() > 2;
 
     // direct grouped layout
     if (should_inline_logical && !is_flattened)
@@ -752,19 +739,19 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write_binary_chain_sides(f, &parts)
+                write_binary_chain_sides(f, &sides)
             }))]
         );
     }
 
-    let first = parts[0];
-    let last_is_tree = parts.last().is_some_and(|part| part.is_tree(f.context()));
+    let first = sides[0];
+    let last_is_tree = sides.last().is_some_and(|side| side.is_tree(f.context()));
     let tail_end = if last_is_tree {
-        parts.len().saturating_sub(1)
+        sides.len().saturating_sub(1)
     } else {
-        parts.len()
+        sides.len()
     };
-    let tail = &parts[1..tail_end];
+    let tail = &sides[1..tail_end];
     let group_id = f.group_id("logicalChain");
 
     let format_non_tree_parts = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -796,7 +783,7 @@ pub(crate) fn format_binary_expression<'ast>(
 
     // tree tail
     if last_is_tree {
-        let tree_tail = *parts.last().expect("tree tail requires one final part");
+        let tree_tail = sides[sides.len() - 1];
 
         return write!(
             f,

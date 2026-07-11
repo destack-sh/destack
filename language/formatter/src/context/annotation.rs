@@ -21,13 +21,13 @@ impl<'a> DestackFormatContext<'a> {
         self.span_starts_on_own_line(self.annotation_span(annotation_id))
     }
 
-    /// Return whether the next non-whitespace token after one annotation starts on the same line.
+    /// Return whether the next token after one annotation starts on the same line.
     pub fn annotation_next_token_is_on_same_line(
         &self,
         annotation_id: LocalNodeId<Decorator>,
     ) -> bool {
         let annotation_span = self.annotation_span(annotation_id);
-        let Some(next_token) = self.next_non_whitespace_token_after_span(annotation_span) else {
+        let Some(next_token) = self.next_token_after_span(annotation_span) else {
             return false;
         };
         if annotation_span.file != next_token.span.file {
@@ -38,13 +38,13 @@ impl<'a> DestackFormatContext<'a> {
             .is_same_line(annotation_span.end.saturating_sub(1), next_token.span.start)
     }
 
-    /// Return the next non-whitespace token type after one annotation span.
+    /// Return the next token type after one annotation span.
     #[inline]
-    pub fn annotation_next_non_whitespace_token_type(
+    pub fn annotation_next_token_type(
         &self,
         annotation_id: LocalNodeId<Decorator>,
     ) -> Option<TokenType> {
-        self.next_non_whitespace_token_after_span(self.annotation_span(annotation_id))
+        self.next_token_after_span(self.annotation_span(annotation_id))
             .map(|token| token.token.ty())
     }
 

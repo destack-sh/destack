@@ -84,8 +84,9 @@ fn range_operator_span(
     let search_span = Span::new(range_span.file, start, end);
 
     context
-        .non_trivia_tokens_in_span(search_span)
-        .into_iter()
+        .tokens_in_span(search_span)
+        .iter()
+        .copied()
         .find(|token| token.token.ty() == token_type)
         .map(|token| token.span)
 }

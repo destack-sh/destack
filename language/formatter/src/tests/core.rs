@@ -74,8 +74,7 @@ impl TestFormatter {
                 language,
                 ParserOptions {
                     trivia_mode: ParserTriviaMode::Full,
-                    preserve_parenthesized_wrappers: false,
-                    ..ParserOptions::default()
+                    retain_parentheses: false,
                 },
                 Arc::new(StringPool::new()),
             );
@@ -90,7 +89,7 @@ impl TestFormatter {
             let strings = parser.publish_strings().clone();
 
             (
-                parser.compute_side_span(),
+                parser.tree.decorator_span(),
                 parser.tree,
                 parents,
                 tokens,

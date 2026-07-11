@@ -2,8 +2,7 @@ use super::groups::{
     MemberChainGroup, TailChainGroups, build_tail_chain_groups, chain_head_member_count,
 };
 use crate::expression::{
-    parenthesized_expression_needs_preserved_wrapper,
-    transparent_wrapper_needs_parentheses_in_parent,
+    should_preserve_parenthesized_expression, should_preserve_source_parentheses,
 };
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
@@ -156,7 +155,7 @@ pub(crate) fn chain_nodes(
         chain.push(current);
 
         // semantic transparent wrappers become the base of the remaining chain
-        if transparent_wrapper_needs_parentheses_in_parent(context, current) {
+        if should_preserve_source_parentheses(context, current) {
             break;
         }
 
@@ -300,7 +299,7 @@ pub(crate) fn expression_trivia_anchor_end(
             .get_main_span(expression_id)
             .map_or(span.end, |path_span| path_span.end),
         _ => context
-            .last_non_trivia_token_in_span(span)
+            .last_token_in_span(span)
             .map_or(span.end, |token| token.span.end),
     }
 }
@@ -349,7 +348,7 @@ pub(crate) fn chain_member_from_node(
             };
             ChainMember::Member {
                 node_id: expression_id,
-                optional_position: maybe_position_for_left(tree, *left),
+                optional_position: left_postfix_position(tree, *left),
                 segment: name,
                 generic_arguments: vec![],
                 emit_prefix_annotations: false,
@@ -365,7 +364,7 @@ pub(crate) fn chain_member_from_node(
         } => ChainMember::Call {
             node_id: expression_id,
             call_position: CallExpressionPosition::End,
-            optional_position: maybe_position_for_left(tree, *left),
+            optional_position: left_postfix_position(tree, *left),
             position: *position,
             generic_arguments: generic_arguments.clone(),
             arguments: arguments.clone(),
@@ -383,7 +382,7 @@ pub(crate) fn chain_member_from_node(
             ..
         } => ChainMember::Index {
             node_id: expression_id,
-            optional_position: maybe_position_for_left(tree, *left),
+            optional_position: left_postfix_position(tree, *left),
             position: *position,
             index: *index,
         },
@@ -435,11 +434,8 @@ fn annotate_call_chain_positions(
     }
 }
 
-/// Return the optional postfix position stored on one left operand maybe wrapper.
-fn maybe_position_for_left(
-    tree: &Tree,
-    left_id: LocalNodeId<Expression>,
-) -> Option<PostfixPosition> {
+/// Return the optional postfix position stored on one left operand.
+fn left_postfix_position(tree: &Tree, left_id: LocalNodeId<Expression>) -> Option<PostfixPosition> {
     let Expression::Maybe { position, .. } = tree.get(left_id) else {
         return None;
     };
@@ -528,11 +524,7 @@ pub(crate) fn transparent_inner_expression(
 
         let next_id = match context.tree.get(current_id) {
             Expression::Parenthesized { expression } => {
-                if parenthesized_expression_needs_preserved_wrapper(
-                    context,
-                    current_id,
-                    *expression,
-                ) {
+                if should_preserve_parenthesized_expression(context, current_id, *expression) {
                     None
                 } else {
                     Some(*expression)

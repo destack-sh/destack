@@ -99,7 +99,7 @@ fn postfix_separator_comments(
         _ => return Vec::new(),
     };
 
-    context.comments_before_next_non_trivia_token_after_span(context.span(receiver_id))
+    context.comments_before_next_token_after_span(context.span(receiver_id))
 }
 
 /// Return whether one expression is a member-chain style receiver.
