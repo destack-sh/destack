@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::FlowPointId;
+use crate::check::{FlowPointId, Origin};
 
 /// One source use under a flow point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -16,8 +16,8 @@ pub(in crate::check) struct FlowSite {
 
 impl FlowSite {
     /// Return the work origin anchored at this site.
-    pub(in crate::check) fn origin(self) -> crate::check::Origin {
-        crate::check::Origin::Node(self.node, self.scope)
+    pub(in crate::check) fn origin(self) -> Origin {
+        Origin::Node(self.node, self.scope)
     }
 }
 

@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    Answer, CheckState, Decision, Dependency, FlowPath, FlowPointChange, FlowPredicate, FlowSite,
-    Origin, WalkState, answer,
+    Answer, CheckState, FlowPath, FlowPointChange, FlowPredicate, FlowSite, Origin, WalkState,
+    answer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -52,6 +52,7 @@ impl CheckState<'_> {
             dir::Expression::Member {
                 left,
                 name: Some(name),
+                ..
             } => {
                 // extend root path with the member key
                 let left = left.into_global(node.module_id);
@@ -74,6 +75,10 @@ impl CheckState<'_> {
                 path.push_segment(key);
 
                 Some(path)
+            }
+            // value?.member
+            dir::Expression::Chain { expression } => {
+                self.flow_path(expression.into_global(node.module_id))
             }
             // not a stable flow path
             _ => None,
@@ -226,7 +231,7 @@ impl CheckState<'_> {
         });
 
         // reduce the synthetic predicate operation through the normal reducer
-        let narrowed = self.intern_type(node.module_id, dir::Type::Operation(operation))?;
+        let narrowed = self.intern_operation(node.module_id, operation)?;
         let narrowed = match self.reduce_type_head(self.node_site(node)?.origin(), narrowed)? {
             Answer::Ready(ty) => ty,
             Answer::Pending(blockers) => return Ok(Answer::Pending(blockers)),
@@ -241,11 +246,17 @@ impl CheckState<'_> {
         origin: Origin,
         guard: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(decision) = self.decision(guard.into_any()).cloned() else {
-            return Ok(Answer::pending([Dependency::Decision(guard.into_any())]));
-        };
-
-        let Decision::Guard(resolution) = decision else {
+        // guards decide during their own check
+        if self.decision_kind(guard.into_any()).is_none() {
+            return Err(CompilerError::Internal {
+                message: format!("guard {guard:?} is undecided"),
+            });
+        }
+        let resolution = self
+            .resolutions(guard.module_id)
+            .guard_resolution(guard.into_any())
+            .cloned();
+        let Some(resolution) = resolution else {
             return Ok(Answer::Ready(None));
         };
 
@@ -290,11 +301,17 @@ impl CheckState<'_> {
         origin: Origin,
         pattern: dir::GlobalNodeId<dir::Pattern>,
     ) -> CompilerResult<Answer<Option<dir::GlobalTypeId>>> {
-        let Some(decision) = self.decision(pattern.into_any()).cloned() else {
-            return Ok(Answer::pending([Dependency::Decision(pattern.into_any())]));
-        };
-
-        let Decision::Pattern(resolution) = decision else {
+        // patterns decide during their own check
+        if self.decision_kind(pattern.into_any()).is_none() {
+            return Err(CompilerError::Internal {
+                message: format!("pattern {pattern:?} is undecided"),
+            });
+        }
+        let resolution = self
+            .resolutions(pattern.module_id)
+            .pattern_resolution(pattern.into_any())
+            .cloned();
+        let Some(resolution) = resolution else {
             return Ok(Answer::Ready(None));
         };
 
@@ -391,11 +408,12 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // membership probes only read, so the tested field stays covariant
         let field = dir::TypeField {
             key,
             ty,
             is_optional: false,
-            is_readonly: false,
+            is_readonly: true,
         };
         let fields = self.intern_fields(module, &[field])?;
         let shape = dir::ShapeType {
@@ -432,7 +450,7 @@ impl WalkState<'_, '_> {
         &mut self,
         path: FlowPath,
         predicate: PathPredicate,
-    ) -> CompilerResult<()> {
+    ) {
         let predicate = match predicate {
             // keep matching values
             PathPredicate::Is(target) => FlowPredicate::Type {
@@ -447,8 +465,6 @@ impl WalkState<'_, '_> {
             },
         };
         self.apply_flow_predicate(path, predicate);
-
-        Ok(())
     }
 
     /// Narrow one base flow path from a member predicate.
@@ -473,8 +489,9 @@ impl WalkState<'_, '_> {
                 PathPredicate::IsNot(target)
             }
         };
+        self.apply_path_predicate(path, predicate);
 
-        self.apply_path_predicate(path, predicate)
+        Ok(())
     }
 
     /// Return one single-field structural shape type.

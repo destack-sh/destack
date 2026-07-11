@@ -73,7 +73,6 @@ impl WalkState<'_, '_> {
                 .module(self.module)
                 .is_import_alias(symbol.local_id)
             && symbol != function
-            && !self.is_module_scoped_symbol(symbol)
             && !self.is_symbol_owned_by_function(symbol, function)
     }
 
@@ -82,16 +81,6 @@ impl WalkState<'_, '_> {
         self.flow()
             .lexical_receiver()
             .is_some_and(|(_, receiver)| receiver.symbol == symbol)
-    }
-
-    /// Return whether one symbol is declared in the module scope.
-    fn is_module_scoped_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
-        // read lexical scope for the symbol
-        let bindings = self.check.module(self.module).binding_table();
-        let symbol = bindings.get_symbol(symbol.local_id);
-        let scope = bindings.get_scope(symbol.scope);
-
-        scope.parent.is_none()
     }
 
     /// Return whether one symbol is declared under one function source node.

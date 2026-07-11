@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    Expectation, ExpectedType, FlowPath, FlowPredicate, Obligation, Origin, PatternCoverage,
-    PatternCoverageObligation, ValueUse, WalkState, Widening,
+    BodyOwner, BodyPhase, BodyTarget, ExpectedType, FlowPath, FlowPredicate, Obligation,
+    PatternCoverage, PatternCoverageObligation, ValueUse, WalkState, Widening,
 };
 
 impl WalkState<'_, '_> {
@@ -19,13 +19,21 @@ impl WalkState<'_, '_> {
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
         decorated: Option<dir::LocalNodeIdAny>,
+        is_ambient: bool,
     ) -> CompilerResult<()> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
         }
 
         if let Some(symbol) = self.direct_declarator_symbol(declarator) {
-            self.walk_direct_declarator(id, symbol, declarator, binding_kind, decorated)?;
+            self.walk_direct_declarator(
+                id,
+                symbol,
+                declarator,
+                binding_kind,
+                decorated,
+                is_ambient,
+            )?;
         } else {
             self.walk_pattern_declarator(id, declarator)?;
         }
@@ -46,11 +54,15 @@ impl WalkState<'_, '_> {
         declarator: &dir::Declarator,
         binding_kind: Option<dir::LetKind>,
         decorated: Option<dir::LocalNodeIdAny>,
+        is_ambient: bool,
     ) -> CompilerResult<()> {
         // bind annotated declarators before checking their initializers
         if let Some(ty) = declarator.ty {
-            let written = self.walk_type_expression(ty)?;
-            self.queue_bind_type(symbol, written);
+            let written = match is_ambient {
+                true => self.walk_static_type_expression(ty)?,
+                false => self.walk_type_expression(ty)?,
+            };
+            self.bind_symbol_type(symbol, written)?;
 
             // const unique symbols carry their declaration identity as a static value
             if binding_kind == Some(dir::LetKind::Const)
@@ -67,18 +79,18 @@ impl WalkState<'_, '_> {
                 self.commit_static_value(symbol, value)?;
             }
 
-            // check annotated initializers before ordinary inference can claim them
+            // record annotated initializers against their written type
             if let Some(value) = declarator.value {
-                let expectation = Expectation::assignable(
-                    written,
-                    Origin::Node(
-                        value.into_global_any(self.module),
-                        self.flow().template_scope(),
-                    ),
-                    ValueUse::Store,
-                );
                 self.walk_declarator_initializer(id, decorated, value)?;
-                self.queue_node_check(value, expectation)?;
+                self.check.bodies.push(BodyOwner {
+                    phase: BodyPhase::Main,
+                    module: self.module,
+                    body: BodyTarget::Node(value.into_any()),
+                    ret: Some(ExpectedType::Type(written)),
+                    generator: None,
+                    ret_use: ValueUse::Store,
+                    binds: None,
+                });
             }
 
             return Ok(());
@@ -94,7 +106,17 @@ impl WalkState<'_, '_> {
 
         // bind inferred declarations from their initializer
         if let Some(value) = declarator.value {
-            self.queue_bind_initializer(symbol, value, widening)?;
+            let index = self.check.bodies.len();
+            self.check.bodies.push(BodyOwner {
+                phase: BodyPhase::Main,
+                module: self.module,
+                body: BodyTarget::Node(value.into_any()),
+                ret: None,
+                generator: None,
+                ret_use: ValueUse::Store,
+                binds: Some((symbol, widening)),
+            });
+            self.check.initializers.insert(symbol, index);
 
             return Ok(());
         }
@@ -144,15 +166,27 @@ impl WalkState<'_, '_> {
             self.walk_expression(value, self.tree.get(value))?;
         }
 
-        // queue pattern checking from the initializer or annotation
+        // record pattern checking from the initializer or annotation
         if let Some(value) = declarator.value {
             let value_site = self.node_site(value)?;
-            let expectation = Expectation::assignable_node(
-                value_site,
-                Origin::Node(value_site.node, self.flow().template_scope()),
-                ValueUse::Store,
-            );
-            self.queue_node_check(declarator.pattern, expectation)?;
+            self.check.bodies.push(BodyOwner {
+                phase: BodyPhase::Main,
+                module: self.module,
+                body: BodyTarget::Node(value.into_any()),
+                ret: None,
+                generator: None,
+                ret_use: ValueUse::Store,
+                binds: None,
+            });
+            self.check.bodies.push(BodyOwner {
+                phase: BodyPhase::Main,
+                module: self.module,
+                body: BodyTarget::Node(declarator.pattern.into_any()),
+                ret: Some(ExpectedType::Node(value_site)),
+                generator: None,
+                ret_use: ValueUse::Store,
+                binds: None,
+            });
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
@@ -169,15 +203,15 @@ impl WalkState<'_, '_> {
             }
         } else if let Some(ty) = declarator.ty {
             let matched = self.walk_type_expression(ty)?;
-            let expectation = Expectation::assignable(
-                matched,
-                Origin::Node(
-                    ty.into_global_any(self.module),
-                    self.flow().template_scope(),
-                ),
-                ValueUse::Store,
-            );
-            self.queue_node_check(declarator.pattern, expectation)?;
+            self.check.bodies.push(BodyOwner {
+                phase: BodyPhase::Main,
+                module: self.module,
+                body: BodyTarget::Node(declarator.pattern.into_any()),
+                ret: Some(ExpectedType::Type(matched)),
+                generator: None,
+                ret_use: ValueUse::Store,
+                binds: None,
+            });
 
             // non-matching positions must always succeed
             if self.is_irrefutable_declarator_pattern_required(id) {
@@ -337,8 +371,10 @@ impl WalkState<'_, '_> {
                 let pattern = *pattern;
                 self.narrow_pattern(path, pattern, is_positive)?;
             }
-            // value
-            dir::Pattern::Expression { .. } => {
+            // value, start..end, a | b
+            dir::Pattern::Expression { .. }
+            | dir::Pattern::Range { .. }
+            | dir::Pattern::Union { .. } => {
                 let predicate = FlowPredicate::Pattern {
                     pattern: pattern.into_global(self.module),
                     is_positive,
@@ -372,27 +408,8 @@ impl WalkState<'_, '_> {
             }
             // _, name
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {}
-            // start..end
-            dir::Pattern::Range { .. } => {
-                let predicate = FlowPredicate::Pattern {
-                    pattern: pattern.into_global(self.module),
-                    is_positive,
-                };
-
-                self.apply_flow_predicate(path, predicate);
-            }
-            // a | b
-            dir::Pattern::Union { .. } => {
-                let predicate = FlowPredicate::Pattern {
-                    pattern: pattern.into_global(self.module),
-                    is_positive,
-                };
-
-                self.apply_flow_predicate(path, predicate);
-            }
             // [a, b], [...items]
-            dir::Pattern::Tuple { .. }
-            | dir::Pattern::Sequence { .. } => {}
+            dir::Pattern::Tuple { .. } | dir::Pattern::Sequence { .. } => {}
         }
 
         Ok(())

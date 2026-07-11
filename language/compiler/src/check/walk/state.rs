@@ -1,10 +1,10 @@
+use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::IndexMap;
 
 use crate::check::{
-    BindSource, CheckState, Constraint, ConstraintSubject, ExpectedType, FlowPointId, FlowSite,
-    FlowState, Origin, PlaceUse, Relation, Task, TypeConstraint, ValueUse, VariableRole, Widening,
+    CheckState, Constraint, ConstraintSubject, FlowPointId, FlowSite, FlowState, Origin, Relation,
+    TypeConstraint, ValueUse, VariableRole, Widening,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -23,7 +23,8 @@ pub(in crate::check) struct WalkState<'check, 'state> {
     /// Flow state for the current module walk.
     flow: FlowState,
     /// Entry flow point for each source node occurrence walked in this module.
-    node_flows: IndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
+    node_flows:
+        FxIndexMap<dir::GlobalNodeIdAny, (FlowPointId, Option<dir::GlobalGenericTemplateId>)>,
     /// Capture directive waiting for an immediate function value initializer.
     capture_directive: Option<dir::CaptureDirective>,
 }
@@ -37,49 +38,8 @@ enum BorrowLifetimeElision {
     TrackReturn,
     /// Elided borrow lifetimes close to the current frame.
     Frame,
-}
-
-/// Checked-position type expected for one expression occurrence.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct Expectation {
-    /// The type expected by this check.
-    pub(in crate::check) expected: ExpectedType,
-    /// The relation the expression value must satisfy.
-    pub(in crate::check) relation: Relation,
-    /// The source that produced this expectation.
-    pub(in crate::check) origin: Origin,
-    /// The expected value use.
-    pub(in crate::check) use_: ValueUse,
-}
-
-impl Expectation {
-    /// Create an assignable value expectation.
-    pub(in crate::check) fn assignable(
-        target: dir::GlobalTypeId,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> Self {
-        Self {
-            expected: ExpectedType::Type(target),
-            relation: Relation::Assignable,
-            origin,
-            use_,
-        }
-    }
-
-    /// Create an assignable value expectation from another node's type.
-    pub(in crate::check) fn assignable_node(
-        target: FlowSite,
-        origin: Origin,
-        use_: ValueUse,
-    ) -> Self {
-        Self {
-            expected: ExpectedType::Node(target),
-            relation: Relation::Assignable,
-            origin,
-            use_,
-        }
-    }
+    /// Elided borrow lifetimes close to the static lifetime.
+    Static,
 }
 
 impl<'check, 'state> WalkState<'check, 'state> {
@@ -147,9 +107,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return whether one declaration's implementation is a compiler intrinsic.
-    ///
-    /// A decorator resolving to the `intrinsic` language item carries
-    /// the implementation, so such declarations need no body.
     pub(in crate::check) fn is_intrinsic<T: dir::Node>(
         &mut self,
         id: dir::LocalNodeId<T>,
@@ -248,10 +205,20 @@ impl<'check, 'state> WalkState<'check, 'state> {
         result
     }
 
+    /// Walk one type expression with elided borrow lifetimes closed to static.
+    pub(in crate::check) fn walk_static_type_expression(
+        &mut self,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let previous = self.borrow_lifetime_elision;
+        self.borrow_lifetime_elision = BorrowLifetimeElision::Static;
+        let result = self.walk_type_expression(id);
+        self.borrow_lifetime_elision = previous;
+
+        result
+    }
+
     /// Return one induced lifetime for a synthesized receiver borrow.
-    ///
-    /// The synthesis runs outside type-expression walks, so the
-    /// generation is forced for its duration.
     pub(in crate::check) fn generated_receiver_borrow_lifetime(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -272,6 +239,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         if self.borrow_lifetime_elision == BorrowLifetimeElision::Frame {
             return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
                 dir::Lifetime::Frame,
+            )));
+        }
+        // ambient module bindings outlive every frame
+        if self.borrow_lifetime_elision == BorrowLifetimeElision::Static {
+            return self.intern_type(dir::Type::Memory(dir::MemoryLiteral::Lifetime(
+                dir::Lifetime::Static,
             )));
         }
 
@@ -317,9 +290,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             BorrowLifetimeElision::TrackReturn => {
                 self.return_borrow_lifetimes.push(variable);
             }
-            BorrowLifetimeElision::Frame => {
+            BorrowLifetimeElision::Frame | BorrowLifetimeElision::Static => {
                 return Err(CompilerError::Internal {
-                    message: "frame lifetime elision cannot record a generated variable".into(),
+                    message: "closed lifetime elision cannot record a generated variable".into(),
                 });
             }
         }
@@ -338,9 +311,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let variable = self
-            .check
-            .allocate_variable(self.module, origin, widening, role);
+        let variable = self.check.allocate_variable(origin, widening, role);
 
         self.check.variable_type(variable)
     }
@@ -362,11 +333,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         origin: Origin,
         relation: Relation,
-        left: dir::GlobalTypeId,
-        right: dir::GlobalTypeId,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
     ) {
+        let origin = self.check.intern_origin(origin);
         self.check
-            .push_constraint(Constraint::r#type(relation, left, right, origin));
+            .push_constraint(Constraint::r#type(relation, source, target, origin));
     }
 
     /// Collect one value relation constraint.
@@ -378,6 +350,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) {
+        let origin = self.check.intern_origin(origin);
         self.check.push_constraint(Constraint::value(
             relation,
             source,
@@ -396,81 +369,14 @@ impl<'check, 'state> WalkState<'check, 'state> {
         argument: dir::GlobalTypeId,
         bound: dir::GlobalTypeId,
     ) {
+        let origin = self.check.intern_origin(origin);
         self.check.push_constraint(Constraint::Type(TypeConstraint {
             relation: Relation::Satisfies,
-            left: argument,
-            right: bound,
+            source: argument,
+            target: bound,
             origin,
             subject: Some(ConstraintSubject::GenericArgument { source }),
         }));
-    }
-
-    /// Queue one source node task with an explicit place use.
-    pub(in crate::check) fn queue_node_task<T: dir::Node>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        use_: PlaceUse,
-    ) -> CompilerResult<()> {
-        let site = self.node_site(id)?;
-        self.check.queue_task(Task::Infer { site, use_ });
-
-        Ok(())
-    }
-
-    /// Walk one expression evaluated for its value.
-    pub(in crate::check) fn walk_value_expression(
-        &mut self,
-        id: dir::LocalNodeId<dir::Expression>,
-        use_: PlaceUse,
-    ) -> CompilerResult<()> {
-        self.walk_expression(id, self.tree.get(id))?;
-        self.queue_node_task(id, use_)
-    }
-
-    /// Queue one source node check task.
-    pub(in crate::check) fn queue_node_check<T: dir::Node>(
-        &mut self,
-        id: dir::LocalNodeId<T>,
-        expectation: Expectation,
-    ) -> CompilerResult<()> {
-        let site = self.node_site(id)?;
-        self.check.queue_task(Task::Check {
-            site,
-            expected: expectation.expected,
-            relation: expectation.relation,
-            origin: expectation.origin,
-            use_: expectation.use_,
-        });
-
-        Ok(())
-    }
-
-    /// Queue one symbol binding from an initializer expression.
-    pub(in crate::check) fn queue_bind_initializer(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        initializer: dir::LocalNodeId<dir::Expression>,
-        widening: Widening,
-    ) -> CompilerResult<()> {
-        let site = self.node_site(initializer)?;
-        self.check.queue_task(Task::Bind {
-            symbol,
-            source: BindSource::Initializer { site, widening },
-        });
-
-        Ok(())
-    }
-
-    /// Queue one symbol binding from a type graph.
-    pub(in crate::check) fn queue_bind_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        ty: dir::GlobalTypeId,
-    ) {
-        self.check.queue_task(Task::Bind {
-            symbol,
-            source: BindSource::Type(ty),
-        });
     }
 
     /// Return one symbol's type slot.
@@ -531,9 +437,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // infer declaration types when recursive and forward references need a slot
         let origin = Origin::Symbol(symbol);
-        let variable =
-            self.check
-                .allocate_variable(symbol.module_id, origin, widening, VariableRole::Regular);
+        let variable = self
+            .check
+            .allocate_variable(origin, widening, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_declaration_type(symbol, ty)?;
 
@@ -551,9 +457,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         let origin = Origin::Symbol(symbol);
-        let variable =
-            self.check
-                .allocate_variable(symbol.module_id, origin, widening, VariableRole::Regular);
+        let variable = self
+            .check
+            .allocate_variable(origin, widening, VariableRole::Regular);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_binding_type(symbol, ty)?;
 
@@ -561,9 +467,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Bind one symbol's type to an exact type.
-    ///
-    /// When no symbol type exists yet, the exact type becomes the stable symbol entry.
-    /// When a symbol type already exists, the existing entry is equated with the exact type.
     pub(in crate::check) fn bind_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -587,6 +490,47 @@ impl<'check, 'state> WalkState<'check, 'state> {
         ty: dir::Type,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.check.intern_type(self.module, ty)
+    }
+
+    /// Intern one borrow form into this module's working segment.
+    pub(in crate::check) fn intern_borrow(
+        &mut self,
+        lifetime: dir::GlobalTypeId,
+        access: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::Form> {
+        self.check.intern_borrow(self.module, lifetime, access)
+    }
+
+    /// Intern one member projection into this module's working segment.
+    pub(in crate::check) fn intern_member(
+        &mut self,
+        member: dir::MemberType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.intern_member(self.module, member)
+    }
+
+    /// Intern one refined application into this module's working segment.
+    pub(in crate::check) fn intern_refined(
+        &mut self,
+        refined: dir::RefinedType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.intern_refined(self.module, refined)
+    }
+
+    /// Intern one function signature into this module's working segment.
+    pub(in crate::check) fn intern_signature(
+        &mut self,
+        signature: dir::FunctionSignatureType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.intern_signature(self.module, signature)
+    }
+
+    /// Intern one type operation into this module's working segment.
+    pub(in crate::check) fn intern_operation(
+        &mut self,
+        operation: dir::TypeOperation,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check.intern_operation(self.module, operation)
     }
 
     /// Intern one type id list into this module's working segment.

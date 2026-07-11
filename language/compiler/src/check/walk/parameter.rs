@@ -1,7 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    Expectation, GenericParameterId, GenericTemplateId, Origin, ParameterType, ValueUse, WalkState,
+    BodyOwner, BodyPhase, BodyTarget, ExpectedType, GenericParameterId, GenericTemplateId,
+    ParameterType, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -209,19 +210,17 @@ impl WalkState<'_, '_> {
                 // check default after the parameter type is known
                 if let Some(default) = default {
                     let before_default = self.fork_flow();
-                    let expectation = parameter_type.map(|parameter_type| {
-                        Expectation::assignable(
-                            parameter_type.argument,
-                            Origin::Node(
-                                default.into_global_any(self.module),
-                                self.flow().template_scope(),
-                            ),
-                            ValueUse::Store,
-                        )
-                    });
                     self.walk_expression(default, self.tree.get(default))?;
-                    if let Some(expectation) = expectation {
-                        self.queue_node_check(default, expectation)?;
+                    if let Some(parameter_type) = parameter_type {
+                        self.check.bodies.push(BodyOwner {
+                            phase: BodyPhase::Main,
+                            module: self.module,
+                            body: BodyTarget::Node(default.into_any()),
+                            ret: Some(ExpectedType::Type(parameter_type.argument)),
+                            generator: None,
+                            ret_use: ValueUse::Store,
+                            binds: None,
+                        });
                     }
                     self.restore_flow(before_default);
                 }
@@ -272,33 +271,31 @@ impl WalkState<'_, '_> {
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
                 let parameter_type = self.walk_parameter_type(id, represents_open_type)?;
                 if let Some(parameter_type) = parameter_type {
-                    let expectation = Expectation::assignable(
-                        parameter_type.binding,
-                        Origin::Node(
-                            pattern.into_global_any(self.module),
-                            self.flow().template_scope(),
-                        ),
-                        ValueUse::Store,
-                    );
-                    self.queue_node_check(pattern, expectation)?;
+                    self.check.bodies.push(BodyOwner {
+                        phase: BodyPhase::Main,
+                        module: self.module,
+                        body: BodyTarget::Node(pattern.into_any()),
+                        ret: Some(ExpectedType::Type(parameter_type.binding)),
+                        generator: None,
+                        ret_use: ValueUse::Store,
+                        binds: None,
+                    });
                 }
 
                 // check default after the parameter type is known
                 if let Some(default) = default {
                     let before_default = self.fork_flow();
-                    let expectation = parameter_type.map(|parameter_type| {
-                        Expectation::assignable(
-                            parameter_type.argument,
-                            Origin::Node(
-                                default.into_global_any(self.module),
-                                self.flow().template_scope(),
-                            ),
-                            ValueUse::Store,
-                        )
-                    });
                     self.walk_expression(default, self.tree.get(default))?;
-                    if let Some(expectation) = expectation {
-                        self.queue_node_check(default, expectation)?;
+                    if let Some(parameter_type) = parameter_type {
+                        self.check.bodies.push(BodyOwner {
+                            phase: BodyPhase::Main,
+                            module: self.module,
+                            body: BodyTarget::Node(default.into_any()),
+                            ret: Some(ExpectedType::Type(parameter_type.argument)),
+                            generator: None,
+                            ret_use: ValueUse::Store,
+                            binds: None,
+                        });
                     }
                     self.restore_flow(before_default);
                 }
@@ -321,15 +318,15 @@ impl WalkState<'_, '_> {
                 // constrain pattern type from the parameter type
                 self.walk_pattern(pattern, self.tree.get(pattern))?;
                 if let Some(parameter_type) = self.walk_parameter_type(id, represents_open_type)? {
-                    let expectation = Expectation::assignable(
-                        parameter_type.binding,
-                        Origin::Node(
-                            pattern.into_global_any(self.module),
-                            self.flow().template_scope(),
-                        ),
-                        ValueUse::Store,
-                    );
-                    self.queue_node_check(pattern, expectation)?;
+                    self.check.bodies.push(BodyOwner {
+                        phase: BodyPhase::Main,
+                        module: self.module,
+                        body: BodyTarget::Node(pattern.into_any()),
+                        ret: Some(ExpectedType::Type(parameter_type.binding)),
+                        generator: None,
+                        ret_use: ValueUse::Store,
+                        binds: None,
+                    });
                     result = Some(parameter_type);
                 }
             }

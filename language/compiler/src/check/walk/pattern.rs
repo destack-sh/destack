@@ -76,16 +76,10 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_end);
                 }
             }
-            // [a, b], [...items], { name }
-            dir::Pattern::Tuple { fields } => {
-                let fields = fields.clone();
-
-                for field in fields {
-                    self.walk_pattern_field(field, self.tree.get(field))?;
-                }
-            }
-            // [a, b], [...items], { name }
-            dir::Pattern::Sequence { fields } | dir::Pattern::Object { fields } => {
+            // (a, b), [a, ...items], { name }
+            dir::Pattern::Tuple { fields }
+            | dir::Pattern::Sequence { fields }
+            | dir::Pattern::Object { fields } => {
                 let fields = fields.clone();
                 for field in fields {
                     self.walk_pattern_field(field, self.tree.get(field))?;

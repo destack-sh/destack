@@ -1,8 +1,9 @@
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    Capture, ControlTarget, FlowPath, FunctionFrame, Receiver, ReceiverBinding, TryTarget,
+    Capture, ControlTarget, ControlTargetForm, FlowPath, FunctionFrame, Receiver, ReceiverBinding,
+    TryTarget,
 };
 
 /// Flow state while walking one module.
@@ -19,11 +20,11 @@ pub(in crate::check) struct FlowState {
     /// Try targets currently visible to `?`.
     pub(in crate::check::flow) tries: Vec<TryTarget>,
     /// Places definitely assigned at the current walk point.
-    pub(in crate::check::flow) assigned: IndexSet<AssignedPlace>,
+    pub(in crate::check::flow) assigned: FxIndexSet<AssignedPlace>,
     /// Flow predicates keyed by stable path.
-    pub(in crate::check::flow) predicates: IndexMap<FlowPath, FlowPredicate>,
+    pub(in crate::check::flow) predicates: FxIndexMap<FlowPath, FlowPredicate>,
     /// Jumps that bound no target and complete as statements.
-    unbound_jumps: IndexSet<dir::LocalNodeIdAny>,
+    unbound_jumps: FxIndexSet<dir::LocalNodeIdAny>,
 
     /// Flow changes made since walking started.
     changes: Vec<FlowChange>,
@@ -42,9 +43,9 @@ impl Default for FlowState {
             template_scopes: Vec::new(),
             targets: Vec::new(),
             tries: Vec::new(),
-            assigned: IndexSet::new(),
-            predicates: IndexMap::new(),
-            unbound_jumps: IndexSet::new(),
+            assigned: FxIndexSet::default(),
+            predicates: FxIndexMap::default(),
+            unbound_jumps: FxIndexSet::default(),
             changes: Vec::new(),
             points: vec![FlowPoint {
                 parent: None,
@@ -113,17 +114,17 @@ pub(in crate::check) struct FlowCheckpoint {
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct FlowBranch {
     /// Places assigned by this branch.
-    assigned: IndexSet<AssignedPlace>,
+    assigned: FxIndexSet<AssignedPlace>,
     /// Predicates touched by this branch.
-    predicates: IndexMap<FlowPath, Option<FlowPredicate>>,
+    predicates: FxIndexMap<FlowPath, Option<FlowPredicate>>,
 }
 
 impl FlowBranch {
     /// Return an empty flow branch.
     pub(in crate::check) fn empty() -> Self {
         Self {
-            assigned: IndexSet::new(),
-            predicates: IndexMap::new(),
+            assigned: FxIndexSet::default(),
+            predicates: FxIndexMap::default(),
         }
     }
 
@@ -374,7 +375,7 @@ impl FlowState {
                 if let Some(label) = label {
                     (target.label == Some(label)).then_some(index)
                 } else {
-                    Some(index)
+                    target.form.accepts_unlabeled_break().then_some(index)
                 }
             })
     }
@@ -406,17 +407,16 @@ impl FlowState {
         target.checkpoint
     }
 
-    /// Push one break branch onto a chosen control target.
-    pub(in crate::check) fn push_break_branch(
-        &mut self,
-        index: usize,
-        value: dir::GlobalTypeId,
-        branch: FlowBranch,
-    ) {
-        let target = &mut self.targets[index];
+    /// Return the control form chosen by one target index.
+    pub(in crate::check) fn control_target_form(&self, index: usize) -> ControlTargetForm {
+        let target = &self.targets[index];
 
-        target.break_values.push(value);
-        target.break_branches.push(branch);
+        target.form
+    }
+
+    /// Push one break branch onto a chosen control target.
+    pub(in crate::check) fn push_break_branch(&mut self, index: usize, branch: FlowBranch) {
+        self.targets[index].break_branches.push(branch);
     }
 
     /// Push one continue branch onto a chosen control target.
@@ -523,8 +523,8 @@ impl FlowState {
 
     /// Return the branch changes made after one checkpoint.
     pub(in crate::check) fn branch(&self, checkpoint: FlowCheckpoint) -> FlowBranch {
-        let mut assigned = IndexSet::new();
-        let mut predicate_paths = IndexSet::new();
+        let mut assigned = FxIndexSet::default();
+        let mut predicate_paths = FxIndexSet::default();
 
         // collect flow state touched since the checkpoint
         for change in &self.changes[checkpoint.change_count..] {
@@ -631,7 +631,7 @@ impl FlowState {
         }
 
         // collect all touched predicate paths
-        let mut paths = IndexSet::new();
+        let mut paths = FxIndexSet::default();
         paths.extend(left.predicates.keys().cloned());
         paths.extend(right.predicates.keys().cloned());
 

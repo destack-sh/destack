@@ -22,7 +22,7 @@ impl CheckState<'_> {
         module: ModuleId,
         argument: dir::LocalNodeId<dir::Argument>,
     ) -> Option<dir::LanguageItem> {
-        let view = self.module(module).view();
+        let view = self.module_view(module);
         let value = view.get(argument).value()?;
         let target = match view.get(value) {
             dir::Expression::Call { left, .. } => *left,
@@ -41,14 +41,12 @@ impl CheckState<'_> {
     }
 
     /// Return the target resolved by one decorator application.
-    ///
-    /// Decorator names resolve eagerly because language item decorators affect later traversal.
     pub(in crate::check) fn decorator_target(
         &self,
         module: ModuleId,
         application: &DecoratorApplication,
     ) -> dir::DecoratorResolution {
-        let view = self.module(module).view();
+        let view = self.module_view(module);
 
         // require a bare decorator name
         if !matches!(

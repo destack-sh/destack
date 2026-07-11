@@ -47,6 +47,10 @@ impl WalkState<'_, '_> {
             | dir::Expression::Break { .. }
             | dir::Expression::Continue { .. }
             | dir::Expression::Throw { .. } => false,
+            // value?.member
+            dir::Expression::Chain { expression } => {
+                self.expression_can_complete_normally(*expression)
+            }
             // { ... }
             dir::Expression::Block(block) => {
                 self.block_can_complete_normally(self.tree.get(*block))

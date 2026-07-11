@@ -2,7 +2,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, PlaceUse, TemplatePass, WalkState};
+use crate::check::{
+    BodyOwner, BodyPhase, BodyTarget, CheckState, TemplatePass, ValueUse, WalkState,
+};
 
 impl CheckState<'_> {
     /// Declare every declaration template in one module.
@@ -65,10 +67,19 @@ impl CheckState<'_> {
 
         let mut walk = WalkState::new(module, tree, self);
 
-        // walk expanded roots
+        // walk expanded roots; module statements are the module's body
         for root in &expanded.roots {
-            walk.walk_value_expression(*root, PlaceUse::Read)?;
+            walk.walk_expression(*root, tree.get(*root))?;
         }
+        walk.check.bodies.push(BodyOwner {
+            phase: BodyPhase::Main,
+            module,
+            body: BodyTarget::Module,
+            ret: None,
+            generator: None,
+            ret_use: ValueUse::Store,
+            binds: None,
+        });
         walk.commit();
 
         Ok(())

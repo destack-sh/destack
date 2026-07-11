@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{Expectation, PlaceUse, WalkState};
+use crate::check::WalkState;
 
 impl WalkState<'_, '_> {
     /// Walk one block.
@@ -17,7 +17,6 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
-        result: Option<Expectation>,
     ) -> CompilerResult<()> {
         if !self.decide_decorated_presence(id.into_any())? {
             return Ok(());
@@ -30,7 +29,7 @@ impl WalkState<'_, '_> {
         for expression in &block.leading_expressions {
             // update flow through reachable expressions
             if is_reachable {
-                self.walk_value_expression(*expression, PlaceUse::Read)?;
+                self.walk_expression(*expression, self.tree.get(*expression))?;
                 is_reachable = self.expression_can_complete_normally(*expression);
             }
             // check unreachable expression in isolated flow
@@ -41,7 +40,7 @@ impl WalkState<'_, '_> {
                     warned_unreachable = true;
                 }
                 let before = self.fork_flow();
-                self.walk_value_expression(*expression, PlaceUse::Read)?;
+                self.walk_expression(*expression, self.tree.get(*expression))?;
                 self.restore_flow(before);
             }
         }
@@ -64,22 +63,12 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // set block value type
-        if block.context == dir::BlockContext::Expression {
-            // blocks that cannot reach their end never produce a value
-            if !is_reachable {
-                let never = self.intern_type(dir::Type::Never)?;
-                self.commit_node_type(id, never)?;
-            }
-            // queue checked blocks through their owner
-            else if let Some(result) = result {
-                self.queue_node_check(id, result)?;
-            } else {
-                self.queue_node_task(id, PlaceUse::Read)?;
-            }
-        } else {
-            let void = self.intern_type(dir::Type::Void)?;
-            self.commit_node_type(id, void)?;
+        // record unreached block ends; the checker types blocks
+        if !is_reachable {
+            self.check
+                .module_mut(self.module)
+                .unreachable_ends
+                .insert(id.into_any());
         }
 
         Ok(())

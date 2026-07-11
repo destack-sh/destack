@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConditionBranch, Expectation, ExpectedType, FlowPath, FlowPredicate, MatchCase, Obligation,
-    Origin, PatternCoverage, PatternCoverageObligation, Relation, StaticGate, ValueUse, WalkState,
+    ConditionBranch, ExpectedType, FlowPath, FlowPredicate, MatchCase, Obligation, PatternCoverage,
+    PatternCoverageObligation, StaticGate, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -21,8 +21,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let (value_expectation, value_path) = self.walk_match_scrutinee(value)?;
         let active_cases = self.active_match_cases(cases)?;
-        let coverage_cases =
-            self.walk_active_match_cases(value, &active_cases, &value_expectation, &value_path)?;
+        let coverage_cases = self.walk_active_match_cases(&active_cases, &value_path)?;
 
         self.queue_match_coverage(id, value_expectation, coverage_cases);
 
@@ -62,9 +61,7 @@ impl WalkState<'_, '_> {
     /// Walk present match cases with isolated branch flow.
     fn walk_active_match_cases(
         &mut self,
-        value: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::MatchCase>],
-        value_expectation: &ExpectedType,
         value_path: &Option<FlowPath>,
     ) -> CompilerResult<Vec<MatchCase>> {
         let before = self.fork_flow();
@@ -82,15 +79,7 @@ impl WalkState<'_, '_> {
             }
 
             // walk the arm under the current narrowed scrutinee
-            let expected = match value_path {
-                Some(_) => ExpectedType::Node(self.node_site(value)?),
-                None => *value_expectation,
-            };
-            self.walk_match_case(
-                *case,
-                self.tree.get(*case),
-                Some((expected, value_path.clone())),
-            )?;
+            self.walk_match_case(self.tree.get(*case), value_path.clone())?;
 
             // record the arm for exhaustiveness and later exclusions
             coverage_cases.extend(self.match_case_coverage(*case)?);
@@ -128,26 +117,25 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// case Some(value) if value > 0 => value
     /// ```
-    pub(in crate::check) fn walk_match_case(
+    fn walk_match_case(
         &mut self,
-        _id: dir::LocalNodeId<dir::MatchCase>,
         match_case: &dir::MatchCase,
-        value: Option<(ExpectedType, Option<FlowPath>)>,
+        value_path: Option<FlowPath>,
     ) -> CompilerResult<()> {
         match match_case {
             // case pattern if guard => expression
             dir::MatchCase::Expression { selector, body } => {
                 // enter selector flow before the body
-                self.walk_match_selector(selector, value)?;
+                self.walk_match_selector(selector, value_path)?;
 
                 self.walk_expression(*body, self.tree.get(*body))?;
             }
             // case pattern if guard { ... }
             dir::MatchCase::Block { selector, body } => {
                 // enter selector flow before the body
-                self.walk_match_selector(selector, value)?;
+                self.walk_match_selector(selector, value_path)?;
 
-                self.walk_block(*body, self.tree.get(*body), None)?;
+                self.walk_block(*body, self.tree.get(*body))?;
             }
         };
 
@@ -163,7 +151,7 @@ impl WalkState<'_, '_> {
     fn walk_match_selector(
         &mut self,
         selector: &dir::MatchSelector,
-        value: Option<(ExpectedType, Option<FlowPath>)>,
+        value_path: Option<FlowPath>,
     ) -> CompilerResult<()> {
         match selector {
             // case pattern if guard
@@ -171,21 +159,9 @@ impl WalkState<'_, '_> {
                 // constrain pattern type from the matched value
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                if let Some((expected, path)) = value {
-                    let expectation = Expectation {
-                        expected,
-                        relation: Relation::Assignable,
-                        origin: Origin::Node(
-                            pattern.into_global_any(self.module),
-                            self.flow().template_scope(),
-                        ),
-                        use_: ValueUse::Store,
-                    };
-                    self.queue_node_check(*pattern, expectation)?;
-
-                    if let Some(path) = path {
-                        self.narrow_pattern(path, *pattern, true)?;
-                    }
+                // narrow the scrutinee path by the matched pattern
+                if let Some(path) = value_path {
+                    self.narrow_pattern(path, *pattern, true)?;
                 }
 
                 // pattern bindings are assigned in the matching arm
@@ -193,9 +169,7 @@ impl WalkState<'_, '_> {
 
                 // if guard
                 if let Some(guard) = guard {
-                    let expectation = self.condition_expectation(*guard)?;
                     self.walk_expression(*guard, self.tree.get(*guard))?;
-                    self.queue_node_check(*guard, expectation)?;
                     self.narrow_expression(*guard, ConditionBranch::True)?;
                 }
             }

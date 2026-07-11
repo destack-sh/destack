@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Expectation, ExpectedType, PlaceUse, TaskScope, ValueUse, Widening,
+    Answer, CheckState, Checked, Expectation, ExpectedType, PlaceUse, TaskScope, ValueUse, Widening,
 };
 
 /// Yield targets for one generator body.
@@ -117,8 +117,8 @@ impl<'check, 'state> BodyState<'check, 'state> {
             Some(ExpectedType::Node(site)) => {
                 let ty = check.require_node_type(site.node)?;
                 match check.flow_type_at(site, ty)? {
-                    crate::check::Answer::Ready(ty) => Some(ty),
-                    crate::check::Answer::Pending(_) => None,
+                    Answer::Ready(ty) => Some(ty),
+                    Answer::Pending(_) => None,
                 }
             }
             None => None,
@@ -151,7 +151,7 @@ impl<'check, 'state> BodyState<'check, 'state> {
     }
 
     /// Check the module's top-level statements as one body.
-    fn check_module_body(&mut self) -> CompilerResult<crate::check::Checked> {
+    fn check_module_body(&mut self) -> CompilerResult<Checked> {
         let module = self.module;
         let roots = self.check.module(module).expanded.roots.clone();
         let mut holds = true;
@@ -165,11 +165,11 @@ impl<'check, 'state> BodyState<'check, 'state> {
         }
         let ty = self.check.intern_type(module, dir::Type::Void)?;
 
-        Ok(crate::check::Checked { ty, holds })
+        Ok(Checked { ty, holds })
     }
 
     /// Check one body expression against the return target.
-    fn check_body(&mut self, body: dir::LocalNodeIdAny) -> CompilerResult<crate::check::Checked> {
+    fn check_body(&mut self, body: dir::LocalNodeIdAny) -> CompilerResult<Checked> {
         let site = self.node_site(body.into_global(self.module))?;
         let expectation = self
             .ret

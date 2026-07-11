@@ -59,12 +59,12 @@ impl CheckState<'_> {
 
     /// Return whether one decorator is the compiler builtin `@if`.
     fn is_static_if_decorator(&self, module: ModuleId, application: &DecoratorApplication) -> bool {
-        let view = self.module(module).view();
+        let view = self.module_view(module);
         let dir::Expression::Identifier { name } = view.get(application.target) else {
             return false;
         };
 
-        self.module(module).strings.get(*name) == "if"
+        self.strings().get(*name) == "if"
     }
 
     /// Return the static condition shape from `@if`.
@@ -80,7 +80,7 @@ impl CheckState<'_> {
                 return StaticIfCondition::Multiple;
             }
         };
-        let view = self.module(module).view();
+        let view = self.module_view(module);
         let dir::Argument::Positional { value } = view.get(*argument) else {
             return StaticIfCondition::Invalid {
                 argument: *argument,
