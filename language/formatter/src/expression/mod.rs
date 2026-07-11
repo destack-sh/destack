@@ -22,14 +22,14 @@ pub(crate) use self::member::{
     write_index_access,
 };
 pub(crate) use self::parentheses::{
-    expression_needs_parentheses_in_parent, parenthesized_expression_needs_preserved_wrapper,
-    transparent_wrapper_needs_parentheses_in_parent,
+    expression_needs_parentheses_in_parent, should_preserve_parenthesized_expression,
+    should_preserve_source_parentheses,
 };
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,
 };
 pub(crate) use self::shape::{
-    ExpressionLeftSide, array_elements_are_fill_candidates, array_has_only_outer_comments,
+    ExpressionLeftPath, array_elements_are_fill_candidates, array_has_only_outer_comments,
 };
 pub use self::shape::{
     is_expression_breakable, is_pattern_breakable, is_trivial_argument, is_trivial_expression,

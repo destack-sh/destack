@@ -1,6 +1,7 @@
+use super::ternary::{expression_is_ternary_branch, ternary_branch_is_tree_like};
 use crate::DestackFormatContext;
 use crate::declaration::expression_is_in_statement_context;
-use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
+use crate::operator::should_flatten_binary;
 use destack_dir::{
     Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfForm,
     LocalNodeId, MatchCase, MatchForm, NodeType, OperatorPrecedence, Property, TypeExpression,
@@ -510,8 +511,8 @@ fn expression_binary_like_needs_parentheses_in_parent(
             return parent_operator != operator;
         }
 
-        let parent_precedence = binary_operator_format_precedence(*parent_operator);
-        let precedence = binary_operator_format_precedence(*operator);
+        let parent_precedence = parent_operator.precedence();
+        let precedence = operator.precedence();
 
         if parent_precedence > precedence {
             return true;
@@ -528,7 +529,7 @@ fn expression_binary_like_needs_parentheses_in_parent(
 
         if parent_precedence < precedence
             && *operator == BinaryOperator::Remainder
-            && parent_operator.precedence_group() == OperatorPrecedence::Addition
+            && parent_operator.precedence() == OperatorPrecedence::Addition
         {
             return true;
         }
@@ -543,7 +544,7 @@ fn expression_binary_like_needs_parentheses_in_parent(
 /// Return whether one binary operator groups like bitwise or shift.
 fn binary_operator_is_bitwise_or_shift(operator: BinaryOperator) -> bool {
     matches!(
-        operator.precedence_group(),
+        operator.precedence(),
         OperatorPrecedence::BitwiseOr
             | OperatorPrecedence::BitwiseXor
             | OperatorPrecedence::BitwiseAnd
@@ -652,8 +653,8 @@ fn statement_like_value_needs_parentheses_in_parent(
         )
 }
 
-/// Return whether one explicit wrapper is required by a postfix parent.
-fn parenthesized_wrapper_required_by_parent(
+/// Return whether one explicit parenthesized expression is required by its parent.
+fn is_parenthesized_expression_required_by_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
@@ -679,8 +680,8 @@ fn parenthesized_wrapper_required_by_parent(
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
 }
 
-/// Return whether one explicit wrapper is required by a postfix parent.
-fn parenthesized_postfix_wrapper_required_by_parent(
+/// Return whether parentheses change one postfix parent.
+fn does_parenthesized_expression_change_postfix_parent(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
@@ -697,22 +698,21 @@ fn parenthesized_postfix_wrapper_required_by_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
 
-    postfix_wrapper_is_semantic_in_parent(
+    is_postfix_parent_changed_by_parentheses(
         context.tree.get(expression_id),
         parent_expression,
         parent_child_id,
     )
 }
 
-/// Return whether one node came from a skipped transparent wrapper.
-fn expression_has_transparent_wrapper(
+/// Return the elided source parentheses around one expression.
+pub(crate) fn source_parentheses_span(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
-) -> bool {
+) -> Option<Span> {
     context
         .tree
-        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Wrapper))
-        .is_some()
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Parentheses))
 }
 
 /// Return whether one expression is a callable selection.
@@ -723,8 +723,8 @@ fn expression_is_callable_selection(child_expression: &Expression) -> bool {
     )
 }
 
-/// Return whether one wrapper changes postfix parsing.
-fn postfix_wrapper_is_semantic_in_parent(
+/// Return whether parentheses change postfix parsing in one parent.
+fn is_postfix_parent_changed_by_parentheses(
     child_expression: &Expression,
     parent_expression: &Expression,
     parent_child_id: LocalNodeId<Expression>,
@@ -748,15 +748,32 @@ fn postfix_wrapper_is_semantic_in_parent(
     }
 }
 
-/// Return whether one skipped transparent wrapper must be restored in its parent.
-pub(crate) fn transparent_wrapper_needs_parentheses_in_parent(
+/// Return whether elided source parentheses must be preserved.
+pub(crate) fn should_preserve_source_parentheses(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    if !expression_has_transparent_wrapper(context, node_id) {
+    let Some(parentheses_span) = source_parentheses_span(context, node_id) else {
+        return false;
+    };
+
+    // tree ternaries own branch grouping and comments
+    if ternary_branch_is_tree_like(context, node_id)
+        && expression_is_ternary_branch(context, node_id)
+    {
         return false;
     }
 
+    // preserve comments owned by the parentheses interior
+    let expression_end = context.node_token_end(node_id);
+    if !context
+        .comment_tokens_in_range(expression_end, parentheses_span.end)
+        .is_empty()
+    {
+        return true;
+    }
+
+    // otherwise preserve only parentheses that change postfix parsing
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
         return false;
     };
@@ -766,7 +783,7 @@ pub(crate) fn transparent_wrapper_needs_parentheses_in_parent(
 
     let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
 
-    postfix_wrapper_is_semantic_in_parent(context.tree.get(node_id), parent_expression, node_id)
+    is_postfix_parent_changed_by_parentheses(context.tree.get(node_id), parent_expression, node_id)
 }
 
 /// Return whether one expression needs derived parentheses in its parent.
@@ -851,8 +868,8 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
 
-    // skipped transparent wrappers are restored when they carry parse meaning
-    if transparent_wrapper_needs_parentheses_in_parent(context, node_id) {
+    // elided source parentheses are preserved when they carry parse meaning
+    if should_preserve_source_parentheses(context, node_id) {
         return true;
     }
 
@@ -989,8 +1006,8 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     false
 }
 
-/// Return whether one explicit parenthesized wrapper must stay visible.
-pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
+/// Return whether one explicit parenthesized expression must stay visible.
+pub(crate) fn should_preserve_parenthesized_expression(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     expression_id: LocalNodeId<Expression>,
@@ -1005,13 +1022,23 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
         return true;
     }
 
+    // comments before `)` stay inside the parentheses
+    let inner_token_end = context.node_token_end(expression_id);
+    let outer_token_end = context.node_token_end(node_id);
+    if !context
+        .comment_tokens_in_range(inner_token_end, outer_token_end)
+        .is_empty()
+    {
+        return true;
+    }
+
     // statement context owns its parentheses directly
     if expression_is_in_statement_context(context, node_id) {
         return false;
     }
 
-    // postfix wrappers can carry parse meaning
-    if parenthesized_postfix_wrapper_required_by_parent(context, node_id, expression_id) {
+    // parentheses can carry postfix parse meaning
+    if does_parenthesized_expression_change_postfix_parent(context, node_id, expression_id) {
         return true;
     }
 
@@ -1020,12 +1047,12 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
         return false;
     }
 
-    // postfix parents require the explicit wrapper around lower precedence children
-    if parenthesized_wrapper_required_by_parent(context, node_id, expression_id) {
+    // postfix parents require parentheses around lower precedence children
+    if is_parenthesized_expression_required_by_parent(context, node_id, expression_id) {
         return true;
     }
 
-    // class and function wrappers in postfix-like parents should defer to the inner expression
+    // parenthesized class and function expressions defer to the inner expression
     if expression_is_class_or_function_declaration(context, expression_id) {
         let Some((parent_id, parent_type, parent_child_id)) =
             effective_expression_parent(context, node_id)
@@ -1045,26 +1072,26 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
         }
     }
 
-    // wrapper span
+    // parenthesis span
     let outer_span = context.span(node_id);
     let outer_token_start = context.node_token_start(node_id);
     let inner_token_start = context.node_token_start(expression_id);
-    let wrapper_start = Span::new(outer_span.file, outer_token_start, outer_token_start);
+    let parentheses_start = Span::new(outer_span.file, outer_token_start, outer_token_start);
 
     // comment scan start
     let comment_scan_start = context
-        .previous_non_trivia_token_before_span(wrapper_start)
+        .previous_token_before_span(parentheses_start)
         .map_or(outer_span.start, |token| token.span.end);
 
-    // comments before `(` stay attached to the wrapper
-    let has_leading_wrapper_comments = context
+    // comments before `(` stay attached to the parentheses
+    let has_leading_parentheses_comments = context
         .comment_tokens_in_range(comment_scan_start, inner_token_start)
         .iter()
         .any(|comment| comment.span.start < outer_token_start);
-    if has_leading_wrapper_comments {
+    if has_leading_parentheses_comments {
         return true;
     }
 
-    // multiline wrappers stay visible
+    // multiline parentheses stay visible
     context.has_newline(outer_span)
 }

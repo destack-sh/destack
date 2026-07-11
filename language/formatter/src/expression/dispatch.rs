@@ -1,3 +1,4 @@
+use super::parentheses::source_parentheses_span;
 use super::ternary::expression_is_ternary_branch;
 use crate::annotation::{format_leading_comments, format_trailing_comments, prefix_annotations};
 use crate::context::FormatNodeWithoutTrailingComments;
@@ -7,13 +8,45 @@ use crate::expression::{
 };
 use crate::file::{node_has_ignore_directive, write_ignored_node};
 use crate::operator::{format_operator_expression, write_operator_expression_trailing_annotations};
-use crate::{DestackFormatter, FormatNode};
+use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::ensure_sufficient_stack;
 use destack_dir::{Expression, LocalNodeId};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{format_with, token};
 use destack_fir::write;
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+
+/// Return the enclosing and preceding spans for trailing expression comments.
+fn expression_trailing_comment_spans(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> (Span, Span) {
+    let expression_span = context.span(expression_id);
+    let parent = context.parent(expression_id);
+    let parent_span = parent.map(|(parent_id, _)| context.span_by_id(parent_id));
+    let Some(parentheses_span) = source_parentheses_span(context, expression_id) else {
+        return (parent_span.unwrap_or(expression_span), expression_span);
+    };
+
+    // comments before the close token belong inside the parentheses
+    let interior_comments =
+        context.comment_tokens_in_range(expression_span.end, parentheses_span.end);
+    if !interior_comments.is_empty() {
+        return (parentheses_span, expression_span);
+    }
+
+    // comments after the close token follow the complete wrapped expression
+    let parent_parentheses_span = parent.and_then(|(parent_id, _)| {
+        context
+            .tree
+            .get_side_span_by_id(parent_id, NodeSpanType::Region(NodeSpanRegion::Parentheses))
+    });
+    let enclosing_span = parent_parentheses_span
+        .or(parent_span)
+        .unwrap_or(parentheses_span);
+
+    (enclosing_span, parentheses_span)
+}
 
 /// Write one expression after prefix annotations are handled externally.
 fn write_expression_without_prefix_annotations_inner<'ast>(
@@ -151,12 +184,8 @@ fn write_expression_trailing_node_annotations<'ast>(
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
-    let expression_span = f.context().span(expression_id);
-    let enclosing_span = f
-        .context()
-        .parent(expression_id)
-        .map(|(parent_id, _)| f.context().span_by_id(parent_id))
-        .unwrap_or(expression_span);
+    let (enclosing_span, preceding_span) =
+        expression_trailing_comment_spans(f.context(), expression_id);
     let following_span_start = f.context().following_span_start();
 
     let is_tree_literal_ternary_branch = matches!(expression, Expression::TreeExpression { .. })
@@ -167,7 +196,7 @@ fn write_expression_trailing_node_annotations<'ast>(
             f,
             [format_trailing_comments(
                 enclosing_span,
-                expression_span,
+                preceding_span,
                 following_span_start
             )]
         )?;

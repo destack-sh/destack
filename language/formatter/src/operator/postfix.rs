@@ -1,5 +1,5 @@
 use crate::expression::{
-    transparent_wrapper_needs_parentheses_in_parent, write_expression_without_derived_parentheses,
+    should_preserve_source_parentheses, write_expression_without_derived_parentheses,
 };
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{Expression, LocalNodeId, NodeType, OperatorPrecedence, ScalarLiteral, Tree};
@@ -24,7 +24,7 @@ pub(crate) fn needs_parens_in_postfix_position(
         return true;
     }
 
-    expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix as u16
+    expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix
 }
 
 /// Format one expression as the receiver of a postfix operation.
@@ -41,7 +41,7 @@ pub(crate) fn write_postfix_base_expression<'ast>(
     });
     let needs_parentheses = needs_parens_in_postfix_position(f.context().tree, expression_id)
         || needs_integer_member_parentheses
-        || transparent_wrapper_needs_parentheses_in_parent(f.context(), expression_id);
+        || should_preserve_source_parentheses(f.context(), expression_id);
     if needs_parentheses {
         write!(
             f,

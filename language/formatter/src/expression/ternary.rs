@@ -179,8 +179,8 @@ fn expression_is_ternary(
     )
 }
 
-/// Return the outermost explicit wrapper that still belongs to one ternary.
-fn outermost_parenthesized_ternary_wrapper(
+/// Return the outermost parenthesized expression that still belongs to one ternary.
+fn outermost_parenthesized_ternary_expression(
     context: &DestackFormatContext<'_>,
     mut node_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
@@ -209,8 +209,8 @@ fn ternary_layout(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> ConditionalLayout {
-    let wrapped_id = outermost_parenthesized_ternary_wrapper(context, node_id);
-    let Some((parent_id, parent_type)) = context.parent(wrapped_id) else {
+    let parenthesized_id = outermost_parenthesized_ternary_expression(context, node_id);
+    let Some((parent_id, parent_type)) = context.parent(parenthesized_id) else {
         return ConditionalLayout::Root;
     };
     if parent_type != NodeType::Expression {
@@ -225,15 +225,17 @@ fn ternary_layout(
         return ConditionalLayout::Root;
     };
 
-    if condition_id.id == wrapped_id.id {
+    if condition_id.id == parenthesized_id.id {
         return ConditionalLayout::NestedTest;
     }
 
-    if then_expression_id.id == wrapped_id.id {
+    if then_expression_id.id == parenthesized_id.id {
         return ConditionalLayout::NestedConsequent;
     }
 
-    if else_expression_id.is_some_and(|else_expression_id| else_expression_id.id == wrapped_id.id) {
+    if else_expression_id
+        .is_some_and(|else_expression_id| else_expression_id.id == parenthesized_id.id)
+    {
         return ConditionalLayout::NestedAlternate;
     }
 
@@ -306,10 +308,13 @@ pub(crate) fn ternary_branch_trailing_comments<'a>(
         return Some((branch_end, comments));
     }
 
+    // cover comments owned by the branch parentheses or the complete ternary
     let parent_span = context.tree.get_source_extent(parent_id);
+    let branch_span = context.tree.get_source_extent(expression_id);
+    let trailing_span = parent_span.merge(branch_span);
     let comments = context
         .comments()
-        .comments_in_range(branch_end, parent_span.end);
+        .comments_in_range(branch_end, trailing_span.end);
 
     Some((branch_end, comments))
 }
