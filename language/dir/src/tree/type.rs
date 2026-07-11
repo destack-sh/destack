@@ -309,17 +309,6 @@ pub enum InferForm {
 /// A type-space expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum TypeExpression {
-    /// Parenthesized type expression.
-    ///
-    /// Examples:
-    /// ```
-    /// (T)
-    /// (string | number)
-    /// ```
-    Parenthesized {
-        expression: LocalNodeId<TypeExpression>,
-    },
-
     /// Scalar literal type.
     ///
     /// Examples:
